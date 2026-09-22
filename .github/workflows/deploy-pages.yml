@@ -2,7 +2,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: [main]
+  # Feature branches get the build and the type check, but never a deployment.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 # Required by actions/deploy-pages.
@@ -11,10 +14,11 @@ permissions:
   pages: write
   id-token: write
 
-# Never let two deployments race each other; the newest push wins.
+# Queue deployments instead of cancelling them: interrupting a Pages deployment
+# half way through can leave the live site in a broken state.
 concurrency:
   group: github-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -46,6 +50,9 @@ jobs:
 
   deploy:
     needs: build
+    # The github-pages environment only accepts deployments from the default
+    # branch, so anything else would fail this job with a protection-rule error.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

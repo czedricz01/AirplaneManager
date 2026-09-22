@@ -92,13 +92,13 @@ Läuft dann ebenfalls auf <http://localhost:3000>, aber ohne Hot Reload.
 
 ## Veröffentlichung über GitHub Pages
 
-`.github/workflows/deploy-pages.yml` baut die Seite bei jedem Push nach `main` (und
-nach `claude/*`) und stellt sie auf GitHub Pages bereit.
+Live: **https://czedricz01.github.io/AirplaneManager/**
 
-**Einmalig einzurichten:** im Repository unter *Settings → Pages* bei **Source**
-**„GitHub Actions"** auswählen. Danach läuft alles automatisch.
+`.github/workflows/deploy-pages.yml` baut die Seite bei jedem Push nach `main` und
+veröffentlicht sie. Pull Requests werden nur gebaut und typgeprüft, nicht deployt —
+die Umgebung `github-pages` nimmt Deployments ausschließlich vom Standardbranch an.
 
-Adresse: `https://czedricz01.github.io/AirplaneManager/`
+Einmalig eingerichtet: *Settings → Pages → Source: GitHub Actions*.
 
 > Da das Repository öffentlich ist, sind Quellcode und Zugangsdaten ohnehin für
 > jeden einsehbar. Wer das nicht will, stellt das Repository auf privat — dafür
