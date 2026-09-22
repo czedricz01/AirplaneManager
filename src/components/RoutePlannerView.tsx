@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen } from 'lucide-react';
+import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { OwnedAircraft } from './MyFleetView';
@@ -24,7 +24,8 @@ import {
   getSatMultiplier,
   getPriceDemandMultiplier,
   adjustSatForDifficulty,
-  validateClassConfigs
+  validateClassConfigs,
+  getFlightDurationMinutes as sharedFlightDurationMinutes
 } from '../lib/financeUtils';
 
 interface Props {
@@ -472,30 +473,9 @@ export function RoutePlannerView({
   }
 
   function getFlightDurationMinutes(dest?: Airport) {
-    const target = dest || selectedDest;
-    if (!selectedOrigin || !target || !selectedAircraft) return 0;
-    
-    // Distance in km
-    const d_km = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], target.coords[0], target.coords[1]));
-    if (isNaN(d_km)) return 0;
-    const d_curved = d_km * 1.02; 
-    
-    const v_cruise = Number(selectedAircraft.cruiseSpeed) || 800; // Fallback if missing
-    const a_accel = 6000; 
-    const a_decel = 4000; 
-
-    const t_accel_h = v_cruise / a_accel;
-    const s_accel = 0.5 * a_accel * (t_accel_h * t_accel_h);
-
-    const t_decel_h = v_cruise / a_decel;
-    const s_decel = 0.5 * a_decel * (t_decel_h * t_decel_h);
-
-    const s_cruise = Math.max(0, d_curved - s_accel - s_decel);
-    const t_cruise_h = s_cruise / v_cruise;
-
-    const totalHours = t_accel_h + t_cruise_h + t_decel_h;
-    const finalDur = Math.round(totalHours * 60);
-    return isNaN(finalDur) ? 0 : finalDur;
+    // The model itself lives in financeUtils so the schedule editor computes the
+    // same block time this planner priced the route with.
+    return sharedFlightDurationMinutes(selectedOrigin, dest || selectedDest, selectedAircraft);
   }
 
   function getTurnoverMinutes() {
@@ -1487,8 +1467,19 @@ export function RoutePlannerView({
              </div>
           </div>
           <div className="flex items-center gap-2">
+            {/*
+              This is the wizard's only error channel — range violations, missing
+              slots, ICAO limits and failed schedule fits all surface here. It
+              used to render black text on #111 at 9px, a contrast ratio of about
+              1.06:1, so the player saw a disabled Next button and no reason for
+              it. Made legible, and announced to assistive tech.
+            */}
             {validationMsg && (
-              <div className="bg-[#111] text-black px-2 py-0.5 font-black uppercase tracking-widest text-[9px] mr-2">
+              <div
+                role="alert"
+                className="flex items-center gap-1.5 bg-aero-warn/15 border border-aero-warn/50 text-aero-warn px-2.5 py-1 font-bold uppercase tracking-wider text-[11px] mr-2"
+              >
+                <AlertTriangle size={12} className="shrink-0" />
                 {validationMsg}
               </div>
             )}
@@ -3362,7 +3353,7 @@ export function RoutePlannerView({
                                   first: aircraftConfig.first || 0
                                 };
                                 const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]));
-                                const tc = getFlightTimeClass(selectedAircraft ? ((dist / selectedAircraft.speed) * 60) : (dist / 850 * 60));
+                                const tc = getFlightTimeClass(getFlightDurationMinutes());
                                 const bases = calculateBasePrices(dist, tc);
                                 const routeSatCache = getComputedRouteSatCache();
                                 const d = calculateDemand(

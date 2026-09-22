@@ -109,7 +109,53 @@ export function getAirportUpkeep(
     deskCapacities
   };
 }
+/**
+ * Block time for one leg, in minutes.
+ *
+ * This is the single flight-time model. It used to exist twice, and the two
+ * copies disagreed: the planner used this acceleration model while the schedule
+ * editor used `distance / aircraft.speed * 60 + 20`. `speed` is not a field on
+ * any aircraft — the data calls it `cruiseSpeed` — so that second copy produced
+ * NaN, which `getFlightTimeClass` below silently turned into class 8 (the
+ * longest, worst-paying bucket) because every `<` comparison against NaN fails.
+ * Editing a short-haul schedule therefore collapsed that route's demand to 40%.
+ *
+ * Returns 0 when the inputs are unusable, so callers never propagate NaN.
+ */
+export function getFlightDurationMinutes(
+  origin: { coords: [number, number] } | null | undefined,
+  dest: { coords: [number, number] } | null | undefined,
+  aircraft: { cruiseSpeed?: number } | null | undefined
+): number {
+  if (!origin?.coords || !dest?.coords || !aircraft) return 0;
+
+  const dKm = calculateDistance(origin.coords[0], origin.coords[1], dest.coords[0], dest.coords[1]);
+  if (!Number.isFinite(dKm)) return 0;
+
+  // Great-circle tracks are not flown exactly; airways add a few percent.
+  const dCurved = dKm * 1.02;
+
+  const vCruise = Number(aircraft.cruiseSpeed) || 800;
+  const aAccel = 6000; // km/h^2
+  const aDecel = 4000;
+
+  const tAccelH = vCruise / aAccel;
+  const sAccel = 0.5 * aAccel * tAccelH * tAccelH;
+
+  const tDecelH = vCruise / aDecel;
+  const sDecel = 0.5 * aDecel * tDecelH * tDecelH;
+
+  const sCruise = Math.max(0, dCurved - sAccel - sDecel);
+  const tCruiseH = sCruise / vCruise;
+
+  const total = Math.round((tAccelH + tCruiseH + tDecelH) * 60);
+  return Number.isFinite(total) ? total : 0;
+}
+
 export function getFlightTimeClass(durMin: number): number {
+  // NaN fails every comparison below and would fall through to 8, so reject it
+  // here rather than misclassifying a short hop as an ultra-long-haul flight.
+  if (!Number.isFinite(durMin)) return 1;
   if (durMin < 60) return 1;
   if (durMin < 120) return 2;
   if (durMin < 180) return 3;

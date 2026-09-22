@@ -54,7 +54,10 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
       );
     }
     
-    return result.sort((a, b) => {
+    // Copy first: with no filter active `result` is the module-level airports
+    // array, and sorting it in place destroyed the default order for the whole
+    // session — including for every other view that reads it.
+    return [...result].sort((a, b) => {
       let valA: any = a[sortField as keyof Airport];
       let valB: any = b[sortField as keyof Airport];
 

@@ -113,7 +113,9 @@ export function RoutesView({
       );
     }
     
-    return result.sort((a, b) => {
+    // Copy first: with no filter active `result` is still the `routes` prop, so
+    // sorting in place mutated App's state array and persisted that order.
+    return [...result].sort((a, b) => {
       let valA: any = a[sortField];
       let valB: any = b[sortField];
 

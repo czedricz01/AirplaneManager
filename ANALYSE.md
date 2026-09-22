@@ -49,9 +49,13 @@ geschrieben wird. `getFlightTimeClass(NaN)` (`src/lib/financeUtils.ts:112-121`)
 vergleicht nur mit `<` — alle Vergleiche sind falsch, also fällt die Funktion auf
 `return 8` durch, die Langstreckenklasse. Deren Nachfragefaktor ist der
 schlechteste im Spiel: `tcDemandMultiplier = max(0.4, 3.1 − 8·0.35) = 0.4`
-(`financeUtils.ts:398`). Wer den Flugplan einer bestehenden Kurzstrecke
-nachträglich bearbeitet, drückt ihre Nachfrage also auf 40 % und bepreist sie als
-12-Stunden-Flug. Zusätzlich vergiftet `NaN` die Zeitachsenarithmetik
+(`financeUtils.ts:398`). Entscheidend ist nicht dieser Wert, sondern das
+Verhältnis zum richtigen: eine Kurzstrecke gehört in Klasse 1 mit Faktor 2,75.
+Nachgemessen an FRA–CDG mit einer Boeing 737-100 — korrekt 45 Minuten, Klasse 1,
+Faktor 2,75; mit `NaN` Klasse 8, Faktor 0,40. Wer den Flugplan einer bestehenden
+Kurzstrecke nachträglich bearbeitet, drückt ihre Nachfrage damit auf **14,5 %**
+des richtigen Werts und bepreist sie als 12-Stunden-Flug. Zusätzlich vergiftet
+`NaN` die Zeitachsenarithmetik
 (`:131`, `:137`, `:250`). Gleicher Fehler in
 `src/components/RoutePlannerView.tsx:3365`.
 
