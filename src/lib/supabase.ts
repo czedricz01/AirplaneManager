@@ -14,14 +14,38 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const rawUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
+/**
+ * Reduces whatever was configured to the bare project origin.
+ *
+ * Supabase's API settings page lists the project URL next to the REST, Auth and
+ * Storage endpoints, and copying the wrong line is easy. A value ending in
+ * `/rest/v1` produces requests to `<project>/rest/v1/auth/v1/token`, which the
+ * edge router answers with "Invalid path specified in request URL" — an error
+ * that says nothing about the actual cause. Stripping the service path here
+ * makes that mistake harmless instead of baffling.
+ */
 function normaliseUrl(value: string | undefined): string | null {
   if (!value) return null;
-  const trimmed = value.trim().replace(/\/+$/, '');
+
+  let trimmed = value.trim().replace(/\/+$/, '');
   if (!trimmed) return null;
+
   // Accept a bare project ref as well as a full URL.
-  if (!trimmed.includes('.')) return `https://${trimmed}.supabase.co`;
-  if (!/^https?:\/\//i.test(trimmed)) return `https://${trimmed}`;
-  return trimmed;
+  if (!trimmed.includes('.') && !trimmed.includes('/')) {
+    return `https://${trimmed}.supabase.co`;
+  }
+  if (!/^https?:\/\//i.test(trimmed)) trimmed = `https://${trimmed}`;
+
+  // Drop a service path if one was copied along with the origin.
+  trimmed = trimmed.replace(/\/(rest|auth|storage|realtime|functions|graphql)\/v\d+\/?$/i, '');
+
+  try {
+    // Anything left beyond the origin (a stray path, query or fragment) is not
+    // part of a Supabase project URL either.
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/, '');
+  }
 }
 
 const url = normaliseUrl(rawUrl);
