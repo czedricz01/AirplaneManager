@@ -47,9 +47,9 @@ neu, sobald du eine Datei im Code änderst. Zum Beenden im Terminal `Strg + C`.
 Der Startbildschirm verlangt ein Konto. Passwörter werden von Supabase
 serverseitig gehasht und geprüft — im Browser liegt nie ein Passwort.
 
-Registrieren geht nur mit einem **Einladungscode**. Den Code prüft ein
-Datenbank-Trigger, nicht der Browser: ohne gültigen Code bricht die
-Kontoerstellung in der Datenbank ab. Siehe `supabase/schema.sql`.
+**Es gibt keine Registrierung.** Konten legt der Betreiber im Supabase-Dashboard
+an, und die öffentliche Registrierung ist im Projekt abgeschaltet. Der Server
+lehnt Kontoerstellung also ab, egal was der Browser schickt.
 
 Ist kein Supabase-Projekt hinterlegt, zeigt der Startbildschirm stattdessen
 *Continue Locally*. Das Spiel läuft dann ohne Konten, Spielstände bleiben in
@@ -122,109 +122,81 @@ Einmalige Einrichtung. Ohne sie läuft das Spiel im lokalen Modus weiter.
 
 **1. Supabase-Projekt anlegen**
 
-Auf <https://supabase.com> ein kostenloses Konto und ein neues Projekt anlegen.
-Region egal, Europa ist für dich am schnellsten. Das Datenbank-Passwort, das dabei
-abgefragt wird, brauchst du für das Spiel nicht — trotzdem sicher aufbewahren.
+Auf <https://supabase.com> ein kostenloses Konto und ein Projekt anlegen.
 
 **2. Schema einspielen**
 
-Im Projekt links auf *SQL Editor* → *New query*. Den gesamten Inhalt von
-`supabase/schema.sql` hineinkopieren und *Run* drücken. Das legt die Tabellen
-`profiles`, `saves` und `invite_codes` an, schaltet Row Level Security ein und
-erstellt die Hook-Funktion für den Einladungscode.
+*SQL Editor* → *New query* → gesamten Inhalt von `supabase/schema.sql`
+einfügen → *Run*. Das legt `profiles` und `saves` an und schaltet Row Level
+Security ein.
 
-**3. Den Hook aktivieren — ohne diesen Schritt ist der Einladungscode wirkungslos**
+**3. Registrierung abschalten**
 
-*Authentication* → *Hooks* → **Before User Created** → Typ *Postgres* →
-Funktion `public.hook_enforce_invite_code` → *Enable*.
+*Authentication* → *Sign In / Providers* → *Email* → **Allow new users to sign
+up** ausschalten.
 
-Das Schema allein reicht nicht: es legt die Funktion nur an. Erst dieser Schalter
-sorgt dafür, dass Supabase Auth sie bei jeder Registrierung aufruft. Solange er
-aus ist, kann sich **jeder** ohne Code registrieren.
+Damit kann niemand mehr selbst ein Konto erstellen. Konten entstehen nur noch
+dort, wo du sie anlegst.
 
-> Warum kein Datenbank-Trigger? `auth.users` gehört der Rolle
-> `supabase_auth_admin`, nicht `postgres` — ein `create trigger` darauf schlägt
-> fehl. Der Hook ist der von Supabase dafür vorgesehene Weg.
+**4. Schlüssel holen**
 
-**4. Einen Einladungscode erzeugen**
-
-Ebenfalls im SQL Editor:
-
-```sql
-select public.new_invite_code('mein erstes Konto');
-```
-
-Die Funktion gibt den erzeugten Code zurück, etwa `NEO-K7PQM4RT`.
-
-**5. Schlüssel holen**
-
-*Settings → API*. Du brauchst zwei Werte:
+*Settings → API*. Zwei Werte:
 
 - **Project URL** → `VITE_SUPABASE_URL`
 - **anon public** → `VITE_SUPABASE_ANON_KEY`
 
 > Den `service_role`-Schlüssel **niemals** verwenden. Der umgeht jede
-> Zugriffsregel. Der `anon`-Schlüssel ist dagegen als öffentlich gedacht und
-> darf im Browser landen — der Schutz kommt aus den Regeln in der Datenbank.
+> Zugriffsregel. Der `anon`-Schlüssel ist als öffentlich gedacht und darf im
+> Browser landen — der Schutz kommt aus den Regeln in der Datenbank.
 
-**6. In GitHub hinterlegen**
+**5. In GitHub hinterlegen**
 
 Repository → *Settings* → *Secrets and variables* → *Actions* → *New repository
-secret*. Zwei Stück anlegen, exakt so benannt:
+secret*. Zwei Stück, exakt so benannt:
 
 | Name | Wert |
 |---|---|
 | `VITE_SUPABASE_URL` | die Project URL |
 | `VITE_SUPABASE_ANON_KEY` | der anon-public-Schlüssel |
 
-**7. Neu veröffentlichen**
+**6. Neu veröffentlichen**
 
-Einen beliebigen Commit nach `main` pushen, oder unter *Actions* den Workflow
-*Deploy to GitHub Pages* manuell über *Run workflow* starten.
+Einen Commit nach `main` pushen, oder *Actions* → *Deploy to GitHub Pages* →
+*Run workflow*.
 
-**8. Erstes Konto anlegen**
+### Konten anlegen
 
-Seite öffnen → *Register with invite code* → E-Mail, Anzeigename, Passwort und den
-Code aus Schritt 4. Supabase verschickt standardmäßig eine Bestätigungs-E-Mail.
-Wenn du das nicht willst: *Authentication → Sign In / Providers → Email* und
-*Confirm email* abschalten.
+*Authentication* → *Users* → **Add user**:
 
-### Weitere Spieler einladen
+1. E-Mail eintragen
+2. Passwort eintragen
+3. **Auto Confirm User** anhaken — sonst muss die Person erst eine
+   Bestätigungsmail anklicken
+4. *Create user*
 
-Code erzeugen und weitergeben:
+E-Mail und Passwort der Person mitteilen. Fertig — sie kann sich anmelden.
 
-```sql
-select public.new_invite_code('Freunde', 5, 30);   -- 5 Nutzungen, 30 Tage gültig
-select public.new_invite_code('für Anna');         -- einmal nutzbar, ohne Ablauf
-```
-
-Oder mit selbst gewähltem Code:
+Der Anzeigename im Spiel ist standardmäßig der Teil der E-Mail vor dem `@`.
+Anders setzen:
 
 ```sql
-insert into public.invite_codes (code, note, max_uses, expires_at)
-values ('NEO-CREW', 'Freunde', 5, now() + interval '30 days');
+update auth.users
+   set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb)
+                            || jsonb_build_object('display_name', 'Captain Neo')
+ where email = 'someone@example.com';
 ```
-
-Nutzung nachsehen oder Code zurückziehen:
-
-```sql
-select code, uses, max_uses, expires_at, note from public.invite_codes order by created_at;
-delete from public.invite_codes where code = 'NEO-CREW';
-```
-
-Ein zurückgezogener Code sperrt keine bereits angelegten Konten — er verhindert
-nur weitere Registrierungen damit.
 
 ### Konten verwalten
 
-Angelegte Konten stehen unter *Authentication* → *Users*. Dort lassen sich
-Passwörter zurücksetzen, E-Mails bestätigen und Konten löschen. Ein gelöschtes
-Konto nimmt seine Spielstände mit (`on delete cascade`).
+| Aufgabe | Wo |
+|---|---|
+| Übersicht aller Konten | *Authentication → Users* |
+| Passwort zurücksetzen | Zeile → *Reset password* (schickt eine Mail) |
+| Konto löschen | Zeile → *Delete user* (Spielstände gehen mit) |
+| E-Mail nachträglich bestätigen | Zeile → *Confirm email* |
 
-Konten direkt im Dashboard über *Add user* anzulegen ist möglich, umgeht aber den
-Registrierungsweg der App: das Profil wird dann erst beim ersten Anmelden
-angelegt. Der Weg über Einladungscode und Registrierung im Spiel ist der
-verlässlichere.
+Wer sein Passwort vergisst, kann es auch selbst über die Passwort-vergessen-Mail
+zurücksetzen — das funktioniert, weil die Anmeldung über E-Mail läuft.
 
 ### Lokale Entwicklung
 
@@ -266,7 +238,7 @@ src/
   main.tsx             Einstiegspunkt
   components/          Ansichten (Flotte, Routen, Flughäfen, Konkurrenz, …)
   components/
-    AuthGate.tsx       Anmeldung und Registrierung mit Einladungscode
+    AuthGate.tsx       Anmeldung (Konten legt der Betreiber an)
   lib/
     financeUtils.ts    Einzige Quelle der Wahrheit für Kosten, Nachfrage, Preise
     eventSystem.ts     Historische und zufällige Weltereignisse
@@ -274,7 +246,7 @@ src/
     supabase.ts        Supabase-Client (null, wenn nicht konfiguriert)
     cloudSaves.ts      Spielstände: Cloud mit lokalem Rückfall und Abgleich
   data/                Flughäfen, Flugzeuge, Treibstoffpreise, Catering
-supabase/schema.sql    Tabellen, Zugriffsregeln, Einladungscode-Trigger
+supabase/schema.sql    Tabellen und Zugriffsregeln
 server.ts              Express-Server: Vite im Dev-Modus, Bild-Upload-API
 ```
 
