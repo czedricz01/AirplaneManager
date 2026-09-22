@@ -3,7 +3,6 @@ import path from "path";
 import fs from "fs";
 import multer from "multer";
 import AdmZip from "adm-zip";
-import { createServer as createViteServer } from "vite";
 import { aircraftList } from "./src/data/aircraft";
 import axios from "axios";
 
@@ -361,8 +360,10 @@ async function startServer() {
   });
 
 
-  // Vite development middleware vs production static files
+  // Vite development middleware vs production static files.
+  // Vite is a dev-only dependency, so it is imported lazily and never loaded in production.
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

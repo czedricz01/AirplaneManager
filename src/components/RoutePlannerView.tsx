@@ -1,23 +1,22 @@
-import { getSlotPurchaseCost } from "../lib/financeUtils";
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Airport, calculateDistance } from '../data/airports';
+import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { OwnedAircraft } from './MyFleetView';
 import { AirportInfrastructure, ManagementLevel } from '../App';
-import { jetFuelPrices } from '../data/fuelPrices';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
-import { 
-  calculateRouteFinancials, 
-  getPlaneSat, 
-  getDeskSim, 
-  getStandBonus, 
-  getLoungeBonus, 
-  calculateClassSatisfaction, 
-   
-  getFlightTimeClass, 
-  getCateringOpt, 
+import {
+  getSlotPurchaseCost,
+  calculateRouteFinancials,
+  getJetFuelPrice,
+  getPlaneSat,
+  getDeskSim,
+  getStandBonus,
+  getLoungeBonus,
+  calculateClassSatisfaction,
+  getFlightTimeClass,
+  getCateringOpt,
   getMultiOptionSum,
   TIME_CLASS_SAT_MULTIPLIERS,
   calculateDemand,
@@ -64,12 +63,12 @@ interface Props {
   airlineCode?: string;
 }
 
-function InfaRowSmall({ label, count, used, cost, onBuy, disabled, disableRemove }: { label: string, count: number, used?: number, cost: number, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, disableRemove?: boolean }) {
+function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, disabled, disableRemove }: { label: string, count: number, used?: number, cost: number, costSuffix?: string, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, disableRemove?: boolean }) {
   return (
     <div className={`py-1.5 px-2 border transition-colors flex items-center justify-between ${disabled ? 'bg-white/[0.02] border-white/5 opacity-50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
       <div className="flex flex-col w-24 shrink-0">
         <span className="text-[9px] font-bold text-white uppercase tracking-widest">{label}</span>
-        <span className="text-[7.5px] text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${cost.toLocaleString()}/wk` : 'FREE'}</span>
+        <span className="text-[7.5px] text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${cost.toLocaleString()}${costSuffix}` : 'FREE'}</span>
       </div>
       <div className="flex items-center gap-2">
         {used !== undefined && (
@@ -507,11 +506,18 @@ export function RoutePlannerView({
   }
 
   const validDestinations = useMemo(() => {
+    const search = destSearch.toLowerCase();
+    // These do not depend on the candidate airport, so they are computed once instead
+    // of once per airport. getLongestFreeBlock alone rescans and sorts the whole
+    // timetable, and it used to run for every one of the ~500 airports per keystroke.
+    const turnMin = getTurnoverMinutes();
+    const longestFree = selectedAircraft ? getLongestFreeBlock(selectedAircraft.registration) : 0;
+
     const list = airports.filter(a => {
       if (a.id === originId) return false;
-      const matchesSearch = a.id.toLowerCase().includes(destSearch.toLowerCase()) || a.name.toLowerCase().includes(destSearch.toLowerCase());
+      const matchesSearch = a.id.toLowerCase().includes(search) || a.name.toLowerCase().includes(search);
       if (!selectedOrigin || !selectedAircraft || !matchesSearch) return matchesSearch;
-      
+
       const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]));
       if (dist > selectedAircraft.maxRange) return false;
 
@@ -520,9 +526,7 @@ export function RoutePlannerView({
 
       // Time constraint filtering
       const testDurMin = getFlightDurationMinutes(a);
-      const turnMin = getTurnoverMinutes();
       const blockTime = Math.ceil((30 + testDurMin * 2 + turnMin + 30) / 5) * 5;
-      const longestFree = getLongestFreeBlock(selectedAircraft.registration);
 
       return blockTime <= longestFree;
     });
@@ -534,8 +538,8 @@ export function RoutePlannerView({
         return distB - distA; // Large to small
       }
       
-      const statsA = a.stats[currentYear] || { tourism: 0, business: 0 };
-      const statsB = b.stats[currentYear] || { tourism: 0, business: 0 };
+      const statsA = getAirportStats(a, currentYear);
+      const statsB = getAirportStats(b, currentYear);
       
       if (destSortBy === 'tourism') return statsB.tourism - statsA.tourism;
       if (destSortBy === 'business') return statsB.business - statsA.business;
@@ -545,9 +549,23 @@ export function RoutePlannerView({
     });
   }, [airports, destSearch, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear]);
 
+  // Routes grouped by aircraft, so the utilisation check below is a lookup instead of
+  // a full scan of the network for every aircraft in the fleet.
+  const routesByAircraft = useMemo(() => {
+    const map = new Map<string, any[]>();
+    routes.forEach(r => {
+      if (r.id === initialRouteId) return;
+      const list = map.get(r.aircraft);
+      if (list) list.push(r);
+      else map.set(r.aircraft, [r]);
+    });
+    return map;
+  }, [routes, initialRouteId]);
+
   const validAircraft = useMemo(() => {
+    const search = aircraftSearch.toLowerCase();
     return fleet.filter(ac => {
-      const matchesSearch = ac.registration.toLowerCase().includes(aircraftSearch.toLowerCase()) || ac.type.toLowerCase().includes(aircraftSearch.toLowerCase());
+      const matchesSearch = ac.registration.toLowerCase().includes(search) || ac.type.toLowerCase().includes(search);
       if (!matchesSearch) return false;
 
       // Hub restriction
@@ -570,9 +588,9 @@ export function RoutePlannerView({
 
       // Utilization check
       let usedMins = 0;
-      routes.filter(r => r.aircraft === ac.registration && r.id !== initialRouteId).forEach(r => {
+      (routesByAircraft.get(ac.registration) || []).forEach(r => {
          if (r.schedule) {
-            r.schedule.forEach(s => {
+            r.schedule.forEach((s: any) => {
                const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
                usedMins += Math.ceil(cycleMin / 5) * 5;
             });
@@ -589,7 +607,7 @@ export function RoutePlannerView({
       const dist = calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]);
       return ac.maxRange >= dist;
     });
-  }, [fleet, selectedOrigin, selectedDest, aircraftSearch, routes]);
+  }, [fleet, selectedOrigin, selectedDest, aircraftSearch, routes, routesByAircraft, airportsMap]);
 
   const mgt = airportManagement || {};
   const originMgtLvl = selectedOrigin ? (mgt[selectedOrigin.id]?.level || 0) : 0;
@@ -599,6 +617,9 @@ export function RoutePlannerView({
   const [isStopoverMode, setIsStopoverMode] = useState(false);
 
   const initialBase = React.useMemo(() => Math.floor(1000 + Math.random() * 8000), []);
+  // Stable id for a route that is being created. The previous code minted a fresh id
+  // on every render, so the draft had no identity until the moment it was saved.
+  const draftRouteId = React.useMemo(() => Date.now().toString(36) + Math.random().toString(36).substring(2), []);
   const [flightNumberOutbound, setFlightNumberOutbound] = useState(initialBase.toString());
   const [flightNumberInbound, setFlightNumberInbound] = useState((initialBase + 1).toString());
 
@@ -729,112 +750,72 @@ export function RoutePlannerView({
   }, [selectedAircraft, routes, schedule]);
 
   
-  const financials = useMemo(() => {
+  const fuelPrice = useMemo(
+    () => getJetFuelPrice(currentYear, currentMonth, difficulty),
+    [currentYear, currentMonth, difficulty]
+  );
+
+  // A draft of the route as it currently stands in the wizard. Every financial
+  // preview below is derived from this one object via the shared engine, so the
+  // planner can no longer disagree with the monthly report.
+  const routeDraft = useMemo(() => {
     if (!selectedOrigin || !selectedDest || !selectedAircraft) return null;
-
-    const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]));
-    const monthStr = currentMonth.toString().padStart(2, '0');
-    let fuelPrice = jetFuelPrices[`${currentYear}-${monthStr}`] || 1.05;
-    if (difficulty === 'Hard') {
-      fuelPrice *= 1.15;
-    }
-    const fuelPricePerL = fuelPrice / 3.785;
-    const flightLegs = schedule.reduce((acc, s) => acc + (s.isOneWay ? 1 : 2), 0);
-    const weeklyFuelCost = Math.round((fuelPricePerL * 7.5 * selectedAircraft.capacity * (dist / 100)) / (0.75 + (selectedAircraft.efficiency / 70)) * flightLegs);
-    
-    const flightHoursWeekly = schedule.reduce((acc, s) => acc + (s.durMin * (s.isOneWay ? 1 : 2)), 0) / 60;
-    const faCount = Math.ceil(selectedAircraft.capacity / 50);
-    const hourlyCrewRate = (2 * 100) + (faCount * 40);
-    const weeklyCrewCost = Math.round(hourlyCrewRate * flightHoursWeekly * 1.3); // Including ground staff assumption (30%)
-
-    const mgt = airportManagement || {};
-    const originHub = (mgt[selectedOrigin.id]?.level || 0) >= 2;
-    const destHub = (mgt[selectedDest.id]?.level || 0) >= 2;
-    const slotType = selectedAircraft.class.toLowerCase();
-    
-    const originLandingFees = Math.floor((2000 + 100 * selectedOrigin.level) * 1.1 * (originHub ? 0.95 : 1)) * schedule.length;
-    const destLandingFees = Math.floor((2000 + 100 * selectedDest.level) * 1.1 * (destHub ? 0.95 : 1)) * schedule.filter(s => !s.isOneWay).length;
-    
-    const getPaxHandlingCost = (level: number) => level >= 5 ? 5 : level >= 3 ? 4 : 3;
-    const seats = {
-       economy: selectedAircraft.config?.economy || 0,
-       premium: selectedAircraft.config?.premium || 0,
-       business: selectedAircraft.config?.business || 0,
-       first: selectedAircraft.config?.first || 0
+    return {
+      id: initialRouteId || draftRouteId,
+      origin: selectedOrigin.id,
+      destination: selectedDest.id,
+      distance: Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1])),
+      durMin: getFlightDurationMinutes(),
+      schedule,
+      classConfigs,
+      ticketPrices,
+      activeTicketPrices: ticketPrices
     };
-    const actualCapacity = (seats.economy + seats.premium + seats.business + seats.first) > 0 
-      ? (seats.economy + seats.premium + seats.business + seats.first) 
-      : selectedAircraft.capacity;
+  }, [selectedOrigin, selectedDest, selectedAircraft, schedule, classConfigs, ticketPrices, initialRouteId, draftRouteId]);
 
-    const totalEstPaxMax = actualCapacity * flightLegs;
-    const originCheckInUnit = originHub ? 0.475 : 0.5;
-    const destCheckInUnit = destHub ? 0.475 : 0.5;
-    const originCheckInFees = originCheckInUnit * (schedule.length * actualCapacity);
-    const destCheckInFees = destCheckInUnit * (schedule.filter(s => !s.isOneWay).length * actualCapacity);
-    const originPaxFeeUnit = getPaxHandlingCost(selectedOrigin.level);
-    const destPaxFeeUnit = getPaxHandlingCost(selectedDest.level);
-    const originPaxHandlingFees = originPaxFeeUnit * totalEstPaxMax;
-    const destPaxHandlingFees = destPaxFeeUnit * totalEstPaxMax;
-    const paxHandlingFees = originCheckInFees + originPaxHandlingFees + destCheckInFees + destPaxHandlingFees;
-    
-    const weeklyInfraCost = originLandingFees + destLandingFees + paxHandlingFees;
-    const fixedExpenses = weeklyFuelCost + weeklyInfraCost + weeklyCrewCost;
+  // Numbers shown in the wizard. Outside Easy these assume a full aircraft, which is
+  // what a "what could this route earn" preview should show.
+  const financials = useMemo(() => {
+    if (!routeDraft || !selectedAircraft) return null;
 
-    const weightedSeatsPerWeek = (seats.economy * 1 + seats.premium * 1.6 + seats.business * 3.0 + seats.first * 5.0) * flightLegs;
-    
-    let totalCateringCostMax = 0;
-    const d_km = calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]);
-    const d_curved = d_km * 1.02; 
-    const v_cruise = Number(selectedAircraft.cruiseSpeed) || 800;
-    const totalHours = (v_cruise / 6000) + (d_curved - (0.5 * 6000 * Math.pow(v_cruise / 6000, 2)) - (0.5 * 4000 * Math.pow(v_cruise / 4000, 2))) / v_cruise + (v_cruise / 4000);
-    const duration = Math.round(totalHours * 60);
-    const timeClass = getFlightTimeClass(duration);
-    const mealCount = timeClass <= 5 ? 1 : timeClass <= 7 ? 2 : 3;
-
-    ['economy', 'premium', 'business', 'first'].forEach(c => {
-       const seatCount = seats[c as keyof typeof seats];
-       if (seatCount > 0) {
-          const config = classConfigs[c];
-          let catCost = 0;
-          for (let i = 0; i < mealCount; i++) catCost += getCateringOpt(config.catering, i).cost;
-          catCost += getMultiOptionSum(config.extras, EXTRAS_OPTIONS).cost + getMultiOptionSum(config.service, SERVICE_OPTIONS).cost;
-          totalCateringCostMax += catCost * seatCount * flightLegs;
-       }
-    });
-
-    const getBasePrice = (lf: number) => {
-       if (weightedSeatsPerWeek === 0) return 0;
-       return (fixedExpenses / (weightedSeatsPerWeek * lf)) + (totalCateringCostMax / weightedSeatsPerWeek);
-    };
+    const engine = calculateRouteFinancials(
+      routeDraft, selectedAircraft, fuelPrice, airportManagement,
+      currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
+      difficulty !== 'Easy'
+    );
+    const b = engine.costsBreakdown;
 
     return {
-       dist,
-       fuelPrice,
-       flightLegs,
-       weeklyFuelCost,
-       weeklyCrewCost,
-       weeklyInfraCost,
-       fixedExpenses,
-       totalCateringCostMax,
-       weightedSeatsPerWeek,
-       totalEstPaxMax,
-       basePriceBE75: getBasePrice(0.75),
-       basePriceBE99: getBasePrice(0.99),
-       basePriceBE35: getBasePrice(0.35),
-       originDepartures: schedule.length,
-       destDepartures: schedule.filter(s => !s.isOneWay).length,
-       originLandingFees,
-       destLandingFees,
-       originCheckInUnit,
-       destCheckInUnit,
-       originCheckInFees,
-       destCheckInFees,
-       originPaxFeeUnit,
-       destPaxFeeUnit,
-       originPaxHandlingFees,
-       destPaxHandlingFees
+      ...engine,
+      dist: engine.distance,
+      fuelPrice,
+      weeklyFuelCost: b.fuel,
+      weeklyCrewCost: b.crew,
+      weeklyInfraCost: b.infra,
+      originDepartures: schedule.length,
+      destDepartures: schedule.filter(s => !s.isOneWay).length,
+      originLandingFees: b.originLandingFees,
+      destLandingFees: b.destLandingFees,
+      originCheckInUnit: b.originCheckInUnit,
+      destCheckInUnit: b.destCheckInUnit,
+      originCheckInFees: b.originCheckInFees,
+      destCheckInFees: b.destCheckInFees,
+      originPaxFeeUnit: b.originPaxFeeUnit,
+      destPaxFeeUnit: b.destPaxFeeUnit,
+      originPaxHandlingFees: b.originPaxHandlingFees,
+      destPaxHandlingFees: b.destPaxHandlingFees
     };
-  }, [selectedOrigin, selectedDest, selectedAircraft, schedule, currentYear, airportManagement, classConfigs]);
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, schedule]);
+
+  // The figures actually stored on the route: realistic load factors, not full load.
+  const saveFinancials = useMemo(() => {
+    if (!routeDraft || !selectedAircraft) return null;
+    return calculateRouteFinancials(
+      routeDraft, selectedAircraft, fuelPrice, airportManagement,
+      currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
+      false
+    );
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet]);
 
   useEffect(() => {
     if (step === 4 && financials && Object.keys(ticketPrices).length === 0) {
@@ -1129,18 +1110,14 @@ export function RoutePlannerView({
      const level = mgt[airportId]?.level || 0;
      const hubAutoUpgrade = level >= 2;
      
-     const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 
-                         type === 'desks' ? getDeskCost(hubAutoUpgrade, subType) : 
-                         getStandCost(subType);
+     // Only slots have a one-off purchase price. Desks and stands are rented and show
+     // up as weekly upkeep instead — charging their weekly rate as an upfront fee here
+     // made them cost money in this screen but nothing in the airport console.
+     const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 0;
 
      const infra = mgt[airportId] || { level, slots: { regional: 0, narrowbody: 0, widebody: 0 }, stands: { narrowbody: 0, widebody: 0 }, desks: { normal: 0, self: 0 } };
      
      let actualCost = costPerUnit * amount;
-
-     let extraStandCost = 0;
-     if (type === 'slots' && amount > 0 && infra.autoBuyStands && !hubAutoUpgrade) {
-         extraStandCost = getStandCost(subType) * amount;
-     }
 
      const currentPending = pendingSlotBills || 0;
      if (type === 'slots' && amount > 0) {
@@ -1153,15 +1130,11 @@ export function RoutePlannerView({
            if (amount > availS) {
               amount = availS;
               actualCost = costPerUnit * amount;
-              if (infra.autoBuyStands && !hubAutoUpgrade) {
-                 extraStandCost = getStandCost(subType) * amount;
-              }
            }
         }
      }
      if (amount <= 0 && baseAmount > 0) return;
-     if (amount > 0 && type !== 'slots' && capital < (actualCost + extraStandCost)) return;
-     if (amount > 0 && type === 'slots' && (capital - currentPending) < (actualCost + extraStandCost)) return;
+     if (amount > 0 && type === 'slots' && (capital - currentPending) < actualCost) return;
 
      const newInfra = JSON.parse(JSON.stringify(infra)); // Deep copy
      if (!newInfra[type]) newInfra[type] = {};
@@ -1191,15 +1164,11 @@ export function RoutePlannerView({
          newInfra.stands[subType] = (newInfra.stands[subType] || 0) + amount;
      }
 
-     if (amount > 0) {
-        if (type === 'slots') {
-           if (onAddPendingSlotBills) {
-              onAddPendingSlotBills(actualCost + extraStandCost);
-           } else {
-              onSubtractCapital?.(actualCost + extraStandCost);
-           }
+     if (amount > 0 && type === 'slots' && actualCost > 0) {
+        if (onAddPendingSlotBills) {
+           onAddPendingSlotBills(actualCost);
         } else {
-           onSubtractCapital?.(actualCost + extraStandCost);
+           onSubtractCapital?.(actualCost);
         }
      }
      onUpdateInfrastructure(airportId, newInfra);
@@ -1384,6 +1353,25 @@ export function RoutePlannerView({
   const [multipleOps, setMultipleOps] = useState(1);
   const [maximizeFlights, setMaximizeFlights] = useState(false);
 
+  // How many round trips a day can physically hold for the selected aircraft.
+  // Computed once instead of three times inline, and clamped through an effect
+  // rather than a setTimeout fired from the middle of render.
+  const maxMultipleOps = useMemo(() => {
+    if (!selectedAircraft) return 1;
+    const legMin = getFlightDurationMinutes();
+    const turnMin = getTurnoverMinutes();
+    const totalDurRaw = 30 + legMin + turnMin + legMin + 30;
+    if (totalDurRaw >= 720) return 1;
+    const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
+    if (cycleMin <= 0) return 1;
+    const maxDayFree = getOpsCapacityForDays(selectedAircraft.registration, []);
+    return Math.max(1, Math.floor(maxDayFree / cycleMin));
+  }, [selectedAircraft, selectedOrigin, selectedDest, routes, schedule, initialRouteId]);
+
+  useEffect(() => {
+    if (multipleOps > maxMultipleOps) setMultipleOps(maxMultipleOps);
+  }, [multipleOps, maxMultipleOps]);
+
   const allBlocks = React.useMemo(() => {
     if (!selectedOrigin || !selectedDest || !selectedAircraft) return [];
     
@@ -1559,8 +1547,8 @@ export function RoutePlannerView({
                                 SLOTS: {available}/{totalSlots}
                               </div>
                               <div className="flex gap-2 text-[8px] font-mono">
-                                <span className="text-aero-yellow">T: {a.stats[currentYear]?.tourism || 0}</span>
-                                <span className="text-white/80">B: {a.stats[currentYear]?.business || 0}</span>
+                                <span className="text-aero-yellow">T: {getAirportStats(a, currentYear).tourism}</span>
+                                <span className="text-white/80">B: {getAirportStats(a, currentYear).business}</span>
                               </div>
                             </div>
                           </div>
@@ -1576,8 +1564,8 @@ export function RoutePlannerView({
                       <div className="flex flex-col">
                          <div className="text-[10px] text-white/60 truncate w-32 md:w-auto">{selectedOrigin.name}</div>
                          <div className="flex gap-2 text-[8px] uppercase tracking-widest font-mono text-white/40">
-                           <span>B:{selectedOrigin.stats[currentYear]?.business || 0}</span>
-                           <span>T:{selectedOrigin.stats[currentYear]?.tourism || 0}</span>
+                           <span>B:{getAirportStats(selectedOrigin, currentYear).business}</span>
+                           <span>T:{getAirportStats(selectedOrigin, currentYear).tourism}</span>
                            <span className={((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0)) > 0 ? "text-aero-yellow font-bold" : ""}>S:{Math.max(0, (selectedOrigin.level * 300) - getAiUsedWeeklySlots(selectedOrigin.id)) - ((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0))}/{selectedOrigin.level * 300}</span>
                          </div>
                       </div>
@@ -1596,9 +1584,9 @@ export function RoutePlannerView({
                         <span className="text-[8px] text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
                      </div>
                      <div className="space-y-2">
-                        <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedOrigin.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'regional')} cost={getSlotPurchaseCost('regional')} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'regional', n, shift)} />
-                        <InfaRowSmall label="Narrowb." count={(airportManagement || {})[selectedOrigin.id]?.slots?.narrowbody || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'narrowbody')} cost={getSlotPurchaseCost('narrowbody')} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'narrowbody', n, shift)} />
-                        <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedOrigin.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'widebody', n, shift)} />
+                        <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedOrigin.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'regional', n, shift)} />
+                        <InfaRowSmall label="Narrowb." count={(airportManagement || {})[selectedOrigin.id]?.slots?.narrowbody || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'narrowbody')} cost={getSlotPurchaseCost('narrowbody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'narrowbody', n, shift)} />
+                        <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedOrigin.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'widebody', n, shift)} />
                      </div>
 
                      <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
@@ -1840,8 +1828,8 @@ export function RoutePlannerView({
                                 SLOTS: {availableDestSlots}/{totalSlots}
                              </div>
                              <div className="flex gap-2 text-[8px] font-mono">
-                               <span className="text-aero-yellow">T: {a.stats[currentYear]?.tourism || 0}</span>
-                               <span className="text-white/80">B: {a.stats[currentYear]?.business || 0}</span>
+                               <span className="text-aero-yellow">T: {getAirportStats(a, currentYear).tourism}</span>
+                               <span className="text-white/80">B: {getAirportStats(a, currentYear).business}</span>
                              </div>
                           </div>
                         </div>
@@ -1857,8 +1845,8 @@ export function RoutePlannerView({
                       <div className="flex flex-col">
                          <div className="text-[10px] text-white/60 truncate w-32 md:w-auto">{selectedDest.name}</div>
                          <div className="flex gap-2 text-[8px] uppercase tracking-widest font-mono text-white/40">
-                           <span>B:{selectedDest.stats[currentYear]?.business || 0}</span>
-                           <span>T:{selectedDest.stats[currentYear]?.tourism || 0}</span>
+                           <span>B:{getAirportStats(selectedDest, currentYear).business}</span>
+                           <span>T:{getAirportStats(selectedDest, currentYear).tourism}</span>
                            <span className={((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0)) > 0 ? "text-aero-yellow font-bold" : ""}>S:{Math.max(0, (selectedDest.level * 300) - getAiUsedWeeklySlots(selectedDest.id)) - ((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0))}/{selectedDest.level * 300}</span>
                          </div>
                       </div>
@@ -1884,8 +1872,8 @@ export function RoutePlannerView({
                              const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]));
                              const tc = getFlightTimeClass(dist / 850 * 60); // approximate duration
                              const d = calculateDemand(
-                               selectedOrigin.stats[currentYear]?.business || 0, selectedOrigin.stats[currentYear]?.tourism || 0,
-                               selectedDest.stats[currentYear]?.business || 0, selectedDest.stats[currentYear]?.tourism || 0,
+                               getAirportStats(selectedOrigin, currentYear).business, getAirportStats(selectedOrigin, currentYear).tourism,
+                               getAirportStats(selectedDest, currentYear).business, getAirportStats(selectedDest, currentYear).tourism,
                                tc,
                                currentMonth,
                                difficulty, currentYear
@@ -1902,8 +1890,8 @@ export function RoutePlannerView({
                              const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]));
                              const tc = getFlightTimeClass(dist / 850 * 60);
                              const d = calculateDemand(
-                               selectedOrigin.stats[currentYear]?.business || 0, selectedOrigin.stats[currentYear]?.tourism || 0,
-                               selectedDest.stats[currentYear]?.business || 0, selectedDest.stats[currentYear]?.tourism || 0,
+                               getAirportStats(selectedOrigin, currentYear).business, getAirportStats(selectedOrigin, currentYear).tourism,
+                               getAirportStats(selectedDest, currentYear).business, getAirportStats(selectedDest, currentYear).tourism,
                                tc,
                                currentMonth,
                                difficulty, currentYear
@@ -1970,9 +1958,9 @@ export function RoutePlannerView({
                           <span className="text-[8px] text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
                        </div>
                        <div className="space-y-2">
-                          <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedDest.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedDest.id, 'regional')} cost={getSlotPurchaseCost('regional')} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'regional', n, shift)} />
-                          <InfaRowSmall label="Narrowb." count={(airportManagement || {})[selectedDest.id]?.slots?.narrowbody || 0} used={getUsedWeeklySlots(selectedDest.id, 'narrowbody')} cost={getSlotPurchaseCost('narrowbody')} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'narrowbody', n, shift)} />
-                          <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedDest.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedDest.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'widebody', n, shift)} />
+                          <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedDest.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedDest.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'regional', n, shift)} />
+                          <InfaRowSmall label="Narrowb." count={(airportManagement || {})[selectedDest.id]?.slots?.narrowbody || 0} used={getUsedWeeklySlots(selectedDest.id, 'narrowbody')} cost={getSlotPurchaseCost('narrowbody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'narrowbody', n, shift)} />
+                          <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedDest.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedDest.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'widebody', n, shift)} />
                        </div>
 
                        <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
@@ -2121,31 +2109,11 @@ export function RoutePlannerView({
                            <Minus className="w-2 h-2" />
                          </button>
                          <div className="w-6 h-5 flex items-center justify-center bg-black border border-white/20 font-mono text-[10px] text-aero-yellow font-bold">
-                           {(() => {
-                             const durMin = getFlightDurationMinutes();
-                             const turnMin = getTurnoverMinutes();
-                             const totalDurRaw = (30 + durMin + turnMin + durMin + 30);
-                             const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
-                             const maxDayFree = selectedAircraft ? getOpsCapacityForDays(selectedAircraft.registration, []) : 1440;
-                             const maxPossible = totalDurRaw >= 720 ? 1 : Math.floor(maxDayFree / cycleMin);
-                             const actual = Math.min(multipleOps, maxPossible || 1);
-                             if (actual !== multipleOps) setTimeout(() => setMultipleOps(actual), 0);
-                             return actual;
-                           })()}
+                           {Math.min(multipleOps, maxMultipleOps)}
                          </div>
-                         <button 
-                           onClick={() => {
-                             const durMin = getFlightDurationMinutes();
-                             const turnMin = getTurnoverMinutes();
-                             const totalDurRaw = (30 + durMin + turnMin + durMin + 30);
-                             const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
-                             const maxDayFree = selectedAircraft ? getOpsCapacityForDays(selectedAircraft.registration, []) : 1440;
-                             const maxPossible = Math.floor(maxDayFree / cycleMin);
-                             if (totalDurRaw < 720 && multipleOps < maxPossible) {
-                               setMultipleOps(multipleOps + 1);
-                             }
-                           }} 
-                           disabled={getFlightDurationMinutes() * 2 + getTurnoverMinutes() + 60 >= 720}
+                         <button
+                           onClick={() => setMultipleOps(Math.min(maxMultipleOps, multipleOps + 1))}
+                           disabled={multipleOps >= maxMultipleOps}
                            className="w-5 h-5 flex items-center justify-center bg-white/5 border border-white/10 text-white hover:border-aero-yellow disabled:opacity-20"
                          >
                            <Plus className="w-2 h-2" />
@@ -2737,9 +2705,14 @@ export function RoutePlannerView({
                           aircraft: selectedReg,
                           weeklyFlights: schedule.length,
                           schedule: schedule,
+                          // Origin/destination can change in this dialog, so the stored
+                          // distance and the derived financials have to be refreshed too;
+                          // previously the old route's distance was carried over unchanged.
+                          distance: routeDraft?.distance ?? r?.distance ?? 0,
                           durMin: getFlightDurationMinutes(),
                           classConfigs: classConfigs,
-                          routeSat: getComputedRouteSatCache()
+                          routeSat: getComputedRouteSatCache(),
+                          ...(saveFinancials || {})
                         };
                         onSaveRoute(routeData);
                         setShowSuccess(true);
@@ -3132,12 +3105,8 @@ export function RoutePlannerView({
                              setIsFinalizing(true);
                              const r = routes.find(rt => rt.id === initialRouteId);
                              if (r) {
-                               const { fuelPrice } = financials || { fuelPrice: 1.05 };
-                               const localAirportsMap = new Map<string, Airport>();
-                               airports.forEach(a => localAirportsMap.set(a.id, a));
-
-                               const routeData = { 
-                                 ...r, 
+                               const routeData = {
+                                 ...r,
                                  classConfigs: classConfigs,
                                  durMin: getFlightDurationMinutes(),
                                  ticketPrices: ticketPrices || r.ticketPrices || { economy: 100 },
@@ -3152,7 +3121,7 @@ export function RoutePlannerView({
                                  currentYear,
                                  currentMonth,
                                  difficulty,
-                                 localAirportsMap,
+                                 airportsMap,
                                  routes,
                                  fleet
                                );
@@ -3187,48 +3156,11 @@ export function RoutePlannerView({
               originCheckInUnit, destCheckInUnit, originCheckInFees, destCheckInFees,
               originPaxFeeUnit, destPaxFeeUnit, originPaxHandlingFees, destPaxHandlingFees
            } = financials;
-           
-           const localAirportsMap = new Map<string, Airport>();
-           airports.forEach(a => localAirportsMap.set(a.id, a));
 
-           const finalRouteId = initialRouteId || Date.now().toString(36) + Math.random().toString(36).substring(2);
-           const routeDataForFinance = {
-              id: finalRouteId,
-              origin: selectedOrigin.id,
-              destination: selectedDest.id,
-              distance: dist,
-              durMin: getFlightDurationMinutes(),
-              schedule,
-              classConfigs,
-              ticketPrices
-           };
-
-           const displayFinancials = calculateRouteFinancials(
-             routeDataForFinance,
-             selectedAircraft,
-             fuelPrice,
-             airportManagement,
-             currentYear,
-             currentMonth,
-             difficulty,
-             localAirportsMap,
-             routes,
-             fleet,
-             difficulty !== 'Easy'
-           );
-           const saveFinancials = calculateRouteFinancials(
-             routeDataForFinance,
-             selectedAircraft,
-             fuelPrice,
-             airportManagement,
-             currentYear,
-             currentMonth,
-             difficulty,
-             localAirportsMap,
-             routes,
-             fleet,
-             false
-           );
+           // `financials` already IS the full-load engine result for this draft, and
+           // `saveFinancials` the realistic-load one. Both are memoised above, so this
+           // block no longer recomputes the model on every keystroke.
+           const displayFinancials = financials;
 
            const totalExpenses = displayFinancials.estWeeklyCosts;
            const estProfit = displayFinancials.estWeeklyProfit;
@@ -3434,8 +3366,8 @@ export function RoutePlannerView({
                                 const bases = calculateBasePrices(dist, tc);
                                 const routeSatCache = getComputedRouteSatCache();
                                 const d = calculateDemand(
-                                    selectedOrigin.stats[currentYear]?.business || 0, selectedOrigin.stats[currentYear]?.tourism || 0,
-                                    selectedDest.stats[currentYear]?.business || 0, selectedDest.stats[currentYear]?.tourism || 0,
+                                    getAirportStats(selectedOrigin, currentYear).business, getAirportStats(selectedOrigin, currentYear).tourism,
+                                    getAirportStats(selectedDest, currentYear).business, getAirportStats(selectedDest, currentYear).tourism,
                                     tc, currentMonth, difficulty, currentYear
                                 );
                                 return ['economy', 'premium', 'business', 'first'].map(c => {
@@ -3569,44 +3501,13 @@ export function RoutePlannerView({
                         <button 
                           disabled={isFinalizing || schedule.length === 0}
                           onClick={() => {
-                            if (isFinalizing) return;
+                            if (isFinalizing || !routeDraft) return;
                             setIsFinalizing(true);
 
-                            const { 
-                               dist, fuelPrice
-                            } = financials;
-                            
-                            const localAirportsMap = new Map<string, Airport>();
-                            airports.forEach(a => localAirportsMap.set(a.id, a));
-
-                            const finalRouteId2 = initialRouteId || Date.now().toString(36) + Math.random().toString(36).substring(2);
-                            const routeDataForFinance = {
-                              id: finalRouteId2,
-                              origin: selectedOrigin.id,
-                              destination: selectedDest.id,
-                              distance: dist,
-                              durMin: getFlightDurationMinutes(),
-                              schedule,
-                              classConfigs,
-                              ticketPrices,
-                              activeTicketPrices: ticketPrices
-                            };
-
-                            const liveFinancials = calculateRouteFinancials(
-                              routeDataForFinance,
-                              selectedAircraft,
-                              fuelPrice,
-                              airportManagement,
-                              currentYear,
-                              currentMonth,
-                              difficulty,
-                              localAirportsMap,
-                              routes,
-                              fleet
-                            );
-
-                            onSaveRoute({ 
-                              ...routeDataForFinance,
+                            // routeDraft and saveFinancials are the memoised draft and
+                            // its realistic-load figures; nothing needs recomputing here.
+                            onSaveRoute({
+                              ...routeDraft,
                               airline: "My Airline",
                               airlineCode: airlineCode,
                               flightNumberOut: flightNumberOutbound,

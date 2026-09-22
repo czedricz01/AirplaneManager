@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Airport } from '../data/airports';
+import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info } from 'lucide-react';
 import { ManagementLevel, AirportInfrastructure } from '../App';
 
@@ -16,6 +16,8 @@ interface Props {
   onBuyManagement: (level: number) => void;
   onUpdateInfrastructure: (infra: AirportInfrastructure) => void;
   onSubtractCapital: (amount: number) => void;
+  onAddPendingSlotBills?: (amount: number) => void;
+  pendingSlotBills?: number;
   capital: number;
   onManageRoutes: () => void;
   onStartRoute: (airportId: string, role: 'origin'|'destination') => void;
@@ -33,6 +35,8 @@ export function AirportDetailView({
   onBuyManagement,
   onUpdateInfrastructure,
   onSubtractCapital,
+  onAddPendingSlotBills,
+  pendingSlotBills = 0,
   capital,
   onManageRoutes,
   onStartRoute,
@@ -123,13 +127,14 @@ export function AirportDetailView({
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   };
 
+  // Only slots carry a one-off purchase price. Desks and stands are rented: their
+  // cost shows up as weekly upkeep in getAirportUpkeep, never as an upfront charge.
+  // The route planner used to bill their weekly rate as a one-off fee, so the same
+  // desk cost money in one screen and nothing in the other.
   const buyItem = (type: 'slots' | 'desks' | 'stands', subType: string, amount: number, isShift?: boolean) => {
     let actualAmount = amount * (isShift ? 10 : 1);
-    
-    let costPerUnit = 0;
-    if (type === 'slots') costPerUnit = getSlotPurchaseCost(subType);
-    else if (type === 'desks') costPerUnit = (deskCosts as any)[subType];
-    else if (type === 'stands') costPerUnit = (standUpgradeCosts as any)[subType];
+
+    const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 0;
 
     const newInfra = { ...infrastructure };
     (newInfra as any)[type] = { ...(newInfra as any)[type] };
@@ -164,10 +169,13 @@ export function AirportDetailView({
 
     if (type === 'slots') {
       const totalCost = actualAmount > 0 ? (costPerUnit * actualAmount) : (costPerUnit * actualAmount * 0.5);
-      if (actualAmount > 0 && capital < totalCost) return;
-      onSubtractCapital(totalCost);
+      // Slot purchases are settled with the monthly report, the same way the route
+      // planner books them, so the "Purchased Slots" line stays complete.
+      if (actualAmount > 0 && (capital - pendingSlotBills) < totalCost) return;
+      if (onAddPendingSlotBills) onAddPendingSlotBills(totalCost);
+      else onSubtractCapital(totalCost);
     }
-    
+
     targetGroup[subType] = currentCount + actualAmount;
     
     if (type === 'slots' && actualAmount > 0 && infrastructure.autoBuyStands && !hubAutoUpgrade) {
@@ -237,8 +245,8 @@ export function AirportDetailView({
             infrastructure.level === 1 ? 'Standard' :
             infrastructure.level === 2 ? 'Hub' : 'Owner'
           } />
-          <Metric label="Business" value={airport.stats[currentYear]?.business?.toString() || "0"} />
-          <Metric label="Tourism" value={airport.stats[currentYear]?.tourism?.toString() || "0"} />
+          <Metric label="Business" value={getAirportStats(airport, currentYear).business.toLocaleString()} />
+          <Metric label="Tourism" value={getAirportStats(airport, currentYear).tourism.toLocaleString()} />
           <Metric label="Weekly Pax" value={`${passengerData.total.toLocaleString()}`} />
           <div className="flex flex-col relative group min-w-[100px]">
             <span className="text-white/30 text-[8px] mb-0.5 flex items-center gap-1 cursor-pointer hover:text-white transition-colors" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>

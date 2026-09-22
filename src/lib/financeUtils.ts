@@ -1,4 +1,4 @@
-import { Airport, calculateDistance } from '../data/airports';
+import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
 
@@ -151,35 +151,43 @@ export function validateClassConfigs(classConfigs: any, selectedAircraft: any, a
   if (allowedCategories.includes('Premium')) allowedPrefixes.push('p');
   if (allowedCategories.includes('Luxus')) allowedPrefixes.push('l');
 
-  const newConfigs = { ...classConfigs };
+  const hasWifi = selectedAircraft.config?.details?.hasWifi;
+  const newConfigs: any = { ...classConfigs };
   let changed = false;
 
-  const validOptions = [];
-
   Object.keys(newConfigs).forEach(cls => {
-    if (!newConfigs[cls] || !newConfigs[cls].catering) return;
-    const catArray = [...newConfigs[cls].catering];
+    const current = newConfigs[cls];
+    if (!current || !current.catering) return;
+
+    let classChanged = false;
+
+    const catArray = [...current.catering];
     for (let i = 0; i < catArray.length; i++) {
         const mealIds = catArray[i];
         if (Array.isArray(mealIds)) {
-            const filtered = mealIds.filter(id => id === 'none' || allowedPrefixes.some(pf => id.startsWith(pf)));
+            const filtered = mealIds.filter((id: string) => id === 'none' || allowedPrefixes.some(pf => id.startsWith(pf)));
             if (filtered.length !== mealIds.length) {
                 catArray[i] = filtered.length > 0 ? filtered : ['none'];
-                changed = true;
+                classChanged = true;
             }
         }
     }
-    newConfigs[cls].catering = catArray;
 
-    const hasWifi = selectedAircraft.config?.details?.hasWifi;
-    const oldExtras = newConfigs[cls].extras.join(',');
-    const filteredExtras = newConfigs[cls].extras.filter(ext => {
+    const oldExtras = (current.extras || []).join(',');
+    const filteredExtras = (current.extras || []).filter((ext: string) => {
         if (ext === 'wifi_limited' || ext === 'wifi_unlimited') return hasWifi;
         if (ext === 'premium_alcohol') return hasPremiumGalley;
         return true;
     });
-    newConfigs[cls].extras = filteredExtras.length > 0 ? filteredExtras : ['none'];
-    if (newConfigs[cls].extras.join(',') !== oldExtras) changed = true;
+    const nextExtras = filteredExtras.length > 0 ? filteredExtras : ['none'];
+    if (nextExtras.join(',') !== oldExtras) classChanged = true;
+
+    // Replace the whole class object rather than writing into it: a shallow spread of
+    // `classConfigs` still shares these nested objects with the caller's React state.
+    if (classChanged) {
+      newConfigs[cls] = { ...current, catering: catArray, extras: nextExtras };
+      changed = true;
+    }
   });
 
   return changed ? newConfigs : classConfigs;
@@ -542,7 +550,8 @@ export function calculateRouteFinancials(
   const weeklyFuelCost = fuelPricePerL * totalWeeklyFuelLiters;
   
   // Crew Costs (Base: 2 Pilots * 100/hr + FAs * 40/hr)
-  const flightHoursWeekly = (route.durMin * flightLegs) / 60;
+  const durMin = Number(route.durMin) || 0;
+  const flightHoursWeekly = (durMin * flightLegs) / 60;
   const faCount = Math.ceil(aircraft.capacity / 50);
   const hourlyCrewRate = (2 * 100) + (faCount * 40);
   const weeklyCrewCost = hourlyCrewRate * flightHoursWeekly;
@@ -567,38 +576,22 @@ export function calculateRouteFinancials(
     }
   };
 
-  const slotType = aircraft.class;
+  // Infrastructure is keyed by lower-case class names ("regional" / "narrowbody" /
+  // "widebody") while aircraft data capitalises them, so normalise once here.
+  // Passing the capitalised form made every slots/stands lookup miss silently.
+  const slotType = String(aircraft.class || 'regional').toLowerCase();
   const originLandingFees = getLandingFee(originLevel, originHub, slotType) * weeklyFlights;
   const destLandingFees = getLandingFee(destLevel, destHub, slotType) * weeklyFlights;
 
   const originCheckInUnit = originHub ? 0.475 : 0.5;
   const destCheckInUnit = destHub ? 0.475 : 0.5;
   const getPaxHandlingUnit = (level: number) => level >= 5 ? 5 : level >= 3 ? 4 : 3;
-  
-  const timeClass = getFlightTimeClass(route.durMin);
-  const planeSat = aircraft.paxComfort || 50;
 
-  const getLoungeBonus = (ap: string, cls: string, mgt: any) => {
-    if (cls !== 'business' && cls !== 'first') return 0;
-    const hasLounge = mgt[ap]?.hubFacilities?.vipLounge;
-    return hasLounge ? 10 : 0;
-  };
+  const timeClass = getFlightTimeClass(durMin);
 
-  const hasSelfDesks = airportManagement[route.origin]?.desks?.self > 0;
-  const hasNormalDesks = airportManagement[route.origin]?.desks?.normal > 0;
-  const isPremiumClass = (c: string) => c === 'business' || c === 'first';
-  
-  const getDeskPenalty = (c: string) => {
-     if (!hasSelfDesks && !hasNormalDesks) return -15; // No desks at all
-     if (isPremiumClass(c) && !hasNormalDesks) return -25; // Premium hates self-checkin only
-     if (!isPremiumClass(c) && !hasSelfDesks && hasNormalDesks) return 0; // Economy is fine with normal
-     if (!isPremiumClass(c) && hasSelfDesks && !hasNormalDesks) return 5; // Economy likes self-checkin
-     return 0;
-  };
-  
   let routeSat: Record<string, number> = {};
+  const satisfactionDetails: Record<string, any> = {};
   const classConfigs = route.classConfigs || {};
-  let totalCateringUnitCost = 0; // We'll compute weighted later
 
   // PRE-CALCULATE SATISFACTION PER CLASS
   const originDeskSim = getDeskSim(route.origin, airportManagement, allRoutes, fleet, undefined, undefined, aircraft, weeklyFlights, route.id);
@@ -610,12 +603,13 @@ export function calculateRouteFinancials(
     if (seats > 0) {
       const config = classConfigs[c] || classConfigs.general || { catering: [['none']], extras: ['none'], service: ['none'] };
       
-      const satData = calculateClassSatisfaction(c, aircraft, config, route.durMin || 0, airportManagement, route.origin, route.destination, difficulty, slotType);
-      
+      const satData = calculateClassSatisfaction(c, aircraft, config, durMin, airportManagement, route.origin, route.destination, difficulty, slotType);
+
       routeSat[c] = Math.max(0, satData.satisfactionPercentage + overloadPenalty);
-      
-      if (!route.satisfactionDetails) route.satisfactionDetails = {};
-      route.satisfactionDetails[c] = {
+
+      // Returned as part of the result instead of being written onto the route
+      // argument, which is a React state object at most call sites.
+      satisfactionDetails[c] = {
         ...satData,
         satisfactionPercentage: routeSat[c],
         overloadPenalty
@@ -623,9 +617,12 @@ export function calculateRouteFinancials(
     }
   });
 
+  const originStats = getAirportStats(originAirport, currentYear);
+  const destStats = getAirportStats(destAirport, currentYear);
+
   const demandData = calculateDemand(
-    originAirport?.stats?.[currentYear]?.business || 0, originAirport?.stats?.[currentYear]?.tourism || 0,
-    destAirport?.stats?.[currentYear]?.business || 0, destAirport?.stats?.[currentYear]?.tourism || 0,
+    originStats.business, originStats.tourism,
+    destStats.business, destStats.tourism,
     timeClass, currentMonth, difficulty, currentYear
   );
 
@@ -698,6 +695,14 @@ export function calculateRouteFinancials(
     paxPerWeek: totalPax,
     paxByClass,
     routeSat,
+    satisfactionDetails,
+    demandData,
+    distance: dist,
+    durMin,
+    timeClass,
+    flightLegs,
+    weeklyFlights,
+    weightedSeatsPerWeek,
     costsBreakdown: {
       fuel: weeklyFuelCost,
       fuelLiters: totalWeeklyFuelLiters,
@@ -706,9 +711,40 @@ export function calculateRouteFinancials(
       landingFees: originLandingFees + destLandingFees,
       paxFees: originCheckInFees + destCheckInFees + originPaxHandlingFees + destPaxHandlingFees,
       crew: weeklyCrewCost + weeklyStaffCost,
-      catering: totalWeeklyCateringCost
+      catering: totalWeeklyCateringCost,
+      // Per-airport detail, so UIs can show a breakdown without re-deriving the model.
+      originLandingFees,
+      destLandingFees,
+      originCheckInUnit,
+      destCheckInUnit,
+      originCheckInFees,
+      destCheckInFees,
+      originPaxFeeUnit: getPaxHandlingUnit(originLevel),
+      destPaxFeeUnit: getPaxHandlingUnit(destLevel),
+      originPaxHandlingFees,
+      destPaxHandlingFees
     }
   };
+}
+
+/**
+ * The single source of truth for the jet fuel price of a given month.
+ *
+ * Includes the historical/random event multiplier and the Hard-difficulty
+ * surcharge, so that every screen quotes the same price. Previously the route
+ * planner rebuilt this inline and skipped the event multiplier, which made its
+ * break-even preview disagree with the monthly report during fuel crises.
+ */
+export function getJetFuelPrice(year: number, month: number, difficulty: string): number {
+  const dateKey = `${year}-${month.toString().padStart(2, '0')}`;
+  let price = jetFuelPrices[dateKey] || 1.05;
+
+  const offset = (year - 1960) * 12 + (month - 1);
+  const { fuelMult } = getEventMultipliers(offset);
+  price *= fuelMult;
+
+  if (difficulty === 'Hard') price *= 1.15;
+  return price;
 }
 
 export function getSlotPurchaseCost(type: string) {

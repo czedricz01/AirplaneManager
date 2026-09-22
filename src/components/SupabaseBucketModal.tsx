@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Database, CheckCircle2, RefreshCw, Info, ExternalLink, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { getSupabaseBucketUrl, setSupabaseBucketUrl } from '../lib/imageUtils';
 
 interface SupabaseBucketModalProps {

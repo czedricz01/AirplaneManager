@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Written by the server at runtime
+uploads/
+public/PlanePics/
+src/PlanePics/*/

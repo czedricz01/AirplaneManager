@@ -1,1 +1,0 @@
-           const originHub = (airportManagement[selectedOrigin.id]?.level || 0) >= 2;

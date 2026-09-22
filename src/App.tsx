@@ -1,10 +1,10 @@
-import { FinancialReport } from "./components/FinancialReport";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import React, { useState, FormEvent, ReactNode, useEffect, useRef, useMemo } from "react";
+import { FinancialReport } from "./components/FinancialReport";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Plane, 
@@ -62,13 +62,14 @@ const airports: Airport[] = rawAirports.map(a => {
   const isSoviet = sovietAirports.has(a.id);
   const isWesternMajor = westernAirports.has(a.id);
   
-  if (!isSoviet && !isWesternMajor) return a;
-  
-  const newStats: Record<number, { tourism: number; business: number }> = { ...a.stats };
-  for (const yearStr in newStats) {
+  if (!isSoviet && !isWesternMajor || !a.stats) return a;
+
+  const sourceStats = a.stats;
+  const newStats: Record<string, { tourism: number; business: number }> = { ...sourceStats };
+  for (const yearStr in sourceStats) {
     const year = parseInt(yearStr);
     let multiplier = 1.0;
-    
+
     if (isSoviet) {
       if (year < 1990) multiplier = 0.45; // Significant dampening of Soviet era
       else if (year < 2000) multiplier = 0.55; // Post-Soviet transition collapse
@@ -76,11 +77,11 @@ const airports: Airport[] = rawAirports.map(a => {
     } else if (isWesternMajor) {
       if (year < 1975) multiplier = 1.15; // Buff early Western hubs
     }
-    
+
     if (multiplier !== 1.0) {
-      newStats[year] = {
-        tourism: Math.max(1, Math.round(a.stats[year].tourism * multiplier)),
-        business: Math.max(1, Math.round(a.stats[year].business * multiplier))
+      newStats[yearStr] = {
+        tourism: Math.max(1, Math.round(sourceStats[yearStr].tourism * multiplier)),
+        business: Math.max(1, Math.round(sourceStats[yearStr].business * multiplier))
       };
     }
   }
@@ -143,6 +144,27 @@ function getGreatCirclePoints(start: [number, number], end: [number, number], se
 
     points.push([lat, lon]);
   }
+  return points;
+}
+
+/**
+ * Cached polyline for an airport pair on a given world copy.
+ *
+ * A route's great circle never changes, but this used to be recomputed — 101
+ * trigonometric points per route per world copy — on every single render of App,
+ * which happens on any capital, message or zoom change.
+ */
+const ROUTE_PATH_SEGMENTS = 100;
+const routePathCache = new Map<string, [number, number][]>();
+
+function getRoutePath(a1: Airport, a2: Airport, offset: number): [number, number][] {
+  const key = `${a1.id}>${a2.id}@${offset}`;
+  const cached = routePathCache.get(key);
+  if (cached) return cached;
+
+  const points = getGreatCirclePoints(a1.coords, a2.coords, ROUTE_PATH_SEGMENTS)
+    .map(p => [p[0], p[1] + offset] as [number, number]);
+  routePathCache.set(key, points);
   return points;
 }
 
@@ -378,8 +400,8 @@ const generateAiAirlines = (count: number, difficultyVal: string, playerHubId: s
       hub,
       capital: finalCapital,
       aiDifficulty: difficultyVal as 'Easy' | 'Normal' | 'Hard',
-      fleet: [],
-      routes: [],
+      fleet,
+      routes,
       monthlyProfitsHistory: [Math.floor(finalCapital * 0.05)],
       personality,
       aggression
@@ -416,12 +438,14 @@ const simulateAiAirlinesTurn = (
 
   const updatedAis = currentAiAirlines.map((ai, idxOfAiZone) => {
     const newFleet = [...ai.fleet];
-    const newRoutes = [...ai.routes];
+    // Clone each route: the loop below writes monthlyProfit/distance/durMin onto these
+    // objects, and mutating the ones held in React state would be a state mutation.
+    const newRoutes = ai.routes.map(r => ({ ...r }));
     const currentFuelPrice = getFuelPriceForAi(currentDateOffset, ai.aiDifficulty);
 
     // Dynamic Safe fallback if save file was old
     const personality = ai.personality || personalitiesList[idxOfAiZone % personalitiesList.length] || 'optimizer';
-    const aggression = ai.aggression || (personality === 'expansionist' ? 9 : personality === 'lcc' ? 8 : personality === 'flag' ? 6 : personality === 'optimizer' ? 4 : 5);
+    const aggression = ai.aggression ?? (personality === 'expansionist' ? 9 : personality === 'lcc' ? 8 : personality === 'flag' ? 6 : personality === 'optimizer' ? 4 : 5);
 
     let totalMonthlyProfit = 0;
     
@@ -1041,11 +1065,26 @@ export const randomEventTemplates = [
   }
 ];
 
+export const GENERAL_CHECK_COST = 200000;
+
+/** How much airframe condition a general check restores. The fifth and later checks
+ *  restore nothing, so the UI must not charge for them. */
+export function getGeneralCheckRestore(checksDone: number): number {
+  if (checksDone === 0) return 50;
+  if (checksDone === 1) return 50;
+  if (checksDone === 2) return 40;
+  if (checksDone === 3) return 30;
+  return 0;
+}
+
 export default function App() {
   const [view, setView] = useState<ViewState>('login');
   const [activeWindow, setActiveWindow] = useState<ActiveWindow>('map');
   const [user, setUser] = useState<string | null>(null);
-  
+  // Offline mode lets the game run without a configured Supabase backend.
+  // A ref (not state) because the auth listener below must read it without resubscribing.
+  const isOfflineModeRef = useRef(false);
+
   const [messages, setMessages] = useState<GameMessage[]>([
     { 
       id: 1, 
@@ -1077,11 +1116,13 @@ export default function App() {
   const [isMapSettingsOpen, setIsMapSettingsOpen] = useState(false);
   const [realTime, setRealTime] = useState(new Date());
 
+  // Ticks the live traffic clock. Recomputing positions is cheap now that the markers
+  // are plain cached SVG icons, so 20s gives visible movement without a render loop.
   useEffect(() => {
-    if (showLiveTraffic) {
-       const interval = setInterval(() => setRealTime(new Date()), 60000);
-       return () => clearInterval(interval);
-    }
+    if (!showLiveTraffic) return;
+    setRealTime(new Date());
+    const interval = setInterval(() => setRealTime(new Date()), 20000);
+    return () => clearInterval(interval);
   }, [showLiveTraffic]);
   const [routes, setRoutes] = useState<SimulatedRoute[]>([]);
   const [latestReport, setLatestReport] = useState<any>(null);
@@ -1123,10 +1164,17 @@ export default function App() {
     }
   }, []);
 
-  // Save game data
+  // Save game data. An empty network has to be written too, otherwise deleting the
+  // last route left the old list in storage and it came back on the next page load.
   useEffect(() => {
-    if (routes.length > 0) {
-      localStorage.setItem('neo_routes', JSON.stringify(routes));
+    try {
+      if (routes.length > 0) {
+        localStorage.setItem('neo_routes', JSON.stringify(routes));
+      } else {
+        localStorage.removeItem('neo_routes');
+      }
+    } catch (e) {
+      console.error("Failed to persist routes", e);
     }
   }, [routes]);
 
@@ -1207,6 +1255,13 @@ export default function App() {
     if (zoom < 3 && !offsets.includes(0)) offsets.push(0);
     return offsets;
   }, [mapBounds, zoom]);
+
+  // Flattened once: passing a fresh array on every render defeated the memoisation
+  // inside LiveTraffic.
+  const aiRouteList = useMemo(
+    () => aiAirlines.flatMap(a => a.routes || []),
+    [aiAirlines]
+  );
 
   const finalUiScale = uiScaleSetting * autoScale;
 
@@ -1295,10 +1350,13 @@ export default function App() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
         if (session) {
+          isOfflineModeRef.current = false;
           setUser("Operator " + session.user.email);
           // Only change view if we are on login screen, avoiding disrupting gameplay
           setView((prev) => (prev === 'login' ? 'main-menu' : prev));
-        } else {
+        } else if (!isOfflineModeRef.current) {
+          // An offline session is not managed by Supabase, so a null session here
+          // must not throw the player back to the login screen.
           setUser(null);
           setView('login');
         }
@@ -1367,10 +1425,20 @@ export default function App() {
     setIsLoading(false);
   };
 
+  // Start playing without an account. Saves go to localStorage, exactly as they do
+  // for signed-in players, so nothing about the game itself changes.
+  const handlePlayOffline = () => {
+    isOfflineModeRef.current = true;
+    setLoginError(null);
+    setUser("Local Operator");
+    setView('main-menu');
+  };
+
   const handleDisconnect = async () => {
     if (supabase) {
       await supabase.auth.signOut();
     }
+    isOfflineModeRef.current = false;
     setIsGameMenuOpen(false);
     setView('login');
   };
@@ -1539,8 +1607,8 @@ export default function App() {
 
   const handleAdvanceMonth = () => {
     // Generate Report First using CURRENT date
-    const localAirportsMap = new Map<string, Airport>();
-    airports.forEach(a => localAirportsMap.set(a.id, a));
+    // airportsMapAdjusted is the same lookup, built once at module load.
+    const localAirportsMap = airportsMapAdjusted;
     const currentFuelPrice = getFuelData(currentDateOffset).price;
     const currentYearNum = 1960 + Math.floor(currentDateOffset / 12);
     const currentMonthNum = 1 + (currentDateOffset % 12);
@@ -1746,15 +1814,13 @@ export default function App() {
       setMessages(prev => [...additionalMessages, ...aiMessages, ...prev]);
     }
     
-    // Advance time and update view
-    setCurrentDateOffset(prev => {
-        const next = prev + 1;
-        const monthsPassed = next - startDateOffset;
-        if (autosaveInterval >= 1 && autosaveInterval <= 12 && monthsPassed > 0 && monthsPassed % autosaveInterval === 0) {
-            setPendingAutosave(true);
-        }
-        return next;
-    });
+    // Advance time and update view. The autosave decision is made here rather than
+    // inside the state updater: updaters must be pure, and StrictMode runs them twice.
+    const monthsPassed = nextOffset - startDateOffset;
+    if (autosaveInterval >= 1 && autosaveInterval <= 12 && monthsPassed > 0 && monthsPassed % autosaveInterval === 0) {
+      setPendingAutosave(true);
+    }
+    setCurrentDateOffset(nextOffset);
 
     setRoutes(prevRoutes => prevRoutes.map(r => {
       const activePrices = r.ticketPrices || { economy: 100 };
@@ -1803,12 +1869,25 @@ export default function App() {
         });
       });
       // Rough monthly logic: 4 weeks per month
-      const monthlyFlightHours = (weeklyFlightMinutes / 60) * 4;
-      const decay = isNaN(monthlyFlightHours) ? 0 : monthlyFlightHours * 0.001;
-      
+      const monthlyFlightHours = isNaN(weeklyFlightMinutes) ? 0 : (weeklyFlightMinutes / 60) * 4;
+
+      // Wear rates. At a busy ~300 block hours per month the cabin needs a refit after
+      // roughly eight years and the airframe a general check after about twelve, which
+      // is what the refit/check restore values are sized for. The small constant term
+      // makes parked aircraft age too, slowly.
+      const INTERIOR_WEAR_PER_HOUR = 0.0035;
+      const AIRFRAME_WEAR_PER_HOUR = 0.0022;
+      const IDLE_WEAR_PER_MONTH = 0.1;
+
+      const interiorDecay = monthlyFlightHours * INTERIOR_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH;
+      // conditionGeneral previously never decreased at all, which made the general
+      // check a pure money sink and the "< 40 %" fleet warning unreachable.
+      const airframeDecay = monthlyFlightHours * AIRFRAME_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH;
+
       return {
         ...plane,
-        conditionInterior: Math.max(0, plane.conditionInterior - decay)
+        conditionInterior: Math.max(0, plane.conditionInterior - interiorDecay),
+        conditionGeneral: Math.max(0, plane.conditionGeneral - airframeDecay)
       };
     }));
   };
@@ -2235,7 +2314,7 @@ export default function App() {
                       >
                         {isLoading ? 'Processing...' : 'Initialize System'} <LogIn size={18} />
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={handleRegister}
                         disabled={isLoading}
@@ -2243,6 +2322,26 @@ export default function App() {
                       >
                         Request Access <UserPlus size={18} />
                       </button>
+
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="h-px flex-1 bg-white/10" />
+                        <span className="text-[9px] font-mono uppercase tracking-[0.3em] text-white/30">or</span>
+                        <div className="h-px flex-1 bg-white/10" />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handlePlayOffline}
+                        disabled={isLoading}
+                        className="w-full bg-aero-yellow/10 border border-aero-yellow/40 text-aero-yellow py-4 font-black uppercase tracking-tighter hover:bg-aero-yellow hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        Play Offline <Play size={18} />
+                      </button>
+                      <p className="text-[10px] font-mono text-white/30 leading-relaxed text-center">
+                        {supabase
+                          ? 'Offline mode skips the account. Saves stay in this browser.'
+                          : 'No Supabase backend configured — offline mode is the way in. Saves stay in this browser.'}
+                      </p>
                     </div>
                   </form>
                 </div>
@@ -2572,7 +2671,13 @@ export default function App() {
                   <div className="border-b border-white/10 pb-6 mb-6">
                     <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2">Operation: Execution</span>
                     <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
-                    <p className="text-white/60 font-mono mt-4 font-bold text-xl">{formatDate(currentDateOffset)} - {airlineName || 'Neo Airlines'} ({airlineCode || 'NX'})</p>
+                    {/* The report covers the month that just ended, not the one the clock
+                        has already advanced to, so label it from the report itself. */}
+                    <p className="text-white/60 font-mono mt-4 font-bold text-xl">
+                      {latestReport
+                        ? `${latestReport.month.toString().padStart(2, '0')}/${latestReport.year}`
+                        : formatDate(currentDateOffset)} - {airlineName || 'Neo Airlines'} ({airlineCode || 'NX'})
+                    </p>
                   </div>
                   
                   <div className="mb-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-4">
@@ -2777,37 +2882,20 @@ export default function App() {
                         style={{ backgroundColor: '#131517' }}
                         zoomControl={false}
                       >
-                        {/* Global Base Baseline: Zoom 2 tiles cached globally for absolute minimum fallback */}
+                        {/* Low-resolution world backdrop that fills gaps while the detail
+                            layer loads. Two further duplicate layers were removed here:
+                            all four requested the same tile service, so the map fetched
+                            every visible area up to four times. */}
                         <TileLayer
                           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                           attribution='&copy; Esri'
                           noWrap={false}
                           minNativeZoom={2}
-                          maxNativeZoom={2}
-                          maxZoom={20}
-                          zIndex={-1}
-                          opacity={0.8}
-                          keepBuffer={16}
-                        />
-                        {/* Global Mid-Res Baseline: Always exists and scales Zoom 4 tiles to fill gaps */}
-                        <TileLayer
-                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                          attribution='&copy; Esri'
-                          noWrap={false}
-                          minNativeZoom={4}
-                          maxNativeZoom={4}
+                          maxNativeZoom={3}
                           maxZoom={20}
                           zIndex={0}
                           opacity={0.9}
-                        />
-                        <TileLayer
-                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                          attribution='&copy; Esri'
-                          noWrap={false}
-                          maxZoom={4}
-                          zIndex={1}
-                          keepBuffer={12}
-                          updateWhenIdle={true}
+                          keepBuffer={8}
                         />
                         <TileLayer
                           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -2832,9 +2920,7 @@ export default function App() {
                               const key = [a1.id, a2.id].sort().join('-');
                               if (pairs.has(key)) return null;
                               pairs.add(key);
-                                             // Optimization: Consistent smoothness
-                              const segmentCount = 100;
-                              const points = getGreatCirclePoints(a1.coords, a2.coords, segmentCount).map(p => [p[0], p[1] + offset] as [number, number]);
+                              const points = getRoutePath(a1, a2, offset);
                               return (
                                 <Polyline 
                                   key={`${r.id}-${offset}`}
@@ -2854,8 +2940,7 @@ export default function App() {
                                 const a1 = airportsMapAdjusted.get(planningOriginId);
                                 const a2 = airportsMapAdjusted.get(planningDestId);
                                 if (a1 && a2) {
-                                    const segmentCount = 100;
-                                    const points = getGreatCirclePoints(a1.coords, a2.coords, segmentCount).map(p => [p[0], p[1] + offset] as [number, number]);
+                                    const points = getRoutePath(a1, a2, offset);
                                     lines.push(
                                         <Polyline 
                                             key={`planning-${offset}`}
@@ -2879,8 +2964,7 @@ export default function App() {
                                     const a1 = airportsMapAdjusted.get(r.origin);
                                     const a2 = airportsMapAdjusted.get(r.destination);
                                     if (!a1 || !a2) return;
-                                    const segmentCount = 100;
-                                    const points = getGreatCirclePoints(a1.coords, a2.coords, segmentCount).map(p => [p[0], p[1] + offset] as [number, number]);
+                                    const points = getRoutePath(a1, a2, offset);
                                     lines.push(
                                       <Polyline 
                                         key={`ai-${airline.code}-${aiIdx}-${routeIdx}-${offset}`}
@@ -2965,18 +3049,18 @@ export default function App() {
                         </React.Fragment>
                       ))}
 
-                      {showLiveTraffic && visibleWorldOffsets.map(offset => (
-                        <React.Fragment key={`world-${offset}-traffic`}>
-                          <LiveTraffic 
-                            realTime={realTime} 
-                            routes={routes} 
-                            aiRoutes={aiAirlines.flatMap(a => a.routes || [])} 
-                            airports={airports} 
-                            offset={offset}
-                            fleet={fleet}
-                          />
-                        </React.Fragment>
-                      ))}
+                      {/* Rendered once for every world copy: flight positions do not
+                          depend on the copy, only the drawn longitude does. */}
+                      {showLiveTraffic && (
+                        <LiveTraffic
+                          realTime={realTime}
+                          routes={routes}
+                          aiRoutes={aiRouteList}
+                          airports={airports}
+                          offsets={visibleWorldOffsets}
+                          fleet={fleet}
+                        />
+                      )}
                     </MapContainer>
                   </div>
                   
@@ -2984,7 +3068,7 @@ export default function App() {
                   {activeWindow === 'buy-aircraft' ? (
                     <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
                       <div className="relative z-10 w-full h-full">
-                        <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} />
+                        <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} />
                         {selectedPurchasingAircraft && (
                           <ConfigurePurchaseView 
                             aircraft={selectedPurchasingAircraft} 
@@ -3268,26 +3352,29 @@ export default function App() {
                         routes={routes}
                         aiAirlines={aiAirlines}
                         onPerformGeneralCheck={(registration) => {
-                          if (capital >= 200000) {
-                            setCapital(prev => prev - 200000);
-                            setFleet(prev => prev.map(p => {
-                              if (p.registration === registration) {
-                                const checksDone = p.generalChecksDone || 0;
-                                let restore = 0;
-                                if (checksDone === 0) restore = 50;
-                                else if (checksDone === 1) restore = 50;
-                                else if (checksDone === 2) restore = 40;
-                                else if (checksDone === 3) restore = 30;
-                                
-                                return {
-                                  ...p,
-                                  generalChecksDone: checksDone + 1,
-                                  conditionGeneral: Math.min(100, p.conditionGeneral + restore)
-                                };
-                              }
-                              return p;
-                            }));
+                          const plane = fleet.find(p => p.registration === registration);
+                          if (!plane) return;
+
+                          const restore = getGeneralCheckRestore(plane.generalChecksDone || 0);
+                          // A fifth check restores nothing, so do not take the money for it.
+                          if (restore <= 0) {
+                            setAppAlert(`${registration} has had all four general checks. Further checks would restore nothing — retire or replace the airframe.`);
+                            return;
                           }
+                          if (capital < GENERAL_CHECK_COST) {
+                            setAppAlert(`A general check costs ${formatCurrency(GENERAL_CHECK_COST)}. You do not have the capital.`);
+                            return;
+                          }
+
+                          setCapital(prev => prev - GENERAL_CHECK_COST);
+                          setFleet(prev => prev.map(p => {
+                            if (p.registration !== registration) return p;
+                            return {
+                              ...p,
+                              generalChecksDone: (p.generalChecksDone || 0) + 1,
+                              conditionGeneral: Math.min(100, p.conditionGeneral + restore)
+                            };
+                          }));
                         }}
                         infrastructure={airportManagement[selectedAirport.id] || {
                           level: 0,
@@ -3334,14 +3421,16 @@ export default function App() {
                           }
                         }}
                         onUpdateInfrastructure={(infra) => {
-                          // This is for buying slots/desks where costs are already subtracted 
-                          // or for complex transactions. Realistically we'd pass a cost too.
+                          // Costs are settled by onSubtractCapital / onAddPendingSlotBills
+                          // before this runs; here we only store the new layout.
                           setAirportManagement(prev => ({
                             ...prev,
                             [selectedAirport.id]: infra
                           }));
                         }}
                         onSubtractCapital={(amount) => setCapital(prev => prev - amount)}
+                        onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
+                        pendingSlotBills={pendingSlotBills}
                         capital={capital}
                         onManageRoutes={() => {
                           if (selectedAirport) {

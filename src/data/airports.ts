@@ -34003,6 +34003,82 @@ export const airportsData: Airport[] = [
     } }
 ];
 
+export interface AirportDemandStats {
+  tourism: number;
+  business: number;
+}
+
+const EMPTY_STATS: AirportDemandStats = { tourism: 0, business: 0 };
+
+type StatsBounds = { min: number; max: number; growth: number };
+const statsBoundsCache = new WeakMap<object, StatsBounds>();
+
+function getStatsBounds(stats: NonNullable<Airport['stats']>): StatsBounds {
+  const cached = statsBoundsCache.get(stats);
+  if (cached) return cached;
+
+  let min = Infinity;
+  let max = -Infinity;
+  for (const key in stats) {
+    const year = Number(key);
+    if (!Number.isFinite(year)) continue;
+    if (year < min) min = year;
+    if (year > max) max = year;
+  }
+
+  let growth = 1;
+  if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+    // Compound annual growth over the last decade of real data, clamped so that a
+    // single noisy airport cannot produce runaway numbers far into the future.
+    const windowStart = Math.max(min, max - 10);
+    const first = stats[String(windowStart)];
+    const last = stats[String(max)];
+    const firstTotal = (first?.tourism || 0) + (first?.business || 0);
+    const lastTotal = (last?.tourism || 0) + (last?.business || 0);
+    if (firstTotal > 0 && lastTotal > 0 && max > windowStart) {
+      growth = Math.pow(lastTotal / firstTotal, 1 / (max - windowStart));
+    }
+    growth = Math.min(1.04, Math.max(1, growth));
+  }
+
+  const bounds: StatsBounds = { min, max, growth };
+  statsBoundsCache.set(stats, bounds);
+  return bounds;
+}
+
+/**
+ * Reads an airport's demand statistics for a given year.
+ *
+ * The bundled tables stop at a fixed year while the simulation runs far past it.
+ * Reading `airport.stats[year]` directly yielded `undefined` beyond that point,
+ * which silently collapsed demand — and therefore all ticket revenue — to zero.
+ * Years below the table are clamped to the first entry, years above it are
+ * extrapolated from the airport's own historical growth rate.
+ */
+export function getAirportStats(airport: Airport | undefined | null, year: number): AirportDemandStats {
+  const stats = airport?.stats;
+  if (!stats) return EMPTY_STATS;
+
+  const direct = stats[String(year)];
+  if (direct) return direct;
+
+  const { min, max, growth } = getStatsBounds(stats);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return EMPTY_STATS;
+
+  if (year <= min) return stats[String(min)] || EMPTY_STATS;
+
+  const last = stats[String(max)];
+  if (!last) return EMPTY_STATS;
+
+  // Cap the extrapolation horizon so very distant years stay in a sane range.
+  const yearsAhead = Math.min(year - max, 50);
+  const factor = Math.pow(growth, yearsAhead);
+  return {
+    tourism: Math.round(last.tourism * factor),
+    business: Math.round(last.business * factor)
+  };
+}
+
 export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Radius of the earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);

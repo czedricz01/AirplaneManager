@@ -18,6 +18,9 @@ export const setExternalImageBaseUrl = (url: string) => {
     localStorage.setItem('external_image_base_url', cleaned);
     localStorage.setItem('supabase_bucket_url', cleaned);
   }
+  // A new bucket means the cached candidate lists and the 404 memory are stale.
+  clearAircraftImageCandidateCache();
+  clearFailedImageUrls();
 };
 
 export const getSupabaseBucketUrl = (): string => {
@@ -28,6 +31,35 @@ export const setSupabaseBucketUrl = (url: string) => {
   setExternalImageBaseUrl(url);
 };
 
+/**
+ * Remote URLs that have already failed once in this session.
+ *
+ * The candidate list is a series of guesses at a filename, and every miss costs a
+ * real HTTP request. Without this, a catalogue of a few hundred aircraft could fire
+ * tens of thousands of 404s, because each card rediscovers the same dead URLs.
+ */
+const failedImageUrls = new Set<string>();
+
+export const markImageUrlFailed = (url: string) => {
+  if (url) failedImageUrls.add(url);
+};
+
+export const isImageUrlFailed = (url: string) => failedImageUrls.has(url);
+
+export const clearFailedImageUrls = () => failedImageUrls.clear();
+
+/** Upper bound on remote guesses per aircraft. Enough to cover the common naming
+ *  conventions without turning one missing picture into a request storm. */
+const MAX_REMOTE_CANDIDATES = 24;
+
+const candidateCache = new Map<string, string[]>();
+let candidateCacheImagesMap: Record<string, string> | undefined;
+
+export const clearAircraftImageCandidateCache = () => {
+  candidateCache.clear();
+  candidateCacheImagesMap = undefined;
+};
+
 export const getAircraftImageCandidates = (
   safeName: string,
   manufacturer?: string,
@@ -36,8 +68,19 @@ export const getAircraftImageCandidates = (
   aircraftVisuals?: Record<string, string>,
   keyLookup?: string
 ): string[] => {
-  const candidates: string[] = [];
-  const userBaseUrl = typeof window !== 'undefined' 
+  // The list depends only on these inputs, so build it once per aircraft rather than
+  // on every render of every card showing that aircraft.
+  if (imagesMap !== candidateCacheImagesMap) {
+    candidateCache.clear();
+    candidateCacheImagesMap = imagesMap;
+  }
+  const cacheKey = `${safeName}|${manufacturer || ''}|${type || ''}|${keyLookup || ''}`;
+  const cached = candidateCache.get(cacheKey);
+  if (cached) return cached;
+
+  const localCandidates: string[] = [];
+  const remoteCandidates: string[] = [];
+  const userBaseUrl = typeof window !== 'undefined'
     ? (localStorage.getItem('supabase_bucket_url') || localStorage.getItem('external_image_base_url'))
     : null;
 
@@ -115,38 +158,45 @@ export const getAircraftImageCandidates = (
 
   const extensions = ['.jpg', '.png', '.webp', '.jpeg'];
 
+  // Images the local server actually reported, and bundled fallbacks, come FIRST:
+  // they are known to exist, so the remote guessing below usually never runs.
+  if (imagesMap) {
+    if (imagesMap[underscoreLower]) localCandidates.push(imagesMap[underscoreLower]);
+    if (imagesMap[cleanSafeName]) localCandidates.push(imagesMap[cleanSafeName]);
+    if (imagesMap[safeName]) localCandidates.push(imagesMap[safeName]);
+  }
+
+  if (aircraftVisuals && keyLookup && aircraftVisuals[keyLookup]) {
+    const visPath = aircraftVisuals[keyLookup];
+    if (visPath.startsWith('/planes/')) {
+      localCandidates.push(visPath);
+    } else {
+      localCandidates.push('/src/assets/aircraft' + visPath);
+    }
+  }
+
   // Generate bucket candidate URLs for each stem & extension
   baseUrls.forEach(base => {
     stems.forEach(stem => {
       extensions.forEach(ext => {
-        candidates.push(`${base}/${encodeURIComponent(stem)}${ext}`);
+        remoteCandidates.push(`${base}/${encodeURIComponent(stem)}${ext}`);
       });
       // Also check subfolder structure: base/stem/image.ext
       extensions.forEach(ext => {
-        candidates.push(`${base}/${encodeURIComponent(stem)}/image${ext}`);
+        remoteCandidates.push(`${base}/${encodeURIComponent(stem)}/image${ext}`);
       });
     });
   });
 
-  // Local proxy / API uploaded images map
-  if (imagesMap) {
-    if (imagesMap[underscoreLower]) candidates.push(imagesMap[underscoreLower]);
-    if (imagesMap[cleanSafeName]) candidates.push(imagesMap[cleanSafeName]);
-    if (imagesMap[safeName]) candidates.push(imagesMap[safeName]);
-  }
-
-  // Fallback static asset maps
-  if (aircraftVisuals && keyLookup && aircraftVisuals[keyLookup]) {
-    const visPath = aircraftVisuals[keyLookup];
-    if (visPath.startsWith('/planes/')) {
-      candidates.push(visPath);
-    } else {
-      candidates.push('/src/assets/aircraft' + visPath);
-    }
-  }
+  // Drop URLs already known to 404, then cap what is left.
+  const liveRemote = Array.from(new Set(remoteCandidates))
+    .filter(url => !failedImageUrls.has(url))
+    .slice(0, MAX_REMOTE_CANDIDATES);
 
   // Deduplicate candidates preserving priority order
-  return Array.from(new Set(candidates));
+  const result = Array.from(new Set([...localCandidates, ...liveRemote]));
+  candidateCache.set(cacheKey, result);
+  return result;
 };
 
 export const getAircraftImageUrl = (
