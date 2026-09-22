@@ -97,6 +97,7 @@ Läuft dann ebenfalls auf <http://localhost:3000>, aber ohne Hot Reload.
 | `command not found: npm` | Node.js ist nicht installiert |
 | Anmeldung schlägt fehl | Meldung lesen — sie nennt den Grund (falsches Passwort, E-Mail nicht bestätigt, Server nicht erreichbar) |
 | "Cloud accounts not configured" | Die Supabase-Variablen fehlen im Build, siehe unten |
+| `Invalid path specified in request URL` | `VITE_SUPABASE_URL` enthält einen Dienstpfad wie `/rest/v1`. Nur die reine Projekt-URL eintragen — die App schneidet solche Endungen inzwischen selbst ab, der Build muss dafür aber neu laufen |
 
 ---
 
@@ -144,6 +145,12 @@ dort, wo du sie anlegst.
 
 - **Project URL** → `VITE_SUPABASE_URL`
 - **anon public** → `VITE_SUPABASE_ANON_KEY`
+
+> Bei der Project URL wirklich nur `https://<kennung>.supabase.co` nehmen. Auf
+> derselben Seite stehen darunter die Endpunkte für REST, Auth und Storage; wird
+> versehentlich `.../rest/v1` kopiert, gehen die Anmeldeanfragen ins Leere und
+> Supabase antwortet mit `Invalid path specified in request URL`. Die App
+> schneidet solche Endungen inzwischen ab, aber sauber eintragen ist besser.
 
 > Den `service_role`-Schlüssel **niemals** verwenden. Der umgeht jede
 > Zugriffsregel. Der `anon`-Schlüssel ist als öffentlich gedacht und darf im
