@@ -98,7 +98,7 @@ import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, setRuntimeRandomEvents, HistoricalEvent } from "./lib/eventSystem";
 import { generateUniqueRegistration } from "./utils/registration";
-import { supabase, isCloudConfigured } from "./lib/supabase";
+import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import {
   SaveMetadata,
@@ -1354,7 +1354,9 @@ export default function App() {
       if (session?.user) {
         setUserId(session.user.id);
         const meta = session.user.user_metadata as { display_name?: string } | undefined;
-        setUser(meta?.display_name || session.user.email || 'Operator');
+        const name = meta?.display_name || session.user.email || 'Operator';
+        setUser(name);
+        void ensureProfile(session.user.id, name);
         setView(prev => (prev === 'login' ? 'main-menu' : prev));
       } else {
         setUserId(null);

@@ -131,18 +131,32 @@ abgefragt wird, brauchst du für das Spiel nicht — trotzdem sicher aufbewahren
 Im Projekt links auf *SQL Editor* → *New query*. Den gesamten Inhalt von
 `supabase/schema.sql` hineinkopieren und *Run* drücken. Das legt die Tabellen
 `profiles`, `saves` und `invite_codes` an, schaltet Row Level Security ein und
-richtet die Trigger für den Einladungscode ein.
+erstellt die Hook-Funktion für den Einladungscode.
 
-**3. Einen Einladungscode erzeugen**
+**3. Den Hook aktivieren — ohne diesen Schritt ist der Einladungscode wirkungslos**
+
+*Authentication* → *Hooks* → **Before User Created** → Typ *Postgres* →
+Funktion `public.hook_enforce_invite_code` → *Enable*.
+
+Das Schema allein reicht nicht: es legt die Funktion nur an. Erst dieser Schalter
+sorgt dafür, dass Supabase Auth sie bei jeder Registrierung aufruft. Solange er
+aus ist, kann sich **jeder** ohne Code registrieren.
+
+> Warum kein Datenbank-Trigger? `auth.users` gehört der Rolle
+> `supabase_auth_admin`, nicht `postgres` — ein `create trigger` darauf schlägt
+> fehl. Der Hook ist der von Supabase dafür vorgesehene Weg.
+
+**4. Einen Einladungscode erzeugen**
 
 Ebenfalls im SQL Editor:
 
 ```sql
-insert into public.invite_codes (code, note, max_uses)
-values ('NEO-START-2026', 'mein erstes Konto', 1);
+select public.new_invite_code('mein erstes Konto');
 ```
 
-**4. Schlüssel holen**
+Die Funktion gibt den erzeugten Code zurück, etwa `NEO-K7PQM4RT`.
+
+**5. Schlüssel holen**
 
 *Settings → API*. Du brauchst zwei Werte:
 
@@ -153,7 +167,7 @@ values ('NEO-START-2026', 'mein erstes Konto', 1);
 > Zugriffsregel. Der `anon`-Schlüssel ist dagegen als öffentlich gedacht und
 > darf im Browser landen — der Schutz kommt aus den Regeln in der Datenbank.
 
-**5. In GitHub hinterlegen**
+**6. In GitHub hinterlegen**
 
 Repository → *Settings* → *Secrets and variables* → *Actions* → *New repository
 secret*. Zwei Stück anlegen, exakt so benannt:
@@ -163,21 +177,28 @@ secret*. Zwei Stück anlegen, exakt so benannt:
 | `VITE_SUPABASE_URL` | die Project URL |
 | `VITE_SUPABASE_ANON_KEY` | der anon-public-Schlüssel |
 
-**6. Neu veröffentlichen**
+**7. Neu veröffentlichen**
 
 Einen beliebigen Commit nach `main` pushen, oder unter *Actions* den Workflow
 *Deploy to GitHub Pages* manuell über *Run workflow* starten.
 
-**7. Erstes Konto anlegen**
+**8. Erstes Konto anlegen**
 
 Seite öffnen → *Register with invite code* → E-Mail, Anzeigename, Passwort und den
-Code aus Schritt 3. Supabase verschickt standardmäßig eine Bestätigungs-E-Mail.
+Code aus Schritt 4. Supabase verschickt standardmäßig eine Bestätigungs-E-Mail.
 Wenn du das nicht willst: *Authentication → Sign In / Providers → Email* und
 *Confirm email* abschalten.
 
 ### Weitere Spieler einladen
 
 Code erzeugen und weitergeben:
+
+```sql
+select public.new_invite_code('Freunde', 5, 30);   -- 5 Nutzungen, 30 Tage gültig
+select public.new_invite_code('für Anna');         -- einmal nutzbar, ohne Ablauf
+```
+
+Oder mit selbst gewähltem Code:
 
 ```sql
 insert into public.invite_codes (code, note, max_uses, expires_at)
@@ -187,9 +208,23 @@ values ('NEO-CREW', 'Freunde', 5, now() + interval '30 days');
 Nutzung nachsehen oder Code zurückziehen:
 
 ```sql
-select code, uses, max_uses, expires_at, note from public.invite_codes;
+select code, uses, max_uses, expires_at, note from public.invite_codes order by created_at;
 delete from public.invite_codes where code = 'NEO-CREW';
 ```
+
+Ein zurückgezogener Code sperrt keine bereits angelegten Konten — er verhindert
+nur weitere Registrierungen damit.
+
+### Konten verwalten
+
+Angelegte Konten stehen unter *Authentication* → *Users*. Dort lassen sich
+Passwörter zurücksetzen, E-Mails bestätigen und Konten löschen. Ein gelöschtes
+Konto nimmt seine Spielstände mit (`on delete cascade`).
+
+Konten direkt im Dashboard über *Add user* anzulegen ist möglich, umgeht aber den
+Registrierungsweg der App: das Profil wird dann erst beim ersten Anmelden
+angelegt. Der Weg über Einladungscode und Registrierung im Spiel ist der
+verlässlichere.
 
 ### Lokale Entwicklung
 

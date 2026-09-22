@@ -48,6 +48,13 @@ export function describeAuthError(error: { message?: string } | null | undefined
   if (/INVITE_CODE_EXPIRED/i.test(raw)) return 'That invite code has expired.';
   if (/INVITE_CODE_EXHAUSTED/i.test(raw)) return 'That invite code has already been used up.';
 
+  // A failing trigger on auth.users usually reaches the client as this generic
+  // message rather than the text the trigger raised, so the invite code is by far
+  // the most likely cause of it here.
+  if (/database error (saving|creating) new user/i.test(raw)) {
+    return 'Could not create the account — check the invite code.';
+  }
+
   if (/invalid login credentials/i.test(raw)) return 'Wrong email or password.';
   if (/email not confirmed/i.test(raw)) return 'Confirm your email address first — check your inbox.';
   if (/user already registered/i.test(raw)) return 'An account with that email already exists.';
@@ -55,4 +62,29 @@ export function describeAuthError(error: { message?: string } | null | undefined
   if (/failed to fetch|network/i.test(raw)) return 'Cannot reach the server. Check your connection.';
 
   return raw || 'Unknown error.';
+}
+
+/**
+ * Creates the player's profile row if it does not exist yet.
+ *
+ * Normally this would be a trigger on auth.users, but that table is owned by
+ * supabase_auth_admin and postgres is not allowed to put triggers on it, so the
+ * app does it on sign-in instead. The "create own profile" RLS policy restricts
+ * the insert to the caller's own id, so this cannot write anyone else's row.
+ */
+export async function ensureProfile(
+  userId: string,
+  displayName: string
+): Promise<void> {
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, display_name: displayName }, { onConflict: 'id', ignoreDuplicates: true });
+
+  if (error) {
+    // A missing profile row costs nothing at the moment — the display name also
+    // lives in the auth user's metadata — so this must not block signing in.
+    console.warn('[auth] could not create profile row', error);
+  }
 }
