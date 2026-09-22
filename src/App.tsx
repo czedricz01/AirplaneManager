@@ -19,7 +19,6 @@ import {
   Wind,
   Bird,
   Target,
-  UserPlus,
   X,
   ShoppingCart,
   MapPin,
@@ -42,7 +41,6 @@ interface SaveMetadata {
 }
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
 import L from "leaflet";
-import { supabase } from "./lib/supabase";
 import { airportsData, Airport, calculateDistance } from "./data/airports";
 import { moreAirports } from "./data/more_airports";
 import { LiveTraffic } from "./components/LiveTraffic";
@@ -1065,6 +1063,19 @@ export const randomEventTemplates = [
   }
 ];
 
+/**
+ * Access gate for the published build.
+ *
+ * IMPORTANT: this check runs entirely in the browser. GitHub Pages serves static
+ * files and has no backend, so these values are part of the JavaScript bundle and
+ * anyone can read them with view-source or the dev tools. It keeps casual visitors
+ * out of the game; it is not a security boundary, and this password must not be
+ * reused anywhere that matters.
+ */
+const APP_USERNAME = "czedricz01";
+const APP_PASSWORD = "Random123";
+const AUTH_STORAGE_KEY = "neo_authenticated_operator";
+
 export const GENERAL_CHECK_COST = 200000;
 
 /** How much airframe condition a general check restores. The fifth and later checks
@@ -1081,9 +1092,6 @@ export default function App() {
   const [view, setView] = useState<ViewState>('login');
   const [activeWindow, setActiveWindow] = useState<ActiveWindow>('map');
   const [user, setUser] = useState<string | null>(null);
-  // Offline mode lets the game run without a configured Supabase backend.
-  // A ref (not state) because the auth listener below must read it without resubscribing.
-  const isOfflineModeRef = useRef(false);
 
   const [messages, setMessages] = useState<GameMessage[]>([
     { 
@@ -1178,7 +1186,7 @@ export default function App() {
     }
   }, [routes]);
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1340,105 +1348,52 @@ export default function App() {
     setAirlineCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2));
   };
 
+  // Restore a previous sign-in so a page reload does not drop the player back to
+  // the login screen. Logging out clears this.
   useEffect(() => {
-    if (!supabase) return;
-
-    let mounted = true;
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        if (session) {
-          isOfflineModeRef.current = false;
-          setUser("Operator " + session.user.email);
-          // Only change view if we are on login screen, avoiding disrupting gameplay
-          setView((prev) => (prev === 'login' ? 'main-menu' : prev));
-        } else if (!isOfflineModeRef.current) {
-          // An offline session is not managed by Supabase, so a null session here
-          // must not throw the player back to the login screen.
-          setUser(null);
-          setView('login');
-        }
+    try {
+      if (localStorage.getItem(AUTH_STORAGE_KEY) === APP_USERNAME) {
+        setUser(APP_USERNAME);
+        setView((prev) => (prev === 'login' ? 'main-menu' : prev));
       }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    } catch (e) {
+      // Storage can be unavailable (private mode, blocked site data); just show the login.
+    }
   }, []);
 
-  const handleLogin = async (e: FormEvent) => {
+  const handleLogin = (e: FormEvent) => {
     e.preventDefault();
-    if (!supabase) {
-      setLoginError("SUPABASE_NOT_CONFIGURED: Please configure environment variables.");
-      return;
-    }
     setIsLoading(true);
     setLoginError(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      if (error.message === 'Failed to fetch') {
-        setLoginError('Failed to connect to Supabase. Please verify your VITE_SUPABASE_URL and ensure your project is active.');
-      } else {
-        setLoginError(error.message);
-      }
-    } else {
-      setView('main-menu');
-    }
-    setIsLoading(false);
-  };
-
-  const handleRegister = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!supabase) {
-      setLoginError("SUPABASE_NOT_CONFIGURED: Please configure environment variables.");
+    if (username.trim() !== APP_USERNAME || password !== APP_PASSWORD) {
+      setLoginError("ACCESS DENIED: Unknown operator or incorrect bio-key.");
+      setPassword("");
+      setIsLoading(false);
       return;
     }
-    setIsLoading(true);
-    setLoginError(null);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      if (error.message === 'Failed to fetch') {
-        setLoginError('Failed to connect to Supabase. Please verify your VITE_SUPABASE_URL and ensure your project is active.');
-      } else {
-        setLoginError(error.message);
-      }
-    } else {
-      if (data.session) {
-        setView('main-menu');
-      } else {
-        setLoginError("REGISTRATION_SUCCESS: Check your email to verify your account.");
-      }
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, APP_USERNAME);
+    } catch (e) {
+      // Not being able to remember the session is not a reason to refuse entry.
     }
-    setIsLoading(false);
-  };
-
-  // Start playing without an account. Saves go to localStorage, exactly as they do
-  // for signed-in players, so nothing about the game itself changes.
-  const handlePlayOffline = () => {
-    isOfflineModeRef.current = true;
-    setLoginError(null);
-    setUser("Local Operator");
+    setUser(APP_USERNAME);
+    setPassword("");
     setView('main-menu');
+    setIsLoading(false);
   };
 
-  const handleDisconnect = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
+  const handleDisconnect = () => {
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch (e) {
+      // Nothing to clean up if storage is unavailable.
     }
-    isOfflineModeRef.current = false;
+    setUser(null);
+    setUsername("");
+    setPassword("");
+    setLoginError(null);
     setIsGameMenuOpen(false);
     setView('login');
   };
@@ -2283,12 +2238,13 @@ export default function App() {
                       </motion.div>
                     )}
                     <div>
-                      <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2 font-bold font-mono">Operator Email</label>
+                      <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2 font-bold font-mono">Operator ID</label>
                       <input 
-                        type="email" 
-                        placeholder="operator@airline.neo"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        type="text" 
+                        placeholder="operator"
+                        autoComplete="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
                         disabled={isLoading}
                         className="w-full bg-black border border-white/10 p-3 outline-none focus:border-aero-yellow transition-colors font-mono text-sm text-white disabled:opacity-50"
                         required
@@ -2299,6 +2255,7 @@ export default function App() {
                       <input 
                         type="password" 
                         placeholder="••••••••"
+                        autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={isLoading}
@@ -2314,33 +2271,8 @@ export default function App() {
                       >
                         {isLoading ? 'Processing...' : 'Initialize System'} <LogIn size={18} />
                       </button>
-                      <button
-                        type="button"
-                        onClick={handleRegister}
-                        disabled={isLoading}
-                        className="w-full bg-transparent border border-white/20 text-white/60 py-4 font-black uppercase tracking-tighter hover:border-aero-yellow hover:text-aero-yellow transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-                      >
-                        Request Access <UserPlus size={18} />
-                      </button>
-
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="h-px flex-1 bg-white/10" />
-                        <span className="text-[9px] font-mono uppercase tracking-[0.3em] text-white/30">or</span>
-                        <div className="h-px flex-1 bg-white/10" />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handlePlayOffline}
-                        disabled={isLoading}
-                        className="w-full bg-aero-yellow/10 border border-aero-yellow/40 text-aero-yellow py-4 font-black uppercase tracking-tighter hover:bg-aero-yellow hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        Play Offline <Play size={18} />
-                      </button>
                       <p className="text-[10px] font-mono text-white/30 leading-relaxed text-center">
-                        {supabase
-                          ? 'Offline mode skips the account. Saves stay in this browser.'
-                          : 'No Supabase backend configured — offline mode is the way in. Saves stay in this browser.'}
+                        Authorized operators only. Saves stay in this browser.
                       </p>
                     </div>
                   </form>
@@ -2359,14 +2291,11 @@ export default function App() {
                 <div className="absolute top-4 right-8 z-50 flex items-center gap-4">
                   <div className="text-white/40 font-mono text-xs tracking-widest flex items-center gap-2">
                     <div className="w-2 h-2 bg-aero-yellow/20 rounded-full animate-pulse shadow-2xl"></div>
-                    {user?.replace('Operator ', '') || 'UNKNOWN_USER'}
+                    {user || 'UNKNOWN_USER'}
                   </div>
                   <div className="h-4 w-px bg-white/10"></div>
                   <button 
-                    onClick={() => {
-                      setUser(null);
-                      setView('login');
-                    }}
+                    onClick={handleDisconnect}
                     className="text-white/40 hover:text-white font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
                   >
                     <LogOut size={14} /> Logout

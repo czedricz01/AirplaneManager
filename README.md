@@ -42,19 +42,19 @@ Es erscheint:
 Jetzt im Browser **<http://localhost:3000>** öffnen. Die Seite lädt sich automatisch
 neu, sobald du eine Datei im Code änderst. Zum Beenden im Terminal `Strg + C`.
 
-### Im Spiel ankommen
+### Anmelden
 
-Auf dem Startbildschirm gibt es drei Knöpfe:
+Der Startbildschirm verlangt eine Anmeldung. Die Zugangsdaten stehen in
+`src/App.tsx` (`APP_USERNAME` / `APP_PASSWORD`).
 
-| Knopf | Wann |
-|---|---|
-| **Initialize System** | Anmelden mit einem bestehenden Supabase-Konto |
-| **Request Access** | Neues Supabase-Konto anlegen |
-| **Play Offline** | Ohne Konto spielen — funktioniert immer |
+> **Das ist kein Sicherheitsmechanismus.** Die Prüfung läuft im Browser, und der
+> ausgelieferte JavaScript-Code enthält beide Werte im Klartext — jeder Besucher
+> kann sie auslesen. Es hält Zufallsbesucher ab, mehr nicht. Verwende dieses
+> Passwort nirgendwo sonst. Echter Zugangsschutz bräuchte einen Server, den
+> GitHub Pages nicht bietet.
 
-**Für einen schnellen Test nimm "Play Offline".** Das Spiel braucht kein Konto.
-Spielstände liegen dann im `localStorage` deines Browsers, also nur auf diesem Gerät
-und in diesem Browser.
+Die Anmeldung wird im `localStorage` gemerkt, ein Neuladen wirft dich also nicht
+heraus. *Logout* im Hauptmenü beendet sie.
 
 Danach: *Start Game* → Airline benennen, Hub und Startdatum wählen, einen
 Speicherdateinamen eintragen (der ist Pflicht) → *Start Game*.
@@ -67,8 +67,7 @@ unvollständig aus:
 - **Kartenkacheln** von Esri — ohne sie bleibt die Weltkarte schwarz
 - **Schriftarten** von Google Fonts
 - **Hintergrundbilder** von Unsplash
-- **Flugzeugbilder** aus einem Supabase-Bucket (optional, konfigurierbar im Spiel)
-- **Supabase**, nur wenn du dich anmelden willst
+- **Flugzeugbilder** aus einem Storage-Bucket (optional, im Spiel konfigurierbar)
 
 ### Produktionsversion bauen
 
@@ -87,20 +86,29 @@ Läuft dann ebenfalls auf <http://localhost:3000>, aber ohne Hot Reload.
 | Leere weiße Seite | Browser-Konsole öffnen (F12) und Fehlermeldung lesen |
 | Karte bleibt schwarz | Kein Internet oder Esri-Kacheln blockiert (Firewall/Proxy) |
 | `command not found: npm` | Node.js ist nicht installiert |
-| Anmeldung schlägt fehl | Supabase nicht konfiguriert — nimm "Play Offline" |
+| Anmeldung schlägt fehl | Zugangsdaten prüfen (`APP_USERNAME` / `APP_PASSWORD` in `src/App.tsx`) |
+
+---
+
+## Veröffentlichung über GitHub Pages
+
+`.github/workflows/deploy-pages.yml` baut die Seite bei jedem Push nach `main` (und
+nach `claude/*`) und stellt sie auf GitHub Pages bereit.
+
+**Einmalig einzurichten:** im Repository unter *Settings → Pages* bei **Source**
+**„GitHub Actions"** auswählen. Danach läuft alles automatisch.
+
+Adresse: `https://czedricz01.github.io/AirplaneManager/`
+
+> Da das Repository öffentlich ist, sind Quellcode und Zugangsdaten ohnehin für
+> jeden einsehbar. Wer das nicht will, stellt das Repository auf privat — dafür
+> braucht GitHub Pages allerdings einen kostenpflichtigen Tarif.
 
 ---
 
 ## Konfiguration (optional)
 
-Alles in `.env.example` ist optional. Für einen Supabase-Login:
-
-```bash
-cp .env.example .env
-```
-
-und `VITE_SUPABASE_URL` sowie `VITE_SUPABASE_ANON_KEY` eintragen (zu finden im
-Supabase-Projekt unter *Settings → API*).
+Alles in `.env.example` ist optional.
 
 > Achtung: Variablen mit dem Präfix `VITE_` landen im ausgelieferten Browser-Bundle
 > und sind damit öffentlich. Niemals ein Geheimnis dort ablegen.
@@ -112,7 +120,9 @@ Supabase-Projekt unter *Settings → API*).
 | Befehl | Was er tut |
 |---|---|
 | `npm run dev` | Entwicklungsserver auf Port 3000 |
-| `npm run build` | Produktions-Build nach `dist/` |
+| `npm run build` | Produktions-Build nach `dist/` (inkl. Server) |
+| `npm run build:pages` | Nur die statische Seite nach `dist/` (für GitHub Pages) |
+| `npm run build:static` | Eine einzige eigenständige HTML-Datei nach `dist-static/` |
 | `npm start` | Startet den gebauten Server (braucht `NODE_ENV=production`) |
 | `npm run lint` | TypeScript-Typprüfung, ohne Dateien zu schreiben |
 | `npm run clean` | Löscht `dist/` |
@@ -130,7 +140,6 @@ src/
     financeUtils.ts    Einzige Quelle der Wahrheit für Kosten, Nachfrage, Preise
     eventSystem.ts     Historische und zufällige Weltereignisse
     imageUtils.ts      Auflösung von Flugzeugbild-URLs
-    supabase.ts        Supabase-Client (null, wenn nicht konfiguriert)
   data/                Flughäfen, Flugzeuge, Treibstoffpreise, Catering
 server.ts              Express-Server: Vite im Dev-Modus, Bild-Upload-API
 ```
