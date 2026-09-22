@@ -39,6 +39,15 @@ jobs:
 
       - name: Build static site
         run: npm run build:pages
+        env:
+          # Supplied from repository secrets. Both are baked into the bundle at
+          # build time, which is how Supabase is designed to work from a static
+          # site: the anon key is a public identifier and the database's Row
+          # Level Security policies are what actually restrict access.
+          # Without them the site still builds and runs, with accounts and cloud
+          # savegames switched off.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       # Stops GitHub Pages running the output through Jekyll.
       - name: Disable Jekyll

@@ -3,16 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, FormEvent, ReactNode, useEffect, useRef, useMemo } from "react";
+import React, { useState, ReactNode, useEffect, useRef, useMemo } from "react";
 import { FinancialReport } from "./components/FinancialReport";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Plane, 
   Map as MapIcon, 
   Settings as SettingsIcon, 
-  Play, 
   Save, 
-  LogIn, 
   ChevronRight,
   Globe,
   Navigation,
@@ -34,11 +32,6 @@ import {
   Check
 } from "lucide-react";
 
-interface SaveMetadata {
-  id: string;
-  name: string;
-  timestamp: number;
-}
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { airportsData, Airport, calculateDistance } from "./data/airports";
@@ -105,6 +98,18 @@ import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, setRuntimeRandomEvents, HistoricalEvent } from "./lib/eventSystem";
 import { generateUniqueRegistration } from "./utils/registration";
+import { supabase, isCloudConfigured } from "./lib/supabase";
+import { AuthGate } from "./components/AuthGate";
+import {
+  SaveMetadata,
+  listSaves,
+  readSave,
+  writeSave,
+  deleteSave as deleteSaveSlot,
+  syncPending,
+  findLegacyLocalSaves,
+  importLegacyLocalSaves,
+} from "./lib/cloudSaves";
 
 function getGreatCirclePoints(start: [number, number], end: [number, number], segments = 150): [number, number][] {
   const points: [number, number][] = [];
@@ -1063,19 +1068,6 @@ export const randomEventTemplates = [
   }
 ];
 
-/**
- * Access gate for the published build.
- *
- * IMPORTANT: this check runs entirely in the browser. GitHub Pages serves static
- * files and has no backend, so these values are part of the JavaScript bundle and
- * anyone can read them with view-source or the dev tools. It keeps casual visitors
- * out of the game; it is not a security boundary, and this password must not be
- * reused anywhere that matters.
- */
-const APP_USERNAME = "czedricz01";
-const APP_PASSWORD = "Random123";
-const AUTH_STORAGE_KEY = "neo_authenticated_operator";
-
 export const GENERAL_CHECK_COST = 200000;
 
 /** How much airframe condition a general check restores. The fifth and later checks
@@ -1092,6 +1084,11 @@ export default function App() {
   const [view, setView] = useState<ViewState>('login');
   const [activeWindow, setActiveWindow] = useState<ActiveWindow>('map');
   const [user, setUser] = useState<string | null>(null);
+  // The signed-in player's id. It scopes savegames, both in the cloud and in the
+  // local mirror, so two accounts on one browser never see each other's games.
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthResolved, setIsAuthResolved] = useState(!isCloudConfigured);
+  const [cloudOnline, setCloudOnline] = useState(false);
 
   const [messages, setMessages] = useState<GameMessage[]>([
     { 
@@ -1186,10 +1183,6 @@ export default function App() {
     }
   }, [routes]);
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const [airlineName, setAirlineName] = useState("");
   const [airlineCode, setAirlineCode] = useState("");
@@ -1348,52 +1341,74 @@ export default function App() {
     setAirlineCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2));
   };
 
-  // Restore a previous sign-in so a page reload does not drop the player back to
-  // the login screen. Logging out clears this.
+  // Supabase owns the session: it restores it from storage on load, refreshes the
+  // token, and tells us about sign-in and sign-out. Nothing here decides whether a
+  // password was correct — that happens on the server.
   useEffect(() => {
-    try {
-      if (localStorage.getItem(AUTH_STORAGE_KEY) === APP_USERNAME) {
-        setUser(APP_USERNAME);
-        setView((prev) => (prev === 'login' ? 'main-menu' : prev));
+    if (!supabase) return;
+
+    let active = true;
+
+    const adopt = (session: import('@supabase/supabase-js').Session | null) => {
+      if (!active) return;
+      if (session?.user) {
+        setUserId(session.user.id);
+        const meta = session.user.user_metadata as { display_name?: string } | undefined;
+        setUser(meta?.display_name || session.user.email || 'Operator');
+        setView(prev => (prev === 'login' ? 'main-menu' : prev));
+      } else {
+        setUserId(null);
+        setUser(null);
+        setSaves([]);
+        setView('login');
       }
-    } catch (e) {
-      // Storage can be unavailable (private mode, blocked site data); just show the login.
-    }
+      setIsAuthResolved(true);
+    };
+
+    supabase.auth.getSession().then(({ data }) => adopt(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => adopt(session));
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const handleLogin = (e: FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setLoginError(null);
+  const [isImportingLegacy, setIsImportingLegacy] = useState(false);
 
-    if (username.trim() !== APP_USERNAME || password !== APP_PASSWORD) {
-      setLoginError("ACCESS DENIED: Unknown operator or incorrect bio-key.");
-      setPassword("");
-      setIsLoading(false);
-      return;
-    }
+  const cloudStatusLabel = !userId
+    ? 'Local only'
+    : cloudOnline
+      ? 'Cloud synced'
+      : 'Offline - changes queued';
 
-    try {
-      localStorage.setItem(AUTH_STORAGE_KEY, APP_USERNAME);
-    } catch (e) {
-      // Not being able to remember the session is not a reason to refuse entry.
-    }
-    setUser(APP_USERNAME);
-    setPassword("");
-    setView('main-menu');
-    setIsLoading(false);
+  const handleImportLegacySaves = async () => {
+    setIsImportingLegacy(true);
+    const imported = await importLegacyLocalSaves(userId);
+    await refreshSaves();
+    setLegacySaveCount(0);
+    setIsImportingLegacy(false);
+    setAppAlert(
+      imported > 0
+        ? `Imported ${imported} savegame${imported === 1 ? '' : 's'} into your account.`
+        : 'Nothing to import - those savegames are already in your account.'
+    );
   };
 
-  const handleDisconnect = () => {
-    try {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-    } catch (e) {
-      // Nothing to clean up if storage is unavailable.
+  // Play without an account when no Supabase project is attached to this build.
+  const handleLocalOnly = () => {
+    setUserId(null);
+    setUser('Local Operator');
+    setView('main-menu');
+  };
+
+  const handleDisconnect = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
     }
+    setUserId(null);
     setUser(null);
-    setUsername("");
-    setPassword("");
-    setLoginError(null);
+    setSaves([]);
     setIsGameMenuOpen(false);
     setView('login');
   };
@@ -1422,10 +1437,43 @@ export default function App() {
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
   
-  const [saves, setSaves] = useState<SaveMetadata[]>(() => {
-    const savedSaves = localStorage.getItem('neo_saves_index');
-    return savedSaves ? JSON.parse(savedSaves) : [];
-  });
+  const [saves, setSaves] = useState<SaveMetadata[]>([]);
+  const [legacySaveCount, setLegacySaveCount] = useState(0);
+
+  // Refresh the save list whenever the player changes. listSaves merges the cloud
+  // list with the local mirror and reports whether the server answered, which
+  // drives the "offline" badge in the menus.
+  const refreshSaves = React.useCallback(async () => {
+    const { saves: list, cloudOk } = await listSaves(userId);
+    setSaves(list);
+    setCloudOnline(cloudOk);
+    return cloudOk;
+  }, [userId]);
+
+  useEffect(() => {
+    if (!isAuthResolved) return;
+    let cancelled = false;
+
+    (async () => {
+      const cloudOk = await refreshSaves();
+      if (cancelled) return;
+
+      if (cloudOk) {
+        // Anything written while the server was unreachable goes up now.
+        const pushed = await syncPending(userId);
+        if (pushed > 0 && !cancelled) {
+          await refreshSaves();
+          setAppAlert(`Synchronised ${pushed} savegame${pushed === 1 ? '' : 's'} that were waiting to upload.`);
+        }
+      }
+
+      if (!cancelled && userId) {
+        setLegacySaveCount(findLegacyLocalSaves().length);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isAuthResolved, userId, refreshSaves]);
 
   const [autosaveInterval, setAutosaveInterval] = useState(6);
   const [autosaveOverwrite, setAutosaveOverwrite] = useState(true);
@@ -1849,7 +1897,7 @@ export default function App() {
 
   const [sessionKey, setSessionKey] = useState(Date.now());
   
-  const handleSaveGame = (slotId?: string, customName?: string, isAutosave: boolean = false) => {
+  const handleSaveGame = async (slotId?: string, customName?: string, isAutosave: boolean = false) => {
     let finalId = slotId;
     let finalName = customName;
 
@@ -1873,7 +1921,7 @@ export default function App() {
             if (existingAutos.length >= 3) {
                 const oldest = existingAutos.reduce((a, b) => a.timestamp < b.timestamp ? a : b);
                 nextIndex = parseInt(oldest.id.split('_auto_')[1]);
-                localStorage.removeItem(`amneoSave_${oldest.id}`);
+                await deleteSaveSlot(userId, oldest.id);
                 newSaves = newSaves.filter(s => s.id !== oldest.id);
             } else if (existingAutos.length > 0) {
                 const usedIndices = existingAutos.map(s => parseInt(s.id.split('_auto_')[1]));
@@ -1912,26 +1960,22 @@ export default function App() {
       randomEvents
     };
     
-    localStorage.setItem(`amneoSave_${id}`, JSON.stringify(saveObj));
-    
-    // Update index
-    const existingIndex = newSaves.findIndex(s => s.id === id);
-    if (existingIndex > -1) {
-      newSaves[existingIndex] = { ...newSaves[existingIndex], timestamp: Date.now(), name };
-    } else {
-      newSaves.push({ id, name, timestamp: Date.now() });
-    }
-    
+    // Writes to this browser first and then to the cloud, so a save never depends
+    // on the network. A failed upload is flagged and retried on the next sign-in.
+    const { meta, cloudOk } = await writeSave(userId, id, name, saveObj);
+    setCloudOnline(cloudOk);
+
+    newSaves = [...newSaves.filter(sv => sv.id !== id), meta].sort((a, b) => b.timestamp - a.timestamp);
     setSaves(newSaves);
-    localStorage.setItem('neo_saves_index', JSON.stringify(newSaves));
     
     setCurrentSaveId(id);
     setCurrentSaveName(name);
 
+    const where = userId ? (cloudOk ? ' (synced to your account)' : ' (saved locally — upload pending)') : '';
     if (!isAutosave) {
-      setAppAlert(`Game "${name}" saved successfully!`);
+      setAppAlert(`Game "${name}" saved successfully!${where}`);
     } else {
-      setAppAlert(`Autosave complete: "${name}"`);
+      setAppAlert(`Autosave complete: "${name}"${where}`);
     }
     setShowSaveMenu(false);
   };
@@ -1952,11 +1996,10 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDateOffset, pendingInitialSave]);
 
-  const handleLoadGame = (slotId: string) => {
-    const dataStr = localStorage.getItem(`amneoSave_${slotId}`);
-    if (dataStr) {
+  const handleLoadGame = async (slotId: string) => {
+    const saveObj = await readSave(userId, slotId);
+    if (saveObj) {
       try {
-        const saveObj = JSON.parse(dataStr);
         setAirlineName(saveObj.airlineName || "");
         setAirlineCode(saveObj.airlineCode || "");
         setSelectedHub(saveObj.selectedHub || "FRA");
@@ -2018,11 +2061,9 @@ export default function App() {
     }
   };
 
-  const deleteSave = (id: string) => {
-    const newSaves = saves.filter(s => s.id !== id);
-    setSaves(newSaves);
-    localStorage.setItem('neo_saves_index', JSON.stringify(newSaves));
-    localStorage.removeItem(`amneoSave_${id}`);
+  const deleteSave = async (id: string) => {
+    setSaves(prev => prev.filter(s => s.id !== id));
+    await deleteSaveSlot(userId, id);
   };
 
   const handleSellAircraft = (plane: OwnedAircraft) => {
@@ -2197,87 +2238,7 @@ export default function App() {
         <div className="flex-1 flex flex-col relative overflow-hidden">
           <AnimatePresence mode="wait">
             {view === 'login' && (
-              <motion.div
-                key="login"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center p-4 relative w-full"
-              >
-                <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
-                  <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-aero-yellow rounded-full blur-[120px]" />
-                </div>
-
-                <div className="z-10 w-full max-w-md">
-                  <motion.div 
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="flex flex-col mb-6"
-                  >
-                    <h1 className="text-7xl lg:text-8xl font-black italic tracking-tighter leading-none mb-2 flex flex-col items-start gap-4">
-                      <Bird className="text-aero-yellow shrink-0" size={80} strokeWidth={2.5} />
-                      <div>
-                        <span className="text-aero-yellow">AIRLINE</span><br/>
-                        <span className="text-white">MANAGERNEO</span>
-                      </div>
-                    </h1>
-                    <p className="text-[10px] tracking-[0.4em] font-light text-white/40 pl-2 uppercase">Aviation Management Core</p>
-                  </motion.div>
-
-                  <form 
-                    onSubmit={handleLogin}
-                    className="bg-aero-carbon p-4 rounded-sm border border-white/5 space-y-6 shadow-2xl"
-                  >
-                    {loginError && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="bg-[#111] border-l-2 border-white/10 p-3"
-                      >
-                        <p className="text-[10px] font-mono text-aero-yellow/60 uppercase tracking-widest">{loginError}</p>
-                      </motion.div>
-                    )}
-                    <div>
-                      <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2 font-bold font-mono">Operator ID</label>
-                      <input 
-                        type="text" 
-                        placeholder="operator"
-                        autoComplete="username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        disabled={isLoading}
-                        className="w-full bg-black border border-white/10 p-3 outline-none focus:border-aero-yellow transition-colors font-mono text-sm text-white disabled:opacity-50"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2 font-bold font-mono">Bio-Key (Password)</label>
-                      <input 
-                        type="password" 
-                        placeholder="••••••••"
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        disabled={isLoading}
-                        className="w-full bg-black border border-white/10 p-3 outline-none focus:border-aero-yellow transition-colors font-mono text-sm text-white disabled:opacity-50"
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <button 
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-white text-black py-4 font-black uppercase tracking-tighter hover:bg-aero-yellow transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-                      >
-                        {isLoading ? 'Processing...' : 'Initialize System'} <LogIn size={18} />
-                      </button>
-                      <p className="text-[10px] font-mono text-white/30 leading-relaxed text-center">
-                        Authorized operators only. Saves stay in this browser.
-                      </p>
-                    </div>
-                  </form>
-                </div>
-              </motion.div>
+              <AuthGate onLocalOnly={handleLocalOnly} />
             )}
 
             {view === 'main-menu' && (
@@ -2290,9 +2251,11 @@ export default function App() {
               >
                 <div className="absolute top-4 right-8 z-50 flex items-center gap-4">
                   <div className="text-white/40 font-mono text-xs tracking-widest flex items-center gap-2">
-                    <div className="w-2 h-2 bg-aero-yellow/20 rounded-full animate-pulse shadow-2xl"></div>
+                    <div className={`w-2 h-2 rounded-full shadow-2xl ${userId ? (cloudOnline ? 'bg-aero-yellow animate-pulse' : 'bg-white/30') : 'bg-white/20'}`}></div>
                     {user || 'UNKNOWN_USER'}
                   </div>
+                  <div className="h-4 w-px bg-white/10"></div>
+                  <span className="text-white/25 font-mono text-[10px] uppercase tracking-widest">{cloudStatusLabel}</span>
                   <div className="h-4 w-px bg-white/10"></div>
                   <button 
                     onClick={handleDisconnect}
@@ -2317,6 +2280,33 @@ export default function App() {
                     </h1>
                     <p className="text-[10px] tracking-[0.4em] font-light text-white/40 pl-2">COMMAND INTERFACE v4.2</p>
                   </div>
+
+                  {legacySaveCount > 0 && (
+                    <div className="bg-aero-yellow/5 border border-aero-yellow/30 p-4 flex flex-col gap-3">
+                      <div className="text-[11px] font-mono uppercase tracking-widest text-aero-yellow font-bold">
+                        {legacySaveCount} savegame{legacySaveCount === 1 ? '' : 's'} found from before accounts existed
+                      </div>
+                      <p className="text-[10px] font-mono text-white/40 leading-relaxed">
+                        They are still stored in this browser. Import them into your account to
+                        reach them from any device. The originals are left untouched.
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleImportLegacySaves}
+                          disabled={isImportingLegacy}
+                          className="px-4 py-2 bg-aero-yellow text-black font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors disabled:opacity-50"
+                        >
+                          {isImportingLegacy ? 'Importing...' : 'Import into my account'}
+                        </button>
+                        <button
+                          onClick={() => setLegacySaveCount(0)}
+                          className="px-4 py-2 border border-white/20 text-white/50 font-black uppercase tracking-widest text-[10px] hover:text-white transition-colors"
+                        >
+                          Not now
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-3">
                     <ThemeMenuButton 
