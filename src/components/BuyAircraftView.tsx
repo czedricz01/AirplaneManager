@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { getAircraftImageUrl, getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { SupabaseBucketModal } from './SupabaseBucketModal';
@@ -9,27 +9,18 @@ import { SupabaseBucketModal } from './SupabaseBucketModal';
 interface Props {
   currentDateOffset: number;
   onSelectAircraft: (aircraft: Aircraft) => void;
+  /** Passed down from App, which already owns this as state. */
+  debugMode?: boolean;
 }
 
-export function BuyAircraftView({ currentDateOffset, onSelectAircraft }: Props) {
+export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp }: Props) {
   const [expandedMfgs, setExpandedMfgs] = useState<Set<string>>(new Set());
   const [expandedPlaneId, setExpandedPlaneId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Reactive debug mode state (with high-frequency safety poll)
-  const [debugMode, setDebugMode] = useState(() => localStorage.getItem('airline_debug_mode') === 'true');
-
-  useEffect(() => {
-    const handleDebugCheck = () => {
-      const isDebug = localStorage.getItem('airline_debug_mode') === 'true';
-      if (isDebug !== debugMode) {
-        setDebugMode(isDebug);
-      }
-    };
-    handleDebugCheck();
-    const interval = setInterval(handleDebugCheck, 500);
-    return () => clearInterval(interval);
-  }, [debugMode]);
+  // Falls back to storage only when the prop is absent. This used to poll
+  // localStorage every 500 ms for a value that already lives in App's state.
+  const debugMode = debugModeProp ?? (typeof window !== 'undefined' && localStorage.getItem('airline_debug_mode') === 'true');
 
   // ZIP upload state
   const [dragActive, setDragActive] = useState(false);

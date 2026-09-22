@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Airport, airportsData } from '../data/airports';
+import { Airport, airportsData, getAirportStats } from '../data/airports';
 import { moreAirports } from '../data/more_airports';
 
 const airportsMap = new Map<string, Airport>();
@@ -59,11 +59,11 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
       let valB: any = b[sortField as keyof Airport];
 
       if (sortField === 'business') {
-         valA = a.stats[currentYear]?.business || 0;
-         valB = b.stats[currentYear]?.business || 0;
+         valA = getAirportStats(a, currentYear).business;
+         valB = getAirportStats(b, currentYear).business;
       } else if (sortField === 'tourism') {
-         valA = a.stats[currentYear]?.tourism || 0;
-         valB = b.stats[currentYear]?.tourism || 0;
+         valA = getAirportStats(a, currentYear).tourism;
+         valB = getAirportStats(b, currentYear).tourism;
       }
 
       if (valA < valB) return sortDir === 'asc' ? -1 : 1;
@@ -132,8 +132,8 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
                </tr>
             ) : (
               filteredAndSortedAirports.map((airport, idx) => {
-                const businessDemand = airport.stats[currentYear]?.business || 0;
-                const tourismDemand = airport.stats[currentYear]?.tourism || 0;
+                const businessDemand = getAirportStats(airport, currentYear).business;
+                const tourismDemand = getAirportStats(airport, currentYear).tourism;
                 const totalSlots = airport.level * 300;
                 const infra = airportManagement[airport.id];
                 const rentedSlots = infra ? (infra.slots.regional + infra.slots.narrowbody + infra.slots.widebody) : 0;

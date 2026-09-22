@@ -3,38 +3,27 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Silently swallow and handle expected browser/Vite environment WebSocket warnings to prevent any crash screens
-if (typeof window !== 'undefined') {
+/**
+ * In development, Vite's HMR client reports a websocket error whenever the dev
+ * server restarts. That is noise, not a fault in the app, so it is downgraded to a
+ * warning instead of surfacing as an unhandled rejection.
+ *
+ * This deliberately does NOT swallow anything else: the previous version matched the
+ * substring "vite" anywhere in a message and called stopPropagation() in the capture
+ * phase, which hid real application errors and made them very hard to track down.
+ */
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  const isViteWebSocketNoise = (message: string) =>
+    /websocket/i.test(message) && /\[vite\]|vite\/client|wss?:\/\//i.test(message);
+
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const msg = reason ? (reason.message || String(reason)) : '';
-    if (
-      msg.includes('WebSocket') || 
-      msg.includes('websocket') || 
-      msg.includes('ws://') || 
-      msg.includes('wss://') || 
-      msg.includes('vite')
-    ) {
-      console.warn('[Vite WS Bypass] Gracefully caught expected background websocket exception:', msg);
+    if (isViteWebSocketNoise(msg)) {
+      console.warn('[dev] Ignored Vite HMR websocket error:', msg);
       event.preventDefault();
-      event.stopPropagation();
     }
   });
-
-  window.addEventListener('error', (event) => {
-    const msg = event.message || '';
-    if (
-      msg.includes('WebSocket') || 
-      msg.includes('websocket') || 
-      msg.includes('ws://') || 
-      msg.includes('wss://') || 
-      msg.includes('vite')
-    ) {
-      console.warn('[Vite WS Bypass] Gracefully caught expected background error:', msg);
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, true);
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -42,4 +31,3 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
-

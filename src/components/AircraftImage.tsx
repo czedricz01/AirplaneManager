@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plane } from 'lucide-react';
-import { getAircraftImageCandidates } from '../lib/imageUtils';
+import { getAircraftImageCandidates, markImageUrlFailed } from '../lib/imageUtils';
 
 interface AircraftImageProps {
   safeName: string;
@@ -27,21 +27,22 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
 }) => {
   const [candidateIndex, setCandidateIndex] = useState(0);
 
-  const candidates = getAircraftImageCandidates(
-    safeName,
-    manufacturer,
-    type,
-    imagesMap,
-    aircraftVisuals,
-    keyLookup
+  const candidates = useMemo(
+    () => getAircraftImageCandidates(safeName, manufacturer, type, imagesMap, aircraftVisuals, keyLookup),
+    [safeName, manufacturer, type, imagesMap, aircraftVisuals, keyLookup]
   );
 
-  // Reset index when aircraft or candidates change
+  // Reset index when the candidate list itself changes. Comparing the memoised array
+  // by identity avoids re-serialising imagesMap on every render.
   useEffect(() => {
     setCandidateIndex(0);
-  }, [safeName, manufacturer, type, JSON.stringify(imagesMap)]);
+  }, [candidates]);
 
   const handleImageError = () => {
+    // Remember the miss so no other card retries this URL in this session.
+    const failed = candidates[candidateIndex];
+    if (failed) markImageUrlFailed(failed);
+
     if (candidateIndex < candidates.length - 1) {
       setCandidateIndex(prev => prev + 1);
     } else {

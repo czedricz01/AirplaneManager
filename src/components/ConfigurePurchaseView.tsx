@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Aircraft } from '../data/aircraft';
 import { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, ChevronLeft, Info, Settings, Wifi, Tv, X, Download, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 const SeatInfoTooltip = ({ title, desc, hidden }: { title: string, desc?: string, hidden?: boolean }) => {
   const [pos, setPos] = useState({ x: 0, y: 0, show: false });
