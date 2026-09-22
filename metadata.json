@@ -1,0 +1,6 @@
+{
+  "name": "AirlineManagerNeo",
+  "description": "A sophisticated single-player airline management simulator with an Albatross-inspired technical interface.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

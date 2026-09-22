@@ -1,0 +1,221 @@
+STR: Stuttgart
+HAJ: Hannover
+NUE: Nürnberg
+BRE: Bremen
+DTM: Dortmund
+FMO: Münster
+PAD: Paderborn
+SCN: Saarbrücken
+LBC: Lübeck
+GWT: Westerland
+NRN: Weeze
+FDH: Friedrichshafen
+MEM: Memmingen
+KSF: Kassel
+ERF: Erfurt
+DRS: Dresden
+LEJ: Leipzig
+SZG: Salzburg
+INN: Innsbruck
+GRZ: Graz
+LNZ: Linz
+KLU: Klagenfurt
+BSL: Basel
+BRN: Bern
+LUG: Lugano
+SIR: Sion
+GVA: Geneva
+TLS: Toulouse
+MRS: Marseille
+BOD: Bordeaux
+NTE: Nantes
+SXB: Strasbourg
+MLH: Mulhouse
+MPL: Montpellier
+LIL: Lille
+RNS: Rennes
+BIQ: Biarritz
+BIA: Bastia
+AJA: Ajaccio
+PMI: Palma
+AGP: Malaga
+ALC: Alicante
+VLC: Valencia
+SVQ: Sevilla
+BIO: Bilbao
+SCQ: Santiago Compostela
+OPO: Porto
+FAO: Faro
+FNC: Funchal
+PDL: Ponta Delgada
+LIN: Milan Linate
+BGY: Bergamo
+VCE: Venice
+BLQ: Bologna
+FLR: Florence
+PSA: Pisa
+CTA: Catania
+PMO: Palermo
+BRI: Bari
+TRN: Turin
+GOA: Genoa
+VVR: Verona
+ATH: Athens
+SKG: Thessaloniki
+HER: Heraklion
+RHO: Rhodes
+CFU: Corfu
+WAW: Warsaw
+KRK: Krakow
+GDN: Gdansk
+WRO: Wroclaw
+POZ: Poznan
+PRG: Prague
+BRQ: Brno
+OSR: Ostrava
+VIE: Vienna
+BUD: Budapest
+ZAG: Zagreb
+SPU: Split
+DBV: Dubrovnik
+LJU: Ljubljana
+BEG: Belgrade
+TIA: Tirana
+SOF: Sofia
+OTP: Bucharest
+CLJ: Cluj
+TSR: Timisoara
+IST: Istanbul
+SAW: Sabiha Gokcen
+AYT: Antalya
+ADB: Izmir
+ESB: Ankara
+BJV: Bodrum
+DLM: Dalaman
+MSQ: Minsk
+KBP: Kyiv
+ODS: Odessa
+IEV: Kyiv Zhuliany
+HEL: Helsinki
+TLL: Tallinn
+RIX: Riga
+VNO: Vilnius
+ARN: Stockholm Arlanda
+GOT: Gothenburg
+MMX: Malmo
+OSL: Oslo
+BGO: Bergen
+SVG: Stavanger
+CPH: Copenhagen
+BLL: Billund
+ORK: Cork
+SNN: Shannon
+BHX: Birmingham
+GLA: Glasgow
+BFS: Belfast
+LPL: Liverpool
+NCL: Newcastle
+BRS: Bristol
+STN: London Stansted
+LTN: London Luton
+LCY: London City
+SEN: London Southend
+ABZ: Aberdeen
+EMA: East Midlands
+DXB: Dubai
+DWC: Dubai Al Maktoum
+MCT: Muscat
+DOH: Doha
+RUH: Riyadh
+JED: Jeddah
+AMM: Amman
+KWI: Kuwait
+BAH: Bahrain
+BEY: Beirut
+TLV: Tel Aviv
+CAI: Cairo
+CMN: Casablanca
+TUN: Tunis
+ALG: Algiers
+NBO: Nairobi
+CPT: Cape Town
+JNB: Johannesburg
+LOS: Lagos
+ADD: Addis Ababa
+DEL: Delhi
+BOM: Mumbai
+BLR: Bangalore
+CCU: Kolkata
+MAA: Chennai
+HYD: Hyderabad
+SIN: Singapore
+BKK: Bangkok
+KUL: Kuala Lumpur
+CGK: Jakarta
+DPS: Denpasar
+SGN: Ho Chi Minh City
+HAN: Hanoi
+MNL: Manila
+HKG: Hong Kong
+TPE: Taipei
+ICN: Seoul
+NRT: Tokyo Narita
+KIX: Osaka Kansai
+NGO: Nagoya
+FUK: Fukuoka
+CTS: Sapporo
+PEK: Beijing Capital
+PKX: Beijing Daxing
+PVG: Shanghai Pudong
+SHA: Shanghai Hongqiao
+CAN: Guangzhou
+SZX: Shenzhen
+CTU: Chengdu
+KMG: Kunming
+XIY: Xi'an
+SYD: Sydney
+MEL: Melbourne
+BNE: Brisbane
+PER: Perth
+AKL: Auckland
+CHC: Christchurch
+HNL: Honolulu
+ANC: Anchorage
+YVR: Vancouver
+YYC: Calgary
+YEG: Edmonton
+SEA: Seattle
+SFO: San Francisco
+LAX: Los Angeles
+SAN: San Diego
+LAS: Las Vegas
+PHX: Phoenix
+DEN: Denver
+SLC: Salt Lake City
+IAH: Houston Intercontinental
+DFW: Dallas/Fort Worth
+AUS: Austin
+MSY: New Orleans
+MIA: Miami
+MCO: Orlando
+ATL: Atlanta
+BNA: Nashville
+CLT: Charlotte
+IAD: Washington Dulles
+DCA: Washington Reagan
+PHL: Philadelphia
+EWR: Newark
+JFK: New York JFK
+LGA: New York LaGuardia
+BOS: Boston
+YYZ: Toronto Pearson
+YUL: Montreal
+MEX: Mexico City
+CUN: Cancun
+PTY: Panama City
+BOG: Bogota
+LIM: Lima
+GRU: Sao Paulo Guarulhos
+GIG: Rio de Janeiro Galeao
+EZE: Buenos Aires Ezeiza
+SCL: Santiago

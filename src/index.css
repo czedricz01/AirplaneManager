@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "leaflet/dist/leaflet.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-aero-yellow: #FACC15;
+  --color-aero-black: #0F0F0F;
+  --color-aero-carbon: #1A1A1A;
+}
+
+body {
+  background-color: var(--color-aero-black, #0F0F0F);
+  color: white;
+  margin: 0;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Custom scrollbar for technical look */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0F0F0F;
+}
+::-webkit-scrollbar-thumb {
+  background: #1A1A1A;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FACC15;
+}
+
+.slider-thumb-aero::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #facc15;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.slider-thumb-aero::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #facc15;
+  cursor: pointer;
+  border: none;
+  border-radius: 0;
+}
+
+/* Custom Leaflet Popup Overrides */
+.leaflet-popup-content-wrapper {
+  background: #121212 !important;
+  color: #ffffff !important;
+  border: 1px solid #FACC15 !important;
+  border-radius: 0px !important;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.95) !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-tip {
+  background: #121212 !important;
+  border: 1px solid #FACC15 !important;
+}
+
+.leaflet-popup-close-button {
+  color: rgba(255, 255, 255, 0.6) !important;
+  padding: 4px !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #FACC15 !important;
+  background: transparent !important;
+}
+
