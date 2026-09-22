@@ -11,3 +11,4 @@ coverage/
 uploads/
 public/PlanePics/
 src/PlanePics/*/
+dist-static/
