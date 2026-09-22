@@ -43,22 +43,12 @@ export const supabase: SupabaseClient | null = isCloudConfigured
 export function describeAuthError(error: { message?: string } | null | undefined): string {
   const raw = error?.message || '';
 
-  if (/INVITE_CODE_REQUIRED/i.test(raw)) return 'An invite code is required to create an account.';
-  if (/INVITE_CODE_INVALID/i.test(raw)) return 'That invite code does not exist.';
-  if (/INVITE_CODE_EXPIRED/i.test(raw)) return 'That invite code has expired.';
-  if (/INVITE_CODE_EXHAUSTED/i.test(raw)) return 'That invite code has already been used up.';
-
-  // A failing trigger on auth.users usually reaches the client as this generic
-  // message rather than the text the trigger raised, so the invite code is by far
-  // the most likely cause of it here.
-  if (/database error (saving|creating) new user/i.test(raw)) {
-    return 'Could not create the account — check the invite code.';
-  }
-
   if (/invalid login credentials/i.test(raw)) return 'Wrong email or password.';
-  if (/email not confirmed/i.test(raw)) return 'Confirm your email address first — check your inbox.';
-  if (/user already registered/i.test(raw)) return 'An account with that email already exists.';
-  if (/password should be at least/i.test(raw)) return 'Password is too short — use at least 6 characters.';
+  if (/email not confirmed/i.test(raw)) return 'This account is not confirmed yet. Ask the operator to confirm it.';
+  if (/signups? not allowed|signup_disabled/i.test(raw)) {
+    return 'Accounts are created by the operator — self-registration is switched off.';
+  }
+  if (/too many requests|rate limit/i.test(raw)) return 'Too many attempts. Wait a minute and try again.';
   if (/failed to fetch|network/i.test(raw)) return 'Cannot reach the server. Check your connection.';
 
   return raw || 'Unknown error.';
