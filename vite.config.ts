@@ -32,7 +32,7 @@ export default defineConfig(() => {
           modulePreload: false,
           rollupOptions: {
             output: {
-              format: 'iife',
+              format: 'iife' as const,
               inlineDynamicImports: true,
               entryFileNames: 'app.js',
               assetFileNames: 'app.[ext]',
