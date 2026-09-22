@@ -14,7 +14,8 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react';
-import { Airport, calculateDistance } from '../data/airports';
+import { Airport } from '../data/airports';
+import { getFlightDurationMinutes } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
 import { OwnedAircraft } from './MyFleetView';
 import { SimulatedRoute, AirportInfrastructure } from '../App';
@@ -90,27 +91,11 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   const initialBaseNum = route.schedule?.[0]?.flightNumOut ? parseInt(route.schedule[0].flightNumOut) : Math.floor(1000 + Math.random() * 8000);
   const [flightNumberBase, setFlightNumberBase] = useState(isNaN(initialBaseNum) ? 1000 : initialBaseNum);
 
-  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const getFlightDurationMinutes = () => {
-    if (!selectedOrigin || !selectedDest || !aircraft) return 0;
-    const distance = calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]);
-    // speed is in km/h, distance in km -> hours -> minutes
-    return Math.round((distance / aircraft.speed) * 60 + 20); // 20 min buffer
-  };
-
   const getTurnoverMinutes = () => 45; // Fixed for now or based on aircraft
 
-  const durMin = getFlightDurationMinutes();
+  // Shared with the route planner, so a schedule edited here keeps the duration
+  // the route was planned and priced with.
+  const durMin = getFlightDurationMinutes(selectedOrigin, selectedDest, aircraft);
   const turnMin = getTurnoverMinutes();
 
   const displayMins = (Number(flightHour) * 60 + Number(flightMinute) - 30 + 10080) % 1440;

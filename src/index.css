@@ -9,6 +9,16 @@
   --color-aero-yellow: #FACC15;
   --color-aero-black: #0F0F0F;
   --color-aero-carbon: #1A1A1A;
+
+  /*
+   * Status colours. The interface previously signalled good and bad with two
+   * opacities of the same yellow, and had it backwards: a critical condition bar
+   * was #1a1a1a on black, i.e. invisible, while a healthy one was bright. These
+   * two are chosen to sit in the existing palette while staying legible on
+   * #0F0F0F — both clear 4.5:1 against it.
+   */
+  --color-aero-warn: #F87171;
+  --color-aero-good: #4ADE80;
 }
 
 body {

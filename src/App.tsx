@@ -82,6 +82,42 @@ const airports: Airport[] = rawAirports.map(a => {
 export const airportsMapAdjusted = new Map<string, Airport>();
 airports.forEach(a => airportsMapAdjusted.set(a.id, a));
 
+/**
+ * Recomputes any schedule leg whose duration is not a usable number.
+ *
+ * The schedule editor used to divide by `aircraft.speed`, a field that does not
+ * exist, so every leg added there was stored as NaN. NaN then reached
+ * getFlightTimeClass, which classified the route as ultra-long-haul and cut its
+ * demand to 40%. The code path is fixed, but saves written before that still
+ * carry the bad legs, so they are repaired on load rather than left to rot.
+ */
+function repairRouteDurations(loadedRoutes: any[], loadedFleet: any[]): any[] {
+  if (!Array.isArray(loadedRoutes)) return [];
+  const byRegistration = new Map<string, any>();
+  (loadedFleet || []).forEach(p => byRegistration.set(p.registration, p));
+
+  return loadedRoutes.map(route => {
+    if (!Array.isArray(route?.schedule)) return route;
+    const broken = route.schedule.some((s: any) => !Number.isFinite(Number(s?.durMin)));
+    if (!broken) return route;
+
+    const plane = byRegistration.get(route.aircraft);
+    const repaired = getFlightDurationMinutes(
+      airportsMapAdjusted.get(route.origin),
+      airportsMapAdjusted.get(route.destination),
+      plane
+    );
+
+    return {
+      ...route,
+      durMin: Number.isFinite(Number(route.durMin)) ? route.durMin : repaired,
+      schedule: route.schedule.map((s: any) =>
+        Number.isFinite(Number(s?.durMin)) ? s : { ...s, durMin: repaired }
+      )
+    };
+  });
+}
+
 import { jetFuelPrices } from "./data/fuelPrices";
 import { BuyAircraftView } from "./components/BuyAircraftView";
 import { MyFleetView, OwnedAircraft } from "./components/MyFleetView";
@@ -90,7 +126,7 @@ import { RoutePlannerView } from "./components/RoutePlannerView";
 import { AirportsView } from "./components/AirportsView";
 import { AirportDetailView } from "./components/AirportDetailView";
 import RouteScheduleEditView from "./components/RouteScheduleEditView";
-import { calculateRouteFinancials, getAirportUpkeep, getFlightTimeClass, calculateBasePrices } from "./lib/financeUtils";
+import { calculateRouteFinancials, getAirportUpkeep, getFlightTimeClass, calculateBasePrices, getFlightDurationMinutes, getJetFuelPrice } from "./lib/financeUtils";
 import { ConfigurePurchaseView, ConfigOutput } from "./components/ConfigurePurchaseView";
 import { MyCompanyView } from "./components/MyCompanyView";
 import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
@@ -423,16 +459,12 @@ const simulateAiAirlinesTurn = (
   const yearStr = (1960 + Math.floor(currentDateOffset / 12)).toString();
   const dateStr = `${monthStr}/${yearStr}`;
 
-  const getFuelPriceForAi = (offset: number, diff: 'Easy' | 'Normal' | 'Hard') => {
-    const y = 1960 + Math.floor(offset / 12);
-    const m = 1 + (offset % 12);
-    const dateKey = `${y}-${m.toString().padStart(2, '0')}`;
-    let pr = jetFuelPrices[dateKey] || 1.05;
-    if (diff === 'Hard') {
-      pr *= 1.15;
-    }
-    return pr;
-  };
+  // Rivals buy fuel on the same market the player does. This used to read the
+  // price table directly and skip getEventMultipliers, so through the 1973 oil
+  // shock the player paid double while the AI paid the undisturbed price for
+  // eighteen months — and again in 1979 and 1990.
+  const getFuelPriceForAi = (offset: number, diff: 'Easy' | 'Normal' | 'Hard') =>
+    getJetFuelPrice(1960 + Math.floor(offset / 12), 1 + (offset % 12), diff);
 
   const currentYearNum = 1960 + Math.floor(currentDateOffset / 12);
   const currentMonthNum = 1 + (currentDateOffset % 12);
@@ -1272,40 +1304,23 @@ export default function App() {
     return `${month.toString().padStart(2, '0')}/${year}`;
   };
 
+  // Price comes from the shared model; only the month-on-month trend string is
+  // computed here, so the top bar can never disagree with what routes are billed.
+  const priceAtOffset = (offset: number) =>
+    getJetFuelPrice(1960 + Math.floor(offset / 12), 1 + (offset % 12), difficulty);
+
   const getFuelData = (offset: number) => {
-    const year = 1960 + Math.floor(offset / 12);
-    const month = 1 + (offset % 12);
-    const dateKey = `${year}-${month.toString().padStart(2, '0')}`;
-    let price = jetFuelPrices[dateKey] || 1.05;
-    
-    // Apply Historical Event modifiers
-    const { fuelMult } = getEventMultipliers(offset);
-    price *= fuelMult;
+    const price = priceAtOffset(offset);
 
-    if (difficulty === 'Hard') {
-      price *= 1.15; // 15% more expensive fuel/sprit on Hard difficulty
-    }
-    
-    let trend = "";
+    let trend = "0%";
     if (offset > 0) {
-      const prevYear = 1960 + Math.floor((offset - 1) / 12);
-      const prevMonth = 1 + ((offset - 1) % 12);
-      const prevKey = `${prevYear}-${prevMonth.toString().padStart(2, '0')}`;
-      let prevPrice = jetFuelPrices[prevKey] || 1.05;
-      const { fuelMult: prevMult } = getEventMultipliers(offset - 1);
-      prevPrice *= prevMult;
-
-      if (difficulty === 'Hard') {
-        prevPrice *= 1.15;
+      const prevPrice = priceAtOffset(offset - 1);
+      if (prevPrice > 0) {
+        const diff = ((price - prevPrice) / prevPrice) * 100;
+        trend = diff > 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
       }
-      const diff = ((price - prevPrice) / prevPrice) * 100;
-      if (diff > 0) trend = `+${diff.toFixed(1)}%`;
-      else if (diff < 0) trend = `${diff.toFixed(1)}%`;
-      else trend = "0%";
-    } else {
-      trend = "0%";
     }
-    
+
     return { price, trend };
   };
 
@@ -2017,8 +2032,8 @@ export default function App() {
         setStartDateOffset(saveObj.startDateOffset || 0);
         setCurrentDateOffset(saveObj.currentDateOffset || 0);
         setAirportManagement(saveObj.airportManagement || {});
-        setRoutes(saveObj.routes || []);
-        
+        setRoutes(repairRouteDurations(saveObj.routes || [], saveObj.fleet || []));
+
         const loadedHub = saveObj.selectedHub || "FRA";
         const rawLoadedAis: AiAirline[] = saveObj.aiAirlines || generateAiAirlines(saveObj.aiAirlinesCount || 6, saveObj.aiDifficulty || "Normal", loadedHub, saveObj.startDateOffset || 0);
         const personalitiesList: ('flag' | 'lcc' | 'expansionist' | 'optimizer' | 'boutique')[] = ['flag', 'lcc', 'expansionist', 'optimizer', 'boutique'];
@@ -2631,10 +2646,13 @@ export default function App() {
                            ...(latestReport.routes && latestReport.routes.length > 0 ? [{
                              id: 'routeBreakdown',
                              label: 'Route Breakdown',
-                             total: 0,
+                             // Profits and losses per route, not deductions — see
+                             // the 'net' variant in FinancialReport.
+                             variant: 'net' as const,
+                             total: latestReport.routes.reduce((sum: number, r: any) => sum + r.profit, 0),
                              items: latestReport.routes.map((r: any) => ({
                                label: `${r.name} (Rev: ${formatCurrency(r.revenue)}, Exp: ${formatCurrency(r.cost)})`,
-                               amount: -r.profit // Negating profit to show as an expense line or just displaying the value, but since it's an expense category we might want to make it special. Wait, I should add a custom category for it, or just use FinancialReport's flexible structure.
+                               amount: r.profit
                              }))
                            }] : [])
                          ]}
