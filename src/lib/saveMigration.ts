@@ -1,5 +1,5 @@
 import { airportsMapAdjusted } from '../data/airportRegistry';
-import { getFlightDurationMinutes } from './financeUtils';
+import { getFlightDurationMinutes, TRANSIENT_ROUTE_FIELDS } from './financeUtils';
 import { finiteOr } from './invariants';
 import { capMessages, createWelcomeMessage } from './messages';
 import { logWarn } from './debugLog';
@@ -104,6 +104,12 @@ export function repairRouteDurations(loadedRoutes: any[], loadedFleet: any[]): a
 export function migrateRoutes(routes: unknown, fleet: any[]): any[] {
   const cleaned = asArray<any>(routes)
     .filter(r => r && typeof r === 'object' && r.id && r.origin && r.destination)
+    .map(r => {
+      // Older versions stored the whole engine result on each route.
+      const slim = { ...r };
+      for (const key of TRANSIENT_ROUTE_FIELDS) delete slim[key];
+      return slim;
+    })
     .map(r => ({
       ...r,
       distance: finiteOr(r.distance, 0),

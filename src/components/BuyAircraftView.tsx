@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
+import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { SupabaseBucketModal } from './SupabaseBucketModal';
 import { ViewHeader } from './ui/ViewHeader';
@@ -17,7 +18,7 @@ interface Props {
   debugMode?: boolean;
 }
 
-export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp }: Props) {
+function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp }: Props) {
   const [expandedMfgs, setExpandedMfgs] = useState<Set<string>>(new Set());
   const [expandedPlaneId, setExpandedPlaneId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -94,15 +95,15 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
   // Dynamic images map from API
   const [imagesMap, setImagesMap] = useState<Record<string, string>>({});
 
-  const fetchImagesMap = () => {
-    fetch('/api/aircraft-images')
-      .then(res => res.json())
-      .then(data => setImagesMap(data))
-      .catch(err => console.error("Error loading images map:", err));
+  /** Loaded once per session; `refresh` after an upload changed the pictures. */
+  const fetchImagesMap = (refresh = true) => {
+    loadAircraftImagesMap(refresh).then(setImagesMap);
   };
 
   useEffect(() => {
-    fetchImagesMap();
+    let active = true;
+    loadAircraftImagesMap().then(map => { if (active) setImagesMap(map); });
+    return () => { active = false; };
   }, []);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -376,9 +377,6 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
     });
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-  };
 
   const generateSummary = (plane: Aircraft) => {
     return (
@@ -878,3 +876,10 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const BuyAircraftView = React.memo(BuyAircraftViewImpl);

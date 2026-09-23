@@ -940,6 +940,33 @@ export function calculateRouteFinancials(
 }
 
 /**
+ * The figures a route keeps between months: what the route list, the map and
+ * the rivals screen read without recomputing.
+ *
+ * Routes used to receive the whole engine result via `{...route, ...fin}` --
+ * cost breakdowns, demand model inputs, per-class satisfaction internals --
+ * roughly doubling each route in every savegame and cloud upload, and leaving
+ * stale copies of numbers that every screen recomputes live anyway.
+ */
+export function toStoredRouteMetrics(fin: ReturnType<typeof calculateRouteFinancials>) {
+  return {
+    paxPerWeek: fin.paxPerWeek,
+    paxByClass: fin.paxByClass,
+    routeSat: fin.routeSat,
+    estWeeklyRev: fin.estWeeklyRev,
+    estWeeklyCosts: fin.estWeeklyCosts,
+    estWeeklyProfit: fin.estWeeklyProfit,
+    weeklyFlights: fin.weeklyFlights
+  };
+}
+
+/** Engine-only fields older versions wrote onto routes; removed when a save loads. */
+export const TRANSIENT_ROUTE_FIELDS = [
+  'basePriceBE75', 'basePriceBE99', 'basePriceBE35', 'satisfactionDetails', 'demandData',
+  'timeClass', 'flightLegs', 'weightedSeatsPerWeek', 'rivalAttractiveness', 'costsBreakdown'
+] as const;
+
+/**
  * The single source of truth for the jet fuel price of a given month.
  *
  * Includes the historical/random event multiplier and the Hard-difficulty

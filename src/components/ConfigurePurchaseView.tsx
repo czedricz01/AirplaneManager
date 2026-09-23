@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency } from '../lib/format';
 import { Aircraft } from '../data/aircraft';
 import { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, ChevronLeft, Info, Settings, Wifi, Tv, X, Download, Trash2 } from 'lucide-react';
@@ -350,9 +351,6 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const totalPrice = unitPrice * quantity;
   const canAfford = capital >= totalPrice;
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-  };
 
   const pFirstRaw = ((firstSeats * firstPitch * firstMultiplier) / TOTAL_SPACE) * 100;
   const pBizRaw = ((bizSeats * bizPitch * bizMultiplier) / TOTAL_SPACE) * 100;

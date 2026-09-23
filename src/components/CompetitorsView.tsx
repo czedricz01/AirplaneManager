@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency } from '../lib/format';
 import { 
   Search, 
   ChevronDown, 
@@ -82,7 +83,7 @@ interface Props {
 type SortField = 'rank' | 'name' | 'capital' | 'fleet' | 'routes';
 type SortDir = 'asc' | 'desc';
 
-export function CompetitorsView({ 
+function CompetitorsViewImpl({ 
   aiAirlines, 
   playerCapital, 
   playerFleetCount, 
@@ -284,13 +285,6 @@ export function CompetitorsView({
     return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1 text-aero-yellow" /> : <ChevronDown size={12} className="inline ml-1 text-aero-yellow" />;
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(val);
-  };
 
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
@@ -891,3 +885,10 @@ export function CompetitorsView({
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const CompetitorsView = React.memo(CompetitorsViewImpl);

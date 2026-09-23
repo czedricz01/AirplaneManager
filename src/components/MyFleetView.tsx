@@ -48,7 +48,7 @@ interface Props {
   onSell?: (plane: OwnedAircraft) => void;
 }
 
-export function MyFleetView({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell }: Props) {
+function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell }: Props) {
   const [search, setSearch] = useState("");
   const [filterAlertsOnly, setFilterAlertsOnly] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>('family');
@@ -967,4 +967,9 @@ export function MyFleetView({ fleet, routes = [], currentDateOffset, onRenovate,
   );
 }
 
-
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const MyFleetView = React.memo(MyFleetViewImpl);

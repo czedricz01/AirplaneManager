@@ -20,7 +20,7 @@ interface Props {
   aiAirlines?: any[];
 }
 
-export function AirportsView({ currentYear, onSelectAirport, airportManagement, aiAirlines }: Props) {
+function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiAirlines }: Props) {
   const [search, setSearch] = useState("");
   const [icaoFilter, setIcaoFilter] = useState<string>("All");
   const [sortField, setSortField] = useState<SortField>('id');
@@ -236,3 +236,10 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const AirportsView = React.memo(AirportsViewImpl);

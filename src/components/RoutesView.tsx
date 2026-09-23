@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatMoneyCompact } from '../lib/format';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
 import type { RouteOffer } from '../lib/financeUtils';
@@ -25,15 +26,6 @@ interface SimulatedRoute {
 }
 
 const mockRoutes: SimulatedRoute[] = [];
-
-/** Compact money for a table cell: $1.2M, $840K, -$45K. */
-const formatMoney = (val: number) => {
-  const abs = Math.abs(val);
-  const sign = val < 0 ? '-' : '';
-  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
-  return `${sign}$${Math.round(abs)}`;
-};
 
 type SortField = 'origin' | 'destination' | 'distance' | 'aircraft' | 'weeklyFlights' | 'paxPerWeek' | 'durMin' | 'profit';
 type SortDir = 'asc' | 'desc';
@@ -78,7 +70,7 @@ export function getFlightTimeClass(durMin: number): number {
   return 8;
 }
 
-export function RoutesView({ 
+function RoutesViewImpl({ 
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
@@ -162,9 +154,11 @@ export function RoutesView({
     return routes.find(r => r.id === selectedRoute.id) || selectedRoute;
   }, [selectedRoute, routes]);
 
+  const fleetByRegistration = useMemo(() => new Map(fleet.map(f => [f.registration, f])), [fleet]);
+
   /** Weekly seat capacity for a route's assigned aircraft, or null with none assigned. */
   const getWeeklySeats = (route: SimulatedRoute): number | null => {
-    const ac = fleet.find(f => f.registration === route.aircraft);
+    const ac = fleetByRegistration.get(route.aircraft);
     if (!ac) return null;
     const configSeats = ac.config
       ? ((ac.config.economy || 0) + (ac.config.premium || 0) + (ac.config.business || 0) + (ac.config.first || 0))
@@ -332,7 +326,7 @@ export function RoutesView({
                   <Td className="pr-4 text-right text-xs font-mono">
                     {routeProfits && routeProfits[route.id] !== undefined ? (
                       <span className={routeProfits[route.id] >= 0 ? 'text-aero-good' : 'text-aero-warn'}>
-                        {routeProfits[route.id] >= 0 ? '+' : ''}{formatMoney(routeProfits[route.id])}
+                        {routeProfits[route.id] >= 0 ? '+' : ''}{formatMoneyCompact(routeProfits[route.id])}
                       </span>
                     ) : (
                       <span className="text-white/25" title="No closed month for this route yet">-</span>
@@ -401,3 +395,10 @@ export function RoutesView({
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const RoutesView = React.memo(RoutesViewImpl);

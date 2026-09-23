@@ -14,6 +14,7 @@ import { CabinConfigDialogs } from './routePlanner/CabinConfigDialogs';
 import type { ConfigOutput } from './ConfigurePurchaseView';
 import type { ScheduledTrip } from './RouteScheduleEditView';
 import { readString } from '../lib/safeStorage';
+import { findMaxFlightStarts } from '../lib/scheduleUtils';
 import {
   getSlotPurchaseCost,
   applyInfrastructureChange,
@@ -35,6 +36,7 @@ import {
   adjustSatForDifficulty,
   validateClassConfigs,
   getFlightDurationMinutes as sharedFlightDurationMinutes,
+  toStoredRouteMetrics,
   RouteOffer,
 } from '../lib/financeUtils';
 
@@ -1708,9 +1710,10 @@ function RoutePlannerInner({
                      )}
                      {validAircraft.map(ac => {
                        let usedMins = 0;
-                       routes.filter(r => r.aircraft === ac.registration && r.id !== initialRouteId).forEach(r => {
+                       // Grouped once above; this used to filter every route per card.
+                       (routesByAircraft.get(ac.registration) || []).forEach(r => {
                           if (r.schedule) {
-                             r.schedule.forEach(s => {
+                             r.schedule.forEach((s: any) => {
                                 const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
                                 usedMins += cycleMin;
                              });
@@ -2236,42 +2239,9 @@ function RoutePlannerInner({
                                bestCount = added;
                                bestStartTimes = [randomMondayStart];
                             } else {
-                              for (let testStart = 0; testStart < maxWeekMins; testStart += 5) {
-                                let searchTime = testStart;
-                                let added = 0;
-                                let i = 0;
-                                const localOccupied = [...occupied];
-
-                                while (added < remainingSlots && i < 2100) {
-                                  i++;
-                                  const candidateStart = searchTime % maxWeekMins;
-                                  const candidateEnd = candidateStart + cycleMin;
-                                  
-                                  let conflict = false;
-                                  for (const occ of localOccupied) {
-                                    if (checkOverlap(candidateStart, candidateEnd, occ.start, occ.end)) {
-                                      conflict = true; break;
-                                    }
-                                  }
-                                  
-                                  if (!conflict) {
-                                    localOccupied.push({ start: candidateStart, end: candidateEnd });
-                                    added++;
-                                    searchTime += cycleMin;
-                                  } else {
-                                    searchTime += 5;
-                                  }
-
-                                  if (searchTime >= testStart + maxWeekMins) break;
-                                }
-
-                                if (added > bestCount) {
-                                  bestCount = added;
-                                  bestStartTimes = [testStart];
-                                } else if (added === bestCount) {
-                                  bestStartTimes.push(testStart);
-                                }
-                              }
+                              // Same search as before, but O(1) per conflict check;
+                              // the old loop froze the UI for a busy aircraft.
+                              ({ bestCount, bestStartTimes } = findMaxFlightStarts(occupied, cycleMin, remainingSlots));
                             }
 
                             let chosenStart = bestStartTimes[0];
@@ -2768,7 +2738,7 @@ function RoutePlannerInner({
                           durMin: getFlightDurationMinutes(),
                           classConfigs: classConfigs,
                           routeSat: getComputedRouteSatCache(),
-                          ...(saveFinancials || {})
+                          ...(saveFinancials ? toStoredRouteMetrics(saveFinancials) : {})
                         };
                         onSaveRoute(routeData);
                         setShowSuccess(true);
@@ -3197,7 +3167,7 @@ function RoutePlannerInner({
 
                                onSaveRoute({
                                  ...routeData,
-                                 ...liveFinancials
+                                 ...toStoredRouteMetrics(liveFinancials)
                                });
                              }
                              setShowSuccess(true);
@@ -3594,7 +3564,7 @@ function RoutePlannerInner({
                               aircraft: selectedAircraft.registration,
                               weeklyFlights: schedule.length,
                               turnoverMin: getTurnoverMinutes(),
-                              ...saveFinancials
+                              ...(saveFinancials ? toStoredRouteMetrics(saveFinancials) : {})
                             });
                             setShowSuccessMsg(true);
                             setTimeout(() => {

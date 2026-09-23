@@ -248,11 +248,12 @@ import { RoutePlannerView } from "./components/RoutePlannerView";
 import { AirportsView } from "./components/AirportsView";
 import { AirportDetailView } from "./components/AirportDetailView";
 import RouteScheduleEditView from "./components/RouteScheduleEditView";
-import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue } from "./lib/financeUtils";
+import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics } from "./lib/financeUtils";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
+import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
 import type { GameMessage } from "./lib/gameTypes";
 export type { GameMessage };
@@ -434,7 +435,12 @@ export default function App() {
   
   const unreadMessagesCount = messages.filter(m => !m.isRead).length;
 
-  const [decimalSymbol, setDecimalSymbol] = useState(".");
+  const [decimalSymbol, setDecimalSymbolState] = useState<DecimalSymbol>(".");
+  /** The formatters are module-level, so they follow the setting from here. */
+  const setDecimalSymbol = (symbol: DecimalSymbol) => {
+    setNumberFormatSymbol(symbol);
+    setDecimalSymbolState(symbol);
+  };
   const [airportManagement, setAirportManagement] = useState<Record<string, AirportInfrastructure>>({});
   const [showRivalRoutes, setShowRivalRoutes] = useState(true);
   const [showYourRoutes, setShowYourRoutes] = useState(true);
@@ -682,7 +688,12 @@ export default function App() {
     return { price, trend };
   };
 
-  const fuelData = getFuelData(currentDateOffset);
+  // Recomputed only when something it depends on changes, not on every render of App.
+  const fuelData = useMemo(
+    () => getFuelData(currentDateOffset),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentDateOffset, difficulty, eventChoices, randomEvents]
+  );
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
@@ -708,7 +719,11 @@ export default function App() {
     return { value: mFactor * demandMult, trend };
   };
 
-  const globalDemandData = getBaseGlobalDemand(currentDateOffset);
+  const globalDemandData = useMemo(
+    () => getBaseGlobalDemand(currentDateOffset),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentDateOffset, randomEvents]
+  );
 
   const handleAirlineCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAirlineCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2));
@@ -922,21 +937,6 @@ export default function App() {
       return true;
     });
   }, [zoom, mapBounds, airportManagement]);
-
-  const formatNumber = (val: number, decimals: number = 0) => {
-    return new Intl.NumberFormat(decimalSymbol === "," ? 'de-DE' : 'en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    }).format(val);
-  };
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat(decimalSymbol === "," ? 'de-DE' : 'en-US', { 
-      style: 'currency', 
-      currency: 'USD', 
-      maximumFractionDigits: 0 
-    }).format(val);
-  };
 
   const handleAdvanceMonth = () => {
     // Generate Report First using CURRENT date
@@ -1345,7 +1345,7 @@ export default function App() {
           prevRoutes,
           fleet
         );
-        updatedRoute = { ...updatedRoute, ...fin };
+        updatedRoute = { ...updatedRoute, ...toStoredRouteMetrics(fin) };
       }
       return updatedRoute;
     }));
@@ -1627,7 +1627,10 @@ export default function App() {
     await deleteSaveSlot(userId, id);
   };
 
-  const handleSellAircraft = (plane: OwnedAircraft) => {
+  // Handlers handed to the memoised views. They only use state setters, so they
+  // can keep one identity for the life of the app; inline arrows here used to
+  // defeat React.memo on every render of App.
+  const handleSellAircraft = React.useCallback((plane: OwnedAircraft) => {
     const value = getAircraftResaleValue(plane);
 
     setCapital(prev => prev + value);
@@ -1635,7 +1638,47 @@ export default function App() {
     setRoutes(prev => prev.filter(r => r.aircraft !== plane.registration));
     
     setAppAlert(`SUCCESS: You sold ${plane.registration} (${plane.manufacturer} ${plane.type}) for ${formatCurrency(value)}. All assigned routes have been decommissioned.`);
-  };
+  }, []);
+
+  const handleRenovateAircraft = React.useCallback((plane: OwnedAircraft) => {
+    setSelectedPurchasingAircraft(plane);
+    setActiveWindow('buy-aircraft');
+  }, []);
+
+  const handleShowRoute = React.useCallback((route: SimulatedRoute) => {
+    setExternalSelectedRoute(route);
+    setActiveWindow('routes');
+  }, []);
+
+  const handleStartRouteWithAircraft = React.useCallback((reg: string) => {
+    setIsPlanningRoute(true);
+    setPlanningReg(reg);
+    setPlanningOriginId(null);
+    setPlanningDestId(null);
+  }, []);
+
+  const handleOpenPlanner = React.useCallback(() => setIsPlanningRoute(true), []);
+  const handleDeleteRoute = React.useCallback((id: string) => setRoutes(prev => prev.filter(r => r.id !== id)), []);
+  const handleClearExternalRoute = React.useCallback(() => setExternalSelectedRoute(null), []);
+
+  const handleChangeRouteAircraft = React.useCallback((route: SimulatedRoute) => {
+    setPlanningOriginId(route.origin);
+    setPlanningDestId(route.destination);
+    setPlanningReg(route.aircraft);
+    setPlanningStep(1);
+    setEditingRouteId(route.id);
+    setIsPlanningRoute(true);
+  }, []);
+
+  const handleEditSchedule = React.useCallback((id: string) => {
+    setEditingRouteId(id);
+    setIsEditingSchedule(true);
+    setIsPlanningRoute(false);
+  }, []);
+
+  const handleUpdatePricing = React.useCallback((id: string, pricing: Record<string, number>) => {
+    setRoutes(prev => prev.map(r => (r.id !== id ? r : { ...r, ticketPrices: pricing })));
+  }, []);
 
   const handlePurchase = (
     aircraft: Aircraft, 
@@ -2534,7 +2577,9 @@ export default function App() {
                      </ErrorBoundary>
                   </div>
                   
-                  {/* Active Window Views Overlay */}
+                  {/* Active Window Views Overlay. Keyed by the number format so the
+                      memoised views re-render when the separator setting changes. */}
+                  <React.Fragment key={decimalSymbol}>
                   {activeWindow === 'buy-aircraft' ? (
                     <ViewFrame label="Buy Aircraft" onReset={backToMap}>
                         <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} />
@@ -2556,20 +2601,9 @@ export default function App() {
                            fleet={fleet}
                            routes={routes}
                            currentDateOffset={currentDateOffset}
-                           onRenovate={(plane) => {
-                             setSelectedPurchasingAircraft(plane);
-                             setActiveWindow('buy-aircraft');
-                           }}
-                           onSelectRoute={(route) => {
-                             setExternalSelectedRoute(route);
-                             setActiveWindow('routes');
-                           }}
-                           onStartRoute={(reg) => {
-                             setIsPlanningRoute(true);
-                             setPlanningReg(reg);
-                             setPlanningOriginId(null);
-                             setPlanningDestId(null);
-                           }}
+                           onRenovate={handleRenovateAircraft}
+                           onSelectRoute={handleShowRoute}
+                           onStartRoute={handleStartRouteWithAircraft}
                            onSell={handleSellAircraft}
                         />
                     </ViewFrame>
@@ -2580,35 +2614,15 @@ export default function App() {
                           fleet={fleet}
                           routeProfits={routeProfits}
                           initialAirportFilter={routeFilter}
-                          onPlanRoute={() => setIsPlanningRoute(true)}
-                          onDeleteRoute={(id) => setRoutes(prev => prev.filter(r => r.id !== id))}
+                          onPlanRoute={handleOpenPlanner}
+                          onDeleteRoute={handleDeleteRoute}
                           externalSelectedRoute={externalSelectedRoute}
-                          onClearExternalSelectedRoute={() => setExternalSelectedRoute(null)}
-                          onChangeAircraftRoute={(route) => {
-                             setPlanningOriginId(route.origin);
-                             setPlanningDestId(route.destination);
-                             setPlanningReg(route.aircraft);
-                             setPlanningStep(1);
-                             setEditingRouteId(route.id);
-                             setIsPlanningRoute(true);
-                          }}
-                          onEditSchedule={(id) => {
-                             setEditingRouteId(id);
-                             setIsEditingSchedule(true);
-                             setIsPlanningRoute(false);
-                          }}
-                          onEditCabinServices={(id) => {
-                             setEditingCabinRouteId(id);
-                          }}
-                          onEditFinancials={(id) => {
-                             setEditingPricingRouteId(id);
-                          }}
-                          onUpdatePricing={(id, pricing) => {
-                             setRoutes(prev => prev.map(r => {
-                               if (r.id !== id) return r;
-                               return { ...r, ticketPrices: pricing };
-                             }));
-                          }}
+                          onClearExternalSelectedRoute={handleClearExternalRoute}
+                          onChangeAircraftRoute={handleChangeRouteAircraft}
+                          onEditSchedule={handleEditSchedule}
+                          onEditCabinServices={setEditingCabinRouteId}
+                          onEditFinancials={setEditingPricingRouteId}
+                          onUpdatePricing={handleUpdatePricing}
                           fuelPrice={fuelData.price}
                         demandFactor={playerDemandFactor}
                         rivalOffers={rivalOffers}
@@ -2622,7 +2636,7 @@ export default function App() {
                     <ViewFrame label="Airports" onReset={backToMap}>
                         <AirportsView
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                          onSelectAirport={(airport) => setSelectedAirport(airport)}
+                          onSelectAirport={setSelectedAirport}
                           airportManagement={airportManagement}
                           aiAirlines={aiAirlines}
                         />
@@ -2666,6 +2680,7 @@ export default function App() {
                       </div>
                     </ViewFrame>
                   )}
+                  </React.Fragment>
 
                   {isEditingSchedule && editingRouteId && (() => {
                     // The route or its aircraft can disappear while the editor is
@@ -2790,12 +2805,12 @@ export default function App() {
                           setIsPlanningRoute(false);
                           setSelectedAirport(airport);
                         }}
-                        onOriginChange={(id) => setPlanningOriginId(id)}
-                        onDestChange={(id) => setPlanningDestId(id)}
-                        onRegChange={(reg) => setPlanningReg(reg)}
-                        onStepChange={(step) => setPlanningStep(step)}
-                        onScheduleChange={(s) => setPlanningSchedule(s)}
-                        onClassConfigsChange={(cf) => setPlanningClassConfigs(cf)}
+                        onOriginChange={setPlanningOriginId}
+                        onDestChange={setPlanningDestId}
+                        onRegChange={setPlanningReg}
+                        onStepChange={setPlanningStep}
+                        onScheduleChange={setPlanningSchedule}
+                        onClassConfigsChange={setPlanningClassConfigs}
                         currentYear={1960 + Math.floor(currentDateOffset / 12)}
                         currentMonth={1 + (currentDateOffset % 12)}
                         difficulty={difficulty}
@@ -3018,7 +3033,7 @@ export default function App() {
                   {[".", ","].map((symbol) => (
                     <button
                       key={symbol}
-                      onClick={() => setDecimalSymbol(symbol)}
+                      onClick={() => setDecimalSymbol(symbol as DecimalSymbol)}
                       className={`flex-1 p-4 font-mono text-xl border uppercase tracking-widest transition-colors ${decimalSymbol === symbol ? 'bg-aero-yellow text-black border-aero-yellow font-black' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
                     >
                       {symbol === "." ? "1.234" : "1,234"}

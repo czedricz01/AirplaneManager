@@ -1,4 +1,5 @@
 import { FinancialReport } from "./FinancialReport";
+import { formatNumber } from '../lib/format';
 import React, { useState, useMemo } from 'react';
 import { X, Plane, Clock, Coffee, DollarSign, Trash2, Settings, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,7 +41,6 @@ interface RouteDetailViewProps {
   onEditFinancials?: (routeId: string) => void;
 }
 
-const formatNumber = (num: number) => Math.round(num).toLocaleString();
 
 export function RouteDetailView({
   route, routes, fleet, fuelPrice = 1.05, airportManagement,
@@ -399,7 +399,8 @@ export function RouteDetailView({
                            <span className="text-3xl font-black text-aero-yellow italic tracking-tighter">{avgSat.toFixed(0)}%</span>
                         </div>
                         {classSats.map(cs => {
-                          const satDetails = route.satisfactionDetails?.[cs.name];
+                          // Live, like the percentage beside it; the copy stored on the route went stale.
+                          const satDetails = financials?.satisfactionDetails?.[cs.name];
                           const expectation = satDetails?.expectationTarget || 0;
                           const reality = satDetails?.providedQuality || 0;
                           

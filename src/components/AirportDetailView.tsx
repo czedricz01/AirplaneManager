@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { formatCurrency } from '../lib/format';
 import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info } from 'lucide-react';
 import { ManagementLevel, AirportInfrastructure } from '../App';
@@ -131,9 +132,6 @@ export function AirportDetailView({
 
     // We no longer calculate max aircraft string here since we use ICAO codes
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-  };
 
   // Only slots carry a one-off purchase price. Desks and stands are rented: their
   // cost shows up as weekly upkeep in getAirportUpkeep, never as an upfront charge.
@@ -592,7 +590,7 @@ export function AirportDetailView({
                 disabled={capital < airport.level * 30000}
                 className="flex-1 px-4 bg-aero-yellow text-black font-black uppercase text-[10px] py-3 hover:bg-white transition-colors disabled:opacity-50"
               >
-                Yes, buy for {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(airport.level * 30000)}
+                Yes, buy for {formatCurrency(airport.level * 30000)}
               </button>
               <button 
                 onClick={() => setShowMgmtModal(false)}
@@ -638,9 +636,9 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
           <span className="text-[11px] font-bold text-white uppercase tracking-widest">{label}</span>
           {info && <span className="text-[9px] text-white/30 italic mt-0.5">{info}</span>}
           <span className="text-[8px] text-aero-yellow mt-1 flex items-center">
-            {purchaseCost !== undefined ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(purchaseCost)} CAPEX` : ''}
+            {purchaseCost !== undefined ? `${formatCurrency(purchaseCost)} CAPEX` : ''}
             {purchaseCost !== undefined && cost > 0 && " + "}
-            {cost > 0 ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cost)} / wk` : (!purchaseCost ? 'FREE / INCLUDED' : '')}
+            {cost > 0 ? `${formatCurrency(cost)} / wk` : (!purchaseCost ? 'FREE / INCLUDED' : '')}
             <InfoTooltip size={11} {...GLOSSARY.capex} />
           </span>
         </div>
@@ -720,7 +718,7 @@ function ManagementTierCard({ tier, activeTier, label, cost, onUpgrade, icon, fe
           disabled={isLocked}
           className={`w-full py-4 font-black transition-all text-xs uppercase tracking-[0.3em] ${isLocked ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-aero-yellow'}`}
         >
-          {isLocked ? 'LOCKED: PRE-REQUISITE REQ.' : `ACQUIRE ACCESS - ${new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cost)}`}
+          {isLocked ? 'LOCKED: PRE-REQUISITE REQ.' : `ACQUIRE ACCESS - ${formatCurrency(cost)}`}
         </button>
       )}
 

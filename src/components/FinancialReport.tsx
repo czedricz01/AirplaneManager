@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
-const formatCurrency = (val: number) => { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val); };
+import { formatCurrency } from '../lib/format';
 
 /** Text for a figure, respecting whether its section is a deduction or a net result. */
 function signedAmount(variant: 'expense' | 'net' | undefined, value: number): string {

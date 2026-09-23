@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency } from '../lib/format';
 import { OwnedAircraft } from './MyFleetView';
 import { Plane, Wrench, ShieldAlert } from 'lucide-react';
 import { AircraftImage } from './AircraftImage';
+import { loadAircraftImagesMap } from '../lib/imageUtils';
 import { getPlaneSat } from '../lib/financeUtils';
 import { Modal } from './ui/Modal';
 import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
@@ -43,10 +45,9 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
   const [imagesMap, setImagesMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetch('/api/aircraft-images')
-      .then(res => res.json())
-      .then(data => setImagesMap(data))
-      .catch(err => console.error("Error loading images in details modal:", err));
+    let active = true;
+    loadAircraftImagesMap().then(map => { if (active) setImagesMap(map); });
+    return () => { active = false; };
   }, []);
 
   const safeName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
@@ -203,7 +204,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
               const residualFactor = 0.30;
               const factor = residualFactor + condGenFactor + condIntFactor;
               const salePrice = Math.round(baseValue * factor);
-              const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+              const formatUSD = formatCurrency;
 
               return (
                 <div className="bg-black/40 border border-white/5 p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">

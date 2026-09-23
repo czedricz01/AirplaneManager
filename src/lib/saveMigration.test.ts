@@ -78,3 +78,16 @@ test('the input is not modified', () => {
 test('garbage is rejected with a clear error', () => {
   assert.throws(() => migrateSave(null), /empty/);
 });
+
+test('engine internals stored on routes by older versions are removed', () => {
+  const raw = oldSave();
+  (raw.routes[0] as any).costsBreakdown = { fuel: 1 };
+  (raw.routes[0] as any).demandData = { total: 1 };
+  (raw.routes[0] as any).satisfactionDetails = { economy: {} };
+  (raw.routes[0] as any).paxPerWeek = 700;
+  const route = migrateSave(raw).routes[0];
+  assert.equal(route.costsBreakdown, undefined);
+  assert.equal(route.demandData, undefined);
+  assert.equal(route.satisfactionDetails, undefined);
+  assert.equal(route.paxPerWeek, 700, 'the figures screens read are kept');
+});
