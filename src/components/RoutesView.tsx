@@ -5,6 +5,9 @@ import type { RouteOffer } from '../lib/financeUtils';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
 import { OwnedAircraft } from './MyFleetView';
+import { ViewHeader } from './ui/ViewHeader';
+import { TableScrollContainer, Table, Thead, Th, Td } from './ui/Table';
+import { Button } from './ui/Button';
 
 interface SimulatedRoute {
   id: string;
@@ -160,86 +163,82 @@ export function RoutesView({
 
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
-      <div className="flex items-center justify-between mb-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <h2 className="text-3xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg">
+      <ViewHeader
+        title={
+          <>
             ROUTES
-          </h2>
-          {onPlanRoute && (
-            <button 
-              onClick={onPlanRoute}
-              className="bg-aero-yellow text-black font-black uppercase text-[10px] tracking-widest px-4 py-2 hover:bg-white transition-colors"
+            {onPlanRoute && (
+              <Button variant="primary" size="md" onClick={onPlanRoute} className="ml-3">
+                Plan New Route +
+              </Button>
+            )}
+          </>
+        }
+        right={
+          <div className="flex gap-4 items-center relative z-20">
+            <select
+              value={airlineFilter}
+              onChange={(e) => setAirlineFilter(e.target.value)}
+              className="bg-black/40 border border-white/10 rounded-sm py-2 pl-4 pr-10 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors appearance-none cursor-pointer"
             >
-              Plan New Route +
-            </button>
-          )}
-        </div>
-        
-        <div className="flex gap-4 items-center relative z-20">
-          <select 
-            value={airlineFilter}
-            onChange={(e) => setAirlineFilter(e.target.value)}
-            className="bg-black/40 border border-white/10 rounded-sm py-2 pl-4 pr-10 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors appearance-none cursor-pointer"
-          >
-            <option value="My Airline">My Airline</option>
-            <option value="All">All Airlines</option>
-            <option value="Competitors">All Competitors</option>
-            {/* Built from the routes actually present. The two hardcoded
-                "Competitor A"/"Competitor B" entries matched no generated
-                airline, so selecting either emptied the table. */}
-            {rivalNames.map(n => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-          <div className="pointer-events-none -ml-8 text-white/50">
-            <ChevronDown size={16} />
-          </div>
-
-          <div className="relative w-48">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Navigation size={16} className="text-white/40" />
+              <option value="My Airline">My Airline</option>
+              <option value="All">All Airlines</option>
+              <option value="Competitors">All Competitors</option>
+              {/* Built from the routes actually present. The two hardcoded
+                  "Competitor A"/"Competitor B" entries matched no generated
+                  airline, so selecting either emptied the table. */}
+              {rivalNames.map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none -ml-8 text-white/50">
+              <ChevronDown size={16} />
             </div>
-            <input
-              type="text"
-              className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors uppercase"
-              placeholder="Airport Filter (e.g. FRA)"
-              value={airportFilter}
-              onChange={(e) => setAirportFilter(e.target.value)}
-              maxLength={3}
-            />
-          </div>
 
-          <div className="relative w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={16} className="text-white/40" />
+            <div className="relative w-48">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Navigation size={16} className="text-white/40" />
+              </div>
+              <input
+                type="text"
+                className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors uppercase"
+                placeholder="Airport Filter (e.g. FRA)"
+                value={airportFilter}
+                onChange={(e) => setAirportFilter(e.target.value)}
+                maxLength={3}
+              />
             </div>
-            <input
-              type="text"
-              className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors"
-              placeholder="Search aircraft..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar bg-black/20 border border-white/5 rounded-sm p-4">
-        <table className="w-full text-left font-mono text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-aero-yellow/30 text-aero-yellow/80 uppercase tracking-widest text-[10px]">
-              <th className="py-4 pl-4 sticky top-0 bg-[#141414] z-10">Flight No.</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('origin')}>Origin {getSortIcon('origin')}</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('destination')}>Destination {getSortIcon('destination')}</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('distance')}>Distance {getSortIcon('distance')}</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('durMin')}>Flight Time {getSortIcon('durMin')}</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10">Time-Class<InfoTooltip size={11} {...GLOSSARY.timeClass} /></th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('weeklyFlights')}>Weekly Flights {getSortIcon('weeklyFlights')}</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('paxPerWeek')}>Pax / Week {getSortIcon('paxPerWeek')}</th>
-              <th className="py-4 pr-4 text-right sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('profit')}>Profit / Month {getSortIcon('profit')}</th>
-            </tr>
-          </thead>
+            <div className="relative w-64">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={16} className="text-white/40" />
+              </div>
+              <input
+                type="text"
+                className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors"
+                placeholder="Search aircraft..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        }
+      />
+
+      <TableScrollContainer>
+        <Table>
+          <Thead>
+            <Th first sortable={false}>Flight No.</Th>
+            <Th sortable onClick={() => toggleSort('origin')}>Origin {getSortIcon('origin')}</Th>
+            <Th sortable onClick={() => toggleSort('destination')}>Destination {getSortIcon('destination')}</Th>
+            <Th sortable onClick={() => toggleSort('distance')}>Distance {getSortIcon('distance')}</Th>
+            <Th sortable onClick={() => toggleSort('durMin')}>Flight Time {getSortIcon('durMin')}</Th>
+            <Th sortable={false}>Time-Class<InfoTooltip size={11} {...GLOSSARY.timeClass} /></Th>
+            <Th sortable onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</Th>
+            <Th sortable onClick={() => toggleSort('weeklyFlights')}>Weekly Flights {getSortIcon('weeklyFlights')}</Th>
+            <Th sortable onClick={() => toggleSort('paxPerWeek')}>Pax / Week {getSortIcon('paxPerWeek')}</Th>
+            <Th sortable className="pr-4 text-right" onClick={() => toggleSort('profit')}>Profit / Month {getSortIcon('profit')}</Th>
+          </Thead>
           <tbody>
             {filteredAndSortedRoutes.length === 0 ? (
               <tr>
@@ -247,7 +246,7 @@ export function RoutesView({
                    {routes.length === 0 ? (
                      <div className="flex flex-col items-center gap-2">
                        <span>No routes yet</span>
-                       <span className="text-[11px] normal-case tracking-normal text-white/30 font-mono">
+                       <span className="text-2xs normal-case tracking-normal text-white/30 font-mono">
                          Buy an aircraft, then plan your first route from your hub.
                        </span>
                      </div>
@@ -256,21 +255,21 @@ export function RoutesView({
                </tr>
             ) : (
               filteredAndSortedRoutes.map((route, idx) => (
-                <tr 
-                  key={`${route.id}-${idx}`} 
+                <tr
+                  key={`${route.id}-${idx}`}
                   onClick={() => setSelectedRoute(route)}
                   className="border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer"
                 >
-                  <td className="py-4 pl-4 font-bold text-white/90 tracking-widest hover:text-aero-yellow transition-colors underline decoration-white/20 underline-offset-4">{route.schedule?.[0]?.flightNumOut ? 'NE' + route.schedule[0].flightNumOut : route.airline}</td>
-                  <td className="py-4 font-bold text-aero-yellow">{route.origin}</td>
-                  <td className="py-4 font-bold text-aero-yellow">{route.destination}</td>
-                  <td className="py-4 text-xs font-mono">{route.distance} km</td>
-                  <td className="py-4 text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</td>
-                  <td className="py-4 text-xs font-mono">{route.durMin ? <span className="border border-white/20 px-2 py-0.5 rounded-sm bg-white/5">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</td>
-                  <td className="py-4">{route.aircraft}</td>
-                  <td className="py-4 text-xs font-mono">{route.weeklyFlights}</td>
-                  <td className="py-4 text-xs font-mono">{route.paxPerWeek}</td>
-                  <td className="py-4 pr-4 text-right text-xs font-mono">
+                  <Td className="pl-4 font-bold text-white/90 tracking-widest hover:text-aero-yellow transition-colors underline decoration-white/20 underline-offset-4">{route.schedule?.[0]?.flightNumOut ? 'NE' + route.schedule[0].flightNumOut : route.airline}</Td>
+                  <Td className="font-bold text-aero-yellow">{route.origin}</Td>
+                  <Td className="font-bold text-aero-yellow">{route.destination}</Td>
+                  <Td className="text-xs font-mono">{route.distance} km</Td>
+                  <Td className="text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
+                  <Td className="text-xs font-mono">{route.durMin ? <span className="border border-white/20 px-2 py-0.5 rounded-sm bg-white/5">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
+                  <Td>{route.aircraft}</Td>
+                  <Td className="text-xs font-mono">{route.weeklyFlights}</Td>
+                  <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
+                  <Td className="pr-4 text-right text-xs font-mono">
                     {routeProfits && routeProfits[route.id] !== undefined ? (
                       <span className={routeProfits[route.id] >= 0 ? 'text-aero-good' : 'text-aero-warn'}>
                         {routeProfits[route.id] >= 0 ? '+' : ''}{formatMoney(routeProfits[route.id])}
@@ -278,13 +277,13 @@ export function RoutesView({
                     ) : (
                       <span className="text-white/25" title="No closed month for this route yet">-</span>
                     )}
-                  </td>
+                  </Td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </TableScrollContainer>
 
       <AnimatePresence>
         {activeRoute && (

@@ -20,6 +20,9 @@ import {
   Briefcase,
   PieChart
 } from 'lucide-react';
+import { ViewHeader } from './ui/ViewHeader';
+import { Badge } from './ui/Badge';
+import { PERSONALITY_META } from '../lib/theme';
 
 export interface AiAirline {
   id: string;
@@ -282,7 +285,7 @@ export function CompetitorsView({
   };
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative bg-black/40">
+    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
       {selectedAirline ? (
         /* Immersive Individual Airline Detail Overview Dashboard */
         <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn">
@@ -651,11 +654,7 @@ export function CompetitorsView({
                         <div className="bg-white/5 p-2 rounded-sm border border-white/5 text-center">
                           <span className="text-white/40 text-[9px] block uppercase tracking-wider mb-1">STRATEGY GROUP</span>
                           <strong className="text-aero-yellow uppercase text-xs">
-                            {selectedAirline.personality === 'flag' ? 'Legacy Flag Operator' :
-                             selectedAirline.personality === 'lcc' ? 'Low Cost Carrier (LCC)' :
-                             selectedAirline.personality === 'expansionist' ? 'Aggressive Expansion' :
-                             selectedAirline.personality === 'optimizer' ? 'Efficiency Optimizer' :
-                             selectedAirline.personality === 'boutique' ? 'Boutique/Elite Status' : 'Independent'}
+                            {selectedAirline.personality ? PERSONALITY_META[selectedAirline.personality].description : 'Independent'}
                           </strong>
                         </div>
                         <div className="bg-white/5 p-2 rounded-sm border border-white/5 text-center">
@@ -724,29 +723,24 @@ export function CompetitorsView({
       ) : (
         /* The Global Competitor Leaderboard Board Main Screen */
         <React.Fragment>
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-3 shrink-0 border-b border-white/10 pb-4">
-            <div>
-              <div className="text-aero-yellow font-mono text-xs tracking-[0.3em] uppercase block mb-1">
-                Global Aviation Intelligence
+          <ViewHeader
+            eyebrow="Global Aviation Intelligence"
+            title="Rival Airlines"
+            right={
+              <div className="relative w-full lg:w-80">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-white/40" />
+                </div>
+                <input
+                  type="text"
+                  className="w-full bg-black/40 border border-white/10 rounded-sm py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow text-aero-yellow font-mono transition-colors"
+                  placeholder="Search airlines, codes, hubs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              <h2 className="text-3xl font-mono text-white uppercase tracking-[0.2em] font-black drop-shadow-lg">
-                Rival <span className="text-aero-yellow">Airlines</span>
-              </h2>
-            </div>
-            
-            <div className="relative w-full lg:w-80">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={16} className="text-white/40" />
-              </div>
-              <input
-                type="text"
-                className="w-full bg-black/40 border border-white/10 rounded-sm py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow text-aero-yellow font-mono transition-colors"
-                placeholder="Search airlines, codes, hubs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+            }
+          />
 
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
             {/* Header Board columns */}

@@ -19,6 +19,24 @@
    */
   --color-aero-warn: #F87171;
   --color-aero-good: #4ADE80;
+
+  /*
+   * Surface ramp. Consolidates the ad hoc near-blacks scattered across the
+   * app (#111, #121212, #0a0a0a, #141414, #0f0f0f, #050505 — all meant to be
+   * "one darker panel tone") into two named steps between aero-black and
+   * aero-carbon, so nested panels read as a hierarchy instead of drifting.
+   */
+  --color-aero-panel: #141414;
+  --color-aero-panel-2: #1c1c1c;
+
+  /*
+   * Type scale for the sizes below Tailwind's built-in text-xs (12px). Was
+   * previously ad hoc text-[Npx] values (7-11px, 600+ call sites) that
+   * fragmented what should be a handful of label/body steps.
+   */
+  --text-2xs: 0.625rem;   /* 10px */
+  --text-3xs: 0.5625rem;  /* 9px */
+  --text-4xs: 0.5rem;     /* 8px */
 }
 
 body {
@@ -72,7 +90,7 @@ body {
 
 /* Custom Leaflet Popup Overrides */
 .leaflet-popup-content-wrapper {
-  background: #121212 !important;
+  background: var(--color-aero-panel-2) !important;
   color: #ffffff !important;
   border: 1px solid #FACC15 !important;
   border-radius: 0px !important;
@@ -85,7 +103,7 @@ body {
 }
 
 .leaflet-popup-tip {
-  background: #121212 !important;
+  background: var(--color-aero-panel-2) !important;
   border: 1px solid #FACC15 !important;
 }
 
