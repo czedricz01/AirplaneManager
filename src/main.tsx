@@ -1,6 +1,7 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
 /**
@@ -28,6 +29,13 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {/*
+      The last line of defence. The individual screens have their own boundaries,
+      so this one only catches a fault outside them -- but without it such a fault
+      leaves a blank white page with nothing to click and no hint of what happened.
+    */}
+    <ErrorBoundary label="Airline Manager" resetLabel="RELOAD" onReset={() => window.location.reload()}>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

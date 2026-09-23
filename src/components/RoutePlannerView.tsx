@@ -11,7 +11,9 @@ import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerCon
 import { CabinConfigDialogs } from './routePlanner/CabinConfigDialogs';
 // The component used to declare a near-identical ScheduledTrip that shadowed
 // this one, differing only in groupId being required. One type now.
+import type { ConfigOutput } from './ConfigurePurchaseView';
 import type { ScheduledTrip } from './RouteScheduleEditView';
+import { readString } from '../lib/safeStorage';
 import {
   getSlotPurchaseCost,
   calculateRouteFinancials,
@@ -396,7 +398,7 @@ function RoutePlannerInner({
   const setOriginSearch = (v: any) => setUi('originSearch', typeof v === 'function' ? v(ui.originSearch) : v);
   const destSearch = ui.destSearch;
   const setDestSearch = (v: any) => setUi('destSearch', typeof v === 'function' ? v(ui.destSearch) : v);
-  const debugMode = localStorage.getItem('airline_debug_mode') === 'true';
+  const debugMode = readString('airline_debug_mode') === 'true';
   const showDemandDebug = ui.showDemandDebug;
   const setShowDemandDebug = (v: any) => setUi('showDemandDebug', typeof v === 'function' ? v(ui.showDemandDebug) : v);
   const showPricingDebug = ui.showPricingDebug;
@@ -3240,7 +3242,7 @@ function RoutePlannerInner({
            const maxRevenue = displayFinancials.estWeeklyRev;
 
            const classes = ['economy', 'premium', 'business', 'first'];
-           const aircraftConfig = selectedAircraft.config || {};
+           const aircraftConfig = (selectedAircraft.config || {}) as Partial<ConfigOutput>;
            const classSeatCount: Record<string, number> = {
              economy: aircraftConfig.economy || 0,
              premium: aircraftConfig.premium || 0,
@@ -3426,7 +3428,7 @@ function RoutePlannerInner({
                           <div className="mb-4 p-4 border border-white/10 bg-black/60 rounded-sm font-mono text-[10px] text-white/60 space-y-2">
                              <div className="text-white font-bold mb-2 uppercase tracking-widest">SAT-Basisprice Calculation & Demand</div>
                              {(() => {
-                                const aircraftConfig = selectedAircraft.config || {};
+                                const aircraftConfig = (selectedAircraft.config || {}) as Partial<ConfigOutput>;
                                 const classSeatCountLocal: Record<string, number> = {
                                   economy: aircraftConfig.economy || 0,
                                   premium: aircraftConfig.premium || 0,

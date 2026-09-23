@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Save, Download, ChevronRight } from 'lucide-react';
 import { usePlanner } from './RoutePlannerContext';
+import { readJson, writeJson } from '../../lib/safeStorage';
 
 interface SavedCabinConfig {
   id: string;
@@ -34,18 +35,13 @@ export function CabinConfigDialogs() {
   const setNewConfigName = (v: string) => setUi('newConfigName', v);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return;
-    try {
-      setSavedCabinConfigs(JSON.parse(saved));
-    } catch (e) {
-      console.error('Failed to parse saved configs', e);
-    }
+    const saved = readJson<SavedCabinConfig[]>(STORAGE_KEY, []);
+    if (saved.length) setSavedCabinConfigs(saved);
   }, []);
 
   const persist = (next: SavedCabinConfig[]) => {
     setSavedCabinConfigs(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    writeJson(STORAGE_KEY, next);
   };
 
   const saveCabinConfig = () => {
