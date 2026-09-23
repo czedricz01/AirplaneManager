@@ -10,7 +10,8 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist dist-static",
     "lint": "tsc --noEmit",
-    "build:pages": "vite build"
+    "build:pages": "vite build",
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

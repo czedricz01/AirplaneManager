@@ -7,6 +7,10 @@ import { AirportInfrastructure, ManagementLevel } from '../App';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
+import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerContext';
+// The component used to declare a near-identical ScheduledTrip that shadowed
+// this one, differing only in groupId being required. One type now.
+import type { ScheduledTrip } from './RouteScheduleEditView';
 import {
   getSlotPurchaseCost,
   calculateRouteFinancials,
@@ -130,7 +134,40 @@ function DetailMetric({ label, value, color }: { label: string, value: string, c
 }
 
 
-export function RoutePlannerView({ 
+/**
+ * The wizard's state lives in RoutePlannerProvider; see
+ * routePlanner/RoutePlannerContext.tsx for why. This outer component exists
+ * only to mount it, so the inner one can read the state through a hook instead
+ * of receiving thirty-odd values as props.
+ */
+export function RoutePlannerView(props: Props) {
+  return (
+    <RoutePlannerProvider
+      initialSelection={{
+        step: props.isEditingCabinOnly ? 3 : (props.initialRouteId ? 2 : (props.initialStep || 1)),
+        originId: props.initialOriginId ?? null,
+        destId: props.initialDestId ?? null,
+        selectedReg: props.initialSelectedReg ?? null,
+        schedule: props.initialSchedule || [],
+        stashedSchedule: props.initialSchedule || [],
+        classConfigs: props.initialClassConfigs || DEFAULT_CLASS_CONFIGS,
+        ticketPrices: {}
+      }}
+    >
+      <RoutePlannerInner {...props} />
+    </RoutePlannerProvider>
+  );
+}
+
+const DEFAULT_CLASS_CONFIGS = {
+  general: { catering: [['none']], extras: ['none'], service: ['none'] },
+  economy: { catering: [['none']], extras: ['none'], service: ['none'] },
+  premium: { catering: [['none']], extras: ['none'], service: ['none'] },
+  business: { catering: [['none']], extras: ['none'], service: ['none'] },
+  first: { catering: [['none']], extras: ['none'], service: ['none'] }
+};
+
+function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
   onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, demandFactor = 1, rivalOffers = [], pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
@@ -178,37 +215,36 @@ export function RoutePlannerView({
     return 0; // Removed level-based bonus
   };
 
-  const [step, setStepInternal] = useState(isEditingCabinOnly ? 3 : (initialRouteId ? 2 : (initialStep || 1)));
+  // Everything below reads the wizard state from the provider. The local names
+  // are unchanged on purpose: the 3,000 lines of JSX further down did not have
+  // to be touched, which is what makes this reviewable.
+  const { selection, dispatch, ui, setUi } = usePlanner();
+  const { step, originId, destId, selectedReg, schedule, classConfigs, ticketPrices, validationMsg } = selection;
+
   const setStep = (s: number) => {
-    setStepInternal(s);
+    dispatch({ type: 'setStep', step: s });
     onStepChange?.(s);
   };
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [isFinalizing, setIsFinalizing] = useState(false);
-  const [activeConfigClass, setActiveConfigClass] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    plane: false,
-    sce: false,
-    airport: false
-  });
-  const [takeControl, setTakeControl] = useState<Record<string, boolean>>({
-    catering: false,
-    extras: false,
-    service: false
-  });
-  const [expandedMealCats, setExpandedMealCats] = useState<Record<string, boolean>>({
-    Basic: false,
-    Standard: false,
-    Premium: false,
-    Luxury: false
-  });
-  const [classConfigs, setClassConfigs] = useState<Record<string, { catering: string[][], extras: string[], service: string[] }>>(initialClassConfigs || {
-    general: { catering: [['none']], extras: ['none'], service: ['none'] },
-    economy: { catering: [['none']], extras: ['none'], service: ['none'] },
-    premium: { catering: [['none']], extras: ['none'], service: ['none'] },
-    business: { catering: [['none']], extras: ['none'], service: ['none'] },
-    first: { catering: [['none']], extras: ['none'], service: ['none'] }
-  });
+  const showSuccess = ui.showSuccess;
+  const setShowSuccess = (v: any) => setUi('showSuccess', typeof v === 'function' ? v(ui.showSuccess) : v);
+  const isFinalizing = ui.isFinalizing;
+  const setIsFinalizing = (v: any) => setUi('isFinalizing', typeof v === 'function' ? v(ui.isFinalizing) : v);
+  const activeConfigClass = ui.activeConfigClass;
+  const setActiveConfigClass = (v: any) => setUi('activeConfigClass', typeof v === 'function' ? v(ui.activeConfigClass) : v);
+  const expandedSections = ui.expandedSections;
+  const setExpandedSections = (v: any) => setUi('expandedSections', typeof v === 'function' ? v(ui.expandedSections) : v);
+  const takeControl = ui.takeControl;
+  const setTakeControl = (v: any) => setUi('takeControl', typeof v === 'function' ? v(ui.takeControl) : v);
+  const expandedMealCats = ui.expandedMealCats;
+  const setExpandedMealCats = (v: any) => setUi('expandedMealCats', typeof v === 'function' ? v(ui.expandedMealCats) : v);
+  const setClassConfigs = (
+    next: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)
+  ) => {
+    dispatch({
+      type: 'setClassConfigs',
+      classConfigs: typeof next === 'function' ? (next as any)(classConfigs) : next
+    });
+  };
 
   useEffect(() => {
     if (initialRouteId && (!initialClassConfigs || JSON.stringify(initialClassConfigs) === JSON.stringify({
@@ -231,9 +267,12 @@ export function RoutePlannerView({
   }, [classConfigs, onClassConfigsChange]);
 
   const [savedCabinConfigs, setSavedCabinConfigs] = useState<{ id: string, name: string, configs: any }[]>([]);
-  const [showConfigSaveModal, setShowConfigSaveModal] = useState(false);
-  const [showConfigLoadModal, setShowConfigLoadModal] = useState(false);
-  const [newConfigName, setNewConfigName] = useState('');
+  const showConfigSaveModal = ui.showConfigSaveModal;
+  const setShowConfigSaveModal = (v: any) => setUi('showConfigSaveModal', typeof v === 'function' ? v(ui.showConfigSaveModal) : v);
+  const showConfigLoadModal = ui.showConfigLoadModal;
+  const setShowConfigLoadModal = (v: any) => setUi('showConfigLoadModal', typeof v === 'function' ? v(ui.showConfigLoadModal) : v);
+  const newConfigName = ui.newConfigName;
+  const setNewConfigName = (v: any) => setUi('newConfigName', typeof v === 'function' ? v(ui.newConfigName) : v);
 
   useEffect(() => {
     const saved = localStorage.getItem('aero_cabin_configs');
@@ -305,15 +344,14 @@ export function RoutePlannerView({
     return satCache;
   };
 
-  const [originId, setOriginIdInternal] = useState<string | null>(initialOriginId || null);
-  const [destId, setDestIdInternal] = useState<string | null>(initialDestId || null);
+
 
   const setOriginId = (id: string | null) => {
-    setOriginIdInternal(id);
+    dispatch({ type: 'selectOrigin', originId: id });
     onOriginChange?.(id);
   };
   const setDestId = (id: string | null) => {
-    setDestIdInternal(id);
+    dispatch({ type: 'selectDest', destId: id });
     onDestChange?.(id);
   };
 
@@ -329,10 +367,39 @@ export function RoutePlannerView({
     }
   }, [initialDestId]);
 
-  const [selectedReg, setSelectedRegInternal] = useState<string | null>(initialSelectedReg || null);
 
+
+  /**
+   * Choosing an aircraft has to re-time the existing timetable, and the reducer
+   * cannot work out the new leg duration and turnaround on its own: they depend
+   * on the airports and the incoming aircraft's cruise speed. So they are
+   * computed here, for the aircraft being selected rather than the one still in
+   * state, and handed to the action along with the range and ICAO verdict.
+   */
   const setSelectedReg = (reg: string | null) => {
-    setSelectedRegInternal(reg);
+    const incoming = reg ? fleet.find(f => f.registration === reg) : null;
+
+    let adapt: { durMin: number; turnoverMin: number } | undefined;
+    let validationMsg: string | null = null;
+
+    if (incoming && selectedOrigin && selectedDest) {
+      adapt = {
+        durMin: sharedFlightDurationMinutes(selectedOrigin, selectedDest, incoming),
+        turnoverMin: incoming.class === 'Regional' ? 30 : incoming.class === 'Widebody' ? 90 : 60
+      };
+
+      const dist = Math.round(calculateDistance(
+        selectedOrigin.coords[0], selectedOrigin.coords[1],
+        selectedDest.coords[0], selectedDest.coords[1]
+      ));
+      if (incoming.maxRange < dist) {
+        validationMsg = `AIRCRAFT RANGE VIOLATION: Range is ${incoming.maxRange.toLocaleString()} km but distance is ${dist.toLocaleString()} km.`;
+      } else if (incoming.icaoCode > selectedDest.maxIcaoCode || incoming.icaoCode > selectedOrigin.maxIcaoCode) {
+        validationMsg = 'AIRCRAFT CLASS EXCEEDS PORT CAPACITY';
+      }
+    }
+
+    dispatch({ type: 'selectAircraft', reg, adapt, validationMsg });
     onRegChange?.(reg);
   };
 
@@ -369,14 +436,27 @@ export function RoutePlannerView({
     }
   }, [initialRouteId]);
 
-  const [originSearch, setOriginSearch] = useState('');
-  const [destSearch, setDestSearch] = useState('');
+  const originSearch = ui.originSearch;
+  const setOriginSearch = (v: any) => setUi('originSearch', typeof v === 'function' ? v(ui.originSearch) : v);
+  const destSearch = ui.destSearch;
+  const setDestSearch = (v: any) => setUi('destSearch', typeof v === 'function' ? v(ui.destSearch) : v);
   const debugMode = localStorage.getItem('airline_debug_mode') === 'true';
-  const [showDemandDebug, setShowDemandDebug] = useState(false);
-  const [showPricingDebug, setShowPricingDebug] = useState(false);
-  const [destSortBy, setDestSortBy] = useState<'combined' | 'tourism' | 'business' | 'distance'>('combined');
-  const [aircraftSearch, setAircraftSearch] = useState('');
-  const [ticketPrices, setTicketPrices] = useState<Record<string, number>>({});
+  const showDemandDebug = ui.showDemandDebug;
+  const setShowDemandDebug = (v: any) => setUi('showDemandDebug', typeof v === 'function' ? v(ui.showDemandDebug) : v);
+  const showPricingDebug = ui.showPricingDebug;
+  const setShowPricingDebug = (v: any) => setUi('showPricingDebug', typeof v === 'function' ? v(ui.showPricingDebug) : v);
+  const destSortBy = ui.destSortBy;
+  const setDestSortBy = (v: any) => setUi('destSortBy', typeof v === 'function' ? v(ui.destSortBy) : v);
+  const aircraftSearch = ui.aircraftSearch;
+  const setAircraftSearch = (v: any) => setUi('aircraftSearch', typeof v === 'function' ? v(ui.aircraftSearch) : v);
+  const setTicketPrices = (
+    next: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)
+  ) => {
+    dispatch({
+      type: 'setTicketPrices',
+      ticketPrices: typeof next === 'function' ? (next as any)(ticketPrices) : next
+    });
+  };
 
   const selectedOrigin = useMemo(() => originId ? airportsMap.get(originId) : undefined, [originId, airportsMap]);
   const selectedDest = useMemo(() => destId ? airportsMap.get(destId) : undefined, [destId, airportsMap]);
@@ -696,20 +776,14 @@ export function RoutePlannerView({
     { id: 7, label: 'Sun' },
   ];
 
-  type ScheduledTrip = { 
-    id: string; 
-    groupId: string;
-    flightNumOut: string;
-    flightNumIn: string;
-    dayId: number; 
-    startHour: number; 
-    startMin: number; 
-    durMin: number; 
-    turnoverMin: number; 
-    isOneWay?: boolean;
-    isGroupLead?: boolean;
+  const setSchedule = (
+    next: ScheduledTrip[] | ((prev: ScheduledTrip[]) => ScheduledTrip[])
+  ) => {
+    dispatch({
+      type: 'setSchedule',
+      schedule: typeof next === 'function' ? (next as any)(schedule) : next
+    });
   };
-  const [schedule, setSchedule] = useState<ScheduledTrip[]>(initialSchedule || []);
 
   /**
    * The check-in simulation for each end of the route.
@@ -849,7 +923,8 @@ export function RoutePlannerView({
   useEffect(() => {
     onScheduleChange?.(schedule);
   }, [schedule]);
-  const [validationMsg, setValidationMsg] = useState<string | null>(null);
+  const setValidationMsg = (message: string | null) =>
+    dispatch({ type: 'setValidation', message });
 
   const checkOverlap = (s1: number, e1: number, s2: number, e2: number) => {
     if (s1 < e2 && e1 > s2) return true;
@@ -1209,8 +1284,6 @@ export function RoutePlannerView({
      onUpdateInfrastructure(airportId, newInfra);
   };
 
-  const prevDeps = React.useRef({ selectedReg, originId, destId });
-
   // Reset and Auto-set optimal start time logic
   React.useEffect(() => {
     if (step === 2 && selectedOrigin && selectedDest && selectedAircraft) {
@@ -1223,51 +1296,12 @@ export function RoutePlannerView({
     }
   }, [step, selectedOrigin, selectedDest, selectedAircraft]); 
 
-  // Clear or restore/adapt schedule when core route parameters change
-  React.useEffect(() => {
-    const originChanged = prevDeps.current.originId !== originId;
-    const destChanged = prevDeps.current.destId !== destId;
-    const regChanged = prevDeps.current.selectedReg !== selectedReg;
-
-    if (originChanged || destChanged) {
-      setSchedule([]);
-      lastScheduleRef.current = [];
-      setValidationMsg(null);
-      prevDeps.current = { selectedReg, originId, destId };
-    } else if (regChanged) {
-      if (selectedReg === null) {
-        // They are switching planes. Clear display schedule, but keep lastScheduleRef so we can restore!
-        setSchedule([]);
-      } else {
-        // A new aircraft has been selected!
-        if (lastScheduleRef.current.length > 0) {
-          const newDurMin = getFlightDurationMinutes();
-          const newTurnoverMin = getTurnoverMinutes();
-          const updatedSchedule = lastScheduleRef.current.map(trip => ({
-            ...trip,
-            durMin: newDurMin,
-            turnoverMin: newTurnoverMin
-          }));
-          setSchedule(updatedSchedule);
-
-          if (selectedAircraft) {
-            const dist = Math.round(calculateDistance(selectedOrigin?.coords[0] || 0, selectedOrigin?.coords[1] || 0, selectedDest?.coords[0] || 0, selectedDest?.coords[1] || 0));
-            if (selectedAircraft.maxRange < dist) {
-              setValidationMsg(`AIRCRAFT RANGE VIOLATION: Range is ${selectedAircraft.maxRange.toLocaleString()} km but distance is ${dist.toLocaleString()} km.`);
-            } else if (selectedAircraft.icaoCode > (selectedDest?.maxIcaoCode || 0) || selectedAircraft.icaoCode > (selectedOrigin?.maxIcaoCode || 0)) {
-              setValidationMsg(`AIRCRAFT CLASS EXCEEDS PORT CAPACITY`);
-            } else {
-              setValidationMsg(null);
-            }
-          }
-        } else {
-          setSchedule([]);
-          setValidationMsg(null);
-        }
-      }
-      prevDeps.current = { selectedReg, originId, destId };
-    }
-  }, [selectedReg, originId, destId, selectedAircraft, selectedOrigin, selectedDest]);
+  // The cascade that used to live here -- an effect comparing the current
+  // origin, destination and registration against a ref of their previous values
+  // to decide whether to clear the schedule, restore a stashed one, re-time it
+  // and reset the validation message -- is now three reducer cases in
+  // routePlanner/plannerState.ts. It applies in the same tick as the change
+  // instead of a render later, and it is covered by tests that need no browser.
 
   const findOptimalConfig = () => {
     if (!selectedOrigin || !selectedDest || !selectedAircraft) return { hour: 8, minute: 0, autoSchedule: [] };
