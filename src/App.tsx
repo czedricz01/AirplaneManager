@@ -79,6 +79,68 @@ const airports: Airport[] = rawAirports.map(a => {
   return { ...a, stats: newStats };
 });
 
+/**
+ * A stable identity for a world event, so the month tick can tell which events
+ * started and which ended without comparing whole objects.
+ */
+const eventKey = (ev: HistoricalEvent) => `${ev.title}@${ev.startOffset}`;
+
+const offsetToDateStr = (offset: number) =>
+  `${(1 + (offset % 12)).toString().padStart(2, '0')}/${1960 + Math.floor(offset / 12)}`;
+
+const signedPercent = (multiplier: number) => {
+  const pct = Math.round((multiplier - 1.0) * 100);
+  return `${pct >= 0 ? '+' : ''}${pct}%`;
+};
+
+/**
+ * Turns an event into the inbox message announcing it.
+ *
+ * The six scripted historical events used to fire in complete silence: in March
+ * 2020 the game multiplied demand by 0.20 and told the player nothing, so an
+ * 80% revenue collapse looked like a bug. Only the random events were ever
+ * announced, and they had their own copy of this code.
+ */
+function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessage {
+  const dateStr = offsetToDateStr(ev.startOffset);
+  const demand = signedPercent(ev.demandMultiplier);
+  const fuel = signedPercent(ev.fuelMultiplier);
+  return {
+    id: idSeed,
+    text: `GLOBAL EVENT: "${ev.title}" begins. Demand ${demand}, fuel ${fuel}, for ${ev.duration} months.`,
+    isRead: false,
+    dateStr,
+    details: {
+      title: ev.title,
+      source: "Global Intelligence Agency",
+      content:
+        `${ev.description}\n\nActive from ${dateStr} for ${ev.duration} months, ` +
+        `through ${offsetToDateStr(ev.startOffset + ev.duration - 1)}.\n\n` +
+        `Projected impact:\n` +
+        `\u2022 Global passenger demand: ${demand}\n` +
+        `\u2022 Jet fuel market index: ${fuel}\n\n` +
+        `These multiply with any other event running at the same time.`
+    }
+  };
+}
+
+function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: number): GameMessage {
+  return {
+    id: idSeed,
+    text: `"${ev.title}" has ended. Demand and fuel return to normal.`,
+    isRead: false,
+    dateStr: offsetToDateStr(endOffset),
+    details: {
+      title: `${ev.title} - over`,
+      source: "Global Intelligence Agency",
+      content:
+        `${ev.title} ran for ${ev.duration} months and is no longer in effect.\n\n` +
+        `Its ${signedPercent(ev.demandMultiplier)} demand and ${signedPercent(ev.fuelMultiplier)} fuel ` +
+        `adjustments have been lifted.`
+    }
+  };
+}
+
 export const airportsMapAdjusted = new Map<string, Airport>();
 airports.forEach(a => airportsMapAdjusted.set(a.id, a));
 
@@ -140,7 +202,7 @@ import { MyCompanyView } from "./components/MyCompanyView";
 import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getEventMultipliers, setRuntimeRandomEvents, HistoricalEvent } from "./lib/eventSystem";
+import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent } from "./lib/eventSystem";
 import { generateUniqueRegistration } from "./utils/registration";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
@@ -1334,6 +1396,20 @@ export default function App() {
   const [zoom, setZoom] = useState(3);
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
 
+  /**
+   * World events running this month, with how long each still has to go.
+   *
+   * getActiveEvents already had everything needed for this; nothing in the
+   * interface ever showed it, so a player in a crisis could see the demand
+   * figure had dropped but not what was causing it or when it would lift.
+   */
+  const activeWorldEvents = useMemo(() => {
+    return getActiveEvents(currentDateOffset).map(ev => ({
+      ...ev,
+      monthsLeft: ev.startOffset + ev.duration - currentDateOffset
+    }));
+  }, [currentDateOffset, randomEvents]);
+
   const visibleWorldOffsets = useMemo(() => {
     if (!mapBounds) return [-360, 0, 360];
     const offsets = [];
@@ -1820,6 +1896,11 @@ export default function App() {
     const isNextJanuary = nextOffset % 12 === 0;
     const additionalMessages: GameMessage[] = [];
 
+    // Which world events are running right now. Compared against the same list
+    // for next month further below, this is what tells the player an event
+    // started or ended -- for scripted history as well as random events.
+    const activeBefore = new Set(getActiveEvents(currentDateOffset).map(eventKey));
+
     // 1. Check January Forecast News
     if (isNextJanuary) {
       const forecastYear = 1960 + Math.floor(nextOffset / 12);
@@ -1880,26 +1961,22 @@ export default function App() {
       setRandomEventsState(updatedRandomEvents);
       setRuntimeRandomEvents(updatedRandomEvents);
 
-      const targetMonthStr = (1 + (nextOffset % 12)).toString().padStart(2, '0');
-      const targetYearStr = (1960 + Math.floor(nextOffset / 12)).toString();
-      const targetDateStr = `${targetMonthStr}/${targetYearStr}`;
+    }
 
-      const effectDemandPercent = Math.round((demandMultiplier - 1.0) * 100);
-      const effectFuelPercent = Math.round((fuelMultiplier - 1.0) * 100);
-      const demandSign = effectDemandPercent >= 0 ? "+" : "";
-      const fuelSign = effectFuelPercent >= 0 ? "+" : "";
+    // 3. Announce every event that starts or ends with this tick.
+    const afterEvents = getActiveEvents(nextOffset);
+    const activeAfter = new Set(afterEvents.map(eventKey));
+    let evIdSeed = Date.now() + 24000;
 
-      additionalMessages.push({
-        id: Date.now() + Math.floor(Math.random() * 50000) + 24000,
-        text: `GLOBAL EVENT TRIGGERED: "${template.title}" starts next month. Key Impacts: Demand ${demandSign}${effectDemandPercent}%, Fuel ${fuelSign}${effectFuelPercent}%. Click for details.`,
-        isRead: false,
-        dateStr: targetDateStr,
-        details: {
-          title: template.title,
-          source: "Global Intelligence Agency",
-          content: `${template.description}\n\nThis event is active in the world sector starting ${targetDateStr} and will persist for ${duration} months.\n\nProjected Impacts:\n• Global Passenger Demand: ${demandSign}${effectDemandPercent}%\n• Jet Fuel Market Index: ${fuelSign}${effectFuelPercent}%`
-        }
-      });
+    for (const ev of afterEvents) {
+      if (!activeBefore.has(eventKey(ev))) {
+        additionalMessages.push(buildEventStartMessage(ev, evIdSeed++));
+      }
+    }
+    for (const ev of getActiveEvents(currentDateOffset)) {
+      if (!activeAfter.has(eventKey(ev))) {
+        additionalMessages.push(buildEventEndMessage(ev, evIdSeed++, nextOffset));
+      }
     }
 
     if (aiMessages.length > 0 || additionalMessages.length > 0) {
@@ -2898,14 +2975,19 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Active Events Banner */}
-                {getEventMultipliers(currentDateOffset).activeEvents.map((ev, i) => (
-                   <div key={`idx-${i}`} className="bg-[#111] border-b border-white/20 text-aero-yellow/60 px-4 py-2.5 flex items-center gap-4 z-40 shrink-0 shadow-2xl">
-                      <AlertTriangle className="text-aero-yellow/60 shrink-0" size={16} />
+                {/* Active Events Banner. The banner itself already existed; what it
+                    never said was how much longer the event runs, which is the one
+                    thing a player needs in order to decide whether to ride it out. */}
+                {activeWorldEvents.map((ev, i) => (
+                   <div key={`idx-${i}`} className="bg-aero-warn/10 border-b border-aero-warn/40 text-white/80 px-4 py-2.5 flex items-center gap-4 z-40 shrink-0 shadow-2xl">
+                      <AlertTriangle className="text-aero-warn shrink-0" size={16} />
                       <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-4 min-w-0">
-                         <span className="font-black uppercase tracking-widest text-[#FFB0B0] text-[10px] shrink-0">{ev.title}</span>
-                         <span className="text-[10px] md:text-[11px] opacity-80 truncate font-mono">{ev.description}</span>
-                         <span className="text-[10px] md:text-[11px] font-bold text-aero-yellow/60 ml-auto whitespace-nowrap">
+                         <span className="font-black uppercase tracking-widest text-aero-warn text-[10px] shrink-0">{ev.title}</span>
+                         <span className="text-[10px] md:text-[11px] font-bold text-white/70 shrink-0 whitespace-nowrap">
+                            {ev.monthsLeft} {ev.monthsLeft === 1 ? 'month' : 'months'} left
+                         </span>
+                         <span className="text-[10px] md:text-[11px] opacity-70 truncate font-mono">{ev.description}</span>
+                         <span className="text-[10px] md:text-[11px] font-bold text-aero-warn ml-auto whitespace-nowrap">
                             PAX: {ev.demandMultiplier >= 1 ? '+' : ''}{((ev.demandMultiplier - 1) * 100).toFixed(0)}% | FUEL: {ev.fuelMultiplier >= 1 ? '+' : ''}{((ev.fuelMultiplier - 1) * 100).toFixed(0)}%
                          </span>
                       </div>

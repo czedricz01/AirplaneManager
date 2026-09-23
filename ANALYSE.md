@@ -306,12 +306,17 @@ Daraus folgt:
   der Nachfrage. Die KI fliegt den Spielerhub sogar ausdrücklich nie an
   (`App.tsx:872`: `a.id !== playerHubId`). Einziger Berührungspunkt sind
   Slotkontingente.
-- **Die Krisen sind unsichtbar.** Die sechs historischen Ereignisse
+- **Die Krisen kommen unangekündigt.** Die sechs historischen Ereignisse
   (`eventSystem.ts:10-59`) lösen **keine Nachricht** aus — nur die zufälligen tun
   das (`App.tsx:1805-1815`). Im März 2020 multipliziert das Spiel die Nachfrage
-  still mit **0,20**; der Spieler sieht nur, dass der Umsatz einbricht. Es gibt
-  keine Ereignisübersicht, keine Restlaufzeit und keine Handlung, mit der man
-  reagieren kann.
+  still mit **0,20**; der Spieler sieht nur, dass der Umsatz einbricht.
+  *Korrektur gegenüber einer früheren Fassung dieses Dokuments:* ein Banner für
+  laufende Ereignisse **existiert** (`App.tsx:3018-3026`) und nennt Titel,
+  Beschreibung und die beiden Prozentwerte. Es fehlten die Ankündigung zum
+  Beginn, die Meldung zum Ende und die Restlaufzeit — und es war in
+  `text-aero-yellow/60` auf `#111` gehalten, also kaum als Warnung erkennbar.
+  Eine Handlung, mit der man auf ein Ereignis reagieren kann, gibt es weiterhin
+  nicht.
 - **Es gibt keinen Fortschritt.** `reputation|achievement|milestone|prestige|goal`
   → keine Treffer. Nach 30 Spieljahren hat man mehr Geld und neuere Flugzeuge —
   aber dieselben fünf Klicks, dieselben Bildschirme, kein Rang, keine
@@ -532,10 +537,10 @@ Spieler erlebt März 2020 als unerklärlichen Umsatzeinbruch auf ein Fünftel.
    Ereignisse schon gibt (`App.tsx:1805-1815`, inklusive expliziter ±%-Angaben),
    auch für `historicalEvents` auslösen — plus eine Nachricht am Ende der
    Laufzeit. Rein additiv, sehr klein.
-2. **Ereignisleiste.** `getActiveEvents(offset)` (`eventSystem.ts:67-71`) liefert
-   bereits alles Nötige. Oben in der Statusleiste (`App.tsx:2670-2786`) neben
-   „Global Demand"/„Fuel" die aktiven Ereignisse mit Restmonaten anzeigen, beim
-   Anklicken die Beschreibung.
+2. **Restlaufzeit im vorhandenen Banner.** Das Banner in `App.tsx:3018-3026`
+   zeigt bereits Titel, Beschreibung und Wirkung; ihm fehlt nur, wie lange das
+   Ereignis noch läuft. `getActiveEvents(offset)` (`eventSystem.ts:67-71`)
+   liefert `startOffset` und `duration`, also ist das eine Subtraktion.
 3. **Entscheidungen.** `HistoricalEvent` um ein optionales `choices` erweitern:
 
    ```ts
