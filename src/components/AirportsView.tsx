@@ -39,6 +39,30 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
     return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />;
   };
 
+  /**
+   * Weekly AI departures per airport, built once.
+   *
+   * This used to be a reduce over every AI airline and every one of its routes,
+   * inside the render of each of the 562 rows -- roughly 85,000 iterations per
+   * render with six rivals, repeated on every parent state change.
+   */
+  const aiSlotsByAirport = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const ai of aiAirlines || []) {
+      for (const r of ai.routes || []) {
+        const dep = r.departures || 0;
+        if (!dep) continue;
+        m.set(r.origin, (m.get(r.origin) || 0) + dep);
+        // The old per-row scan matched a route once even if both ends were the
+        // same airport, so keep that behaviour rather than double-counting.
+        if (r.destination !== r.origin) {
+          m.set(r.destination, (m.get(r.destination) || 0) + dep);
+        }
+      }
+    }
+    return m;
+  }, [aiAirlines]);
+
   const filteredAndSortedAirports = useMemo(() => {
     let result = airports;
     
@@ -135,21 +159,14 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
                </tr>
             ) : (
               filteredAndSortedAirports.map((airport, idx) => {
-                const businessDemand = getAirportStats(airport, currentYear).business;
-                const tourismDemand = getAirportStats(airport, currentYear).tourism;
+                const stats = getAirportStats(airport, currentYear);
+                const businessDemand = stats.business;
+                const tourismDemand = stats.tourism;
                 const totalSlots = airport.level * 300;
                 const infra = airportManagement[airport.id];
                 const rentedSlots = infra ? (infra.slots.regional + infra.slots.narrowbody + infra.slots.widebody) : 0;
                 
-                const aiSlotsUsed = aiAirlines ? aiAirlines.reduce((sum, ai) => {
-                  if (!ai.routes) return sum;
-                  return sum + ai.routes.reduce((routeSum: number, r: any) => {
-                    if (r.origin === airport.id || r.destination === airport.id) {
-                      return routeSum + (r.departures || 0);
-                    }
-                    return routeSum;
-                  }, 0);
-                }, 0) : 0;
+                const aiSlotsUsed = aiSlotsByAirport.get(airport.id) || 0;
 
                 const availableSlots = Math.max(0, totalSlots - rentedSlots - aiSlotsUsed);
                 

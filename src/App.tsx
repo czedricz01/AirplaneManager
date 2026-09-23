@@ -83,6 +83,14 @@ export const airportsMapAdjusted = new Map<string, Airport>();
 airports.forEach(a => airportsMapAdjusted.set(a.id, a));
 
 /**
+ * The hub picker's option list. This used to be sorted inline in the start
+ * menu's JSX, which copied 562 airports and ran an Intl collator over them on
+ * every keystroke in the airline name and code fields. The list never changes,
+ * so it is built once.
+ */
+const airportsByName: Airport[] = [...airports].sort((a, b) => a.name.localeCompare(b.name));
+
+/**
  * Recomputes any schedule leg whose duration is not a usable number.
  *
  * The schedule editor used to divide by `aircraft.speed`, a field that does not
@@ -2496,7 +2504,7 @@ export default function App() {
                           onChange={(e) => setSelectedHub(e.target.value)}
                           className="w-full bg-aero-carbon border border-white/10 p-4 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer"
                         >
-                          {airports.slice().sort((a,b) => a.name.localeCompare(b.name)).map(a => (
+                          {airportsByName.map(a => (
                             <option key={a.id} value={a.id}>{a.name} ({a.id}) - Level {a.level}</option>
                           ))}
                         </select>
@@ -3791,37 +3799,6 @@ function GameMenuOption({ label, onClick }: { label: string, onClick: () => void
   );
 }
 
-
-function Stat({ label, value, highlighted = false }: { label: string, value: string, highlighted?: boolean }) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">{label}</span>
-      <span className={`text-xs font-mono font-bold ${highlighted ? 'text-[#FFD700]' : 'text-white'}`}>{value}</span>
-    </div>
-  );
-}
-
-function NavButton({ icon, label, active = false }: { icon: ReactNode, label: string, active?: boolean }) {
-  return (
-    <button className={`
-      flex flex-col items-center justify-center gap-1 px-3 h-full transition-all border-t-2
-      ${active ? 'border-[#FFD700] text-[#FFD700] bg-[#1a1a1a]/50' : 'border-transparent text-zinc-500 hover:text-white'}
-    `}>
-      {icon}
-      <span className="text-[10px] uppercase font-bold tracking-widest">{label}</span>
-    </button>
-  );
-}
-
-
-function LogEntry({ time, msg, type = 'info' }: { time: string, msg: string, type?: 'info' | 'warning' }) {
-  return (
-    <div className="flex gap-3 text-[10px] font-mono leading-tight">
-      <span className="text-zinc-600 shrink-0">{time}</span>
-      <span className={type === 'warning' ? 'text-aero-yellow/60' : 'text-zinc-400'}>{msg}</span>
-    </div>
-  );
-}
 
 function SaveLoadOverlay({ 
   saves, 

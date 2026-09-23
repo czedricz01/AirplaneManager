@@ -283,8 +283,8 @@ export function RoutePlannerView({
     const satCache: Record<string, number> = {};
     if (!selectedOrigin || !selectedDest || !selectedAircraft) return satCache;
     const planeSat = getPlaneSat(selectedAircraft);
-    const deskPenalty = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + 
-                        getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat;
+    const deskPenalty = originDeskSim.sat + 
+                        destDeskSim.sat;
     const standBonus = getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement);
 
     ['economy', 'premium', 'business', 'first'].forEach(c => {
@@ -705,6 +705,27 @@ export function RoutePlannerView({
     isGroupLead?: boolean;
   };
   const [schedule, setSchedule] = useState<ScheduledTrip[]>(initialSchedule || []);
+
+  /**
+   * The check-in simulation for each end of the route.
+   *
+   * getDeskSim builds a Map over the whole fleet and scans every route on each
+   * call. Step 3 of the wizard used to call it 28 times per render with
+   * identical arguments -- once per toggle of a meal, an extra or a class tab.
+   * Two memos cover all 28.
+   */
+  const originDeskSim = React.useMemo(
+    () => selectedOrigin && selectedDest && selectedAircraft
+      ? getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId)
+      : { sat: 0, load: 0, capacity: 0, weeklyPax: 0 } as any,
+    [selectedOrigin, selectedDest, selectedAircraft, airportManagement, routes, fleet, schedule.length, initialRouteId]
+  );
+  const destDeskSim = React.useMemo(
+    () => selectedOrigin && selectedDest && selectedAircraft
+      ? getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId)
+      : { sat: 0, load: 0, capacity: 0, weeklyPax: 0 } as any,
+    [selectedOrigin, selectedDest, selectedAircraft, airportManagement, routes, fleet, schedule.length, initialRouteId]
+  );
 
   const lastScheduleRef = React.useRef<ScheduledTrip[]>(initialSchedule || []);
 
@@ -1632,7 +1653,7 @@ export function RoutePlannerView({
                         <InfaRowSmall label="Self-Check" count={airportManagement[selectedOrigin.id]?.desks?.self || 0} cost={getDeskCost((airportManagement[selectedOrigin.id]?.level || 0) >= 2, 'self')} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'desks', 'self', n, shift)} />
                      </div>
                      {(() => {
-                        const sim = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
+                        const sim = originDeskSim;
                         return (
                           <div className="mt-2 text-[10px] text-white/50 space-y-1">
                             <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
@@ -2006,7 +2027,7 @@ export function RoutePlannerView({
                           <InfaRowSmall label="Self-Check" count={airportManagement[selectedDest.id]?.desks?.self || 0} cost={getDeskCost((airportManagement[selectedDest.id]?.level || 0) >= 2, 'self')} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'desks', 'self', n, shift)} />
                        </div>
                        {(() => {
-                           const sim = getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
+                           const sim = destDeskSim;
                            return (
                              <div className="mt-2 text-[10px] text-white/50 space-y-1">
                                <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
@@ -2758,7 +2779,7 @@ export function RoutePlannerView({
 
         {step === 3 && selectedOrigin && selectedDest && selectedAircraft && (() => {
           const planeSat = getPlaneSat(selectedAircraft);
-          const deskPenalty = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat;
+          const deskPenalty = originDeskSim.sat + destDeskSim.sat;
           const standBonus = getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement);
 
           return (
@@ -2907,7 +2928,7 @@ export function RoutePlannerView({
                            let totalWeightedSat = 0;
                            let totalSeats = 0;
                            const planeSat = getPlaneSat(selectedAircraft);
-                           const deskPenalty = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat;
+                           const deskPenalty = originDeskSim.sat + destDeskSim.sat;
                            const standBonus = getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement);
 
                            ['economy', 'premium', 'business', 'first'].forEach(c => {
@@ -3052,8 +3073,8 @@ export function RoutePlannerView({
                          </div>
                          <div className="flex items-center gap-4">
                             <span className="text-sm font-black italic text-aero-yellow">
-                               {getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement) >= 0 ? '+' : ''}
-                               {Math.round(getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement))}%
+                               {originDeskSim.sat + destDeskSim.sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement) >= 0 ? '+' : ''}
+                               {Math.round(originDeskSim.sat + destDeskSim.sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement))}%
                             </span>
                             <ChevronDown size={16} className={`text-white/20 group-hover:text-white transition-transform ${expandedSections.airport ? 'rotate-180' : ''}`} />
                          </div>
@@ -3065,11 +3086,11 @@ export function RoutePlannerView({
                                   <div className="text-white/20 mb-2 border-b border-white/5 pb-2 font-black tracking-[0.3em]">Operational Metrics</div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="italic">Origin Check-In</span>
-                                     <span className={getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat > 0 ? '+' : ''}{getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat}%</span>
+                                     <span className={originDeskSim.sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{originDeskSim.sat > 0 ? '+' : ''}{originDeskSim.sat}%</span>
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="italic">Dest Check-In</span>
-                                     <span className={getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat > 0 ? '+' : ''}{getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat}%</span>
+                                     <span className={destDeskSim.sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{destDeskSim.sat > 0 ? '+' : ''}{destDeskSim.sat}%</span>
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="italic">Stand Priority</span>
@@ -3083,8 +3104,8 @@ export function RoutePlannerView({
                                         if (seats <= 0) return null;
                                         const config = classConfigs[c];
                                         const sceData = calculateClassSatisfaction(c, selectedAircraft, config, getFlightDurationMinutes(), airportManagement, selectedOrigin.id, selectedDest.id, difficulty);
-                                        const originLoadSim = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
-                                        const destLoadSim = getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
+                                        const originLoadSim = originDeskSim;
+                                        const destLoadSim = destDeskSim;
                                         const overloadPenalty = (originLoadSim.sat < 0 ? originLoadSim.sat : 0) + (destLoadSim.sat < 0 ? destLoadSim.sat : 0);
                                         const classRouteSat = Math.max(0, sceData.satisfactionPercentage + overloadPenalty);
                                         return (
@@ -3572,97 +3593,10 @@ export function RoutePlannerView({
             );
          })()}
 
-        {/* Save Config Modal */}
-        {showConfigSaveModal && (
-          <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-md bg-[#111] border border-white/10 p-4 shadow-2xl"
-            >
-              <h3 className="text-xl font-black text-white uppercase tracking-widest mb-3">Save Configuration</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] uppercase font-black text-white/40 tracking-widest mb-2">Configuration Name</label>
-                  <input 
-                    type="text" 
-                    autoFocus
-                    placeholder="e.g. Standard ShortHaul"
-                    className="w-full bg-white/5 border border-white/20 p-4 outline-none text-white focus:border-aero-yellow transition-colors font-mono"
-                    value={newConfigName}
-                    onChange={e => setNewConfigName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && saveCabinConfig()}
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    onClick={() => setShowConfigSaveModal(false)}
-                    className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    disabled={!newConfigName.trim()}
-                    onClick={saveCabinConfig}
-                    className="flex-1 py-4 bg-aero-yellow text-black uppercase text-[10px] font-black tracking-widest hover:bg-white transition-all disabled:opacity-20"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Load Config Modal */}
-        {showConfigLoadModal && (
-          <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-lg bg-[#111] border border-white/10 p-4 shadow-2xl flex flex-col max-h-[80vh]"
-            >
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xl font-black text-white uppercase tracking-widest">Load Configuration</h3>
-                <button onClick={() => setShowConfigLoadModal(false)} className="text-white/40 hover:text-white uppercase text-[10px] font-black">Close</button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                {savedCabinConfigs.length === 0 ? (
-                  <div className="bg-white/5 border border-white/5 p-4 text-center">
-                    <span className="text-[10px] uppercase font-black tracking-widest text-white/20 italic">No saved configurations found.</span>
-                  </div>
-                ) : (
-                  savedCabinConfigs.map(config => (
-                    <div 
-                      key={config.id}
-                      className="group flex items-center justify-between bg-white/5 border border-white/10 p-4 hover:border-aero-yellow/50 transition-all cursor-pointer"
-                      onClick={() => loadCabinConfig(config)}
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-lg font-black text-white uppercase tracking-tighter transition-colors group-hover:text-aero-yellow">{config.name}</span>
-                        <div className="flex gap-3 mt-1">
-                          {Object.keys(config.configs).filter(cl => cl !== 'general' && config.configs[cl].catering.some((mc: any) => mc[0] !== 'none')).map(cl => (
-                             <span key={cl} className="text-[8px] opacity-40 uppercase tracking-widest">{cl}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteSavedConfig(config.id);
-                        }}
-                        className="p-2 text-white/20 hover:text-aero-yellow/60 transition-colors"
-                      >
-                        <Minus size={16} />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {/* The save and load dialogs are rendered once, below, inside
+            AnimatePresence. A second, non-animated copy used to live here and
+            was bound to the same two flags, so opening either one stacked two
+            identical dialogs on top of each other. */}
 
         {/* Global Configuration Overlay */}
         {activeConfigClass && selectedAircraft && selectedOrigin && selectedDest && (

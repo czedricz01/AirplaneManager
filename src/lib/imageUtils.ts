@@ -44,7 +44,6 @@ export const markImageUrlFailed = (url: string) => {
   if (url) failedImageUrls.add(url);
 };
 
-export const isImageUrlFailed = (url: string) => failedImageUrls.has(url);
 
 export const clearFailedImageUrls = () => failedImageUrls.clear();
 
@@ -65,7 +64,6 @@ export const getAircraftImageCandidates = (
   manufacturer?: string,
   type?: string,
   imagesMap?: Record<string, string>,
-  aircraftVisuals?: Record<string, string>,
   keyLookup?: string
 ): string[] => {
   // The list depends only on these inputs, so build it once per aircraft rather than
@@ -166,15 +164,6 @@ export const getAircraftImageCandidates = (
     if (imagesMap[safeName]) localCandidates.push(imagesMap[safeName]);
   }
 
-  if (aircraftVisuals && keyLookup && aircraftVisuals[keyLookup]) {
-    const visPath = aircraftVisuals[keyLookup];
-    if (visPath.startsWith('/planes/')) {
-      localCandidates.push(visPath);
-    } else {
-      localCandidates.push('/src/assets/aircraft' + visPath);
-    }
-  }
-
   // Generate bucket candidate URLs for each stem & extension
   baseUrls.forEach(base => {
     stems.forEach(stem => {
@@ -198,15 +187,3 @@ export const getAircraftImageCandidates = (
   candidateCache.set(cacheKey, result);
   return result;
 };
-
-export const getAircraftImageUrl = (
-  safeName: string, 
-  imagesMap?: Record<string, string>, 
-  aircraftVisuals?: Record<string, string>,
-  keyLookup?: string
-): string | undefined => {
-  const candidates = getAircraftImageCandidates(safeName, undefined, undefined, imagesMap, aircraftVisuals, keyLookup);
-  return candidates.length > 0 ? candidates[0] : undefined;
-};
-
-

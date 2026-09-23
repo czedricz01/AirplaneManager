@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getAircraftImageUrl, getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
+import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { SupabaseBucketModal } from './SupabaseBucketModal';
 
