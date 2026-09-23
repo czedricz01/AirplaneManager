@@ -933,3 +933,109 @@ export function getSlotPurchaseCost(type: string) {
     default: return 25000;
   }
 }
+
+export interface InfraChangeParams {
+  /** Current infrastructure for one airport; never mutated. */
+  infra: any;
+  type: 'slots' | 'stands' | 'desks';
+  subType: string;
+  /** Signed delta requested, already multiplied for a shift-click. */
+  requestedAmount: number;
+  hubAutoUpgrade: boolean;
+  autoBuyStands: boolean;
+  /** Free purchasable slots at this airport; only consulted when buying slots. */
+  availableSlots: number;
+  /** Weekly slots this subType already has scheduled — the floor a sell cannot cross. */
+  utilizedSlots: number;
+  /** getSlotPurchaseCost(subType) for slots, 0 for stands/desks. */
+  costPerUnit: number;
+  /** Desks of subType 'normal' can't be sold below this (0 unless the caller enforces a minimum). */
+  minNormalDesks?: number;
+}
+
+export interface InfraChangeResult {
+  /** New infra to persist, or the original object unchanged if actualAmount is 0. */
+  infra: any;
+  /** The delta actually applied, after every clamp below. */
+  actualAmount: number;
+  /** Signed amount to bill: positive charges, negative refunds. Always 0 for stands/desks. */
+  cost: number;
+  reason: 'ok' | 'no-availability' | 'sell-floor' | 'stands-need-slots' | 'noop';
+}
+
+/**
+ * The single place that may change an airport's rented slots, stands or desks.
+ * Both the Hub Management console and the New Route wizard call this so the two
+ * screens can't drift apart: a slot sell here can never cross the utilized-slots
+ * floor (which used to let free slots go negative), and stands are auto-shrunk
+ * to stay within the new slot count (which used to leave stands > slots after a
+ * sell made through the wizard).
+ */
+export function applyInfrastructureChange(params: InfraChangeParams): InfraChangeResult {
+  const {
+    infra, type, subType, requestedAmount, hubAutoUpgrade, autoBuyStands,
+    availableSlots, utilizedSlots, costPerUnit, minNormalDesks = 0
+  } = params;
+
+  const newInfra = JSON.parse(JSON.stringify(infra));
+  if (!newInfra[type]) newInfra[type] = {};
+  const currentCount = newInfra[type][subType] || 0;
+
+  let actualAmount = requestedAmount;
+
+  // Can only sell what we have.
+  if (currentCount + actualAmount < 0) {
+    actualAmount = -currentCount;
+  }
+
+  if (type === 'slots') {
+    if (actualAmount > 0 && actualAmount > availableSlots) {
+      actualAmount = availableSlots;
+    }
+    if (actualAmount < 0 && currentCount + actualAmount < utilizedSlots) {
+      actualAmount = utilizedSlots - currentCount;
+    }
+  }
+
+  if (type === 'stands' && actualAmount > 0) {
+    const slotLimit = newInfra.slots?.[subType] || 0;
+    if (currentCount + actualAmount > slotLimit) {
+      actualAmount = slotLimit - currentCount;
+    }
+  }
+
+  if (type === 'desks' && subType === 'normal' && currentCount + actualAmount < minNormalDesks) {
+    actualAmount = minNormalDesks - currentCount;
+  }
+
+  if (actualAmount === 0) {
+    let reason: InfraChangeResult['reason'] = 'noop';
+    if (type === 'slots' && requestedAmount > 0) reason = 'no-availability';
+    else if (type === 'slots' && requestedAmount < 0) reason = 'sell-floor';
+    else if (type === 'stands' && requestedAmount > 0) reason = 'stands-need-slots';
+    return { infra, actualAmount: 0, cost: 0, reason };
+  }
+
+  newInfra[type][subType] = currentCount + actualAmount;
+
+  let cost = 0;
+  if (type === 'slots') {
+    // Selling refunds half of what a slot cost to buy.
+    cost = actualAmount > 0 ? costPerUnit * actualAmount : costPerUnit * actualAmount * 0.5;
+
+    if (actualAmount > 0 && (hubAutoUpgrade || autoBuyStands)) {
+      newInfra.stands = { ...newInfra.stands };
+      newInfra.stands[subType] = (newInfra.stands[subType] || 0) + actualAmount;
+    }
+
+    if (actualAmount < 0) {
+      const newSlotCount = currentCount + actualAmount;
+      if (newInfra.stands && (newInfra.stands[subType] || 0) > newSlotCount) {
+        newInfra.stands = { ...newInfra.stands };
+        newInfra.stands[subType] = newSlotCount;
+      }
+    }
+  }
+
+  return { infra: newInfra, actualAmount, cost, reason: 'ok' };
+}

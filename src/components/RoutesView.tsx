@@ -161,6 +161,30 @@ export function RoutesView({
     return routes.find(r => r.id === selectedRoute.id) || selectedRoute;
   }, [selectedRoute, routes]);
 
+  /** Weekly seat capacity for a route's assigned aircraft, or null with none assigned. */
+  const getWeeklySeats = (route: SimulatedRoute): number | null => {
+    const ac = fleet.find(f => f.registration === route.aircraft);
+    if (!ac) return null;
+    const configSeats = ac.config
+      ? ((ac.config.economy || 0) + (ac.config.premium || 0) + (ac.config.business || 0) + (ac.config.first || 0))
+      : 0;
+    const capacity = configSeats > 0 ? configSeats : ((ac as any).capacity || 0);
+    const legs = route.schedule
+      ? route.schedule.reduce((acc: number, s: any) => acc + (s.isOneWay ? 1 : 2), 0)
+      : route.weeklyFlights * 2;
+    return capacity * legs;
+  };
+
+  const quickAdjustPrice = (route: SimulatedRoute, pct: number) => {
+    if (!onUpdatePricing) return;
+    const current = route.ticketPrices || {};
+    const next = { ...current };
+    (['economy', 'premium', 'business', 'first'] as const).forEach(cls => {
+      if (current[cls]) next[cls] = Math.max(1, Math.round(current[cls] * (1 + pct)));
+    });
+    onUpdatePricing(route.id, next);
+  };
+
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
@@ -237,12 +261,14 @@ export function RoutesView({
             <Th sortable onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</Th>
             <Th sortable onClick={() => toggleSort('weeklyFlights')}>Weekly Flights {getSortIcon('weeklyFlights')}</Th>
             <Th sortable onClick={() => toggleSort('paxPerWeek')}>Pax / Week {getSortIcon('paxPerWeek')}</Th>
+            <Th sortable={false}>Load %</Th>
+            <Th sortable={false}>Quick Price</Th>
             <Th sortable className="pr-4 text-right" onClick={() => toggleSort('profit')}>Profit / Month {getSortIcon('profit')}</Th>
           </Thead>
           <tbody>
             {filteredAndSortedRoutes.length === 0 ? (
               <tr>
-                 <td colSpan={10} className="text-center py-16 text-white/40 uppercase tracking-widest">
+                 <td colSpan={12} className="text-center py-16 text-white/40 uppercase tracking-widest">
                    {routes.length === 0 ? (
                      <div className="flex flex-col items-center gap-2">
                        <span>No routes yet</span>
@@ -269,6 +295,36 @@ export function RoutesView({
                   <Td>{route.aircraft}</Td>
                   <Td className="text-xs font-mono">{route.weeklyFlights}</Td>
                   <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
+                  <Td className="text-xs font-mono">
+                    {(() => {
+                      const weeklySeats = getWeeklySeats(route);
+                      if (!weeklySeats || weeklySeats <= 0) return <span className="text-white/25">-</span>;
+                      const lf = Math.round((route.paxPerWeek / weeklySeats) * 100);
+                      return (
+                        <span className={lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn'}>
+                          {lf}%
+                        </span>
+                      );
+                    })()}
+                  </Td>
+                  <Td className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
+                    {onUpdatePricing && route.ticketPrices ? (
+                      <div className="flex gap-1">
+                        {[-0.10, -0.05, 0.05, 0.10].map(pct => (
+                          <button
+                            key={pct}
+                            onClick={() => quickAdjustPrice(route, pct)}
+                            title={`${pct > 0 ? '+' : ''}${Math.round(pct * 100)}% on all classes`}
+                            className="px-1.5 py-0.5 bg-black/40 border border-white/10 hover:border-aero-yellow/50 text-3xs font-bold text-white/60 hover:text-aero-yellow transition-all"
+                          >
+                            {pct > 0 ? '+' : ''}{Math.round(pct * 100)}%
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-white/25">-</span>
+                    )}
+                  </Td>
                   <Td className="pr-4 text-right text-xs font-mono">
                     {routeProfits && routeProfits[route.id] !== undefined ? (
                       <span className={routeProfits[route.id] >= 0 ? 'text-aero-good' : 'text-aero-warn'}>

@@ -101,7 +101,6 @@ export function RouteDetailView({
     ? ((assignedAircraft.config.economy || 0) + (assignedAircraft.config.premium || 0) + (assignedAircraft.config.business || 0) + (assignedAircraft.config.first || 0)) 
     : 0;
   const actualCapacity = actualConfigSeats > 0 ? actualConfigSeats : (assignedAircraft?.capacity || 0);
-  const routeFlightLegs = route.schedule ? route.schedule.reduce((acc: number, s: any) => acc + (s.isOneWay ? 1 : 2), 0) : route.weeklyFlights * 2;
 
   // Render dummy configuration window
   const renderConfigWindow = () => {
@@ -477,6 +476,17 @@ export function RouteDetailView({
                      title="Route Projection (Weekly)"
                      netProfit={financials.estWeeklyProfit}
                      totalRevenue={financials.estWeeklyRev}
+                     revenues={(['economy', 'premium', 'business', 'first'] as const)
+                       .filter(cls => (financials.paxByClass?.[cls]?.max ?? 0) > 0)
+                       .map(cls => {
+                         const cd = financials.paxByClass[cls];
+                         const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
+                         const lf = cd.max > 0 ? Math.round((cd.actual / cd.max) * 100) : 0;
+                         return {
+                           label: `${cls[0].toUpperCase()}${cls.slice(1)} — ${cd.actual}/${cd.max} pax @ $${price} (${lf}% LF)`,
+                           amount: cd.actual * price
+                         };
+                       })}
                      expenses={[
                        {
                          id: 'opx',
@@ -492,16 +502,40 @@ export function RouteDetailView({
                      ]}
                      defaultOpen={true}
                    />
+                   <div className="border-t border-white/5 pt-4 mt-4 grid grid-cols-2 gap-2">
+                     {(['economy', 'premium', 'business', 'first'] as const)
+                       .filter(cls => (financials.paxByClass?.[cls]?.max ?? 0) > 0)
+                       .map(cls => {
+                         const cd = financials.paxByClass[cls];
+                         const lf = cd.max > 0 ? Math.round((cd.actual / cd.max) * 100) : 0;
+                         const currentPrices = route.activeTicketPrices || route.ticketPrices || {};
+                         const price = currentPrices[cls] || 0;
+                         return (
+                           <div key={cls} className="flex flex-col items-center bg-white/5 border border-white/10 rounded-sm p-2">
+                             <span className="text-[8px] text-white/30 uppercase tracking-widest font-black">{cls}</span>
+                             <span className={`text-lg font-mono font-bold ${lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn'}`}>{lf}%</span>
+                             <span className="text-[8px] text-white/30 font-mono">{cd.actual}/{cd.max} pax</span>
+                             <div className="flex items-center gap-1 mt-1">
+                               <span className="text-[9px] text-white/40">$</span>
+                               <input
+                                 key={`${cls}-${price}`}
+                                 type="number"
+                                 defaultValue={price}
+                                 onBlur={(e) => {
+                                   const val = parseInt(e.target.value, 10);
+                                   if (!isNaN(val) && val > 0 && val !== price && onUpdatePricing) {
+                                     onUpdatePricing(route.id, { ...currentPrices, [cls]: val });
+                                   }
+                                 }}
+                                 className="w-16 bg-black/40 border border-white/10 text-center text-[10px] font-mono text-white py-0.5 focus:outline-none focus:border-aero-yellow/50"
+                               />
+                             </div>
+                           </div>
+                         );
+                       })}
+                   </div>
                  </>
                )}
-               <div className="border-t border-white/5 pt-4 mt-4">
-                  <div className="flex flex-col items-center">
-                     <span className="text-xl font-mono text-aero-yellow font-bold">
-                       {assignedAircraft && actualCapacity > 0 ? Math.round(((financials?.paxPerWeek || 0) / (routeFlightLegs * actualCapacity)) * 100) : 0}%
-                     </span>
-                     <span className="text-[9px] text-white/30 uppercase tracking-widest font-black mt-1">Avg Load Factor</span>
-                  </div>
-               </div>
             </div>
           </div>
         </div>

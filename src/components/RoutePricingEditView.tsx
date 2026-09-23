@@ -228,10 +228,20 @@ export function RoutePricingEditView({
             </div>
             
             <div className="bg-black/60 border border-white/10 rounded-sm">
-              <FinancialReport 
+              <FinancialReport
                  title="Weekly Financial Projection"
                  netProfit={estWeeklyProfit}
                  totalRevenue={estWeeklyRev}
+                 revenues={(['economy', 'premium', 'business', 'first'] as const)
+                   .filter(cls => (financials.paxByClass?.[cls]?.max ?? 0) > 0)
+                   .map(cls => {
+                     const cd = financials.paxByClass[cls];
+                     const lf = cd.max > 0 ? Math.round((cd.actual / cd.max) * 100) : 0;
+                     return {
+                       label: `${cls[0].toUpperCase()}${cls.slice(1)} — ${cd.actual}/${cd.max} pax @ $${ticketPrices[cls] || 0} (${lf}% LF)`,
+                       amount: cd.actual * (ticketPrices[cls] || 0)
+                     };
+                   })}
                  expenses={[
                    {
                      id: 'opx',
