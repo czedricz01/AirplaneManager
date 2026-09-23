@@ -16,6 +16,7 @@ import type { ScheduledTrip } from './RouteScheduleEditView';
 import { readString } from '../lib/safeStorage';
 import {
   getSlotPurchaseCost,
+  applyInfrastructureChange,
   calculateRouteFinancials,
   getJetFuelPrice,
   getPlaneSat,
@@ -98,8 +99,8 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
           <span className="text-xs font-black text-white leading-none">{count}</span>
         </div>
         <div className="flex gap-0.5 ml-1">
-          <button 
-            disabled={disableRemove || disabled || count <= 0} 
+          <button
+            disabled={disableRemove || disabled || count <= 0 || (used !== undefined && count - used <= 0)}
             onClick={(e) => onBuy(-1, e.shiftKey)}
             className="w-5 h-5 flex items-center justify-center bg-black/40 border border-white/5 hover:border-aero-yellow disabled:opacity-0 transition-all text-white/50 hover:text-white text-2xs"
           >
@@ -1154,92 +1155,73 @@ function RoutePlannerInner({
   };
 
   const handleUpdateInfra = (airportId: string, type: 'slots' | 'stands' | 'desks', subType: string, baseAmount: number, isShift?: boolean) => {
-     let amount = isShift ? baseAmount * 10 : baseAmount;
-     // What the click asked for, before any clamping below. Comparing against
-     // baseAmount would be wrong on a shift-click, where amount starts at 10x.
-     const requested = amount;
+     const requestedAmount = isShift ? baseAmount * 10 : baseAmount;
      const mgt = airportManagement || {};
 
      const level = mgt[airportId]?.level || 0;
      const hubAutoUpgrade = level >= 2;
-     
+
      // Only slots have a one-off purchase price. Desks and stands are rented and show
      // up as weekly upkeep instead — charging their weekly rate as an upfront fee here
      // made them cost money in this screen but nothing in the airport console.
      const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 0;
 
      const infra = mgt[airportId] || { level, slots: { regional: 0, narrowbody: 0, widebody: 0 }, stands: { narrowbody: 0, widebody: 0 }, desks: { normal: 0, self: 0 } };
-     
-     let actualCost = costPerUnit * amount;
 
-     const currentPending = pendingSlotBills || 0;
-     if (type === 'slots' && amount > 0) {
+     let availableSlots = Infinity;
+     if (type === 'slots' && requestedAmount > 0) {
         const targetAirport = airportsMap.get(airportId);
         if (targetAirport) {
            const totalS = targetAirport.level * 300;
            const currentRented = (infra.slots?.regional || 0) + (infra.slots?.narrowbody || 0) + (infra.slots?.widebody || 0);
            const aiUsedS = getAiUsedWeeklySlots(airportId);
-           const availS = Math.max(0, totalS - currentRented - aiUsedS);
-           if (amount > availS) {
-              amount = availS;
-              actualCost = costPerUnit * amount;
-           }
+           availableSlots = Math.max(0, totalS - currentRented - aiUsedS);
         }
      }
-     if (amount <= 0 && baseAmount > 0) {
-       onNotify?.(`No ${subType} slots are free at ${airportId} — the airport and its other carriers have taken them all.`);
+
+     const currentPending = pendingSlotBills || 0;
+
+     const result = applyInfrastructureChange({
+        infra,
+        type, subType,
+        requestedAmount,
+        hubAutoUpgrade,
+        autoBuyStands: !!infra.autoBuyStands,
+        availableSlots,
+        utilizedSlots: type === 'slots' ? getUsedWeeklySlots(airportId, subType) : 0,
+        costPerUnit,
+        minNormalDesks: level >= 1 ? 1 : 0,
+     });
+
+     if (result.actualAmount === 0) {
+       if (type === 'slots' && requestedAmount > 0) {
+         onNotify?.(`No ${subType} slots are free at ${airportId} — the airport and its other carriers have taken them all.`);
+       } else if (type === 'slots' && requestedAmount < 0) {
+         onNotify?.(`Those ${subType} slots at ${airportId} are in use by your current schedule and cannot be sold.`);
+       } else if (type === 'stands' && requestedAmount > 0) {
+         onNotify?.(`Stands cannot outnumber slots. Buy more ${subType} slots at ${airportId} first.`);
+       }
        return;
      }
-     if (requested > 0 && amount < requested) {
-       onNotify?.(`Only ${amount} of the ${requested} ${subType} slots you asked for are free at ${airportId}.`);
+     if (type === 'slots' && requestedAmount > 0 && result.actualAmount < requestedAmount) {
+       onNotify?.(`Only ${result.actualAmount} of the ${requestedAmount} ${subType} slots you asked for are free at ${airportId}.`);
      }
-     if (amount > 0 && type === 'slots' && (capital - currentPending) < actualCost) {
+     if (result.cost > 0 && (capital - currentPending) < result.cost) {
        onNotify?.(
-         `${amount} ${subType} slot${amount === 1 ? '' : 's'} at ${airportId} cost $${Math.round(actualCost).toLocaleString('en-US')}, ` +
+         `${result.actualAmount} ${subType} slot${result.actualAmount === 1 ? '' : 's'} at ${airportId} cost $${Math.round(result.cost).toLocaleString('en-US')}, ` +
          `but only $${Math.round(capital - currentPending).toLocaleString('en-US')} is uncommitted. Nothing was bought.`
        );
        return;
      }
 
-     const newInfra = JSON.parse(JSON.stringify(infra)); // Deep copy
-     if (!newInfra[type]) newInfra[type] = {};
-     
-     const oldVal = newInfra[type][subType] || 0;
-     let newVal = Math.max(0, oldVal + amount);
-     
-     // Ensure minimum 1 normal desk if level >= 1
-     if (level >= 1 && type === 'desks' && subType === 'normal' && newVal < 1) newVal = 1;
-
-     // Ensure stands can't exceed slots if level < 2
-     if (!hubAutoUpgrade && type === 'stands' && amount > 0) {
-         const currentSlots = newInfra.slots[subType] || 0;
-         if (newVal > currentSlots) {
-             newVal = currentSlots;
-             amount = newVal - oldVal;
-             actualCost = costPerUnit * amount;
-         }
-         if (amount <= 0) {
-           onNotify?.(`Stands cannot outnumber slots. Buy more ${subType} slots at ${airportId} first.`);
-           return;
-         }
-     }
-
-     newInfra[type][subType] = newVal;
-
-     // Process auto buy stands
-     if (type === 'slots' && amount > 0 && (hubAutoUpgrade || infra.autoBuyStands)) {
-         if (!newInfra.stands) newInfra.stands = {};
-         newInfra.stands[subType] = (newInfra.stands[subType] || 0) + amount;
-     }
-
-     if (amount > 0 && type === 'slots' && actualCost > 0) {
+     if (result.cost !== 0) {
         if (onAddPendingSlotBills) {
-           onAddPendingSlotBills(actualCost);
+           onAddPendingSlotBills(result.cost);
         } else {
-           onSubtractCapital?.(actualCost);
+           onSubtractCapital?.(result.cost);
         }
      }
-     onUpdateInfrastructure(airportId, newInfra);
+     onUpdateInfrastructure(airportId, result.infra);
   };
 
   // Reset and Auto-set optimal start time logic
@@ -1857,7 +1839,12 @@ function RoutePlannerInner({
                       
                       // Route Hints
                       const myRoutesCount = routes.filter(r => r.airline === airlineCode && (r.origin === a.id || r.destination === a.id)).length;
-                      const compRoutesCount = routes.filter(r => r.airline !== airlineCode && (r.origin === a.id || r.destination === a.id)).length;
+                      const compRoutesCount = routes.filter(r =>
+                        r.airline !== airlineCode &&
+                        originId != null &&
+                        ((r.origin === originId && r.destination === a.id) ||
+                         (r.origin === a.id && r.destination === originId))
+                      ).length;
 
                       return (
                         <div 

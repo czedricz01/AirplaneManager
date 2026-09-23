@@ -28,7 +28,7 @@ interface MonthlyReport {
   capexItems?: { label: string; amount: number }[];
   cashChange?: number;
   capitalAfter?: number;
-  routes?: { name: string; revenue: number; cost: number; profit: number }[];
+  routes?: { name: string; revenue: number; cost: number; profit: number; paxPerWeek?: number; capacity?: number }[];
   breakdown: Record<string, number>;
 }
 
@@ -312,6 +312,10 @@ export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, 
                 title={`Report — ${label(latest!)}`}
                 netProfit={latest!.totalProfit}
                 totalRevenue={latest!.routeRevenues}
+                revenues={(latest!.routes || []).map(r => ({
+                  label: `${r.name}${r.capacity ? ` (${Math.round(((r.paxPerWeek || 0) / r.capacity) * 100)}% LF)` : ''}`,
+                  amount: r.revenue
+                }))}
                 expenses={[
                   {
                     id: 'routeCosts',

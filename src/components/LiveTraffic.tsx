@@ -24,43 +24,47 @@ function getPlaneSvgPath(aircraftId: string, planeClass: string, icaoClass: stri
   const id = (aircraftId || '').toLowerCase();
   const scaleClass = (planeClass || 'narrowbody').toLowerCase();
 
+  // Flightradar24-style silhouettes: a slender fuselage and a thin stroke read as
+  // a precise vector glyph. The old 1.1-1.3 stroke on a ~3-unit-wide fuselage made
+  // every marker look like a bold cartoon blob instead of a clean aircraft icon.
+
   // 1. Sleek delta wing: Concorde
   if (id === 'concorde') {
     return {
-      d: "M16,1 L14,12 L1,24 L14,22 L14,28 L11,30 L11,31 L16,30.5 L21,31 L21,30 L18,28 L18,22 L31,24 L18,12 Z",
-      stroke: 1.2,
-      extra: '<path d="M16,4 L16,10" stroke="#000" stroke-width="0.8" opacity="0.4" />'
+      d: "M16,1 L14.6,12 L1,24 L14.6,21.5 L14.6,28 L11.5,29.8 L11.5,30.6 L16,30.1 L20.5,30.6 L20.5,29.8 L17.4,28 L17.4,21.5 L31,24 L17.4,12 Z",
+      stroke: 0.5,
+      extra: '<path d="M16,4 L16,10" stroke="#000" stroke-width="0.4" opacity="0.35" />'
     };
   }
 
   // 2. Giant Quad-Engine Heavy Jumbo (A380, B747)
   if (icaoClass === 'F' || icaoClass === 'E' || id.includes('380') || id.includes('747')) {
     return {
-      d: "M16,1 C14.5,1 13.5,4 13.5,10 L13.5,13 L0,18.5 L0,21.5 L13.5,19.2 L13.5,27.2 L5,29.2 L5,31 L16,30 L27,31 L27,29.2 L18.5,27.2 L18.5,19.2 L32,21.5 L32,18.5 L18.5,13 L18.5,10 C18.5,4 17.5,1 16,1 Z",
-      stroke: 1.3
+      d: "M16,1 C15,1 14.4,4 14.4,10 L14.4,13.2 L0,18.5 L0,21 L14.4,19 L14.4,27 L5.5,29 L5.5,30.4 L16,29.5 L26.5,30.4 L26.5,29 L17.6,27 L17.6,19 L32,21 L32,18.5 L17.6,13.2 L17.6,10 C17.6,4 17,1 16,1 Z",
+      stroke: 0.5
     };
   }
 
   // 3. Widebody Dual-Engine Heavy (B777, B787, A350, A330)
   if (scaleClass === 'widebody' || icaoClass === 'D') {
     return {
-      d: "M16,1.5 C14.5,1.5 13.8,4 13.8,9.5 L13.8,14 L0.5,18.8 L0.5,21.2 L13.8,19.2 L13.8,27 L6,29.2 L6,31 L16,30 L26,31 L26,29.2 L18.2,27 L18.2,19.2 L31.5,21.2 L31.5,18.8 L18.2,14 L18.2,9.5 C18.2,4 17.5,1.5 16,1.5 Z",
-      stroke: 1.2
+      d: "M16,1.5 C15.1,1.5 14.6,4 14.6,9.5 L14.6,14 L0.5,18.8 L0.5,21 L14.6,19.2 L14.6,27 L6.5,29 L6.5,30.4 L16,29.5 L25.5,30.4 L25.5,29 L17.4,27 L17.4,19.2 L31.5,21 L31.5,18.8 L17.4,14 L17.4,9.5 C17.4,4 16.9,1.5 16,1.5 Z",
+      stroke: 0.5
     };
   }
 
   // 4. Regional Jets / Turboprops (ATR, CRJ, ERJ, etc.)
   if (scaleClass === 'regional' || icaoClass === 'A' || icaoClass === 'B') {
     return {
-      d: "M16,2.5 C15.1,2.5 14.5,4 14.5,9 L14.5,13 L3,15 L3,17.2 L14.5,16.5 L14.5,24.8 L8,26.8 L8,28.5 L16,27.5 L24,28.5 L24,26.8 L17.5,24.8 L17.5,16.5 L29,17.2 L29,15 L17.5,13 L17.5,9 C17.5,4 16.9,2.5 16,2.5 Z",
-      stroke: 1.1
+      d: "M16,2.5 C15.3,2.5 14.9,4 14.9,9 L14.9,13 L3,15 L3,17 L14.9,16.3 L14.9,24.8 L8.5,26.6 L8.5,28 L16,27.2 L23.5,28 L23.5,26.6 L17.1,24.8 L17.1,16.3 L29,17 L29,15 L17.1,13 L17.1,9 C17.1,4 16.7,2.5 16,2.5 Z",
+      stroke: 0.45
     };
   }
 
   // 5. Narrowbody Jets (Default - A320, B737 family)
   return {
-    d: "M16,2 C15,2 14.2,4.5 14.2,9.5 L14.2,14.2 L1,17.8 L1,20.2 L14.2,18.5 L14.2,26.5 L7.5,28.5 L7.5,30.2 L16,29.2 L24.5,30.2 L24.5,28.5 L17.8,26.5 L17.8,18.5 L31,20.2 L31,17.8 L17.8,14.2 L17.8,9.5 C17.8,4.5 17,2 16,2 Z",
-    stroke: 1.2
+    d: "M16,2 C15.3,2 14.8,4.5 14.8,9.5 L14.8,14.2 L1,17.8 L1,20 L14.8,18.3 L14.8,26.5 L8,28.3 L8,29.7 L16,28.9 L24,29.7 L24,28.3 L17.2,26.5 L17.2,18.3 L31,20 L31,17.8 L17.2,14.2 L17.2,9.5 C17.2,4.5 16.7,2 16,2 Z",
+    stroke: 0.5
   };
 }
 
@@ -159,6 +163,8 @@ interface ActiveFlight {
   toId: string;
   isReturn: boolean;
   cruiseSpeed: number;
+  /** Load factor 0-100, or null when it can't be computed (rivals carry no realized pax data). */
+  loadFactor: number | null;
 }
 
 export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet = [] }: LiveTrafficProps) {
@@ -214,6 +220,19 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
         else if (String(planeClass).toLowerCase() === 'widebody') size = 40;
         if (icaoCode === 'F' || icaoCode === 'E') size = 46;
 
+        // Rivals carry only a weekly departure count, not realized passengers, so
+        // load factor can only be shown for the player's own flights.
+        let loadFactor: number | null = null;
+        if (!isRival) {
+          const configSeats = spec?.config
+            ? ((spec.config.economy || 0) + (spec.config.premium || 0) + (spec.config.business || 0) + (spec.config.first || 0))
+            : 0;
+          const capacity = configSeats > 0 ? configSeats : (spec?.capacity || 0);
+          const legs = schedule.reduce((acc, s) => acc + (s.isOneWay ? 1 : 2), 0);
+          const weeklySeats = capacity * legs;
+          if (weeklySeats > 0) loadFactor = Math.round(((r.paxPerWeek || 0) / weeklySeats) * 100);
+        }
+
         const routeKey = r.id || `${isRival ? 'ai' : 'own'}-${routeIndex}-${r.origin}-${r.destination}`;
         // One shared cache with App: the same pair is no longer computed twice.
         const points = getRoutePath(o, d, 0);
@@ -241,12 +260,13 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
             icaoCode,
             labelName,
             registration,
-            carrier: isRival ? (r.airline || 'Rival Carrier') : 'Your Airline',
+            carrier: isRival ? (r.airlineName || 'Rival Carrier') : 'Your Airline',
             flightRef: String(routeKey).substring(0, 5).toUpperCase(),
             fromId: reversed ? d.id : o.id,
             toId: reversed ? o.id : d.id,
             isReturn: reversed,
-            cruiseSpeed
+            cruiseSpeed,
+            loadFactor
           });
         };
 
@@ -342,6 +362,10 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
                   <div className="flex flex-col text-right">
                     <span className="text-white/40 uppercase">Class</span>
                     <span className="text-white">{f.planeClass.toUpperCase()}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-white/40 uppercase">Load</span>
+                    <span className="text-white">{f.loadFactor !== null ? `${f.loadFactor}%` : 'N/A'}</span>
                   </div>
                 </div>
               </div>

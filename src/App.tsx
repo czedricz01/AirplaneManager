@@ -1501,9 +1501,11 @@ export default function App() {
   }, [mapBounds, zoom]);
 
   // Flattened once: passing a fresh array on every render defeated the memoisation
-  // inside LiveTraffic.
+  // inside LiveTraffic. Each route carries its parent airline's name along, since
+  // flattening used to discard it entirely and every rival flight popup fell back
+  // to the generic "Rival Carrier" label.
   const aiRouteList = useMemo(
-    () => aiAirlines.flatMap(a => a.routes || []),
+    () => aiAirlines.flatMap(a => (a.routes || []).map(r => ({ ...r, airlineName: a.name, airlineCode: a.code, airlineId: a.id }))),
     [aiAirlines]
   );
 
@@ -1828,7 +1830,7 @@ export default function App() {
     let infraCosts = 0;
     let landingFees = 0;
     let paxFees = 0;
-    const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number }[] = [];
+    const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number, paxPerWeek: number, capacity: number }[] = [];
     // Samples for the reputation update further down.
     let repPaxWeek = 0;
     let repSatTimesPax = 0;
@@ -1874,12 +1876,16 @@ export default function App() {
         repSeatsWeek += fin.weightedSeatsPerWeek || 0;
         flyingRegs.add(r.aircraft);
 
-        routeDetails.push({ 
-          id: r.id, 
-          name: `${r.origin}-${r.destination} (${r.aircraft})`, 
+        const weeklySeats = Object.values(fin.paxByClass || {}).reduce((sum: number, pax: any) => sum + (pax?.max || 0), 0);
+
+        routeDetails.push({
+          id: r.id,
+          name: `${r.origin}-${r.destination} (${r.aircraft})`,
           profit: mProfit,
           revenue: mRev,
-          cost: mCost
+          cost: mCost,
+          paxPerWeek: fin.paxPerWeek || 0,
+          capacity: weeklySeats
         });
       }
     });
@@ -2235,18 +2241,25 @@ export default function App() {
       // Rough monthly logic: 4 weeks per month
       const monthlyFlightHours = isNaN(weeklyFlightMinutes) ? 0 : (weeklyFlightMinutes / 60) * 4;
 
-      // Wear rates. At a busy ~300 block hours per month the cabin needs a refit after
-      // roughly eight years and the airframe a general check after about twelve, which
-      // is what the refit/check restore values are sized for. The small constant term
-      // makes parked aircraft age too, slowly.
-      const INTERIOR_WEAR_PER_HOUR = 0.0035;
-      const AIRFRAME_WEAR_PER_HOUR = 0.0022;
+      // Wear rates, capped so a year (12 calls to handleAdvanceMonth) can never lose
+      // more than 12% interior / 8% general condition, however many hours are flown.
+      // The small constant term makes parked aircraft age too, slowly.
+      const INTERIOR_WEAR_PER_HOUR = 0.0012;
+      const AIRFRAME_WEAR_PER_HOUR = 0.00076;
       const IDLE_WEAR_PER_MONTH = 0.1;
+      const IC_MONTHLY_CAP = 12 / 12;
+      const GC_MONTHLY_CAP = 8 / 12;
 
-      const interiorDecay = monthlyFlightHours * INTERIOR_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH;
+      const interiorDecay = Math.min(
+        monthlyFlightHours * INTERIOR_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH,
+        IC_MONTHLY_CAP
+      );
       // conditionGeneral previously never decreased at all, which made the general
       // check a pure money sink and the "< 40 %" fleet warning unreachable.
-      const airframeDecay = monthlyFlightHours * AIRFRAME_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH;
+      const airframeDecay = Math.min(
+        monthlyFlightHours * AIRFRAME_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH,
+        GC_MONTHLY_CAP
+      );
 
       return {
         ...plane,
@@ -3031,6 +3044,10 @@ export default function App() {
                          title="Monthly Financial Overview"
                          netProfit={latestReport.totalProfit}
                          totalRevenue={latestReport.routeRevenues}
+                         revenues={(latestReport.routes || []).map((r: any) => ({
+                           label: `${r.name}${r.capacity > 0 ? ` (${Math.round((r.paxPerWeek / r.capacity) * 100)}% LF)` : ''}`,
+                           amount: r.revenue
+                         }))}
                          expenses={[
                            {
                              id: 'routeCosts',

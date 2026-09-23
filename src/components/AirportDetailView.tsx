@@ -7,7 +7,7 @@ import { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { SimulatedRoute } from '../App';
 
-import { getAirportUpkeep, getSlotPurchaseCost } from '../lib/financeUtils';
+import { getAirportUpkeep, getSlotPurchaseCost, applyInfrastructureChange } from '../lib/financeUtils';
 
 interface Props {
   airport: Airport;
@@ -140,43 +140,22 @@ export function AirportDetailView({
   // The route planner used to bill their weekly rate as a one-off fee, so the same
   // desk cost money in one screen and nothing in the other.
   const buyItem = (type: 'slots' | 'desks' | 'stands', subType: string, amount: number, isShift?: boolean) => {
-    let actualAmount = amount * (isShift ? 10 : 1);
-    const requestedAmount = actualAmount;
+    const requestedAmount = amount * (isShift ? 10 : 1);
     const unit = type === 'slots' ? 'slot' : type === 'stands' ? 'stand' : 'desk';
     const plural = (n: number) => `${Math.abs(n)} ${unit}${Math.abs(n) === 1 ? '' : 's'}`;
 
-    const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 0;
+    const result = applyInfrastructureChange({
+      infra: infrastructure,
+      type, subType,
+      requestedAmount,
+      hubAutoUpgrade,
+      autoBuyStands: !!infrastructure.autoBuyStands,
+      availableSlots,
+      utilizedSlots: utilizedSlots[subType as 'regional' | 'narrowbody' | 'widebody'] || 0,
+      costPerUnit: type === 'slots' ? getSlotPurchaseCost(subType) : 0,
+    });
 
-    const newInfra = { ...infrastructure };
-    (newInfra as any)[type] = { ...(newInfra as any)[type] };
-    const targetGroup = (newInfra as any)[type];
-    const currentCount = targetGroup[subType];
-    
-    if (currentCount + actualAmount < 0) {
-      actualAmount = -currentCount; // Can only sell what we have
-    }
-    
-    // Limits
-    if (type === 'slots' && actualAmount > 0 && availableSlots - actualAmount < 0) {
-      actualAmount = availableSlots; // Can only buy up to available
-    }
-
-    // Sell limit block for currently utilized slots
-    if (type === 'slots' && actualAmount < 0) {
-      const utilized = utilizedSlots[subType as 'regional' | 'narrowbody' | 'widebody'] || 0;
-      if (currentCount + actualAmount < utilized) {
-        actualAmount = utilized - currentCount; // Can only sell down to currently utilized limit
-      }
-    }
-
-    if (type === 'stands' && actualAmount > 0) {
-        const slotLimit = (infrastructure.slots as any)[subType];
-        if (currentCount + actualAmount > slotLimit) {
-          actualAmount = slotLimit - currentCount;
-        }
-    }
-
-    if (actualAmount === 0) {
+    if (result.actualAmount === 0) {
       if (requestedAmount > 0) {
         onNotify?.(
           type === 'stands'
@@ -188,42 +167,25 @@ export function AirportDetailView({
       }
       return;
     }
-    if (requestedAmount > 0 && actualAmount < requestedAmount) {
-      onNotify?.(`Only ${plural(actualAmount)} of the ${plural(requestedAmount)} you asked for were available at ${airport.id}.`);
+    if (requestedAmount > 0 && result.actualAmount < requestedAmount) {
+      onNotify?.(`Only ${plural(result.actualAmount)} of the ${plural(requestedAmount)} you asked for were available at ${airport.id}.`);
     }
 
     if (type === 'slots') {
-      const totalCost = actualAmount > 0 ? (costPerUnit * actualAmount) : (costPerUnit * actualAmount * 0.5);
       // Slot purchases are settled with the monthly report, the same way the route
       // planner books them, so the "Purchased Slots" line stays complete.
-      if (actualAmount > 0 && (capital - pendingSlotBills) < totalCost) {
+      if (result.cost > 0 && (capital - pendingSlotBills) < result.cost) {
         onNotify?.(
-          `${plural(actualAmount)} at ${airport.id} cost ${formatCurrency(totalCost)}, ` +
+          `${plural(result.actualAmount)} at ${airport.id} cost ${formatCurrency(result.cost)}, ` +
           `but only ${formatCurrency(capital - pendingSlotBills)} is uncommitted. Nothing was bought.`
         );
         return;
       }
-      if (onAddPendingSlotBills) onAddPendingSlotBills(totalCost);
-      else onSubtractCapital(totalCost);
+      if (onAddPendingSlotBills) onAddPendingSlotBills(result.cost);
+      else onSubtractCapital(result.cost);
     }
 
-    targetGroup[subType] = currentCount + actualAmount;
-    
-    if (type === 'slots' && actualAmount > 0 && infrastructure.autoBuyStands && !hubAutoUpgrade) {
-      newInfra.stands = { ...newInfra.stands };
-      (newInfra.stands as any)[subType] += actualAmount;
-    }
-
-    // Auto-reduce stands if slots are sold below stand levels
-    if (type === 'slots' && actualAmount < 0) {
-      const newSlotCount = currentCount + actualAmount;
-      if (newInfra.stands && (newInfra.stands as any)[subType] > newSlotCount) {
-        newInfra.stands = { ...newInfra.stands };
-        (newInfra.stands as any)[subType] = newSlotCount;
-      }
-    }
-
-    onUpdateInfrastructure(newInfra);
+    onUpdateInfrastructure(result.infra);
   };
 
   return (
