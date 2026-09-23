@@ -793,6 +793,22 @@ export function getJetFuelPrice(year: number, month: number, difficulty: string)
   return price;
 }
 
+/**
+ * What an aircraft is worth today: a 30% residual floor plus what its airframe
+ * and interior condition still carry. Used both for the sale price and for the
+ * fleet line of the balance sheet, so the two cannot drift apart.
+ */
+export function getAircraftResaleValue(plane: {
+  basePrice?: number;
+  conditionGeneral?: number;
+  conditionInterior?: number;
+}): number {
+  const baseValue = plane.basePrice || 10000000;
+  const condGenFactor = ((plane.conditionGeneral ?? 100) / 100) * 0.45;
+  const condIntFactor = ((plane.conditionInterior ?? 100) / 100) * 0.15;
+  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor));
+}
+
 export function getSlotPurchaseCost(type: string) {
   switch (type) {
     case 'regional': return 25000;

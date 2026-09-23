@@ -17,6 +17,12 @@ interface Props {
   onUpdateInfrastructure: (infra: AirportInfrastructure) => void;
   onSubtractCapital: (amount: number) => void;
   onAddPendingSlotBills?: (amount: number) => void;
+  /**
+   * Surfaces a refused or trimmed purchase. Every guard below used to `return`
+   * without a word, so a click that bought nothing looked identical to a click
+   * that worked.
+   */
+  onNotify?: (message: string) => void;
   pendingSlotBills?: number;
   capital: number;
   onManageRoutes: () => void;
@@ -36,6 +42,7 @@ export function AirportDetailView({
   onUpdateInfrastructure,
   onSubtractCapital,
   onAddPendingSlotBills,
+  onNotify,
   pendingSlotBills = 0,
   capital,
   onManageRoutes,
@@ -133,6 +140,9 @@ export function AirportDetailView({
   // desk cost money in one screen and nothing in the other.
   const buyItem = (type: 'slots' | 'desks' | 'stands', subType: string, amount: number, isShift?: boolean) => {
     let actualAmount = amount * (isShift ? 10 : 1);
+    const requestedAmount = actualAmount;
+    const unit = type === 'slots' ? 'slot' : type === 'stands' ? 'stand' : 'desk';
+    const plural = (n: number) => `${Math.abs(n)} ${unit}${Math.abs(n) === 1 ? '' : 's'}`;
 
     const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 0;
 
@@ -165,13 +175,33 @@ export function AirportDetailView({
         }
     }
 
-    if (actualAmount === 0) return;
+    if (actualAmount === 0) {
+      if (requestedAmount > 0) {
+        onNotify?.(
+          type === 'stands'
+            ? `${airport.id} has no spare ${subType} slots to put a stand on. Buy a slot first.`
+            : `No ${subType} ${unit}s are available at ${airport.id} right now.`
+        );
+      } else if (requestedAmount < 0) {
+        onNotify?.(`Those ${subType} ${unit}s at ${airport.id} are in use by your current schedule and cannot be sold.`);
+      }
+      return;
+    }
+    if (requestedAmount > 0 && actualAmount < requestedAmount) {
+      onNotify?.(`Only ${plural(actualAmount)} of the ${plural(requestedAmount)} you asked for were available at ${airport.id}.`);
+    }
 
     if (type === 'slots') {
       const totalCost = actualAmount > 0 ? (costPerUnit * actualAmount) : (costPerUnit * actualAmount * 0.5);
       // Slot purchases are settled with the monthly report, the same way the route
       // planner books them, so the "Purchased Slots" line stays complete.
-      if (actualAmount > 0 && (capital - pendingSlotBills) < totalCost) return;
+      if (actualAmount > 0 && (capital - pendingSlotBills) < totalCost) {
+        onNotify?.(
+          `${plural(actualAmount)} at ${airport.id} cost ${formatCurrency(totalCost)}, ` +
+          `but only ${formatCurrency(capital - pendingSlotBills)} is uncommitted. Nothing was bought.`
+        );
+        return;
+      }
       if (onAddPendingSlotBills) onAddPendingSlotBills(totalCost);
       else onSubtractCapital(totalCost);
     }

@@ -21,12 +21,27 @@ interface SimulatedRoute {
 
 const mockRoutes: SimulatedRoute[] = [];
 
-type SortField = 'origin' | 'destination' | 'distance' | 'aircraft' | 'weeklyFlights' | 'paxPerWeek' | 'durMin';
+/** Compact money for a table cell: $1.2M, $840K, -$45K. */
+const formatMoney = (val: number) => {
+  const abs = Math.abs(val);
+  const sign = val < 0 ? '-' : '';
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}$${Math.round(abs)}`;
+};
+
+type SortField = 'origin' | 'destination' | 'distance' | 'aircraft' | 'weeklyFlights' | 'paxPerWeek' | 'durMin' | 'profit';
 type SortDir = 'asc' | 'desc';
 
 interface Props {
   routes: SimulatedRoute[];
   fleet: OwnedAircraft[];
+  /**
+   * Last closed month's profit per route id. Without it the route list showed
+   * no money at all, so there was no way to tell a good route from a bad one
+   * without opening each one in turn.
+   */
+  routeProfits?: Record<string, number>;
   initialAirportFilter?: string;
   onPlanRoute?: () => void;
   onDeleteRoute?: (id: string) => void;
@@ -55,7 +70,7 @@ export function getFlightTimeClass(durMin: number): number {
 }
 
 export function RoutesView({ 
-  routes, fleet, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
+  routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onUpdatePricing, fuelPrice, airportManagement,
   currentYear, currentMonth, difficulty
@@ -116,14 +131,22 @@ export function RoutesView({
     // Copy first: with no filter active `result` is still the `routes` prop, so
     // sorting in place mutated App's state array and persisted that order.
     return [...result].sort((a, b) => {
-      let valA: any = a[sortField];
-      let valB: any = b[sortField];
+      // Profit is not a field on the route, it comes from the last closed
+      // month. Routes without one sort to the bottom rather than as zero.
+      let valA: any = sortField === 'profit' ? (routeProfits?.[a.id] ?? -Infinity) : a[sortField];
+      let valB: any = sortField === 'profit' ? (routeProfits?.[b.id] ?? -Infinity) : b[sortField];
 
       if (valA < valB) return sortDir === 'asc' ? -1 : 1;
       if (valA > valB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [routes, search, sortField, sortDir, airlineFilter, airportFilter]);
+  }, [routes, routeProfits, search, sortField, sortDir, airlineFilter, airportFilter]);
+
+  /** Distinct competitor airline names present in the route list. */
+  const rivalNames = useMemo(
+    () => [...new Set(routes.map(r => r.airline).filter(a => a && a !== 'My Airline'))].sort(),
+    [routes]
+  );
 
   const activeRoute = useMemo(() => {
     if (!selectedRoute) return null;
@@ -156,10 +179,14 @@ export function RoutesView({
             <option value="My Airline">My Airline</option>
             <option value="All">All Airlines</option>
             <option value="Competitors">All Competitors</option>
-            <option value="Competitor A">Competitor A</option>
-            <option value="Competitor B">Competitor B</option>
+            {/* Built from the routes actually present. The two hardcoded
+                "Competitor A"/"Competitor B" entries matched no generated
+                airline, so selecting either emptied the table. */}
+            {rivalNames.map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
           </select>
-          <div className="absolute right-[312px] pointer-events-none text-white/50">
+          <div className="pointer-events-none -ml-8 text-white/50">
             <ChevronDown size={16} />
           </div>
 
@@ -205,13 +232,21 @@ export function RoutesView({
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</th>
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('weeklyFlights')}>Weekly Flights {getSortIcon('weeklyFlights')}</th>
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('paxPerWeek')}>Pax / Week {getSortIcon('paxPerWeek')}</th>
+              <th className="py-4 pr-4 text-right sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('profit')}>Profit / Month {getSortIcon('profit')}</th>
             </tr>
           </thead>
           <tbody>
             {filteredAndSortedRoutes.length === 0 ? (
               <tr>
-                 <td colSpan={7} className="text-center py-16 text-white/40 uppercase tracking-widest">
-                   No routes found.
+                 <td colSpan={10} className="text-center py-16 text-white/40 uppercase tracking-widest">
+                   {routes.length === 0 ? (
+                     <div className="flex flex-col items-center gap-2">
+                       <span>No routes yet</span>
+                       <span className="text-[11px] normal-case tracking-normal text-white/30 font-mono">
+                         Buy an aircraft, then plan your first route from your hub.
+                       </span>
+                     </div>
+                   ) : 'No routes match this filter.'}
                  </td>
                </tr>
             ) : (
@@ -230,6 +265,15 @@ export function RoutesView({
                   <td className="py-4">{route.aircraft}</td>
                   <td className="py-4 text-xs font-mono">{route.weeklyFlights}</td>
                   <td className="py-4 text-xs font-mono">{route.paxPerWeek}</td>
+                  <td className="py-4 pr-4 text-right text-xs font-mono">
+                    {routeProfits && routeProfits[route.id] !== undefined ? (
+                      <span className={routeProfits[route.id] >= 0 ? 'text-aero-good' : 'text-aero-warn'}>
+                        {routeProfits[route.id] >= 0 ? '+' : ''}{formatMoney(routeProfits[route.id])}
+                      </span>
+                    ) : (
+                      <span className="text-white/25" title="No closed month for this route yet">-</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

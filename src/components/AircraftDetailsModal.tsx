@@ -3,6 +3,7 @@ import { OwnedAircraft } from './MyFleetView';
 import { X, Plane, Wrench, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AircraftImage } from './AircraftImage';
+import { getPlaneSat } from '../lib/financeUtils';
 
 interface Props {
   plane: OwnedAircraft;
@@ -12,12 +13,31 @@ interface Props {
   onSelectRoute?: (route: any) => void;
   onStartRoute?: (reg: string) => void;
   onSell?: (plane: OwnedAircraft) => void;
+  /** Months since 01/1960. Without it the age below cannot be computed. */
+  currentDateOffset?: number;
 }
 
-export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell }: Props) {
-  const currentIntPop = plane.baseInteriorPop * (plane.conditionInterior / 100);
-  const combinedPopularity = Math.round((plane.popularity * 0.33) + (currentIntPop * 0.67));
+export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell, currentDateOffset }: Props) {
+  // The same function the economy prices with (financeUtils.getPlaneSat). This
+  // screen used to apply the interior condition to the interior score alone,
+  // which produced a different number here than in the fleet list for the same
+  // aircraft, and neither matched what the simulation actually used.
+  const combinedPopularity = getPlaneSat(plane);
   const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
+
+  // purchasedAt is an offset in months from 01/1960, like currentDateOffset.
+  const ageMonths =
+    typeof currentDateOffset === 'number' && typeof plane.purchasedAt === 'number'
+      ? Math.max(0, currentDateOffset - plane.purchasedAt)
+      : null;
+  const ageLabel =
+    ageMonths === null
+      ? '--'
+      : ageMonths < 1
+        ? 'New'
+        : ageMonths < 12
+          ? `${ageMonths} mo`
+          : `${Math.floor(ageMonths / 12)} y ${ageMonths % 12} mo`;
 
   const [imagesMap, setImagesMap] = useState<Record<string, string>>({});
 
@@ -114,7 +134,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
               </div>
               <div className="flex flex-col">
                 <span className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Age</span>
-                <span className="font-mono">New</span>
+                <span className="font-mono">{ageLabel}</span>
               </div>
             </div>
 
@@ -161,7 +181,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                   </div>
                   <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${plane.conditionInterior < 40 ? 'bg-[#1a1a1a] animate-pulse' : plane.conditionInterior < 50 ? 'bg-yellow-400' : 'bg-aero-yellow/20'}`}
+                      className={`h-full ${plane.conditionInterior < 40 ? 'bg-aero-warn animate-pulse' : plane.conditionInterior < 50 ? 'bg-yellow-400' : 'bg-aero-yellow/20'}`}
                       style={{ width: `${plane.conditionInterior}%`}}
                     />
                   </div>
@@ -176,7 +196,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                   </div>
                   <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${plane.conditionGeneral < 40 ? 'bg-[#1a1a1a] animate-pulse' : plane.conditionGeneral < 50 ? 'bg-yellow-400' : 'bg-white/10'}`}
+                      className={`h-full ${plane.conditionGeneral < 40 ? 'bg-aero-warn animate-pulse' : plane.conditionGeneral < 50 ? 'bg-yellow-400' : 'bg-white/10'}`}
                       style={{ width: `${plane.conditionGeneral}%`}}
                     />
                   </div>
@@ -186,7 +206,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                   onClick={onRenovate}
                   className={`mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-sm text-xs uppercase tracking-widest font-bold transition-all ${
                     plane.conditionInterior < 40 || plane.conditionGeneral < 40
-                      ? 'bg-[#1a1a1a] hover:bg-[#1a1a1a] text-white shadow-lg shadow-red-950/50 animate-pulse'
+                      ? 'bg-aero-warn hover:bg-aero-warn/80 text-black font-black shadow-lg shadow-aero-warn/40 animate-pulse'
                       : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white'
                   }`}
                 >

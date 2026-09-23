@@ -126,7 +126,7 @@ import { RoutePlannerView } from "./components/RoutePlannerView";
 import { AirportsView } from "./components/AirportsView";
 import { AirportDetailView } from "./components/AirportDetailView";
 import RouteScheduleEditView from "./components/RouteScheduleEditView";
-import { calculateRouteFinancials, getAirportUpkeep, getFlightTimeClass, calculateBasePrices, getFlightDurationMinutes, getJetFuelPrice } from "./lib/financeUtils";
+import { calculateRouteFinancials, getAirportUpkeep, getFlightTimeClass, calculateBasePrices, getFlightDurationMinutes, getJetFuelPrice, getAircraftResaleValue } from "./lib/financeUtils";
 import { ConfigurePurchaseView, ConfigOutput } from "./components/ConfigurePurchaseView";
 import { MyCompanyView } from "./components/MyCompanyView";
 import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
@@ -1162,7 +1162,16 @@ export default function App() {
     return () => clearInterval(interval);
   }, [showLiveTraffic]);
   const [routes, setRoutes] = useState<SimulatedRoute[]>([]);
-  const [latestReport, setLatestReport] = useState<any>(null);
+  /**
+   * Every month the airline has closed, oldest first.
+   *
+   * The game used to keep only the current month, in state that was not part of
+   * the savegame — so loading a save showed "No financial report generated yet"
+   * and there was no way to tell whether a decision had worked. The AI airlines
+   * have had a monthlyProfitsHistory all along; this is the player's.
+   */
+  const [reportHistory, setReportHistory] = useState<any[]>([]);
+  const latestReport = reportHistory.length > 0 ? reportHistory[reportHistory.length - 1] : null;
   const [openReportCategories, setOpenReportCategories] = useState<string[]>([]);
   
   const toggleReportCategory = (category: string) => {
@@ -1232,6 +1241,45 @@ export default function App() {
   const [aiDifficulty, setAiDifficulty] = useState("Normal");
   const [aiAirlines, setAiAirlines] = useState<AiAirline[]>([]);
   const [pendingSlotBills, setPendingSlotBills] = useState<number>(0);
+
+  /** Last closed month's profit per route id, for the route list's money column. */
+  const routeProfits = useMemo(() => {
+    const map: Record<string, number> = {};
+    (latestReport?.routes || []).forEach((r: any) => { map[r.id] = r.profit; });
+    return map;
+  }, [latestReport]);
+
+  /** The player's closed monthly profits, for the rivals leaderboard chart. */
+  const playerProfitHistory = useMemo(
+    () => reportHistory.map(r => r.totalProfit),
+    [reportHistory]
+  );
+
+  /** Resale value of the whole fleet, for the balance sheet. */
+  const fleetValue = useMemo(
+    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue(p), 0),
+    [fleet]
+  );
+  /**
+   * One-off spending since the last month rolled over.
+   *
+   * Aircraft, refits, general checks and management tiers were deducted from
+   * capital the moment they were bought and then appeared in no report, so the
+   * monthly profit and the change in capital routinely disagreed with nothing to
+   * explain the gap. Collected here and shown as a Capex section.
+   */
+  const [monthlyCapex, setMonthlyCapex] = useState<{ label: string; amount: number }[]>([]);
+
+  /** Deducts a one-off cost and records it so the month's report can explain it. */
+  const spend = (amount: number, label: string) => {
+    setCapital(prev => prev - amount);
+    setMonthlyCapex(prev => {
+      const existing = prev.find(c => c.label === label);
+      return existing
+        ? prev.map(c => (c.label === label ? { ...c, amount: c.amount + amount } : c))
+        : [...prev, { label, amount }];
+    });
+  };
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
   
@@ -1703,7 +1751,9 @@ export default function App() {
     const totalAirportUpkeep = managementCosts + deskCosts;
     const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills;
 
-    setLatestReport({
+    const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
+
+    const report = {
       month: currentMonthNum,
       year: currentYearNum,
       routeRevenues: totalRouteRevenues,
@@ -1711,6 +1761,12 @@ export default function App() {
       airportUpkeep: totalAirportUpkeep,
       totalProfit: totalMonthlyProfit,
       pendingSlotBills: pendingSlotBills,
+      // Operating result minus the one-off spending, i.e. what actually moved
+      // the bank balance this month.
+      capex: capexTotal,
+      capexItems: monthlyCapex,
+      cashChange: totalMonthlyProfit - capexTotal,
+      capitalAfter: capital + totalMonthlyProfit,
       routes: routeDetails,
       breakdown: {
         fuel: fuelCosts,
@@ -1725,11 +1781,16 @@ export default function App() {
         desks: deskCosts,
         purchasedSlots: pendingSlotBills
       }
-    });
+    };
+
+    // Keep ten years. Long enough for any chart the game shows, short enough
+    // that the savegame does not grow without bound over a sixty-year run.
+    setReportHistory(prev => [...prev, report].slice(-120));
 
     // Apply Financials
     setCapital(prev => prev + totalMonthlyProfit);
     setPendingSlotBills(0);
+    setMonthlyCapex([]);
 
     // Simulate AI Controlled Airlines
     let aiMessages: GameMessage[] = [];
@@ -1969,6 +2030,8 @@ export default function App() {
       aiDifficulty,
       aiAirlines,
       pendingSlotBills,
+      monthlyCapex,
+      reportHistory,
       startDateOffset,
       currentDateOffset,
       airportManagement,
@@ -2051,6 +2114,9 @@ export default function App() {
         });
         setAiAirlines(patchedAis);
         setPendingSlotBills(saveObj.pendingSlotBills || 0);
+        setMonthlyCapex(saveObj.monthlyCapex || []);
+        // Older saves predate the history entirely; they simply start empty.
+        setReportHistory(Array.isArray(saveObj.reportHistory) ? saveObj.reportHistory : []);
         
         if (saveObj.messages) {
           setMessages(saveObj.messages);
@@ -2084,12 +2150,7 @@ export default function App() {
   };
 
   const handleSellAircraft = (plane: OwnedAircraft) => {
-    const baseValue = plane.basePrice || 10000000;
-    const condGenFactor = (plane.conditionGeneral / 100) * 0.45;
-    const condIntFactor = (plane.conditionInterior / 100) * 0.15;
-    const residualFactor = 0.30;
-    const factor = residualFactor + condGenFactor + condIntFactor;
-    const value = Math.round(baseValue * factor);
+    const value = getAircraftResaleValue(plane);
 
     setCapital(prev => prev + value);
     setFleet(prev => prev.filter(p => p.registration !== plane.registration));
@@ -2106,8 +2167,15 @@ export default function App() {
     totalCost: number
   ) => {
     let isRenovating = 'registration' in aircraft;
+    if (capital < totalCost) {
+      setAppAlert(
+        `${isRenovating ? 'This refit' : 'This purchase'} costs ${formatCurrency(totalCost)}, ` +
+        `but you only have ${formatCurrency(capital)}. Nothing was bought.`
+      );
+      return;
+    }
     if (capital >= totalCost) {
-      setCapital(prev => prev - totalCost);
+      spend(totalCost, isRenovating ? 'Cabin Refits' : 'Aircraft Purchases');
       
       if (isRenovating) {
          setFleet(prev => prev.map(p => {
@@ -2577,6 +2645,8 @@ export default function App() {
                           setRoutes([]);
                           setAiAirlines(generateAiAirlines(aiAirlinesCount, aiDifficulty, selectedHub, startDateOffset));
                           setPendingSlotBills(0);
+                          setMonthlyCapex([]);
+                          setReportHistory([]);
                           setSessionKey(Date.now());
                           const newSaveId = `save_${Date.now()}`;
                           setCurrentSaveId(newSaveId);
@@ -2618,6 +2688,7 @@ export default function App() {
                   
                   <div className="mb-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-4">
                     {latestReport ? (
+                      <>
                       <FinancialReport
                          title="Monthly Financial Overview"
                          netProfit={latestReport.totalProfit}
@@ -2643,6 +2714,23 @@ export default function App() {
                                { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
                              ]
                            },
+                           // Slots are billed into the month's result, so they
+                           // belong above the line, not in capex.
+                           ...((latestReport.breakdown.purchasedSlots || 0) > 0 ? [{
+                             id: 'slots',
+                             label: 'Permanent Slots Purchased',
+                             total: latestReport.breakdown.purchasedSlots,
+                             items: [{ label: 'Slot rights bought this month', amount: latestReport.breakdown.purchasedSlots }]
+                           }] : []),
+                           // These left the bank account but are not part of the
+                           // operating profit above — without them the profit and
+                           // the change in capital never reconcile.
+                           ...((latestReport.capex || 0) > 0 ? [{
+                             id: 'capex',
+                             label: 'One-off Investments (below the line)',
+                             total: latestReport.capex,
+                             items: (latestReport.capexItems || []).filter((i: any) => i.amount > 0)
+                           }] : []),
                            ...(latestReport.routes && latestReport.routes.length > 0 ? [{
                              id: 'routeBreakdown',
                              label: 'Route Breakdown',
@@ -2658,6 +2746,17 @@ export default function App() {
                          ]}
                          defaultOpen={true}
                       />
+                      {/* Operating profit and the change in the bank balance are
+                          different numbers whenever anything was bought. Stating
+                          both, next to each other, is what makes the report add up. */}
+                      <div className="mt-4 flex items-center justify-between border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs">
+                        <span className="uppercase tracking-widest text-white/40 font-bold">Cash change this month</span>
+                        <span className={(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? 'text-aero-good font-bold' : 'text-aero-warn font-bold'}>
+                          {(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? '+' : ''}
+                          {formatCurrency(latestReport.cashChange ?? latestReport.totalProfit)}
+                        </span>
+                      </div>
+                      </>
                     ) : (
                       <div className="h-64 flex items-center justify-center text-white/40">
                         No financial data available for this month.
@@ -2692,7 +2791,7 @@ export default function App() {
                     <GameStat label="Fleet" value={fleet.length.toString()} />
                     <GameStat label="Routes" value={routes.length.toString()} />
                     <GameStat label="Global Demand" value={`${Math.round(globalDemandData.value * 100)}%`} trend={globalDemandData.trend} />
-                    <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / 3.78541, 3)}`} trend={fuelData.trend} />
+                    <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / 3.78541, 3)}`} trend={fuelData.trend} goodDirection="down" />
                   </div>
                   <div className="flex items-center gap-3 relative">
                     <div className="flex items-center gap-4">
@@ -3027,6 +3126,7 @@ export default function App() {
                         <MyFleetView 
                            fleet={fleet} 
                            routes={routes}
+                           currentDateOffset={currentDateOffset}
                            onRenovate={(plane) => {
                              setSelectedPurchasingAircraft(plane);
                              setActiveWindow('buy-aircraft');
@@ -3048,10 +3148,11 @@ export default function App() {
                   ) : activeWindow === 'routes' ? (
                     <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
                       <div className="relative z-10 w-full h-full">
-                        <RoutesView 
+                        <RoutesView
                           routes={routes}
                           fleet={fleet}
-                          initialAirportFilter={routeFilter} 
+                          routeProfits={routeProfits}
+                          initialAirportFilter={routeFilter}
                           onPlanRoute={() => setIsPlanningRoute(true)}
                           onDeleteRoute={(id) => setRoutes(prev => prev.filter(r => r.id !== id))}
                           externalSelectedRoute={externalSelectedRoute}
@@ -3100,7 +3201,13 @@ export default function App() {
                   ) : activeWindow === 'my-company' ? (
                     <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
                       <div className="relative z-10 w-full h-full">
-                        <MyCompanyView capital={capital} latestReport={latestReport} />
+                        <MyCompanyView
+                          capital={capital}
+                          reportHistory={reportHistory}
+                          fleetValue={fleetValue}
+                          fleetCount={fleet.length}
+                          routeCount={routes.filter(r => r.airline === 'My Airline').length}
+                        />
                       </div>
                     </div>
                   ) : activeWindow === 'competitors' ? (
@@ -3116,6 +3223,7 @@ export default function App() {
                           playerHub={selectedHub}
                           playerFleet={fleet}
                           playerRoutes={routes}
+                          playerProfitHistory={playerProfitHistory}
                         />
                       </div>
                     </div>
@@ -3158,6 +3266,7 @@ export default function App() {
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
+                        onNotify={setAppAlert}
                         airportManagement={airportManagement}
                         capital={capital}
                         onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
@@ -3184,6 +3293,7 @@ export default function App() {
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
+                        onNotify={setAppAlert}
                         airportManagement={airportManagement}
                         capital={capital}
                         initialOriginId={planningOriginId || undefined}
@@ -3251,8 +3361,12 @@ export default function App() {
                         }}
                         onUnlockManagement={(airportId, level) => {
                           const cost = level === 1 ? 100000 : level === 2 ? 500000 : 2500000;
+                          if (capital < cost) {
+                            setAppAlert(`Unlocking T${level} management at ${airportId} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
+                            return;
+                          }
                           if (capital >= cost) {
-                            setCapital(prev => prev - cost);
+                            spend(cost, `Airport Management T${level}`);
                             setAirportManagement(prev => {
                               const existing = prev[airportId] || { slots: { regional: 0, narrowbody: 0, widebody: 0 }, stands: { narrowbody: 0, widebody: 0 }, desks: { normal: 0, self: 0 } };
                               const desks = { ...existing.desks };
@@ -3271,9 +3385,7 @@ export default function App() {
                         onUpdateInfrastructure={(airportId, infra) => {
                           setAirportManagement(prev => ({ ...prev, [airportId]: infra }));
                         }}
-                        onSubtractCapital={(amount) => {
-                          setCapital(prev => prev - amount);
-                        }}
+                        onSubtractCapital={(amount) => spend(amount, 'Airport Infrastructure')}
                         onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
                         pendingSlotBills={pendingSlotBills}
                       />
@@ -3286,6 +3398,7 @@ export default function App() {
                       <AirportDetailView
                         airport={selectedAirport}
                         currentDateOffset={currentDateOffset}
+                        onNotify={setAppAlert}
                         onClose={() => setSelectedAirport(null)}
                         fleet={fleet}
                         routes={routes}
@@ -3305,7 +3418,7 @@ export default function App() {
                             return;
                           }
 
-                          setCapital(prev => prev - GENERAL_CHECK_COST);
+                          spend(GENERAL_CHECK_COST, 'General Checks');
                           setFleet(prev => prev.map(p => {
                             if (p.registration !== registration) return p;
                             return {
@@ -3327,9 +3440,13 @@ export default function App() {
                           if (tier === 1) cost = level * 30000;
                           if (tier === 2) cost = level * 750000;
                           if (tier === 3) cost = level * 500000000;
-                          
+
+                          if (capital < cost) {
+                            setAppAlert(`Unlocking T${tier} management at ${selectedAirport.id} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
+                            return;
+                          }
                           if (capital >= cost) {
-                            setCapital(prev => prev - cost);
+                            spend(cost, `Airport Management T${tier}`);
                             setAirportManagement(prev => {
                               const infra = prev[selectedAirport.id] || {
                                 slots: { regional: 0, narrowbody: 0, widebody: 0 },
@@ -3367,7 +3484,7 @@ export default function App() {
                             [selectedAirport.id]: infra
                           }));
                         }}
-                        onSubtractCapital={(amount) => setCapital(prev => prev - amount)}
+                        onSubtractCapital={(amount) => spend(amount, 'Airport Infrastructure')}
                         onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
                         pendingSlotBills={pendingSlotBills}
                         capital={capital}
@@ -3628,9 +3745,19 @@ function SidebarIcon({ icon, label, active = false, onClick }: { icon: ReactNode
   );
 }
 
-function GameStat({ label, value, trend }: { label: string, value: string, trend?: string }) {
-  const isNegative = trend && (trend.startsWith('-') || trend.includes('-'));
-  const trendColor = isNegative ? 'text-aero-yellow/60 font-bold' : 'text-aero-yellow font-bold';
+/**
+ * `goodDirection` says which way is good news for this particular stat, because
+ * the sign alone does not: demand falling is bad, the fuel price falling is
+ * good. Previously both rendered as two opacities of the same yellow, so the
+ * bar carried no information at a glance.
+ */
+function GameStat(
+  { label, value, trend, goodDirection = 'up' }:
+  { label: string, value: string, trend?: string, goodDirection?: 'up' | 'down' }
+) {
+  const isNegative = Boolean(trend && trend.includes('-'));
+  const isGood = goodDirection === 'up' ? !isNegative : isNegative;
+  const trendColor = isGood ? 'text-aero-good font-bold' : 'text-aero-warn font-bold';
   return (
     <div className="flex flex-col items-center">
       <span className="text-[10.5px] uppercase tracking-widest text-white/40 font-bold mb-1 leading-none text-center">{label}</span>

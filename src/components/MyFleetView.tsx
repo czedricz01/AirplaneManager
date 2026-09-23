@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Aircraft } from '../data/aircraft';
 import { Search, ChevronDown, ChevronUp, LayoutGrid, List, Plane, Layers, Activity, MapPin, Wrench, ShieldAlert, Boxes, X, ChevronRight } from 'lucide-react';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
+import { getPlaneSat } from '../lib/financeUtils';
 import { ConfigOutput } from './ConfigurePurchaseView';
 import { AircraftImage } from './AircraftImage';
 
@@ -35,13 +36,15 @@ type ViewMode = 'grid' | 'table' | 'models';
 interface Props {
   fleet: OwnedAircraft[];
   routes?: any[];
+  /** Months since 01/1960, so the details modal can show a real aircraft age. */
+  currentDateOffset?: number;
   onRenovate: (plane: OwnedAircraft) => void;
   onSelectRoute?: (route: any) => void;
   onStartRoute?: (reg: string) => void;
   onSell?: (plane: OwnedAircraft) => void;
 }
 
-export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onStartRoute, onSell }: Props) {
+export function MyFleetView({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell }: Props) {
   const [search, setSearch] = useState("");
   const [filterAlertsOnly, setFilterAlertsOnly] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>('family');
@@ -258,7 +261,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
             onClick={() => setFilterAlertsOnly(!filterAlertsOnly)}
             className={`px-2.5 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-1.5 ${
               filterAlertsOnly
-                ? 'bg-[#1a1a1a] text-white shadow-md shadow-red-900/50'
+                ? 'bg-aero-warn text-black shadow-md shadow-aero-warn/40'
                 : summaryStats.alertsCount > 0
                 ? 'bg-[#111] border border-white/20 text-aero-yellow/60 hover:bg-[#111]'
                 : 'bg-black/50 border border-white/10 text-white/50 hover:text-white'
@@ -267,7 +270,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
             <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-aero-yellow/60 animate-pulse' : ''} />
             <span>Alerts (&lt;40%)</span>
             {summaryStats.alertsCount > 0 && (
-              <span className="bg-[#1a1a1a] text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
+              <span className="bg-aero-warn text-black text-[10px] px-1.5 py-0.2 rounded-full font-black">
                 {summaryStats.alertsCount}
               </span>
             )}
@@ -414,7 +417,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                     onClick={() => setSelectedModel({ modelKey: m.modelKey, manufacturer: m.manufacturer, type: m.type, items: m.items })}
                     className={`border rounded-sm overflow-hidden flex flex-col hover:border-aero-yellow transition-all duration-300 group cursor-pointer shadow-lg relative ${
                       hasAlert
-                        ? 'bg-[#1a1a1a] border-white/20 shadow-red-950/40'
+                        ? 'bg-aero-warn/10 border-aero-warn/60 shadow-aero-warn/20'
                         : 'bg-[#0f0f0f] border-white/10 hover:shadow-aero-yellow/10'
                     }`}
                   >
@@ -441,7 +444,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
 
                       {/* Alert badge if any plane in model < 40% */}
                       {hasAlert && (
-                        <div className="absolute bottom-2 right-2 bg-[#1a1a1a] text-white backdrop-blur-md px-2 py-0.5 rounded-sm font-mono text-[10px] font-black tracking-wider flex items-center gap-1 shadow-md animate-pulse">
+                        <div className="absolute bottom-2 right-2 bg-aero-warn text-black backdrop-blur-md px-2 py-0.5 rounded-sm font-mono text-[10px] font-black tracking-wider flex items-center gap-1 shadow-md animate-pulse">
                           <ShieldAlert size={12} />
                           <span>{m.alertCount} Alert{m.alertCount > 1 ? 's' : ''} (&lt;40%)</span>
                         </div>
@@ -498,7 +501,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                         </div>
                         <div className="h-1 bg-black rounded-full overflow-hidden">
                           <div
-                            className={`h-full ${m.avgInteriorCond < 40 ? 'bg-[#1a1a1a] animate-pulse' : m.avgInteriorCond < 50 ? 'bg-yellow-400' : 'bg-aero-yellow/20'}`}
+                            className={`h-full ${m.avgInteriorCond < 40 ? 'bg-aero-warn animate-pulse' : m.avgInteriorCond < 50 ? 'bg-yellow-400' : 'bg-aero-yellow/20'}`}
                             style={{ width: `${Math.max(0, Math.min(100, m.avgInteriorCond))}%` }}
                           />
                         </div>
@@ -511,7 +514,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                         </div>
                         <div className="h-1 bg-black rounded-full overflow-hidden">
                           <div
-                            className={`h-full ${m.avgGeneralCond < 40 ? 'bg-[#1a1a1a] animate-pulse' : m.avgGeneralCond < 50 ? 'bg-yellow-400' : 'bg-white/10'}`}
+                            className={`h-full ${m.avgGeneralCond < 40 ? 'bg-aero-warn animate-pulse' : m.avgGeneralCond < 50 ? 'bg-yellow-400' : 'bg-white/10'}`}
                             style={{ width: `${Math.max(0, Math.min(100, m.avgGeneralCond))}%` }}
                           />
                         </div>
@@ -550,8 +553,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                   {items.map((plane) => {
                     const safeName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
                     const assignedRoutes = routesByAircraft[plane.registration] || [];
-                    const generalPlaneSat = Math.round((plane.popularity * 0.33) + (plane.baseInteriorPop * 0.67));
-                    const combinedPlaneSat = Math.round(generalPlaneSat * (0.4 + 0.6 * (plane.conditionInterior / 100)));
+                    const combinedPlaneSat = getPlaneSat(plane);
                     const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
                     const critical = isAlertCondition(plane);
 
@@ -561,7 +563,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                         onClick={() => setSelectedPlane(plane)}
                         className={`rounded-sm overflow-hidden flex flex-col hover:border-aero-yellow/60 transition-all duration-300 group cursor-pointer shadow-lg relative ${
                           critical
-                            ? 'bg-[#1a1a1a] border border-white/20 shadow-red-950/60 ring-1 ring-red-500/40'
+                            ? 'bg-aero-warn/10 border border-aero-warn/60 shadow-aero-warn/20 ring-1 ring-aero-warn/40'
                             : 'bg-[#0f0f0f] border border-white/10 hover:shadow-aero-yellow/10'
                         }`}
                       >
@@ -582,7 +584,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
 
                           {/* Critical Condition Warning Overlay */}
                           {critical ? (
-                            <div className="absolute top-2 right-2 bg-[#1a1a1a] text-white backdrop-blur-md border border-white/20 text-[10px] font-mono font-black px-2 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-1 shadow-md animate-pulse">
+                            <div className="absolute top-2 right-2 bg-aero-warn text-black backdrop-blur-md border border-aero-warn text-[10px] font-mono font-black px-2 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-1 shadow-md animate-pulse">
                               <ShieldAlert size={12} />
                               <span>Critical (&lt;40%)</span>
                             </div>
@@ -651,7 +653,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                             </div>
                             <div className="h-1 bg-black rounded-full overflow-hidden">
                               <div
-                                className={`h-full ${plane.conditionInterior < 40 ? 'bg-[#1a1a1a] animate-pulse' : plane.conditionInterior < 50 ? 'bg-yellow-400' : 'bg-aero-yellow/20'}`}
+                                className={`h-full ${plane.conditionInterior < 40 ? 'bg-aero-warn animate-pulse' : plane.conditionInterior < 50 ? 'bg-yellow-400' : 'bg-aero-yellow/20'}`}
                                 style={{ width: `${Math.max(0, Math.min(100, plane.conditionInterior))}%` }}
                               />
                             </div>
@@ -664,7 +666,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                             </div>
                             <div className="h-1 bg-black rounded-full overflow-hidden">
                               <div
-                                className={`h-full ${plane.conditionGeneral < 40 ? 'bg-[#1a1a1a] animate-pulse' : plane.conditionGeneral < 50 ? 'bg-yellow-400' : 'bg-white/10'}`}
+                                className={`h-full ${plane.conditionGeneral < 40 ? 'bg-aero-warn animate-pulse' : plane.conditionGeneral < 50 ? 'bg-yellow-400' : 'bg-white/10'}`}
                                 style={{ width: `${Math.max(0, Math.min(100, plane.conditionGeneral))}%` }}
                               />
                             </div>
@@ -726,8 +728,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
                     <tbody>
                       {items.map((plane) => {
                         const safeName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
-                        const generalPlaneSat = Math.round((plane.popularity * 0.33) + (plane.baseInteriorPop * 0.67));
-                        const combinedPlaneSat = Math.round(generalPlaneSat * (0.4 + 0.6 * (plane.conditionInterior / 100)));
+                        const combinedPlaneSat = getPlaneSat(plane);
                         const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
                         const assignedRoutes = routesByAircraft[plane.registration] || [];
                         const critical = isAlertCondition(plane);
@@ -843,8 +844,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {selectedModel.items.map((plane) => {
                   const assignedRoutes = routesByAircraft[plane.registration] || [];
-                  const generalPlaneSat = Math.round((plane.popularity * 0.33) + (plane.baseInteriorPop * 0.67));
-                  const combinedPlaneSat = Math.round(generalPlaneSat * (0.4 + 0.6 * (plane.conditionInterior / 100)));
+                  const combinedPlaneSat = getPlaneSat(plane);
                   const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
                   const critical = isAlertCondition(plane);
 
@@ -938,6 +938,7 @@ export function MyFleetView({ fleet, routes = [], onRenovate, onSelectRoute, onS
       {selectedPlane && (
         <AircraftDetailsModal 
           plane={selectedPlane} 
+          currentDateOffset={currentDateOffset}
           onClose={() => setSelectedPlane(null)} 
           onRenovate={() => {
             setSelectedPlane(null);

@@ -479,6 +479,7 @@ export function RouteDetailView({
          {showAircraftDetails && assignedAircraft && (
            <AircraftDetailsModal 
              plane={assignedAircraft}
+             currentDateOffset={(currentYear - 1960) * 12 + (currentMonth - 1)}
              onClose={() => setShowAircraftDetails(false)}
              onRenovate={() => {}} 
              aircraftRoutes={[route]} 

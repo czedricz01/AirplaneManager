@@ -10,6 +10,10 @@ Features, Verständlichkeit, Performance — und (2) es spaßiger zu machen.
 Alle Zeilenangaben unten sind im Code nachgeprüft, nicht aus der Erinnerung
 zitiert. Wo eine Zahl steht, wurde sie gemessen.
 
+> **Umsetzungsstand.** Teil A beschreibt den Zustand **vor** den Korrekturen und
+> bleibt als Befundlage stehen — die Zeilenangaben beziehen sich auf den Stand
+> bei der Analyse. Was inzwischen behoben ist, ist in Teil B markiert.
+
 Ausgangslage nach der letzten Sitzung: die Wirtschaftssimulation ist konsolidiert
 (eine Quelle der Wahrheit in `src/lib/financeUtils.ts`), die groben Logikfehler
 (Nachfrage-Kollaps ab 2026, leere KI-Flotten, totes Standbonus-Feld, doppeltes
@@ -313,12 +317,23 @@ Daraus folgt:
 
 ---
 
-# Teil B — Vorschlag: Umsetzungspaket 1
+# Teil B — Umsetzungspaket 1
 
 Rein additiv oder korrigierend; keine neuen Spielsysteme. Reihenfolge ist
 Umsetzungsreihenfolge.
 
-### B1 — Die vier Fehler mit Bilanzwirkung
+| Schritt | Stand |
+|---|---|
+| B1 Vier Fehler mit Bilanzwirkung | **erledigt** |
+| B2 Ein einziger Zufriedenheitswert | offen |
+| B3 Sichtbarkeit: Fehler, Zustände, Farben | teilweise — Assistenten-Meldung und Farbtokens erledigt, stille Klicks offen |
+| B4 Erklär-Tooltips | offen |
+| B5 Gedächtnis: Finanzhistorie und Bilanz | **erledigt** |
+| B6 Einstieg | offen |
+| B7 Sprache und Barrierefreiheit | offen |
+| B8 Performance (billiger Teil) | offen |
+
+### B1 — Die vier Fehler mit Bilanzwirkung — **erledigt**
 
 1. `RouteScheduleEditView.tsx:104-108` löschen und stattdessen die
    Beschleunigungs-Formel aus `RoutePlannerView.tsx:474-499` verwenden. Beide nach
@@ -344,7 +359,7 @@ Umsetzungsreihenfolge.
 `AircraftDetailsModal.tsx:117` (`Age`) aus `purchasedAt` und `currentDateOffset`
 berechnen — der Prop muss dafür durchgereicht werden.
 
-### B3 — Sichtbarkeit: Fehler, Zustände, Farben
+### B3 — Sichtbarkeit: Fehler, Zustände, Farben — *teilweise*
 
 - `RoutePlannerView.tsx:1491`: `text-black` → heller Warnton auf dunklem Grund,
   Schriftgröße auf ≥ 11 px, und ein Warnsymbol davor.
@@ -378,7 +393,7 @@ Der Schieberegler in `RoutePlannerView.tsx:3428-3450` und
 „Break-even at 75 % full" und einen Satz, der sagt, was jenseits der Marken
 passiert.
 
-### B5 — Gedächtnis: Finanzhistorie und Bilanz
+### B5 — Gedächtnis: Finanzhistorie und Bilanz — **erledigt**
 
 Das Kernstück des Pakets. Die Infrastruktur existiert bereits für die KI
 (`App.tsx:614`, `:937`) und muss nur für den Spieler gespiegelt werden.

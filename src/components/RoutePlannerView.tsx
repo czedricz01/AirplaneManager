@@ -43,6 +43,8 @@ interface Props {
   onUpdateInfrastructure?: (airportId: string, infra: AirportInfrastructure) => void;
   onSubtractCapital?: (amount: number) => void;
   onAddPendingSlotBills?: (amount: number) => void;
+  /** Reports a refused or trimmed infrastructure purchase; these all used to fail silently. */
+  onNotify?: (message: string) => void;
   pendingSlotBills?: number;
   onGoToAirport?: (airport: Airport) => void;
   onClose: () => void;
@@ -124,7 +126,7 @@ function DetailMetric({ label, value, color }: { label: string, value: string, c
 
 export function RoutePlannerView({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -1085,6 +1087,9 @@ export function RoutePlannerView({
 
   const handleUpdateInfra = (airportId: string, type: 'slots' | 'stands' | 'desks', subType: string, baseAmount: number, isShift?: boolean) => {
      let amount = isShift ? baseAmount * 10 : baseAmount;
+     // What the click asked for, before any clamping below. Comparing against
+     // baseAmount would be wrong on a shift-click, where amount starts at 10x.
+     const requested = amount;
      const mgt = airportManagement || {};
 
      const level = mgt[airportId]?.level || 0;
@@ -1113,8 +1118,20 @@ export function RoutePlannerView({
            }
         }
      }
-     if (amount <= 0 && baseAmount > 0) return;
-     if (amount > 0 && type === 'slots' && (capital - currentPending) < actualCost) return;
+     if (amount <= 0 && baseAmount > 0) {
+       onNotify?.(`No ${subType} slots are free at ${airportId} — the airport and its other carriers have taken them all.`);
+       return;
+     }
+     if (requested > 0 && amount < requested) {
+       onNotify?.(`Only ${amount} of the ${requested} ${subType} slots you asked for are free at ${airportId}.`);
+     }
+     if (amount > 0 && type === 'slots' && (capital - currentPending) < actualCost) {
+       onNotify?.(
+         `${amount} ${subType} slot${amount === 1 ? '' : 's'} at ${airportId} cost $${Math.round(actualCost).toLocaleString('en-US')}, ` +
+         `but only $${Math.round(capital - currentPending).toLocaleString('en-US')} is uncommitted. Nothing was bought.`
+       );
+       return;
+     }
 
      const newInfra = JSON.parse(JSON.stringify(infra)); // Deep copy
      if (!newInfra[type]) newInfra[type] = {};
@@ -1133,7 +1150,10 @@ export function RoutePlannerView({
              amount = newVal - oldVal;
              actualCost = costPerUnit * amount;
          }
-         if (amount <= 0) return;
+         if (amount <= 0) {
+           onNotify?.(`Stands cannot outnumber slots. Buy more ${subType} slots at ${airportId} first.`);
+           return;
+         }
      }
 
      newInfra[type][subType] = newVal;
@@ -1613,7 +1633,7 @@ export function RoutePlannerView({
                           <div className="mt-2 text-[10px] text-white/50 space-y-1">
                             <div className="flex justify-between"><span className="uppercase tracking-widest">Desk Load:</span><span className={sim.load > 90 ? 'text-aero-yellow/60 font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
-                            <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-[#1a1a1a]' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
+                            <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-yellow/60 font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                           </div>
                         );
@@ -1682,7 +1702,7 @@ export function RoutePlannerView({
                                <span>{ac.capacity} pax</span>
                              </div>
                              <div className="mt-2 w-full bg-black h-1 rounded overflow-hidden relative">
-                                <div className={`h-full ${utilPercent > 80 ? 'bg-[#1a1a1a]' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
+                                <div className={`h-full ${utilPercent > 80 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
                              </div>
                              <div className="text-[8px] text-white/40 mt-0.5 uppercase text-right tracking-widest leading-none">{utilPercent}% utilized</div>
                            </div>
@@ -1987,7 +2007,7 @@ export function RoutePlannerView({
                              <div className="mt-2 text-[10px] text-white/50 space-y-1">
                                <div className="flex justify-between"><span className="uppercase tracking-widest">Desk Load:</span><span className={sim.load > 90 ? 'text-aero-yellow/60 font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
-                               <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-[#1a1a1a]' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
+                               <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-yellow/60 font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                              </div>
                            );

@@ -72,6 +72,8 @@ interface Props {
   playerHub: string;
   playerFleet?: any[];
   playerRoutes?: any[];
+  /** The player's own closed months, oldest first. */
+  playerProfitHistory?: number[];
 }
 
 type SortField = 'rank' | 'name' | 'capital' | 'fleet' | 'routes';
@@ -86,7 +88,8 @@ export function CompetitorsView({
   playerAirlineCode, 
   playerHub,
   playerFleet = [],
-  playerRoutes = []
+  playerRoutes = [],
+  playerProfitHistory = []
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>('capital');
@@ -162,7 +165,10 @@ export function CompetitorsView({
         fleet: pFleet,
         routes: pRoutes,
         isPlayer: true,
-        monthlyProfitsHistory: [playerCapital * 0.08, playerCapital * 0.09, playerCapital * 0.11]
+        // The player's real closed months. This used to be three numbers
+        // derived from current capital, so the chart moved with the bank
+        // balance and never showed an actual loss.
+        monthlyProfitsHistory: playerProfitHistory
       },
       ...aiAirlines.map(ai => ({
         ...ai,
@@ -224,7 +230,7 @@ export function CompetitorsView({
         return sortDir === 'asc' ? valA - valB : valB - valA;
       }
     });
-  }, [aiAirlines, playerCapital, playerFleetCount, playerRoutesCount, playerAirlineName, playerAirlineCode, playerHub, playerFleet, playerRoutes, searchTerm, sortField, sortDir]);
+  }, [aiAirlines, playerCapital, playerFleetCount, playerRoutesCount, playerAirlineName, playerAirlineCode, playerHub, playerFleet, playerRoutes, playerProfitHistory, searchTerm, sortField, sortDir]);
 
   // Find currently selected airline details
   const selectedAirline = useMemo(() => {
@@ -589,10 +595,18 @@ export function CompetitorsView({
                       Recent timeline of net monthly operation margins:
                     </div>
                     
+                    {/* No invented placeholder series here: an airline that has
+                        not closed a month yet simply says so. */}
+                    {(selectedAirline.monthlyProfitsHistory || []).length === 0 ? (
+                      <div className="h-28 flex items-center justify-center bg-black/25 border border-white/5 rounded-sm text-[10px] uppercase tracking-widest text-white/30">
+                        No month closed yet
+                      </div>
+                    ) : (
                     <div className="h-28 flex items-end justify-between gap-2.5 px-2 pt-4 bg-black/25 border border-white/5 rounded-sm">
-                      {(selectedAirline.monthlyProfitsHistory || [250000, 480000, 620000, 420000, 750000]).map((val, idx) => {
-                        const maxValue = Math.max(...(selectedAirline.monthlyProfitsHistory || [1000000]), 1000000);
-                        const progressHeight = Math.max(10, Math.min(100, (val / maxValue) * 100));
+                      {(selectedAirline.monthlyProfitsHistory || []).slice(-12).map((val, idx) => {
+                        const shown = (selectedAirline.monthlyProfitsHistory || []).slice(-12);
+                        const maxValue = Math.max(...shown.map(Math.abs), 1000000);
+                        const progressHeight = Math.max(10, Math.min(100, (Math.abs(val) / maxValue) * 100));
                         return (
                           <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                             {/* Value tooltip */}
@@ -601,7 +615,7 @@ export function CompetitorsView({
                             </div>
                             <div 
                               className={`w-full rounded-t-sm transition-all duration-500 hover:bg-aero-yellow cursor-pointer ${
-                                idx === (selectedAirline.monthlyProfitsHistory || []).length - 1 ? 'bg-aero-yellow' : 'bg-white/15'
+                                val < 0 ? 'bg-aero-warn/70' : idx === shown.length - 1 ? 'bg-aero-yellow' : 'bg-white/15'
                               }`} 
                               style={{ height: `${progressHeight}%` }}
                             />
@@ -610,6 +624,7 @@ export function CompetitorsView({
                         );
                       })}
                     </div>
+                    )}
 
                     <div className="space-y-1 text-xs border-t border-white/5 pt-3">
                       <div className="flex justify-between text-[11px]">
