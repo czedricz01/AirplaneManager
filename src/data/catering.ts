@@ -50,7 +50,7 @@ export const MEAL_DATA: Record<string, { id: string, label: string, cost: number
     { id: "p14", label: "Lamb Chop with Rosemary Potatoes", cost: 12.98, sat: 26 },
     { id: "p15", label: "Beef Fillet with French Beans", cost: 14.16, sat: 27 }
   ],
-  Luxus: [
+  Luxury: [
     { id: "l1", label: "Freshly Baked Soufflé", cost: 10.62, sat: 21 },
     { id: "l2", label: "Matcha Gourmet Dessert", cost: 12.98, sat: 24 },
     { id: "l3", label: "Fresh Oysters", cost: 20.65, sat: 29 },

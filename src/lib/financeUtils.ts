@@ -188,14 +188,14 @@ export function validateClassConfigs(classConfigs: any, selectedAircraft: any, a
   if (isUpgradeActive) {
     if (selectedAircraft.class === 'Regional') allowedCategories.push('Standard');
     else if (selectedAircraft.class === 'Narrowbody') allowedCategories.push('Premium');
-    else allowedCategories.push('Luxus');
+    else allowedCategories.push('Luxury');
   }
 
   const allowedPrefixes = [];
   if (allowedCategories.includes('Basic')) allowedPrefixes.push('b');
   if (allowedCategories.includes('Standard')) allowedPrefixes.push('s');
   if (allowedCategories.includes('Premium')) allowedPrefixes.push('p');
-  if (allowedCategories.includes('Luxus')) allowedPrefixes.push('l');
+  if (allowedCategories.includes('Luxury')) allowedPrefixes.push('l');
 
   const hasWifi = selectedAircraft.config?.details?.hasWifi;
   const newConfigs: any = { ...classConfigs };

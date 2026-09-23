@@ -1125,13 +1125,16 @@ export default function App() {
   const [messages, setMessages] = useState<GameMessage[]>([
     { 
       id: 1, 
-      text: "Herzlich willkommen bei Neo Airlines!", 
+      // This is the only guidance the game offers, so it names the first three
+      // moves. It used to be four subsystems and no next step -- and its preview
+      // line was in German while the body was in English.
+      text: "Welcome aboard - your first three moves", 
       isRead: false, 
       dateStr: "01/1960",
       details: {
         title: "Welcome to Neo Airlines",
         source: "Board of Directors",
-        content: "Dear Chief Executive,\n\nWe are absolutely thrilled to welcome you to the helm of Neo Airlines!\n\nAs the golden age of aviation dawns, you are tasked with building a global network, managing slot infrastructure, setting up luxurious passenger experiences, and modernizing a state-of-the-art fleet.\n\nKeep a close eye on the market, look out for annual aircraft releases from major aerospace corporations, and be ready to adapt to unexpected global events.\n\nGood luck, Captain!"
+        content: "Dear Chief Executive,\n\nThe hangar is empty and the board is watching. Here is where to start:\n\n1. BUY AN AIRCRAFT. Open Buy Aircraft in the sidebar, pick a manufacturer, and choose something whose range covers the routes you have in mind. In 1960 everything on the market is within your budget, so range and capacity matter more than price.\n\n2. PLAN A ROUTE from your hub. New Route walks you through four steps: pick the two airports and an aircraft, lay out a weekly schedule, fit the cabin, then set the fares. The planner shows what the route will earn before you commit to it.\n\n3. ADVANCE THE MONTH with Next Month, bottom right. Your routes fly, the bill arrives, and the report tells you what happened.\n\nTwo things will stop you if you do not know them. Flying into an airport at all requires T1 management there, bought once per airport -- your hub starts at T2, everywhere else you buy it. And every weekly departure needs a slot at BOTH ends; you start with none, so step 1 of the route planner is where you buy them.\n\nGood luck, Captain."
       }
     }
   ]);
@@ -3729,19 +3732,27 @@ function ThemeMenuButton({
   );
 }
 
+/**
+ * A real <button>, not a clickable <div>. The whole primary navigation used to
+ * be unreachable by keyboard, and the 7.5px label was the smallest type in the
+ * interface.
+ */
 function SidebarIcon({ icon, label, active = false, onClick }: { icon: ReactNode, label: string, active?: boolean, onClick?: () => void }) {
   return (
-    <div 
+    <button
+      type="button"
       onClick={onClick}
+      aria-current={active ? 'page' : undefined}
       className={`
-      py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all w-full select-none
+      py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all w-full select-none bg-transparent border-0
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow
       ${active ? 'text-aero-yellow opacity-100' : 'text-white opacity-40 hover:opacity-100 hover:text-white'}
     `}>
       <div className={`p-1.5 rounded-lg border border-transparent ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
         {icon}
       </div>
-      <span className="text-[7.5px] font-black tracking-widest text-center px-1 leading-[1.2]">{label}</span>
-    </div>
+      <span className="text-[9px] font-black tracking-widest text-center px-1 leading-[1.2]">{label}</span>
+    </button>
   );
 }
 

@@ -195,7 +195,7 @@ export function RoutePlannerView({
     Basic: false,
     Standard: false,
     Premium: false,
-    Luxus: false
+    Luxury: false
   });
   const [classConfigs, setClassConfigs] = useState<Record<string, { catering: string[][], extras: string[], service: string[] }>>(initialClassConfigs || {
     general: { catering: [['none']], extras: ['none'], service: ['none'] },
@@ -1472,17 +1472,20 @@ export function RoutePlannerView({
                    (s.id === 4 && selectedOrigin && selectedAircraft && selectedDest && schedule.length > 0 && Object.keys(classConfigs).length > 0);
                  
                  return (
-                   <div 
+                   <button
                      key={s.id}
+                     type="button"
+                     disabled={!isAllowed}
+                     aria-current={isActive ? 'step' : undefined}
                      onClick={() => isAllowed && setStep(s.id)}
-                     className={`flex items-center px-3 py-1.5 text-[9px] uppercase font-bold tracking-widest border-r border-white/5 last:border-0 transition-all ${
+                     className={`flex items-center px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
                        isActive ? 'bg-aero-yellow/10 text-aero-yellow cursor-default' : 
                        isAllowed ? 'text-white/60 hover:text-white hover:bg-white/5 cursor-pointer' : 'text-white/20 cursor-not-allowed'
                      }`}
                    >
                      {s.label}
                      {isCompleted && <Check size={8} className="ml-1 text-aero-yellow" />}
-                   </div>
+                   </button>
                  )
                })}
              </div>

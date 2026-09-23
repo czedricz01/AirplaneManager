@@ -62,7 +62,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
     Basic: false,
     Standard: false,
     Premium: false,
-    Luxus: false
+    Luxury: false
   });
 
   const duration = getFlightDurationMinutes();
@@ -214,7 +214,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                   if (isUpgradeActive) {
                     if (selectedAircraft.class === 'Regional') allowedCategories.push('Standard');
                     else if (selectedAircraft.class === 'Narrowbody') allowedCategories.push('Premium');
-                    else allowedCategories.push('Luxus');
+                    else allowedCategories.push('Luxury');
                   }
 
                   return Object.keys(MEAL_DATA).filter(cat => allowedCategories.includes(cat)).map(catName => (

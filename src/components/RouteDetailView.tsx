@@ -417,8 +417,8 @@ export function RouteDetailView({
                    <div className="p-3 mb-4 bg-white/5 border border-white/10 rounded-sm flex gap-3">
                      <Info className="text-white/80 shrink-0 mt-0.5" size={14} />
                      <div className="text-[9px] text-white/80/80 leading-relaxed font-bold uppercase tracking-tight space-y-1">
-                       <p><strong>Flugumsatz:</strong> Ticketeinnahmen der Route (basierend auf geschätztem Load Factor).</p>
-                       <p><strong>Direkte Flugausgaben:</strong> Variable Kosten (Sprit, Crew, Landegebühren, Catering) die pro Flug anfallen.</p>
+                       <p><strong>Flugumsatz:</strong> Ticket revenue for this route, at the estimated load factor.</p>
+                       <p><strong>Direkte Flugausgaben:</strong> Variable costs that scale with each flight: fuel, crew, landing fees and catering.</p>
                      </div>
                    </div>
                    <FinancialReport

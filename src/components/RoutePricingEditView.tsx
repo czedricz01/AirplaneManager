@@ -222,8 +222,8 @@ export function RoutePricingEditView({
             <div className="p-4 bg-white/5 border border-white/10 rounded-sm flex gap-4">
               <Info className="text-white/80 shrink-0 mt-1" size={18} />
               <div className="text-[10px] text-white/80/80 leading-relaxed font-bold uppercase tracking-tight space-y-2">
-                <p><strong>Flugumsatz:</strong> Ticketeinnahmen aus den geschätzten Passagieren (Load Factor abhängig).</p>
-                <p><strong>Direkte Flugausgaben:</strong> Sprit, Crew, Catering und Landegebühren. Diese skalieren mit den absolvierten Flügen.</p>
+                <p><strong>Flugumsatz:</strong> Ticket revenue from the estimated passengers, which depends on the load factor.</p>
+                <p><strong>Direkte Flugausgaben:</strong> Fuel, crew, catering and landing fees. These scale with the flights actually operated.</p>
               </div>
             </div>
             
