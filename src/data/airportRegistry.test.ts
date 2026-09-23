@@ -38,3 +38,65 @@ test('every airport has usable coordinates and a demand table', () => {
     }
   }
 });
+
+/**
+ * Demand is meant to start low and grow steadily. These checks run on
+ * `rawAirports` -- the merged list before the Soviet/Western era multipliers
+ * in airportRegistry.ts, which are a deliberate runtime effect, not a data
+ * error -- and only from each channel's first nonzero year onward, since a
+ * leading run of zeros represents an airport that has not opened yet.
+ *
+ * Below MIN_MAGNITUDE, a single passenger swings the ratio by double-digit
+ * percentages -- that is integer quantization, not a demand-curve problem, so
+ * the frozen-run and spike checks only apply once a value clears that floor.
+ * A decrease is checked regardless of magnitude.
+ *
+ * Keep these constants in sync with scripts/fix_airport_stats.ts, which uses
+ * the same thresholds to smooth violations of these invariants.
+ */
+const MAX_ANNUAL_GROWTH = 1.2;
+const MAX_FROZEN_RUN = 4;
+const MIN_MAGNITUDE = 15;
+
+function checkChannel(id: string, label: string, stats: number[], offset: number): string[] {
+  const problems: string[] = [];
+  const n = stats.length / 2;
+  let anchor = -1;
+  for (let i = 0; i < n; i++) {
+    if (stats[i * 2 + offset] > 0) {
+      anchor = i;
+      break;
+    }
+  }
+  if (anchor === -1) return problems;
+
+  let frozenRun = 1;
+  for (let i = anchor + 1; i < n; i++) {
+    const prev = stats[(i - 1) * 2 + offset];
+    const curr = stats[i * 2 + offset];
+    const magnitudeOk = prev >= MIN_MAGNITUDE;
+    if (curr < prev) problems.push(`${id} ${label} decreases at index ${i} (${prev} -> ${curr})`);
+    if (curr === prev) {
+      frozenRun++;
+      if (magnitudeOk && frozenRun > MAX_FROZEN_RUN) {
+        problems.push(`${id} ${label} frozen for ${frozenRun} years ending at index ${i}`);
+      }
+    } else {
+      frozenRun = 1;
+    }
+    if (magnitudeOk && prev > 0 && curr / prev > MAX_ANNUAL_GROWTH) {
+      problems.push(`${id} ${label} spikes at index ${i} (${prev} -> ${curr}, ${((curr / prev - 1) * 100).toFixed(0)}%)`);
+    }
+  }
+  return problems;
+}
+
+test('demand tables start low and grow steadily, with no frozen runs, dips or spikes', () => {
+  const problems: string[] = [];
+  for (const a of rawAirports) {
+    if (!a.stats) continue;
+    problems.push(...checkChannel(a.id, 'tourism', a.stats, 0));
+    problems.push(...checkChannel(a.id, 'business', a.stats, 1));
+  }
+  assert.deepEqual(problems, []);
+});
