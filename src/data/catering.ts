@@ -18,11 +18,11 @@ export const MEAL_DATA: Record<string, { id: string, label: string, cost: number
   ],
   Standard: [
     { id: "s1", label: "Chocolate Brownie", cost: 1.48, sat: 7 },
-    { id: "s2", label: "Rice Pudding with Cinnamon", cost: 2.07, sat: 7 },
-    { id: "s3", label: "Small Fruit Salad", cost: 2.24, sat: 7 },
-    { id: "s4", label: "Couscous Salad", cost: 2.36, sat: 8 },
-    { id: "s5", label: "Cold Pasta Salad", cost: 2.48, sat: 8 },
-    { id: "s6", label: "Falafel Wrap", cost: 2.66, sat: 8 },
+    { id: "s2", label: "Rice Pudding with Cinnamon", cost: 2.07, sat: 9 },
+    { id: "s3", label: "Small Fruit Salad", cost: 2.24, sat: 9 },
+    { id: "s4", label: "Couscous Salad", cost: 2.36, sat: 9 },
+    { id: "s5", label: "Cold Pasta Salad", cost: 2.48, sat: 9 },
+    { id: "s6", label: "Falafel Wrap", cost: 2.66, sat: 9 },
     { id: "s7", label: "Scrambled Eggs with Spinach", cost: 2.83, sat: 9 },
     { id: "s8", label: "Pretzel Baguette Sandwich", cost: 2.95, sat: 9 },
     { id: "s9", label: "Chicken Strips Wrap", cost: 3.07, sat: 9 },
@@ -34,10 +34,10 @@ export const MEAL_DATA: Record<string, { id: string, label: string, cost: number
     { id: "s15", label: "Beef Goulash with Potatoes", cost: 5.02, sat: 13 }
   ],
   Premium: [
-    { id: "p1", label: "Panna Cotta with Berry Ragout", cost: 3.84, sat: 11 },
+    { id: "p1", label: "Panna Cotta with Berry Ragout", cost: 3.84, sat: 12 },
     { id: "p2", label: "Fine Chocolate Tart", cost: 4.13, sat: 12 },
-    { id: "p3", label: "Quinoa Salad with Avocado", cost: 5.02, sat: 13 },
-    { id: "p4", label: "Fried Wok Vegetables with Tofu", cost: 5.31, sat: 13 },
+    { id: "p3", label: "Quinoa Salad with Avocado", cost: 5.02, sat: 14 },
+    { id: "p4", label: "Fried Wok Vegetables with Tofu", cost: 5.31, sat: 14 },
     { id: "p5", label: "Cheese Platter (Standard)", cost: 5.61, sat: 14 },
     { id: "p6", label: "Authentic Chicken Tikka Masala", cost: 6.20, sat: 14 },
     { id: "p7", label: "Truffle Pasta (Vegetarian)", cost: 7.08, sat: 16 },
@@ -52,7 +52,7 @@ export const MEAL_DATA: Record<string, { id: string, label: string, cost: number
   ],
   Luxury: [
     { id: "l1", label: "Freshly Baked Soufflé", cost: 10.62, sat: 21 },
-    { id: "l2", label: "Matcha Gourmet Dessert", cost: 12.98, sat: 24 },
+    { id: "l2", label: "Matcha Gourmet Dessert", cost: 12.98, sat: 27 },
     { id: "l3", label: "Fresh Oysters", cost: 20.65, sat: 29 },
     { id: "l4", label: "Cheese Trolley (Premium)", cost: 26.55, sat: 32 },
     { id: "l5", label: "Fresh Truffle Risotto", cost: 29.50, sat: 35 },
@@ -69,13 +69,13 @@ export const MEAL_DATA: Record<string, { id: string, label: string, cost: number
   ]
 };
 
-export const EXTRAS_OPTIONS: Record<string, { label: string, sat: number, cost: number, wifiRequired?: boolean, galleyRequired?: boolean }> = {
+export const EXTRAS_OPTIONS: Record<string, { label: string, sat: number, cost: number, wifiRequired?: boolean, galleyRequired?: boolean, group?: string }> = {
   none: { label: 'None', sat: 0, cost: 0 },
-  wifi_limited: { label: 'Limited Free Wi-Fi', sat: 8, cost: 5, wifiRequired: true },
-  wifi_unlimited: { label: 'Unlimited Free Wi-Fi', sat: 20, cost: 15, wifiRequired: true },
-  amenities: { label: 'Basic Amenity Kit', sat: 12, cost: 10 },
-  amenities_premium: { label: 'Premium Amenity Kit', sat: 25, cost: 20 },
-  amenities_luxury: { label: 'Luxury Amenity Kit', sat: 50, cost: 65 },
+  wifi_limited: { label: 'Limited Free Wi-Fi', sat: 8, cost: 5, wifiRequired: true, group: 'wifi' },
+  wifi_unlimited: { label: 'Unlimited Free Wi-Fi', sat: 20, cost: 15, wifiRequired: true, group: 'wifi' },
+  amenities: { label: 'Basic Amenity Kit', sat: 12, cost: 10, group: 'amenities' },
+  amenities_premium: { label: 'Premium Amenity Kit', sat: 25, cost: 20, group: 'amenities' },
+  amenities_luxury: { label: 'Luxury Amenity Kit', sat: 50, cost: 65, group: 'amenities' },
   pillows: { label: 'Pillows & Blankets', sat: 10, cost: 5 },
   headphones: { label: 'Noise-Canceling Headphones', sat: 20, cost: 15 },
   magazine: { label: 'Premium Magazines', sat: 5, cost: 3 },
@@ -83,8 +83,8 @@ export const EXTRAS_OPTIONS: Record<string, { label: string, sat: number, cost: 
   slippers: { label: 'Cozy Slippers', sat: 8, cost: 12 },
   water: { label: 'Free Water', sat: 5, cost: 1 },
   softdrinks: { label: 'Free Softdrinks', sat: 12, cost: 3 },
-  alcohol: { label: 'Free Alcoholic Beverages', sat: 25, cost: 12 },
-  premium_alcohol: { label: 'Free Premium Alcohol', sat: 45, cost: 40, galleyRequired: true }
+  alcohol: { label: 'Free Alcoholic Beverages', sat: 25, cost: 12, group: 'alcohol' },
+  premium_alcohol: { label: 'Free Premium Alcohol', sat: 45, cost: 40, galleyRequired: true, group: 'alcohol' }
 };
 
 export const SERVICE_OPTIONS: Record<string, { label: string, sat: number, cost: number }> = {

@@ -220,11 +220,16 @@ export function validateClassConfigs(classConfigs: any, selectedAircraft: any, a
     }
 
     const oldExtras = (current.extras || []).join(',');
-    const filteredExtras = (current.extras || []).filter((ext: string) => {
+    const capabilityFiltered = (current.extras || []).filter((ext: string) => {
         if (ext === 'wifi_limited' || ext === 'wifi_unlimited') return hasWifi;
         if (ext === 'premium_alcohol') return hasPremiumGalley;
         return true;
     });
+    // Collapse any stale double-selection within a tiered family (e.g. a preset
+    // saved before groups existed) down to the best remaining tier. Must run
+    // AFTER the capability filter: collapsing first could keep a tier the
+    // aircraft can no longer support, losing a still-valid lower tier.
+    const filteredExtras = resolveExclusiveGroups(capabilityFiltered, EXTRAS_OPTIONS);
     const nextExtras = filteredExtras.length > 0 ? filteredExtras : ['none'];
     if (nextExtras.join(',') !== oldExtras) classChanged = true;
 
@@ -276,31 +281,55 @@ export function getCateringOpt(ids: string | string[] | string[][], activeIndex?
   if (labels.length === 0) return { label: 'None', cost: 0, sat: 0 };
 
   const n = labels.length;
-  let avgCost = totalCost / n;
+  // Cost is additive: serving N physical meal items costs what N items cost,
+  // not an average of one. Sat stays average-based since perceived quality of
+  // a combined meal tracks its average, not its sum.
+  let sumCost = totalCost;
   let avgSat = totalSat / n;
 
   if (n > 1) {
     const extraCount = n - 1;
-    avgCost = avgCost * (1 + (extraCount * 0.05));
+    sumCost = sumCost * (1 + (extraCount * 0.05));
     avgSat = avgSat * (1 + (extraCount * 0.075));
   }
 
   return {
     label: labels.join(', '),
-    cost: Math.round(avgCost * 100) / 100,
+    cost: Math.round(sumCost * 100) / 100,
     sat: Math.round(avgSat * 10) / 10
   };
 }
 
-export function getMultiOptionSum(ids: string[], options: Record<string, { label: string, cost: number, sat: number }>) {
+// Tiered families (Wi-Fi, amenity kits, alcohol) are single-choice: if a stale
+// selection somehow holds two tiers of the same family (e.g. a preset saved
+// before groups existed), keep only the highest-sat tier so it's never
+// double-counted. A no-op for option sets whose entries carry no `group`
+// (e.g. SERVICE_OPTIONS).
+function resolveExclusiveGroups(ids: string[], options: Record<string, { sat: number, group?: string }>): string[] {
+  const bestOfGroup = new Map<string, string>();
+  ids.forEach(id => {
+    const group = options[id]?.group;
+    if (group && (!bestOfGroup.has(group) || options[id].sat > options[bestOfGroup.get(group)!].sat)) {
+      bestOfGroup.set(group, id);
+    }
+  });
+  return ids.filter(id => {
+    const group = options[id]?.group;
+    return !group || bestOfGroup.get(group) === id;
+  });
+}
+
+export function getMultiOptionSum(ids: string[], options: Record<string, { label: string, cost: number, sat: number, group?: string }>) {
   const activeIds = ids.filter(id => id !== 'none');
   if (activeIds.length === 0) return { label: 'None', cost: 0, sat: 0 };
-  
+
+  const resolvedIds = resolveExclusiveGroups(activeIds, options);
+
   let cost = 0;
   let sat = 0;
   let labels: string[] = [];
-  
-  activeIds.forEach(id => {
+
+  resolvedIds.forEach(id => {
     if (options[id]) {
       cost += options[id].cost;
       sat += options[id].sat;
@@ -513,16 +542,32 @@ export function getSatMultiplier(sat: number): number {
 }
 
 
+/**
+ * Diminishing returns above a threshold, applied to a raw linear SAT sum (the
+ * extras sum, or catering+service combined) before it feeds into
+ * calculateClassSatisfaction. Below the threshold it's a pure passthrough, so
+ * a moderate, realistic selection is unaffected; above it, each additional
+ * raw point buys progressively less, taming what would otherwise be an
+ * unbounded linear stack of every available option.
+ */
+export function applyDiminishingReturns(rawSat: number): number {
+  const THRESHOLD = 60;
+  const SCALE = 20;
+  if (rawSat <= THRESHOLD) return rawSat;
+  const excess = rawSat - THRESHOLD;
+  return Math.round(THRESHOLD + Math.sqrt(excess * SCALE));
+}
+
 export function calculateClassSatisfaction(c: string, aircraft: any, config: any, dur: number, airportManagement: any, routeOrigin: string, routeDest: string, difficulty: string, slotType: string = 'regional') {
       const timeClass = getFlightTimeClass(dur);
       const multiplier = TIME_CLASS_SAT_MULTIPLIERS[timeClass] || 1.0;
       const mealCount = timeClass <= 5 ? 1 : timeClass <= 7 ? 2 : 3;
-      
+
       let cateringSat = 0;
       for (let i = 0; i < mealCount; i++) {
           cateringSat += getCateringOpt(config.catering, i).sat;
       }
-      const extrasSat = getMultiOptionSum(config.extras, EXTRAS_OPTIONS).sat;
+      const extrasSat = applyDiminishingReturns(getMultiOptionSum(config.extras, EXTRAS_OPTIONS).sat);
       const serviceSat = getMultiOptionSum(config.service, SERVICE_OPTIONS).sat;
       
       const loungeBonus = getLoungeBonus(routeOrigin, c, airportManagement) + getLoungeBonus(routeDest, c, airportManagement);
@@ -549,7 +594,7 @@ export function calculateClassSatisfaction(c: string, aircraft: any, config: any
       const planeSat = getPlaneSat(aircraft);
 
       const hardProduct = Math.max(1, 20 + planeSat + (extrasSat * multiplier) + standBonus);
-      const softProduct = Math.max(1, 20 + ((cateringSat + serviceSat) * multiplier) + loungeBonus + deskPenalty);
+      const softProduct = Math.max(1, 20 + (applyDiminishingReturns(cateringSat + serviceSat) * multiplier) + loungeBonus + deskPenalty);
       
       const providedQuality = Math.sqrt(hardProduct * softProduct);
       

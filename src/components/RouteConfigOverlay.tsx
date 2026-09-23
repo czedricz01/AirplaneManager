@@ -316,7 +316,14 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       if (optKey === 'none') { current = ['none']; }
                       else {
                         if (current.includes(optKey)) { current = current.filter(id => id !== optKey); if (current.length === 0) current = ['none']; }
-                        else { current = current.filter(id => id !== 'none'); current.push(optKey); }
+                        else {
+                          current = current.filter(id => id !== 'none');
+                          // Tiered families (Wi-Fi, amenity kits, alcohol) are single-choice:
+                          // picking a new tier replaces any other option from the same group.
+                          const group = EXTRAS_OPTIONS[optKey].group;
+                          if (group) current = current.filter(id => EXTRAS_OPTIONS[id]?.group !== group);
+                          current.push(optKey);
+                        }
                       }
                       next[activeConfigClass!] = { ...next[activeConfigClass!], extras: current };
                       if (activeConfigClass === 'general' && takeControl.extras) {
