@@ -2993,19 +2993,26 @@ function RoutePlannerInner({
                 <div className="flex-1 divide-y divide-white/10">
                    {/* Combined Plane SAT Row */}
                    <div className="flex flex-col">
-                      <button 
-                        onClick={() => setExpandedSections(prev => ({ ...prev, plane: !prev.plane }))}
-                        className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"
-                      >
-                         <div className="flex items-center gap-4">
-                            <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
-                            <span className="text-2xs font-black uppercase tracking-widest flex items-center">Combined Plane SAT<InfoTooltip size={11} {...GLOSSARY.sat} /></span>
-                         </div>
-                         <div className="flex items-center gap-4">
-                            <span className="text-sm font-black italic">{Math.round(getPlaneSat(selectedAircraft))}%</span>
-                            <ChevronDown size={16} className={`text-white/20 group-hover:text-white transition-transform ${expandedSections.plane ? 'rotate-180' : ''}`} />
-                         </div>
-                      </button>
+                      {/* The info icon is itself a button, and a button inside a
+                          button is invalid HTML, so it sits between two halves. */}
+                      <div className="flex items-center hover:bg-white/5 transition-colors group">
+                        <button
+                          onClick={() => setExpandedSections(prev => ({ ...prev, plane: !prev.plane }))}
+                          className="flex items-center gap-4 p-4 pr-0"
+                        >
+                           <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
+                           <span className="text-2xs font-black uppercase tracking-widest">Combined Plane SAT</span>
+                        </button>
+                        <InfoTooltip size={11} {...GLOSSARY.sat} />
+                        <button
+                          onClick={() => setExpandedSections(prev => ({ ...prev, plane: !prev.plane }))}
+                          className="flex-1 flex items-center justify-end gap-4 p-4"
+                          aria-label="Toggle plane satisfaction details"
+                        >
+                           <span className="text-sm font-black italic">{Math.round(getPlaneSat(selectedAircraft))}%</span>
+                           <ChevronDown size={16} className={`text-white/20 group-hover:text-white transition-transform ${expandedSections.plane ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
                       <AnimatePresence>
                          {expandedSections.plane && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-black/60 border-b border-white/10">

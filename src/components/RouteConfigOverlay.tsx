@@ -82,6 +82,34 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
     return adjustSatForDifficulty(baseSat, difficulty);
   };
 
+  /**
+   * Writes one service field of "General" into every cabin class.
+   *
+   * This used to assign into the class objects in place after a shallow copy of
+   * the outer record. Those objects are shared with React state -- in the cabin
+   * editor they are the saved route's own classConfigs -- so "Take Control"
+   * changed the route even when the editor was closed without saving.
+   */
+  const copyToCabinClasses = (next: Record<string, any>, field: 'catering' | 'extras' | 'service', value: any) => {
+    ['economy', 'premium', 'business', 'first'].forEach(cl => {
+      if (next[cl]) next[cl] = { ...next[cl], [field]: value };
+    });
+  };
+
+  // Kept outside any state updater: updaters must be pure, and this one used to
+  // dispatch a second state change from inside the first.
+  const toggleTakeControl = (field: 'catering' | 'extras' | 'service') => {
+    const enabling = !takeControl[field];
+    setTakeControl({ ...takeControl, [field]: enabling });
+    if (enabling) {
+      setClassConfigs(prev => {
+        const next = { ...prev };
+        copyToCabinClasses(next, field, prev.general?.[field]);
+        return next;
+      });
+    }
+  };
+
   const hasAdvancedCateringHub = airportManagement[selectedOrigin.id]?.hubFacilities?.catering || airportManagement[selectedDest.id]?.hubFacilities?.catering;
   const hasPremiumGalley = selectedAircraft.config?.details?.hasPremiumCatering;
   const isUpgradeActive = !!(hasAdvancedCateringHub && hasPremiumGalley);
@@ -146,7 +174,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             </div>
             {activeConfigClass === 'general' && (
               <button 
-                onClick={() => { setTakeControl(prev => { const newState = { ...prev, catering: !prev.catering }; if (newState.catering) { setClassConfigs(cPrev => { const next = { ...cPrev }; const gen = next.general.catering; ["economy", "premium", "business", "first"].forEach(cl => { next[cl].catering = gen; }); return next; }); } return newState; }); }}
+                onClick={() => toggleTakeControl('catering')}
                 className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest border transition-all ${takeControl.catering ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
               >
                 Take Control
@@ -198,7 +226,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       currentArr[activeMealIndex] = ['none'];
                       next[activeConfigClass!] = { ...next[activeConfigClass!], catering: currentArr };
                       if (activeConfigClass === 'general' && takeControl.catering) {
-                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].catering = currentArr; });
+                        copyToCabinClasses(next, 'catering', currentArr);
                       }
                       return next;
                     });
@@ -250,7 +278,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                                       currentArr[activeMealIndex] = mIds;
                                       next[activeConfigClass!] = { ...next[activeConfigClass!], catering: currentArr };
                                       if (activeConfigClass === 'general' && takeControl.catering) {
-                                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].catering = currentArr; });
+                                        copyToCabinClasses(next, 'catering', currentArr);
                                       }
                                       return next;
                                     });
@@ -287,7 +315,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             </div>
             {activeConfigClass === 'general' && (
               <button 
-                onClick={() => { setTakeControl(prev => { const newState = { ...prev, extras: !prev.extras }; if (newState.extras) { setClassConfigs(cPrev => { const next = { ...cPrev }; const gen = next.general.extras; ["economy", "premium", "business", "first"].forEach(cl => { next[cl].extras = gen; }); return next; }); } return newState; }); }}
+                onClick={() => toggleTakeControl('extras')}
                 className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest border transition-all ${takeControl.extras ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
               >
                 Take Control
@@ -327,7 +355,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       }
                       next[activeConfigClass!] = { ...next[activeConfigClass!], extras: current };
                       if (activeConfigClass === 'general' && takeControl.extras) {
-                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].extras = current; });
+                        copyToCabinClasses(next, 'extras', current);
                       }
                       return next;
                     });
@@ -363,7 +391,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             </div>
             {activeConfigClass === 'general' && (
               <button 
-                onClick={() => { setTakeControl(prev => { const newState = { ...prev, service: !prev.service }; if (newState.service) { setClassConfigs(cPrev => { const next = { ...cPrev }; const gen = next.general.service; ["economy", "premium", "business", "first"].forEach(cl => { next[cl].service = gen; }); return next; }); } return newState; }); }}
+                onClick={() => toggleTakeControl('service')}
                 className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest border transition-all ${takeControl.service ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
               >
                 Take Control
@@ -388,7 +416,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       }
                       next[activeConfigClass!] = { ...next[activeConfigClass!], service: current };
                       if (activeConfigClass === 'general' && takeControl.service) {
-                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].service = current; });
+                        copyToCabinClasses(next, 'service', current);
                       }
                       return next;
                     });

@@ -2,6 +2,7 @@ import React, { useState, FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { Bird, LogIn, AlertTriangle } from 'lucide-react';
 import { supabase, isCloudConfigured, describeAuthError } from '../lib/supabase';
+import { logError } from '../lib/debugLog';
 
 interface Props {
   /** Called when a local-only session should start (cloud not configured). */
@@ -32,17 +33,25 @@ export function AuthGate({ onLocalOnly }: Props) {
     setIsBusy(true);
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (signInError) {
-      setError(describeAuthError(signInError));
-      setPassword('');
+      if (signInError) {
+        setError(describeAuthError(signInError));
+        setPassword('');
+      }
+      // On success the auth listener in App switches the view; nothing to do here.
+    } catch (e) {
+      // A thrown error (network stack, blocked storage) used to leave the form
+      // disabled for good, because isBusy was never reset.
+      logError('auth', 'Sign-in failed', e);
+      setError(describeAuthError(e as { message?: string }));
+    } finally {
+      setIsBusy(false);
     }
-    // On success the auth listener in App switches the view; nothing to do here.
-    setIsBusy(false);
   };
 
   const inputClass =

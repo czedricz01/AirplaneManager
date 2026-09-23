@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { copyDiagnostics, logError } from '../lib/debugLog';
 
 /**
  * Keeps one broken screen from taking the whole game down.
@@ -26,22 +27,39 @@ interface Props {
 
 interface State {
   error: Error | null;
+  componentStack: string | null;
+  copied: 'idle' | 'done' | 'failed';
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  state: State = { error: null, componentStack: null, copied: 'idle' };
 
-  static getDerivedStateFromError(error: Error): State {
-    return { error };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return { error, copied: 'idle' };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[${this.props.label ?? 'app'}] render failed`, error, info.componentStack);
+    this.setState({ componentStack: info.componentStack ?? null });
+    logError(this.props.label ?? 'app', 'render failed', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      componentStack: info.componentStack
+    });
   }
 
   private handleReset = () => {
-    this.setState({ error: null });
+    this.setState({ error: null, componentStack: null, copied: 'idle' });
     this.props.onReset?.();
+  };
+
+  private handleCopy = async () => {
+    const ok = await copyDiagnostics({
+      boundary: this.props.label ?? 'app',
+      error: this.state.error ? { message: this.state.error.message, stack: this.state.error.stack } : null,
+      componentStack: this.state.componentStack
+    });
+    this.setState({ copied: ok ? 'done' : 'failed' });
   };
 
   render() {
@@ -61,13 +79,23 @@ export class ErrorBoundary extends Component<Props, State> {
         <code className="text-white/40 text-[11px] break-all max-w-[520px]">
           {error.message || String(error)}
         </code>
-        <button
-          type="button"
-          onClick={this.handleReset}
-          className="mt-1 px-3 py-1.5 border border-aero-yellow/40 text-aero-yellow text-[11px] tracking-wider hover:bg-aero-yellow/10"
-        >
-          {this.props.resetLabel ?? 'CLOSE'}
-        </button>
+        <div className="flex gap-2 mt-1">
+          <button
+            type="button"
+            onClick={this.handleReset}
+            className="px-3 py-1.5 border border-aero-yellow/40 text-aero-yellow text-[11px] tracking-wider hover:bg-aero-yellow/10"
+          >
+            {this.props.resetLabel ?? 'CLOSE'}
+          </button>
+          {/* The whole diagnostic log plus this error, ready to paste into a bug report. */}
+          <button
+            type="button"
+            onClick={this.handleCopy}
+            className="px-3 py-1.5 border border-white/20 text-white/60 text-[11px] tracking-wider hover:bg-white/10"
+          >
+            {this.state.copied === 'done' ? 'COPIED' : this.state.copied === 'failed' ? 'COPY FAILED' : 'COPY DIAGNOSTICS'}
+          </button>
+        </div>
       </div>
     );
   }

@@ -217,20 +217,70 @@ export async function deleteSave(scope: SaveScope, slotId: string): Promise<void
   if (error) console.warn('[saves] cloud delete failed', error);
 }
 
+export interface SyncResult {
+  /** Slots uploaded as they were. */
+  pushed: number;
+  /**
+   * Slots that another device had saved more recently while this one was
+   * offline. The offline copy was uploaded under its own slot instead.
+   */
+  conflicts: number;
+}
+
 /**
  * Uploads anything that was written while the server was unreachable.
- * Returns how many slots were pushed.
+ *
+ * An offline save used to be pushed unconditionally, so a stale copy from a
+ * laptop that had been offline overwrote the newer game played on another
+ * device in the meantime. Now the cloud copy is checked first; when it is
+ * newer, both are kept and the offline one gets a slot of its own.
  */
-export async function syncPending(scope: SaveScope): Promise<number> {
+export async function syncPending(scope: SaveScope): Promise<SyncResult> {
+  const result: SyncResult = { pushed: 0, conflicts: 0 };
   const client = cloudFor(scope);
-  if (!client) return 0;
+  if (!client) return result;
 
   const pending = readLocalIndex(scope).filter(s => s.pendingSync);
-  let pushed = 0;
 
   for (const meta of pending) {
     const payload = readJson<any | null>(payloadKey(scope, meta.id), null);
     if (!payload) continue;
+
+    const { data: remote, error: readError } = await client
+      .from('saves')
+      .select('updated_at')
+      .eq('user_id', scope)
+      .eq('slot_id', meta.id)
+      .maybeSingle();
+
+    if (readError) {
+      console.warn('[saves] could not check the cloud copy of', meta.id, readError);
+      continue;
+    }
+
+    // Client and server clocks can differ a little; a newer cloud copy by any
+    // margin is treated as a conflict, which errs on the side of keeping both.
+    if (remote && new Date(remote.updated_at).getTime() > meta.timestamp) {
+      const conflictId = `${meta.id}_conflict_${meta.timestamp}`;
+      const conflictName = `${meta.name} (offline copy)`;
+      const { error: conflictError } = await client
+        .from('saves')
+        .upsert(
+          { user_id: scope, slot_id: conflictId, name: conflictName, payload, updated_at: new Date(meta.timestamp).toISOString() },
+          { onConflict: 'user_id,slot_id' }
+        );
+      if (conflictError) {
+        console.warn('[saves] could not keep the offline copy of', meta.id, conflictError);
+        continue;
+      }
+      writeJson(payloadKey(scope, conflictId), payload);
+      upsertLocalMeta(scope, { id: conflictId, name: conflictName, timestamp: meta.timestamp });
+      // The original slot now follows the newer cloud copy again.
+      removeKey(payloadKey(scope, meta.id));
+      upsertLocalMeta(scope, { ...meta, pendingSync: false });
+      result.conflicts++;
+      continue;
+    }
 
     const { error } = await client
       .from('saves')
@@ -250,10 +300,10 @@ export async function syncPending(scope: SaveScope): Promise<number> {
       continue;
     }
     upsertLocalMeta(scope, { ...meta, pendingSync: false });
-    pushed++;
+    result.pushed++;
   }
 
-  return pushed;
+  return result;
 }
 
 /**

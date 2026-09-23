@@ -2,7 +2,12 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { installGlobalErrorCapture } from './lib/debugLog';
 import './index.css';
+
+// Every uncaught error and rejected promise goes into the diagnostic log, in
+// production too, so a crash report can say what happened before it.
+installGlobalErrorCapture();
 
 /**
  * In development, Vite's HMR client reports a websocket error whenever the dev

@@ -369,8 +369,13 @@ export const getLoungeBonus = (airportId: string | null, cabinClass: string, air
 
 export const getPlaneSat = (aircraft?: any) => {
   if (!aircraft) return 0;
-  const generalPlaneSat = Math.round((aircraft.popularity * 0.33) + (aircraft.baseInteriorPop * 0.67));
-  const combinedPlaneSat = Math.round(generalPlaneSat * (0.4 + 0.6 * (aircraft.conditionInterior / 100)));
+  // Any missing field used to make this NaN, and NaN then poisoned every figure
+  // computed from it (it is how the AI economy ended up on a fallback constant).
+  const popularity = Number.isFinite(aircraft.popularity) ? aircraft.popularity : 50;
+  const interiorPop = Number.isFinite(aircraft.baseInteriorPop) ? aircraft.baseInteriorPop : 50;
+  const interiorCondition = Number.isFinite(aircraft.conditionInterior) ? aircraft.conditionInterior : 100;
+  const generalPlaneSat = Math.round((popularity * 0.33) + (interiorPop * 0.67));
+  const combinedPlaneSat = Math.round(generalPlaneSat * (0.4 + 0.6 * (interiorCondition / 100)));
   return combinedPlaneSat;
 };
 

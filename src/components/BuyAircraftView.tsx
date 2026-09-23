@@ -245,10 +245,12 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
   const processSingleFile = async (file: File) => {
     if (!file) return;
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    if (!['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext)) {
+    // SVG is refused by the server: it can carry script and would be served
+    // from the game's own origin.
+    if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
       setSingleUploadResult({
         success: false,
-        error: "Erlaubt sind nur Bilddateien (.png, .jpg, .jpeg, .webp, .svg)."
+        error: "Only image files are allowed (.png, .jpg, .jpeg, .webp)."
       });
       return;
     }
@@ -707,7 +709,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                           <input
                             id="single-image-file-input"
                             type="file"
-                            accept=".png,.jpg,.jpeg,.webp,.svg"
+                            accept=".png,.jpg,.jpeg,.webp"
                             className="hidden"
                             onChange={(e) => {
                               if (e.target.files && e.target.files[0]) {
