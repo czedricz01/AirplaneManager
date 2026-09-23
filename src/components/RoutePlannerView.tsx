@@ -8,6 +8,7 @@ import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerContext';
+import { CabinConfigDialogs } from './routePlanner/CabinConfigDialogs';
 // The component used to declare a near-identical ScheduledTrip that shadowed
 // this one, differing only in groupId being required. One type now.
 import type { ScheduledTrip } from './RouteScheduleEditView';
@@ -266,7 +267,6 @@ function RoutePlannerInner({
     onClassConfigsChange?.(classConfigs);
   }, [classConfigs, onClassConfigsChange]);
 
-  const [savedCabinConfigs, setSavedCabinConfigs] = useState<{ id: string, name: string, configs: any }[]>([]);
   const showConfigSaveModal = ui.showConfigSaveModal;
   const setShowConfigSaveModal = (v: any) => setUi('showConfigSaveModal', typeof v === 'function' ? v(ui.showConfigSaveModal) : v);
   const showConfigLoadModal = ui.showConfigLoadModal;
@@ -274,53 +274,9 @@ function RoutePlannerInner({
   const newConfigName = ui.newConfigName;
   const setNewConfigName = (v: any) => setUi('newConfigName', typeof v === 'function' ? v(ui.newConfigName) : v);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('aero_cabin_configs');
-    if (saved) {
-      try {
-        setSavedCabinConfigs(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved configs", e);
-      }
-    }
-  }, []);
 
-  const saveCabinConfig = () => {
-    if (!newConfigName.trim()) return;
-    const newConfig = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newConfigName.trim(),
-      configs: { ...classConfigs }
-    };
-    const updated = [...savedCabinConfigs, newConfig];
-    setSavedCabinConfigs(updated);
-    localStorage.setItem('aero_cabin_configs', JSON.stringify(updated));
-    setNewConfigName('');
-    setShowConfigSaveModal(false);
-  };
 
-  const deleteSavedConfig = (id: string) => {
-    const updated = savedCabinConfigs.filter(c => c.id !== id);
-    setSavedCabinConfigs(updated);
-    localStorage.setItem('aero_cabin_configs', JSON.stringify(updated));
-  };
 
-  const loadCabinConfig = (config: any) => {
-    const newConfigs = { ...classConfigs };
-    const classes = ['economy', 'premium', 'business', 'first', 'general'];
-    
-    classes.forEach(cls => {
-      if (config.configs[cls]) {
-        newConfigs[cls] = config.configs[cls];
-      } else {
-        // Fallback to default if class data is missing
-        newConfigs[cls] = { catering: [['none']], extras: ['none'], service: ['none'] };
-      }
-    });
-
-    setClassConfigs(newConfigs);
-    setShowConfigLoadModal(false);
-  };
 
 
   const getComputedRouteSatCache = () => {
@@ -3697,113 +3653,7 @@ function RoutePlannerInner({
           />
         )}
 
-        <AnimatePresence>
-          {showConfigSaveModal && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-            >
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="w-full max-w-md bg-[#1a1a1a] border border-white/10 p-4 rounded-sm shadow-2xl"
-              >
-                <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow mb-3">Save Configuration</h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest block mb-2">Configuration Name</label>
-                    <input 
-                      type="text" 
-                      value={newConfigName}
-                      onChange={(e) => setNewConfigName(e.target.value)}
-                      className="w-full bg-black border border-white/10 p-4 text-white font-mono focus:border-aero-yellow outline-none transition-all"
-                      placeholder="e.g. Premium Short-Haul"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="flex gap-4 pt-4">
-                    <button 
-                      onClick={() => setShowConfigSaveModal(false)}
-                      className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={saveCabinConfig}
-                      className="flex-1 py-4 bg-aero-yellow text-black uppercase text-[10px] font-black tracking-widest hover:bg-white transition-all"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showConfigLoadModal && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-            >
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="w-full max-w-2xl bg-[#1a1a1a] border border-white/10 p-4 rounded-sm shadow-2xl max-h-[80vh] flex flex-col"
-              >
-                 <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow">Load Configuration</h3>
-                    <button onClick={() => setShowConfigLoadModal(false)} className="text-white/40 hover:text-white transition-colors">
-                       <Plus size={24} className="rotate-45" />
-                    </button>
-                 </div>
-                 
-                 <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
-                    {savedCabinConfigs.length === 0 ? (
-                       <div className="py-12 text-center text-white/20 uppercase text-xs font-black tracking-widest italic">
-                          No saved configurations found.
-                       </div>
-                    ) : (
-                       savedCabinConfigs.map(cfg => (
-                          <div key={cfg.id} className="group flex items-center gap-2">
-                             <button 
-                                onClick={() => loadCabinConfig(cfg)}
-                                className="flex-1 flex justify-between items-center bg-white/5 border border-white/10 p-4 hover:bg-white/10 hover:border-aero-yellow transition-all text-left"
-                             >
-                                <span className="text-sm font-black uppercase tracking-widest text-white">{cfg.name}</span>
-                                <div className="flex items-center gap-4 text-[10px] text-white/40 uppercase font-bold">
-                                   <span>{Object.keys(cfg.configs).filter(k => k !== 'general').length} Classes</span>
-                                   <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                             </button>
-                             <button 
-                                onClick={() => deleteSavedConfig(cfg.id)}
-                                className="w-12 h-14 flex items-center justify-center bg-[#111] border border-white/20 text-aero-yellow/60 hover:bg-[#1a1a1a] hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                             >
-                                <Plus size={20} className="rotate-45" />
-                             </button>
-                          </div>
-                       ))
-                    )}
-                 </div>
-                 
-                 <button 
-                    onClick={() => setShowConfigLoadModal(false)}
-                    className="mt-6 w-full py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all text-center"
-                 >
-                    Close
-                 </button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <CabinConfigDialogs />
 
       </div>
     </div>
