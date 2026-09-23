@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Airport, airportsData, getAirportStats } from '../data/airports';
-import { moreAirports } from '../data/more_airports';
-
-const airportsMap = new Map<string, Airport>();
-for (const a of airportsData) airportsMap.set(a.id, a as Airport);
-for (const a of moreAirports) airportsMap.set(a.id, a as unknown as Airport);
-const airports: Airport[] = Array.from(airportsMap.values());
+import { Airport, getAirportStats } from '../data/airports';
+// One shared list. This module used to build its own, letting moreAirports
+// overwrite core entries, so the eight duplicate ids showed a different level
+// and demand here than in the planner -- and it skipped the era adjustment
+// entirely, so the demand column disagreed with what routes actually earned.
+import { airports } from '../data/airportRegistry';
 
 import { Search, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -46,6 +45,35 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
    * inside the render of each of the 562 rows -- roughly 85,000 iterations per
    * render with six rivals, repeated on every parent state change.
    */
+  /**
+   * Row windowing.
+   *
+   * The table drew all 562 airports at once -- about 4,500 DOM nodes -- and did
+   * it again on every parent state change. Only the rows near the viewport are
+   * rendered now; spacer rows above and below keep the scrollbar honest. Row
+   * height is fixed by the cell padding, so a constant is enough and no
+   * measurement pass is needed.
+   */
+  const ROW_HEIGHT = 53;
+  const OVERSCAN = 8;
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(800);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setViewportHeight(el.clientHeight || 800);
+    measure();
+    const onScroll = () => setScrollTop(el.scrollTop);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
   const aiSlotsByAirport = useMemo(() => {
     const m = new Map<string, number>();
     for (const ai of aiAirlines || []) {
@@ -99,6 +127,16 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
     });
   }, [search, sortField, sortDir, currentYear]);
 
+  const totalRows = filteredAndSortedAirports.length;
+  const firstVisible = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const lastVisible = Math.min(
+    totalRows,
+    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN
+  );
+  const visibleRows = filteredAndSortedAirports.slice(firstVisible, lastVisible);
+  const padTop = firstVisible * ROW_HEIGHT;
+  const padBottom = Math.max(0, (totalRows - lastVisible) * ROW_HEIGHT);
+
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
       <div className="flex items-center justify-between mb-3 shrink-0">
@@ -137,7 +175,7 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar bg-black/20 border border-white/5 rounded-sm p-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 custom-scrollbar bg-black/20 border border-white/5 rounded-sm p-4">
         <table className="w-full text-left font-mono text-sm border-collapse">
           <thead>
             <tr className="border-b border-aero-yellow/30 text-aero-yellow/80 uppercase tracking-widest text-[10px]">
@@ -158,7 +196,9 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
                  </td>
                </tr>
             ) : (
-              filteredAndSortedAirports.map((airport, idx) => {
+              <>
+              {padTop > 0 && <tr style={{ height: padTop }} aria-hidden="true"><td colSpan={7} /></tr>}
+              {visibleRows.map((airport, idx) => {
                 const stats = getAirportStats(airport, currentYear);
                 const businessDemand = stats.business;
                 const tourismDemand = stats.tourism;
@@ -172,7 +212,7 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
                 
                 return (
                   <tr 
-                    key={`${airport.id}-${idx}`} 
+                    key={`${airport.id}-${firstVisible + idx}`} 
                     className="border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer"
                     onClick={() => onSelectAirport?.(airport)}
                   >
@@ -187,7 +227,9 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
                     <td className="py-4 text-xs font-mono">{tourismDemand}</td>
                   </tr>
                 );
-              })
+              })}
+              {padBottom > 0 && <tr style={{ height: padBottom }} aria-hidden="true"><td colSpan={7} /></tr>}
+              </>
             )}
           </tbody>
         </table>

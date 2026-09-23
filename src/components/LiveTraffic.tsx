@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import { getRoutePath, ROUTE_PATH_SEGMENTS as SEGMENTS } from '../lib/geoUtils';
 import { aircraftList } from "../data/aircraft";
 
 interface LiveTrafficProps {
-  realTime: Date;
   routes: any[];
   aiRoutes: any[];
   airports: any[];
@@ -14,59 +14,6 @@ interface LiveTrafficProps {
 }
 
 // Great circle path calculator for high-fidelity routes
-function computeGreatCirclePoints(start: [number, number], end: [number, number], segments = 100): [number, number][] {
-  const points: [number, number][] = [];
-
-  const lat1 = start[0] * Math.PI / 180;
-  const lon1 = start[1] * Math.PI / 180;
-  const lat2 = end[0] * Math.PI / 180;
-  const lon2 = end[1] * Math.PI / 180;
-
-  const d = Math.acos(
-    Math.min(1, Math.max(-1, Math.sin(lat1) * Math.sin(lat2) + Math.cos(lat1) * Math.cos(lat2) * Math.cos(lon1 - lon2)))
-  );
-
-  if (d === 0 || isNaN(d)) {
-    return [start, end];
-  }
-
-  for (let i = 0; i <= segments; i++) {
-    const t = i / segments;
-    const A = Math.sin((1 - t) * d) / Math.sin(d);
-    const B = Math.sin(t * d) / Math.sin(d);
-
-    const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
-    const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
-    const z = A * Math.sin(lat1) + B * Math.sin(lat2);
-
-    const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
-    let lon = Math.atan2(y, x) * 180 / Math.PI;
-
-    if (points.length > 0) {
-      const prevLon = points[points.length - 1][1];
-      while (lon - prevLon > 180) lon -= 360;
-      while (lon - prevLon < -180) lon += 360;
-    }
-
-    points.push([lat, lon]);
-  }
-  return points;
-}
-
-// A route's great circle never changes, so it is computed once per airport pair
-// instead of once per aircraft per tick.
-const SEGMENTS = 100;
-const pathCache = new Map<string, [number, number][]>();
-
-function getGreatCirclePoints(originId: string, destId: string, start: [number, number], end: [number, number]): [number, number][] {
-  const key = `${originId}>${destId}`;
-  const cached = pathCache.get(key);
-  if (cached) return cached;
-  const points = computeGreatCirclePoints(start, end, SEGMENTS);
-  pathCache.set(key, points);
-  return points;
-}
-
 const PLANE_YELLOW = "#FACC15";
 const PLANE_STROKE = "#121212";
 
@@ -213,7 +160,20 @@ interface ActiveFlight {
   cruiseSpeed: number;
 }
 
-export function LiveTraffic({ realTime, routes, aiRoutes, airports, offsets = [0], fleet = [] }: LiveTrafficProps) {
+export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet = [] }: LiveTrafficProps) {
+  /**
+   * The live-traffic clock lives here, not in App.
+   *
+   * It used to be App state, so every tick re-rendered the whole application --
+   * including the ~750 map polylines and every mounted view -- to move a few
+   * aircraft markers. Nothing outside this component reads it.
+   */
+  const [realTime, setRealTime] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const interval = setInterval(() => setRealTime(new Date()), 20000);
+    return () => clearInterval(interval);
+  }, []);
+
   const airportsMap = useMemo(() => new Map(airports.map(a => [a.id, a])), [airports]);
   const fleetByRegistration = useMemo(() => new Map(fleet.map(f => [f.registration, f])), [fleet]);
   const aircraftById = useMemo(() => new Map(aircraftList.map(a => [a.id, a])), []);
@@ -254,7 +214,8 @@ export function LiveTraffic({ realTime, routes, aiRoutes, airports, offsets = [0
         if (icaoCode === 'F' || icaoCode === 'E') size = 46;
 
         const routeKey = r.id || `${isRival ? 'ai' : 'own'}-${routeIndex}-${r.origin}-${r.destination}`;
-        const points = getGreatCirclePoints(o.id, d.id, o.coords, d.coords);
+        // One shared cache with App: the same pair is no longer computed twice.
+        const points = getRoutePath(o, d, 0);
 
         const pushFlight = (progress: number, reversed: boolean, legKey: string) => {
           const rawIndex = Math.floor(progress * SEGMENTS);

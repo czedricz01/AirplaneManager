@@ -578,6 +578,25 @@ export function getPriceDemandMultiplier(price: number, satBasePrice: number, sa
 }
 
 /**
+ * How much unsold demand beyond your own seats still counts.
+ *
+ * Demand on a city pair grows about eightfold between 1960 and 2020, while the
+ * aircraft a player actually flies do not. The result was that surplus demand
+ * turned directly into free pricing power: measured with a 180-seat aircraft at
+ * seven round trips a week, the median pair allowed a fare 54% above the
+ * satisfaction-adjusted base in 1980, 216% in 2000 and 500% in 2020 without
+ * losing a single passenger, because demand stayed above capacity however high
+ * the fare went.
+ *
+ * Passengers you have no seat for do not queue at any price -- they fly at
+ * another time, on another carrier, or not at all. So demand counts only up to
+ * a margin above what the route can actually carry. The margin is what keeps
+ * a full aircraft worth a modest premium; beyond it, raising the fare costs
+ * passengers in every era, which is what makes pricing a decision again.
+ */
+export const MAX_DEMAND_SURPLUS = 1.3;
+
+/**
  * One airline's offer on a city pair, for the market-share split below.
  */
 export interface RouteOffer {
@@ -784,9 +803,12 @@ export function calculateRouteFinancials(
       );
       const share = marketShare(ownAttractiveness, rivalAttractiveness);
 
-      const targetPax = Math.floor(maxPax * demMult * share);
       const weeklySupply = seats * flightLegs;
-      
+      // Demand beyond MAX_DEMAND_SURPLUS times what this route can carry is not
+      // available to it at any price, so it cannot prop up an inflated fare.
+      const reachableDemand = Math.min(maxPax * share, weeklySupply * MAX_DEMAND_SURPLUS);
+      const targetPax = Math.floor(reachableDemand * demMult);
+
       const actualPax = forceFullLoad ? weeklySupply : Math.min(weeklySupply, targetPax);
       
       paxByClass[c] = { actual: actualPax, max: weeklySupply };

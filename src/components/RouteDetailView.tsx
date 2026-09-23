@@ -2,8 +2,8 @@ import { FinancialReport } from "./FinancialReport";
 import React, { useState, useMemo } from 'react';
 import { X, Plane, Clock, Coffee, DollarSign, Trash2, Settings, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { airportsData, Airport } from '../data/airports';
-import { moreAirports } from '../data/more_airports';
+import { Airport } from '../data/airports';
+
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { 
   getFlightTimeClass, 
@@ -16,7 +16,7 @@ import {
   marketKey,
 } from '../lib/financeUtils';
 
-const airports = Array.from(new Map([...airportsData, ...moreAirports].map(a => [a.id, a as unknown as Airport])).values());
+import { airports, airportsMapAdjusted } from '../data/airportRegistry';
 
 import { OwnedAircraft } from './MyFleetView';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
@@ -58,7 +58,7 @@ export function RouteDetailView({
 
   const airportsMap = useMemo(() => {
     const map = new Map<string, Airport>();
-    [...airportsData, ...moreAirports].forEach(a => map.set(a.id, a as unknown as Airport));
+    airportsMapAdjusted.forEach((a, id) => map.set(id, a));
     return map;
   }, []);
 

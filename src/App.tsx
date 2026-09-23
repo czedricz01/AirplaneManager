@@ -34,50 +34,9 @@ import {
 
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
 import L from "leaflet";
-import { airportsData, Airport, calculateDistance } from "./data/airports";
-import { moreAirports } from "./data/more_airports";
-import { LiveTraffic } from "./components/LiveTraffic";
-const airportsMap = new Map<string, Airport>();
-for (const a of airportsData) airportsMap.set(a.id, a as Airport);
-for (const a of moreAirports) {
-  if (!airportsMap.has(a.id)) {
-    airportsMap.set(a.id, a as unknown as Airport);
-  }
-}
-const rawAirports: Airport[] = Array.from(airportsMap.values());
-
-const sovietAirports = new Set(['SVO', 'DME', 'VKO', 'LED', 'OVB', 'KBP', 'MSQ', 'TAS', 'ALA', 'EVN', 'GYD', 'TBS', 'KIV', 'PRG', 'WAW', 'BUD', 'SOF', 'OTP', 'SXF']);
-const westernAirports = new Set(['JFK', 'EWR', 'LGA', 'ORD', 'LAX', 'SFO', 'ATL', 'DFW', 'MIA', 'IAD', 'DCA', 'LHR', 'LGW', 'CDG', 'ORY', 'FRA', 'MUC', 'AMS', 'MAD', 'BCN', 'FCO', 'MXP', 'ZRH']);
-
-const airports: Airport[] = rawAirports.map(a => {
-  const isSoviet = sovietAirports.has(a.id);
-  const isWesternMajor = westernAirports.has(a.id);
-  
-  if (!isSoviet && !isWesternMajor || !a.stats) return a;
-
-  const sourceStats = a.stats;
-  const newStats: Record<string, { tourism: number; business: number }> = { ...sourceStats };
-  for (const yearStr in sourceStats) {
-    const year = parseInt(yearStr);
-    let multiplier = 1.0;
-
-    if (isSoviet) {
-      if (year < 1990) multiplier = 0.45; // Significant dampening of Soviet era
-      else if (year < 2000) multiplier = 0.55; // Post-Soviet transition collapse
-      else multiplier = 0.65; // Modern era adjustment - Russian aviation challenges
-    } else if (isWesternMajor) {
-      if (year < 1975) multiplier = 1.15; // Buff early Western hubs
-    }
-
-    if (multiplier !== 1.0) {
-      newStats[yearStr] = {
-        tourism: Math.max(1, Math.round(sourceStats[yearStr].tourism * multiplier)),
-        business: Math.max(1, Math.round(sourceStats[yearStr].business * multiplier))
-      };
-    }
-  }
-  return { ...a, stats: newStats };
-});
+import { Airport, calculateDistance } from "./data/airports";
+import { rawAirports, airports, airportsMapAdjusted } from "./data/airportRegistry";
+export { airportsMapAdjusted };
 
 const offsetToDateStr = (offset: number) =>
   `${(1 + (offset % 12)).toString().padStart(2, '0')}/${1960 + Math.floor(offset / 12)}`;
@@ -153,6 +112,7 @@ function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: nu
  * until now airframe condition affected nothing but resale value, which made
  * the $200k general check a pure sink.
  */
+
 /**
  * Coarse continent lookup from coordinates, for the "continents served"
  * milestone only. The airport dataset carries no region field, and this is
@@ -259,8 +219,8 @@ export function eventReliefFactor(
   return factor;
 }
 
-export const airportsMapAdjusted = new Map<string, Airport>();
-airports.forEach(a => airportsMapAdjusted.set(a.id, a));
+import { WorldMap } from "./components/WorldMap";
+import { getRoutePath } from "./lib/geoUtils";
 
 /**
  * The hub picker's option list. This used to be sorted inline in the start
@@ -306,7 +266,6 @@ function repairRouteDurations(loadedRoutes: any[], loadedFleet: any[]): any[] {
   });
 }
 
-import { jetFuelPrices } from "./data/fuelPrices";
 import { BuyAircraftView } from "./components/BuyAircraftView";
 import { MyFleetView, OwnedAircraft } from "./components/MyFleetView";
 import { RoutesView } from "./components/RoutesView";
@@ -334,66 +293,6 @@ import {
   findLegacyLocalSaves,
   importLegacyLocalSaves,
 } from "./lib/cloudSaves";
-
-function getGreatCirclePoints(start: [number, number], end: [number, number], segments = 150): [number, number][] {
-  const points: [number, number][] = [];
-  
-  const lat1 = start[0] * Math.PI / 180;
-  const lon1 = start[1] * Math.PI / 180;
-  const lat2 = end[0] * Math.PI / 180;
-  const lon2 = end[1] * Math.PI / 180;
-
-  const d = Math.acos(
-    Math.min(1, Math.max(-1, Math.sin(lat1) * Math.sin(lat2) + Math.cos(lat1) * Math.cos(lat2) * Math.cos(lon1 - lon2)))
-  );
-
-  if (d === 0 || isNaN(d)) {
-    return [start, end];
-  }
-
-  for (let i = 0; i <= segments; i++) {
-    const t = i / segments;
-    const A = Math.sin((1 - t) * d) / Math.sin(d);
-    const B = Math.sin(t * d) / Math.sin(d);
-    
-    const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
-    const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
-    const z = A * Math.sin(lat1) + B * Math.sin(lat2);
-    
-    const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
-    let lon = Math.atan2(y, x) * 180 / Math.PI;
-
-    if (points.length > 0) {
-      const prevLon = points[points.length - 1][1];
-      while (lon - prevLon > 180) lon -= 360;
-      while (lon - prevLon < -180) lon += 360;
-    }
-
-    points.push([lat, lon]);
-  }
-  return points;
-}
-
-/**
- * Cached polyline for an airport pair on a given world copy.
- *
- * A route's great circle never changes, but this used to be recomputed — 101
- * trigonometric points per route per world copy — on every single render of App,
- * which happens on any capital, message or zoom change.
- */
-const ROUTE_PATH_SEGMENTS = 100;
-const routePathCache = new Map<string, [number, number][]>();
-
-function getRoutePath(a1: Airport, a2: Airport, offset: number): [number, number][] {
-  const key = `${a1.id}>${a2.id}@${offset}`;
-  const cached = routePathCache.get(key);
-  if (cached) return cached;
-
-  const points = getGreatCirclePoints(a1.coords, a2.coords, ROUTE_PATH_SEGMENTS)
-    .map(p => [p[0], p[1] + offset] as [number, number]);
-  routePathCache.set(key, points);
-  return points;
-}
 
 const REALISTIC_HUBS: Record<string, string> = {
   LH: "FRA",
@@ -569,7 +468,7 @@ const generateAiAirlines = (count: number, difficultyVal: string, playerHubId: s
     }
 
     const routes: any[] = [];
-    const hubAirport = airportsMap.get(hub);
+    const hubAirport = airportsMapAdjusted.get(hub);
     
     if (hubAirport) {
       const numRoutes = Math.min(fleet.length, 2);
@@ -705,8 +604,8 @@ const simulateAiAirlinesTurn = (
         return;
       }
 
-      const originAir = airportsMap.get(r.origin);
-      const destAir = airportsMap.get(r.destination);
+      const originAir = airportsMapAdjusted.get(r.origin);
+      const destAir = airportsMapAdjusted.get(r.destination);
       const distance = r.distance || (originAir && destAir ? Math.floor(calculateDistance(originAir.coords[0], originAir.coords[1], destAir.coords[0], destAir.coords[1])) : 1500);
       r.distance = distance;
       r.durMin = r.durMin || Math.floor((distance / (assignedPlane.cruiseSpeed || 800)) * 60 + 40);
@@ -838,7 +737,7 @@ const simulateAiAirlinesTurn = (
           currentYearNum,
           currentMonthNum,
           ai.aiDifficulty,
-          airportsMap,
+          airportsMapAdjusted,
           [],
           [aircraftSimObj],
           false,
@@ -1137,8 +1036,8 @@ const simulateAiAirlinesTurn = (
             selectedDest = topHalf[Math.floor(Math.random() * Math.min(5, topHalf.length))];
           }
 
-          const originAir = airportsMap.get(ai.hub);
-          const destAir = airportsMap.get(selectedDest.id);
+          const originAir = airportsMapAdjusted.get(ai.hub);
+          const destAir = airportsMapAdjusted.get(selectedDest.id);
 
           if (originAir && destAir) {
             const distance = Math.floor(calculateDistance(originAir.coords[0], originAir.coords[1], destAir.coords[0], destAir.coords[1]));
@@ -1191,18 +1090,6 @@ const simulateAiAirlinesTurn = (
   return { updatedAis, newMessages };
 };
 
-function MapEvents({ setZoom, setBounds }: { setZoom: (z: number) => void, setBounds?: (b: L.LatLngBounds) => void }) {
-  useMapEvents({
-    zoomend: (e) => {
-      setZoom(e.target.getZoom());
-      if (setBounds) setBounds(e.target.getBounds());
-    },
-    moveend: (e) => {
-      if (setBounds) setBounds(e.target.getBounds());
-    }
-  });
-  return null;
-}
 
 type ViewState = 'login' | 'main-menu' | 'start-menu' | 'monthly-overview' | 'game';
 type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'competitors' | 'new-route';
@@ -1389,16 +1276,6 @@ export default function App() {
   const [showYourRoutes, setShowYourRoutes] = useState(true);
   const [showLiveTraffic, setShowLiveTraffic] = useState(false);
   const [isMapSettingsOpen, setIsMapSettingsOpen] = useState(false);
-  const [realTime, setRealTime] = useState(new Date());
-
-  // Ticks the live traffic clock. Recomputing positions is cheap now that the markers
-  // are plain cached SVG icons, so 20s gives visible movement without a render loop.
-  useEffect(() => {
-    if (!showLiveTraffic) return;
-    setRealTime(new Date());
-    const interval = setInterval(() => setRealTime(new Date()), 20000);
-    return () => clearInterval(interval);
-  }, [showLiveTraffic]);
   const [routes, setRoutes] = useState<SimulatedRoute[]>([]);
   /**
    * Every month the airline has closed, oldest first.
@@ -1879,52 +1756,6 @@ export default function App() {
     });
   }, []);
 
-  const iconCache = useRef<Record<string, L.DivIcon>>({});
-
-  const getAirportIcon = (zoomLevel: number, level: number) => {
-    const key = `${zoomLevel}-${level}`;
-    if (iconCache.current[key]) return iconCache.current[key];
-
-    let bgColor = "#FACC15"; // aero-yellow
-    if (level === 1) bgColor = "#FB923C"; // orange-400
-    else if (level === 2) bgColor = "#EA580C"; // orange-600
-    else if (level >= 3) bgColor = "#DC2626"; // red-600
-
-    let iconInfo: L.DivIcon;
-    if (zoomLevel < 5) {
-      // Simple dot for low zoom
-      const dotSize = zoomLevel < 3 ? 2 : 3;
-      iconInfo = L.divIcon({
-        className: '',
-        html: `<div style="width: ${dotSize}px; height: ${dotSize}px; background-color: ${bgColor}; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;"></div>`,
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
-      });
-    } else if (zoomLevel < 8) {
-      // Small circle with border
-      const outerSize = Math.max(6, zoomLevel * 1.2);
-      iconInfo = L.divIcon({
-        className: '',
-        html: `<div style="width: ${outerSize}px; height: ${outerSize}px; background-color: ${bgColor}; border: 1px solid black; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
-      });
-    } else {
-      // Complex "radar" icon for high zoom
-      const outerSize = Math.max(10, zoomLevel * 2.5);
-      iconInfo = L.divIcon({
-        className: '',
-        html: `<div style="width: ${outerSize}px; height: ${outerSize}px; background-color: ${bgColor}; border: 2px solid black; border-radius: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 8px rgba(0,0,0,0.5);">
-                 <div style="width: 30%; height: 30%; background-color: black; border-radius: 50%;"></div>
-                 <div style="position: absolute; width: 120%; height: 120%; border: 1px dashed ${bgColor}; border-radius: 50%; opacity: 0.3;"></div>
-               </div>`,
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
-      });
-    }
-    iconCache.current[key] = iconInfo;
-    return iconInfo;
-  };
 
   const visibleAirports = useMemo(() => {
     return airports.filter(airport => {
@@ -3449,199 +3280,27 @@ export default function App() {
                   
                   {/* Map Viewport - Leaflet Map */}
                   <div className="absolute inset-0 z-0 bg-[#0a0a0a]">
-                      <MapContainer 
-                        key={`map-${sessionKey}`}
-                        center={[20, 0]} 
-                        zoom={3} 
-                        minZoom={2}
-                        preferCanvas={true}
-                        worldCopyJump={true}
-                        maxBounds={[[-85, -5000], [85, 5000]]}
-                        maxBoundsViscosity={0.8}
-                        className="w-full h-full"
-                        style={{ backgroundColor: '#131517' }}
-                        zoomControl={false}
-                      >
-                        {/* Low-resolution world backdrop that fills gaps while the detail
-                            layer loads. Two further duplicate layers were removed here:
-                            all four requested the same tile service, so the map fetched
-                            every visible area up to four times. */}
-                        <TileLayer
-                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                          attribution='&copy; Esri'
-                          noWrap={false}
-                          minNativeZoom={2}
-                          maxNativeZoom={3}
-                          maxZoom={20}
-                          zIndex={0}
-                          opacity={0.9}
-                          keepBuffer={8}
-                        />
-                        <TileLayer
-                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                          attribution='&copy; Esri'
-                          noWrap={false}
-                          updateInterval={100}
-                          keepBuffer={6}
-                          updateWhenIdle={false}
-                          updateWhenZooming={true}
-                          zIndex={2}
-                        />
-                      <MapEvents setZoom={setZoom} setBounds={setMapBounds} />
-                              {/* Route Lines - Rendered on 3 worlds for continuity */}
-                      {visibleWorldOffsets.map(offset => (
-                        <React.Fragment key={`world-${offset}-routes`}>
-                          {(() => {
-                            const pairs = new Set<string>();
-                            const lines = showYourRoutes ? routes.map(r => {
-                              const a1 = airportsMapAdjusted.get(r.origin);
-                              const a2 = airportsMapAdjusted.get(r.destination);
-                              if (!a1 || !a2) return null;
-                              const key = [a1.id, a2.id].sort().join('-');
-                              if (pairs.has(key)) return null;
-                              pairs.add(key);
-                              const points = getRoutePath(a1, a2, offset);
-                              return (
-                                <Polyline 
-                                  key={`${r.id}-${offset}`}
-                                  positions={points}
-                                  color="#F2CB05"
-                                  weight={1.2}
-                                  opacity={0.8}
-                                  smoothFactor={1} 
-                                  lineCap="round"
-                                  lineJoin="round"
-                                />
-                              );
-                            }) : [];
-
-                            // Add planning line if both ends are selected
-                            if (showYourRoutes && planningOriginId && planningDestId) {
-                                const a1 = airportsMapAdjusted.get(planningOriginId);
-                                const a2 = airportsMapAdjusted.get(planningDestId);
-                                if (a1 && a2) {
-                                    const points = getRoutePath(a1, a2, offset);
-                                    lines.push(
-                                        <Polyline 
-                                            key={`planning-${offset}`}
-                                            positions={points}
-                                            color="#F2CB05"
-                                            weight={1.2}
-                                            opacity={0.8} 
-                                            smoothFactor={1}
-                                            lineCap="round"
-                                            lineJoin="round"
-                                        />
-                                    );
-                                }
-                            }
-
-                            // Render Rival routes as red lines on the map
-                            if (showRivalRoutes && aiAirlines && aiAirlines.length > 0) {
-                              aiAirlines.forEach((airline, aiIdx) => {
-                                if (airline.routes && airline.routes.length > 0) {
-                                  airline.routes.forEach((r, routeIdx) => {
-                                    const a1 = airportsMapAdjusted.get(r.origin);
-                                    const a2 = airportsMapAdjusted.get(r.destination);
-                                    if (!a1 || !a2) return;
-                                    const points = getRoutePath(a1, a2, offset);
-                                    lines.push(
-                                      <Polyline 
-                                        key={`ai-${airline.code}-${aiIdx}-${routeIdx}-${offset}`}
-                                        positions={points}
-                                        color="#ef4444"
-                                        weight={1.5}
-                                        opacity={0.7}
-                                        smoothFactor={1}
-                                        lineCap="round"
-                                        lineJoin="round"
-                                      >
-                                        <Tooltip sticky>
-                                          <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 text-aero-yellow/60 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest shadow-2xl">
-                                            <div className="text-[12px] leading-none mb-1 text-white font-sans font-bold">{airline.name}</div>
-                                            <div className="text-[10px] leading-none text-aero-yellow/60 font-mono mb-1">{r.origin} ↔ {r.destination}</div>
-                                            <div className="text-[8px] opacity-60 leading-none">{r.departures} departures/week</div>
-                                          </div>
-                                        </Tooltip>
-                                      </Polyline>
-                                    );
-                                  });
-                                }
-                              });
-                            }
-                            return lines;
-                          })()}
-                        </React.Fragment>
-                      ))}
-                      
-                      {/* Airport Markers - Rendered on 3 worlds */}
-                      {visibleWorldOffsets.map(offset => (
-                        <React.Fragment key={`world-${offset}-airports`}>
-                          {visibleAirports.map((airport) => {
-                            const mgtLvl = airportManagement[airport.id]?.level || 0;
-                            const pos: [number, number] = [airport.coords[0], airport.coords[1] + offset];
-                            
-                            if (zoom >= 6) {
-                              return (
-                                <Marker 
-                                  key={`${airport.id}-${offset}`} 
-                                  position={pos}
-                                  icon={getAirportIcon(zoom, mgtLvl)}
-                                  eventHandlers={{
-                                    click: () => setSelectedAirport(airport)
-                                  }}
-                                >
-                                  <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
-                                    <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-3 py-1.5 font-mono text-[11px] uppercase font-black tracking-widest shadow-2xl flex flex-col items-center">
-                                      <div className="text-[14px] leading-none mb-1 text-white">{airport.id}</div>
-                                      <div className="text-[8px] opacity-60 leading-none">{airport.name}</div>
-                                    </div>
-                                  </Tooltip>
-                                </Marker>
-                              );
-                            } else {
-                              const radius = Math.max(3, zoom * 1.2);
-                              const isGreen = mgtLvl > 0;
-                              return (
-                                <CircleMarker
-                                  key={`${airport.id}-${offset}`}
-                                  center={pos}
-                                  radius={radius}
-                                  pathOptions={{
-                                    color: 'black',
-                                    weight: 1,
-                                    fillColor: isGreen ? '#10b981' : '#F2CB05',
-                                    fillOpacity: 1
-                                  }}
-                                  eventHandlers={{
-                                    click: () => setSelectedAirport(airport)
-                                  }}
-                                >
-                                  <Tooltip direction="top" opacity={1} sticky>
-                                    <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-2 py-1 font-mono text-[10px] uppercase font-black tracking-widest shadow-2xl">
-                                      {airport.id}
-                                    </div>
-                                  </Tooltip>
-                                </CircleMarker>
-                              );
-                            }
-                          })}
-                        </React.Fragment>
-                      ))}
-
-                      {/* Rendered once for every world copy: flight positions do not
-                          depend on the copy, only the drawn longitude does. */}
-                      {showLiveTraffic && (
-                        <LiveTraffic
-                          realTime={realTime}
-                          routes={routes}
-                          aiRoutes={aiRouteList}
-                          airports={airports}
-                          offsets={visibleWorldOffsets}
-                          fleet={fleet}
-                        />
-                      )}
-                    </MapContainer>
+                      <WorldMap
+                        sessionKey={sessionKey}
+                        zoom={zoom}
+                        setZoom={setZoom}
+                        setMapBounds={setMapBounds}
+                        visibleAirports={visibleAirports}
+                        visibleWorldOffsets={visibleWorldOffsets}
+                        airports={airports}
+                        routes={routes}
+                        aiRouteList={aiRouteList}
+                        aiAirlines={aiAirlines}
+                        fleet={fleet}
+                        airportManagement={airportManagement}
+                        showYourRoutes={showYourRoutes}
+                        showRivalRoutes={showRivalRoutes}
+                        showLiveTraffic={showLiveTraffic}
+                        planningOriginId={planningOriginId}
+                        planningDestId={planningDestId}
+                        setSelectedAirport={setSelectedAirport}
+                        getRoutePath={getRoutePath}
+                      />
                   </div>
                   
                   {/* Active Window Views Overlay */}
