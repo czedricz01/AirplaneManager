@@ -26,6 +26,7 @@ interface RouteDetailViewProps {
   routes: any[];
   fleet?: OwnedAircraft[];
   fuelPrice?: number;
+  demandFactor?: number;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -42,7 +43,7 @@ const formatNumber = (num: number) => Math.round(num).toLocaleString();
 
 export function RouteDetailView({ 
   route, routes, fleet, fuelPrice = 1.05, airportManagement, 
-  currentYear, currentMonth, difficulty,
+  currentYear, currentMonth, difficulty, demandFactor = 1,
   onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onUpdatePricing 
 }: RouteDetailViewProps) {
   const flightNo = route.schedule?.[0]?.flightNumOut ? 'NE' + route.schedule[0].flightNumOut : route.airline;
@@ -70,7 +71,9 @@ export function RouteDetailView({
       difficulty,
       airportsMap,
       routes,
-      fleet
+      fleet,
+      false,
+      demandFactor
     );
   }, [route, assignedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet]);
 

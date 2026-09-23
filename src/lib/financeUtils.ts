@@ -417,7 +417,12 @@ export function calculateDemand(
     timeClass: number, 
     currentMonth: number,
     difficulty: string,
-    currentYear: number
+    currentYear: number,
+    /**
+     * An extra multiplier on top of the event effects, used for the player's
+     * airline reputation. 1.0 is neutral, which is what the AI airlines pass.
+     */
+    extraDemandFactor: number = 1
 ) {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
     const Mv = mvValues[currentMonth - 1] || 1.0;
@@ -443,7 +448,7 @@ export function calculateDemand(
     // Adjusted to be lower on long-haul routes (higher timeClass)
     const tcDemandMultiplier = Math.max(0.4, 3.1 - (timeClass * 0.35));
 
-    const baseDemand = 34.141967 * Math.pow(totalInteraction, 0.448351) * S * E * tcDemandMultiplier * eventMult;
+    const baseDemand = 34.141967 * Math.pow(totalInteraction, 0.448351) * S * E * tcDemandMultiplier * eventMult * extraDemandFactor;
     const businessRatio = totalInteraction > 0 ? businessInteraction / totalInteraction : 0.5;
     const premiumMultiplier = Math.pow(timeClass / 8, 0.7);
 
@@ -468,7 +473,7 @@ export function calculateDemand(
        business: busDemand,
        premium: preDemand,
        economy: ecoDemand,
-       formulaVars: { b1, t1, b2, t2, businessRatio, premiumMultiplier, Mv, S, E, totalInteraction, eventMult, tcDemandMultiplier }
+       formulaVars: { b1, t1, b2, t2, businessRatio, premiumMultiplier, Mv, S, E, totalInteraction, eventMult, tcDemandMultiplier, extraDemandFactor }
     };
 }
 
@@ -584,7 +589,9 @@ export function calculateRouteFinancials(
   airportsMap: Map<string, Airport>,
   allRoutes: any[] = [],
   fleet: any[] = [],
-  forceFullLoad: boolean = false
+  forceFullLoad: boolean = false,
+  /** Reputation effect on demand for this operator. 1.0 = neutral. */
+  extraDemandFactor: number = 1
 ) {
   const dist = route.distance || 0;
   const fuelPricePerL = Math.round((fuelPrice / 3.78541) * 1000) / 1000;
@@ -669,7 +676,7 @@ export function calculateRouteFinancials(
   const demandData = calculateDemand(
     originStats.business, originStats.tourism,
     destStats.business, destStats.tourism,
-    timeClass, currentMonth, difficulty, currentYear
+    timeClass, currentMonth, difficulty, currentYear, extraDemandFactor
   );
 
   const bases = calculateBasePrices(dist, timeClass);

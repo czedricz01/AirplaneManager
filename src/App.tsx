@@ -135,6 +135,103 @@ function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: nu
   };
 }
 
+/**
+ * Airline reputation, 0-100.
+ *
+ * The game had no airline-level number that grew or decayed: after thirty
+ * in-game years you had more money and newer aircraft, but nothing that said
+ * you had become a better airline. Reputation is that number, and it is
+ * deliberately slow -- it cannot be bought, only earned over months, and it
+ * falls the same way.
+ *
+ * It is built only from things the simulation already computes:
+ *   - how satisfied passengers were, weighted by how many of them there were
+ *   - how worn the cabins of the aircraft actually flying are
+ *   - how full the aircraft flew
+ *
+ * conditionGeneral is deliberately included through condScore's sibling below:
+ * until now airframe condition affected nothing but resale value, which made
+ * the $200k general check a pure sink.
+ */
+/**
+ * Coarse continent lookup from coordinates, for the "continents served"
+ * milestone only. The airport dataset carries no region field, and this is
+ * approximate: it uses rectangles, so a handful of airports near a boundary
+ * (the Urals, Sinai, Panama) land on the wrong side. That is acceptable for
+ * counting how far a network reaches; it is not used anywhere in the economy.
+ */
+export function continentOf(coords: [number, number]): string {
+  const [lat, lon] = coords;
+  if (lat >= 7 && lon >= -170 && lon <= -50) return 'NA';
+  if (lat < 13 && lon >= -92 && lon <= -34) return 'SA';
+  if (lat >= 35 && lat <= 72 && lon >= -25 && lon <= 45) return 'EU';
+  if (lat >= -35 && lat <= 37 && lon >= -20 && lon <= 52) return 'AF';
+  if (lat <= 0 && lon >= 110 && lon <= 180) return 'OC';
+  if (lon >= 45 || lon <= -170) return 'AS';
+  return 'OT';
+}
+
+/**
+ * Milestones. Checked at the end of each month, awarded once, announced in the
+ * inbox. They are the only thing in the game that accumulates across a whole
+ * career, and each one nudges reputation, which is the reward that lasts.
+ */
+export interface MilestoneContext {
+  routeCount: number;
+  fleetSize: number;
+  capital: number;
+  longestRouteKm: number;
+  continents: number;
+  profitableMonthStreak: number;
+  reputation: number;
+}
+
+export const MILESTONES: {
+  id: string;
+  title: string;
+  detail: string;
+  reputationBonus: number;
+  met: (c: MilestoneContext) => boolean;
+}[] = [
+  { id: 'first-route', title: 'First route opened', detail: 'Your airline is flying.', reputationBonus: 2,
+    met: c => c.routeCount >= 1 },
+  { id: 'fleet-10', title: 'Ten aircraft', detail: 'A fleet rather than a handful of aeroplanes.', reputationBonus: 3,
+    met: c => c.fleetSize >= 10 },
+  { id: 'longhaul', title: 'First intercontinental route', detail: 'A route beyond 5,000 km.', reputationBonus: 4,
+    met: c => c.longestRouteKm >= 5000 },
+  { id: 'continents-4', title: 'Four continents served', detail: 'Your network spans four continents.', reputationBonus: 5,
+    met: c => c.continents >= 4 },
+  { id: 'capital-100m', title: '$100 million in the bank', detail: 'Enough to buy almost anything on the market.', reputationBonus: 3,
+    met: c => c.capital >= 100_000_000 },
+  { id: 'profit-12', title: 'A full year in profit', detail: 'Twelve consecutive months without a loss.', reputationBonus: 6,
+    met: c => c.profitableMonthStreak >= 12 },
+  { id: 'reputation-80', title: 'A reputation worth having', detail: 'Reputation above 80.', reputationBonus: 0,
+    met: c => c.reputation >= 80 }
+];
+
+export const REPUTATION_INERTIA = 0.15;
+
+export function computeReputationTarget(samples: {
+  weightedSat: number;      // pax-weighted mean route satisfaction, in percent
+  meanInterior: number;     // 0-100
+  meanAirframe: number;     // 0-100
+  loadFactor: number;       // 0-1
+}): number {
+  // A route at 130% satisfaction is as good as this scale goes.
+  const satScore = Math.max(0, Math.min(100, (samples.weightedSat / 130) * 100));
+  const condScore = Math.max(0, Math.min(100, samples.meanInterior * 0.6 + samples.meanAirframe * 0.4));
+  const loadScore = Math.max(0, Math.min(100, samples.loadFactor * 100));
+  return 0.5 * satScore + 0.3 * condScore + 0.2 * loadScore;
+}
+
+/**
+ * What reputation does to demand: a tenth either way. Small enough that a good
+ * network still beats a good reputation, large enough to be worth protecting.
+ */
+export function reputationDemandFactor(reputation: number): number {
+  return 0.9 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;
+}
+
 export const airportsMapAdjusted = new Map<string, Airport>();
 airports.forEach(a => airportsMapAdjusted.set(a.id, a));
 
@@ -1210,6 +1307,12 @@ export default function App() {
    * crisis.
    */
   const [eventChoices, setEventChoices] = useState<Record<string, string>>({});
+  /** Airline reputation, 0-100. Starts neutral: nobody has heard of you yet. */
+  const [reputation, setReputation] = useState(50);
+  /** Milestone ids already awarded, so each is announced once. */
+  const [milestones, setMilestones] = useState<string[]>([]);
+  /** Consecutive months closed without a loss, for the profit milestone. */
+  const [profitStreak, setProfitStreak] = useState(0);
   /** The event whose decision is waiting to be made, if any. */
   const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<GameMessage | null>(null);
@@ -1808,13 +1911,18 @@ export default function App() {
     let landingFees = 0;
     let paxFees = 0;
     const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number }[] = [];
+    // Samples for the reputation update further down.
+    let repPaxWeek = 0;
+    let repSatTimesPax = 0;
+    let repSeatsWeek = 0;
+    const flyingRegs = new Set<string>();
 
     routes.forEach(r => {
       const ac = fleet.find(a => a.registration === r.aircraft);
       if (ac) {
         const fin = calculateRouteFinancials(
           r, ac, currentFuelPrice, airportManagement, currentYearNum, currentMonthNum,
-          difficulty, localAirportsMap, routes, fleet
+          difficulty, localAirportsMap, routes, fleet, false, reputationDemandFactor(reputation)
         );
         const mRev = (fin.estWeeklyRev || 0) * 4;
         const mCost = (fin.estWeeklyCosts || 0) * 4;
@@ -1834,6 +1942,18 @@ export default function App() {
           landingFees += (fin.costsBreakdown.landingFees || 0) * 4;
           paxFees += (fin.costsBreakdown.paxFees || 0) * 4;
         }
+
+        // routeSat is per cabin class, so weight it by the passengers who
+        // actually travelled in each before folding it into the airline figure.
+        Object.entries(fin.paxByClass || {}).forEach(([cls, pax]: [string, any]) => {
+          const actual = pax?.actual || 0;
+          if (actual > 0) {
+            repSatTimesPax += (fin.routeSat?.[cls] || 0) * actual;
+            repPaxWeek += actual;
+          }
+        });
+        repSeatsWeek += fin.weightedSeatsPerWeek || 0;
+        flyingRegs.add(r.aircraft);
 
         routeDetails.push({ 
           id: r.id, 
@@ -1865,6 +1985,76 @@ export default function App() {
 
     const totalAirportUpkeep = managementCosts + deskCosts;
     const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills;
+
+    // Inbox messages produced by this tick. Declared here because the
+    // milestone check below already writes into it.
+    const additionalMessages: GameMessage[] = [];
+
+    // --- Reputation -------------------------------------------------------
+    // Only updated when something actually flew. An airline with no routes is
+    // not judged one way or the other, so its reputation simply holds.
+    let nextReputation = reputation;
+    if (repPaxWeek > 0 && flyingRegs.size > 0) {
+      const flying = fleet.filter(f => flyingRegs.has(f.registration));
+      const meanInterior = flying.reduce((a, f) => a + (f.conditionInterior ?? 100), 0) / flying.length;
+      const meanAirframe = flying.reduce((a, f) => a + (f.conditionGeneral ?? 100), 0) / flying.length;
+      const target = computeReputationTarget({
+        weightedSat: repSatTimesPax / repPaxWeek,
+        meanInterior,
+        meanAirframe,
+        loadFactor: repSeatsWeek > 0 ? repPaxWeek / repSeatsWeek : 0
+      });
+      nextReputation = reputation + (target - reputation) * REPUTATION_INERTIA;
+    }
+
+    // --- Milestones -------------------------------------------------------
+    const nextStreak = totalMonthlyProfit >= 0 ? profitStreak + 1 : 0;
+    setProfitStreak(nextStreak);
+
+    const servedContinents = new Set<string>();
+    let longestKm = 0;
+    routes.forEach(r => {
+      longestKm = Math.max(longestKm, r.distance || 0);
+      [r.origin, r.destination].forEach(id => {
+        const ap = localAirportsMap.get(id);
+        if (ap) servedContinents.add(continentOf(ap.coords));
+      });
+    });
+
+    const mctx: MilestoneContext = {
+      routeCount: routes.length,
+      fleetSize: fleet.length,
+      capital: capital + totalMonthlyProfit,
+      longestRouteKm: longestKm,
+      continents: servedContinents.size,
+      profitableMonthStreak: nextStreak,
+      reputation: nextReputation
+    };
+
+    const newlyEarned = MILESTONES.filter(m => !milestones.includes(m.id) && m.met(mctx));
+    if (newlyEarned.length > 0) {
+      setMilestones(prev => [...prev, ...newlyEarned.map(m => m.id)]);
+      nextReputation = Math.min(100, nextReputation + newlyEarned.reduce((a, m) => a + m.reputationBonus, 0));
+      newlyEarned.forEach((m, i) => {
+        additionalMessages.push({
+          id: Date.now() + 91000 + i,
+          text: `MILESTONE: ${m.title}`,
+          isRead: false,
+          dateStr: offsetToDateStr(currentDateOffset),
+          details: {
+            title: m.title,
+            source: 'Board of Directors',
+            content:
+              `${m.detail}\n\n` +
+              (m.reputationBonus > 0
+                ? `Reputation +${m.reputationBonus}.`
+                : `No bonus attached -- this one is the reward.`)
+          }
+        });
+      });
+    }
+
+    setReputation(nextReputation);
 
     const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
 
@@ -1922,7 +2112,6 @@ export default function App() {
 
     const nextOffset = currentDateOffset + 1;
     const isNextJanuary = nextOffset % 12 === 0;
-    const additionalMessages: GameMessage[] = [];
 
     // Which world events are running right now. Compared against the same list
     // for next month further below, this is what tells the player an event
@@ -2154,6 +2343,9 @@ export default function App() {
       monthlyCapex,
       reportHistory,
       eventChoices,
+      reputation,
+      milestones,
+      profitStreak,
       startDateOffset,
       currentDateOffset,
       airportManagement,
@@ -2240,6 +2432,9 @@ export default function App() {
         // Older saves predate the history entirely; they simply start empty.
         setReportHistory(Array.isArray(saveObj.reportHistory) ? saveObj.reportHistory : []);
         setEventChoices(saveObj.eventChoices && typeof saveObj.eventChoices === 'object' ? saveObj.eventChoices : {});
+        setReputation(typeof saveObj.reputation === 'number' ? saveObj.reputation : 50);
+        setMilestones(Array.isArray(saveObj.milestones) ? saveObj.milestones : []);
+        setProfitStreak(typeof saveObj.profitStreak === 'number' ? saveObj.profitStreak : 0);
         
         if (saveObj.messages) {
           setMessages(saveObj.messages);
@@ -2827,6 +3022,9 @@ export default function App() {
                           setReportHistory([]);
                           setEventChoices({});
                           setPendingDecision(null);
+                          setReputation(50);
+                          setMilestones([]);
+                          setProfitStreak(0);
                           setSessionKey(Date.now());
                           const newSaveId = `save_${Date.now()}`;
                           setCurrentSaveId(newSaveId);
@@ -2970,6 +3168,7 @@ export default function App() {
                     <GameStat label="Capital" value={formatCurrency(capital)} />
                     <GameStat label="Fleet" value={fleet.length.toString()} />
                     <GameStat label="Routes" value={routes.length.toString()} />
+                    <GameStat label="Reputation" value={`${Math.round(reputation)}`} />
                     <GameStat label="Global Demand" value={`${Math.round(globalDemandData.value * 100)}%`} trend={globalDemandData.trend} />
                     <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / 3.78541, 3)}`} trend={fuelData.trend} goodDirection="down" />
                   </div>
@@ -3379,6 +3578,7 @@ export default function App() {
                              }));
                           }}
                           fuelPrice={fuelData.price}
+                        demandFactor={reputationDemandFactor(reputation)}
                           airportManagement={airportManagement}
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           currentMonth={1 + (currentDateOffset % 12)}
@@ -3403,6 +3603,9 @@ export default function App() {
                         <MyCompanyView
                           capital={capital}
                           reportHistory={reportHistory}
+                          reputation={reputation}
+                          milestones={milestones}
+                          milestoneCatalogue={MILESTONES}
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
@@ -3466,6 +3669,7 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
+                        demandFactor={reputationDemandFactor(reputation)}
                         airportManagement={airportManagement}
                         capital={capital}
                         onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
@@ -3493,6 +3697,7 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
+                        demandFactor={reputationDemandFactor(reputation)}
                         airportManagement={airportManagement}
                         capital={capital}
                         initialOriginId={planningOriginId || undefined}

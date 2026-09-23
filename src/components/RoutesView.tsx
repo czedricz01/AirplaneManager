@@ -53,6 +53,8 @@ interface Props {
   onEditCabinServices?: (routeId: string) => void;
   onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
   fuelPrice?: number;
+  /** Reputation effect on demand, so the list matches the monthly report. */
+  demandFactor?: number;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -74,7 +76,7 @@ export function RoutesView({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onUpdatePricing, fuelPrice, airportManagement,
-  currentYear, currentMonth, difficulty
+  currentYear, currentMonth, difficulty, demandFactor = 1
 }: Props) {
   const [search, setSearch] = useState("");
   const [airportFilter, setAirportFilter] = useState(initialAirportFilter);
@@ -289,6 +291,7 @@ export function RoutesView({
              route={activeRoute} 
              fleet={fleet}
             fuelPrice={fuelPrice}
+            demandFactor={demandFactor}
             airportManagement={airportManagement}
             currentYear={currentYear}
             currentMonth={currentMonth}

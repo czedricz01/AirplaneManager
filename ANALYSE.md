@@ -567,7 +567,7 @@ würden „Streik in Frankreich" oder „Tourismusboom in Südostasien" möglich
 Die Ost/West-Anpassung in `App.tsx:52-80` zeigt, dass die Geografie schon
 ansatzweise gruppiert ist.
 
-## C3 — Fortschritt, Ziele und Ruf
+## C3 — Fortschritt, Ziele und Ruf *(umgesetzt, ohne Jahresziele)*
 
 **Das Problem:** es gibt keinen Airline-Wert, der wächst. Nach 30 Jahren sind es
 dieselben fünf Klicks.

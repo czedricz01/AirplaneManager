@@ -37,6 +37,11 @@ interface Props {
   fleetValue: number;
   fleetCount: number;
   routeCount: number;
+  /** Airline reputation, 0-100. */
+  reputation: number;
+  /** Milestones earned so far, with the full catalogue to show what is left. */
+  milestones: string[];
+  milestoneCatalogue: { id: string; title: string; detail: string }[];
 }
 
 const label = (r: MonthlyReport) => `${String(r.month).padStart(2, '0')}/${r.year}`;
@@ -118,7 +123,7 @@ function History({ reports, pick, title }: { reports: MonthlyReport[]; pick: (r:
   );
 }
 
-export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, routeCount }: Props) {
+export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue }: Props) {
   const [series, setSeries] = useState<'profit' | 'revenue' | 'capital'>('profit');
   const [monthsShown, setMonthsShown] = useState(24);
 
@@ -180,6 +185,21 @@ export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, 
               <span className="text-[10px] uppercase tracking-widest text-white/40 font-black mb-2 block">Net worth</span>
               <span className="text-2xl font-mono font-bold text-white/80">{formatCurrency(netWorth)}</span>
               <span className="block text-[9px] font-mono text-white/30 mt-1">cash + fleet</span>
+            </div>
+            <div className="bg-black/40 border border-white/10 p-4 rounded-sm">
+              <span className="text-[10px] uppercase tracking-widest text-white/40 font-black mb-2 block">Reputation</span>
+              <span className={`text-2xl font-mono font-bold ${reputation >= 65 ? 'text-aero-good' : reputation < 40 ? 'text-aero-warn' : 'text-white/80'}`}>
+                {Math.round(reputation)}
+              </span>
+              <span className="block text-[9px] font-mono text-white/30 mt-1">
+                demand {reputation >= 50 ? '+' : ''}{Math.round((reputation - 50) * 0.2)}%
+              </span>
+              <div className="w-full h-1 bg-white/10 mt-2 overflow-hidden">
+                <div
+                  className={`h-full ${reputation >= 65 ? 'bg-aero-good' : reputation < 40 ? 'bg-aero-warn' : 'bg-aero-yellow'}`}
+                  style={{ width: `${Math.max(0, Math.min(100, reputation))}%` }}
+                />
+              </div>
             </div>
             <div className="bg-black/40 border border-white/10 p-4 rounded-sm">
               <span className="text-[10px] uppercase tracking-widest text-white/40 font-black mb-2 block">Network</span>
@@ -332,6 +352,38 @@ export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, 
               />
             </>
           )}
+
+          {/* Milestones. The only thing in the game that accumulates across a
+              whole career, so it shows what is still out there as well. */}
+          <div className="bg-black/40 border border-white/10 p-4 rounded-sm">
+            <div className="flex items-baseline justify-between mb-3">
+              <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Milestones</span>
+              <span className="text-[10px] font-mono text-white/40">
+                {milestones.length} / {milestoneCatalogue.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {milestoneCatalogue.map(m => {
+                const earned = milestones.includes(m.id);
+                return (
+                  <div
+                    key={m.id}
+                    className={`p-2 border text-[10px] font-mono leading-relaxed ${
+                      earned
+                        ? 'border-aero-good/40 bg-aero-good/5 text-white/80'
+                        : 'border-white/5 bg-white/[0.02] text-white/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={earned ? 'text-aero-good' : 'text-white/20'}>{earned ? '\u2713' : '\u25CB'}</span>
+                      <span className="font-bold uppercase tracking-wider">{m.title}</span>
+                    </div>
+                    <p className="pl-5 mt-0.5">{m.detail}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>

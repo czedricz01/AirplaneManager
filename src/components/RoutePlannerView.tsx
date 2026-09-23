@@ -46,6 +46,8 @@ interface Props {
   onAddPendingSlotBills?: (amount: number) => void;
   /** Reports a refused or trimmed infrastructure purchase; these all used to fail silently. */
   onNotify?: (message: string) => void;
+  /** Reputation effect on demand, so the preview matches the monthly report. */
+  demandFactor?: number;
   pendingSlotBills?: number;
   onGoToAirport?: (airport: Airport) => void;
   onClose: () => void;
@@ -127,7 +129,7 @@ function DetailMetric({ label, value, color }: { label: string, value: string, c
 
 export function RoutePlannerView({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, demandFactor = 1, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -785,7 +787,7 @@ export function RoutePlannerView({
     const engine = calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      difficulty !== 'Easy'
+      difficulty !== 'Easy', demandFactor
     );
     const b = engine.costsBreakdown;
 
@@ -817,9 +819,9 @@ export function RoutePlannerView({
     return calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      false
+      false, demandFactor
     );
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet]);
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, demandFactor]);
 
   useEffect(() => {
     if (step === 4 && financials && Object.keys(ticketPrices).length === 0) {
@@ -3189,7 +3191,9 @@ export function RoutePlannerView({
                                  difficulty,
                                  airportsMap,
                                  routes,
-                                 fleet
+                                 fleet,
+                                 false,
+                                 demandFactor
                                );
 
                                onSaveRoute({
