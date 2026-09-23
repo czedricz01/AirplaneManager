@@ -205,7 +205,9 @@ export function MyFleetView({ fleet, routes = [], currentDateOffset, onRenovate,
     filteredAndSortedFleet.forEach(plane => {
       let key = 'Other';
       if (groupBy === 'family') key = plane.family || plane.type || 'Other Family';
-      else if (groupBy === 'category') key = plane.category || 'Other Class';
+      // The field is `class` (aircraft.ts:14); `category` never existed, so
+      // grouping by class put every aircraft in "Other Class".
+      else if (groupBy === 'category') key = plane.class || 'Other Class';
       else if (groupBy === 'manufacturer') key = plane.manufacturer || 'Other Manufacturer';
 
       if (!groupsMap[key]) groupsMap[key] = [];

@@ -269,6 +269,8 @@ function repairRouteDurations(loadedRoutes: any[], loadedFleet: any[]): any[] {
 import { BuyAircraftView } from "./components/BuyAircraftView";
 import { MyFleetView, OwnedAircraft } from "./components/MyFleetView";
 import { RoutesView } from "./components/RoutesView";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { RoutePlannerView } from "./components/RoutePlannerView";
 import { AirportsView } from "./components/AirportsView";
 import { AirportDetailView } from "./components/AirportDetailView";
@@ -1300,10 +1302,9 @@ export default function App() {
 
   // Load game data from local storage if available
   useEffect(() => {
-    const savedRoutes = localStorage.getItem('neo_routes');
-    if (savedRoutes) {
+    const parsed = readJson<any[] | null>('neo_routes', null);
+    if (Array.isArray(parsed)) {
       try {
-        const parsed = JSON.parse(savedRoutes);
         // Data Migration/Cleanup: Ensure all numerical fields are valid
         const cleaned = parsed.map((r: any) => ({
           ...r,
@@ -1333,9 +1334,9 @@ export default function App() {
   useEffect(() => {
     try {
       if (routes.length > 0) {
-        localStorage.setItem('neo_routes', JSON.stringify(routes));
+        writeJson('neo_routes', routes);
       } else {
-        localStorage.removeItem('neo_routes');
+        removeKey('neo_routes');
       }
     } catch (e) {
       console.error("Failed to persist routes", e);
@@ -1349,7 +1350,7 @@ export default function App() {
   const [difficulty, setDifficulty] = useState("Normal");
   const [startingBudget, setStartingBudget] = useState("$25M");
   const [debugMode, setDebugMode] = useState(() => {
-    return localStorage.getItem('airline_debug_mode') === 'true';
+    return readString('airline_debug_mode') === 'true';
   });
   const [capital, setCapital] = useState(0);
   const [fleet, setFleet] = useState<OwnedAircraft[]>([]);
@@ -1733,18 +1734,15 @@ export default function App() {
   const [initialSaveFileName, setInitialSaveFileName] = useState("");
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('neo_autosave_settings');
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        if (parsed.autosaveInterval !== undefined) setAutosaveInterval(parsed.autosaveInterval);
-        if (parsed.autosaveOverwrite !== undefined) setAutosaveOverwrite(parsed.autosaveOverwrite);
-      } catch (e) {}
+    const parsed = readJson<any>('neo_autosave_settings', null);
+    if (parsed) {
+      if (parsed.autosaveInterval !== undefined) setAutosaveInterval(parsed.autosaveInterval);
+      if (parsed.autosaveOverwrite !== undefined) setAutosaveOverwrite(parsed.autosaveOverwrite);
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('neo_autosave_settings', JSON.stringify({ autosaveInterval, autosaveOverwrite }));
+    writeJson('neo_autosave_settings', { autosaveInterval, autosaveOverwrite });
   }, [autosaveInterval, autosaveOverwrite]);
 
 
@@ -2377,7 +2375,7 @@ export default function App() {
         setStartingBudget(saveObj.startingBudget || "$25M");
         const loadedDebug = saveObj.debugMode === true;
         setDebugMode(loadedDebug);
-        localStorage.setItem('airline_debug_mode', String(loadedDebug));
+        writeString('airline_debug_mode', String(loadedDebug));
         setCapital(saveObj.capital || 0);
         setFleet(saveObj.fleet || []);
         setAiAirlinesCount(saveObj.aiAirlinesCount || 6);
@@ -2879,7 +2877,7 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               setDebugMode(opt.value);
-                              localStorage.setItem('airline_debug_mode', String(opt.value));
+                              writeString('airline_debug_mode', String(opt.value));
                             }}
                             className={`flex-1 p-4 font-mono text-xs border uppercase tracking-widest transition-all ${debugMode === opt.value ? 'bg-aero-yellow text-black border-aero-yellow font-black shadow-2xl' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow/50'}`}
                           >
@@ -3444,6 +3442,7 @@ export default function App() {
                   
                   {editingCabinRouteId && (
                     <div className="absolute inset-0 z-[60] flex">
+                     <ErrorBoundary label="Cabin Editor" onReset={() => setEditingCabinRouteId(null)} resetLabel="CLOSE EDITOR">
                       <RoutePlannerView
                         airports={airports}
                         fleet={fleet}
@@ -3468,11 +3467,13 @@ export default function App() {
                         aiAirlines={aiAirlines}
                         airlineCode={airlineCode}
                       />
+                     </ErrorBoundary>
                     </div>
                   )}
 
                   {isPlanningRoute && (
                     <div className="absolute inset-0 z-[45] flex">
+                     <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="CLOSE PLANNER">
                       <RoutePlannerView
                         airports={airports}
                         fleet={fleet}
@@ -3575,12 +3576,14 @@ export default function App() {
                         onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
                         pendingSlotBills={pendingSlotBills}
                       />
+                     </ErrorBoundary>
                     </div>
                   )}
 
                   {/* Airport Selection Window - Rendered inside the main view layout so sidebars remain visible */}
                   {selectedAirport && (
                     <div className="absolute inset-0 z-[2000]">
+                     <ErrorBoundary label="Airport" onReset={() => setSelectedAirport(null)} resetLabel="CLOSE AIRPORT">
                       <AirportDetailView
                         airport={selectedAirport}
                         currentDateOffset={currentDateOffset}
@@ -3693,6 +3696,7 @@ export default function App() {
                           setSelectedAirport(null);
                         }}
                       />
+                     </ErrorBoundary>
                     </div>
                   )}
                   {/* Floating Next Month Button */}

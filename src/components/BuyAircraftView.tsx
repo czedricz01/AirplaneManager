@@ -8,6 +8,7 @@ import { SupabaseBucketModal } from './SupabaseBucketModal';
 import { ViewHeader } from './ui/ViewHeader';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { readString } from '../lib/safeStorage';
 
 interface Props {
   currentDateOffset: number;
@@ -23,7 +24,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
 
   // Falls back to storage only when the prop is absent. This used to poll
   // localStorage every 500 ms for a value that already lives in App's state.
-  const debugMode = debugModeProp ?? (typeof window !== 'undefined' && localStorage.getItem('airline_debug_mode') === 'true');
+  const debugMode = debugModeProp ?? (readString('airline_debug_mode') === 'true');
 
   // ZIP upload state
   const [dragActive, setDragActive] = useState(false);
