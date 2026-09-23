@@ -1691,6 +1691,33 @@ export function RoutePlannerView({
                     />
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pb-32">
+                     {/* Without this, a player who opens the planner before buying
+                         anything -- which both entry points allow -- sees an empty
+                         black column and no reason for it. The filter also hides
+                         aircraft based at another hub and aircraft too large for
+                         either airport, which looked identical to owning none. */}
+                     {validAircraft.length === 0 && (
+                       <div className="border border-white/10 bg-white/[0.02] p-4 text-[11px] font-mono text-white/50 leading-relaxed space-y-2">
+                         {fleet.length === 0 ? (
+                           <>
+                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-[10px]">No aircraft yet</p>
+                             <p>Your fleet is empty. Visit Buy Aircraft in the sidebar and purchase one first — a route needs an aircraft assigned to it.</p>
+                           </>
+                         ) : (
+                           <>
+                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-[10px]">None of your aircraft fit</p>
+                             <p>You own {fleet.length} aircraft, but none can serve this pairing. Usually one of:</p>
+                             <ul className="list-disc pl-4 space-y-1 text-white/40">
+                               <li>it is based at a different hub</li>
+                               <li>its ICAO code is larger than {selectedOrigin?.id || 'the origin'}
+                                   {selectedDest ? ` or ${selectedDest.id}` : ''} can handle</li>
+                               <li>its week is already fully committed to other routes</li>
+                               {aircraftSearch ? <li>the search above is filtering it out</li> : null}
+                             </ul>
+                           </>
+                         )}
+                       </div>
+                     )}
                      {validAircraft.map(ac => {
                        let usedMins = 0;
                        routes.filter(r => r.aircraft === ac.registration && r.id !== initialRouteId).forEach(r => {
