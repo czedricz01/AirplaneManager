@@ -79,12 +79,6 @@ const airports: Airport[] = rawAirports.map(a => {
   return { ...a, stats: newStats };
 });
 
-/**
- * A stable identity for a world event, so the month tick can tell which events
- * started and which ended without comparing whole objects.
- */
-const eventKey = (ev: HistoricalEvent) => `${ev.title}@${ev.startOffset}`;
-
 const offsetToDateStr = (offset: number) =>
   `${(1 + (offset % 12)).toString().padStart(2, '0')}/${1960 + Math.floor(offset / 12)}`;
 
@@ -202,7 +196,7 @@ import { MyCompanyView } from "./components/MyCompanyView";
 import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent } from "./lib/eventSystem";
+import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
 import { generateUniqueRegistration } from "./utils/registration";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
@@ -1210,6 +1204,14 @@ export default function App() {
   ]);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [randomEvents, setRandomEventsState] = useState<HistoricalEvent[]>([]);
+  /**
+   * Which choice the player took for each event, keyed by eventKey. Persisted,
+   * so a hedge bought in 1973 survives a save and reload halfway through the
+   * crisis.
+   */
+  const [eventChoices, setEventChoices] = useState<Record<string, string>>({});
+  /** The event whose decision is waiting to be made, if any. */
+  const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<GameMessage | null>(null);
 
   useEffect(() => {
@@ -1404,11 +1406,15 @@ export default function App() {
    * figure had dropped but not what was causing it or when it would lift.
    */
   const activeWorldEvents = useMemo(() => {
-    return getActiveEvents(currentDateOffset).map(ev => ({
-      ...ev,
-      monthsLeft: ev.startOffset + ev.duration - currentDateOffset
-    }));
-  }, [currentDateOffset, randomEvents]);
+    return getActiveEvents(currentDateOffset).map(ev => {
+      const chosenId = eventChoices[eventKey(ev)];
+      return {
+        ...ev,
+        monthsLeft: ev.startOffset + ev.duration - currentDateOffset,
+        chosen: chosenId ? ev.choices?.find(c => c.id === chosenId) : undefined
+      };
+    });
+  }, [currentDateOffset, randomEvents, eventChoices]);
 
   const visibleWorldOffsets = useMemo(() => {
     if (!mapBounds) return [-360, 0, 360];
@@ -1441,8 +1447,30 @@ export default function App() {
 
   // Price comes from the shared model; only the month-on-month trend string is
   // computed here, so the top bar can never disagree with what routes are billed.
-  const priceAtOffset = (offset: number) =>
+  const rawPriceAtOffset = (offset: number) =>
     getJetFuelPrice(1960 + Math.floor(offset / 12), 1 + (offset % 12), difficulty);
+
+  /**
+   * The fuel price the PLAYER pays, which is the market price unless a hedge is
+   * in force. getFuelPriceForAi deliberately does not go through here: the
+   * rivals keep paying the market rate, which is what makes the hedge worth
+   * buying.
+   *
+   * A hedge locks the price at the month before the event began, both ways --
+   * if fuel gets cheaper during the event, the locked price is the worse deal.
+   */
+  const priceAtOffset = (offset: number) => {
+    const market = rawPriceAtOffset(offset);
+    for (const ev of getActiveEvents(offset)) {
+      const choiceId = eventChoices[eventKey(ev)];
+      if (!choiceId) continue;
+      const choice = ev.choices?.find(c => c.id === choiceId);
+      if (choice?.hedgesFuel) {
+        return rawPriceAtOffset(Math.max(0, ev.startOffset - 1));
+      }
+    }
+    return market;
+  };
 
   const getFuelData = (offset: number) => {
     const price = priceAtOffset(offset);
@@ -1971,6 +1999,11 @@ export default function App() {
     for (const ev of afterEvents) {
       if (!activeBefore.has(eventKey(ev))) {
         additionalMessages.push(buildEventStartMessage(ev, evIdSeed++));
+        // An event that offers a decision puts it to the player now, once. If
+        // they close the dialog without choosing, the default is to do nothing.
+        if (ev.choices && ev.choices.length > 0 && !eventChoices[eventKey(ev)]) {
+          setPendingDecision(ev);
+        }
       }
     }
     for (const ev of getActiveEvents(currentDateOffset)) {
@@ -2120,6 +2153,7 @@ export default function App() {
       pendingSlotBills,
       monthlyCapex,
       reportHistory,
+      eventChoices,
       startDateOffset,
       currentDateOffset,
       airportManagement,
@@ -2205,6 +2239,7 @@ export default function App() {
         setMonthlyCapex(saveObj.monthlyCapex || []);
         // Older saves predate the history entirely; they simply start empty.
         setReportHistory(Array.isArray(saveObj.reportHistory) ? saveObj.reportHistory : []);
+        setEventChoices(saveObj.eventChoices && typeof saveObj.eventChoices === 'object' ? saveObj.eventChoices : {});
         
         if (saveObj.messages) {
           setMessages(saveObj.messages);
@@ -2353,6 +2388,61 @@ export default function App() {
         }}
       >
         <div className="w-full h-full relative flex flex-col">
+          {/* World event decision. The first point in the game where a crisis
+              asks the player something instead of simply happening to them. */}
+          {pendingDecision && (
+            <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+              <div className="bg-[#141414] border border-aero-warn/40 p-5 max-w-lg w-full shadow-2xl">
+                <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+                  <AlertTriangle size={22} /> {pendingDecision.title}
+                </h3>
+                <p className="text-[11px] font-mono text-white/50 mb-4 leading-relaxed">
+                  {pendingDecision.description} Running for {pendingDecision.duration} months.
+                </p>
+
+                <div className="space-y-2">
+                  {pendingDecision.choices?.map((choice: EventChoice) => {
+                    const affordable = capital >= choice.cost;
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        disabled={!affordable}
+                        onClick={() => {
+                          if (choice.cost > 0) spend(choice.cost, `Crisis response: ${pendingDecision.title}`);
+                          setEventChoices(prev => ({ ...prev, [eventKey(pendingDecision)]: choice.id }));
+                          setPendingDecision(null);
+                        }}
+                        className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed"
+                      >
+                        <div className="flex items-baseline justify-between gap-3 mb-1">
+                          <span className="font-black uppercase tracking-widest text-[11px] text-white">{choice.label}</span>
+                          <span className={`font-mono text-[11px] font-bold shrink-0 ${choice.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
+                            {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-mono text-white/50 leading-relaxed">{choice.detail}</p>
+                        {!affordable && (
+                          <p className="text-[10px] font-mono text-aero-warn mt-1">
+                            {formatCurrency(choice.cost - capital)} short.
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <button
+                    onClick={() => setPendingDecision(null)}
+                    className="px-3 py-2 text-white/40 hover:text-white text-[10px] font-mono uppercase tracking-widest transition-colors bg-transparent border-0"
+                  >
+                    Decide later (does nothing)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {appAlert && (
             <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
               <div className="bg-[#1a1a1a] border border-white/10 p-4 max-w-md w-full shadow-2xl">
@@ -2735,6 +2825,8 @@ export default function App() {
                           setPendingSlotBills(0);
                           setMonthlyCapex([]);
                           setReportHistory([]);
+                          setEventChoices({});
+                          setPendingDecision(null);
                           setSessionKey(Date.now());
                           const newSaveId = `save_${Date.now()}`;
                           setCurrentSaveId(newSaveId);
@@ -2986,6 +3078,20 @@ export default function App() {
                          <span className="text-[10px] md:text-[11px] font-bold text-white/70 shrink-0 whitespace-nowrap">
                             {ev.monthsLeft} {ev.monthsLeft === 1 ? 'month' : 'months'} left
                          </span>
+                         {ev.chosen && ev.chosen.cost > 0 && (
+                            <span className="text-[10px] font-mono font-bold text-aero-good shrink-0 whitespace-nowrap border border-aero-good/40 px-1.5 py-0.5">
+                               {ev.chosen.label}
+                            </span>
+                         )}
+                         {!ev.chosen && ev.choices && ev.choices.length > 0 && (
+                            <button
+                               type="button"
+                               onClick={() => setPendingDecision(ev)}
+                               className="text-[10px] font-mono font-bold text-black bg-aero-yellow hover:bg-white shrink-0 whitespace-nowrap px-1.5 py-0.5 border-0 cursor-pointer transition-colors"
+                            >
+                               Decision pending
+                            </button>
+                         )}
                          <span className="text-[10px] md:text-[11px] opacity-70 truncate font-mono">{ev.description}</span>
                          <span className="text-[10px] md:text-[11px] font-bold text-aero-warn ml-auto whitespace-nowrap">
                             PAX: {ev.demandMultiplier >= 1 ? '+' : ''}{((ev.demandMultiplier - 1) * 100).toFixed(0)}% | FUEL: {ev.fuelMultiplier >= 1 ? '+' : ''}{((ev.fuelMultiplier - 1) * 100).toFixed(0)}%

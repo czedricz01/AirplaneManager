@@ -541,7 +541,14 @@ Spieler erlebt März 2020 als unerklärlichen Umsatzeinbruch auf ein Fünftel.
    zeigt bereits Titel, Beschreibung und Wirkung; ihm fehlt nur, wie lange das
    Ereignis noch läuft. `getActiveEvents(offset)` (`eventSystem.ts:67-71`)
    liefert `startOffset` und `duration`, also ist das eine Subtraktion.
-3. **Entscheidungen.** `HistoricalEvent` um ein optionales `choices` erweitern:
+3. **Entscheidungen.** *(umgesetzt für die drei Ölschocks: Absicherung des
+   Spritpreises gegen eine Einmalzahlung. Die Absicherung gilt nur für den
+   Spieler — `getFuelPriceForAi` bleibt am Marktpreis — und sperrt in beide
+   Richtungen, fallende Preise eingeschlossen. Die übrigen drei Ereignisse
+   (2001, 2008, Pandemie) haben noch keine Entscheidung, weil deren sinnvolle
+   Antworten auf der Nachfrageseite liegen und dort kein ebenso sauberer
+   Angriffspunkt existiert.)*
+   `HistoricalEvent` um ein optionales `choices` erweitern:
 
    ```ts
    choices?: { label: string; cost: number; effect: Partial<EventEffect>;

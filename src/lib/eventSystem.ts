@@ -1,3 +1,24 @@
+/**
+ * Something the player can do about an event, offered once when it begins.
+ *
+ * Until now a world event was two numbers the player could only absorb. A
+ * choice costs money up front and changes how the event hits the player -- and
+ * only the player, never the AI airlines, which keep paying the raw rates.
+ */
+export interface EventChoice {
+  id: string;
+  label: string;
+  detail: string;
+  /** Charged once, when the choice is taken. */
+  cost: number;
+  /**
+   * Locks the player's jet fuel price at the level of the month before the
+   * event started, for as long as the event runs. It locks both ways: if fuel
+   * gets cheaper instead, the hedge costs money.
+   */
+  hedgesFuel?: boolean;
+}
+
 export interface HistoricalEvent {
   startOffset: number; // calculated from 1960
   duration: number; // months
@@ -5,13 +26,33 @@ export interface HistoricalEvent {
   description: string;
   demandMultiplier: number; // 1.0 = normal
   fuelMultiplier: number; // 1.0 = normal
+  choices?: EventChoice[];
 }
+
+/** Stable identity for an event, used to remember which choice was taken. */
+export const eventKey = (ev: Pick<HistoricalEvent, 'title' | 'startOffset'>) =>
+  `${ev.title}@${ev.startOffset}`;
 
 export const historicalEvents: HistoricalEvent[] = [
   {
     startOffset: (1973 - 1960) * 12 + 9, // Oct 1973
     duration: 18,
     title: "1973 Oil Crisis",
+    choices: [
+      {
+        id: "hedge",
+        label: "Hedge fuel for the duration",
+        detail: "Lock your jet fuel price at last month's level until the crisis is over. Your rivals keep paying the market rate. If fuel gets cheaper instead, you still pay the locked price.",
+        cost: 4000000,
+        hedgesFuel: true
+      },
+      {
+        id: "ride",
+        label: "Ride it out",
+        detail: "Pay the market price for fuel, whatever it does. Costs nothing now.",
+        cost: 0
+      }
+    ],
     description: "An oil embargo has caused massive fuel shortages and skyrocketing prices.",
     demandMultiplier: 0.9,
     fuelMultiplier: 2.0,
@@ -20,6 +61,21 @@ export const historicalEvents: HistoricalEvent[] = [
     startOffset: (1979 - 1960) * 12 + 1, // Feb 1979
     duration: 24,
     title: "1979 Energy Crisis",
+    choices: [
+      {
+        id: "hedge",
+        label: "Hedge fuel for the duration",
+        detail: "Lock your jet fuel price at last month's level until the crisis is over. Your rivals keep paying the market rate. If fuel gets cheaper instead, you still pay the locked price.",
+        cost: 6000000,
+        hedgesFuel: true
+      },
+      {
+        id: "ride",
+        label: "Ride it out",
+        detail: "Pay the market price for fuel, whatever it does. Costs nothing now.",
+        cost: 0
+      }
+    ],
     description: "A drop in oil production has triggered a severe energy crisis.",
     demandMultiplier: 0.85,
     fuelMultiplier: 1.8,
@@ -28,6 +84,21 @@ export const historicalEvents: HistoricalEvent[] = [
     startOffset: (1990 - 1960) * 12 + 7, // Aug 1990
     duration: 12,
     title: "Gulf War Oil Shock",
+    choices: [
+      {
+        id: "hedge",
+        label: "Hedge fuel for the duration",
+        detail: "Lock your jet fuel price at last month's level until the crisis is over. Your rivals keep paying the market rate. If fuel gets cheaper instead, you still pay the locked price.",
+        cost: 3000000,
+        hedgesFuel: true
+      },
+      {
+        id: "ride",
+        label: "Ride it out",
+        detail: "Pay the market price for fuel, whatever it does. Costs nothing now.",
+        cost: 0
+      }
+    ],
     description: "Geopolitical tensions have caused a short-term spike in oil prices.",
     demandMultiplier: 0.95,
     fuelMultiplier: 1.5,
