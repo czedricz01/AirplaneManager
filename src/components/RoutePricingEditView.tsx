@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { DollarSign, Save, X, Info, AlertTriangle } from 'lucide-react';
-import { Airport, airportsData } from '../data/airports';
-import { moreAirports } from '../data/more_airports';
+import { Airport } from '../data/airports';
+
 import { OwnedAircraft } from './MyFleetView';
 import { calculateRouteFinancials } from '../lib/financeUtils';
 import { FinancialReport } from './FinancialReport';
 
-const airportsMap = new Map<string, Airport>([...airportsData, ...moreAirports].map(a => [a.id, a as unknown as Airport]));
+import { airportsMapAdjusted as airportsMap } from '../data/airportRegistry';
 
 interface RoutePricingEditViewProps {
   route: any;

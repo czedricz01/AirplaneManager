@@ -34,50 +34,9 @@ import {
 
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
 import L from "leaflet";
-import { airportsData, Airport, calculateDistance } from "./data/airports";
-import { moreAirports } from "./data/more_airports";
-import { LiveTraffic } from "./components/LiveTraffic";
-const airportsMap = new Map<string, Airport>();
-for (const a of airportsData) airportsMap.set(a.id, a as Airport);
-for (const a of moreAirports) {
-  if (!airportsMap.has(a.id)) {
-    airportsMap.set(a.id, a as unknown as Airport);
-  }
-}
-const rawAirports: Airport[] = Array.from(airportsMap.values());
-
-const sovietAirports = new Set(['SVO', 'DME', 'VKO', 'LED', 'OVB', 'KBP', 'MSQ', 'TAS', 'ALA', 'EVN', 'GYD', 'TBS', 'KIV', 'PRG', 'WAW', 'BUD', 'SOF', 'OTP', 'SXF']);
-const westernAirports = new Set(['JFK', 'EWR', 'LGA', 'ORD', 'LAX', 'SFO', 'ATL', 'DFW', 'MIA', 'IAD', 'DCA', 'LHR', 'LGW', 'CDG', 'ORY', 'FRA', 'MUC', 'AMS', 'MAD', 'BCN', 'FCO', 'MXP', 'ZRH']);
-
-const airports: Airport[] = rawAirports.map(a => {
-  const isSoviet = sovietAirports.has(a.id);
-  const isWesternMajor = westernAirports.has(a.id);
-  
-  if (!isSoviet && !isWesternMajor || !a.stats) return a;
-
-  const sourceStats = a.stats;
-  const newStats: Record<string, { tourism: number; business: number }> = { ...sourceStats };
-  for (const yearStr in sourceStats) {
-    const year = parseInt(yearStr);
-    let multiplier = 1.0;
-
-    if (isSoviet) {
-      if (year < 1990) multiplier = 0.45; // Significant dampening of Soviet era
-      else if (year < 2000) multiplier = 0.55; // Post-Soviet transition collapse
-      else multiplier = 0.65; // Modern era adjustment - Russian aviation challenges
-    } else if (isWesternMajor) {
-      if (year < 1975) multiplier = 1.15; // Buff early Western hubs
-    }
-
-    if (multiplier !== 1.0) {
-      newStats[yearStr] = {
-        tourism: Math.max(1, Math.round(sourceStats[yearStr].tourism * multiplier)),
-        business: Math.max(1, Math.round(sourceStats[yearStr].business * multiplier))
-      };
-    }
-  }
-  return { ...a, stats: newStats };
-});
+import { Airport, calculateDistance } from "./data/airports";
+import { rawAirports, airports, airportsMapAdjusted } from "./data/airportRegistry";
+export { airportsMapAdjusted };
 
 const offsetToDateStr = (offset: number) =>
   `${(1 + (offset % 12)).toString().padStart(2, '0')}/${1960 + Math.floor(offset / 12)}`;
@@ -153,6 +112,7 @@ function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: nu
  * until now airframe condition affected nothing but resale value, which made
  * the $200k general check a pure sink.
  */
+
 /**
  * Coarse continent lookup from coordinates, for the "continents served"
  * milestone only. The airport dataset carries no region field, and this is
@@ -259,8 +219,7 @@ export function eventReliefFactor(
   return factor;
 }
 
-export const airportsMapAdjusted = new Map<string, Airport>();
-airports.forEach(a => airportsMapAdjusted.set(a.id, a));
+import { LiveTraffic } from "./components/LiveTraffic";
 
 /**
  * The hub picker's option list. This used to be sorted inline in the start
@@ -306,7 +265,6 @@ function repairRouteDurations(loadedRoutes: any[], loadedFleet: any[]): any[] {
   });
 }
 
-import { jetFuelPrices } from "./data/fuelPrices";
 import { BuyAircraftView } from "./components/BuyAircraftView";
 import { MyFleetView, OwnedAircraft } from "./components/MyFleetView";
 import { RoutesView } from "./components/RoutesView";
@@ -569,7 +527,7 @@ const generateAiAirlines = (count: number, difficultyVal: string, playerHubId: s
     }
 
     const routes: any[] = [];
-    const hubAirport = airportsMap.get(hub);
+    const hubAirport = airportsMapAdjusted.get(hub);
     
     if (hubAirport) {
       const numRoutes = Math.min(fleet.length, 2);
@@ -705,8 +663,8 @@ const simulateAiAirlinesTurn = (
         return;
       }
 
-      const originAir = airportsMap.get(r.origin);
-      const destAir = airportsMap.get(r.destination);
+      const originAir = airportsMapAdjusted.get(r.origin);
+      const destAir = airportsMapAdjusted.get(r.destination);
       const distance = r.distance || (originAir && destAir ? Math.floor(calculateDistance(originAir.coords[0], originAir.coords[1], destAir.coords[0], destAir.coords[1])) : 1500);
       r.distance = distance;
       r.durMin = r.durMin || Math.floor((distance / (assignedPlane.cruiseSpeed || 800)) * 60 + 40);
@@ -838,7 +796,7 @@ const simulateAiAirlinesTurn = (
           currentYearNum,
           currentMonthNum,
           ai.aiDifficulty,
-          airportsMap,
+          airportsMapAdjusted,
           [],
           [aircraftSimObj],
           false,
@@ -1137,8 +1095,8 @@ const simulateAiAirlinesTurn = (
             selectedDest = topHalf[Math.floor(Math.random() * Math.min(5, topHalf.length))];
           }
 
-          const originAir = airportsMap.get(ai.hub);
-          const destAir = airportsMap.get(selectedDest.id);
+          const originAir = airportsMapAdjusted.get(ai.hub);
+          const destAir = airportsMapAdjusted.get(selectedDest.id);
 
           if (originAir && destAir) {
             const distance = Math.floor(calculateDistance(originAir.coords[0], originAir.coords[1], destAir.coords[0], destAir.coords[1]));

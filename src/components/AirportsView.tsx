@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Airport, airportsData, getAirportStats } from '../data/airports';
-import { moreAirports } from '../data/more_airports';
-
-const airportsMap = new Map<string, Airport>();
-for (const a of airportsData) airportsMap.set(a.id, a as Airport);
-for (const a of moreAirports) airportsMap.set(a.id, a as unknown as Airport);
-const airports: Airport[] = Array.from(airportsMap.values());
+import { Airport, getAirportStats } from '../data/airports';
+// One shared list. This module used to build its own, letting moreAirports
+// overwrite core entries, so the eight duplicate ids showed a different level
+// and demand here than in the planner -- and it skipped the era adjustment
+// entirely, so the demand column disagreed with what routes actually earned.
+import { airports } from '../data/airportRegistry';
 
 import { Search, ChevronDown, ChevronUp } from 'lucide-react';
 
