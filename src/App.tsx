@@ -3194,8 +3194,8 @@ export default function App() {
                       </button>
                       {isMapSettingsOpen && (
                         <div className="absolute top-12 right-0 mt-2 w-64 bg-[#141414] border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-[#F2CB05] cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-[#F2CB05] w-4 h-4 cursor-pointer" />
+                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow cursor-pointer hover:bg-white/5 p-2 transition-colors">
+                            <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-aero-yellow w-4 h-4 cursor-pointer" />
                             Your Routes
                           </label>
                           <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow/60 cursor-pointer hover:bg-white/5 p-2 transition-colors">

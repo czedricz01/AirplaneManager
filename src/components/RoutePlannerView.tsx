@@ -2103,7 +2103,7 @@ export function RoutePlannerView({
               <div className="p-4 space-y-8">
                 {/* Slot Status */}
                 <div className="bg-white/5 border border-white/10 p-4 space-y-2 mb-2 rounded-sm border-t-2 border-t-aero-yellow">
-                   <div className="text-2xs uppercase font-black tracking-widest text-[#F2CB05] mb-2 flex justify-between">
+                   <div className="text-2xs uppercase font-black tracking-widest text-aero-yellow mb-2 flex justify-between">
                      <span>Required Slots</span>
                      <span>({selectedAircraft.class})</span>
                    </div>

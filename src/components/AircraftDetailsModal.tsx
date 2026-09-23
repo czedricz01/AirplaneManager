@@ -73,13 +73,13 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
             {/* Summary */}
             <div className="flex gap-4">
                <div className="flex-1 flex flex-col gap-1">
-                 <div className="text-[10px] uppercase font-mono tracking-widest text-white/40 mb-1">Aircraft Model</div>
+                 <div className="text-2xs uppercase font-mono tracking-widest text-white/40 mb-1">Aircraft Model</div>
                  <div className="text-lg font-bold">{plane.manufacturer} {plane.type}</div>
                  <div className="text-xs uppercase tracking-widest text-white/50">{plane.class}</div>
                </div>
                
                <div className="flex flex-col items-end gap-1 font-mono text-xs">
-                 <div className="text-[10px] uppercase font-sans tracking-widest text-white/40 mb-1">Status</div>
+                 <div className="text-2xs uppercase font-sans tracking-widest text-white/40 mb-1">Status</div>
                  {aircraftRoutes && aircraftRoutes.length > 0 ? (
                    <div className="text-white/80 border border-white/10 bg-white/5 px-2 py-0.5 rounded-sm uppercase tracking-wider">
                      Assigned ({aircraftRoutes.length} route{aircraftRoutes.length > 1 ? 's' : ''})
