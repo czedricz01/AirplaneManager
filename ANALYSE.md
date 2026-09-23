@@ -483,7 +483,23 @@ Nur was ohne Umbau geht; das Große steht in Teil D.
 
 Ausgearbeitet, aber nicht Teil von Paket 1. Reihenfolge nach Wirkung pro Aufwand.
 
-## C1 — Konkurrenz um Passagiere
+## C1 — Konkurrenz um Passagiere *(umgesetzt)*
+
+> **Nachgemessener Vorbehalt.** Die Mechanik greift nur, wenn die Nachfrage
+> überhaupt die bindende Grenze ist. Über zufällige Flughafenpaare (200–5.000 km,
+> Angebot 150 Sitze × 14 Legs) gemessen ist das **1960 bei 34 %** der Paare der
+> Fall, **1990 bei 5 %**, **2020 bei 0 %**. Grund: die Flughafenstatistiken
+> wachsen über 66 Jahre exponentiell (≈5 / 3 / 1,5 % pro Jahr, siehe A3.4),
+> die Sitzplatzkapazität der Flugzeuge aber nicht annähernd so stark. Ab den
+> 1990ern ist praktisch jede Route angebotsbegrenzt — das Flugzeug fliegt voll,
+> egal wer sonst noch fliegt. Damit verliert nicht nur der Wettbewerb an
+> Wirkung, sondern auch Preis und Zufriedenheit als Hebel auf die
+> *Passagierzahl*; sie wirken dann nur noch auf den Erlös je Sitz. Das erklärt
+> einen Teil davon, warum sich das späte Spiel flach anfühlt. Eine Korrektur
+> (Dämpfung des Nachfragewachstums oder Skalierung an der verfügbaren
+> Flottenkapazität) ist eine eigene Balancing-Entscheidung und nicht Teil dieser
+> Umsetzung.
+
 
 **Das Problem:** `calculateDemand` kennt keinen Wettbewerb. Zwei identische
 Routen auf derselben Städteverbindung bekommen jede die volle Nachfrage. Die

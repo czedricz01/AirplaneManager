@@ -222,8 +222,8 @@ export function RoutePricingEditView({
             <div className="p-4 bg-white/5 border border-white/10 rounded-sm flex gap-4">
               <Info className="text-white/80 shrink-0 mt-1" size={18} />
               <div className="text-[10px] text-white/80/80 leading-relaxed font-bold uppercase tracking-tight space-y-2">
-                <p><strong>Flugumsatz:</strong> Ticket revenue from the estimated passengers, which depends on the load factor.</p>
-                <p><strong>Direkte Flugausgaben:</strong> Fuel, crew, catering and landing fees. These scale with the flights actually operated.</p>
+                <p><strong>Ticket revenue:</strong> Ticket revenue from the estimated passengers, which depends on the load factor.</p>
+                <p><strong>Direct flight costs:</strong> Fuel, crew, catering and landing fees. These scale with the flights actually operated.</p>
               </div>
             </div>
             
@@ -235,13 +235,13 @@ export function RoutePricingEditView({
                  expenses={[
                    {
                      id: 'opx',
-                     label: 'Direkte Flugausgaben',
+                     label: 'Direct flight costs',
                      total: weeklyFuelCost + weeklyCateringCost + weeklyStaffCost + weeklyInfraCost,
                      items: [
-                       { label: `Sprit (${fuelPricePerL.toFixed(2)}/L)`, amount: weeklyFuelCost },
+                       { label: `Fuel (${fuelPricePerL.toFixed(2)}/L)`, amount: weeklyFuelCost },
                        { label: 'Catering & Cabin', amount: weeklyCateringCost },
                        { label: 'Crew Costs', amount: weeklyStaffCost },
-                       { label: 'Landegebühren & Pax Fees', amount: weeklyInfraCost }
+                       { label: 'Landing & pax fees', amount: weeklyInfraCost }
                      ]
                    }
                  ]}

@@ -11,7 +11,9 @@ import {
   getCateringOpt,
   getMultiOptionSum,
   calculateClassSatisfaction,
-  calculateRouteFinancials
+  calculateRouteFinancials,
+  RouteOffer,
+  marketKey,
 } from '../lib/financeUtils';
 
 const airports = Array.from(new Map([...airportsData, ...moreAirports].map(a => [a.id, a as unknown as Airport])).values());
@@ -27,6 +29,7 @@ interface RouteDetailViewProps {
   fleet?: OwnedAircraft[];
   fuelPrice?: number;
   demandFactor?: number;
+  rivalOffers?: RouteOffer[];
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -43,7 +46,7 @@ const formatNumber = (num: number) => Math.round(num).toLocaleString();
 
 export function RouteDetailView({ 
   route, routes, fleet, fuelPrice = 1.05, airportManagement, 
-  currentYear, currentMonth, difficulty, demandFactor = 1,
+  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = [],
   onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onUpdatePricing 
 }: RouteDetailViewProps) {
   const flightNo = route.schedule?.[0]?.flightNumOut ? 'NE' + route.schedule[0].flightNumOut : route.airline;
@@ -59,6 +62,22 @@ export function RouteDetailView({
     return map;
   }, []);
 
+  /**
+   * Who else flies this city pair. Without this the player would watch revenue
+   * fall on a route they had not touched, with nothing on screen to explain it.
+   */
+  const competitors = useMemo(() => {
+    const key = marketKey(route.origin, route.destination);
+    const fromRivals = rivalOffers
+      .filter(o => marketKey(o.origin, o.destination) === key && o.departures > 0)
+      .map(o => ({ name: o.airline || 'Rival airline', departures: o.departures }));
+    const fromOwn = (routes || [])
+      .filter(r => r.id !== route.id && marketKey(r.origin, r.destination) === key)
+      .map(r => ({ name: `Your own ${r.origin}-${r.destination}`, departures: r.schedule?.length || 0 }))
+      .filter(r => r.departures > 0);
+    return [...fromRivals, ...fromOwn];
+  }, [rivalOffers, routes, route.id, route.origin, route.destination]);
+
   const financials = useMemo(() => {
     if (!assignedAircraft) return null;
     return calculateRouteFinancials(
@@ -73,7 +92,8 @@ export function RouteDetailView({
       routes,
       fleet,
       false,
-      demandFactor
+      demandFactor,
+      rivalOffers
     );
   }, [route, assignedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet]);
 
@@ -179,6 +199,33 @@ export function RouteDetailView({
                 <span className="text-white font-mono text-xl">{Math.round(route.distance || 0)} <span className="text-xs text-white/40">KM</span></span>
               </div>
             </div>
+
+            {competitors.length > 0 && (
+              <div className="bg-aero-warn/5 p-3 border border-aero-warn/30 rounded-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-aero-warn text-[9px] uppercase tracking-widest font-black">
+                    Competing on this route
+                  </span>
+                  <span className="text-[9px] font-mono text-white/40">
+                    passengers are shared
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-1">
+                  {competitors.map((c, i) => (
+                    <span key={i} className="text-[10px] font-mono text-white/70">
+                      {c.name} <span className="text-white/40">{c.departures}x / week</span>
+                    </span>
+                  ))}
+                  <span className="text-[10px] font-mono text-white/40">
+                    you {route.schedule?.length || 0}x / week
+                  </span>
+                </div>
+                <p className="text-[9px] font-mono text-white/35 mt-2 leading-relaxed">
+                  Your share of this market grows with frequency, a lower fare and higher
+                  satisfaction. Fare matters most.
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-4 items-center bg-white/5 p-4 border border-white/10 rounded-sm">
               <div className="flex flex-col">
@@ -420,8 +467,8 @@ export function RouteDetailView({
                    <div className="p-3 mb-4 bg-white/5 border border-white/10 rounded-sm flex gap-3">
                      <Info className="text-white/80 shrink-0 mt-0.5" size={14} />
                      <div className="text-[9px] text-white/80/80 leading-relaxed font-bold uppercase tracking-tight space-y-1">
-                       <p><strong>Flugumsatz:</strong> Ticket revenue for this route, at the estimated load factor.</p>
-                       <p><strong>Direkte Flugausgaben:</strong> Variable costs that scale with each flight: fuel, crew, landing fees and catering.</p>
+                       <p><strong>Ticket revenue:</strong> Ticket revenue for this route, at the estimated load factor.</p>
+                       <p><strong>Direct flight costs:</strong> Variable costs that scale with each flight: fuel, crew, landing fees and catering.</p>
                      </div>
                    </div>
                    <FinancialReport
@@ -431,13 +478,13 @@ export function RouteDetailView({
                      expenses={[
                        {
                          id: 'opx',
-                         label: 'Direkte Flugausgaben',
+                         label: 'Direct flight costs',
                          total: financials.estWeeklyCosts,
                          items: [
-                           { label: `Sprit (${formatNumber(financials.costsBreakdown.fuelLiters)}L @ ${financials.costsBreakdown.fuelPriceL})`, amount: financials.costsBreakdown.fuel },
+                           { label: `Fuel (${formatNumber(financials.costsBreakdown.fuelLiters)}L @ ${financials.costsBreakdown.fuelPriceL})`, amount: financials.costsBreakdown.fuel },
                            { label: 'Crew & Ground Staff', amount: financials.costsBreakdown.crew },
                            { label: 'Catering & Cabin', amount: financials.costsBreakdown.catering },
-                           { label: 'Landegebühren & Pax Fees', amount: financials.costsBreakdown.infra }
+                           { label: 'Landing & pax fees', amount: financials.costsBreakdown.infra }
                          ]
                        }
                      ]}

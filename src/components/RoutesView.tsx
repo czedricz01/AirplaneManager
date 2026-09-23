@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
+import type { RouteOffer } from '../lib/financeUtils';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
 import { OwnedAircraft } from './MyFleetView';
@@ -55,6 +56,7 @@ interface Props {
   fuelPrice?: number;
   /** Reputation effect on demand, so the list matches the monthly report. */
   demandFactor?: number;
+  rivalOffers?: RouteOffer[];
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -76,7 +78,7 @@ export function RoutesView({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onUpdatePricing, fuelPrice, airportManagement,
-  currentYear, currentMonth, difficulty, demandFactor = 1
+  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = []
 }: Props) {
   const [search, setSearch] = useState("");
   const [airportFilter, setAirportFilter] = useState(initialAirportFilter);
@@ -292,6 +294,7 @@ export function RoutesView({
              fleet={fleet}
             fuelPrice={fuelPrice}
             demandFactor={demandFactor}
+            rivalOffers={rivalOffers}
             airportManagement={airportManagement}
             currentYear={currentYear}
             currentMonth={currentMonth}

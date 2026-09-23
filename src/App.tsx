@@ -287,7 +287,7 @@ import { RoutePlannerView } from "./components/RoutePlannerView";
 import { AirportsView } from "./components/AirportsView";
 import { AirportDetailView } from "./components/AirportDetailView";
 import RouteScheduleEditView from "./components/RouteScheduleEditView";
-import { calculateRouteFinancials, getAirportUpkeep, getFlightTimeClass, calculateBasePrices, getFlightDurationMinutes, getJetFuelPrice, getAircraftResaleValue } from "./lib/financeUtils";
+import { calculateRouteFinancials, getAirportUpkeep, getFlightTimeClass, calculateBasePrices, getFlightDurationMinutes, getJetFuelPrice, getAircraftResaleValue, RouteOffer } from "./lib/financeUtils";
 import { ConfigurePurchaseView, ConfigOutput } from "./components/ConfigurePurchaseView";
 import { MyCompanyView } from "./components/MyCompanyView";
 import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
@@ -546,7 +546,10 @@ const generateAiAirlines = (count: number, difficultyVal: string, playerHubId: s
     
     if (hubAirport) {
       const numRoutes = Math.min(fleet.length, 2);
-      const sortedDests = rawAirports.filter(a => a.id !== hub && a.id !== playerHubId);
+      // The player's hub used to be excluded here, which made it a sanctuary:
+      // the one airport where competition would bite hardest was the one place
+      // rivals never flew. With demand now shared, that exemption has to go.
+      const sortedDests = rawAirports.filter(a => a.id !== hub);
       
       let destIdx = 0;
       for (let rIndex = 0; rIndex < numRoutes; rIndex++) {
@@ -613,7 +616,9 @@ const simulateAiAirlinesTurn = (
   currentAiAirlines: AiAirline[],
   allAirports: Airport[],
   currentDateOffset: number,
-  playerHubId: string
+  playerHubId: string,
+  /** The player's routes, so rivals face the same competition the player does. */
+  playerRoutes: { origin: string; destination: string; schedule?: any[] }[] = []
 ): { updatedAis: AiAirline[], newMessages: GameMessage[] } => {
   const newMessages: GameMessage[] = [];
   const monthStr = (1 + (currentDateOffset % 12)).toString().padStart(2, '0');
@@ -627,6 +632,14 @@ const simulateAiAirlinesTurn = (
   const getFuelPriceForAi = (offset: number, diff: 'Easy' | 'Normal' | 'Hard') =>
     getJetFuelPrice(1960 + Math.floor(offset / 12), 1 + (offset % 12), diff);
 
+  // Everyone flying, as offers: the player plus every AI. An airline's own
+  // entries are filtered out per airline below.
+  const playerOffers: RouteOffer[] = playerRoutes.map(r => ({
+    origin: r.origin,
+    destination: r.destination,
+    departures: r.schedule?.length || 0
+  }));
+
   const currentYearNum = 1960 + Math.floor(currentDateOffset / 12);
   const currentMonthNum = 1 + (currentDateOffset % 12);
 
@@ -638,6 +651,19 @@ const simulateAiAirlinesTurn = (
     // objects, and mutating the ones held in React state would be a state mutation.
     const newRoutes = ai.routes.map(r => ({ ...r }));
     const currentFuelPrice = getFuelPriceForAi(currentDateOffset, ai.aiDifficulty);
+
+    // Everyone else on the market from this airline's point of view: the player
+    // plus the other AI carriers, never itself.
+    const aiRivalOffers: RouteOffer[] = [
+      ...playerOffers,
+      ...currentAiAirlines
+        .filter(other => other.id !== ai.id)
+        .flatMap(other => (other.routes || []).map(r => ({
+          origin: r.origin,
+          destination: r.destination,
+          departures: r.departures || 0
+        })))
+    ];
 
     // Dynamic Safe fallback if save file was old
     const personality = ai.personality || personalitiesList[idxOfAiZone % personalitiesList.length] || 'optimizer';
@@ -787,7 +813,10 @@ const simulateAiAirlinesTurn = (
           ai.aiDifficulty,
           airportsMap,
           [],
-          [aircraftSimObj]
+          [aircraftSimObj],
+          false,
+          1,
+          aiRivalOffers
         );
 
         const computedMonthlyValue = Math.floor(finObj.estWeeklyProfit * 4);
@@ -1062,7 +1091,6 @@ const simulateAiAirlinesTurn = (
         const existingDestinations = newRoutes.map(rt => rt.destination);
         const availableDests = allAirports.filter(a => 
           a.id !== ai.hub &&
-          a.id !== playerHubId &&
           !existingDestinations.includes(a.id)
         );
 
@@ -1508,6 +1536,23 @@ export default function App() {
    * interface ever showed it, so a player in a crisis could see the demand
    * figure had dropped but not what was causing it or when it would lift.
    */
+  /**
+   * Every rival departure, as offers the finance engine can split demand by.
+   * Rebuilt only when the AI airlines change, not per route.
+   */
+  const rivalOffers = useMemo(
+    () =>
+      (aiAirlines || []).flatMap((ai: any) =>
+        (ai.routes || []).map((r: any) => ({
+          origin: r.origin,
+          destination: r.destination,
+          departures: r.departures || 0,
+          airline: ai.name
+        }))
+      ),
+    [aiAirlines]
+  );
+
   const activeWorldEvents = useMemo(() => {
     return getActiveEvents(currentDateOffset).map(ev => {
       const chosenId = eventChoices[eventKey(ev)];
@@ -1922,7 +1967,8 @@ export default function App() {
       if (ac) {
         const fin = calculateRouteFinancials(
           r, ac, currentFuelPrice, airportManagement, currentYearNum, currentMonthNum,
-          difficulty, localAirportsMap, routes, fleet, false, reputationDemandFactor(reputation)
+          difficulty, localAirportsMap, routes, fleet, false,
+          reputationDemandFactor(reputation), rivalOffers
         );
         const mRev = (fin.estWeeklyRev || 0) * 4;
         const mCost = (fin.estWeeklyCosts || 0) * 4;
@@ -2104,7 +2150,8 @@ export default function App() {
         aiAirlines,
         airports,
         currentDateOffset,
-        selectedHub
+        selectedHub,
+        routes
       );
       setAiAirlines(updatedAis);
       aiMessages = newMessages;
@@ -3579,6 +3626,7 @@ export default function App() {
                           }}
                           fuelPrice={fuelData.price}
                         demandFactor={reputationDemandFactor(reputation)}
+                        rivalOffers={rivalOffers}
                           airportManagement={airportManagement}
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           currentMonth={1 + (currentDateOffset % 12)}
@@ -3670,6 +3718,7 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         demandFactor={reputationDemandFactor(reputation)}
+                        rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
                         onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
@@ -3698,6 +3747,7 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         demandFactor={reputationDemandFactor(reputation)}
+                        rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
                         initialOriginId={planningOriginId || undefined}
