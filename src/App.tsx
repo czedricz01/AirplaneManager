@@ -285,6 +285,9 @@ import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, Historica
 import { generateUniqueRegistration } from "./utils/registration";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
+import { ViewFrame } from "./components/ui/ViewFrame";
+import { Modal } from "./components/ui/Modal";
+import { StatTile } from "./components/ui/StatTile";
 import {
   SaveMetadata,
   listSaves,
@@ -2558,80 +2561,76 @@ export default function App() {
           {/* World event decision. The first point in the game where a crisis
               asks the player something instead of simply happening to them. */}
           {pendingDecision && (
-            <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-              <div className="bg-[#141414] border border-aero-warn/40 p-5 max-w-lg w-full shadow-2xl">
-                <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
-                  <AlertTriangle size={22} /> {pendingDecision.title}
-                </h3>
-                <p className="text-[11px] font-mono text-white/50 mb-4 leading-relaxed">
-                  {pendingDecision.description} Running for {pendingDecision.duration} months.
-                </p>
+            <Modal open size="lg" accent="warn" layer="critical">
+              <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+                <AlertTriangle size={22} /> {pendingDecision.title}
+              </h3>
+              <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
+                {pendingDecision.description} Running for {pendingDecision.duration} months.
+              </p>
 
-                <div className="space-y-2">
-                  {pendingDecision.choices?.map((choice: EventChoice) => {
-                    const affordable = capital >= choice.cost;
-                    return (
-                      <button
-                        key={choice.id}
-                        type="button"
-                        disabled={!affordable}
-                        onClick={() => {
-                          if (choice.cost > 0) spend(choice.cost, `Crisis response: ${pendingDecision.title}`);
-                          setEventChoices(prev => ({ ...prev, [eventKey(pendingDecision)]: choice.id }));
-                          setPendingDecision(null);
-                        }}
-                        className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed"
-                      >
-                        <div className="flex items-baseline justify-between gap-3 mb-1">
-                          <span className="font-black uppercase tracking-widest text-[11px] text-white">{choice.label}</span>
-                          <span className={`font-mono text-[11px] font-bold shrink-0 ${choice.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
-                            {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] font-mono text-white/50 leading-relaxed">{choice.detail}</p>
-                        {!affordable && (
-                          <p className="text-[10px] font-mono text-aero-warn mt-1">
-                            {formatCurrency(choice.cost - capital)} short.
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex justify-end mt-4">
-                  <button
-                    onClick={() => setPendingDecision(null)}
-                    className="px-3 py-2 text-white/40 hover:text-white text-[10px] font-mono uppercase tracking-widest transition-colors bg-transparent border-0"
-                  >
-                    Decide later (does nothing)
-                  </button>
-                </div>
+              <div className="space-y-2">
+                {pendingDecision.choices?.map((choice: EventChoice) => {
+                  const affordable = capital >= choice.cost;
+                  return (
+                    <button
+                      key={choice.id}
+                      type="button"
+                      disabled={!affordable}
+                      onClick={() => {
+                        if (choice.cost > 0) spend(choice.cost, `Crisis response: ${pendingDecision.title}`);
+                        setEventChoices(prev => ({ ...prev, [eventKey(pendingDecision)]: choice.id }));
+                        setPendingDecision(null);
+                      }}
+                      className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
+                    >
+                      <div className="flex items-baseline justify-between gap-3 mb-1">
+                        <span className="font-black uppercase tracking-widest text-2xs text-white">{choice.label}</span>
+                        <span className={`font-mono text-2xs font-bold shrink-0 ${choice.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
+                          {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
+                        </span>
+                      </div>
+                      <p className="text-2xs font-mono text-white/50 leading-relaxed">{choice.detail}</p>
+                      {!affordable && (
+                        <p className="text-2xs font-mono text-aero-warn mt-1">
+                          {formatCurrency(choice.cost - capital)} short.
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={() => setPendingDecision(null)}
+                  className="px-3 py-2 text-white/40 hover:text-white text-2xs font-mono uppercase tracking-widest transition-colors bg-transparent border-0"
+                >
+                  Decide later (does nothing)
+                </button>
+              </div>
+            </Modal>
           )}
           {appAlert && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-              <div className="bg-[#1a1a1a] border border-white/10 p-4 max-w-md w-full shadow-2xl">
-                <h3 className="text-aero-yellow font-black uppercase tracking-widest text-lg mb-4 flex items-center gap-2">
-                  <AlertTriangle size={24} /> System Alert
-                </h3>
-                <p className="text-white/80 mb-3">{appAlert}</p>
-                <div className="flex justify-end">
-                  <button 
-                    onClick={() => setAppAlert(null)}
-                    className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors"
-                  >
-                    OK
-                  </button>
-                </div>
+            <Modal open size="md" onClose={() => setAppAlert(null)}>
+              <h3 className="text-aero-yellow font-black uppercase tracking-widest text-lg mb-4 flex items-center gap-2">
+                <AlertTriangle size={24} /> System Alert
+              </h3>
+              <p className="text-white/80 mb-3">{appAlert}</p>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setAppAlert(null)}
+                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
+                >
+                  OK
+                </button>
               </div>
-            </div>
+            </Modal>
           )}
           <div className="flex-1 relative flex overflow-hidden">
             {/* Sidebar for Game View */}
         {view === 'game' && (
-          <div className="w-14 lg:w-16 bg-[#141414] border-r border-white/10 flex flex-col items-center pb-4 shrink-0 z-50 h-full overflow-y-auto no-scrollbar">
+          <div className="w-14 lg:w-16 bg-aero-panel border-r border-white/10 flex flex-col items-center pb-4 shrink-0 z-50 h-full overflow-y-auto no-scrollbar">
             {/* Spacer corresponding to the h-14 height of the Game Stats Bar */}
             <div className="h-14 shrink-0 w-full" />
             <div className="flex flex-col w-full">
@@ -2677,7 +2676,7 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center p-4 bg-[#121212] relative"
+                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center p-4 bg-aero-black relative"
               >
                 <div className="absolute top-4 right-8 z-50 flex items-center gap-4">
                   <div className="text-white/40 font-mono text-xs tracking-widest flex items-center gap-2">
@@ -2685,7 +2684,7 @@ export default function App() {
                     {user || 'UNKNOWN_USER'}
                   </div>
                   <div className="h-4 w-px bg-white/10"></div>
-                  <span className="text-white/25 font-mono text-[10px] uppercase tracking-widest">{cloudStatusLabel}</span>
+                  <span className="text-white/25 font-mono text-2xs uppercase tracking-widest">{cloudStatusLabel}</span>
                   <div className="h-4 w-px bg-white/10"></div>
                   <button 
                     onClick={handleDisconnect}
@@ -2701,22 +2700,22 @@ export default function App() {
                   <circle cx="700" cy="80" r="3" fill="#FACC15" />
                 </svg>
 
-                <div className="w-full max-w-xl z-10 flex flex-col gap-12">
+                <div className="w-full max-w-2xl z-10 flex flex-col gap-12 border border-white/5 bg-aero-panel/30 rounded-sm p-8 lg:p-14">
                   <div className="space-y-4">
                     <Bird className="text-aero-yellow" size={64} strokeWidth={2.5} />
                     <h1 className="text-8xl font-black italic tracking-tighter leading-none">
                       <span className="text-aero-yellow">AM</span><br/>
                       <span className="text-white">NEO</span>
                     </h1>
-                    <p className="text-[10px] tracking-[0.4em] font-light text-white/40 pl-2">COMMAND INTERFACE v4.2</p>
+                    <p className="text-2xs tracking-[0.4em] font-light text-white/40 pl-2">COMMAND INTERFACE v4.2</p>
                   </div>
 
                   {legacySaveCount > 0 && (
-                    <div className="bg-aero-yellow/5 border border-aero-yellow/30 p-4 flex flex-col gap-3">
-                      <div className="text-[11px] font-mono uppercase tracking-widest text-aero-yellow font-bold">
+                    <div className="bg-aero-yellow/5 border border-aero-yellow/30 rounded-sm p-4 flex flex-col gap-3">
+                      <div className="text-2xs font-mono uppercase tracking-widest text-aero-yellow font-bold">
                         {legacySaveCount} savegame{legacySaveCount === 1 ? '' : 's'} found from before accounts existed
                       </div>
-                      <p className="text-[10px] font-mono text-white/40 leading-relaxed">
+                      <p className="text-2xs font-mono text-white/40 leading-relaxed">
                         They are still stored in this browser. Import them into your account to
                         reach them from any device. The originals are left untouched.
                       </p>
@@ -2724,13 +2723,13 @@ export default function App() {
                         <button
                           onClick={handleImportLegacySaves}
                           disabled={isImportingLegacy}
-                          className="px-4 py-2 bg-aero-yellow text-black font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors disabled:opacity-50"
+                          className="px-4 py-2 bg-aero-yellow text-black font-black uppercase tracking-widest text-2xs hover:bg-white transition-colors disabled:opacity-50 rounded-sm"
                         >
                           {isImportingLegacy ? 'Importing...' : 'Import into my account'}
                         </button>
                         <button
                           onClick={() => setLegacySaveCount(0)}
-                          className="px-4 py-2 border border-white/20 text-white/50 font-black uppercase tracking-widest text-[10px] hover:text-white transition-colors"
+                          className="px-4 py-2 border border-white/20 text-white/50 font-black uppercase tracking-widest text-2xs hover:text-white transition-colors rounded-sm"
                         >
                           Not now
                         </button>
@@ -2739,9 +2738,9 @@ export default function App() {
                   )}
 
                   <div className="flex flex-col gap-3">
-                    <ThemeMenuButton 
-                      index="01" 
-                      label="Resume Game" 
+                    <ThemeMenuButton
+                      index="01"
+                      label="Resume Game"
                       onClick={() => {
                         if (saves.length > 0) {
                           const latest = [...saves].sort((a, b) => b.timestamp - a.timestamp)[0];
@@ -2749,37 +2748,25 @@ export default function App() {
                         } else {
                           setAppAlert("No telemetry archives discovered to resume from.");
                         }
-                      }} 
+                      }}
                     />
-                    <ThemeMenuButton 
-                      index="02" 
-                      label="Load Game" 
-                      onClick={() => setShowLoadMenu(true)} 
+                    <ThemeMenuButton
+                      index="02"
+                      label="Load Game"
+                      onClick={() => setShowLoadMenu(true)}
                     />
-                    <ThemeMenuButton 
-                      index="03" 
-                      label="Start Game" 
-                      onClick={() => setView('start-menu')} 
-                      primary 
+                    <ThemeMenuButton
+                      index="03"
+                      label="Start Game"
+                      onClick={() => setView('start-menu')}
+                      primary
                     />
-                    <ThemeMenuButton 
-                      index="04" 
-                      label="Settings" 
-                      onClick={() => setIsSettingsOpen(true)} 
+                    <ThemeMenuButton
+                      index="04"
+                      label="Settings"
+                      onClick={() => setIsSettingsOpen(true)}
                     />
 
-                  </div>
-                </div>
-
-                {/* Radar HUD Element */}
-                <div className="absolute bottom-10 right-10 w-48 h-48 border border-white/5 rounded-full hidden xl:flex items-center justify-center">
-                  <div className="w-40 h-40 border border-aero-yellow/10 rounded-full flex items-center justify-center relative">
-                    <div className="text-[10px] font-mono text-aero-yellow/40 animate-pulse">MONITORING...</div>
-                    <motion.div 
-                      className="absolute inset-0 border-t border-aero-yellow/30 rounded-full"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                    />
                   </div>
                 </div>
               </motion.div>
@@ -3136,7 +3123,7 @@ export default function App() {
                 className="flex-1 flex flex-col bg-aero-black relative"
               >
                 {/* Game Stats Bar */}
-                <div className="h-14 bg-[var(--aero-carbon)] border-b border-white/5 flex items-center justify-between px-4 shrink-0 relative z-50">
+                <div className="h-14 bg-aero-carbon border-b border-white/5 flex items-center justify-between px-4 shrink-0 relative z-50">
                   <div className="flex gap-5 items-center">
                     <GameStat label="Capital" value={formatCurrency(capital)} />
                     <GameStat label="Fleet" value={fleet.length.toString()} />
@@ -3158,12 +3145,12 @@ export default function App() {
                              setMessages(messages.map(m => ({ ...m, isRead: true })));
                            }
                          }}
-                         className={`flex items-center gap-2 px-3 py-1 border text-[10px] uppercase font-bold tracking-widest transition-all ${unreadMessagesCount > 0 ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white hover:bg-white/10 border-white/10'}`}
+                         className={`flex items-center gap-2 px-3 py-1 border text-2xs uppercase font-bold tracking-widest transition-all rounded-sm ${unreadMessagesCount > 0 ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white hover:bg-white/10 border-white/10'}`}
                        >
                          <Bell size={12} />
                          <span className="hidden sm:inline">Messages</span>
                          {unreadMessagesCount > 0 && (
-                           <span className="ml-1 bg-black text-aero-yellow px-1.5 py-0.5 text-[8px] rounded-sm">{unreadMessagesCount}</span>
+                           <span className="ml-1 bg-black text-aero-yellow px-1.5 py-0.5 text-4xs rounded-sm">{unreadMessagesCount}</span>
                          )}
                        </button>
                        
@@ -3205,8 +3192,8 @@ export default function App() {
                       </button>
                       {isMapSettingsOpen && (
                         <div className="absolute top-12 right-0 mt-2 w-64 bg-[#141414] border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-[#F2CB05] cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-[#F2CB05] w-4 h-4 cursor-pointer" />
+                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow cursor-pointer hover:bg-white/5 p-2 transition-colors">
+                            <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-aero-yellow w-4 h-4 cursor-pointer" />
                             Your Routes
                           </label>
                           <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow/60 cursor-pointer hover:bg-white/5 p-2 transition-colors">
@@ -3303,33 +3290,30 @@ export default function App() {
                   
                   {/* Active Window Views Overlay */}
                   {activeWindow === 'buy-aircraft' ? (
-                    <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
-                      <div className="relative z-10 w-full h-full">
+                    <ViewFrame>
                         <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} />
                         {selectedPurchasingAircraft && (
-                          <ConfigurePurchaseView 
-                            aircraft={selectedPurchasingAircraft} 
-                            capital={capital} 
+                          <ConfigurePurchaseView
+                            aircraft={selectedPurchasingAircraft}
+                            capital={capital}
                             currentDateOffset={currentDateOffset}
                             initialPlane={'registration' in selectedPurchasingAircraft ? selectedPurchasingAircraft : null}
                             fleet={fleet}
-                            onCancel={() => setSelectedPurchasingAircraft(null)} 
-                            onConfirmPurchase={handlePurchase} 
+                            onCancel={() => setSelectedPurchasingAircraft(null)}
+                            onConfirmPurchase={handlePurchase}
                           />
                         )}
-                      </div>
-                    </div>
+                    </ViewFrame>
                   ) : activeWindow === 'my-fleet' ? (
-                    <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
-                      <div className="relative z-10 w-full h-full">
-                        <MyFleetView 
-                           fleet={fleet} 
+                    <ViewFrame>
+                        <MyFleetView
+                           fleet={fleet}
                            routes={routes}
                            currentDateOffset={currentDateOffset}
                            onRenovate={(plane) => {
                              setSelectedPurchasingAircraft(plane);
                              setActiveWindow('buy-aircraft');
-                           }} 
+                           }}
                            onSelectRoute={(route) => {
                              setExternalSelectedRoute(route);
                              setActiveWindow('routes');
@@ -3342,11 +3326,9 @@ export default function App() {
                            }}
                            onSell={handleSellAircraft}
                         />
-                      </div>
-                    </div>
+                    </ViewFrame>
                   ) : activeWindow === 'routes' ? (
-                    <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
-                      <div className="relative z-10 w-full h-full">
+                    <ViewFrame>
                         <RoutesView
                           routes={routes}
                           fleet={fleet}
@@ -3386,22 +3368,18 @@ export default function App() {
                           currentMonth={1 + (currentDateOffset % 12)}
                           difficulty={difficulty}
                         />
-                      </div>
-                    </div>
+                    </ViewFrame>
                   ) : activeWindow === 'airports' ? (
-                    <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
-                      <div className="relative z-10 w-full h-full">
-                        <AirportsView 
-                          currentYear={1960 + Math.floor(currentDateOffset / 12)} 
+                    <ViewFrame>
+                        <AirportsView
+                          currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           onSelectAirport={(airport) => setSelectedAirport(airport)}
                           airportManagement={airportManagement}
                           aiAirlines={aiAirlines}
                         />
-                      </div>
-                    </div>
+                    </ViewFrame>
                   ) : activeWindow === 'my-company' ? (
-                    <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
-                      <div className="relative z-10 w-full h-full">
+                    <ViewFrame>
                         <MyCompanyView
                           capital={capital}
                           reportHistory={reportHistory}
@@ -3413,11 +3391,9 @@ export default function App() {
                           fleetCount={fleet.length}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
                         />
-                      </div>
-                    </div>
+                    </ViewFrame>
                   ) : activeWindow === 'competitors' ? (
-                    <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex">
-                      <div className="relative z-10 w-full h-full">
+                    <ViewFrame>
                         <CompetitorsView
                           aiAirlines={aiAirlines}
                           playerCapital={capital}
@@ -3430,17 +3406,16 @@ export default function App() {
                           playerRoutes={routes}
                           playerProfitHistory={playerProfitHistory}
                         />
-                      </div>
-                    </div>
+                    </ViewFrame>
                   ) : activeWindow !== 'map' && (
-                    <div className="absolute inset-0 z-40 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center before:content-[''] before:absolute before:inset-0 before:bg-aero-black/95 before:backdrop-blur-md flex flex-col items-center p-4 overflow-y-auto pt-8">
+                    <ViewFrame contentClassName="w-full h-full flex flex-col items-center p-4 overflow-y-auto pt-8">
                       <h2 className="text-4xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg mb-4 relative z-10">{activeWindow.replace('-', ' ')}</h2>
                       <div className="max-w-4xl w-full text-white/70 text-center uppercase tracking-widest font-mono text-sm leading-relaxed border border-aero-yellow/20 shadow-2xl p-12 bg-black/60 backdrop-blur-xl rounded-sm relative z-10">
                         <div className="text-aero-yellow mb-4 text-xs font-black tracking-[0.4em]">SYSTEM MODULE [{activeWindow.toUpperCase()}]</div>
                         <div className="opacity-50">INITIALIZATION STRATEGY DEPLOYED.</div>
                         <div className="animate-pulse text-aero-yellow/80 mt-4">AWAITING UPLINK...</div>
                       </div>
-                    </div>
+                    </ViewFrame>
                   )}
 
                   {isEditingSchedule && editingRouteId && (
@@ -3960,10 +3935,10 @@ function SidebarIcon({ icon, label, active = false, onClick }: { icon: ReactNode
       focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow
       ${active ? 'text-aero-yellow opacity-100' : 'text-white opacity-40 hover:opacity-100 hover:text-white'}
     `}>
-      <div className={`p-1.5 rounded-lg border border-transparent ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
+      <div className={`p-1.5 rounded-sm border border-transparent ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
         {icon}
       </div>
-      <span className="text-[9px] font-black tracking-widest text-center px-1 leading-[1.2]">{label}</span>
+      <span className="text-3xs font-black tracking-widest text-center px-1 leading-[1.2]">{label}</span>
     </button>
   );
 }
@@ -3971,32 +3946,21 @@ function SidebarIcon({ icon, label, active = false, onClick }: { icon: ReactNode
 /**
  * `goodDirection` says which way is good news for this particular stat, because
  * the sign alone does not: demand falling is bad, the fuel price falling is
- * good. Previously both rendered as two opacities of the same yellow, so the
- * bar carried no information at a glance.
+ * good. Thin wrapper over the shared StatTile so the top stats bar uses the
+ * same tile component as every KPI card elsewhere in the app.
  */
 function GameStat(
   { label, value, trend, goodDirection = 'up' }:
   { label: string, value: string, trend?: string, goodDirection?: 'up' | 'down' }
 ) {
-  const isNegative = Boolean(trend && trend.includes('-'));
-  const isGood = goodDirection === 'up' ? !isNegative : isNegative;
-  const trendColor = isGood ? 'text-aero-good font-bold' : 'text-aero-warn font-bold';
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-[10.5px] uppercase tracking-widest text-white/40 font-bold mb-1 leading-none text-center">{label}</span>
-      <div className="flex items-baseline justify-center gap-1.5 leading-none">
-        <span className="text-sm md:text-base font-black italic tracking-tighter text-white font-mono">{value}</span>
-        {trend && <span className={`${trendColor} font-mono text-[9px]`}>{trend}</span>}
-      </div>
-    </div>
-  );
+  return <StatTile size="sm" label={label} value={value} trend={trend} goodDirection={goodDirection} />;
 }
 
 function GameMenuOption({ label, onClick }: { label: string, onClick: () => void }) {
   return (
     <button 
       onClick={onClick}
-      className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-widest text-white/70 hover:text-aero-yellow hover:bg-white/5 transition-all outline-none"
+      className="text-left px-4 py-3 text-2xs font-mono uppercase tracking-widest text-white/70 hover:text-aero-yellow hover:bg-white/5 transition-all outline-none"
     >
       {label}
     </button>

@@ -5,6 +5,9 @@ import { motion } from 'motion/react';
 import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { SupabaseBucketModal } from './SupabaseBucketModal';
+import { ViewHeader } from './ui/ViewHeader';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
 import { readString } from '../lib/safeStorage';
 
 interface Props {
@@ -394,43 +397,44 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
 
   return (
     <div className="w-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans h-full overflow-hidden">
-      <div className="flex items-center justify-between shrink-0 mb-3">
-        <h2 className="text-3xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg">
-          BUY AIRCRAFT
-        </h2>
-        <div className="relative w-80">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={16} className="text-white/40" />
+      <ViewHeader
+        title="BUY AIRCRAFT"
+        right={
+          <div className="relative w-full lg:w-80">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search size={16} className="text-white/40" />
+            </div>
+            <input
+              type="text"
+              className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors"
+              placeholder="Search Type, Manufacturer..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <input
-            type="text"
-            className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors"
-            placeholder="Search Type, Manufacturer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-      
+        }
+      />
+
       <div className="flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar space-y-6 pb-20">
         {/* Permanent Supabase Storage Bucket Settings */}
         {debugMode && (
-          <div className="bg-[#0f0f0f] border border-aero-yellow/20 rounded-sm p-4 shrink-0 transition-all hover:border-aero-yellow/40 space-y-3">
+          <div className="bg-aero-black border border-dashed border-aero-yellow/20 rounded-sm p-4 shrink-0 transition-all hover:border-aero-yellow/40 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-bold font-mono uppercase tracking-[0.2em] text-aero-yellow flex items-center gap-2">
                   <Database size={16} />
                   Supabase Storage Bucket (Permanent Images)
+                  <Badge tone="warn">Debug</Badge>
                 </h3>
                 <p className="text-xs text-white/60 font-mono mt-0.5">
                   Connected Supabase storage bucket URL for permanent aircraft image rendering across all devices.
                 </p>
               </div>
               {getSupabaseBucketUrl() && (
-                <div className="flex items-center gap-1.5 bg-aero-yellow/10 border border-aero-yellow/20 px-2.5 py-1 rounded-sm text-[10px] font-mono text-aero-yellow font-bold uppercase tracking-wider self-start sm:self-center shrink-0">
+                <Badge tone="yellow" className="self-start sm:self-center shrink-0">
                   <CheckCircle2 size={12} />
                   Bucket Active
-                </div>
+                </Badge>
               )}
             </div>
             
@@ -462,8 +466,8 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
         {debugMode && (
           <>
 
-          <div className="bg-[#0f0f0f] border border-white/5 rounded-sm p-4 shrink-0 transition-all hover:border-white/10 space-y-6">
-            
+          <div className="bg-aero-black border border-dashed border-white/10 rounded-sm p-4 shrink-0 transition-all hover:border-white/20 space-y-6">
+
             {/* Part 1: ZIP Archive Uploader */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
@@ -471,6 +475,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                   <h3 className="text-sm font-bold font-mono uppercase tracking-[0.2em] text-aero-yellow flex items-center gap-2">
                     <Archive size={16} />
                     Planes Image ZIP customizer (SAT APPROVED)
+                    <Badge tone="warn">Debug</Badge>
                   </h3>
                   <p className="text-xs text-white/40 font-mono mt-0.5">
                     Lade ein ZIP-Archiv mit passenden Flugzeugbildern (.png, .jpg, .webp) hoch. Diese werden automatisch den richtigen Ordnern zugeordnet.
@@ -483,7 +488,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     const el = document.getElementById('zip-file-input');
                     if (el) el.click();
                   }}
-                  className="self-start sm:self-center bg-aero-yellow text-black font-mono font-bold uppercase tracking-widest text-[11px] px-4 py-2 hover:bg-white transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+                  className="self-start sm:self-center bg-aero-yellow text-black font-mono font-bold uppercase tracking-widest text-2xs px-4 py-2 hover:bg-white transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
                   disabled={uploading}
                 >
                   {uploading ? "Wird verarbeitet..." : "ZIP DATEI HOCHLADEN"}
@@ -522,7 +527,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
 
               {/* URL Fetching Area */}
               <div className="mt-3 bg-black/20 p-3 border border-white/5 rounded-sm">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold mb-2">Or load a ZIP straight from a link (e.g. Google Drive)</div>
+                <div className="text-2xs font-mono uppercase tracking-widest text-white/40 font-bold mb-2">Or load a ZIP straight from a link (e.g. Google Drive)</div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
@@ -592,7 +597,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                 {/* Left Column: Filter and select aircraft type */}
                 <div className="flex flex-col min-w-0">
                   <div className="flex flex-col gap-2 mb-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold">1. Select or search for a model</span>
+                    <span className="text-2xs font-mono uppercase tracking-widest text-white/40 font-bold">1. Select or search for a model</span>
                     
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       {/* Search tool block */}
@@ -611,7 +616,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                       <button
                         type="button"
                         onClick={() => setOnlyMissingImages(!onlyMissingImages)}
-                        className={`px-3 py-1.5 text-[10px] font-mono uppercase border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        className={`px-3 py-1.5 text-2xs font-mono uppercase border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                           onlyMissingImages 
                             ? "bg-aero-yellow/10 border-aero-yellow text-aero-yellow font-bold" 
                             : "bg-black/40 border-white/5 text-white/50 hover:text-white"
@@ -629,7 +634,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     className="border border-white/5 bg-black/50 rounded-sm max-h-48 overflow-y-auto custom-scrollbar font-mono text-xs divide-y divide-white/5"
                   >
                     {singleImageFilteredAircraft.length === 0 ? (
-                      <div className="p-4 text-center text-white/30 uppercase tracking-widest text-[10px]">Keine entsprechenden Modelle gefunden</div>
+                      <div className="p-4 text-center text-white/30 uppercase tracking-widest text-2xs">Keine entsprechenden Modelle gefunden</div>
                     ) : (
                       singleImageFilteredAircraft.map(a => {
                         const safeName = (a.manufacturer + ' ' + a.type).split('/').join('-').split('\\').join('-');
@@ -651,7 +656,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                           >
                             <span className="truncate pr-1">{a.manufacturer} {a.type}</span>
                             <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                              <span className="text-[9px] text-white/30 truncate max-w-[80px]">{a.family}</span>
+                              <span className="text-3xs text-white/30 truncate max-w-[80px]">{a.family}</span>
                               <span className={`w-1.5 h-1.5 rounded-full ${hasCustom ? "bg-aero-yellow/20" : "bg-yellow-500"}`} title={hasCustom ? "Hat Bild" : "Kein Bild"} />
                             </div>
                           </div>
@@ -659,7 +664,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                       })
                     )}
                   </div>
-                  <div className="mt-1 text-[9px] font-mono text-white/30 flex justify-between">
+                  <div className="mt-1 text-3xs font-mono text-white/30 flex justify-between">
                     <span>{singleImageFilteredAircraft.length} Modelle gefunden</span>
                     <span>{Object.keys(imagesMap).length} hochgeladene Bilder gesamt</span>
                   </div>
@@ -668,12 +673,12 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                 {/* Right Column: Upload action box */}
                 <div className="flex flex-col justify-between min-w-0">
                   <div className="space-y-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold block">2. Choose an image and upload</span>
+                    <span className="text-2xs font-mono uppercase tracking-widest text-white/40 font-bold block">2. Choose an image and upload</span>
                     
                     {selectedAircraft ? (
                       <div className="bg-black/40 border border-white/5 rounded-sm p-3 font-mono text-xs text-white/80 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] text-aero-yellow uppercase tracking-wider font-bold">Selected model:</span>
+                          <span className="text-3xs text-aero-yellow uppercase tracking-wider font-bold">Selected model:</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -681,7 +686,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                               setSingleImageFile(null);
                               setSingleUploadResult(null);
                             }}
-                            className="text-white/40 hover:text-aero-yellow/60 text-[9px] uppercase cursor-pointer"
+                            className="text-white/40 hover:text-aero-yellow/60 text-3xs uppercase cursor-pointer"
                           >
                             [Abbrechen]
                           </button>
@@ -715,15 +720,15 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                               <span className="text-aero-yellow font-bold block truncate max-w-[200px]" title={singleImageFile.name}>
                                 {singleImageFile.name}
                               </span>
-                              <span className="text-[9px] text-white/40 block mt-0.5">
+                              <span className="text-3xs text-white/40 block mt-0.5">
                                 {(singleImageFile.size / 1024).toFixed(1)} KB
                               </span>
                             </div>
                           ) : (
                             <div className="text-center text-white/40 space-y-1 py-1">
                               <UploadCloud size={18} className="mx-auto text-white/20" />
-                              <span className="text-[10px] block text-aero-yellow font-bold underline">Choose image file</span>
-                              <span className="text-[8px] block">PNG, JPG, WEBP oder SVG</span>
+                              <span className="text-2xs block text-aero-yellow font-bold underline">Choose image file</span>
+                              <span className="text-4xs block">PNG, JPG, WEBP oder SVG</span>
                             </div>
                           )}
                         </div>
@@ -742,7 +747,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                       <button
                         type="button"
                         onClick={handleSingleUpload}
-                        className="w-full bg-aero-yellow text-black font-mono font-bold uppercase tracking-widest text-[10px] py-2 px-3 hover:bg-white transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+                        className="w-full bg-aero-yellow text-black font-mono font-bold uppercase tracking-widest text-2xs py-2 px-3 hover:bg-white transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
                         disabled={singleUploading}
                       >
                         {singleUploading ? "BILD WIRD HOCHGELADEN..." : "BILD HOCHLADEN & ERSETZEN"}
@@ -750,7 +755,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     )}
 
                     {singleUploadResult && (
-                      <div className={`p-2.5 rounded-sm border font-mono text-[10px] flex items-start gap-2 ${
+                      <div className={`p-2.5 rounded-sm border font-mono text-2xs flex items-start gap-2 ${
                         singleUploadResult.success 
                           ? "bg-[#0b1c0e] text-aero-yellow border-aero-yellow/20 animate-fade-in" 
                           : "bg-[#250d0d] text-aero-yellow/60 border-white/20 animate-fade-in"
@@ -804,9 +809,9 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                           {planes.map(plane => {
                             const imageName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
                             return (
-                              <div key={plane.id} className="bg-[#0f0f0f] border border-white/10 rounded-sm p-4 flex flex-col sm:flex-row gap-3 hover:border-aero-yellow/50 transition-colors group relative overflow-hidden">
+                              <div key={plane.id} className="bg-aero-panel border border-white/10 rounded-sm p-4 flex flex-col sm:flex-row gap-3 hover:border-aero-yellow/50 transition-colors group relative overflow-hidden">
                                 {/* Aircraft Tech Drawing Blueprint Graphic */}
-                                <div className={`shrink-0 bg-black/40 rounded border border-white/5 overflow-hidden flex items-center justify-center relative transition-all duration-300 ${expandedPlaneId === plane.id ? 'w-full sm:w-64 aspect-square' : 'w-full sm:w-48 aspect-square'}`}>
+                                <div className={`shrink-0 bg-black/40 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center relative transition-all duration-300 ${expandedPlaneId === plane.id ? 'w-full sm:w-64 aspect-square' : 'w-full sm:w-48 aspect-square'}`}>
                                   <AircraftImage
                                     safeName={imageName}
                                     manufacturer={plane.manufacturer}
@@ -836,18 +841,23 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                                 )}
 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4 text-xs font-mono text-white/50 mb-4">
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-[9px] uppercase tracking-widest mb-1 opacity-70">PLANE TYPE SAT</span><span className="text-white font-bold">{plane.popularity}%</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-[9px] uppercase tracking-widest mb-1 opacity-70">Efficiency</span><span className="text-white font-bold">{plane.efficiency}/100</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-[9px] uppercase tracking-widest mb-1 opacity-70">Max Range</span><span className="text-white font-bold">{plane.maxRange} km</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-[9px] uppercase tracking-widest mb-1 opacity-70">Capacity</span><span className="text-white font-bold">{plane.capacity} pax</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-[9px] uppercase tracking-widest mb-1 opacity-70">Cruise Speed</span><span className="text-white font-bold">{plane.cruiseSpeed} km/h</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-[9px] uppercase tracking-widest mb-1 opacity-70">Base Price</span><span className="text-aero-yellow font-bold tracking-widest">{formatCurrency(plane.basePrice)}</span></div>
+                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">PLANE TYPE SAT</span><span className="text-white font-bold">{plane.popularity}%</span></div>
+                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Efficiency</span><span className="text-white font-bold">{plane.efficiency}/100</span></div>
+                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Max Range</span><span className="text-white font-bold">{plane.maxRange} km</span></div>
+                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Capacity</span><span className="text-white font-bold">{plane.capacity} pax</span></div>
+                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Cruise Speed</span><span className="text-white font-bold">{plane.cruiseSpeed} km/h</span></div>
+                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Base Price</span><span className="text-aero-yellow font-bold tracking-widest">{formatCurrency(plane.basePrice)}</span></div>
                                 </div>
 
                                 <div className="flex flex-wrap items-center justify-end mt-auto pt-2 gap-4">
-                                  <button onClick={() => onSelectAircraft(plane)} className="bg-aero-yellow text-black font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-sm hover:bg-white transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+                                  <Button
+                                    variant="primary"
+                                    size="md"
+                                    onClick={() => onSelectAircraft(plane)}
+                                    className="transform hover:scale-[1.02] active:scale-[0.98]"
+                                  >
                                     Purchase
-                                  </button>
+                                  </Button>
                                 </div>
                               </div>
                             </div>

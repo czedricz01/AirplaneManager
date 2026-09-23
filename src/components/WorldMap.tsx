@@ -5,6 +5,7 @@ import { Airport } from '../data/airportTypes';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { LiveTraffic } from './LiveTraffic';
 import { OwnedAircraft } from './MyFleetView';
+import { MAP_YELLOW, MAP_CONGESTION_COLORS } from '../lib/theme';
 
 /**
  * Airport markers, cached by zoom and management tier. The cache used to be a
@@ -16,10 +17,10 @@ function getAirportIcon(zoomLevel: number, level: number): L.DivIcon {
   const key = `${zoomLevel}-${level}`;
   if (iconCache[key]) return iconCache[key];
 
-  let bgColor = "#FACC15"; // aero-yellow
-  if (level === 1) bgColor = "#FB923C"; // orange-400
-  else if (level === 2) bgColor = "#EA580C"; // orange-600
-  else if (level >= 3) bgColor = "#DC2626"; // red-600
+  let bgColor: string = MAP_YELLOW;
+  if (level === 1) bgColor = MAP_CONGESTION_COLORS.low;
+  else if (level === 2) bgColor = MAP_CONGESTION_COLORS.medium;
+  else if (level >= 3) bgColor = MAP_CONGESTION_COLORS.high;
 
   let iconInfo: L.DivIcon;
   if (zoomLevel < 5) {
@@ -171,7 +172,7 @@ function WorldMapImpl({
                     <Polyline 
                       key={`${r.id}-${offset}`}
                       positions={points}
-                      color="#F2CB05"
+                      color={MAP_YELLOW}
                       weight={1.2}
                       opacity={0.8}
                       smoothFactor={1} 
@@ -191,7 +192,7 @@ function WorldMapImpl({
                             <Polyline 
                                 key={`planning-${offset}`}
                                 positions={points}
-                                color="#F2CB05"
+                                color={MAP_YELLOW}
                                 weight={1.2}
                                 opacity={0.8} 
                                 smoothFactor={1}
@@ -215,7 +216,7 @@ function WorldMapImpl({
                           <Polyline 
                             key={`ai-${airline.code}-${aiIdx}-${routeIdx}-${offset}`}
                             positions={points}
-                            color="#ef4444"
+                            color={MAP_CONGESTION_COLORS.bad}
                             weight={1.5}
                             opacity={0.7}
                             smoothFactor={1}
@@ -223,9 +224,9 @@ function WorldMapImpl({
                             lineJoin="round"
                           >
                             <Tooltip sticky>
-                              <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 text-aero-yellow/60 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest shadow-2xl">
-                                <div className="text-[12px] leading-none mb-1 text-white font-sans font-bold">{airline.name}</div>
-                                <div className="text-[10px] leading-none text-aero-yellow/60 font-mono mb-1">{r.origin} ↔ {r.destination}</div>
+                              <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 text-aero-yellow/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
+                                <div className="text-xs leading-none mb-1 text-white font-sans font-bold">{airline.name}</div>
+                                <div className="text-2xs leading-none text-aero-yellow/60 font-mono mb-1">{r.origin} ↔ {r.destination}</div>
                                 <div className="text-[8px] opacity-60 leading-none">{r.departures} departures/week</div>
                               </div>
                             </Tooltip>
@@ -276,7 +277,7 @@ function WorldMapImpl({
                       pathOptions={{
                         color: 'black',
                         weight: 1,
-                        fillColor: isGreen ? '#10b981' : '#F2CB05',
+                        fillColor: isGreen ? MAP_CONGESTION_COLORS.good : MAP_YELLOW,
                         fillOpacity: 1
                       }}
                       eventHandlers={{

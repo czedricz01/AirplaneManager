@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { OwnedAircraft } from './MyFleetView';
-import { X, Plane, Wrench, ShieldAlert } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Plane, Wrench, ShieldAlert } from 'lucide-react';
 import { AircraftImage } from './AircraftImage';
 import { getPlaneSat } from '../lib/financeUtils';
+import { Modal } from './ui/Modal';
+import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
 
 interface Props {
   plane: OwnedAircraft;
@@ -51,34 +52,11 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
   const safeName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
 
   return (
-    <AnimatePresence>
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-      >
-        <motion.div 
-          initial={{ y: 20, opacity: 0, scale: 0.95 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          className="bg-aero-carbon border border-white/10 shadow-2xl w-full max-w-2xl flex flex-col rounded-sm overflow-hidden max-h-[95vh]"
-        >
-          {/* Header */}
-          <div className="h-16 px-3 bg-black/40 border-b border-white/5 flex items-center justify-between shrink-0">
-            <h2 className="text-xl font-black uppercase tracking-widest text-aero-yellow flex items-center gap-2">
-              <Plane size={20} />
-              {plane.registration}
-            </h2>
-            <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
-              <X size={24} />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="p-4 flex flex-col gap-4 bg-gradient-to-b from-white/[0.02] to-transparent overflow-y-auto custom-scrollbar">
+    <Modal open onClose={onClose} size="xl" title={plane.registration} icon={<Plane size={20} />}>
+      <div className="flex flex-col gap-4">
 
             {/* Aircraft Blueprint Graphic */}
-            <div className="w-full aspect-[3/2] h-auto max-h-[300px] rounded border border-white/10 overflow-hidden relative group shrink-0 bg-black/40">
+            <div className="w-full aspect-[3/2] h-auto max-h-[300px] rounded-sm border border-white/10 overflow-hidden relative group shrink-0 bg-black/40">
               <AircraftImage
                 safeName={safeName}
                 manufacturer={plane.manufacturer}
@@ -87,7 +65,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                 className="w-full h-full object-cover grayscale-[0.1] hover:grayscale-0 transition-all duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 pointer-events-none"></div>
-              <div className="absolute bottom-2 right-3 text-[10px] font-mono text-white/30 uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm pointer-events-none">
+              <div className="absolute bottom-2 right-3 text-2xs font-mono text-white/30 uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded-sm backdrop-blur-sm pointer-events-none">
                 Visual Identification Verified
               </div>
             </div>
@@ -95,13 +73,13 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
             {/* Summary */}
             <div className="flex gap-4">
                <div className="flex-1 flex flex-col gap-1">
-                 <div className="text-[10px] uppercase font-mono tracking-widest text-white/40 mb-1">Aircraft Model</div>
+                 <div className="text-2xs uppercase font-mono tracking-widest text-white/40 mb-1">Aircraft Model</div>
                  <div className="text-lg font-bold">{plane.manufacturer} {plane.type}</div>
                  <div className="text-xs uppercase tracking-widest text-white/50">{plane.class}</div>
                </div>
                
                <div className="flex flex-col items-end gap-1 font-mono text-xs">
-                 <div className="text-[10px] uppercase font-sans tracking-widest text-white/40 mb-1">Status</div>
+                 <div className="text-2xs uppercase font-sans tracking-widest text-white/40 mb-1">Status</div>
                  {aircraftRoutes && aircraftRoutes.length > 0 ? (
                    <div className="text-white/80 border border-white/10 bg-white/5 px-2 py-0.5 rounded-sm uppercase tracking-wider">
                      Assigned ({aircraftRoutes.length} route{aircraftRoutes.length > 1 ? 's' : ''})
@@ -117,23 +95,23 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 bg-black/40 p-4 border border-white/5 rounded-sm">
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Hub</span>
-                <span className="font-mono">{plane.hubId || <span className="text-white/30 italic text-[10px]">None</span>}</span>
+                <span className="text-3xs uppercase tracking-widest text-white/50 mb-1">Hub</span>
+                <span className="font-mono">{plane.hubId || <span className="text-white/30 italic text-2xs">None</span>}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Total Capacity</span>
+                <span className="text-3xs uppercase tracking-widest text-white/50 mb-1">Total Capacity</span>
                 <span className="font-mono">{totalPax} pax</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Max Range</span>
+                <span className="text-3xs uppercase tracking-widest text-white/50 mb-1">Max Range</span>
                 <span className="font-mono">{plane.maxRange} km</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Efficiency</span>
+                <span className="text-3xs uppercase tracking-widest text-white/50 mb-1">Efficiency</span>
                 <span className="font-mono">{plane.efficiency}/100</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Age</span>
+                <span className="text-3xs uppercase tracking-widest text-white/50 mb-1">Age</span>
                 <span className="font-mono">{ageLabel}</span>
               </div>
             </div>
@@ -157,7 +135,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                 </div>
                 
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5 font-mono text-xs">
-                  <span className="text-[10px] uppercase tracking-widest text-white/50">Overall Satisfaction</span>
+                  <span className="text-2xs uppercase tracking-widest text-white/50">Overall Satisfaction</span>
                   <span className="text-aero-yellow">{combinedPopularity}/100</span>
                 </div>
               </div>
@@ -166,22 +144,22 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                 <h3 className="text-sm font-bold uppercase tracking-widest border-b border-white/10 pb-2 mb-2 text-white/80 flex items-center justify-between">
                   <span>Maintenance</span>
                   {(plane.conditionInterior < 40 || plane.conditionGeneral < 40) && (
-                    <span className="text-aero-yellow/60 text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1">
+                    <span className="text-aero-yellow/60 text-2xs font-black uppercase tracking-wider animate-pulse flex items-center gap-1">
                       <ShieldAlert size={12} /> CRITICAL COND. (&lt;40%)
                     </span>
                   )}
                 </h3>
-                
+
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-xs font-mono">
                     <span className="text-white/60">Interior Condition</span>
-                    <span className={plane.conditionInterior < 40 ? 'text-aero-yellow/60 font-black animate-pulse' : plane.conditionInterior < 50 ? 'text-yellow-400 font-bold' : 'text-aero-yellow font-bold'}>
+                    <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionInterior)]}>
                       {Math.round(plane.conditionInterior)}%
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${plane.conditionInterior < 40 ? 'bg-aero-warn animate-pulse' : plane.conditionInterior < 50 ? 'bg-yellow-400' : 'bg-aero-yellow/20'}`}
+                      className={`h-full ${CONDITION_BAR_CLASS[conditionTone(plane.conditionInterior)]}`}
                       style={{ width: `${plane.conditionInterior}%`}}
                     />
                   </div>
@@ -190,13 +168,13 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-xs font-mono">
                     <span className="text-white/60">General Condition</span>
-                    <span className={plane.conditionGeneral < 40 ? 'text-aero-yellow/60 font-black animate-pulse' : plane.conditionGeneral < 50 ? 'text-yellow-400 font-bold' : 'text-aero-yellow font-bold'}>
+                    <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionGeneral)]}>
                       {Math.round(plane.conditionGeneral)}%
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${plane.conditionGeneral < 40 ? 'bg-aero-warn animate-pulse' : plane.conditionGeneral < 50 ? 'bg-yellow-400' : 'bg-white/10'}`}
+                      className={`h-full ${CONDITION_BAR_CLASS[conditionTone(plane.conditionGeneral)]}`}
                       style={{ width: `${plane.conditionGeneral}%`}}
                     />
                   </div>
@@ -231,14 +209,14 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                 <div className="bg-black/40 border border-white/5 p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
                   <div className="flex flex-col gap-1 w-full sm:w-auto">
                     <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-aero-yellow">Market Liquidation Value</h3>
-                    <p className="text-[10px] text-white/50 lowercase tracking-wide font-sans max-w-sm">
+                    <p className="text-2xs text-white/50 lowercase tracking-wide font-sans max-w-sm">
                       calculated dynamically from general airframe condition and passenger interior satisfaction. residual base value is guaranteed.
                     </p>
                   </div>
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                     <div className="text-left sm:text-right font-mono">
                       <div className="text-lg font-black text-white">{formatUSD(salePrice)}</div>
-                      <div className="text-[9px] uppercase text-white/30 tracking-widest">Est. Sell Price</div>
+                      <div className="text-3xs uppercase text-white/30 tracking-widest">Est. Sell Price</div>
                     </div>
                     <button
                       onClick={() => {
@@ -246,7 +224,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                           onSell?.(plane);
                         }
                       }}
-                      className="px-5 py-3 border border-aero-yellow/20 bg-black text-aero-yellow hover:bg-aero-yellow hover:text-black hover:border-aero-yellow transition-all duration-300 font-bold uppercase tracking-widest text-[10px] whitespace-nowrap"
+                      className="px-5 py-3 border border-aero-yellow/20 bg-black text-aero-yellow hover:bg-aero-yellow hover:text-black hover:border-aero-yellow transition-all duration-300 font-bold uppercase tracking-widest text-2xs whitespace-nowrap rounded-sm"
                     >
                       Sell Plane
                     </button>
@@ -268,7 +246,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                           onClose();
                           onSelectRoute?.(r);
                         }}
-                        className="inline-flex items-center px-3 py-1.5 rounded text-xs font-bold bg-white/5 text-white/80 border border-white/10 uppercase tracking-wider hover:bg-white/5 hover:text-white/80 transition-colors"
+                        className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-bold bg-white/5 text-white/80 border border-white/10 uppercase tracking-wider hover:bg-white/5 hover:text-white/80 transition-colors"
                       >
                         {r.schedule?.[0]?.flightNumOut ? 'NE' + r.schedule[0].flightNumOut : `${r.origin}-${r.destination}`}
                       </button>
@@ -280,15 +258,13 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
               </div>
               <button
                 onClick={() => onStartRoute?.(plane.registration)}
-                className="px-3 py-3 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-[10px] border border-white/10"
+                className="px-3 py-3 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-2xs border border-white/10 rounded-sm"
               >
                 New Route +
               </button>
             </div>
 
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    </Modal>
   );
 }

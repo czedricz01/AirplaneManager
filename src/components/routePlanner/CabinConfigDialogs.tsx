@@ -85,12 +85,12 @@ export function CabinConfigDialogs() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md bg-[#1a1a1a] border border-white/10 p-4 rounded-sm shadow-2xl"
+              className="w-full max-w-md bg-aero-panel-2 border border-white/10 p-4 rounded-sm shadow-2xl"
             >
               <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow mb-3">Save Configuration</h3>
               <div className="space-y-6">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest block mb-2">Configuration Name</label>
+                  <label className="text-2xs uppercase font-bold text-white/40 tracking-widest block mb-2">Configuration Name</label>
                   <input 
                     type="text" 
                     value={newConfigName}
@@ -103,13 +103,13 @@ export function CabinConfigDialogs() {
                 <div className="flex gap-4 pt-4">
                   <button 
                     onClick={() => setShowConfigSaveModal(false)}
-                    className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
+                    className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-2xs font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={saveCabinConfig}
-                    className="flex-1 py-4 bg-aero-yellow text-black uppercase text-[10px] font-black tracking-widest hover:bg-white transition-all"
+                    className="flex-1 py-4 bg-aero-yellow text-black uppercase text-2xs font-black tracking-widest hover:bg-white transition-all"
                   >
                     Save
                   </button>
@@ -132,7 +132,7 @@ export function CabinConfigDialogs() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-2xl bg-[#1a1a1a] border border-white/10 p-4 rounded-sm shadow-2xl max-h-[80vh] flex flex-col"
+              className="w-full max-w-2xl bg-aero-panel-2 border border-white/10 p-4 rounded-sm shadow-2xl max-h-[80vh] flex flex-col"
             >
                <div className="flex justify-between items-center mb-3">
                   <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow">Load Configuration</h3>
@@ -154,14 +154,14 @@ export function CabinConfigDialogs() {
                               className="flex-1 flex justify-between items-center bg-white/5 border border-white/10 p-4 hover:bg-white/10 hover:border-aero-yellow transition-all text-left"
                            >
                               <span className="text-sm font-black uppercase tracking-widest text-white">{cfg.name}</span>
-                              <div className="flex items-center gap-4 text-[10px] text-white/40 uppercase font-bold">
+                              <div className="flex items-center gap-4 text-2xs text-white/40 uppercase font-bold">
                                  <span>{Object.keys(cfg.configs).filter(k => k !== 'general').length} Classes</span>
                                  <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                            </button>
                            <button 
                               onClick={() => deleteSavedConfig(cfg.id)}
-                              className="w-12 h-14 flex items-center justify-center bg-[#111] border border-white/20 text-aero-yellow/60 hover:bg-[#1a1a1a] hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                              className="w-12 h-14 flex items-center justify-center bg-aero-panel border border-white/20 text-aero-yellow/60 hover:bg-aero-panel-2 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                            >
                               <Plus size={20} className="rotate-45" />
                            </button>
@@ -172,7 +172,7 @@ export function CabinConfigDialogs() {
                
                <button 
                   onClick={() => setShowConfigLoadModal(false)}
-                  className="mt-6 w-full py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all text-center"
+                  className="mt-6 w-full py-4 border border-white/10 text-white/50 uppercase text-2xs font-black tracking-widest hover:text-white hover:bg-white/5 transition-all text-center"
                >
                   Close
                </button>
