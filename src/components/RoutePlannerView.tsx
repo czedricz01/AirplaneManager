@@ -722,13 +722,21 @@ export function RoutePlannerView({
   const originDeskSim = React.useMemo(
     () => selectedOrigin && selectedDest && selectedAircraft
       ? getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId)
-      : { sat: 0, load: 0, capacity: 0, weeklyPax: 0 } as any,
+      // Must match what getDeskSim actually returns. It was { capacity, weeklyPax }
+      // here, so with an origin and destination chosen but no aircraft yet, the
+      // JSX read sim.myPax as undefined and .toLocaleString() took down the
+      // whole planner.
+      : { load: 0, sat: 0, myPax: 0, cap: 0 },
     [selectedOrigin, selectedDest, selectedAircraft, airportManagement, routes, fleet, schedule.length, initialRouteId]
   );
   const destDeskSim = React.useMemo(
     () => selectedOrigin && selectedDest && selectedAircraft
       ? getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId)
-      : { sat: 0, load: 0, capacity: 0, weeklyPax: 0 } as any,
+      // Must match what getDeskSim actually returns. It was { capacity, weeklyPax }
+      // here, so with an origin and destination chosen but no aircraft yet, the
+      // JSX read sim.myPax as undefined and .toLocaleString() took down the
+      // whole planner.
+      : { load: 0, sat: 0, myPax: 0, cap: 0 },
     [selectedOrigin, selectedDest, selectedAircraft, airportManagement, routes, fleet, schedule.length, initialRouteId]
   );
 
