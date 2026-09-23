@@ -317,7 +317,7 @@ export function CompetitorsView({
 
             <div className="flex items-center gap-3 font-mono text-xs">
               <span className="text-white/30 lowercase">alliance status:</span>
-              <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-sm ${
+              <span className={`px-2.5 py-1 text-2xs font-black uppercase tracking-widest rounded-sm ${
                 selectedAirline.isPlayer 
                   ? 'bg-aero-yellow text-black' 
                   : 'bg-white/10 text-white border border-white/20'
@@ -335,12 +335,12 @@ export function CompetitorsView({
               {/* Card 1: Capital valuation */}
               <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-[9px] uppercase tracking-[0.2em] font-black">Capital Reserves</span>
+                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Capital Reserves</span>
                   <Coins size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
                   <div className="text-2xl font-mono font-black text-white">{formatCurrency(selectedAirline.capital)}</div>
-                  <div className="text-[10px] text-aero-yellow font-mono flex items-center gap-1 mt-1">
+                  <div className="text-2xs text-aero-yellow font-mono flex items-center gap-1 mt-1">
                     <TrendingUp size={10} /> Active Liquidity Index
                   </div>
                 </div>
@@ -350,14 +350,14 @@ export function CompetitorsView({
               {/* Card 2: Fleet capacity */}
               <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-[9px] uppercase tracking-[0.2em] font-black">Appraised Fleet</span>
+                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Appraised Fleet</span>
                   <Plane size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
                   <div className="text-2xl font-mono font-black text-white">
                     {selectedAirline.fleet.length} <span className="text-xs text-white/30 font-sans font-normal">Aircraft</span>
                   </div>
-                  <div className="text-[10px] text-white/50 font-mono mt-1">
+                  <div className="text-2xs text-white/50 font-mono mt-1">
                     {selectedAirline.stats.regionalCount} Reg | {selectedAirline.stats.narrowbodyCount} Nb | {selectedAirline.stats.widebodyCount} Wb
                   </div>
                 </div>
@@ -366,14 +366,14 @@ export function CompetitorsView({
               {/* Card 3: Route network */}
               <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-[9px] uppercase tracking-[0.2em] font-black">Active Connections</span>
+                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Active Connections</span>
                   <Waypoints size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
                   <div className="text-2xl font-mono font-black text-white">
                     {selectedAirline.routes.length} <span className="text-xs text-white/30 font-sans font-normal">Routes</span>
                   </div>
-                  <div className="text-[10px] text-white/50 font-mono mt-1">
+                  <div className="text-2xs text-white/50 font-mono mt-1">
                     {selectedAirline.stats.totalWeeklyDepartures} Departures per week
                   </div>
                 </div>
@@ -382,12 +382,12 @@ export function CompetitorsView({
               {/* Card 4: Operating Hub & Level */}
               <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-[9px] uppercase tracking-[0.2em] font-black">Strategic Hub Base</span>
+                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Strategic Hub Base</span>
                   <MapPin size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
                   <div className="text-2xl font-mono font-black text-aero-yellow">{selectedAirline.hub}</div>
-                  <div className="text-[10px] text-white/50 font-mono mt-1 flex items-center gap-1.5">
+                  <div className="text-2xs text-white/50 font-mono mt-1 flex items-center gap-1.5">
                     <Shield size={10} className="text-white/40" /> Operating Tier: {selectedAirline.isPlayer ? '1' : selectedAirline.aiDifficulty}
                   </div>
                 </div>
@@ -406,7 +406,7 @@ export function CompetitorsView({
                     <h4 className="text-xs font-mono font-black text-aero-yellow uppercase tracking-[0.25em] flex items-center gap-2">
                       <Waypoints size={14} /> Global Route Intelligence Network
                     </h4>
-                    <span className="text-[10px] text-white/40 font-mono">
+                    <span className="text-2xs text-white/40 font-mono">
                       Hub Origin: <strong className="text-white">{selectedAirline.hub}</strong>
                     </span>
                   </div>
@@ -431,11 +431,11 @@ export function CompetitorsView({
                                   <span className="font-sans font-bold text-base tracking-wide text-white flex items-center gap-2">
                                     {route.origin} <span className="text-aero-yellow font-black">↔</span> {route.destination}
                                   </span>
-                                  <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[9px] rounded-sm font-mono text-white/60 uppercase font-bold">
+                                  <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-3xs rounded-sm font-mono text-white/60 uppercase font-bold">
                                     {route.aircraftClass}
                                   </span>
                                 </div>
-                                <div className="text-[10px] text-white/40 space-y-1 mt-3">
+                                <div className="text-2xs text-white/40 space-y-1 mt-3">
                                   <div className="flex justify-between">
                                     <span>Weekly Departures:</span>
                                     <strong className="text-white font-mono">{route.departures} flights</strong>
@@ -458,7 +458,7 @@ export function CompetitorsView({
                               </div>
                               
                               <div className="border-t border-white/5 pt-3 mt-4 flex justify-between items-center bg-white/[0.01] -mx-4 -mb-4 p-4 rounded-b-sm">
-                                <span className="text-[9px] uppercase tracking-wider text-white/30 font-semibold font-mono">Net Route Yield</span>
+                                <span className="text-3xs uppercase tracking-wider text-white/30 font-semibold font-mono">Net Route Yield</span>
                                 <span className="font-mono text-aero-yellow font-bold block text-sm">
                                   +{formatCurrency(route.monthlyProfit || selectedAirline.stats.averageEarnings / selectedAirline.routes.length || 380420)}/mo
                                 </span>
@@ -477,7 +477,7 @@ export function CompetitorsView({
                     <h4 className="text-xs font-mono font-black text-aero-yellow uppercase tracking-[0.25em] flex items-center gap-2">
                       <Plane size={14} /> Strategic Aircraft Registry
                     </h4>
-                    <span className="text-[10px] text-white/40 font-mono">
+                    <span className="text-2xs text-white/40 font-mono">
                       Active Fleet Size: <strong className="text-white">{selectedAirline.fleet.length}</strong>
                     </span>
                   </div>
@@ -494,16 +494,16 @@ export function CompetitorsView({
                                   <strong className="text-sm font-bold text-white/95 block leading-none">
                                     {plane.manufacturer || ''} {plane.model}
                                   </strong>
-                                  <span className="font-mono text-[9px] text-aero-yellow mt-1.5 inline-block uppercase tracking-wider">
+                                  <span className="font-mono text-3xs text-aero-yellow mt-1.5 inline-block uppercase tracking-wider">
                                     {plane.class} specs
                                   </span>
                                 </div>
-                                <span className="font-mono text-[10px] text-aero-yellow bg-aero-yellow/10 px-2 py-0.5 border border-aero-yellow/20 rounded-sm font-bold uppercase tracking-wider">
+                                <span className="font-mono text-2xs text-aero-yellow bg-aero-yellow/10 px-2 py-0.5 border border-aero-yellow/20 rounded-sm font-bold uppercase tracking-wider">
                                   {plane.reg}
                                 </span>
                               </div>
 
-                              <div className="mt-4 space-y-1.5 font-mono text-[10px] text-white/50 border-t border-white/5 pt-3">
+                              <div className="mt-4 space-y-1.5 font-mono text-2xs text-white/50 border-t border-white/5 pt-3">
                                 <div className="flex justify-between">
                                   <span>Seats Capacity:</span>
                                   <strong className="text-white">{plane.capacity || '131'} paxs</strong>
@@ -522,7 +522,7 @@ export function CompetitorsView({
                                 </div>
                               </div>
                             </div>
-                            <div className="mt-4 border-t border-white/5 pt-2.5 flex justify-between items-center text-[10px] text-white/40 font-mono">
+                            <div className="mt-4 border-t border-white/5 pt-2.5 flex justify-between items-center text-2xs text-white/40 font-mono">
                               <span>Operating SAT status</span>
                               <span className="text-aero-yellow font-black">{scoreSatisfaction}%</span>
                             </div>
@@ -547,7 +547,7 @@ export function CompetitorsView({
                   {/* Dynamic Custom Bars in the exact Yellow and Anthracite colorway */}
                   <div className="space-y-4 font-mono text-xs">
                     <div>
-                      <div className="flex justify-between text-[11px] mb-1">
+                      <div className="flex justify-between text-2xs mb-1">
                         <span className="text-white/70">Widebody Transcontinental</span>
                         <strong className="text-white font-bold">{selectedAirline.stats.widebodyCount}</strong>
                       </div>
@@ -560,7 +560,7 @@ export function CompetitorsView({
                     </div>
 
                     <div>
-                      <div className="flex justify-between text-[11px] mb-1">
+                      <div className="flex justify-between text-2xs mb-1">
                         <span className="text-white/70">Narrowbody Medium-Haul</span>
                         <strong className="text-white font-bold">{selectedAirline.stats.narrowbodyCount}</strong>
                       </div>
@@ -573,7 +573,7 @@ export function CompetitorsView({
                     </div>
 
                     <div>
-                      <div className="flex justify-between text-[11px] mb-1">
+                      <div className="flex justify-between text-2xs mb-1">
                         <span className="text-white/70">Regional Short-Haul</span>
                         <strong className="text-white font-bold">{selectedAirline.stats.regionalCount}</strong>
                       </div>
@@ -594,14 +594,14 @@ export function CompetitorsView({
                   </h4>
 
                   <div className="space-y-4 font-mono">
-                    <div className="text-[10px] text-white/40 mb-2 uppercase leading-snug">
+                    <div className="text-2xs text-white/40 mb-2 uppercase leading-snug">
                       Recent timeline of net monthly operation margins:
                     </div>
                     
                     {/* No invented placeholder series here: an airline that has
                         not closed a month yet simply says so. */}
                     {(selectedAirline.monthlyProfitsHistory || []).length === 0 ? (
-                      <div className="h-28 flex items-center justify-center bg-black/25 border border-white/5 rounded-sm text-[10px] uppercase tracking-widest text-white/30">
+                      <div className="h-28 flex items-center justify-center bg-black/25 border border-white/5 rounded-sm text-2xs uppercase tracking-widest text-white/30">
                         No month closed yet
                       </div>
                     ) : (
@@ -613,7 +613,7 @@ export function CompetitorsView({
                         return (
                           <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                             {/* Value tooltip */}
-                            <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black text-[9px] px-1 rounded-sm pointer-events-none whitespace-nowrap z-10 font-black">
+                            <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black text-3xs px-1 rounded-sm pointer-events-none whitespace-nowrap z-10 font-black">
                               {formatCurrency(val)}
                             </div>
                             <div 
@@ -622,7 +622,7 @@ export function CompetitorsView({
                               }`} 
                               style={{ height: `${progressHeight}%` }}
                             />
-                            <span className="text-[7px] text-white/30 font-mono mt-1 mt-1 font-black">M{idx+1}</span>
+                            <span className="text-4xs text-white/30 font-mono mt-1 mt-1 font-black">M{idx+1}</span>
                           </div>
                         );
                       })}
@@ -630,11 +630,11 @@ export function CompetitorsView({
                     )}
 
                     <div className="space-y-1 text-xs border-t border-white/5 pt-3">
-                      <div className="flex justify-between text-[11px]">
+                      <div className="flex justify-between text-2xs">
                         <span className="text-white/40">Performance Status:</span>
                         <span className="text-aero-yellow font-bold uppercase tracking-wide">Excellent / Capitalized</span>
                       </div>
-                      <div className="flex justify-between text-[11px] mt-1">
+                      <div className="flex justify-between text-2xs mt-1">
                         <span className="text-white/40">Market Share Score:</span>
                         <strong className="text-white font-bold">12.5%</strong>
                       </div>
@@ -649,23 +649,23 @@ export function CompetitorsView({
                   </h4>
 
                   {!selectedAirline.isPlayer && (
-                    <div className="space-y-4 font-mono text-[11px] border-b border-white/5 pb-4">
+                    <div className="space-y-4 font-mono text-2xs border-b border-white/5 pb-4">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white/5 p-2 rounded-sm border border-white/5 text-center">
-                          <span className="text-white/40 text-[9px] block uppercase tracking-wider mb-1">STRATEGY GROUP</span>
+                          <span className="text-white/40 text-3xs block uppercase tracking-wider mb-1">STRATEGY GROUP</span>
                           <strong className="text-aero-yellow uppercase text-xs">
                             {selectedAirline.personality ? PERSONALITY_META[selectedAirline.personality].description : 'Independent'}
                           </strong>
                         </div>
                         <div className="bg-white/5 p-2 rounded-sm border border-white/5 text-center">
-                          <span className="text-white/40 text-[9px] block uppercase tracking-wider mb-1">AGGRESSION RATING</span>
+                          <span className="text-white/40 text-3xs block uppercase tracking-wider mb-1">AGGRESSION RATING</span>
                           <strong className="text-aero-yellow/60 text-xs">
                             {selectedAirline.aggression || 5} / 10
                           </strong>
                         </div>
                       </div>
 
-                      <div className="space-y-2 text-white/50 bg-black/25 p-3 rounded-sm border border-white/5 text-[10px]">
+                      <div className="space-y-2 text-white/50 bg-black/25 p-3 rounded-sm border border-white/5 text-2xs">
                         <div className="flex justify-between">
                           <span>Seating Config Focus:</span>
                           <strong className="text-white">
@@ -744,7 +744,7 @@ export function CompetitorsView({
 
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
             {/* Header Board columns */}
-            <div className="hidden md:grid grid-cols-12 px-3 py-3 bg-white/[0.02] border-y border-white/5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">
+            <div className="hidden md:grid grid-cols-12 px-3 py-3 bg-white/[0.02] border-y border-white/5 font-mono text-2xs uppercase tracking-[0.2em] text-white/40 font-black">
               <div className="col-span-1">Rank</div>
               <div className="col-span-3 cursor-pointer select-none hover:text-white" onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
               <div className="col-span-2 text-center">Hub Base</div>
@@ -799,13 +799,13 @@ export function CompetitorsView({
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-sans font-bold text-white tracking-wide">{airline.name}</span>
                               {airline.isPlayer && (
-                                <span className="px-2 py-0.5 bg-aero-yellow text-black text-[9px] font-black uppercase tracking-widest rounded-sm">YOU</span>
+                                <span className="px-2 py-0.5 bg-aero-yellow text-black text-3xs font-black uppercase tracking-widest rounded-sm">YOU</span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 flex-wrap font-mono text-xs">
                               <span className="text-white/40">IATA: <span className="font-black text-aero-yellow">{airline.code}</span></span>
                               {!airline.isPlayer && airline.personality && (
-                                <span className={`px-1.5 py-0.2 text-[8px] font-black uppercase rounded-sm border ${
+                                <span className={`px-1.5 py-0.2 text-4xs font-black uppercase rounded-sm border ${
                                   airline.personality === 'flag' ? 'text-aero-yellow bg-aero-yellow/5 border-amber-400/30' :
                                   airline.personality === 'lcc' ? 'text-aero-yellow bg-aero-yellow/5 border-aero-yellow/30' :
                                   airline.personality === 'expansionist' ? 'text-aero-yellow/60 bg-[#111] border-white/20' :
@@ -831,7 +831,7 @@ export function CompetitorsView({
 
                         {/* AI Tier Difficulty badge */}
                         <div className="col-span-1 text-left md:text-center">
-                          <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-sm font-mono inline-block ${
+                          <span className={`px-2 py-0.5 text-3xs font-black uppercase tracking-wider rounded-sm font-mono inline-block ${
                             airline.isPlayer 
                               ? 'bg-white/10 text-white border border-white/30' 
                               : airline.aiDifficulty === 'Hard' 
@@ -849,7 +849,7 @@ export function CompetitorsView({
                           <span className="text-white/30 text-xs md:hidden pr-2 tracking-wider">CAPITAL</span>
                           {formatCurrency(airline.capital)}
                           {lastProfit !== 0 && (
-                            <span className={`block text-[9px] ${lastProfit >= 0 ? 'text-aero-yellow' : 'text-aero-yellow/60'} font-normal mt-0.5`}>
+                            <span className={`block text-3xs ${lastProfit >= 0 ? 'text-aero-yellow' : 'text-aero-yellow/60'} font-normal mt-0.5`}>
                               {lastProfit >= 0 ? <TrendingUp size={10} className="inline mr-1" /> : <TrendingDown size={10} className="inline mr-1" />}
                               {lastProfit >= 0 ? '+' : '-'}{formatCurrency(Math.abs(lastProfit))}
                             </span>
@@ -875,7 +875,7 @@ export function CompetitorsView({
                               e.stopPropagation();
                               setSelectedAirlineId(airline.id);
                             }}
-                            className="px-3 py-2 border border-white/10 rounded-sm font-mono text-[9px] uppercase tracking-widest text-white hover:text-black hover:bg-aero-yellow hover:border-aero-yellow transition-all flex items-center justify-center gap-1 w-full md:w-auto font-bold"
+                            className="px-3 py-2 border border-white/10 rounded-sm font-mono text-3xs uppercase tracking-widest text-white hover:text-black hover:bg-aero-yellow hover:border-aero-yellow transition-all flex items-center justify-center gap-1 w-full md:w-auto font-bold"
                           >
                             Inspect
                           </button>

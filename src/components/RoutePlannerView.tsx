@@ -76,32 +76,32 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
   return (
     <div className={`py-1.5 px-2 border transition-colors flex items-center justify-between ${disabled ? 'bg-white/[0.02] border-white/5 opacity-50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
       <div className="flex flex-col w-24 shrink-0">
-        <span className="text-[9px] font-bold text-white uppercase tracking-widest">{label}</span>
-        <span className="text-[7.5px] text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${cost.toLocaleString()}${costSuffix}` : 'FREE'}</span>
+        <span className="text-3xs font-bold text-white uppercase tracking-widest">{label}</span>
+        <span className="text-4xs text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${cost.toLocaleString()}${costSuffix}` : 'FREE'}</span>
       </div>
       <div className="flex items-center gap-2">
         {used !== undefined && (
           <div className="text-right flex flex-col items-end border-r border-white/10 pr-2">
-            <div className="text-[7px] text-white/20 uppercase mb-0.5">Free</div>
+            <div className="text-4xs text-white/20 uppercase mb-0.5">Free</div>
             <span className="text-xs font-black text-white leading-none">{count - used}</span>
           </div>
         )}
         <div className="text-right flex flex-col items-end border-r border-white/10 pr-2">
-          <div className="text-[7px] text-white/20 uppercase mb-0.5">Stock</div>
+          <div className="text-4xs text-white/20 uppercase mb-0.5">Stock</div>
           <span className="text-xs font-black text-white leading-none">{count}</span>
         </div>
         <div className="flex gap-0.5 ml-1">
           <button 
             disabled={disableRemove || disabled || count <= 0} 
             onClick={(e) => onBuy(-1, e.shiftKey)}
-            className="w-5 h-5 flex items-center justify-center bg-black/40 border border-white/5 hover:border-aero-yellow disabled:opacity-0 transition-all text-white/50 hover:text-white text-[10px]"
+            className="w-5 h-5 flex items-center justify-center bg-black/40 border border-white/5 hover:border-aero-yellow disabled:opacity-0 transition-all text-white/50 hover:text-white text-2xs"
           >
             -
           </button>
           <button 
             disabled={disabled}
             onClick={(e) => onBuy(1, e.shiftKey)}
-            className="w-5 h-5 flex items-center justify-center bg-white text-black font-black hover:bg-aero-yellow transition-all text-[10px]"
+            className="w-5 h-5 flex items-center justify-center bg-white text-black font-black hover:bg-aero-yellow transition-all text-2xs"
           >
             +
           </button>
@@ -114,7 +114,7 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
 function ConfigBox({ label, value }: { label: string, value: number }) {
    return (
       <div className="bg-black/40 border border-white/10 p-2 flex flex-col items-center justify-center">
-         <span className="text-[7px] text-white/30 font-black uppercase tracking-widest mb-1">{label}</span>
+         <span className="text-4xs text-white/30 font-black uppercase tracking-widest mb-1">{label}</span>
          <span className="text-xs font-black text-white">{value}</span>
       </div>
    );
@@ -123,7 +123,7 @@ function ConfigBox({ label, value }: { label: string, value: number }) {
 function DetailMetric({ label, value, color }: { label: string, value: string, color?: string }) {
    return (
       <div className="flex flex-col gap-0.5">
-         <span className="text-[10px] text-white/40 uppercase tracking-widest font-black">{label}</span>
+         <span className="text-2xs text-white/40 uppercase tracking-widest font-black">{label}</span>
          <span className={`text-base font-black italic tracking-tighter ${color || 'text-white'}`}>{value}</span>
       </div>
    );
@@ -1450,7 +1450,7 @@ export function RoutePlannerView({
 
   return (
     <div 
-       className="absolute inset-0 z-50 p-2 lg:p-3 flex flex-col font-sans overflow-hidden bg-[#1a1a1a] text-white"
+       className="absolute inset-0 z-50 p-2 lg:p-3 flex flex-col font-sans overflow-hidden bg-aero-panel-2 text-white"
        style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98)), url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2000&auto=format&fit=crop")' }}
     >
       {/* Success Message Overlay */}
@@ -1504,7 +1504,7 @@ export function RoutePlannerView({
                      disabled={!isAllowed}
                      aria-current={isActive ? 'step' : undefined}
                      onClick={() => isAllowed && setStep(s.id)}
-                     className={`flex items-center px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
+                     className={`flex items-center px-3 py-1.5 text-2xs uppercase font-bold tracking-widest border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
                        isActive ? 'bg-aero-yellow/10 text-aero-yellow cursor-default' : 
                        isAllowed ? 'text-white/60 hover:text-white hover:bg-white/5 cursor-pointer' : 'text-white/20 cursor-not-allowed'
                      }`}
@@ -1527,7 +1527,7 @@ export function RoutePlannerView({
             {validationMsg && (
               <div
                 role="alert"
-                className="flex items-center gap-1.5 bg-aero-warn/15 border border-aero-warn/50 text-aero-warn px-2.5 py-1 font-bold uppercase tracking-wider text-[11px] mr-2"
+                className="flex items-center gap-1.5 bg-aero-warn/15 border border-aero-warn/50 text-aero-warn px-2.5 py-1 font-bold uppercase tracking-wider text-2xs mr-2"
               >
                 <AlertTriangle size={12} className="shrink-0" />
                 {validationMsg}
@@ -1535,11 +1535,11 @@ export function RoutePlannerView({
             )}
             <button 
                onClick={() => setIsStopoverMode(!isStopoverMode)}
-               className={`hidden px-2 py-1 text-[9px] uppercase font-bold tracking-widest border transition-all ${isStopoverMode ? 'bg-[#FACC15] text-black border-transparent shadow-2xl' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/30'}`}
+               className={`hidden px-2 py-1 text-3xs uppercase font-bold tracking-widest border transition-all ${isStopoverMode ? 'bg-[#FACC15] text-black border-transparent shadow-2xl' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/30'}`}
             >
               Stopover
             </button>
-            <button onClick={onClose} className="text-white/60 hover:text-white uppercase text-[9px] tracking-widest font-bold font-mono border border-white/10 px-2 py-1 bg-black/30 hover:border-aero-yellow transition-all">
+            <button onClick={onClose} className="text-white/60 hover:text-white uppercase text-3xs tracking-widest font-bold font-mono border border-white/10 px-2 py-1 bg-black/30 hover:border-aero-yellow transition-all">
               [X]
             </button>
           </div>
@@ -1581,13 +1581,13 @@ export function RoutePlannerView({
                           >
                             <div>
                               <div className="font-bold">{a.id}</div>
-                              <div className="text-[10px] text-white/50">{a.name}</div>
+                              <div className="text-2xs text-white/50">{a.name}</div>
                             </div>
                             <div className="flex flex-col items-end gap-1">
-                              <div className="text-[9px] font-mono text-white/30">
+                              <div className="text-3xs font-mono text-white/30">
                                 SLOTS: {available}/{totalSlots}
                               </div>
-                              <div className="flex gap-2 text-[8px] font-mono">
+                              <div className="flex gap-2 text-4xs font-mono">
                                 <span className="text-aero-yellow">T: {getAirportStats(a, currentYear).tourism}</span>
                                 <span className="text-white/80">B: {getAirportStats(a, currentYear).business}</span>
                               </div>
@@ -1603,8 +1603,8 @@ export function RoutePlannerView({
                     <div className="flex items-center gap-3">
                       <div className="text-xl font-black text-aero-yellow">{selectedOrigin.id}</div>
                       <div className="flex flex-col">
-                         <div className="text-[10px] text-white/60 truncate w-32 md:w-auto">{selectedOrigin.name}</div>
-                         <div className="flex gap-2 text-[8px] uppercase tracking-widest font-mono text-white/40">
+                         <div className="text-2xs text-white/60 truncate w-32 md:w-auto">{selectedOrigin.name}</div>
+                         <div className="flex gap-2 text-4xs uppercase tracking-widest font-mono text-white/40">
                            <span>B:{getAirportStats(selectedOrigin, currentYear).business}</span>
                            <span>T:{getAirportStats(selectedOrigin, currentYear).tourism}</span>
                            <span className={((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0)) > 0 ? "text-aero-yellow font-bold" : ""}>S:{Math.max(0, (selectedOrigin.level * 300) - getAiUsedWeeklySlots(selectedOrigin.id)) - ((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0))}/{selectedOrigin.level * 300}</span>
@@ -1612,17 +1612,17 @@ export function RoutePlannerView({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport(selectedOrigin)} className="text-[8px] text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
-                       <button onClick={() => setOriginId(null)} className="text-[8px] text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
+                       <button onClick={() => onGoToAirport(selectedOrigin)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => setOriginId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
                     </div>
                   </div>
                   {/* Strategic Infrastructure Dashboard */}
                   <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-black/40 p-2.5 flex flex-col gap-4 pb-32">
                      <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                        <div className="text-aero-yellow text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                        <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
                            <MapIcon size={12} /> Strategic Slots
                         </div>
-                        <span className="text-[8px] text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
+                        <span className="text-4xs text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
                      </div>
                      <div className="space-y-2">
                         <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedOrigin.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'regional', n, shift)} />
@@ -1631,13 +1631,13 @@ export function RoutePlannerView({
                      </div>
 
                      <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                        <div className="text-aero-yellow text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                        <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
                            <Plane size={12} /> Stand Upgrades
                         </div>
                         {(airportManagement[selectedOrigin.id]?.level || 0) < 2 && (
                           <button 
                              onClick={() => onUpdateInfrastructure(selectedOrigin.id, { ...airportManagement[selectedOrigin.id], autoBuyStands: !(airportManagement[selectedOrigin.id]?.autoBuyStands) })}
-                             className={`text-[8px] uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedOrigin.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
+                             className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedOrigin.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
                           >
                              AUTO-BUY: {airportManagement[selectedOrigin.id]?.autoBuyStands ? 'ON' : 'OFF'}
                           </button>
@@ -1649,7 +1649,7 @@ export function RoutePlannerView({
                      </div>
 
                      <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                        <div className="text-aero-yellow text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                        <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
                            <ChevronRight size={12} /> Passenger Processing
                         </div>
                      </div>
@@ -1660,7 +1660,7 @@ export function RoutePlannerView({
                      {(() => {
                         const sim = originDeskSim;
                         return (
-                          <div className="mt-2 text-[10px] text-white/50 space-y-1">
+                          <div className="mt-2 text-2xs text-white/50 space-y-1">
                             <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
                             <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
@@ -1681,7 +1681,7 @@ export function RoutePlannerView({
                 <div className="p-2.5 flex flex-col flex-1 overflow-hidden">
                   <button 
                     onClick={() => onOpenCatalog?.(step)}
-                    className="w-full h-10 mb-4 bg-white/5 border border-white/20 text-white/50 hover:text-white hover:bg-white/10 hover:border-aero-yellow transition-all uppercase text-[10px] font-black tracking-widest flex items-center justify-center gap-2"
+                    className="w-full h-10 mb-4 bg-white/5 border border-white/20 text-white/50 hover:text-white hover:bg-white/10 hover:border-aero-yellow transition-all uppercase text-2xs font-black tracking-widest flex items-center justify-center gap-2"
                   >
                     <Plus size={14} /> Buy Aircraft
                   </button>
@@ -1702,15 +1702,15 @@ export function RoutePlannerView({
                          aircraft based at another hub and aircraft too large for
                          either airport, which looked identical to owning none. */}
                      {validAircraft.length === 0 && (
-                       <div className="border border-white/10 bg-white/[0.02] p-4 text-[11px] font-mono text-white/50 leading-relaxed space-y-2">
+                       <div className="border border-white/10 bg-white/[0.02] p-4 text-2xs font-mono text-white/50 leading-relaxed space-y-2">
                          {fleet.length === 0 ? (
                            <>
-                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-[10px]">No aircraft yet</p>
+                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-2xs">No aircraft yet</p>
                              <p>Your fleet is empty. Visit Buy Aircraft in the sidebar and purchase one first — a route needs an aircraft assigned to it.</p>
                            </>
                          ) : (
                            <>
-                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-[10px]">None of your aircraft fit</p>
+                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-2xs">None of your aircraft fit</p>
                              <p>You own {fleet.length} aircraft, but none can serve this pairing. Usually one of:</p>
                              <ul className="list-disc pl-4 space-y-1 text-white/40">
                                <li>it is based at a different hub</li>
@@ -1749,19 +1749,19 @@ export function RoutePlannerView({
                                <div className="font-black text-sm flex gap-2 items-center">
                                  {ac.registration}
                                  {ac.hubId && (
-                                   <span className="text-[8px] bg-white/10 px-1 border border-white/20 uppercase tracking-widest">{ac.hubId} HUB</span>
+                                   <span className="text-4xs bg-white/10 px-1 border border-white/20 uppercase tracking-widest">{ac.hubId} HUB</span>
                                  )}
                                </div>
-                               <div className="text-[10px] bg-white/10 px-1 py-0.5">{ac.class}</div>
+                               <div className="text-2xs bg-white/10 px-1 py-0.5">{ac.class}</div>
                              </div>
-                             <div className="text-[10px] flex justify-between text-white/50 font-mono">
+                             <div className="text-2xs flex justify-between text-white/50 font-mono">
                                <span>{ac.type} • {ac.maxRange.toLocaleString()} km</span>
                                <span>{ac.capacity} pax</span>
                              </div>
-                             <div className="mt-2 w-full bg-black h-1 rounded overflow-hidden relative">
+                             <div className="mt-2 w-full bg-black h-1 rounded-sm overflow-hidden relative">
                                 <div className={`h-full ${utilPercent > 80 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
                              </div>
-                             <div className="text-[8px] text-white/40 mt-0.5 uppercase text-right tracking-widest leading-none">{utilPercent}% utilized</div>
+                             <div className="text-4xs text-white/40 mt-0.5 uppercase text-right tracking-widest leading-none">{utilPercent}% utilized</div>
                            </div>
                          </div>
                        );
@@ -1777,26 +1777,26 @@ export function RoutePlannerView({
                         </div>
                         <div className="flex flex-col">
                            <div className="text-base font-black text-white leading-tight">{selectedAircraft.registration}</div>
-                           <div className="flex gap-2 text-[8px] uppercase tracking-widest font-mono text-white/40">
+                           <div className="flex gap-2 text-4xs uppercase tracking-widest font-mono text-white/40">
                              <span className="text-aero-yellow">{selectedAircraft.type}</span>
                              <span>{(weeklyUtilization).toFixed(0)}% USE</span>
                              <span className={getPlaneSat(selectedAircraft) < 50 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{getPlaneSat(selectedAircraft)}% SAT</span>
                            </div>
                         </div>
                       </div>
-                      <button onClick={() => setSelectedReg(null)} className="text-[8px] text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
+                      <button onClick={() => setSelectedReg(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
                     </div>
                     
-                    <div className="p-4 space-y-4 font-mono text-[10px] flex-1 overflow-y-auto custom-scrollbar pb-32">
+                    <div className="p-4 space-y-4 font-mono text-2xs flex-1 overflow-y-auto custom-scrollbar pb-32">
                        {/* Config */}
-                       <div className="grid grid-cols-4 gap-2 text-center text-[9px]">
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-[7.5px] text-white/30 uppercase mb-1">ECO</div><div className="font-bold">{selectedAircraft.config?.economy || 0}</div></div>
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-[7.5px] text-aero-yellow/50 uppercase mb-1">PRE</div><div className="font-bold text-aero-yellow">{selectedAircraft.config?.premium || 0}</div></div>
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-[7.5px] text-white/80/50 uppercase mb-1">BUS</div><div className="font-bold text-white/80">{selectedAircraft.config?.business || 0}</div></div>
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-[7.5px] text-aero-yellow/50 uppercase mb-1">FST</div><div className="font-bold text-aero-yellow">{selectedAircraft.config?.first || 0}</div></div>
+                       <div className="grid grid-cols-4 gap-2 text-center text-3xs">
+                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-white/30 uppercase mb-1">ECO</div><div className="font-bold">{selectedAircraft.config?.economy || 0}</div></div>
+                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-aero-yellow/50 uppercase mb-1">PRE</div><div className="font-bold text-aero-yellow">{selectedAircraft.config?.premium || 0}</div></div>
+                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-white/80/50 uppercase mb-1">BUS</div><div className="font-bold text-white/80">{selectedAircraft.config?.business || 0}</div></div>
+                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-aero-yellow/50 uppercase mb-1">FST</div><div className="font-bold text-aero-yellow">{selectedAircraft.config?.first || 0}</div></div>
                        </div>
                        {/* Stats */}
-                       <div className="grid grid-cols-2 gap-2 text-[9px]">
+                       <div className="grid grid-cols-2 gap-2 text-3xs">
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Efficiency</span><span className="font-bold">{selectedAircraft.efficiency}/100</span></div>
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Max Range</span><span className="font-bold">{selectedAircraft.maxRange.toLocaleString()} km</span></div>
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Gen. Cond</span><span className={`font-bold ${selectedAircraft.conditionGeneral < 50 ? 'text-aero-yellow/60' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionGeneral)}%</span></div>
@@ -1835,7 +1835,7 @@ export function RoutePlannerView({
                       <button
                         key={opt.id}
                         onClick={() => setDestSortBy(opt.id as any)}
-                        className={`flex-1 py-1 text-[8px] font-black uppercase tracking-widest border transition-all ${
+                        className={`flex-1 py-1 text-4xs font-black uppercase tracking-widest border transition-all ${
                           destSortBy === opt.id 
                             ? 'bg-aero-yellow border-aero-yellow text-black' 
                             : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30 hover:text-white'
@@ -1868,19 +1868,19 @@ export function RoutePlannerView({
                           <div>
                             <div className="font-bold flex items-center gap-1">
                               {a.id} 
-                              {mgtLvl >= 1 && <span className="text-[8px] bg-aero-yellow/20 text-aero-yellow px-1 rounded-sm">UNLOCKED</span>}
+                              {mgtLvl >= 1 && <span className="text-4xs bg-aero-yellow/20 text-aero-yellow px-1 rounded-sm">UNLOCKED</span>}
                             </div>
-                            <div className="text-[10px] text-white/50">{a.name}</div>
+                            <div className="text-2xs text-white/50">{a.name}</div>
                             
                             {/* Simple Hints */}
                             <div className="flex gap-2 mt-1">
                               {myRoutesCount > 0 && (
-                                <div className="text-[8px] font-black text-aero-yellow/80 uppercase">
+                                <div className="text-4xs font-black text-aero-yellow/80 uppercase">
                                   YOU: {myRoutesCount}
                                 </div>
                               )}
                               {compRoutesCount > 0 && (
-                                <div className="text-[8px] font-black text-aero-yellow/60/80 uppercase">
+                                <div className="text-4xs font-black text-aero-yellow/60/80 uppercase">
                                   COMP: {compRoutesCount}
                                 </div>
                               )}
@@ -1888,14 +1888,14 @@ export function RoutePlannerView({
                           </div>
                           <div className="flex flex-col items-end gap-1 text-right">
                              {selectedOrigin && (
-                               <div className="text-[10px] font-mono text-white/30">
+                               <div className="text-2xs font-mono text-white/30">
                                   {Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]))} km
                                </div>
                              )}
-                             <div className="text-[9px] font-mono text-white/30">
+                             <div className="text-3xs font-mono text-white/30">
                                 SLOTS: {availableDestSlots}/{totalSlots}
                              </div>
-                             <div className="flex gap-2 text-[8px] font-mono">
+                             <div className="flex gap-2 text-4xs font-mono">
                                <span className="text-aero-yellow">T: {getAirportStats(a, currentYear).tourism}</span>
                                <span className="text-white/80">B: {getAirportStats(a, currentYear).business}</span>
                              </div>
@@ -1911,8 +1911,8 @@ export function RoutePlannerView({
                     <div className="flex items-center gap-3">
                       <div className="text-xl font-black text-aero-yellow">{selectedDest.id}</div>
                       <div className="flex flex-col">
-                         <div className="text-[10px] text-white/60 truncate w-32 md:w-auto">{selectedDest.name}</div>
-                         <div className="flex gap-2 text-[8px] uppercase tracking-widest font-mono text-white/40">
+                         <div className="text-2xs text-white/60 truncate w-32 md:w-auto">{selectedDest.name}</div>
+                         <div className="flex gap-2 text-4xs uppercase tracking-widest font-mono text-white/40">
                            <span>B:{getAirportStats(selectedDest, currentYear).business}</span>
                            <span>T:{getAirportStats(selectedDest, currentYear).tourism}</span>
                            <span className={((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0)) > 0 ? "text-aero-yellow font-bold" : ""}>S:{Math.max(0, (selectedDest.level * 300) - getAiUsedWeeklySlots(selectedDest.id)) - ((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0))}/{selectedDest.level * 300}</span>
@@ -1920,8 +1920,8 @@ export function RoutePlannerView({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport(selectedDest)} className="text-[8px] text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
-                       <button onClick={() => setDestId(null)} className="text-[8px] text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
+                       <button onClick={() => onGoToAirport(selectedDest)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => setDestId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
                     </div>
                   </div>
 
@@ -1932,8 +1932,8 @@ export function RoutePlannerView({
                         className={`flex justify-between items-center ${debugMode ? 'cursor-pointer' : ''}`}
                         onClick={() => debugMode && setShowDemandDebug(!showDemandDebug)}
                       >
-                        <div className="text-aero-yellow/80 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                          <Search size={12} /> Demand Forecast {debugMode && <span className="text-[7px] bg-aero-yellow/20 px-1 py-0.5 rounded-sm text-aero-yellow ml-1">DEBUG</span>}
+                        <div className="text-aero-yellow/80 text-3xs font-black uppercase tracking-widest flex items-center gap-1.5">
+                          <Search size={12} /> Demand Forecast {debugMode && <span className="text-4xs bg-aero-yellow/20 px-1 py-0.5 rounded-sm text-aero-yellow ml-1">DEBUG</span>}
                         </div>
                         <div className="text-white font-mono text-xs font-bold">
                           {(() => {
@@ -1953,7 +1953,7 @@ export function RoutePlannerView({
                       </div>
                       
                       {showDemandDebug && debugMode && (
-                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2 text-[10px] font-mono text-white/50 bg-black/60 p-4 rounded-sm">
+                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2 text-2xs font-mono text-white/50 bg-black/60 p-4 rounded-sm">
                           {(() => {
                              const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]));
                              const tc = getFlightTimeClass(dist / 850 * 60);
@@ -2006,12 +2006,12 @@ export function RoutePlannerView({
                   )}
 
                   {destMgtLvl < 1 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-4 border border-white/10 bg-[#111] text-center">
+                    <div className="flex-1 flex flex-col items-center justify-center p-4 border border-white/10 bg-aero-panel text-center">
                        <div className="text-aero-yellow/60 font-bold mb-2 uppercase tracking-widest">Destination Locked</div>
                        <p className="text-xs text-white/50 mb-3">You must unlock T1 Management at {selectedDest.id} to fly there.</p>
                        <button 
                          onClick={() => onUnlockManagement(selectedDest.id, 1)}
-                         className="px-3 py-3 bg-[#1a1a1a] text-white font-black uppercase text-sm hover:bg-[#1a1a1a] transition-colors"
+                         className="px-3 py-3 bg-aero-panel-2 text-white font-black uppercase text-sm hover:bg-aero-panel-2 transition-colors"
                        >
                          Unlock T1 ($100,000)
                        </button>
@@ -2020,10 +2020,10 @@ export function RoutePlannerView({
                     /* Strategic Infrastructure Dashboard */
                     <div className="flex flex-col gap-4 mt-2 pb-16">
                        <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                          <div className="text-aero-yellow text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                          <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
                              <MapIcon size={12} /> Strategic Slots
                           </div>
-                          <span className="text-[8px] text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
+                          <span className="text-4xs text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
                        </div>
                        <div className="space-y-2">
                           <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedDest.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedDest.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'regional', n, shift)} />
@@ -2032,13 +2032,13 @@ export function RoutePlannerView({
                        </div>
 
                        <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                          <div className="text-aero-yellow text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                          <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
                              <Plane size={12} /> Stand Upgrades
                           </div>
                           {(airportManagement[selectedDest.id]?.level || 0) < 2 && (
                             <button 
                                onClick={() => onUpdateInfrastructure(selectedDest.id, { ...airportManagement[selectedDest.id], autoBuyStands: !(airportManagement[selectedDest.id]?.autoBuyStands) })}
-                               className={`text-[8px] uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedDest.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
+                               className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedDest.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
                             >
                                AUTO-BUY: {airportManagement[selectedDest.id]?.autoBuyStands ? 'ON' : 'OFF'}
                             </button>
@@ -2050,7 +2050,7 @@ export function RoutePlannerView({
                        </div>
 
                        <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                          <div className="text-aero-yellow text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                          <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
                              <ChevronRight size={12} /> Passenger Processing
                           </div>
                        </div>
@@ -2061,7 +2061,7 @@ export function RoutePlannerView({
                        {(() => {
                            const sim = destDeskSim;
                            return (
-                             <div className="mt-2 text-[10px] text-white/50 space-y-1">
+                             <div className="mt-2 text-2xs text-white/50 space-y-1">
                                <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
                                <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
@@ -2081,7 +2081,7 @@ export function RoutePlannerView({
           {/* Step 1 Snug Footer Action Bar */}
           <div className="p-4 mt-3 border border-white/10 bg-white/[0.01] flex shrink-0 rounded-sm w-full">
              <div className="flex gap-4 w-full">
-                <button onClick={onClose} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:text-white hover:bg-white/10 transition-all">Cancel</button>
+                <button onClick={onClose} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Cancel</button>
                 <button 
                   disabled={!selectedOrigin || !selectedAircraft || !selectedDest || (destMgtLvl < 1)}
                   onClick={() => setStep(2)} 
@@ -2102,8 +2102,8 @@ export function RoutePlannerView({
               
               <div className="p-4 space-y-8">
                 {/* Slot Status */}
-                <div className="bg-white/5 border border-white/10 p-4 space-y-2 mb-2 rounded border-t-2 border-t-aero-yellow">
-                   <div className="text-[10px] uppercase font-black tracking-widest text-[#F2CB05] mb-2 flex justify-between">
+                <div className="bg-white/5 border border-white/10 p-4 space-y-2 mb-2 rounded-sm border-t-2 border-t-aero-yellow">
+                   <div className="text-2xs uppercase font-black tracking-widest text-[#F2CB05] mb-2 flex justify-between">
                      <span>Required Slots</span>
                      <span>({selectedAircraft.class})</span>
                    </div>
@@ -2124,13 +2124,13 @@ export function RoutePlannerView({
                 {/* Flight Number */}
                 <div className="flex gap-4">
                   <div className="flex flex-col flex-[0.8] min-w-0">
-                    <label className="block text-[10px] uppercase tracking-widest text-white/50 mb-2 font-bold">
+                    <label className="block text-2xs uppercase tracking-widest text-white/50 mb-2 font-bold">
                        Code
                     </label>
                     <div className="h-10 bg-white/5 border border-white/10 font-black text-aero-yellow text-center select-none uppercase tracking-widest flex items-center justify-center truncate px-1">{airlineCode}</div>
                   </div>
                   <div className="flex flex-col flex-1">
-                    <label className="block text-[10px] uppercase tracking-widest text-white/50 mb-2 font-bold">Flight Out</label>
+                    <label className="block text-2xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight Out</label>
                     <input 
                       type="text" 
                       value={flightNumberOutbound}
@@ -2144,7 +2144,7 @@ export function RoutePlannerView({
                     />
                   </div>
                   <div className="flex flex-col flex-1">
-                    <label className="block text-[10px] uppercase tracking-widest text-white/50 mb-2 font-bold">Flight In</label>
+                    <label className="block text-2xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight In</label>
                     <input 
                       type="text" 
                       value={flightNumberInbound}
@@ -2154,10 +2154,10 @@ export function RoutePlannerView({
                     />
                   </div>
                   <div className="flex flex-col flex-[0.8]">
-                    <label className="block text-[10px] uppercase tracking-widest text-transparent mb-2 font-bold select-none">Action</label>
+                    <label className="block text-2xs uppercase tracking-widest text-transparent mb-2 font-bold select-none">Action</label>
                     <button 
                       onClick={generateFlightNumber}
-                      className="h-10 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors uppercase tracking-widest text-[9px] font-black italic text-center text-white/50 hover:text-white leading-tight flex items-center justify-center"
+                      className="h-10 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors uppercase tracking-widest text-3xs font-black italic text-center text-white/50 hover:text-white leading-tight flex items-center justify-center"
                     >
                       RANDOM
                     </button>
@@ -2168,7 +2168,7 @@ export function RoutePlannerView({
                   {/* Inline settings */}
                   <div className={`flex items-center justify-between bg-black/40 border border-white/10 p-2 mb-2 transition-opacity ${schedule.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                     <div className="flex items-center gap-2">
-                       <label className="text-[9px] font-black uppercase tracking-widest text-white/50">Multiple Ops:</label>
+                       <label className="text-3xs font-black uppercase tracking-widest text-white/50">Multiple Ops:</label>
                        <div className="flex items-center gap-1">
                          <button 
                            onClick={() => setMultipleOps(Math.max(1, multipleOps - 1))} 
@@ -2176,7 +2176,7 @@ export function RoutePlannerView({
                          >
                            <Minus className="w-2 h-2" />
                          </button>
-                         <div className="w-6 h-5 flex items-center justify-center bg-black border border-white/20 font-mono text-[10px] text-aero-yellow font-bold">
+                         <div className="w-6 h-5 flex items-center justify-center bg-black border border-white/20 font-mono text-2xs text-aero-yellow font-bold">
                            {Math.min(multipleOps, maxMultipleOps)}
                          </div>
                          <button
@@ -2189,7 +2189,7 @@ export function RoutePlannerView({
                        </div>
                     </div>
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => setMaximizeFlights(!maximizeFlights)}>
-                       <span className="text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-colors">Max Flights</span>
+                       <span className="text-3xs font-black uppercase tracking-widest text-white/50 hover:text-white transition-colors">Max Flights</span>
                        <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
                          {maximizeFlights && <Check className="w-2 h-2" />}
                        </div>
@@ -2509,7 +2509,7 @@ export function RoutePlannerView({
                           else { setSchedule(newTrips); setValidationMsg(null); }
                         }
                       }}
-                      className={`flex-1 h-8 text-[10px] uppercase font-bold border transition-colors px-2 py-0.5 ${schedule.length > 0 ? 'border-white/10 text-aero-yellow/60 hover:bg-[#1a1a1a] hover:text-white' : 'bg-aero-yellow border-aero-yellow text-black hover:bg-aero-yellow/80'}`}
+                      className={`flex-1 h-8 text-2xs uppercase font-bold border transition-colors px-2 py-0.5 ${schedule.length > 0 ? 'border-white/10 text-aero-yellow/60 hover:bg-aero-panel-2 hover:text-white' : 'bg-aero-yellow border-aero-yellow text-black hover:bg-aero-yellow/80'}`}
                     >
                       {schedule.length > 0 ? 'Clear All' : (maximizeFlights ? 'Apply' : 'Select All')}
                     </button>
@@ -2552,11 +2552,11 @@ export function RoutePlannerView({
 
                 {/* Flightplan Details output */}
                 <div className="bg-white/5 border border-white/10 p-4 space-y-2 text-xs font-mono">
-                    <div className="text-[10px] uppercase tracking-widest font-black text-aero-yellow border-b border-white/10 pb-2 mb-2 font-sans">Flightplan</div>
+                    <div className="text-2xs uppercase tracking-widest font-black text-aero-yellow border-b border-white/10 pb-2 mb-2 font-sans">Flightplan</div>
                     
                     {(() => {
                       if (schedule.length === 0) {
-                        return <div className="text-white/30 italic pb-2 text-[10px]">No flights scheduled.</div>;
+                        return <div className="text-white/30 italic pb-2 text-2xs">No flights scheduled.</div>;
                       }
 
                       const durMin = getFlightDurationMinutes();
@@ -2589,8 +2589,8 @@ export function RoutePlannerView({
                       return (
                         <div className="space-y-4">
                           <div className="grid grid-cols-[1fr,auto] gap-x-4 gap-y-1 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-                             <span className="text-white/30 uppercase text-[9px] font-black">Operation</span>
-                             <span className="text-white/30 uppercase text-[9px] font-black text-right">Schedule</span>
+                             <span className="text-white/30 uppercase text-3xs font-black">Operation</span>
+                             <span className="text-white/30 uppercase text-3xs font-black text-right">Schedule</span>
                              
                              {uniqueFlights.map((s: any) => {
                                const base = s.startHour * 60 + s.startMin;
@@ -2603,19 +2603,19 @@ export function RoutePlannerView({
                                return (
                                  <React.Fragment key={s.flightNumOut}>
                                     <div className="flex flex-col">
-                                      <span className="text-aero-yellow font-bold text-[10px]">{airlineCode}{s.flightNumOut}</span>
-                                      <span className="text-[8px] text-white/50">{selectedOrigin.id} → {selectedDest.id}</span>
-                                      <span className="text-[8px] text-white/30 mt-0.5">{daysStr}</span>
+                                      <span className="text-aero-yellow font-bold text-2xs">{airlineCode}{s.flightNumOut}</span>
+                                      <span className="text-4xs text-white/50">{selectedOrigin.id} → {selectedDest.id}</span>
+                                      <span className="text-4xs text-white/30 mt-0.5">{daysStr}</span>
                                     </div>
-                                    <span className="text-white font-mono text-[10px] text-right">{dep1} → {arr1}</span>
+                                    <span className="text-white font-mono text-2xs text-right">{dep1} → {arr1}</span>
                                     
                                     {!(s as any).isOneWay && (
                                       <>
                                         <div className="flex flex-col">
-                                          <span className="text-aero-yellow font-bold text-[10px] opacity-70">{airlineCode}{s.flightNumIn}</span>
-                                          <span className="text-[8px] text-white/50 opacity-70">{selectedDest.id} → {selectedOrigin.id}</span>
+                                          <span className="text-aero-yellow font-bold text-2xs opacity-70">{airlineCode}{s.flightNumIn}</span>
+                                          <span className="text-4xs text-white/50 opacity-70">{selectedDest.id} → {selectedOrigin.id}</span>
                                         </div>
-                                        <span className="text-white font-mono text-[10px] text-right opacity-70">{dep2} → {arr2}</span>
+                                        <span className="text-white font-mono text-2xs text-right opacity-70">{dep2} → {arr2}</span>
                                        </>
                                      )}
                                      <div className="col-span-2 h-[1px] bg-white/5 my-1"></div>
@@ -2624,7 +2624,7 @@ export function RoutePlannerView({
                              })}
                           </div>
                           
-                          <div className="flex justify-between font-black text-white/50 font-sans text-[11px] uppercase tracking-wider">
+                          <div className="flex justify-between font-black text-white/50 font-sans text-2xs uppercase tracking-wider">
                             <span>Total Flights:</span>
                             <span className="text-white">{schedule.length} ({schedule.length * (schedule[0]?.isOneWay ? 1 : 2)} Legs)</span>
                           </div>
@@ -2644,7 +2644,7 @@ export function RoutePlannerView({
                 <div className="w-14 border-r border-white/10 bg-black"></div>
                 <div className="flex-1 flex border-b border-white/20">
                    {daysOfWeek.map(day => (
-                      <div key={day.id} className="flex-1 text-center text-[10px] uppercase font-bold text-white/50 py-3 bg-black relative">
+                      <div key={day.id} className="flex-1 text-center text-2xs uppercase font-bold text-white/50 py-3 bg-black relative">
                         {day.label}
                       </div>
                    ))}
@@ -2655,7 +2655,7 @@ export function RoutePlannerView({
                 {/* Time Indicators */}
                 <div className="w-16 shrink-0 border-r border-white/30 relative bg-black/95 z-20 shadow-2xl">
                   {Array.from({ length: 24 }).map((_, i) => (
-                    <div key={i} className="h-[30px] text-[9px] text-white/40 text-right pr-2 font-mono flex items-start justify-end relative group">
+                    <div key={i} className="h-[30px] text-3xs text-white/40 text-right pr-2 font-mono flex items-start justify-end relative group">
                       {/* Hour mark (Full line) */}
                       <div className="w-4 h-[1px] bg-white/30 absolute right-0 top-0"></div>
                       
@@ -2664,7 +2664,7 @@ export function RoutePlannerView({
                           {i.toString().padStart(2, '0')}:00
                         </span>
                       ) : (
-                        <span className="opacity-0 group-hover:opacity-100 absolute font-bold text-white/60 top-0 -translate-y-1/2 mr-[-4px] text-[8px] z-30 transition-all">
+                        <span className="opacity-0 group-hover:opacity-100 absolute font-bold text-white/60 top-0 -translate-y-1/2 mr-[-4px] text-4xs z-30 transition-all">
                           {i.toString().padStart(2, '0')}:00
                         </span>
                       )}
@@ -2673,7 +2673,7 @@ export function RoutePlannerView({
                       <div className="absolute top-1/2 right-0 w-2 h-[1px] bg-white/10"></div>
                     </div>
                   ))}
-                  <div className="h-0 text-[11px] text-white/50 text-right pr-2 font-mono flex items-start justify-end relative">
+                  <div className="h-0 text-2xs text-white/50 text-right pr-2 font-mono flex items-start justify-end relative">
                     <span className="absolute font-black text-aero-yellow top-0 -translate-y-1/2 mr-[-4px] z-30 tracking-tighter">
                       24:00
                     </span>
@@ -2710,7 +2710,7 @@ export function RoutePlannerView({
                                 <div 
                                   key={b.id} 
                                   onMouseDown={!b.isBusy ? (e) => handleDragStart(e, b.s) : undefined}
-                                  className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-[11px] font-mono shadow-2xl backdrop-blur-md z-10 flex flex-col overflow-hidden transition-all ${
+                                  className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono shadow-2xl backdrop-blur-md z-10 flex flex-col overflow-hidden transition-all ${
                                     b.isBusy 
                                       ? 'bg-white/10 border-l-2 border-white/30 cursor-default grayscale opacity-60' 
                                       : 'bg-aero-yellow/30 border-l-2 border-aero-yellow cursor-ns-resize hover:bg-aero-yellow/40 hover:scale-[1.01] hover:z-20'
@@ -2719,31 +2719,31 @@ export function RoutePlannerView({
                                 >
                                    <div className="flex flex-col h-full relative">
                                      {b.isFirst && (
-                                       <div className="text-white font-black absolute top-[-2px] left-0 bg-black/80 px-1 py-0.5 rounded-sm z-20 text-[9px] border border-white/10 leading-none">
+                                       <div className="text-white font-black absolute top-[-2px] left-0 bg-black/80 px-1 py-0.5 rounded-sm z-20 text-3xs border border-white/10 leading-none">
                                          {formatT(startAbs)}
                                        </div>
                                      )}
                                      
-                                     <div className={`font-black tracking-tight leading-none truncate ${b.isBusy ? 'text-white/70' : 'text-aero-yellow'} ${b.isFirst ? 'mt-4 mb-1 text-[11px]' : 'mb-0.5 text-[10px]'}`}>
+                                     <div className={`font-black tracking-tight leading-none truncate ${b.isBusy ? 'text-white/70' : 'text-aero-yellow'} ${b.isFirst ? 'mt-4 mb-1 text-2xs' : 'mb-0.5 text-2xs'}`}>
                                        {b.isBusy ? (b.s.isOneWay ? `${airlineCode}${b.s.flightNumOut}` : `${airlineCode}${b.s.flightNumOut} & ${airlineCode}${b.s.flightNumIn}`) : (b.s.isOneWay ? `${airlineCode}${b.s.flightNumOut}` : `${airlineCode}${b.s.flightNumOut} & ${airlineCode}${b.s.flightNumIn}`)}
                                      </div>
                                      
-                                     <div className={`font-bold leading-none truncate ${b.isBusy ? 'text-white/40' : 'text-white'} ${b.isFirst ? 'mb-1 text-[10px]' : 'text-[9px]'}`}>
+                                     <div className={`font-bold leading-none truncate ${b.isBusy ? 'text-white/40' : 'text-white'} ${b.isFirst ? 'mb-1 text-2xs' : 'text-3xs'}`}>
                                        {b.orig} {b.s.isOneWay ? '→' : '⇄'} {b.dest}
                                      </div>
                                      
                                      {b.isLast && (
-                                       <div className="mt-auto text-white font-black text-right bg-black/80 px-1 py-0.5 rounded-sm self-end text-[9px] border border-white/10 leading-none">
+                                       <div className="mt-auto text-white font-black text-right bg-black/80 px-1 py-0.5 rounded-sm self-end text-3xs border border-white/10 leading-none">
                                          {formatT(endAbs)}
                                        </div>
                                      )}
                                      
                                      {!b.isLast && (
-                                       <div className="mt-auto text-white/30 text-[7px] font-black italic uppercase truncate">Cont...</div>
+                                       <div className="mt-auto text-white/30 text-4xs font-black italic uppercase truncate">Cont...</div>
                                      )}
                                      
                                      {b.isContinues && !b.isFirst && (
-                                       <div className="absolute top-0 right-0 text-white/30 text-[7px] font-black italic uppercase">Part 2</div>
+                                       <div className="absolute top-0 right-0 text-white/30 text-4xs font-black italic uppercase">Part 2</div>
                                      )}
                                    </div>
                                 </div>
@@ -2757,7 +2757,7 @@ export function RoutePlannerView({
               
               <div className="p-4 border-t border-white/10 bg-white/[0.01] flex gap-4 shrink-0 rounded-sm w-full">
                   {!initialRouteId && (
-                    <button onClick={() => setStep(1)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:text-white hover:bg-white/10 transition-all">Back</button>
+                    <button onClick={() => setStep(1)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>
                   )}
                   {initialRouteId ? (
                     <button 
@@ -2822,18 +2822,18 @@ export function RoutePlannerView({
                    <div className="flex justify-between items-center bg-white/[0.03] border border-white/10 p-4 rounded-sm">
                       <div className="flex flex-col">
                          <h3 className="text-2xl font-black uppercase tracking-tighter text-white leading-none">In-Flight Configuration</h3>
-                         <span className="text-[10px] text-white/40 uppercase tracking-widest mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
+                         <span className="text-2xs text-white/40 uppercase tracking-widest mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
                       </div>
                       <div className="flex gap-2">
                         <button 
                           onClick={() => setShowConfigLoadModal(true)}
-                          className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 hover:border-aero-yellow transition-all uppercase text-[10px] font-black tracking-widest"
+                          className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 hover:border-aero-yellow transition-all uppercase text-2xs font-black tracking-widest"
                         >
                           <FolderOpen size={14} /> Load Config
                         </button>
                         <button 
                           onClick={() => setShowConfigSaveModal(true)}
-                          className="flex items-center gap-2 px-4 py-2 bg-aero-yellow text-black hover:bg-white hover:scale-105 transition-all uppercase text-[10px] font-black tracking-widest"
+                          className="flex items-center gap-2 px-4 py-2 bg-aero-yellow text-black hover:bg-white hover:scale-105 transition-all uppercase text-2xs font-black tracking-widest"
                         >
                           <Save size={14} /> Save Config
                         </button>
@@ -2895,7 +2895,7 @@ export function RoutePlannerView({
                                    {c === 'general' ? 'general' : c}
                                 </div>
 
-                                <div className={`text-[10px] font-black uppercase tracking-[0.25em] mb-10 ${activeConfigClass === c ? 'text-black/60' : 'text-white/40'}`}>
+                                <div className={`text-2xs font-black uppercase tracking-[0.25em] mb-10 ${activeConfigClass === c ? 'text-black/60' : 'text-white/40'}`}>
                                    {c === 'general' ? 'General Standards' : c}
                                 </div>
 
@@ -2904,19 +2904,19 @@ export function RoutePlannerView({
                                       {Math.round(displaySatVal)}
                                       <span className="text-sm mt-2 ml-1 opacity-50">%</span>
                                    </div>
-                                   <div className={`text-[10px] font-bold uppercase tracking-widest py-1 px-4 border rounded-full ${activeConfigClass === c ? 'border-black/20 text-black/60' : 'border-white/10 text-white/40'}`}>
+                                   <div className={`text-2xs font-bold uppercase tracking-widest py-1 px-4 border rounded-full ${activeConfigClass === c ? 'border-black/20 text-black/60' : 'border-white/10 text-white/40'}`}>
                                       {c === 'general' ? 'Global' : `${seats} Seats`}
                                    </div>
                                 </div>
 
                                  {/* Summary Footer */}
-                                 <div className={`mt-auto pt-10 flex flex-col items-center gap-2 text-[9px] font-black uppercase tracking-widest ${activeConfigClass === c ? 'text-black/70' : 'text-white/30'}`}>
+                                 <div className={`mt-auto pt-10 flex flex-col items-center gap-2 text-3xs font-black uppercase tracking-widest ${activeConfigClass === c ? 'text-black/70' : 'text-white/30'}`}>
                                     <div className="flex gap-3 justify-center items-center">
                                        <span>{getCateringOpt(config.catering).label.split(',')[0]}</span>
                                        <span className="opacity-30">|</span>
                                        <span>{getMultiOptionSum(config.service, SERVICE_OPTIONS).label.split(',')[0]}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded border border-current/10 bg-current/5">
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-current/10 bg-current/5">
                                        <span className="opacity-60">Service SAT:</span>
                                        <span className={activeConfigClass === c ? 'text-black font-black' : 'text-aero-yellow font-black'}>+{Math.round(pureServiceSat)}%</span>
                                     </div>
@@ -2932,7 +2932,7 @@ export function RoutePlannerView({
              {/* Right Sidebar: Satisfaction Breakdown spreadsheet */}
              <div className="w-full lg:w-[450px] min-h-0 shrink-0 border border-white/10 bg-black/40 flex flex-col overflow-y-auto custom-scrollbar rounded-sm font-mono shadow-2xl relative z-20">
                 <div className="p-4 border-b border-white/10 bg-white/[0.04]">
-                   <div className="text-[10px] text-white/30 uppercase font-black tracking-[0.2em] leading-none mb-3">Cabin Services Budget</div>
+                   <div className="text-2xs text-white/30 uppercase font-black tracking-[0.2em] leading-none mb-3">Cabin Services Budget</div>
                    <div className="text-4xl font-black text-aero-yellow italic leading-none tracking-tighter">
                       ${Object.keys(classConfigs).reduce((acc, c) => {
                          if (c === 'general') return acc; 
@@ -2954,7 +2954,7 @@ export function RoutePlannerView({
                    <div className="flex justify-between items-end mb-3">
                       <div>
                          <h3 className="text-2xl font-black uppercase tracking-tighter text-white mb-1">Route Satisfaction</h3>
-                         <div className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Yield Performance Index</div>
+                         <div className="text-2xs text-white/40 uppercase tracking-widest font-bold">Yield Performance Index</div>
                       </div>
                       {(() => {
                            let totalWeightedSat = 0;
@@ -2994,7 +2994,7 @@ export function RoutePlannerView({
                          const cSatVal = calculateClassSatisfaction(c, selectedAircraft, classConfigs[c], getFlightDurationMinutes(), airportManagement, selectedOrigin.id, selectedDest.id, difficulty).satisfactionPercentage;
                          return (
                             <div key={c} className="bg-white/[0.03] p-3 border border-white/5 flex flex-col gap-1 transition-all hover:bg-white/[0.06] hover:border-aero-yellow/20">
-                               <span className="text-[8px] font-black uppercase tracking-widest text-white/40">{c}</span>
+                               <span className="text-4xs font-black uppercase tracking-widest text-white/40">{c}</span>
                                <span className="text-lg font-black italic text-aero-yellow leading-none">{Math.round(Math.max(0, cSatVal))}%</span>
                             </div>
                          );
@@ -3011,7 +3011,7 @@ export function RoutePlannerView({
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
-                            <span className="text-[10px] font-black uppercase tracking-widest flex items-center">Combined Plane SAT<InfoTooltip size={11} {...GLOSSARY.sat} /></span>
+                            <span className="text-2xs font-black uppercase tracking-widest flex items-center">Combined Plane SAT<InfoTooltip size={11} {...GLOSSARY.sat} /></span>
                          </div>
                          <div className="flex items-center gap-4">
                             <span className="text-sm font-black italic">{Math.round(getPlaneSat(selectedAircraft))}%</span>
@@ -3021,20 +3021,20 @@ export function RoutePlannerView({
                       <AnimatePresence>
                          {expandedSections.plane && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-black/60 border-b border-white/10">
-                               <div className="p-4 pt-0 space-y-3 text-[10px] uppercase font-bold tracking-[0.2em] text-white/50">
+                               <div className="p-4 pt-0 space-y-3 text-2xs uppercase font-bold tracking-[0.2em] text-white/50">
                                   <div className="flex justify-between items-center bg-white/[0.03] p-3 border border-white/5">
                                      <span>Condition Weighted</span>
                                      <span className="text-white font-mono">{Math.round(getPlaneSat(selectedAircraft))}%</span>
                                   </div>
                                   
                                   <div className="border-t border-white/5 pt-3 mt-3">
-                                     <div className="text-[8px] text-white/20 mb-3 px-1 font-black tracking-widest">BY CABIN CLASS</div>
+                                     <div className="text-4xs text-white/20 mb-3 px-1 font-black tracking-widest">BY CABIN CLASS</div>
                                      {['economy', 'premium', 'business', 'first'].map(c => {
                                         const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                                         if (seats <= 0) return null;
                                         return (
                                            <div key={c} className="flex justify-between items-center p-3 border border-white/5 bg-white/[0.02] mb-1">
-                                              <span className="text-[10px] text-white/70 font-black uppercase">{c}</span>
+                                              <span className="text-2xs text-white/70 font-black uppercase">{c}</span>
                                               <span className="text-white font-black italic text-xs">{Math.round(getPlaneSat(selectedAircraft))}%</span>
                                            </div>
                                         );
@@ -3054,7 +3054,7 @@ export function RoutePlannerView({
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-1.5 h-1.5 rounded-full bg-aero-yellow shadow-2xl"></div>
-                            <span className="text-[10px] font-black uppercase tracking-widest">Cabin Services SAT</span>
+                            <span className="text-2xs font-black uppercase tracking-widest">Cabin Services SAT</span>
                          </div>
                          <div className="flex items-center gap-4">
                             {(() => {
@@ -3074,7 +3074,7 @@ export function RoutePlannerView({
                       <AnimatePresence>
                          {expandedSections.sce && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-black/60 border-b border-white/10">
-                               <div className="p-4 pt-0 space-y-2 text-[10px] uppercase font-bold tracking-[0.2em] text-white/50">
+                               <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-bold tracking-[0.2em] text-white/50">
                                   {['economy', 'premium', 'business', 'first'].map(c => {
                                      const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                                      if (seats <= 0) return null;
@@ -3082,7 +3082,7 @@ export function RoutePlannerView({
                                      const sce = calculateClassSatisfaction(c, selectedAircraft, config, getFlightDurationMinutes(), airportManagement, selectedOrigin.id, selectedDest.id, difficulty).satisfactionPercentage;
                                      return (
                                         <div key={c} className="flex justify-between items-center bg-white/[0.03] p-3 border border-white/5 mb-1 group-hover:border-aero-yellow/20 transition-all">
-                                           <span className="text-[10px] text-white/70 font-black">{c}</span>
+                                           <span className="text-2xs text-white/70 font-black">{c}</span>
                                            <span className="text-white font-mono text-xs">{Math.round(sce)}%</span>
                                         </div>
                                      );
@@ -3101,7 +3101,7 @@ export function RoutePlannerView({
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-1.5 h-1.5 rounded-full bg-aero-yellow shadow-2xl"></div>
-                            <span className="text-[10px] font-black uppercase tracking-widest">Ground Services & Bonuses</span>
+                            <span className="text-2xs font-black uppercase tracking-widest">Ground Services & Bonuses</span>
                          </div>
                          <div className="flex items-center gap-4">
                             <span className="text-sm font-black italic text-aero-yellow">
@@ -3114,7 +3114,7 @@ export function RoutePlannerView({
                       <AnimatePresence>
                          {expandedSections.airport && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-black/60 border-b border-white/10">
-                               <div className="p-4 pt-0 space-y-2 text-[9px] uppercase font-bold tracking-[0.2em] text-white/40">
+                               <div className="p-4 pt-0 space-y-2 text-3xs uppercase font-bold tracking-[0.2em] text-white/40">
                                   <div className="text-white/20 mb-2 border-b border-white/5 pb-2 font-black tracking-[0.3em]">Operational Metrics</div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="italic">Origin Check-In</span>
@@ -3143,8 +3143,8 @@ export function RoutePlannerView({
                                         return (
                                            <div key={c} className="flex justify-between items-center p-3 border border-white/5 bg-white/[0.02] mb-1">
                                               <div className="flex flex-col">
-                                                 <span className="text-[10px] text-white/70 font-black">{c}</span>
-                                                 <span className="text-[7px] text-white/30">Target: {sceData.expectationTarget} | Quality: {sceData.providedQuality}{overloadPenalty < 0 ? ` | Overload Penalty: ${overloadPenalty}` : ''}</span>
+                                                 <span className="text-2xs text-white/70 font-black">{c}</span>
+                                                 <span className="text-4xs text-white/30">Target: {sceData.expectationTarget} | Quality: {sceData.providedQuality}{overloadPenalty < 0 ? ` | Overload Penalty: ${overloadPenalty}` : ''}</span>
                                               </div>
                                               <span className="text-aero-yellow font-black italic text-xs">{Math.round(Math.max(0, classRouteSat))}%</span>
                                            </div>
@@ -3159,15 +3159,15 @@ export function RoutePlannerView({
                 </div>
 
                 <div className="p-4 border-t border-white/10 flex flex-col gap-3 bg-white/[0.01]">
-                   <p className="text-[10px] text-white/30 leading-relaxed italic border-l-3 border-aero-yellow/30 pl-6 mb-2 font-bold uppercase tracking-widest">
+                   <p className="text-2xs text-white/30 leading-relaxed italic border-l-3 border-aero-yellow/30 pl-6 mb-2 font-bold uppercase tracking-widest">
                       SAT is what this cabin scores against what passengers expect for the class and
                       the flight length. 100% meets expectations; above that they tolerate a higher
                       fare, below it they only book at a discount. Expectations rise with distance,
                       so the same cabin scores lower on a long haul.
                    </p>
                    <div className="flex gap-4 mt-auto">
-                      {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:text-white hover:bg-white/10 transition-all">Back</button>}
-                      {!isEditingCabinOnly && <button onClick={() => setStep(4)} className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:bg-white transition-all shadow-2xl disabled:opacity-50">Next: Pricing</button>}
+                      {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
+                      {!isEditingCabinOnly && <button onClick={() => setStep(4)} className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:bg-white transition-all shadow-2xl disabled:opacity-50">Next: Pricing</button>}
                       {isEditingCabinOnly && (
                         <button 
                           disabled={isFinalizing}
@@ -3270,12 +3270,12 @@ export function RoutePlannerView({
                            <h3 className="text-xl font-black uppercase tracking-widest text-white leading-tight">
                               Financial Summary
                            </h3>
-                           <span className="text-[10px] text-white/40 tracking-widest font-mono font-bold uppercase">{paxPerWeek.toLocaleString()} / {totalEstPaxMax.toLocaleString()} Weekly PAX</span>
+                           <span className="text-2xs text-white/40 tracking-widest font-mono font-bold uppercase">{paxPerWeek.toLocaleString()} / {totalEstPaxMax.toLocaleString()} Weekly PAX</span>
                         </div>
                         
                         <div className="space-y-4 mb-4">
                            <div className="flex justify-between items-end border-b border-white/5 pb-2">
-                             <span className="text-[10px] uppercase font-bold tracking-widest text-white/60">Est. Weekly Revenue</span>
+                             <span className="text-2xs uppercase font-bold tracking-widest text-white/60">Est. Weekly Revenue</span>
                              <span className="text-lg font-mono text-aero-yellow">+${maxRevenue.toLocaleString()}</span>
                            </div>
                            <div className="flex flex-col border-b border-white/5 pb-2">
@@ -3283,7 +3283,7 @@ export function RoutePlannerView({
                                className="flex justify-between items-end cursor-pointer group"
                                onClick={() => setExpandedSections(prev => ({ ...prev, fuel4: !prev.fuel4 }))}
                              >
-                               <span className="text-[10px] uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
+                               <span className="text-2xs uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
                                  Opx: Fuel Cost {expandedSections.fuel4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                </span>
                                <span className="text-sm font-mono text-white/40 group-hover:text-white transition-colors">-${weeklyFuelCost.toLocaleString()}</span>
@@ -3291,37 +3291,37 @@ export function RoutePlannerView({
                              {expandedSections.fuel4 && (
                                <div className="pl-4 mt-2 space-y-1">
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Fuel Price</span>
-                                   <span className="text-[10px] font-mono text-white/30">${(fuelPrice / 3.785).toFixed(2)}/L</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Fuel Price</span>
+                                   <span className="text-2xs font-mono text-white/30">${(fuelPrice / 3.785).toFixed(2)}/L</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Max Pax</span>
-                                   <span className="text-[10px] font-mono text-white/30">{selectedAircraft.capacity}</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Max Pax</span>
+                                   <span className="text-2xs font-mono text-white/30">{selectedAircraft.capacity}</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Oneway Distance</span>
-                                   <span className="text-[10px] font-mono text-white/30">{dist.toFixed(0)} km</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Oneway Distance</span>
+                                   <span className="text-2xs font-mono text-white/30">{dist.toFixed(0)} km</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Formula Divider</span>
-                                   <span className="text-[10px] font-mono text-white/30">{(0.75 + (selectedAircraft.efficiency / 70)).toFixed(2)}</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Formula Divider</span>
+                                   <span className="text-2xs font-mono text-white/30">{(0.75 + (selectedAircraft.efficiency / 70)).toFixed(2)}</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Weekly Flight Legs</span>
-                                   <span className="text-[10px] font-mono text-white/30">{flightLegs}x</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Weekly Flight Legs</span>
+                                   <span className="text-2xs font-mono text-white/30">{flightLegs}x</span>
                                  </div>
                                </div>
                              )}
                            </div>
                            <div className="flex justify-between items-end border-b border-white/5 pb-2">
-                             <span className="text-[10px] uppercase font-bold tracking-widest text-white/60">Opx: Cabin & Catering</span>
+                             <span className="text-2xs uppercase font-bold tracking-widest text-white/60">Opx: Cabin & Catering</span>
                              <span className="text-sm font-mono text-white/40">-${Math.round(totalExpenses - weeklyFuelCost - weeklyCrewCost - weeklyInfraCost).toLocaleString()}</span>
                            </div>
                              <div 
                                className="flex justify-between items-end cursor-pointer group"
                                onClick={() => setExpandedSections(prev => ({ ...prev, crew4: !prev.crew4 }))}
                              >
-                                <span className="text-[10px] uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
+                                <span className="text-2xs uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
                                  Opx: Crew Costs {expandedSections.crew4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                </span>
                                <span className="text-sm font-mono text-white/40 group-hover:text-white transition-colors">-${weeklyCrewCost.toLocaleString()}</span>
@@ -3329,16 +3329,16 @@ export function RoutePlannerView({
                              {expandedSections.crew4 && (
                                <div className="pl-4 mt-2 space-y-1">
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Hourly Rate</span>
-                                   <span className="text-[10px] font-mono text-white/30">${((2 * 100) + (Math.ceil(selectedAircraft.capacity / 50) * 40)).toFixed(2)}</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Hourly Rate</span>
+                                   <span className="text-2xs font-mono text-white/30">${((2 * 100) + (Math.ceil(selectedAircraft.capacity / 50) * 40)).toFixed(2)}</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Pilots / FAs</span>
-                                   <span className="text-[10px] font-mono text-white/30">2 / {Math.ceil(selectedAircraft.capacity / 50)}</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Pilots / FAs</span>
+                                   <span className="text-2xs font-mono text-white/30">2 / {Math.ceil(selectedAircraft.capacity / 50)}</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-[9px] uppercase tracking-widest text-white/30">Weekly Flight Hours</span>
-                                   <span className="text-[10px] font-mono text-white/30">{(schedule.reduce((acc, s) => acc + (s.durMin * (s.isOneWay ? 1 : 2)), 0) / 60).toFixed(2)}h</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/30">Weekly Flight Hours</span>
+                                   <span className="text-2xs font-mono text-white/30">{(schedule.reduce((acc, s) => acc + (s.durMin * (s.isOneWay ? 1 : 2)), 0) / 60).toFixed(2)}h</span>
                                  </div>
                                </div>
                              )}
@@ -3347,7 +3347,7 @@ export function RoutePlannerView({
                                className="flex justify-between items-end cursor-pointer group"
                                onClick={() => setExpandedSections(prev => ({ ...prev, infra4: !prev.infra4 }))}
                              >
-                               <span className="text-[10px] uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
+                               <span className="text-2xs uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
                                  Opx: Infrastructure {expandedSections.infra4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                </span>
                                <span className="text-sm font-mono text-white/40 group-hover:text-white transition-colors">-${weeklyInfraCost.toLocaleString()}</span>
@@ -3355,43 +3355,43 @@ export function RoutePlannerView({
                              {expandedSections.infra4 && (
                                <div className="pl-4 mt-2 space-y-2 border-l border-white/10 ml-1">
                                  <div className="space-y-1">
-                                   <h4 className="text-[8px] font-black uppercase tracking-widest text-aero-yellow/50 mb-1">Landing Fees</h4>
+                                   <h4 className="text-4xs font-black uppercase tracking-widest text-aero-yellow/50 mb-1">Landing Fees</h4>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-[9px] uppercase tracking-widest text-white/30">{selectedOrigin.id} ({originDepartures}x landings)</span>
-                                     <span className="text-[10px] font-mono text-white/30">-${originLandingFees.toLocaleString()}</span>
+                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedOrigin.id} ({originDepartures}x landings)</span>
+                                     <span className="text-2xs font-mono text-white/30">-${originLandingFees.toLocaleString()}</span>
                                    </div>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-[9px] uppercase tracking-widest text-white/30">{selectedDest.id} ({destDepartures}x landings)</span>
-                                     <span className="text-[10px] font-mono text-white/30">-${destLandingFees.toLocaleString()}</span>
-                                   </div>
-                                 </div>
-
-                                 <div className="space-y-1 pt-1 border-t border-white/5">
-                                   <h4 className="text-[8px] font-black uppercase tracking-widest text-aero-yellow/50 mb-1">Check-in Desk Costs</h4>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-[9px] uppercase tracking-widest text-white/30">{selectedOrigin.id} ({originCheckInUnit.toFixed(3)}€/Pax)</span>
-                                     <span className="text-[10px] font-mono text-white/30">-${originCheckInFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-                                   </div>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-[9px] uppercase tracking-widest text-white/30">{selectedDest.id} ({destCheckInUnit.toFixed(3)}€/Pax)</span>
-                                     <span className="text-[10px] font-mono text-white/30">-${destCheckInFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedDest.id} ({destDepartures}x landings)</span>
+                                     <span className="text-2xs font-mono text-white/30">-${destLandingFees.toLocaleString()}</span>
                                    </div>
                                  </div>
 
                                  <div className="space-y-1 pt-1 border-t border-white/5">
-                                   <h4 className="text-[8px] font-black uppercase tracking-widest text-aero-yellow/50 mb-1">PAX Handling Fees (Security/Baggage)</h4>
+                                   <h4 className="text-4xs font-black uppercase tracking-widest text-aero-yellow/50 mb-1">Check-in Desk Costs</h4>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-[9px] uppercase tracking-widest text-white/30">{selectedOrigin.id} (L{selectedOrigin.level}: ${originPaxFeeUnit}/pax)</span>
-                                     <span className="text-[10px] font-mono text-white/30">-${originPaxHandlingFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedOrigin.id} ({originCheckInUnit.toFixed(3)}€/Pax)</span>
+                                     <span className="text-2xs font-mono text-white/30">-${originCheckInFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
                                    </div>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-[9px] uppercase tracking-widest text-white/30">{selectedDest.id} (L{selectedDest.level}: ${destPaxFeeUnit}/pax)</span>
-                                     <span className="text-[10px] font-mono text-white/30">-${destPaxHandlingFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedDest.id} ({destCheckInUnit.toFixed(3)}€/Pax)</span>
+                                     <span className="text-2xs font-mono text-white/30">-${destCheckInFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                   </div>
+                                 </div>
+
+                                 <div className="space-y-1 pt-1 border-t border-white/5">
+                                   <h4 className="text-4xs font-black uppercase tracking-widest text-aero-yellow/50 mb-1">PAX Handling Fees (Security/Baggage)</h4>
+                                   <div className="flex justify-between items-end">
+                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedOrigin.id} (L{selectedOrigin.level}: ${originPaxFeeUnit}/pax)</span>
+                                     <span className="text-2xs font-mono text-white/30">-${originPaxHandlingFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                   </div>
+                                   <div className="flex justify-between items-end">
+                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedDest.id} (L{selectedDest.level}: ${destPaxFeeUnit}/pax)</span>
+                                     <span className="text-2xs font-mono text-white/30">-${destPaxHandlingFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
                                    </div>
                                  </div>
 
                                  <div className="pt-1 border-t border-white/5">
-                                    <p className="text-[7px] text-white/20 uppercase font-bold leading-tight">
+                                    <p className="text-4xs text-white/20 uppercase font-bold leading-tight">
                                       * Costs include slot license, check-in desk personnel, terminal usage fees, and baggage handling systems per departure.
                                     </p>
                                  </div>
@@ -3400,8 +3400,8 @@ export function RoutePlannerView({
                            </div>
                         </div>
 
-                        <div className={`p-4 border ${estProfit >= 0 ? 'bg-aero-yellow/10 border-aero-yellow/30' : 'bg-[#111] border-white/20'} flex flex-col items-center justify-center`}>
-                            <span className="text-[10px] uppercase font-black tracking-widest text-white/50 mb-1">Max Possible Profit</span>
+                        <div className={`p-4 border ${estProfit >= 0 ? 'bg-aero-yellow/10 border-aero-yellow/30' : 'bg-aero-panel border-white/20'} flex flex-col items-center justify-center`}>
+                            <span className="text-2xs uppercase font-black tracking-widest text-white/50 mb-1">Max Possible Profit</span>
                            <span className={`text-4xl font-black italic tracking-tighter ${estProfit >= 0 ? 'text-aero-yellow' : 'text-aero-yellow/60'}`}>
                              {estProfit >= 0 ? '+' : '-'}${Math.abs(Math.round(estProfit)).toLocaleString()}
                            </span>
@@ -3416,16 +3416,16 @@ export function RoutePlannerView({
                            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2">Configure Pricing</h3>
                            {debugMode && (
                              <div 
-                                className="text-white/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 cursor-pointer border border-white/10 px-2 py-1 bg-black/40 hover:bg-white/10"
+                                className="text-white/50 text-2xs font-black uppercase tracking-widest flex items-center gap-2 cursor-pointer border border-white/10 px-2 py-1 bg-black/40 hover:bg-white/10"
                                 onClick={() => setShowPricingDebug(!showPricingDebug)}
                              >
-                                <Search size={12} /> Base P. <span className="text-[8px] bg-white/10 px-1 py-0.5 rounded-sm">DEBUG</span>
+                                <Search size={12} /> Base P. <span className="text-4xs bg-white/10 px-1 py-0.5 rounded-sm">DEBUG</span>
                              </div>
                            )}
                         </div>
 
                         {showPricingDebug && debugMode && (
-                          <div className="mb-4 p-4 border border-white/10 bg-black/60 rounded-sm font-mono text-[10px] text-white/60 space-y-2">
+                          <div className="mb-4 p-4 border border-white/10 bg-black/60 rounded-sm font-mono text-2xs text-white/60 space-y-2">
                              <div className="text-white font-bold mb-2 uppercase tracking-widest">SAT-Basisprice Calculation & Demand</div>
                              {(() => {
                                 const aircraftConfig = selectedAircraft.config || {};
@@ -3461,22 +3461,22 @@ export function RoutePlannerView({
                                            <span>Base: ${base} &times; SAT-Mult: {satMultiplier.toFixed(3)} ({sat}%) &rarr; <strong className="text-aero-yellow">SAT-Base: ${satBase}</strong></span>
                                          </div>
                                          {sat > 100 && (
-                                            <div className="pl-4 text-[8px] text-white/30 italic">
+                                            <div className="pl-4 text-4xs text-white/30 italic">
                                                SAT &gt; 100%: {sat <= 200 ? `1.0 + (0.008 * ${sat-100}) - (0.000035 * ${Math.pow(sat-100, 2).toFixed(0)})` : `1.45 + (0.001 * ${sat-200})`}
                                             </div>
                                          )}
-                                         <div className="flex justify-between pl-4 text-[9px]">
+                                         <div className="flex justify-between pl-4 text-3xs">
                                            <span>Ratio (R): {(currentPrice/satBase).toFixed(2)}x</span>
                                          </div>
-                                         <div className="flex justify-between pl-4 text-[9px]">
+                                         <div className="flex justify-between pl-4 text-3xs">
                                            <span>Demand Formula: 1.0 - (R - 1)^2</span>
                                            <span>Mult: {(demMult*100).toFixed(1)}%</span>
                                          </div>
-                                         <div className="flex justify-between pl-4 text-[9px] text-aero-yellow">
+                                         <div className="flex justify-between pl-4 text-3xs text-aero-yellow">
                                            <span>{maxDemand.toLocaleString()} Max Pax &times; {(demMult*100).toFixed(1)}%</span>
                                            <span>Real max pax: {finalDemand.toLocaleString()}</span>
                                          </div>
-                                         <div className="flex justify-between pl-4 text-[9px] text-white/40">
+                                         <div className="flex justify-between pl-4 text-3xs text-white/40">
                                             <span>Seats on Aircraft:</span>
                                             <span>{classSeatCountLocal[c]}</span>
                                          </div>
@@ -3493,7 +3493,7 @@ export function RoutePlannerView({
                               <div className="flex justify-between items-center relative z-10">
                                  <div className="flex flex-col">
                                     <span className="text-sm uppercase font-black tracking-widest text-aero-yellow">General Settings</span>
-                                    <span className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Adjust All Prices</span>
+                                    <span className="text-2xs text-white/40 uppercase tracking-widest mt-1">Adjust All Prices</span>
                                  </div>
                               </div>
                               <div className="relative pt-4 z-10">
@@ -3520,14 +3520,14 @@ export function RoutePlannerView({
                                     style={{ left: `calc(${((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 100}% + ${8 - ((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 16}px)`, transform: 'translateX(-50%)' }} 
                                  />
                                  <div className="flex justify-between mt-2 px-1">
-                                    <span className="text-[10px] text-white/40 font-mono">
+                                    <span className="text-2xs text-white/40 font-mono">
                                       ${Math.round(basePriceBE99)}<span className="text-white/25 ml-1">break-even at 99% full</span>
                                     </span>
-                                    <span className="text-[10px] text-white/40 font-mono">
+                                    <span className="text-2xs text-white/40 font-mono">
                                       <span className="text-white/25 mr-1">break-even at 35% full</span>${Math.round(basePriceBE35)}
                                     </span>
                                  </div>
-                                 <p className="text-[10px] text-white/30 leading-relaxed mt-1">
+                                 <p className="text-2xs text-white/30 leading-relaxed mt-1">
                                    The notch is break-even at 75% full, a realistic year-round average. Below it you
                                    are betting on filling more seats than that; well above it passengers stop booking.
                                  </p>
@@ -3548,7 +3548,7 @@ export function RoutePlannerView({
                                   <div className="flex justify-between items-center">
                                      <div className="flex flex-col">
                                         <span className="text-sm uppercase font-black tracking-widest text-aero-yellow">{c} Class</span>
-                                        <span className="text-[10px] text-white/40 uppercase tracking-widest mt-1">{classSeatCount[c]} Seats</span>
+                                        <span className="text-2xs text-white/40 uppercase tracking-widest mt-1">{classSeatCount[c]} Seats</span>
                                      </div>
                                      <div className="flex flex-col items-end">
                                         <span className="text-2xl font-mono text-white font-bold">${currentPrice}</span>
@@ -3569,8 +3569,8 @@ export function RoutePlannerView({
                                         style={{ left: `calc(${((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 100}% + ${8 - ((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 16}px)`, transform: 'translateX(-50%)' }} 
                                      />
                                      <div className="flex justify-between mt-2 px-1">
-                                        <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 99% LF">${minPossiblePrice}</span>
-                                        <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 35% LF">${maxPossiblePrice}</span>
+                                        <span className="text-2xs text-white/30 font-mono" title="Break-Even at 99% LF">${minPossiblePrice}</span>
+                                        <span className="text-2xs text-white/30 font-mono" title="Break-Even at 35% LF">${maxPossiblePrice}</span>
                                      </div>
                                   </div>
                                </div>
@@ -3579,7 +3579,7 @@ export function RoutePlannerView({
 </div>
                      </div>
                      <div className="flex gap-4">
-                        <button onClick={() => setStep(3)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:text-white hover:bg-white/10 transition-all">Back</button>
+                        <button onClick={() => setStep(3)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>
                         <button 
                           disabled={isFinalizing || schedule.length === 0}
                           onClick={() => {
@@ -3667,12 +3667,12 @@ export function RoutePlannerView({
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="w-full max-w-md bg-[#1a1a1a] border border-white/10 p-4 rounded-sm shadow-2xl"
+                className="w-full max-w-md bg-aero-panel-2 border border-white/10 p-4 rounded-sm shadow-2xl"
               >
                 <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow mb-3">Save Configuration</h3>
                 <div className="space-y-6">
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest block mb-2">Configuration Name</label>
+                    <label className="text-2xs uppercase font-bold text-white/40 tracking-widest block mb-2">Configuration Name</label>
                     <input 
                       type="text" 
                       value={newConfigName}
@@ -3685,13 +3685,13 @@ export function RoutePlannerView({
                   <div className="flex gap-4 pt-4">
                     <button 
                       onClick={() => setShowConfigSaveModal(false)}
-                      className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
+                      className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-2xs font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={saveCabinConfig}
-                      className="flex-1 py-4 bg-aero-yellow text-black uppercase text-[10px] font-black tracking-widest hover:bg-white transition-all"
+                      className="flex-1 py-4 bg-aero-yellow text-black uppercase text-2xs font-black tracking-widest hover:bg-white transition-all"
                     >
                       Save
                     </button>
@@ -3714,7 +3714,7 @@ export function RoutePlannerView({
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="w-full max-w-2xl bg-[#1a1a1a] border border-white/10 p-4 rounded-sm shadow-2xl max-h-[80vh] flex flex-col"
+                className="w-full max-w-2xl bg-aero-panel-2 border border-white/10 p-4 rounded-sm shadow-2xl max-h-[80vh] flex flex-col"
               >
                  <div className="flex justify-between items-center mb-3">
                     <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow">Load Configuration</h3>
@@ -3736,14 +3736,14 @@ export function RoutePlannerView({
                                 className="flex-1 flex justify-between items-center bg-white/5 border border-white/10 p-4 hover:bg-white/10 hover:border-aero-yellow transition-all text-left"
                              >
                                 <span className="text-sm font-black uppercase tracking-widest text-white">{cfg.name}</span>
-                                <div className="flex items-center gap-4 text-[10px] text-white/40 uppercase font-bold">
+                                <div className="flex items-center gap-4 text-2xs text-white/40 uppercase font-bold">
                                    <span>{Object.keys(cfg.configs).filter(k => k !== 'general').length} Classes</span>
                                    <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
                              </button>
                              <button 
                                 onClick={() => deleteSavedConfig(cfg.id)}
-                                className="w-12 h-14 flex items-center justify-center bg-[#111] border border-white/20 text-aero-yellow/60 hover:bg-[#1a1a1a] hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                className="w-12 h-14 flex items-center justify-center bg-aero-panel border border-white/20 text-aero-yellow/60 hover:bg-aero-panel-2 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                              >
                                 <Plus size={20} className="rotate-45" />
                              </button>
@@ -3754,7 +3754,7 @@ export function RoutePlannerView({
                  
                  <button 
                     onClick={() => setShowConfigLoadModal(false)}
-                    className="mt-6 w-full py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all text-center"
+                    className="mt-6 w-full py-4 border border-white/10 text-white/50 uppercase text-2xs font-black tracking-widest hover:text-white hover:bg-white/5 transition-all text-center"
                  >
                     Close
                  </button>
