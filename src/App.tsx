@@ -232,6 +232,33 @@ export function reputationDemandFactor(reputation: number): number {
   return 0.9 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;
 }
 
+/**
+ * The correction that turns a crisis's raw demand hit into the softened one the
+ * player paid for.
+ *
+ * calculateDemand has already applied the event's own multiplier via
+ * getEventMultipliers, and that path is shared with the AI airlines. Rather
+ * than fork it, the player's demand factor carries the ratio between the
+ * softened multiplier and the raw one, so only the player sees the relief.
+ */
+export function eventReliefFactor(
+  offset: number,
+  choicesTaken: Record<string, string>
+): number {
+  let factor = 1;
+  for (const ev of getActiveEvents(offset)) {
+    const chosenId = choicesTaken[eventKey(ev)];
+    if (!chosenId) continue;
+    const choice = ev.choices?.find(c => c.id === chosenId);
+    if (!choice?.softensDemand) continue;
+    const raw = ev.demandMultiplier;
+    if (raw >= 1) continue;
+    const softened = raw + (1 - raw) * choice.softensDemand;
+    factor *= softened / raw;
+  }
+  return factor;
+}
+
 export const airportsMapAdjusted = new Map<string, Airport>();
 airports.forEach(a => airportsMapAdjusted.set(a.id, a));
 
@@ -1341,6 +1368,11 @@ export default function App() {
   const [milestones, setMilestones] = useState<string[]>([]);
   /** Consecutive months closed without a loss, for the profit milestone. */
   const [profitStreak, setProfitStreak] = useState(0);
+  /**
+   * The target set each January and settled each December. Gives the calendar a
+   * rhythm: before this, which month you acted in never mattered.
+   */
+  const [annualGoal, setAnnualGoal] = useState<{ year: number; targetProfit: number } | null>(null);
   /** The event whose decision is waiting to be made, if any. */
   const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<GameMessage | null>(null);
@@ -1540,6 +1572,15 @@ export default function App() {
    * Every rival departure, as offers the finance engine can split demand by.
    * Rebuilt only when the AI airlines change, not per route.
    */
+  /**
+   * Everything that shifts the player's demand away from the shared baseline:
+   * reputation, plus any crisis relief bought this month.
+   */
+  const playerDemandFactor = useMemo(
+    () => reputationDemandFactor(reputation) * eventReliefFactor(currentDateOffset, eventChoices),
+    [reputation, currentDateOffset, eventChoices, randomEvents]
+  );
+
   const rivalOffers = useMemo(
     () =>
       (aiAirlines || []).flatMap((ai: any) =>
@@ -1968,7 +2009,7 @@ export default function App() {
         const fin = calculateRouteFinancials(
           r, ac, currentFuelPrice, airportManagement, currentYearNum, currentMonthNum,
           difficulty, localAirportsMap, routes, fleet, false,
-          reputationDemandFactor(reputation), rivalOffers
+          playerDemandFactor, rivalOffers
         );
         const mRev = (fin.estWeeklyRev || 0) * 4;
         const mCost = (fin.estWeeklyCosts || 0) * 4;
@@ -2100,7 +2141,6 @@ export default function App() {
       });
     }
 
-    setReputation(nextReputation);
 
     const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
 
@@ -2226,6 +2266,60 @@ export default function App() {
       setRuntimeRandomEvents(updatedRandomEvents);
 
     }
+
+    // --- Annual goal -------------------------------------------------------
+    // Settled in December against the twelve months just closed, then a new one
+    // is set for January. The target is 15% above what the year actually
+    // delivered, with a floor so the first year is not trivially met.
+    const closingYear = currentYearNum;
+    const isDecember = currentMonthNum === 12;
+    if (isDecember) {
+      const yearReports = [...reportHistory, report].filter(
+        r => r && r.year === closingYear
+      );
+      const achieved = yearReports.reduce((a, r) => a + (r.totalProfit || 0), 0);
+
+      if (annualGoal && annualGoal.year === closingYear) {
+        const met = achieved >= annualGoal.targetProfit;
+        if (met) nextReputation = Math.min(100, nextReputation + 4);
+        additionalMessages.push({
+          id: Date.now() + 77000,
+          text: met
+            ? `TARGET MET: ${closingYear} closed at ${formatCurrency(achieved)}.`
+            : `TARGET MISSED: ${closingYear} closed at ${formatCurrency(achieved)}.`,
+          isRead: false,
+          dateStr: offsetToDateStr(currentDateOffset),
+          details: {
+            title: `${closingYear} annual result`,
+            source: 'Board of Directors',
+            content:
+              `Target for ${closingYear}: ${formatCurrency(annualGoal.targetProfit)}\n` +
+              `Achieved: ${formatCurrency(achieved)}\n\n` +
+              (met ? 'The board is satisfied. Reputation +4.' : 'The board expected more.')
+          }
+        });
+      }
+
+      const nextTarget = Math.max(2_000_000, Math.round(achieved * 1.15));
+      setAnnualGoal({ year: closingYear + 1, targetProfit: nextTarget });
+      additionalMessages.push({
+        id: Date.now() + 78000,
+        text: `TARGET FOR ${closingYear + 1}: ${formatCurrency(nextTarget)} operating profit.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `${closingYear + 1} target`,
+          source: 'Board of Directors',
+          content:
+            `The board expects ${formatCurrency(nextTarget)} of operating profit across ${closingYear + 1}, ` +
+            `15% above what ${closingYear} delivered.\n\nMeeting it is worth 4 reputation.`
+        }
+      });
+    }
+
+    // Written once, after both the milestone and the annual-goal bonuses have
+    // had their say. Setting it earlier silently dropped the December bonus.
+    setReputation(nextReputation);
 
     // 3. Announce every event that starts or ends with this tick.
     const afterEvents = getActiveEvents(nextOffset);
@@ -2393,6 +2487,7 @@ export default function App() {
       reputation,
       milestones,
       profitStreak,
+      annualGoal,
       startDateOffset,
       currentDateOffset,
       airportManagement,
@@ -2482,6 +2577,7 @@ export default function App() {
         setReputation(typeof saveObj.reputation === 'number' ? saveObj.reputation : 50);
         setMilestones(Array.isArray(saveObj.milestones) ? saveObj.milestones : []);
         setProfitStreak(typeof saveObj.profitStreak === 'number' ? saveObj.profitStreak : 0);
+        setAnnualGoal(saveObj.annualGoal ?? null);
         
         if (saveObj.messages) {
           setMessages(saveObj.messages);
@@ -3072,6 +3168,7 @@ export default function App() {
                           setReputation(50);
                           setMilestones([]);
                           setProfitStreak(0);
+                          setAnnualGoal(null);
                           setSessionKey(Date.now());
                           const newSaveId = `save_${Date.now()}`;
                           setCurrentSaveId(newSaveId);
@@ -3625,7 +3722,7 @@ export default function App() {
                              }));
                           }}
                           fuelPrice={fuelData.price}
-                        demandFactor={reputationDemandFactor(reputation)}
+                        demandFactor={playerDemandFactor}
                         rivalOffers={rivalOffers}
                           airportManagement={airportManagement}
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
@@ -3654,6 +3751,7 @@ export default function App() {
                           reputation={reputation}
                           milestones={milestones}
                           milestoneCatalogue={MILESTONES}
+                          annualGoal={annualGoal}
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
@@ -3717,7 +3815,7 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={reputationDemandFactor(reputation)}
+                        demandFactor={playerDemandFactor}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -3746,7 +3844,7 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={reputationDemandFactor(reputation)}
+                        demandFactor={playerDemandFactor}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}

@@ -557,13 +557,14 @@ Spieler erlebt März 2020 als unerklärlichen Umsatzeinbruch auf ein Fünftel.
    zeigt bereits Titel, Beschreibung und Wirkung; ihm fehlt nur, wie lange das
    Ereignis noch läuft. `getActiveEvents(offset)` (`eventSystem.ts:67-71`)
    liefert `startOffset` und `duration`, also ist das eine Subtraktion.
-3. **Entscheidungen.** *(umgesetzt für die drei Ölschocks: Absicherung des
-   Spritpreises gegen eine Einmalzahlung. Die Absicherung gilt nur für den
-   Spieler — `getFuelPriceForAi` bleibt am Marktpreis — und sperrt in beide
-   Richtungen, fallende Preise eingeschlossen. Die übrigen drei Ereignisse
-   (2001, 2008, Pandemie) haben noch keine Entscheidung, weil deren sinnvolle
-   Antworten auf der Nachfrageseite liegen und dort kein ebenso sauberer
-   Angriffspunkt existiert.)*
+3. **Entscheidungen.** *(umgesetzt für alle sechs Ereignisse.* Die drei
+   Ölschocks bieten eine Absicherung des Spritpreises, die drei
+   nachfrageseitigen Ereignisse eine Entlastung der Nachfrage. Beides gilt nur
+   für den Spieler: `getFuelPriceForAi` bleibt am Marktpreis, und die
+   Nachfrage-Entlastung läuft über `extraDemandFactor`, das die KI neutral mit
+   1,0 übergibt. Gemessen: 2001 von 0,65 auf 0,79 für 5 Mio. $, 2008 von 0,75
+   auf 0,83 für 8 Mio. $, Pandemie von 0,20 auf 0,48 für 25 Mio. $; ohne
+   getroffene Wahl ist der Faktor exakt 1,000.*)*
    `HistoricalEvent` um ein optionales `choices` erweitern:
 
    ```ts
@@ -583,7 +584,7 @@ würden „Streik in Frankreich" oder „Tourismusboom in Südostasien" möglich
 Die Ost/West-Anpassung in `App.tsx:52-80` zeigt, dass die Geografie schon
 ansatzweise gruppiert ist.
 
-## C3 — Fortschritt, Ziele und Ruf *(umgesetzt, ohne Jahresziele)*
+## C3 — Fortschritt, Ziele und Ruf *(vollständig umgesetzt)*
 
 **Das Problem:** es gibt keinen Airline-Wert, der wächst. Nach 30 Jahren sind es
 dieselben fünf Klicks.
