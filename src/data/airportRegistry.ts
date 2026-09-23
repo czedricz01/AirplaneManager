@@ -1,4 +1,5 @@
-import { Airport, airportsData } from './airports';
+import { airportsData } from './airports';
+import { Airport, STATS_BASE_YEAR } from './airportTypes';
 import { moreAirports } from './more_airports';
 
 /**
@@ -46,10 +47,12 @@ export const airports: Airport[] = rawAirports.map(a => {
 
   if ((!isSoviet && !isWesternMajor) || !a.stats) return a;
 
-  const sourceStats = a.stats;
-  const newStats: Record<string, { tourism: number; business: number }> = { ...sourceStats };
-  for (const yearStr in sourceStats) {
-    const year = parseInt(yearStr);
+  // The stats array is tourism and business interleaved from STATS_BASE_YEAR,
+  // so the year for index i is STATS_BASE_YEAR + (i >> 1).
+  const src = a.stats;
+  const out = src.slice();
+  for (let i = 0; i < src.length; i += 2) {
+    const year = STATS_BASE_YEAR + i / 2;
     let multiplier = 1.0;
 
     if (isSoviet) {
@@ -61,13 +64,11 @@ export const airports: Airport[] = rawAirports.map(a => {
     }
 
     if (multiplier !== 1.0) {
-      newStats[yearStr] = {
-        tourism: Math.max(1, Math.round(sourceStats[yearStr].tourism * multiplier)),
-        business: Math.max(1, Math.round(sourceStats[yearStr].business * multiplier))
-      };
+      out[i] = Math.max(1, Math.round(src[i] * multiplier));
+      out[i + 1] = Math.max(1, Math.round(src[i + 1] * multiplier));
     }
   }
-  return { ...a, stats: newStats };
+  return { ...a, stats: out };
 });
 
 /** Lookup over the adjusted list. This is what every screen should use. */

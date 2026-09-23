@@ -46,7 +46,7 @@ export default defineConfig(() => {
           rollupOptions: {
             output: {
               manualChunks: {
-                'airport-data': ['./src/data/airports.ts', './src/data/more_airports.ts'],
+                'airport-data': ['./src/data/airportsRows.ts', './src/data/moreAirportsRows.ts', './src/data/airports.ts', './src/data/more_airports.ts', './src/data/airportRegistry.ts'],
                 'aircraft-data': ['./src/data/aircraft.ts', './src/data/fuelPrices.ts'],
                 'map-vendor': ['leaflet', 'react-leaflet'],
               },
