@@ -184,7 +184,9 @@ der auffälligste Knopf ist der, der nichts bringt. Die einzige Willkommens­nac
 Untersysteme, ohne eines zu erklären.
 
 **A2.6 Klicks, die stumm nichts tun.** Sieben Stellen prüfen eine Bedingung und
-kehren ohne Rückmeldung zurück: `App.tsx:2094` (Kauf bestätigen),
+kehren ohne Rückmeldung zurück: `App.tsx:2094` (Kauf bestätigen — im Browser
+nachgeprüft: der Knopf ist bei zu wenig Kapital bereits deaktiviert, nannte aber
+keinen Grund; der stille `return` ist der Auffangfall dahinter),
 `App.tsx:3236` (T1 freischalten), `RoutePlannerView.tsx:1136-1137, 1156`,
 `AirportDetailView.tsx:677, 686`. `RoutePlannerView.tsx:1131-1134` **kürzt**
 zusätzlich still: Shift-Klick auf 10 Slots kauft ggf. 3. Dabei existiert mit

@@ -4,6 +4,7 @@ import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info } from 'lucide-react'
 import { ManagementLevel, AirportInfrastructure } from '../App';
 
 import { OwnedAircraft } from './MyFleetView';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { SimulatedRoute } from '../App';
 
 import { getAirportUpkeep, getSlotPurchaseCost } from '../lib/financeUtils';
@@ -305,8 +306,8 @@ export function AirportDetailView({
               </div>
             )}
           </div>
-          <Metric label="Available Slots" value={`${Math.max(0, totalSlots - usedSlots - aiSlotsUsed)} / ${totalSlots}`} color={aiSlotsUsed > 0 ? "text-aero-yellow" : "text-white"} />
-          <Metric label="Max ICAO Code" value={airport.maxIcaoCode} />
+          <Metric label="Available Slots" info="slots" value={`${Math.max(0, totalSlots - usedSlots - aiSlotsUsed)} / ${totalSlots}`} color={aiSlotsUsed > 0 ? "text-aero-yellow" : "text-white"} />
+          <Metric label="Max ICAO Code" value={airport.maxIcaoCode} info="icaoCode" />
           {(() => {
              const hubBonus = infrastructure.level >= 2;
              const paxUnitFee = (hubBonus ? 0.475 : 0.5) + (level >= 5 ? 5 : level >= 3 ? 4 : 3);
@@ -645,10 +646,13 @@ export function AirportDetailView({
   );
 }
 
-function Metric({ label, value, highlight, color }: { label: string, value: string, highlight?: boolean, color?: string }) {
+function Metric({ label, value, highlight, color, info }: { label: string, value: string, highlight?: boolean, color?: string, info?: keyof typeof GLOSSARY }) {
   return (
     <div className="flex flex-col">
-      <span className="text-[8px] text-white/30 uppercase tracking-[0.2em] mb-0.5">{label}</span>
+      <span className="text-[8px] text-white/30 uppercase tracking-[0.2em] mb-0.5 flex items-center">
+        {label}
+        {info && <InfoTooltip size={11} {...GLOSSARY[info]} />}
+      </span>
       <span className={`text-xs font-black ${highlight ? 'text-aero-yellow' : color || 'text-white'}`}>{value}</span>
     </div>
   );
@@ -671,10 +675,11 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
         <div className="flex flex-col">
           <span className="text-[11px] font-bold text-white uppercase tracking-widest">{label}</span>
           {info && <span className="text-[9px] text-white/30 italic mt-0.5">{info}</span>}
-          <span className="text-[8px] text-aero-yellow mt-1">
+          <span className="text-[8px] text-aero-yellow mt-1 flex items-center">
             {purchaseCost !== undefined ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(purchaseCost)} CAPEX` : ''}
             {purchaseCost !== undefined && cost > 0 && " + "}
             {cost > 0 ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cost)} / wk` : (!purchaseCost ? 'FREE / INCLUDED' : '')}
+            <InfoTooltip size={11} {...GLOSSARY.capex} />
           </span>
         </div>
         <div className="flex items-center gap-4">

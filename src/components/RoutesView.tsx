@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
 import { OwnedAircraft } from './MyFleetView';
 
@@ -228,7 +229,7 @@ export function RoutesView({
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('destination')}>Destination {getSortIcon('destination')}</th>
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('distance')}>Distance {getSortIcon('distance')}</th>
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('durMin')}>Flight Time {getSortIcon('durMin')}</th>
-              <th className="py-4 sticky top-0 bg-[#141414] z-10">Time-Class</th>
+              <th className="py-4 sticky top-0 bg-[#141414] z-10">Time-Class<InfoTooltip size={11} {...GLOSSARY.timeClass} /></th>
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</th>
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('weeklyFlights')}>Weekly Flights {getSortIcon('weeklyFlights')}</th>
               <th className="py-4 sticky top-0 bg-[#141414] z-10 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('paxPerWeek')}>Pax / Week {getSortIcon('paxPerWeek')}</th>

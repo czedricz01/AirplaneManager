@@ -6,6 +6,7 @@ import { OwnedAircraft } from './MyFleetView';
 import { AirportInfrastructure, ManagementLevel } from '../App';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import {
   getSlotPurchaseCost,
   calculateRouteFinancials,
@@ -1631,7 +1632,7 @@ export function RoutePlannerView({
                         const sim = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
                         return (
                           <div className="mt-2 text-[10px] text-white/50 space-y-1">
-                            <div className="flex justify-between"><span className="uppercase tracking-widest">Desk Load:</span><span className={sim.load > 90 ? 'text-aero-yellow/60 font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
+                            <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
                             <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-yellow/60 font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
@@ -2005,7 +2006,7 @@ export function RoutePlannerView({
                            const sim = getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
                            return (
                              <div className="mt-2 text-[10px] text-white/50 space-y-1">
-                               <div className="flex justify-between"><span className="uppercase tracking-widest">Desk Load:</span><span className={sim.load > 90 ? 'text-aero-yellow/60 font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
+                               <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
                                <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-yellow/60 font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
@@ -2954,7 +2955,7 @@ export function RoutePlannerView({
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
-                            <span className="text-[10px] font-black uppercase tracking-widest">Combined Plane SAT</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest flex items-center">Combined Plane SAT<InfoTooltip size={11} {...GLOSSARY.sat} /></span>
                          </div>
                          <div className="flex items-center gap-4">
                             <span className="text-sm font-black italic">{Math.round(getPlaneSat(selectedAircraft))}%</span>
@@ -3103,7 +3104,10 @@ export function RoutePlannerView({
 
                 <div className="p-4 border-t border-white/10 flex flex-col gap-3 bg-white/[0.01]">
                    <p className="text-[10px] text-white/30 leading-relaxed italic border-l-3 border-aero-yellow/30 pl-6 mb-2 font-bold uppercase tracking-widest">
-                      Satisfaction (SAT) results from technical excellence and service quality.
+                      SAT is what this cabin scores against what passengers expect for the class and
+                      the flight length. 100% meets expectations; above that they tolerate a higher
+                      fare, below it they only book at a discount. Expectations rise with distance,
+                      so the same cabin scores lower on a long haul.
                    </p>
                    <div className="flex gap-4 mt-auto">
                       {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:text-white hover:bg-white/10 transition-all">Back</button>}
@@ -3453,13 +3457,21 @@ export function RoutePlannerView({
                                     className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                                  />
                                  <div 
-                                    className="absolute top-[20px] h-4 w-1 bg-white/10 pointer-events-none z-0 rounded-b-sm" 
+                                    className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
                                     style={{ left: `calc(${((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 100}% + ${8 - ((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 16}px)`, transform: 'translateX(-50%)' }} 
                                  />
                                  <div className="flex justify-between mt-2 px-1">
-                                    <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 99% LF">${Math.round(basePriceBE99)}</span>
-                                    <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 35% LF">${Math.round(basePriceBE35)}</span>
+                                    <span className="text-[10px] text-white/40 font-mono">
+                                      ${Math.round(basePriceBE99)}<span className="text-white/25 ml-1">break-even at 99% full</span>
+                                    </span>
+                                    <span className="text-[10px] text-white/40 font-mono">
+                                      <span className="text-white/25 mr-1">break-even at 35% full</span>${Math.round(basePriceBE35)}
+                                    </span>
                                  </div>
+                                 <p className="text-[10px] text-white/30 leading-relaxed mt-1">
+                                   The notch is break-even at 75% full, a realistic year-round average. Below it you
+                                   are betting on filling more seats than that; well above it passengers stop booking.
+                                 </p>
                               </div>
                            </div>
 
@@ -3494,7 +3506,7 @@ export function RoutePlannerView({
                                         className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                                      />
                                      <div 
-                                        className="absolute top-[20px] h-4 w-1 bg-white/10 pointer-events-none z-0 rounded-b-sm" 
+                                        className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
                                         style={{ left: `calc(${((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 100}% + ${8 - ((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 16}px)`, transform: 'translateX(-50%)' }} 
                                      />
                                      <div className="flex justify-between mt-2 px-1">

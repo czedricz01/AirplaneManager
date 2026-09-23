@@ -3,6 +3,7 @@ import { Aircraft } from '../data/aircraft';
 import { Search, ChevronDown, ChevronUp, LayoutGrid, List, Plane, Layers, Activity, MapPin, Wrench, ShieldAlert, Boxes, X, ChevronRight } from 'lucide-react';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
 import { getPlaneSat } from '../lib/financeUtils';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { ConfigOutput } from './ConfigurePurchaseView';
 import { AircraftImage } from './AircraftImage';
 
@@ -711,16 +712,16 @@ export function MyFleetView({ fleet, routes = [], currentDateOffset, onRenovate,
                         </th>
                         <th className="py-3">Pax Config</th>
                         <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('efficiency')}>
-                          Eff. {getSortIcon('efficiency')}
+                          Eff.<InfoTooltip size={11} {...GLOSSARY.efficiency} /> {getSortIcon('efficiency')}
                         </th>
                         <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('popularity')}>
-                          Comb. Sat {getSortIcon('popularity')}
+                          Comb. Sat<InfoTooltip size={11} {...GLOSSARY.sat} /> {getSortIcon('popularity')}
                         </th>
                         <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('conditionInterior')}>
-                          Int. Cond {getSortIcon('conditionInterior')}
+                          Int. Cond<InfoTooltip size={11} {...GLOSSARY.conditionInterior} /> {getSortIcon('conditionInterior')}
                         </th>
                         <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('conditionGeneral')}>
-                          Gen. Cond {getSortIcon('conditionGeneral')}
+                          Gen. Cond<InfoTooltip size={11} {...GLOSSARY.conditionGeneral} /> {getSortIcon('conditionGeneral')}
                         </th>
                         <th className="py-3">Status</th>
                       </tr>
