@@ -4,6 +4,7 @@ import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info } from 'lucide-react'
 import { ManagementLevel, AirportInfrastructure } from '../App';
 
 import { OwnedAircraft } from './MyFleetView';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { SimulatedRoute } from '../App';
 
 import { getAirportUpkeep, getSlotPurchaseCost } from '../lib/financeUtils';
@@ -17,6 +18,12 @@ interface Props {
   onUpdateInfrastructure: (infra: AirportInfrastructure) => void;
   onSubtractCapital: (amount: number) => void;
   onAddPendingSlotBills?: (amount: number) => void;
+  /**
+   * Surfaces a refused or trimmed purchase. Every guard below used to `return`
+   * without a word, so a click that bought nothing looked identical to a click
+   * that worked.
+   */
+  onNotify?: (message: string) => void;
   pendingSlotBills?: number;
   capital: number;
   onManageRoutes: () => void;
@@ -36,6 +43,7 @@ export function AirportDetailView({
   onUpdateInfrastructure,
   onSubtractCapital,
   onAddPendingSlotBills,
+  onNotify,
   pendingSlotBills = 0,
   capital,
   onManageRoutes,
@@ -133,6 +141,9 @@ export function AirportDetailView({
   // desk cost money in one screen and nothing in the other.
   const buyItem = (type: 'slots' | 'desks' | 'stands', subType: string, amount: number, isShift?: boolean) => {
     let actualAmount = amount * (isShift ? 10 : 1);
+    const requestedAmount = actualAmount;
+    const unit = type === 'slots' ? 'slot' : type === 'stands' ? 'stand' : 'desk';
+    const plural = (n: number) => `${Math.abs(n)} ${unit}${Math.abs(n) === 1 ? '' : 's'}`;
 
     const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 0;
 
@@ -165,13 +176,33 @@ export function AirportDetailView({
         }
     }
 
-    if (actualAmount === 0) return;
+    if (actualAmount === 0) {
+      if (requestedAmount > 0) {
+        onNotify?.(
+          type === 'stands'
+            ? `${airport.id} has no spare ${subType} slots to put a stand on. Buy a slot first.`
+            : `No ${subType} ${unit}s are available at ${airport.id} right now.`
+        );
+      } else if (requestedAmount < 0) {
+        onNotify?.(`Those ${subType} ${unit}s at ${airport.id} are in use by your current schedule and cannot be sold.`);
+      }
+      return;
+    }
+    if (requestedAmount > 0 && actualAmount < requestedAmount) {
+      onNotify?.(`Only ${plural(actualAmount)} of the ${plural(requestedAmount)} you asked for were available at ${airport.id}.`);
+    }
 
     if (type === 'slots') {
       const totalCost = actualAmount > 0 ? (costPerUnit * actualAmount) : (costPerUnit * actualAmount * 0.5);
       // Slot purchases are settled with the monthly report, the same way the route
       // planner books them, so the "Purchased Slots" line stays complete.
-      if (actualAmount > 0 && (capital - pendingSlotBills) < totalCost) return;
+      if (actualAmount > 0 && (capital - pendingSlotBills) < totalCost) {
+        onNotify?.(
+          `${plural(actualAmount)} at ${airport.id} cost ${formatCurrency(totalCost)}, ` +
+          `but only ${formatCurrency(capital - pendingSlotBills)} is uncommitted. Nothing was bought.`
+        );
+        return;
+      }
       if (onAddPendingSlotBills) onAddPendingSlotBills(totalCost);
       else onSubtractCapital(totalCost);
     }
@@ -275,8 +306,8 @@ export function AirportDetailView({
               </div>
             )}
           </div>
-          <Metric label="Available Slots" value={`${Math.max(0, totalSlots - usedSlots - aiSlotsUsed)} / ${totalSlots}`} color={aiSlotsUsed > 0 ? "text-aero-yellow" : "text-white"} />
-          <Metric label="Max ICAO Code" value={airport.maxIcaoCode} />
+          <Metric label="Available Slots" info="slots" value={`${Math.max(0, totalSlots - usedSlots - aiSlotsUsed)} / ${totalSlots}`} color={aiSlotsUsed > 0 ? "text-aero-yellow" : "text-white"} />
+          <Metric label="Max ICAO Code" value={airport.maxIcaoCode} info="icaoCode" />
           {(() => {
              const hubBonus = infrastructure.level >= 2;
              const paxUnitFee = (hubBonus ? 0.475 : 0.5) + (level >= 5 ? 5 : level >= 3 ? 4 : 3);
@@ -615,10 +646,13 @@ export function AirportDetailView({
   );
 }
 
-function Metric({ label, value, highlight, color }: { label: string, value: string, highlight?: boolean, color?: string }) {
+function Metric({ label, value, highlight, color, info }: { label: string, value: string, highlight?: boolean, color?: string, info?: keyof typeof GLOSSARY }) {
   return (
     <div className="flex flex-col">
-      <span className="text-[8px] text-white/30 uppercase tracking-[0.2em] mb-0.5">{label}</span>
+      <span className="text-[8px] text-white/30 uppercase tracking-[0.2em] mb-0.5 flex items-center">
+        {label}
+        {info && <InfoTooltip size={11} {...GLOSSARY[info]} />}
+      </span>
       <span className={`text-xs font-black ${highlight ? 'text-aero-yellow' : color || 'text-white'}`}>{value}</span>
     </div>
   );
@@ -641,10 +675,11 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
         <div className="flex flex-col">
           <span className="text-[11px] font-bold text-white uppercase tracking-widest">{label}</span>
           {info && <span className="text-[9px] text-white/30 italic mt-0.5">{info}</span>}
-          <span className="text-[8px] text-aero-yellow mt-1">
+          <span className="text-[8px] text-aero-yellow mt-1 flex items-center">
             {purchaseCost !== undefined ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(purchaseCost)} CAPEX` : ''}
             {purchaseCost !== undefined && cost > 0 && " + "}
             {cost > 0 ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cost)} / wk` : (!purchaseCost ? 'FREE / INCLUDED' : '')}
+            <InfoTooltip size={11} {...GLOSSARY.capex} />
           </span>
         </div>
         <div className="flex items-center gap-4">

@@ -143,13 +143,21 @@ export function RoutePricingEditView({
                     className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                  />
                  <div 
-                     className="absolute top-[20px] h-4 w-1 bg-white/10 pointer-events-none z-0 rounded-b-sm" 
+                     className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
                      style={{ left: `calc(${(((basePriceBE75||100) - (basePriceBE99||80)) / ((basePriceBE35||300) - (basePriceBE99||80))) * 100}% + ${8 - (((basePriceBE75||100) - (basePriceBE99||80)) / ((basePriceBE35||300) - (basePriceBE99||80))) * 16}px)`, transform: 'translateX(-50%)' }} 
                   />
                  <div className="flex justify-between mt-2 px-1">
-                    <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 99% LF">${Math.round(basePriceBE99 || 80)}</span>
-                    <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 35% LF">${Math.round(basePriceBE35 || 300)}</span>
+                    <span className="text-[10px] text-white/40 font-mono">
+                      ${Math.round(basePriceBE99 || 80)}<span className="text-white/25 ml-1">break-even at 99% full</span>
+                    </span>
+                    <span className="text-[10px] text-white/40 font-mono">
+                      <span className="text-white/25 mr-1">break-even at 35% full</span>${Math.round(basePriceBE35 || 300)}
+                    </span>
                  </div>
+                 <p className="text-[10px] text-white/30 leading-relaxed mt-1">
+                   The notch is break-even at 75% full, a realistic year-round average. Below it you
+                   are betting on filling more seats than that; well above it passengers stop booking.
+                 </p>
               </div>
             </div>
 
@@ -194,7 +202,7 @@ export function RoutePricingEditView({
                             className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                           />
                           <div 
-                              className="absolute top-[20px] h-4 w-1 bg-white/10 pointer-events-none z-0 rounded-b-sm" 
+                              className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
                               style={{ left: `calc(${leftPct * 100}% + ${8 - leftPct * 16}px)`, transform: 'translateX(-50%)' }} 
                           />
                           <div className="flex justify-between mt-2 px-1">
@@ -214,8 +222,8 @@ export function RoutePricingEditView({
             <div className="p-4 bg-white/5 border border-white/10 rounded-sm flex gap-4">
               <Info className="text-white/80 shrink-0 mt-1" size={18} />
               <div className="text-[10px] text-white/80/80 leading-relaxed font-bold uppercase tracking-tight space-y-2">
-                <p><strong>Flugumsatz:</strong> Ticketeinnahmen aus den geschätzten Passagieren (Load Factor abhängig).</p>
-                <p><strong>Direkte Flugausgaben:</strong> Sprit, Crew, Catering und Landegebühren. Diese skalieren mit den absolvierten Flügen.</p>
+                <p><strong>Ticket revenue:</strong> Ticket revenue from the estimated passengers, which depends on the load factor.</p>
+                <p><strong>Direct flight costs:</strong> Fuel, crew, catering and landing fees. These scale with the flights actually operated.</p>
               </div>
             </div>
             
@@ -227,13 +235,13 @@ export function RoutePricingEditView({
                  expenses={[
                    {
                      id: 'opx',
-                     label: 'Direkte Flugausgaben',
+                     label: 'Direct flight costs',
                      total: weeklyFuelCost + weeklyCateringCost + weeklyStaffCost + weeklyInfraCost,
                      items: [
-                       { label: `Sprit (${fuelPricePerL.toFixed(2)}/L)`, amount: weeklyFuelCost },
+                       { label: `Fuel (${fuelPricePerL.toFixed(2)}/L)`, amount: weeklyFuelCost },
                        { label: 'Catering & Cabin', amount: weeklyCateringCost },
                        { label: 'Crew Costs', amount: weeklyStaffCost },
-                       { label: 'Landegebühren & Pax Fees', amount: weeklyInfraCost }
+                       { label: 'Landing & pax fees', amount: weeklyInfraCost }
                      ]
                    }
                  ]}

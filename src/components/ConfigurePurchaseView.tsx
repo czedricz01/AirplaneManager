@@ -1,40 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { Aircraft } from '../data/aircraft';
 import { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, ChevronLeft, Info, Settings, Wifi, Tv, X, Download, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
-
-const SeatInfoTooltip = ({ title, desc, hidden }: { title: string, desc?: string, hidden?: boolean }) => {
-  const [pos, setPos] = useState({ x: 0, y: 0, show: false });
-
-  if (hidden) return null;
-
-  return (
-    <div 
-      className="inline-flex items-center ml-2 cursor-help"
-      onMouseEnter={(e) => {
-        setPos({ x: e.clientX + 10, y: e.clientY + 10, show: true });
-      }}
-      onMouseMove={(e) => {
-        setPos({ x: e.clientX + 10, y: e.clientY + 10, show: true });
-      }}
-      onMouseLeave={() => setPos({ ...pos, show: false })}
-    >
-      <Info size={14} className="text-white/40 hover:text-aero-yellow transition-colors" />
-      {pos.show && createPortal(
-        <div 
-          className="fixed z-[999999] flex flex-col bg-[#121212] border border-white/20 p-3 rounded-sm shadow-2xl w-[250px] pointer-events-none"
-          style={{ top: pos.y, left: pos.x > window.innerWidth - 260 ? pos.x - 280 : pos.x }}
-        >
-          <span className="font-mono text-xs text-aero-yellow font-bold uppercase tracking-widest leading-tight mb-1">{title}</span>
-          {desc && <span className="text-[10px] text-white/70 whitespace-pre-wrap leading-relaxed">{desc}</span>}
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-};
+// The shared version of what used to be a local SeatInfoTooltip here; the rest of
+// the interface needs the same affordance, so it now lives in its own module.
+import { InfoTooltip as SeatInfoTooltip } from './InfoTooltip';
 
 export type ClassSetup = {
   seats: number;
@@ -1361,9 +1332,21 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
             <div className="flex flex-col items-end pr-4 border-r border-white/10">
               <span className="text-[10px] uppercase font-mono tracking-widest text-white/50">Total Cost</span>
-              <span className={`text-sm font-black tracking-widest ${!canAfford ? 'text-aero-yellow/60' : 'text-aero-yellow'}`}>
+              <span className={`text-sm font-black tracking-widest ${!canAfford ? 'text-aero-warn' : 'text-aero-yellow'}`}>
                 {formatCurrency(totalPrice)}
               </span>
+              {/* The confirm button is disabled in these two cases. Without a reason
+                  beside it, a dimmed button is indistinguishable from a broken one. */}
+              {!canAfford && (
+                <span className="text-[9px] font-mono text-aero-warn mt-0.5 whitespace-nowrap">
+                  {formatCurrency(totalPrice - capital)} short
+                </span>
+              )}
+              {canAfford && isOverbooked && (
+                <span className="text-[9px] font-mono text-aero-warn mt-0.5 whitespace-nowrap">
+                  Cabin exceeds available space
+                </span>
+              )}
             </div>
 
             <button 

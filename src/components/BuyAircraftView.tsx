@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getAircraftImageUrl, getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
+import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { SupabaseBucketModal } from './SupabaseBucketModal';
 
@@ -118,7 +118,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
         success: false,
         extractedCount: 0,
         matchedPlanesCount: 0,
-        error: "Bitte lade nur eine gültige .zip Datei mit Flugzeugbildern hoch."
+        error: "Please upload a valid .zip file containing aircraft images."
       });
       return;
     }
@@ -159,7 +159,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
           } else {
             const textContent = await response.text();
             if (textContent.includes("413") || textContent.toLowerCase().includes("too large")) {
-              errMessage = "Die hochgeladene ZIP-Datei ist zu groß für den Webserver (Limit überschritten). Bitte verkleinere die ZIP-Datei und lade sie erneut hoch.";
+              errMessage = "The ZIP file is too large for the server. Please shrink it and upload again.";
             } else {
               errMessage = `Der Server antwortete mit einem nicht-JSON Format (${response.status}). Möglicherweise ist die ZIP-Datei zu groß oder beschädigt.`;
             }
@@ -180,9 +180,9 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         const textContent = await response.text();
-        let fallbackMsg = "Ungültiges Antwortformat vom Server (erwartete JSON, erhielt HTML).";
+        let fallbackMsg = "Unexpected response from the server (expected JSON, received HTML).";
         if (textContent.includes("413") || textContent.toLowerCase().includes("too large")) {
-          fallbackMsg = "Die ZIP-Datei überschreitet die Dateigrößen-Grenzen des Servers. Bitte komprimiere oder verkleinere deine ZIP-Datei.";
+          fallbackMsg = "The ZIP file exceeds the server's size limit. Please compress or shrink it.";
         }
         setUploadResult({
           success: false,
@@ -254,11 +254,11 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
 
   const handleSingleUpload = async () => {
     if (!selectedAircraft) {
-      setSingleUploadResult({ success: false, error: "Bitte wähle zuerst ein Flugzeugmodell aus." });
+      setSingleUploadResult({ success: false, error: "Select an aircraft model first." });
       return;
     }
     if (!singleImageFile) {
-      setSingleUploadResult({ success: false, error: "Bitte wähle zuerst ein Bild zum Hochladen aus." });
+      setSingleUploadResult({ success: false, error: "Select an image to upload first." });
       return;
     }
 
@@ -521,7 +521,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
 
               {/* URL Fetching Area */}
               <div className="mt-3 bg-black/20 p-3 border border-white/5 rounded-sm">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold mb-2">Alternativ: ZIP direkt über Link laden (z.B. Google Drive)</div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold mb-2">Or load a ZIP straight from a link (e.g. Google Drive)</div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
@@ -537,7 +537,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     onClick={handleZipUrlSubmit}
                     disabled={!zipUrl || fetchingUrl}
                   >
-                    {fetchingUrl ? "Lädt..." : "Aus URL laden"}
+                    {fetchingUrl ? "Loading..." : "Aus URL laden"}
                   </button>
                 </div>
               </div>
@@ -591,7 +591,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                 {/* Left Column: Filter and select aircraft type */}
                 <div className="flex flex-col min-w-0">
                   <div className="flex flex-col gap-2 mb-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold">1. Modell Auswählen / Suchen</span>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold">1. Select or search for a model</span>
                     
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       {/* Search tool block */}
@@ -667,12 +667,12 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                 {/* Right Column: Upload action box */}
                 <div className="flex flex-col justify-between min-w-0">
                   <div className="space-y-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold block">2. Bild auswählen & hochladen</span>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 font-bold block">2. Choose an image and upload</span>
                     
                     {selectedAircraft ? (
                       <div className="bg-black/40 border border-white/5 rounded-sm p-3 font-mono text-xs text-white/80 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] text-aero-yellow uppercase tracking-wider font-bold">Ausgewähltes Modell:</span>
+                          <span className="text-[9px] text-aero-yellow uppercase tracking-wider font-bold">Selected model:</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -721,7 +721,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                           ) : (
                             <div className="text-center text-white/40 space-y-1 py-1">
                               <UploadCloud size={18} className="mx-auto text-white/20" />
-                              <span className="text-[10px] block text-aero-yellow font-bold underline">Bilddatei auswählen</span>
+                              <span className="text-[10px] block text-aero-yellow font-bold underline">Choose image file</span>
                               <span className="text-[8px] block">PNG, JPG, WEBP oder SVG</span>
                             </div>
                           )}
@@ -730,7 +730,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     ) : (
                       <div className="border border-white/5 bg-black/20 rounded-sm py-4 px-4 text-center text-white/30 font-mono text-xs flex flex-col items-center justify-center h-[122px]">
                         <Plane size={20} className="mb-1.5 text-white/10 animate-pulse" />
-                        <span>Bitte wähle links ein Flugzeugmodell aus, um für dieses ein Bild zu konfigurieren (ersetzt alte Bilder).</span>
+                        <span>Pick an aircraft model on the left to set its image (this replaces any existing one).</span>
                       </div>
                     )}
                   </div>

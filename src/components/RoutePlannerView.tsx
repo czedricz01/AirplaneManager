@@ -6,6 +6,7 @@ import { OwnedAircraft } from './MyFleetView';
 import { AirportInfrastructure, ManagementLevel } from '../App';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import {
   getSlotPurchaseCost,
   calculateRouteFinancials,
@@ -25,7 +26,8 @@ import {
   getPriceDemandMultiplier,
   adjustSatForDifficulty,
   validateClassConfigs,
-  getFlightDurationMinutes as sharedFlightDurationMinutes
+  getFlightDurationMinutes as sharedFlightDurationMinutes,
+  RouteOffer,
 } from '../lib/financeUtils';
 
 interface Props {
@@ -43,6 +45,12 @@ interface Props {
   onUpdateInfrastructure?: (airportId: string, infra: AirportInfrastructure) => void;
   onSubtractCapital?: (amount: number) => void;
   onAddPendingSlotBills?: (amount: number) => void;
+  /** Reports a refused or trimmed infrastructure purchase; these all used to fail silently. */
+  onNotify?: (message: string) => void;
+  /** Reputation effect on demand, so the preview matches the monthly report. */
+  demandFactor?: number;
+  /** Rival departures per city pair, for the market-share split. */
+  rivalOffers?: RouteOffer[];
   pendingSlotBills?: number;
   onGoToAirport?: (airport: Airport) => void;
   onClose: () => void;
@@ -124,7 +132,7 @@ function DetailMetric({ label, value, color }: { label: string, value: string, c
 
 export function RoutePlannerView({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, demandFactor = 1, rivalOffers = [], pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -192,7 +200,7 @@ export function RoutePlannerView({
     Basic: false,
     Standard: false,
     Premium: false,
-    Luxus: false
+    Luxury: false
   });
   const [classConfigs, setClassConfigs] = useState<Record<string, { catering: string[][], extras: string[], service: string[] }>>(initialClassConfigs || {
     general: { catering: [['none']], extras: ['none'], service: ['none'] },
@@ -280,8 +288,8 @@ export function RoutePlannerView({
     const satCache: Record<string, number> = {};
     if (!selectedOrigin || !selectedDest || !selectedAircraft) return satCache;
     const planeSat = getPlaneSat(selectedAircraft);
-    const deskPenalty = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + 
-                        getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat;
+    const deskPenalty = originDeskSim.sat + 
+                        destDeskSim.sat;
     const standBonus = getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement);
 
     ['economy', 'premium', 'business', 'first'].forEach(c => {
@@ -703,6 +711,27 @@ export function RoutePlannerView({
   };
   const [schedule, setSchedule] = useState<ScheduledTrip[]>(initialSchedule || []);
 
+  /**
+   * The check-in simulation for each end of the route.
+   *
+   * getDeskSim builds a Map over the whole fleet and scans every route on each
+   * call. Step 3 of the wizard used to call it 28 times per render with
+   * identical arguments -- once per toggle of a meal, an extra or a class tab.
+   * Two memos cover all 28.
+   */
+  const originDeskSim = React.useMemo(
+    () => selectedOrigin && selectedDest && selectedAircraft
+      ? getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId)
+      : { sat: 0, load: 0, capacity: 0, weeklyPax: 0 } as any,
+    [selectedOrigin, selectedDest, selectedAircraft, airportManagement, routes, fleet, schedule.length, initialRouteId]
+  );
+  const destDeskSim = React.useMemo(
+    () => selectedOrigin && selectedDest && selectedAircraft
+      ? getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId)
+      : { sat: 0, load: 0, capacity: 0, weeklyPax: 0 } as any,
+    [selectedOrigin, selectedDest, selectedAircraft, airportManagement, routes, fleet, schedule.length, initialRouteId]
+  );
+
   const lastScheduleRef = React.useRef<ScheduledTrip[]>(initialSchedule || []);
 
   React.useEffect(() => {
@@ -761,7 +790,7 @@ export function RoutePlannerView({
     const engine = calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      difficulty !== 'Easy'
+      difficulty !== 'Easy', demandFactor, rivalOffers
     );
     const b = engine.costsBreakdown;
 
@@ -793,9 +822,9 @@ export function RoutePlannerView({
     return calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      false
+      false, demandFactor, rivalOffers
     );
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet]);
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, demandFactor]);
 
   useEffect(() => {
     if (step === 4 && financials && Object.keys(ticketPrices).length === 0) {
@@ -1085,6 +1114,9 @@ export function RoutePlannerView({
 
   const handleUpdateInfra = (airportId: string, type: 'slots' | 'stands' | 'desks', subType: string, baseAmount: number, isShift?: boolean) => {
      let amount = isShift ? baseAmount * 10 : baseAmount;
+     // What the click asked for, before any clamping below. Comparing against
+     // baseAmount would be wrong on a shift-click, where amount starts at 10x.
+     const requested = amount;
      const mgt = airportManagement || {};
 
      const level = mgt[airportId]?.level || 0;
@@ -1113,8 +1145,20 @@ export function RoutePlannerView({
            }
         }
      }
-     if (amount <= 0 && baseAmount > 0) return;
-     if (amount > 0 && type === 'slots' && (capital - currentPending) < actualCost) return;
+     if (amount <= 0 && baseAmount > 0) {
+       onNotify?.(`No ${subType} slots are free at ${airportId} — the airport and its other carriers have taken them all.`);
+       return;
+     }
+     if (requested > 0 && amount < requested) {
+       onNotify?.(`Only ${amount} of the ${requested} ${subType} slots you asked for are free at ${airportId}.`);
+     }
+     if (amount > 0 && type === 'slots' && (capital - currentPending) < actualCost) {
+       onNotify?.(
+         `${amount} ${subType} slot${amount === 1 ? '' : 's'} at ${airportId} cost $${Math.round(actualCost).toLocaleString('en-US')}, ` +
+         `but only $${Math.round(capital - currentPending).toLocaleString('en-US')} is uncommitted. Nothing was bought.`
+       );
+       return;
+     }
 
      const newInfra = JSON.parse(JSON.stringify(infra)); // Deep copy
      if (!newInfra[type]) newInfra[type] = {};
@@ -1133,7 +1177,10 @@ export function RoutePlannerView({
              amount = newVal - oldVal;
              actualCost = costPerUnit * amount;
          }
-         if (amount <= 0) return;
+         if (amount <= 0) {
+           onNotify?.(`Stands cannot outnumber slots. Buy more ${subType} slots at ${airportId} first.`);
+           return;
+         }
      }
 
      newInfra[type][subType] = newVal;
@@ -1451,17 +1498,20 @@ export function RoutePlannerView({
                    (s.id === 4 && selectedOrigin && selectedAircraft && selectedDest && schedule.length > 0 && Object.keys(classConfigs).length > 0);
                  
                  return (
-                   <div 
+                   <button
                      key={s.id}
+                     type="button"
+                     disabled={!isAllowed}
+                     aria-current={isActive ? 'step' : undefined}
                      onClick={() => isAllowed && setStep(s.id)}
-                     className={`flex items-center px-3 py-1.5 text-[9px] uppercase font-bold tracking-widest border-r border-white/5 last:border-0 transition-all ${
+                     className={`flex items-center px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
                        isActive ? 'bg-aero-yellow/10 text-aero-yellow cursor-default' : 
                        isAllowed ? 'text-white/60 hover:text-white hover:bg-white/5 cursor-pointer' : 'text-white/20 cursor-not-allowed'
                      }`}
                    >
                      {s.label}
                      {isCompleted && <Check size={8} className="ml-1 text-aero-yellow" />}
-                   </div>
+                   </button>
                  )
                })}
              </div>
@@ -1608,12 +1658,12 @@ export function RoutePlannerView({
                         <InfaRowSmall label="Self-Check" count={airportManagement[selectedOrigin.id]?.desks?.self || 0} cost={getDeskCost((airportManagement[selectedOrigin.id]?.level || 0) >= 2, 'self')} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'desks', 'self', n, shift)} />
                      </div>
                      {(() => {
-                        const sim = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
+                        const sim = originDeskSim;
                         return (
                           <div className="mt-2 text-[10px] text-white/50 space-y-1">
-                            <div className="flex justify-between"><span className="uppercase tracking-widest">Desk Load:</span><span className={sim.load > 90 ? 'text-aero-yellow/60 font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
+                            <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
-                            <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-[#1a1a1a]' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
+                            <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-yellow/60 font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                           </div>
                         );
@@ -1646,6 +1696,33 @@ export function RoutePlannerView({
                     />
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pb-32">
+                     {/* Without this, a player who opens the planner before buying
+                         anything -- which both entry points allow -- sees an empty
+                         black column and no reason for it. The filter also hides
+                         aircraft based at another hub and aircraft too large for
+                         either airport, which looked identical to owning none. */}
+                     {validAircraft.length === 0 && (
+                       <div className="border border-white/10 bg-white/[0.02] p-4 text-[11px] font-mono text-white/50 leading-relaxed space-y-2">
+                         {fleet.length === 0 ? (
+                           <>
+                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-[10px]">No aircraft yet</p>
+                             <p>Your fleet is empty. Visit Buy Aircraft in the sidebar and purchase one first — a route needs an aircraft assigned to it.</p>
+                           </>
+                         ) : (
+                           <>
+                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-[10px]">None of your aircraft fit</p>
+                             <p>You own {fleet.length} aircraft, but none can serve this pairing. Usually one of:</p>
+                             <ul className="list-disc pl-4 space-y-1 text-white/40">
+                               <li>it is based at a different hub</li>
+                               <li>its ICAO code is larger than {selectedOrigin?.id || 'the origin'}
+                                   {selectedDest ? ` or ${selectedDest.id}` : ''} can handle</li>
+                               <li>its week is already fully committed to other routes</li>
+                               {aircraftSearch ? <li>the search above is filtering it out</li> : null}
+                             </ul>
+                           </>
+                         )}
+                       </div>
+                     )}
                      {validAircraft.map(ac => {
                        let usedMins = 0;
                        routes.filter(r => r.aircraft === ac.registration && r.id !== initialRouteId).forEach(r => {
@@ -1682,7 +1759,7 @@ export function RoutePlannerView({
                                <span>{ac.capacity} pax</span>
                              </div>
                              <div className="mt-2 w-full bg-black h-1 rounded overflow-hidden relative">
-                                <div className={`h-full ${utilPercent > 80 ? 'bg-[#1a1a1a]' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
+                                <div className={`h-full ${utilPercent > 80 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
                              </div>
                              <div className="text-[8px] text-white/40 mt-0.5 uppercase text-right tracking-widest leading-none">{utilPercent}% utilized</div>
                            </div>
@@ -1982,12 +2059,12 @@ export function RoutePlannerView({
                           <InfaRowSmall label="Self-Check" count={airportManagement[selectedDest.id]?.desks?.self || 0} cost={getDeskCost((airportManagement[selectedDest.id]?.level || 0) >= 2, 'self')} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'desks', 'self', n, shift)} />
                        </div>
                        {(() => {
-                           const sim = getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
+                           const sim = destDeskSim;
                            return (
                              <div className="mt-2 text-[10px] text-white/50 space-y-1">
-                               <div className="flex justify-between"><span className="uppercase tracking-widest">Desk Load:</span><span className={sim.load > 90 ? 'text-aero-yellow/60 font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
+                               <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Pax:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
-                               <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-[#1a1a1a]' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
+                               <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-yellow/60 font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                              </div>
                            );
@@ -2734,7 +2811,7 @@ export function RoutePlannerView({
 
         {step === 3 && selectedOrigin && selectedDest && selectedAircraft && (() => {
           const planeSat = getPlaneSat(selectedAircraft);
-          const deskPenalty = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat;
+          const deskPenalty = originDeskSim.sat + destDeskSim.sat;
           const standBonus = getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement);
 
           return (
@@ -2883,7 +2960,7 @@ export function RoutePlannerView({
                            let totalWeightedSat = 0;
                            let totalSeats = 0;
                            const planeSat = getPlaneSat(selectedAircraft);
-                           const deskPenalty = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat;
+                           const deskPenalty = originDeskSim.sat + destDeskSim.sat;
                            const standBonus = getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement);
 
                            ['economy', 'premium', 'business', 'first'].forEach(c => {
@@ -2934,7 +3011,7 @@ export function RoutePlannerView({
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
-                            <span className="text-[10px] font-black uppercase tracking-widest">Combined Plane SAT</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest flex items-center">Combined Plane SAT<InfoTooltip size={11} {...GLOSSARY.sat} /></span>
                          </div>
                          <div className="flex items-center gap-4">
                             <span className="text-sm font-black italic">{Math.round(getPlaneSat(selectedAircraft))}%</span>
@@ -3028,8 +3105,8 @@ export function RoutePlannerView({
                          </div>
                          <div className="flex items-center gap-4">
                             <span className="text-sm font-black italic text-aero-yellow">
-                               {getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement) >= 0 ? '+' : ''}
-                               {Math.round(getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement))}%
+                               {originDeskSim.sat + destDeskSim.sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement) >= 0 ? '+' : ''}
+                               {Math.round(originDeskSim.sat + destDeskSim.sat + getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement))}%
                             </span>
                             <ChevronDown size={16} className={`text-white/20 group-hover:text-white transition-transform ${expandedSections.airport ? 'rotate-180' : ''}`} />
                          </div>
@@ -3041,11 +3118,11 @@ export function RoutePlannerView({
                                   <div className="text-white/20 mb-2 border-b border-white/5 pb-2 font-black tracking-[0.3em]">Operational Metrics</div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="italic">Origin Check-In</span>
-                                     <span className={getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat > 0 ? '+' : ''}{getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat}%</span>
+                                     <span className={originDeskSim.sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{originDeskSim.sat > 0 ? '+' : ''}{originDeskSim.sat}%</span>
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="italic">Dest Check-In</span>
-                                     <span className={getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat > 0 ? '+' : ''}{getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat}%</span>
+                                     <span className={destDeskSim.sat < 0 ? 'text-aero-yellow/60' : 'text-aero-yellow'}>{destDeskSim.sat > 0 ? '+' : ''}{destDeskSim.sat}%</span>
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="italic">Stand Priority</span>
@@ -3059,8 +3136,8 @@ export function RoutePlannerView({
                                         if (seats <= 0) return null;
                                         const config = classConfigs[c];
                                         const sceData = calculateClassSatisfaction(c, selectedAircraft, config, getFlightDurationMinutes(), airportManagement, selectedOrigin.id, selectedDest.id, difficulty);
-                                        const originLoadSim = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
-                                        const destLoadSim = getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId);
+                                        const originLoadSim = originDeskSim;
+                                        const destLoadSim = destDeskSim;
                                         const overloadPenalty = (originLoadSim.sat < 0 ? originLoadSim.sat : 0) + (destLoadSim.sat < 0 ? destLoadSim.sat : 0);
                                         const classRouteSat = Math.max(0, sceData.satisfactionPercentage + overloadPenalty);
                                         return (
@@ -3083,7 +3160,10 @@ export function RoutePlannerView({
 
                 <div className="p-4 border-t border-white/10 flex flex-col gap-3 bg-white/[0.01]">
                    <p className="text-[10px] text-white/30 leading-relaxed italic border-l-3 border-aero-yellow/30 pl-6 mb-2 font-bold uppercase tracking-widest">
-                      Satisfaction (SAT) results from technical excellence and service quality.
+                      SAT is what this cabin scores against what passengers expect for the class and
+                      the flight length. 100% meets expectations; above that they tolerate a higher
+                      fare, below it they only book at a discount. Expectations rise with distance,
+                      so the same cabin scores lower on a long haul.
                    </p>
                    <div className="flex gap-4 mt-auto">
                       {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:text-white hover:bg-white/10 transition-all">Back</button>}
@@ -3114,7 +3194,10 @@ export function RoutePlannerView({
                                  difficulty,
                                  airportsMap,
                                  routes,
-                                 fleet
+                                 fleet,
+                                 false,
+                                 demandFactor,
+                                 rivalOffers
                                );
 
                                onSaveRoute({
@@ -3433,13 +3516,21 @@ export function RoutePlannerView({
                                     className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                                  />
                                  <div 
-                                    className="absolute top-[20px] h-4 w-1 bg-white/10 pointer-events-none z-0 rounded-b-sm" 
+                                    className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
                                     style={{ left: `calc(${((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 100}% + ${8 - ((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 16}px)`, transform: 'translateX(-50%)' }} 
                                  />
                                  <div className="flex justify-between mt-2 px-1">
-                                    <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 99% LF">${Math.round(basePriceBE99)}</span>
-                                    <span className="text-[10px] text-white/30 font-mono" title="Break-Even at 35% LF">${Math.round(basePriceBE35)}</span>
+                                    <span className="text-[10px] text-white/40 font-mono">
+                                      ${Math.round(basePriceBE99)}<span className="text-white/25 ml-1">break-even at 99% full</span>
+                                    </span>
+                                    <span className="text-[10px] text-white/40 font-mono">
+                                      <span className="text-white/25 mr-1">break-even at 35% full</span>${Math.round(basePriceBE35)}
+                                    </span>
                                  </div>
+                                 <p className="text-[10px] text-white/30 leading-relaxed mt-1">
+                                   The notch is break-even at 75% full, a realistic year-round average. Below it you
+                                   are betting on filling more seats than that; well above it passengers stop booking.
+                                 </p>
                               </div>
                            </div>
 
@@ -3474,7 +3565,7 @@ export function RoutePlannerView({
                                         className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                                      />
                                      <div 
-                                        className="absolute top-[20px] h-4 w-1 bg-white/10 pointer-events-none z-0 rounded-b-sm" 
+                                        className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
                                         style={{ left: `calc(${((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 100}% + ${8 - ((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 16}px)`, transform: 'translateX(-50%)' }} 
                                      />
                                      <div className="flex justify-between mt-2 px-1">
@@ -3537,97 +3628,10 @@ export function RoutePlannerView({
             );
          })()}
 
-        {/* Save Config Modal */}
-        {showConfigSaveModal && (
-          <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-md bg-[#111] border border-white/10 p-4 shadow-2xl"
-            >
-              <h3 className="text-xl font-black text-white uppercase tracking-widest mb-3">Save Configuration</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] uppercase font-black text-white/40 tracking-widest mb-2">Configuration Name</label>
-                  <input 
-                    type="text" 
-                    autoFocus
-                    placeholder="e.g. Standard ShortHaul"
-                    className="w-full bg-white/5 border border-white/20 p-4 outline-none text-white focus:border-aero-yellow transition-colors font-mono"
-                    value={newConfigName}
-                    onChange={e => setNewConfigName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && saveCabinConfig()}
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    onClick={() => setShowConfigSaveModal(false)}
-                    className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-[10px] font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    disabled={!newConfigName.trim()}
-                    onClick={saveCabinConfig}
-                    className="flex-1 py-4 bg-aero-yellow text-black uppercase text-[10px] font-black tracking-widest hover:bg-white transition-all disabled:opacity-20"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Load Config Modal */}
-        {showConfigLoadModal && (
-          <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-lg bg-[#111] border border-white/10 p-4 shadow-2xl flex flex-col max-h-[80vh]"
-            >
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xl font-black text-white uppercase tracking-widest">Load Configuration</h3>
-                <button onClick={() => setShowConfigLoadModal(false)} className="text-white/40 hover:text-white uppercase text-[10px] font-black">Close</button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                {savedCabinConfigs.length === 0 ? (
-                  <div className="bg-white/5 border border-white/5 p-4 text-center">
-                    <span className="text-[10px] uppercase font-black tracking-widest text-white/20 italic">No saved configurations found.</span>
-                  </div>
-                ) : (
-                  savedCabinConfigs.map(config => (
-                    <div 
-                      key={config.id}
-                      className="group flex items-center justify-between bg-white/5 border border-white/10 p-4 hover:border-aero-yellow/50 transition-all cursor-pointer"
-                      onClick={() => loadCabinConfig(config)}
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-lg font-black text-white uppercase tracking-tighter transition-colors group-hover:text-aero-yellow">{config.name}</span>
-                        <div className="flex gap-3 mt-1">
-                          {Object.keys(config.configs).filter(cl => cl !== 'general' && config.configs[cl].catering.some((mc: any) => mc[0] !== 'none')).map(cl => (
-                             <span key={cl} className="text-[8px] opacity-40 uppercase tracking-widest">{cl}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteSavedConfig(config.id);
-                        }}
-                        className="p-2 text-white/20 hover:text-aero-yellow/60 transition-colors"
-                      >
-                        <Minus size={16} />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {/* The save and load dialogs are rendered once, below, inside
+            AnimatePresence. A second, non-animated copy used to live here and
+            was bound to the same two flags, so opening either one stacked two
+            identical dialogs on top of each other. */}
 
         {/* Global Configuration Overlay */}
         {activeConfigClass && selectedAircraft && selectedOrigin && selectedDest && (

@@ -10,6 +10,10 @@ Features, Verständlichkeit, Performance — und (2) es spaßiger zu machen.
 Alle Zeilenangaben unten sind im Code nachgeprüft, nicht aus der Erinnerung
 zitiert. Wo eine Zahl steht, wurde sie gemessen.
 
+> **Umsetzungsstand.** Teil A beschreibt den Zustand **vor** den Korrekturen und
+> bleibt als Befundlage stehen — die Zeilenangaben beziehen sich auf den Stand
+> bei der Analyse. Was inzwischen behoben ist, ist in Teil B markiert.
+
 Ausgangslage nach der letzten Sitzung: die Wirtschaftssimulation ist konsolidiert
 (eine Quelle der Wahrheit in `src/lib/financeUtils.ts`), die groben Logikfehler
 (Nachfrage-Kollaps ab 2026, leere KI-Flotten, totes Standbonus-Feld, doppeltes
@@ -180,7 +184,9 @@ der auffälligste Knopf ist der, der nichts bringt. Die einzige Willkommens­nac
 Untersysteme, ohne eines zu erklären.
 
 **A2.6 Klicks, die stumm nichts tun.** Sieben Stellen prüfen eine Bedingung und
-kehren ohne Rückmeldung zurück: `App.tsx:2094` (Kauf bestätigen),
+kehren ohne Rückmeldung zurück: `App.tsx:2094` (Kauf bestätigen — im Browser
+nachgeprüft: der Knopf ist bei zu wenig Kapital bereits deaktiviert, nannte aber
+keinen Grund; der stille `return` ist der Auffangfall dahinter),
 `App.tsx:3236` (T1 freischalten), `RoutePlannerView.tsx:1136-1137, 1156`,
 `AirportDetailView.tsx:677, 686`. `RoutePlannerView.tsx:1131-1134` **kürzt**
 zusätzlich still: Shift-Klick auf 10 Slots kauft ggf. 3. Dabei existiert mit
@@ -300,12 +306,17 @@ Daraus folgt:
   der Nachfrage. Die KI fliegt den Spielerhub sogar ausdrücklich nie an
   (`App.tsx:872`: `a.id !== playerHubId`). Einziger Berührungspunkt sind
   Slotkontingente.
-- **Die Krisen sind unsichtbar.** Die sechs historischen Ereignisse
+- **Die Krisen kommen unangekündigt.** Die sechs historischen Ereignisse
   (`eventSystem.ts:10-59`) lösen **keine Nachricht** aus — nur die zufälligen tun
   das (`App.tsx:1805-1815`). Im März 2020 multipliziert das Spiel die Nachfrage
-  still mit **0,20**; der Spieler sieht nur, dass der Umsatz einbricht. Es gibt
-  keine Ereignisübersicht, keine Restlaufzeit und keine Handlung, mit der man
-  reagieren kann.
+  still mit **0,20**; der Spieler sieht nur, dass der Umsatz einbricht.
+  *Korrektur gegenüber einer früheren Fassung dieses Dokuments:* ein Banner für
+  laufende Ereignisse **existiert** (`App.tsx:3018-3026`) und nennt Titel,
+  Beschreibung und die beiden Prozentwerte. Es fehlten die Ankündigung zum
+  Beginn, die Meldung zum Ende und die Restlaufzeit — und es war in
+  `text-aero-yellow/60` auf `#111` gehalten, also kaum als Warnung erkennbar.
+  Eine Handlung, mit der man auf ein Ereignis reagieren kann, gibt es weiterhin
+  nicht.
 - **Es gibt keinen Fortschritt.** `reputation|achievement|milestone|prestige|goal`
   → keine Treffer. Nach 30 Spieljahren hat man mehr Geld und neuere Flugzeuge —
   aber dieselben fünf Klicks, dieselben Bildschirme, kein Rang, keine
@@ -313,12 +324,23 @@ Daraus folgt:
 
 ---
 
-# Teil B — Vorschlag: Umsetzungspaket 1
+# Teil B — Umsetzungspaket 1
 
 Rein additiv oder korrigierend; keine neuen Spielsysteme. Reihenfolge ist
 Umsetzungsreihenfolge.
 
-### B1 — Die vier Fehler mit Bilanzwirkung
+| Schritt | Stand |
+|---|---|
+| B1 Vier Fehler mit Bilanzwirkung | **erledigt** |
+| B2 Ein einziger Zufriedenheitswert | offen |
+| B3 Sichtbarkeit: Fehler, Zustände, Farben | teilweise — Assistenten-Meldung und Farbtokens erledigt, stille Klicks offen |
+| B4 Erklär-Tooltips | offen |
+| B5 Gedächtnis: Finanzhistorie und Bilanz | **erledigt** |
+| B6 Einstieg | offen |
+| B7 Sprache und Barrierefreiheit | offen |
+| B8 Performance (billiger Teil) | offen |
+
+### B1 — Die vier Fehler mit Bilanzwirkung — **erledigt**
 
 1. `RouteScheduleEditView.tsx:104-108` löschen und stattdessen die
    Beschleunigungs-Formel aus `RoutePlannerView.tsx:474-499` verwenden. Beide nach
@@ -344,7 +366,7 @@ Umsetzungsreihenfolge.
 `AircraftDetailsModal.tsx:117` (`Age`) aus `purchasedAt` und `currentDateOffset`
 berechnen — der Prop muss dafür durchgereicht werden.
 
-### B3 — Sichtbarkeit: Fehler, Zustände, Farben
+### B3 — Sichtbarkeit: Fehler, Zustände, Farben — *teilweise*
 
 - `RoutePlannerView.tsx:1491`: `text-black` → heller Warnton auf dunklem Grund,
   Schriftgröße auf ≥ 11 px, und ein Warnsymbol davor.
@@ -378,7 +400,7 @@ Der Schieberegler in `RoutePlannerView.tsx:3428-3450` und
 „Break-even at 75 % full" und einen Satz, der sagt, was jenseits der Marken
 passiert.
 
-### B5 — Gedächtnis: Finanzhistorie und Bilanz
+### B5 — Gedächtnis: Finanzhistorie und Bilanz — **erledigt**
 
 Das Kernstück des Pakets. Die Infrastruktur existiert bereits für die KI
 (`App.tsx:614`, `:937`) und muss nur für den Spieler gespiegelt werden.
@@ -461,7 +483,23 @@ Nur was ohne Umbau geht; das Große steht in Teil D.
 
 Ausgearbeitet, aber nicht Teil von Paket 1. Reihenfolge nach Wirkung pro Aufwand.
 
-## C1 — Konkurrenz um Passagiere
+## C1 — Konkurrenz um Passagiere *(umgesetzt)*
+
+> **Nachgemessener Vorbehalt.** Die Mechanik greift nur, wenn die Nachfrage
+> überhaupt die bindende Grenze ist. Über zufällige Flughafenpaare (200–5.000 km,
+> Angebot 150 Sitze × 14 Legs) gemessen ist das **1960 bei 34 %** der Paare der
+> Fall, **1990 bei 5 %**, **2020 bei 0 %**. Grund: die Flughafenstatistiken
+> wachsen über 66 Jahre exponentiell (≈5 / 3 / 1,5 % pro Jahr, siehe A3.4),
+> die Sitzplatzkapazität der Flugzeuge aber nicht annähernd so stark. Ab den
+> 1990ern ist praktisch jede Route angebotsbegrenzt — das Flugzeug fliegt voll,
+> egal wer sonst noch fliegt. Damit verliert nicht nur der Wettbewerb an
+> Wirkung, sondern auch Preis und Zufriedenheit als Hebel auf die
+> *Passagierzahl*; sie wirken dann nur noch auf den Erlös je Sitz. Das erklärt
+> einen Teil davon, warum sich das späte Spiel flach anfühlt. Eine Korrektur
+> (Dämpfung des Nachfragewachstums oder Skalierung an der verfügbaren
+> Flottenkapazität) ist eine eigene Balancing-Entscheidung und nicht Teil dieser
+> Umsetzung.
+
 
 **Das Problem:** `calculateDemand` kennt keinen Wettbewerb. Zwei identische
 Routen auf derselben Städteverbindung bekommen jede die volle Nachfrage. Die
@@ -515,11 +553,18 @@ Spieler erlebt März 2020 als unerklärlichen Umsatzeinbruch auf ein Fünftel.
    Ereignisse schon gibt (`App.tsx:1805-1815`, inklusive expliziter ±%-Angaben),
    auch für `historicalEvents` auslösen — plus eine Nachricht am Ende der
    Laufzeit. Rein additiv, sehr klein.
-2. **Ereignisleiste.** `getActiveEvents(offset)` (`eventSystem.ts:67-71`) liefert
-   bereits alles Nötige. Oben in der Statusleiste (`App.tsx:2670-2786`) neben
-   „Global Demand"/„Fuel" die aktiven Ereignisse mit Restmonaten anzeigen, beim
-   Anklicken die Beschreibung.
-3. **Entscheidungen.** `HistoricalEvent` um ein optionales `choices` erweitern:
+2. **Restlaufzeit im vorhandenen Banner.** Das Banner in `App.tsx:3018-3026`
+   zeigt bereits Titel, Beschreibung und Wirkung; ihm fehlt nur, wie lange das
+   Ereignis noch läuft. `getActiveEvents(offset)` (`eventSystem.ts:67-71`)
+   liefert `startOffset` und `duration`, also ist das eine Subtraktion.
+3. **Entscheidungen.** *(umgesetzt für die drei Ölschocks: Absicherung des
+   Spritpreises gegen eine Einmalzahlung. Die Absicherung gilt nur für den
+   Spieler — `getFuelPriceForAi` bleibt am Marktpreis — und sperrt in beide
+   Richtungen, fallende Preise eingeschlossen. Die übrigen drei Ereignisse
+   (2001, 2008, Pandemie) haben noch keine Entscheidung, weil deren sinnvolle
+   Antworten auf der Nachfrageseite liegen und dort kein ebenso sauberer
+   Angriffspunkt existiert.)*
+   `HistoricalEvent` um ein optionales `choices` erweitern:
 
    ```ts
    choices?: { label: string; cost: number; effect: Partial<EventEffect>;
@@ -538,7 +583,7 @@ würden „Streik in Frankreich" oder „Tourismusboom in Südostasien" möglich
 Die Ost/West-Anpassung in `App.tsx:52-80` zeigt, dass die Geografie schon
 ansatzweise gruppiert ist.
 
-## C3 — Fortschritt, Ziele und Ruf
+## C3 — Fortschritt, Ziele und Ruf *(umgesetzt, ohne Jahresziele)*
 
 **Das Problem:** es gibt keinen Airline-Wert, der wächst. Nach 30 Jahren sind es
 dieselben fünf Klicks.

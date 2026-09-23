@@ -98,3 +98,30 @@ body {
   background: transparent !important;
 }
 
+
+/*
+ * Focus. Thirteen elements carried `focus:outline-none` with nothing in its
+ * place, and not one <button> in the project had a focus style, so keyboard
+ * users had no idea where they were. This is the baseline; components may
+ * override it, but they no longer start from invisible.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-aero-yellow, #FACC15);
+  outline-offset: 2px;
+}
+
+/*
+ * Several critical states use `animate-pulse` as their emphasis. Honour the
+ * system setting for people who do not want that motion -- the colour carries
+ * the meaning on its own now.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

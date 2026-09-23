@@ -7,7 +7,6 @@ interface AircraftImageProps {
   manufacturer?: string;
   type?: string;
   imagesMap?: Record<string, string>;
-  aircraftVisuals?: Record<string, string>;
   keyLookup?: string;
   className?: string;
   alt?: string;
@@ -19,7 +18,6 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   manufacturer,
   type,
   imagesMap,
-  aircraftVisuals,
   keyLookup,
   className = "w-full h-full object-cover",
   alt,
@@ -28,8 +26,8 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   const [candidateIndex, setCandidateIndex] = useState(0);
 
   const candidates = useMemo(
-    () => getAircraftImageCandidates(safeName, manufacturer, type, imagesMap, aircraftVisuals, keyLookup),
-    [safeName, manufacturer, type, imagesMap, aircraftVisuals, keyLookup]
+    () => getAircraftImageCandidates(safeName, manufacturer, type, imagesMap, keyLookup),
+    [safeName, manufacturer, type, imagesMap, keyLookup]
   );
 
   // Reset index when the candidate list itself changes. Comparing the memoised array
@@ -69,6 +67,11 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
       src={currentSrc}
       alt={alt || `${manufacturer || ''} ${type || safeName}`}
       className={className}
+      // Expanding a manufacturer in the market fired 40-60 requests at once,
+      // including every aircraft scrolled off screen. The browser now waits
+      // until each one is close to the viewport.
+      loading="lazy"
+      decoding="async"
       onError={handleImageError}
       referrerPolicy={referrerPolicy}
     />

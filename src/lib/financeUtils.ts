@@ -188,14 +188,14 @@ export function validateClassConfigs(classConfigs: any, selectedAircraft: any, a
   if (isUpgradeActive) {
     if (selectedAircraft.class === 'Regional') allowedCategories.push('Standard');
     else if (selectedAircraft.class === 'Narrowbody') allowedCategories.push('Premium');
-    else allowedCategories.push('Luxus');
+    else allowedCategories.push('Luxury');
   }
 
   const allowedPrefixes = [];
   if (allowedCategories.includes('Basic')) allowedPrefixes.push('b');
   if (allowedCategories.includes('Standard')) allowedPrefixes.push('s');
   if (allowedCategories.includes('Premium')) allowedPrefixes.push('p');
-  if (allowedCategories.includes('Luxus')) allowedPrefixes.push('l');
+  if (allowedCategories.includes('Luxury')) allowedPrefixes.push('l');
 
   const hasWifi = selectedAircraft.config?.details?.hasWifi;
   const newConfigs: any = { ...classConfigs };
@@ -417,7 +417,12 @@ export function calculateDemand(
     timeClass: number, 
     currentMonth: number,
     difficulty: string,
-    currentYear: number
+    currentYear: number,
+    /**
+     * An extra multiplier on top of the event effects, used for the player's
+     * airline reputation. 1.0 is neutral, which is what the AI airlines pass.
+     */
+    extraDemandFactor: number = 1
 ) {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
     const Mv = mvValues[currentMonth - 1] || 1.0;
@@ -443,7 +448,7 @@ export function calculateDemand(
     // Adjusted to be lower on long-haul routes (higher timeClass)
     const tcDemandMultiplier = Math.max(0.4, 3.1 - (timeClass * 0.35));
 
-    const baseDemand = 34.141967 * Math.pow(totalInteraction, 0.448351) * S * E * tcDemandMultiplier * eventMult;
+    const baseDemand = 34.141967 * Math.pow(totalInteraction, 0.448351) * S * E * tcDemandMultiplier * eventMult * extraDemandFactor;
     const businessRatio = totalInteraction > 0 ? businessInteraction / totalInteraction : 0.5;
     const premiumMultiplier = Math.pow(timeClass / 8, 0.7);
 
@@ -468,7 +473,7 @@ export function calculateDemand(
        business: busDemand,
        premium: preDemand,
        economy: ecoDemand,
-       formulaVars: { b1, t1, b2, t2, businessRatio, premiumMultiplier, Mv, S, E, totalInteraction, eventMult, tcDemandMultiplier }
+       formulaVars: { b1, t1, b2, t2, businessRatio, premiumMultiplier, Mv, S, E, totalInteraction, eventMult, tcDemandMultiplier, extraDemandFactor }
     };
 }
 
@@ -572,6 +577,62 @@ export function getPriceDemandMultiplier(price: number, satBasePrice: number, sa
     return Math.min(1.5, rawDemand);
 }
 
+/**
+ * One airline's offer on a city pair, for the market-share split below.
+ */
+export interface RouteOffer {
+  origin: string;
+  destination: string;
+  /** Departures per week. */
+  departures: number;
+  /** Who flies it, for display only. Never used in the share calculation. */
+  airline?: string;
+}
+
+/** City pair, direction-insensitive: FRA-CDG and CDG-FRA are the same market. */
+export const marketKey = (a: string, b: string) => [a, b].sort().join('>');
+
+/**
+ * How attractive an offer is to a passenger choosing between airlines.
+ *
+ * Frequency matters with diminishing returns -- the second daily departure is
+ * worth far more than the tenth. Price matters more than service, which is why
+ * its exponent is the larger one.
+ *
+ * `priceAppeal` is the sat-adjusted base price divided by what is charged, and
+ * `satAppeal` is satisfaction over 100. Both default to 1 for a rival whose
+ * fares and cabin we cannot see -- AI routes carry only a frequency.
+ */
+export function offerAttractiveness(
+  departuresPerWeek: number,
+  priceAppeal: number = 1,
+  satAppeal: number = 1
+): number {
+  if (departuresPerWeek <= 0) return 0;
+  // Both appeals are clamped. Price already grows the whole market through
+  // getPriceDemandMultiplier, which is capped at 1.5x for the same reason; without
+  // a bound here, pricing at almost nothing would also take almost the entire
+  // market, and "charge $1" would beat every other decision in the game.
+  const price = Math.max(0.5, Math.min(2, priceAppeal));
+  const sat = Math.max(0.5, Math.min(1.6, satAppeal));
+  return Math.pow(departuresPerWeek, 0.5)
+    * Math.pow(price, 1.2)
+    * Math.pow(sat, 0.8);
+}
+
+/**
+ * The share of a city pair's demand this route wins.
+ *
+ * Returns 1 when nobody else flies the pair, which is what every route used to
+ * get unconditionally: demand had no competition term at all, so two identical
+ * parallel services each carried a full load of the same passengers.
+ */
+export function marketShare(ownAttractiveness: number, rivalAttractiveness: number): number {
+  const total = ownAttractiveness + rivalAttractiveness;
+  if (total <= 0) return 1;
+  return ownAttractiveness / total;
+}
+
 // Full Financial Calculation
 export function calculateRouteFinancials(
   route: any,
@@ -584,7 +645,14 @@ export function calculateRouteFinancials(
   airportsMap: Map<string, Airport>,
   allRoutes: any[] = [],
   fleet: any[] = [],
-  forceFullLoad: boolean = false
+  forceFullLoad: boolean = false,
+  /** Reputation effect on demand for this operator. 1.0 = neutral. */
+  extraDemandFactor: number = 1,
+  /**
+   * Everyone else flying this city pair. Other operators' routes only; this
+   * route's own entry must not be in here.
+   */
+  rivalOffers: RouteOffer[] = []
 ) {
   const dist = route.distance || 0;
   const fuelPricePerL = Math.round((fuelPrice / 3.78541) * 1000) / 1000;
@@ -669,7 +737,7 @@ export function calculateRouteFinancials(
   const demandData = calculateDemand(
     originStats.business, originStats.tourism,
     destStats.business, destStats.tourism,
-    timeClass, currentMonth, difficulty, currentYear
+    timeClass, currentMonth, difficulty, currentYear, extraDemandFactor
   );
 
   const bases = calculateBasePrices(dist, timeClass);
@@ -679,7 +747,23 @@ export function calculateRouteFinancials(
   const ticketPrices = route.activeTicketPrices || route.ticketPrices || { economy: bases.economy, premium: bases.premium, business: bases.business, first: bases.first };
 
   let totalWeeklyCateringCost = 0;
-  
+
+  // --- Competition on this city pair ------------------------------------
+  // Own parallel services count too: flying the same pair twice splits the
+  // same passengers rather than doubling them.
+  const ownKey = marketKey(route.origin, route.destination);
+  let rivalAttractiveness = 0;
+  for (const offer of rivalOffers) {
+    if (marketKey(offer.origin, offer.destination) !== ownKey) continue;
+    rivalAttractiveness += offerAttractiveness(offer.departures);
+  }
+  for (const other of allRoutes) {
+    if (!other || other.id === route.id) continue;
+    if (marketKey(other.origin, other.destination) !== ownKey) continue;
+    const otherFlights = other.schedule?.length || other.weeklyFlights || 0;
+    rivalAttractiveness += offerAttractiveness(otherFlights);
+  }
+
   // CALCULATE PAX AND DEPENDENT COSTS
   ['economy', 'premium', 'business', 'first'].forEach(c => {
     const seats = aircraft.config?.[c] || 0;
@@ -690,8 +774,17 @@ export function calculateRouteFinancials(
       const satBase = Math.round(bases[c as keyof typeof bases] * satMultiplier);
       const price = ticketPrices[c];
       const demMult = getPriceDemandMultiplier(price, satBase, sat);
-      
-      const targetPax = Math.floor(maxPax * demMult);
+
+      // The share of this class's demand won against the rivals above. With
+      // nobody else on the pair this is 1 and nothing changes.
+      const ownAttractiveness = offerAttractiveness(
+        weeklyFlights,
+        price > 0 ? satBase / price : 1,
+        sat / 100
+      );
+      const share = marketShare(ownAttractiveness, rivalAttractiveness);
+
+      const targetPax = Math.floor(maxPax * demMult * share);
       const weeklySupply = seats * flightLegs;
       
       const actualPax = forceFullLoad ? weeklySupply : Math.min(weeklySupply, targetPax);
@@ -749,6 +842,7 @@ export function calculateRouteFinancials(
     flightLegs,
     weeklyFlights,
     weightedSeatsPerWeek,
+    rivalAttractiveness,
     costsBreakdown: {
       fuel: weeklyFuelCost,
       fuelLiters: totalWeeklyFuelLiters,
@@ -791,6 +885,22 @@ export function getJetFuelPrice(year: number, month: number, difficulty: string)
 
   if (difficulty === 'Hard') price *= 1.15;
   return price;
+}
+
+/**
+ * What an aircraft is worth today: a 30% residual floor plus what its airframe
+ * and interior condition still carry. Used both for the sale price and for the
+ * fleet line of the balance sheet, so the two cannot drift apart.
+ */
+export function getAircraftResaleValue(plane: {
+  basePrice?: number;
+  conditionGeneral?: number;
+  conditionInterior?: number;
+}): number {
+  const baseValue = plane.basePrice || 10000000;
+  const condGenFactor = ((plane.conditionGeneral ?? 100) / 100) * 0.45;
+  const condIntFactor = ((plane.conditionInterior ?? 100) / 100) * 0.15;
+  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor));
 }
 
 export function getSlotPurchaseCost(type: string) {
