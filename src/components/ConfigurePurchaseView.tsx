@@ -635,7 +635,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({firstPitch} cm)</label>
               <input type="range" min="150" max="220" value={firstPitch} onChange={(e) => setFirstPitch(parseInt(e.target.value))} className="w-full accent-amber-500" />
-              <div className="flex justify-between text-[10px] font-mono text-white/40">
+              <div className="flex justify-between text-2xs font-mono text-white/40">
                 <span>150 cm</span><span>220 cm</span>
               </div>
             </div>
@@ -652,7 +652,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <span className={`text-sm font-mono transition-colors ${firstType === t.n ? 'text-aero-yellow' : 'text-white/70'}`}>{t.n}</span>
                       <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-[10px] uppercase font-mono transition-colors ${firstType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
+                    <span className={`text-2xs uppercase font-mono transition-colors ${firstType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
@@ -692,7 +692,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <span className={`text-sm font-mono transition-colors ${ext.state ? activeColor : 'text-white/70'}`}>{ext.label}</span>
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
-                      <span className={`text-[10px] font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
+                      <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
                         {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
@@ -714,7 +714,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({bizPitch} cm)</label>
               <input type="range" min="100" max="180" value={bizPitch} onChange={(e) => setBizPitch(parseInt(e.target.value))} className="w-full accent-blue-500" />
-              <div className="flex justify-between text-[10px] font-mono text-white/40">
+              <div className="flex justify-between text-2xs font-mono text-white/40">
                 <span>100 cm</span><span>180 cm</span>
               </div>
             </div>
@@ -731,7 +731,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <span className={`text-sm font-mono transition-colors ${bizType === t.n ? 'text-white/80' : 'text-white/70'}`}>{t.n}</span>
                       <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-[10px] uppercase font-mono transition-colors ${bizType === t.n ? 'text-white/80 opacity-80' : 'text-white/40'}`}>
+                    <span className={`text-2xs uppercase font-mono transition-colors ${bizType === t.n ? 'text-white/80 opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
@@ -771,7 +771,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <span className={`text-sm font-mono transition-colors ${ext.state ? activeColor : 'text-white/70'}`}>{ext.label}</span>
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
-                      <span className={`text-[10px] font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
+                      <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
                         {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
@@ -793,7 +793,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({premPitch} cm)</label>
               <input type="range" min="85" max="105" value={premPitch} onChange={(e) => setPremPitch(parseInt(e.target.value))} className="w-full accent-emerald-500" />
-              <div className="flex justify-between text-[10px] font-mono text-white/40">
+              <div className="flex justify-between text-2xs font-mono text-white/40">
                 <span>85 cm</span><span>105 cm</span>
               </div>
             </div>
@@ -810,7 +810,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <span className={`text-sm font-mono transition-colors ${premType === t.n ? 'text-aero-yellow' : 'text-white/70'}`}>{t.n}</span>
                       <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-[10px] uppercase font-mono transition-colors ${premType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
+                    <span className={`text-2xs uppercase font-mono transition-colors ${premType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
@@ -850,7 +850,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <span className={`text-sm font-mono transition-colors ${ext.state ? activeColor : 'text-white/70'}`}>{ext.label}</span>
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
-                      <span className={`text-[10px] font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
+                      <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
                         {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
@@ -872,7 +872,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({ecoPitch} cm)</label>
               <input type="range" min="74" max="90" value={ecoPitch} onChange={(e) => setEcoPitch(parseInt(e.target.value))} className="w-full accent-slate-400" />
-              <div className="flex justify-between text-[10px] font-mono text-white/40">
+              <div className="flex justify-between text-2xs font-mono text-white/40">
                 <span>74 cm</span><span>90 cm</span>
               </div>
             </div>
@@ -889,7 +889,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <span className={`text-sm font-mono transition-colors ${ecoType === t.n ? 'text-slate-400' : 'text-white/70'}`}>{t.n}</span>
                       <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-[10px] uppercase font-mono transition-colors ${ecoType === t.n ? 'text-slate-400 opacity-80' : 'text-white/40'}`}>
+                    <span className={`text-2xs uppercase font-mono transition-colors ${ecoType === t.n ? 'text-slate-400 opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
@@ -929,7 +929,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <span className={`text-sm font-mono transition-colors ${ext.state ? activeColor : 'text-white/70'}`}>{ext.label}</span>
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
-                      <span className={`text-[10px] font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
+                      <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
                         {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
@@ -946,7 +946,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
   return (
     <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-[#0a0a0a] border border-white/10 shadow-2xl w-full h-full max-h-[90vh] flex flex-col rounded-sm overflow-hidden text-white font-sans">
+      <div className="bg-aero-panel border border-white/10 shadow-2xl w-full h-full max-h-[90vh] flex flex-col rounded-sm overflow-hidden text-white font-sans">
         
         {/* Header */}
         <div className="h-16 px-4 bg-black/40 border-b border-white/5 flex items-center shrink-0 justify-between">
@@ -971,7 +971,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             
              {/* Plane Schematic Container */}
              <div className="w-full relative z-10 mb-4 shrink-0" style={{ maxWidth: Math.max(800, Math.min(2048, 400 + CAPACITY * 5)) + 'px' }}>
-               <div className="text-[10px] uppercase font-mono tracking-widest text-white/40 mb-4 text-center flex items-center justify-center gap-4">
+               <div className="text-2xs uppercase font-mono tracking-widest text-white/40 mb-4 text-center flex items-center justify-center gap-4">
                  <span>Cabin Layout ({aircraft.class})</span>
                  <span className={`flex items-center gap-1 ${isOverbooked ? 'text-aero-yellow/60 font-bold' : ''}`}>
                    <Info size={12}/> {(((usedSpaceWithoutEcoRaw + ecoSeats * ecoPitch * ecoMultiplier) / TOTAL_SPACE) * 100).toFixed(0)}% Space Used
@@ -1005,10 +1005,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                               {renderSeatDots(firstSeats, 'first', firstType, CAPACITY, aircraft.class)}
                               <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">FIRST</span>
                               
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-amber-500/50 text-white p-3 rounded-md shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-[10px] text-aero-yellow font-bold uppercase tracking-widest mb-1">First Class</span>
+                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-amber-500/50 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
+                                <span className="font-mono text-2xs text-aero-yellow font-bold uppercase tracking-widest mb-1">First Class</span>
                                 <span className="font-mono text-sm">{firstSeats} Seats</span>
-                                <span className="font-mono text-[10px] text-white/50">{firstType} • {firstPitch}cm Pitch</span>
+                                <span className="font-mono text-2xs text-white/50">{firstType} • {firstPitch}cm Pitch</span>
                               </div>
                            </motion.div>
                          )}
@@ -1017,10 +1017,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                               {renderSeatDots(bizSeats, 'business', bizType, CAPACITY, aircraft.class)}
                               <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">BUSINESS</span>
                               
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-white/10 text-white p-3 rounded-md shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-[10px] text-white/80 font-bold uppercase tracking-widest mb-1">Business Class</span>
+                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-white/10 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
+                                <span className="font-mono text-2xs text-white/80 font-bold uppercase tracking-widest mb-1">Business Class</span>
                                 <span className="font-mono text-sm">{bizSeats} Seats</span>
-                                <span className="font-mono text-[10px] text-white/50">{bizType} • {bizPitch}cm Pitch</span>
+                                <span className="font-mono text-2xs text-white/50">{bizType} • {bizPitch}cm Pitch</span>
                               </div>
                            </motion.div>
                          )}
@@ -1029,10 +1029,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                               {renderSeatDots(premSeats, 'premium', premType, CAPACITY, aircraft.class)}
                               <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">PREMIUM</span>
                            
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-aero-yellow/50 text-white p-3 rounded-md shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-[10px] text-aero-yellow font-bold uppercase tracking-widest mb-1">Premium Economy</span>
+                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-aero-yellow/50 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
+                                <span className="font-mono text-2xs text-aero-yellow font-bold uppercase tracking-widest mb-1">Premium Economy</span>
                                 <span className="font-mono text-sm">{premSeats} Seats</span>
-                                <span className="font-mono text-[10px] text-white/50">{premType} • {premPitch}cm Pitch</span>
+                                <span className="font-mono text-2xs text-white/50">{premType} • {premPitch}cm Pitch</span>
                               </div>
                            </motion.div>
                          )}
@@ -1041,10 +1041,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                               {renderSeatDots(ecoSeats, 'economy', ecoType, CAPACITY, aircraft.class)}
                               <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">ECONOMY</span>
                            
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-slate-400/50 text-white p-3 rounded-md shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Economy Class</span>
+                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-slate-400/50 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
+                                <span className="font-mono text-2xs text-slate-400 font-bold uppercase tracking-widest mb-1">Economy Class</span>
                                 <span className="font-mono text-sm">{ecoSeats} Seats</span>
-                                <span className="font-mono text-[10px] text-white/50">{ecoType} • {ecoPitch}cm Pitch</span>
+                                <span className="font-mono text-2xs text-white/50">{ecoType} • {ecoPitch}cm Pitch</span>
                               </div>
                            </motion.div>
                          )}
@@ -1058,14 +1058,14 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 <div 
                   id="general-settings-btn"
                   onClick={() => setActiveConfigTab('general')} 
-                  className={`px-4 py-3 rounded-sm font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer transition-all border ${activeConfigTab === 'general' ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/40 text-white/40 border-white/10 hover:border-white/30'}`}
+                  className={`px-4 py-3 rounded-sm font-black uppercase tracking-[0.2em] text-2xs cursor-pointer transition-all border ${activeConfigTab === 'general' ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/40 text-white/40 border-white/10 hover:border-white/30'}`}
                 >
                    General Settings
                 </div>
                 <div 
                   id="class-settings-btn"
                   onClick={() => setActiveConfigTab('classes')} 
-                  className={`px-4 py-3 rounded-sm font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer transition-all border ${activeConfigTab === 'classes' ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/40 text-white/40 border-white/10 hover:border-white/30'}`}
+                  className={`px-4 py-3 rounded-sm font-black uppercase tracking-[0.2em] text-2xs cursor-pointer transition-all border ${activeConfigTab === 'classes' ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/40 text-white/40 border-white/10 hover:border-white/30'}`}
                 >
                    Class Settings
                 </div>
@@ -1077,23 +1077,23 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              <div className="grid grid-cols-4 gap-4 w-full max-w-4xl relative z-10 mb-4 shrink-0">
                 <div onClick={() => setSelectedClass('first')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'first' ? 'border-amber-500 bg-aero-yellow/10' : 'border-amber-500/20 hover:border-amber-500/50'}`}>
                   <div className="text-aero-yellow text-2xl font-black">{firstSeats}</div>
-                  <div className="text-[10px] uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">First Class</div>
-                  <div className="text-[10px] bg-aero-yellow/20 text-aero-yellow px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getFirstPop())}%</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">First Class</div>
+                  <div className="text-2xs bg-aero-yellow/20 text-aero-yellow px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getFirstPop())}%</div>
                 </div>
                 <div onClick={() => setSelectedClass('business')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'business' ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/10'}`}>
                   <div className="text-white/80 text-2xl font-black">{bizSeats}</div>
-                  <div className="text-[10px] uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Business</div>
-                  <div className="text-[10px] bg-white/5 text-white/80 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getBizPop())}%</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Business</div>
+                  <div className="text-2xs bg-white/5 text-white/80 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getBizPop())}%</div>
                 </div>
                 <div onClick={() => setSelectedClass('premium')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'premium' ? 'border-aero-yellow bg-aero-yellow/10' : 'border-aero-yellow/20 hover:border-aero-yellow/50'}`}>
                   <div className="text-aero-yellow text-2xl font-black">{premSeats}</div>
-                  <div className="text-[10px] uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Premium Eco</div>
-                  <div className="text-[10px] bg-aero-yellow/20 text-aero-yellow px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getPremPop())}%</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Premium Eco</div>
+                  <div className="text-2xs bg-aero-yellow/20 text-aero-yellow px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getPremPop())}%</div>
                 </div>
                 <div onClick={() => setSelectedClass('economy')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-slate-500 bg-[#1a1a1a]/10' : 'border-slate-500/20 hover:border-slate-500/50'}`}>
                   <div className="text-slate-400 text-2xl font-black">{ecoSeats}</div>
-                  <div className="text-[10px] uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Economy</div>
-                  <div className="text-[10px] bg-[#1a1a1a]/20 text-slate-400 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getEcoPop())}%</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Economy</div>
+                  <div className="text-2xs bg-[#1a1a1a]/20 text-slate-400 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getEcoPop())}%</div>
                 </div>
              </div>
 
@@ -1109,7 +1109,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 text-white">
                      <div className="flex flex-col gap-3">
-                        <h4 className="text-[10px] uppercase font-bold tracking-[0.4em] text-aero-yellow mb-2">Service Expansion</h4>
+                        <h4 className="text-2xs uppercase font-bold tracking-[0.4em] text-aero-yellow mb-2">Service Expansion</h4>
                         {[
                           { id: 'wifi', state: hasWifi, setter: setHasWifi, available: isWifiAvailable, label: 'In-Flight Wi-Fi', sub: isWifiAvailable ? '+$150,000' : 'Avail. 2000' },
                           { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: isAmbientAvailable, label: 'Ambient LED Lighting', sub: isAmbientAvailable ? '+$100,000' : 'Avail. 2005' },
@@ -1120,7 +1120,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                                 <input type="checkbox" checked={ext.state} onChange={(e) => ext.setter(e.target.checked)} className="accent-aero-yellow" />
                                 <div className="flex flex-col">
                                    <span className={`text-sm font-mono ${ext.state ? 'text-aero-yellow' : 'text-white/80'}`}>{ext.label}</span>
-                                   <span className="text-[9px] uppercase tracking-widest text-white/40">{ext.sub}</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/40">{ext.sub}</span>
                                 </div>
                              </div>
                           </label>
@@ -1128,7 +1128,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                      </div>
 
                      <div className="flex flex-col gap-3">
-                        <h4 className="text-[10px] uppercase font-bold tracking-[0.4em] text-aero-yellow mb-2">Luxury & Efficiency</h4>
+                        <h4 className="text-2xs uppercase font-bold tracking-[0.4em] text-aero-yellow mb-2">Luxury & Efficiency</h4>
                         {[
                           { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: isBarAvailable, label: 'Onboard Lounge & Bar', sub: isBarAvailable ? '+$500,000' : 'Req. >200 CAP' },
                           { id: 'shower', state: hasShower, setter: setHasShower, available: isShowerAvailable, label: 'Shower Spa & Wellness', sub: isShowerAvailable ? '+$1,000,000' : 'Req. >300 CAP' },
@@ -1139,7 +1139,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                                 <input type="checkbox" checked={ext.state} onChange={(e) => ext.setter(e.target.checked)} className="accent-aero-yellow" />
                                 <div className="flex flex-col">
                                    <span className={`text-sm font-mono ${ext.state ? 'text-aero-yellow' : 'text-white/80'}`}>{ext.label}</span>
-                                   <span className="text-[9px] uppercase tracking-widest text-white/40">{ext.sub}</span>
+                                   <span className="text-3xs uppercase tracking-widest text-white/40">{ext.sub}</span>
                                 </div>
                              </div>
                           </label>
@@ -1161,13 +1161,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               <div className="flex gap-2">
                 <button 
                   onClick={() => setShowSaveConfig(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 hover:bg-aero-yellow/10 hover:border-aero-yellow/30 text-white/70 hover:text-aero-yellow rounded-sm text-[10px] font-mono uppercase tracking-widest transition-all"
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 hover:bg-aero-yellow/10 hover:border-aero-yellow/30 text-white/70 hover:text-aero-yellow rounded-sm text-2xs font-mono uppercase tracking-widest transition-all"
                 >
                   Save
                 </button>
                 <button 
                   onClick={() => setShowLoadConfig(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 hover:bg-aero-yellow/10 hover:border-aero-yellow/30 text-white/70 hover:text-aero-yellow rounded-sm text-[10px] font-mono uppercase tracking-widest transition-all group"
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 hover:bg-aero-yellow/10 hover:border-aero-yellow/30 text-white/70 hover:text-aero-yellow rounded-sm text-2xs font-mono uppercase tracking-widest transition-all group"
                 >
                   <Download size={12} className="group-hover:translate-y-[1px] transition-transform" /> Load
                 </button>
@@ -1176,7 +1176,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             
             <div className="flex flex-col gap-3 font-mono">
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                <div className="flex justify-between text-2xs uppercase tracking-widest">
                   <span className="text-aero-yellow font-bold">First</span>
                   <span className="text-white/60">{firstSeats}</span>
                 </div>
@@ -1188,7 +1188,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
 
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                <div className="flex justify-between text-2xs uppercase tracking-widest">
                   <span className="text-white/80 font-bold">Business</span>
                   <span className="text-white/60">{bizSeats}</span>
                 </div>
@@ -1200,7 +1200,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
 
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                <div className="flex justify-between text-2xs uppercase tracking-widest">
                   <span className="text-aero-yellow font-bold">Premium Eco</span>
                   <span className="text-white/60">{premSeats}</span>
                 </div>
@@ -1212,7 +1212,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
 
               <div className="flex flex-col gap-2 opacity-50 block cursor-not-allowed">
-                <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                <div className="flex justify-between text-2xs uppercase tracking-widest">
                   <span className="text-slate-400 font-bold">Economy (Auto)</span>
                   <span className="text-white/60">{ecoSeats}</span>
                 </div>
@@ -1226,7 +1226,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             {/* Aircraft-Wide Extras */}
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-3 mb-4 mt-8 flex justify-between items-center">
               Aircraft Extras
-              {extrasSpace > 0 && <span className="text-[9px] text-white/50">-{extrasSpace} units</span>}
+              {extrasSpace > 0 && <span className="text-3xs text-white/50">-{extrasSpace} units</span>}
             </h3>
             <div className="flex flex-col gap-2 relative">
               {[
@@ -1246,7 +1246,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 const isRed = ext.price < 0;
                 const activeColor = isRed ? "text-aero-yellow/60" : "text-aero-yellow";
                 const activeBorder = isRed ? "border-white/20" : "border-aero-yellow/50";
-                const activeBg = isRed ? "bg-[#111]" : "bg-white/5";
+                const activeBg = isRed ? "bg-aero-panel" : "bg-white/5";
                 const checkboxColor = isRed ? "accent-red-400" : "accent-aero-yellow";
                 
                 return (
@@ -1257,7 +1257,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <span className={`text-xs font-mono transition-colors ${ext.state ? activeColor : 'text-white/80'}`}>{ext.label}</span>
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!ext.available} />
                       </div>
-                      <span className={`text-[9px] mt-0.5 uppercase tracking-widest transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>{ext.sub}</span>
+                      <span className={`text-3xs mt-0.5 uppercase tracking-widest transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>{ext.sub}</span>
                     </div>
                   </label>
                 );
@@ -1267,25 +1267,25 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
             {/* Config Impact Info */}
             <div className="mt-auto pt-6 border-t border-white/5 flex flex-col gap-4">
-              <h4 className="text-[10px] font-mono tracking-widest text-white/40 uppercase mb-2">Quality Estimate</h4>
+              <h4 className="text-2xs font-mono tracking-widest text-white/40 uppercase mb-2">Quality Estimate</h4>
               <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                <span className="text-[10px] font-mono text-white/70 uppercase tracking-widest">Total Seats</span>
+                <span className="text-2xs font-mono text-white/70 uppercase tracking-widest">Total Seats</span>
                 <span className="text-sm font-bold font-mono">{totalSeats}</span>
               </div>
               
               <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                <span className="text-[10px] font-mono text-white/70 uppercase tracking-widest">Interior SAT</span>
+                <span className="text-2xs font-mono text-white/70 uppercase tracking-widest">Interior SAT</span>
                 <span className="text-sm font-bold font-mono text-white/90">{baseInteriorPop}%</span>
               </div>
 
               <div className="flex flex-col border-b border-white/5 pb-2 pt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-mono text-aero-yellow uppercase tracking-widest">GENERAL PLANE SAT</span>
+                  <span className="text-2xs font-mono text-aero-yellow uppercase tracking-widest">GENERAL PLANE SAT</span>
                   <div className="flex items-center gap-2">
                      <span className="text-sm font-bold text-aero-yellow font-mono">{totalPopularity}%</span>
                   </div>
                 </div>
-                <div className="text-[8px] font-mono text-white/40 text-right uppercase mt-1 tracking-widest">
+                <div className="text-4xs font-mono text-white/40 text-right uppercase mt-1 tracking-widest">
                   (Type Sat {aircraft.popularity}% × 1/3) + (Interior Sat {baseInteriorPop}% × 2/3)
                 </div>
               </div>
@@ -1298,10 +1298,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         {/* Footer */}
         <div className="h-24 px-4 bg-black/80 border-t border-white/5 flex flex-wrap items-center justify-between shrink-0 gap-4 relative z-20">
           
-          <button onClick={onCancel} className="border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-none hover:text-white hover:bg-white/10 transition-all mr-auto">Cancel</button>
+          <button onClick={onCancel} className="border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all mr-auto">Cancel</button>
           <div className="flex items-center gap-3">
              <div className="flex flex-col">
-               <span className="text-[10px] uppercase font-mono tracking-[0.2em] text-white/40">
+               <span className="text-2xs uppercase font-mono tracking-[0.2em] text-white/40">
                  {isRenovating ? 'Renovation Unit Cost' : 'Unit Price'}
                </span>
                <span className={`text-sm font-mono tracking-widest ${!canAfford ? 'text-aero-yellow/60' : ''}`}>
@@ -1331,19 +1331,19 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             )}
 
             <div className="flex flex-col items-end pr-4 border-r border-white/10">
-              <span className="text-[10px] uppercase font-mono tracking-widest text-white/50">Total Cost</span>
+              <span className="text-2xs uppercase font-mono tracking-widest text-white/50">Total Cost</span>
               <span className={`text-sm font-black tracking-widest ${!canAfford ? 'text-aero-warn' : 'text-aero-yellow'}`}>
                 {formatCurrency(totalPrice)}
               </span>
               {/* The confirm button is disabled in these two cases. Without a reason
                   beside it, a dimmed button is indistinguishable from a broken one. */}
               {!canAfford && (
-                <span className="text-[9px] font-mono text-aero-warn mt-0.5 whitespace-nowrap">
+                <span className="text-3xs font-mono text-aero-warn mt-0.5 whitespace-nowrap">
                   {formatCurrency(totalPrice - capital)} short
                 </span>
               )}
               {canAfford && isOverbooked && (
-                <span className="text-[9px] font-mono text-aero-warn mt-0.5 whitespace-nowrap">
+                <span className="text-3xs font-mono text-aero-warn mt-0.5 whitespace-nowrap">
                   Cabin exceeds available space
                 </span>
               )}
@@ -1363,16 +1363,16 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       
       {showSaveConfig && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-4 bg-black/80 backdrop-blur-sm pointer-events-auto" onClick={(e) => { if(e.target === e.currentTarget) setShowSaveConfig(false); }}>
-          <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/20 shadow-2xl flex flex-col p-4">
+          <div className="relative w-full max-w-sm bg-aero-panel border border-white/20 shadow-2xl flex flex-col p-4">
             <button onClick={() => setShowSaveConfig(false)} className="absolute top-4 right-6 text-white/50 hover:text-white transition-colors">
               <X size={24} />
             </button>
             <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow mb-2 border-b border-white/10 pb-4">Save Preset</h3>
-            <p className="text-[10px] text-white/50 font-mono mb-3 uppercase tracking-[0.2em]">{aircraft.manufacturer} {aircraft.type}</p>
+            <p className="text-2xs text-white/50 font-mono mb-3 uppercase tracking-[0.2em]">{aircraft.manufacturer} {aircraft.type}</p>
             
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-[10px] uppercase tracking-widest text-white/70 mb-2 block font-bold">Preset Name</label>
+                <label className="text-2xs uppercase tracking-widest text-white/70 mb-2 block font-bold">Preset Name</label>
                 <input 
                   type="text" 
                   value={savePresetName}
@@ -1396,12 +1396,12 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
       {showLoadConfig && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-4 bg-black/80 backdrop-blur-sm pointer-events-auto" onClick={(e) => { if(e.target === e.currentTarget) setShowLoadConfig(false); }}>
-          <div className="relative w-full max-w-2xl bg-[#0a0a0a] border border-white/20 shadow-2xl flex flex-col p-4 max-h-[80vh]">
+          <div className="relative w-full max-w-2xl bg-aero-panel border border-white/20 shadow-2xl flex flex-col p-4 max-h-[80vh]">
             <button onClick={() => setShowLoadConfig(false)} className="absolute top-4 right-6 text-white/50 hover:text-white transition-colors">
               <X size={24} />
             </button>
             <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow mb-2 border-b border-white/10 pb-4">Load Configuration</h3>
-            <p className="text-[10px] text-white/50 font-mono mb-3 uppercase tracking-[0.2em]">{aircraft.manufacturer} {aircraft.type} Configurations</p>
+            <p className="text-2xs text-white/50 font-mono mb-3 uppercase tracking-[0.2em]">{aircraft.manufacturer} {aircraft.type} Configurations</p>
             
             <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
               {savedPresets.filter(p => p.aircraftId === aircraft.id).length > 0 && (
@@ -1415,7 +1415,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <div>
                           <div className="font-bold text-white mb-1 uppercase tracking-widest flex items-center gap-2">
                             {preset.name}
-                            <span className="font-mono text-[10px] uppercase font-normal text-white/40 border border-white/10 px-1 rounded-sm">{totalSeats} SEATS</span>
+                            <span className="font-mono text-2xs uppercase font-normal text-white/40 border border-white/10 px-1 rounded-sm">{totalSeats} SEATS</span>
                           </div>
                           <div className="flex gap-4 text-xs font-mono font-bold tracking-widest">
                             {c.first > 0 && <span className="text-aero-yellow">F{c.first}</span>}
@@ -1428,11 +1428,11 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={(e) => handleDeletePreset(preset.id, e)}
-                            className="p-2 border border-white/20 text-aero-yellow/60/50 hover:bg-[#1a1a1a] hover:text-white hover:border-white/10 transition-colors"
+                            className="p-2 border border-white/20 text-aero-yellow/60/50 hover:bg-aero-panel-2 hover:text-white hover:border-white/10 transition-colors"
                           >
                             <Trash2 size={14} />
                           </button>
-                          <div className="px-4 py-2 border border-aero-yellow/30 text-aero-yellow/70 text-[10px] font-mono uppercase tracking-[0.2em] group-hover:bg-aero-yellow group-hover:text-black group-hover:border-aero-yellow transition-all">
+                          <div className="px-4 py-2 border border-aero-yellow/30 text-aero-yellow/70 text-2xs font-mono uppercase tracking-[0.2em] group-hover:bg-aero-yellow group-hover:text-black group-hover:border-aero-yellow transition-all">
                             Load
                           </div>
                         </div>
@@ -1456,7 +1456,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                     <div>
                       <div className="font-bold text-white mb-1 uppercase tracking-widest flex items-center gap-2">
                         {plane.registration}
-                        <span className="font-mono text-[10px] uppercase font-normal text-white/40 border border-white/10 px-1 rounded-sm">{totalSeats} SEATS</span>
+                        <span className="font-mono text-2xs uppercase font-normal text-white/40 border border-white/10 px-1 rounded-sm">{totalSeats} SEATS</span>
                       </div>
                       <div className="flex gap-4 text-xs font-mono font-bold tracking-widest">
                         {c.first > 0 && <span className="text-aero-yellow">F{c.first}</span>}
@@ -1466,7 +1466,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <span className="text-aero-yellow/70 ml-2 before:content-['•'] before:mr-2 before:text-white/20">POP {plane.baseInteriorPop.toFixed(1)}</span>
                       </div>
                     </div>
-                    <div className="px-4 py-2 border border-white/20 text-white/50 text-[10px] font-mono uppercase tracking-[0.2em] group-hover:bg-white group-hover:text-black group-hover:border-white transition-all">
+                    <div className="px-4 py-2 border border-white/20 text-white/50 text-2xs font-mono uppercase tracking-[0.2em] group-hover:bg-white group-hover:text-black group-hover:border-white transition-all">
                       Load
                     </div>
                   </div>

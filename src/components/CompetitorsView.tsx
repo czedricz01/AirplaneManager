@@ -742,21 +742,21 @@ export function CompetitorsView({
             }
           />
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 bg-black/20 border border-white/5 rounded-sm p-4 space-y-4">
             {/* Header Board columns */}
-            <div className="hidden md:grid grid-cols-12 px-3 py-3 bg-white/[0.02] border-y border-white/5 font-mono text-2xs uppercase tracking-[0.2em] text-white/40 font-black">
-              <div className="col-span-1">Rank</div>
-              <div className="col-span-3 cursor-pointer select-none hover:text-white" onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
-              <div className="col-span-2 text-center">Hub Base</div>
-              <div className="col-span-1 text-center font-bold">Tier</div>
-              <div className="col-span-2 text-right cursor-pointer select-none hover:text-white" onClick={() => toggleSort('capital')}>Capital {getSortIcon('capital')}</div>
-              <div className="col-span-1 text-right cursor-pointer select-none hover:text-white" onClick={() => toggleSort('fleet')}>Fleet {getSortIcon('fleet')}</div>
-              <div className="col-span-1 text-right cursor-pointer select-none hover:text-white" onClick={() => toggleSort('routes')}>Routes {getSortIcon('routes')}</div>
-              <div className="col-span-1 text-right">Action</div>
+            <div className="hidden md:grid grid-cols-12 px-3 py-4 sticky top-0 z-10 bg-aero-panel-2 border-b border-aero-yellow/30 font-mono text-2xs uppercase tracking-widest text-aero-yellow/80 font-black">
+              <div className="col-span-1 text-white/40 cursor-default">Rank</div>
+              <div className="col-span-3 cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
+              <div className="col-span-2 text-center text-white/40 cursor-default">Hub Base</div>
+              <div className="col-span-1 text-center text-white/40 cursor-default">Tier</div>
+              <div className="col-span-2 text-right cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('capital')}>Capital {getSortIcon('capital')}</div>
+              <div className="col-span-1 text-right cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('fleet')}>Fleet {getSortIcon('fleet')}</div>
+              <div className="col-span-1 text-right cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('routes')}>Routes {getSortIcon('routes')}</div>
+              <div className="col-span-1 text-right text-white/40 cursor-default">Action</div>
             </div>
 
             {/* Board Listings */}
-            <div className="divide-y divide-white/5 border border-white/5 bg-black/40 rounded-sm">
+            <div className="divide-y divide-white/5">
               {leaderboard.length === 0 ? (
                 <div className="p-12 text-center">
                   <div className="text-white/30 font-mono uppercase tracking-widest text-xs">No competing airlines found matching query.</div>
@@ -773,10 +773,10 @@ export function CompetitorsView({
                     <div 
                       key={airline.id} 
                       id={`rival-row-${airline.id}`}
-                      className={`transition-all duration-200 cursor-pointer ${
-                        airline.isPlayer 
-                          ? 'bg-aero-yellow/5 border-l-2 border-l-aero-yellow' 
-                          : 'hover:bg-white/[0.02]'
+                      className={`transition-all duration-200 cursor-pointer text-white/70 ${
+                        airline.isPlayer
+                          ? 'bg-aero-yellow/5 border-l-2 border-l-aero-yellow'
+                          : 'hover:bg-white/5'
                       }`}
                       onClick={() => setSelectedAirlineId(airline.id)}
                     >
@@ -805,18 +805,9 @@ export function CompetitorsView({
                             <div className="flex items-center gap-2 flex-wrap font-mono text-xs">
                               <span className="text-white/40">IATA: <span className="font-black text-aero-yellow">{airline.code}</span></span>
                               {!airline.isPlayer && airline.personality && (
-                                <span className={`px-1.5 py-0.2 text-4xs font-black uppercase rounded-sm border ${
-                                  airline.personality === 'flag' ? 'text-aero-yellow bg-aero-yellow/5 border-amber-400/30' :
-                                  airline.personality === 'lcc' ? 'text-aero-yellow bg-aero-yellow/5 border-aero-yellow/30' :
-                                  airline.personality === 'expansionist' ? 'text-aero-yellow/60 bg-[#111] border-white/20' :
-                                  airline.personality === 'optimizer' ? 'text-sky-400 bg-sky-400/5 border-sky-400/30' :
-                                  'text-purple-400 bg-purple-400/5 border-purple-400/30'
-                                }`}>
-                                  {airline.personality === 'flag' ? 'Legacy Flag' :
-                                   airline.personality === 'lcc' ? 'Budget/LCC' :
-                                   airline.personality === 'expansionist' ? 'Expansionist' :
-                                   airline.personality === 'optimizer' ? 'Optimizer' : 'Boutique/Elite'}
-                                </span>
+                                <Badge tone={PERSONALITY_META[airline.personality].tone}>
+                                  {PERSONALITY_META[airline.personality].label}
+                                </Badge>
                               )}
                             </div>
                           </div>
@@ -835,7 +826,7 @@ export function CompetitorsView({
                             airline.isPlayer 
                               ? 'bg-white/10 text-white border border-white/30' 
                               : airline.aiDifficulty === 'Hard' 
-                                ? 'bg-[#111] text-aero-yellow/60 border border-white/20' 
+                                ? 'bg-aero-panel text-aero-yellow/60 border border-white/20'
                                 : airline.aiDifficulty === 'Normal' 
                                   ? 'bg-aero-yellow/10 text-aero-yellow border border-aero-yellow/20' 
                                   : 'bg-aero-yellow/10 text-aero-yellow border border-aero-yellow/25'
