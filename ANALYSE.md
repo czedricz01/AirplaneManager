@@ -485,20 +485,35 @@ Ausgearbeitet, aber nicht Teil von Paket 1. Reihenfolge nach Wirkung pro Aufwand
 
 ## C1 — Konkurrenz um Passagiere *(umgesetzt)*
 
-> **Nachgemessener Vorbehalt.** Die Mechanik greift nur, wenn die Nachfrage
-> überhaupt die bindende Grenze ist. Über zufällige Flughafenpaare (200–5.000 km,
-> Angebot 150 Sitze × 14 Legs) gemessen ist das **1960 bei 34 %** der Paare der
-> Fall, **1990 bei 5 %**, **2020 bei 0 %**. Grund: die Flughafenstatistiken
-> wachsen über 66 Jahre exponentiell (≈5 / 3 / 1,5 % pro Jahr, siehe A3.4),
-> die Sitzplatzkapazität der Flugzeuge aber nicht annähernd so stark. Ab den
-> 1990ern ist praktisch jede Route angebotsbegrenzt — das Flugzeug fliegt voll,
-> egal wer sonst noch fliegt. Damit verliert nicht nur der Wettbewerb an
-> Wirkung, sondern auch Preis und Zufriedenheit als Hebel auf die
-> *Passagierzahl*; sie wirken dann nur noch auf den Erlös je Sitz. Das erklärt
-> einen Teil davon, warum sich das späte Spiel flach anfühlt. Eine Korrektur
-> (Dämpfung des Nachfragewachstums oder Skalierung an der verfügbaren
-> Flottenkapazität) ist eine eigene Balancing-Entscheidung und nicht Teil dieser
-> Umsetzung.
+> **Nachgemessen und korrigiert.** Eine frühere Fassung dieses Dokuments schrieb,
+> die Nachfrage binde 2020 bei 0 % der Paare. Das war mit einem 150-Sitzer
+> gemessen und zu pauschal formuliert. Genauer, über 250 zufällige Paare
+> (200–6.000 km, 7 Rundflüge/Woche):
+>
+> | Jahr | größtes Flugzeug der Epoche | mittleres Flugzeug | fester 150-Sitzer |
+> |---|---|---|---|
+> | 1960 | 62 % (189 Sitze) | 36 % | 48 % |
+> | 1980 | 77 % (550) | 16 % | 23 % |
+> | 2000 | 54 % (660) | 2 % | 1 % |
+> | 2020 | 20 % (853) | 0 % | 0 % |
+>
+> Mit dem jeweils größten Flugzeug bindet die Nachfrage also durchgehend; mit
+> einem mittelgroßen, das der Spieler tatsächlich fliegt, ab etwa 2000 nie mehr.
+>
+> **Der eigentliche Defekt lag darin, was daraus folgte.** Überschüssige
+> Nachfrage wurde zu freier Preismacht: bei dreifachem Überhang ließ sich der
+> Preis 200 % über den SAT-Basispreis setzen, ohne einen Passagier zu verlieren,
+> bei achtfachem 500 %. Mit 180 Sitzen und 7 Rundflügen gemessen war der
+> mögliche Aufschlag beim Median-Paar **1980 +54 %, 2000 +216 %, 2020 +500 %**.
+> Eine Route auf einem großen Paar war damit zu jedem Preis eine Gelddruckmaschine,
+> und Preissetzung hörte auf, eine Entscheidung zu sein.
+>
+> **Behoben** über `MAX_DEMAND_SURPLUS` in `financeUtils.ts`: Nachfrage zählt nur
+> bis 1,3-fach über das, was die Route tatsächlich befördern kann. Passagiere,
+> für die kein Sitz da ist, warten nicht zu jedem Preis. Nachgemessen ist der
+> Aufschlag jetzt in **jeder** Epoche +28 % statt +54/+216/+500 %. Routen, die
+> vernünftig bepreist sind, ändern sich nicht: der eingeschobene Testspielstand
+> liefert vor und nach der Änderung identisch 390.010 $ Monatsgewinn.
 
 
 **Das Problem:** `calculateDemand` kennt keinen Wettbewerb. Zwei identische
