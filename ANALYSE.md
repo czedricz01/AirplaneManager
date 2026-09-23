@@ -636,40 +636,61 @@ daraus eine Tabelle, in der man steigen und fallen kann.
 
 ---
 
-# Teil D — Später, mit Begründung
+# Teil D — Umgesetzt, mit einer begründeten Ausnahme
 
-**D1 Karte aus `App` herauslösen und `React.memo` einführen.** Größte
-Hebelwirkung aller Performance-Maßnahmen (A3.1, A3.5), aber sie verlangt, alle
-Inline-Callbacks in `App.tsx:3009-3101` zu stabilisieren — ein eigener Umbau, der
-sich schlecht mit inhaltlichen Änderungen mischt. Danach: `realTime`
-(`App.tsx:1122`) nach `LiveTraffic` verschieben, denn nur dort wird es gelesen.
+**D1 Karte aus `App` herausgelöst, `React.memo` eingeführt.** *(umgesetzt)*
+`src/components/WorldMap.tsx` mit `MapEvents` und der Symbol-Fabrik, deren Cache
+vorher ein Ref in `App` war. Der 20-Sekunden-Takt der Live-Traffic-Uhr ist nach
+`LiveTraffic` gewandert — er war App-State und hat alle 20 s die gesamte
+Anwendung neu gerendert, um ein paar Flugzeugsymbole zu bewegen.
 
-**D2 `RoutePlannerView` nach Assistentenschritten zerlegen.** 3.774 Zeilen,
-Schritt 2 allein 715 (`:2029-2743`). Die Zustände der vier Schritte sind fast
-disjunkt. Nach dem Löschen der doppelten Modals (B8) der nächste sinnvolle
-Schnitt.
+**D2 `RoutePlannerView` zerlegen.** *(bewusst nicht umgesetzt — gemessen)*
+Die Kopplung gemessen, Bindungen aus dem Komponentenkörper je Block:
 
-**D3 `airports.ts` umbauen.** 1,15 MB für Werte, die einzeln gelesen werden
-(A3.4). Empfehlung: Basiswert je Flughafen plus die drei Wachstumsraten
-speichern und in `getAirportStats` interpolieren — die Funktion und ihr
-WeakMap-Cache (`airports.ts:34019-34047`) bleiben unverändert, nur die
-Datenquelle wechselt. Der App-Shell fällt damit um ~48 % des JavaScripts.
-*Vorher zu klären:* ob die Rekonstruktion exakt genug ist — die Rauschanteile
-gehen verloren, was spielerisch irrelevant, aber messbar ist.
+| Block | Zeilen | benötigte Bindungen |
+|---|---|---|
+| Schritt 1 (Setup) | 547 | 68 |
+| Schritt 2 (Flugplan) | 715 | 113 |
+| Schritt 3 (Kabine) | 414 | 57 |
+| Schritt 4 (Preise) | 375 | 74 |
+| Config-Dialoge | 169 | 40 |
 
-**D4 Vier Flughafen-Maps auf eine reduzieren.** Heute zeigt die Flughafentabelle
-andere Nachfragewerte als der Routenplaner, und 8 doppelte IDs haben je nach
-Ansicht andere Eigenschaften (A3.6). Eine exportierte Map in einem eigenen Modul,
-die die Ost/West-Anpassung enthält.
+Eine Props-Extraktion erzeugt Schnittstellen mit 40–113 Einträgen. Das macht die
+Kopplung sichtbar, aber nicht kleiner, fügt Indirektion hinzu und riskiert
+Regressionen im verwickeltsten Bildschirm des Spiels (Flugplan mit Drag & Drop).
+Im Komponentenkörper gibt es zudem nur vier Funktionsdeklarationen, alle klein —
+es existiert keine nennenswerte Menge reiner Hilfsfunktionen zum Herauslösen.
 
-**D5 `AirportsView` virtualisieren.** 562 Zeilen fester Höhe — der klarste
-Kandidat, aber er zieht eine neue Abhängigkeit nach sich.
+Der Performance-Grund für die Zerlegung ist außerdem erledigt: die 20 identischen
+`getDeskSim`-Aufrufe sind memoisiert, und die Schritt-Wächter (`step === 2 && …`)
+brechen sofort ab. Gemessen: der Planer öffnet in 388 ms, ein Tastendruck in der
+Zielsuche kostet rund 14 ms, der Bildschirm hat 299 DOM-Knoten.
 
-**D6 Flugzeug-Fixkosten, Leasing, Kredite, Insolvenz** (A1.8). Vom Nutzer für
-jetzt nicht gewählt. Ohne dieses System bleibt „zu viele Flugzeuge kaufen"
+Was hier wirklich helfen würde, ist ein Zustandscontainer (Context plus Reducer)
+statt durchgereichter Props — das ist ein Neuentwurf, kein Refactor, und gehört
+nicht in diesen Änderungssatz.
+
+**D3 `airports.ts` umgebaut.** *(umgesetzt)* Flache Zahlenfelder statt 33.000
+Objektliteralen. Quelle 2,07 MB → 305 kB, Chunk 1.231 kB → 306 kB, Gesamt-JavaScript
+2.616 kB → 1.691 kB. Wertgleichheit bewiesen: 71.820 Abfragen über alle 570
+Einträge und jedes Jahr von 1955 bis 2080, null Abweichungen.
+
+**D4 Vier Flughafen-Maps auf eine reduziert.** *(umgesetzt)*
+`src/data/airportRegistry.ts`. Die acht doppelten IDs lösen sich jetzt eindeutig
+auf, und die Ost/West-Anpassung wirkt auf jedem Bildschirm — vorher zeigte die
+Flughafentabelle für SVO 1980 den Wert 328, während jede Routenrechnung mit 148
+arbeitete.
+
+**D5 `AirportsView` virtualisiert.** *(umgesetzt)* 169 statt rund 4.500
+Tabellenzellen, ohne neue Abhängigkeit.
+
+**D6 Flugzeug-Fixkosten, Leasing, Kredite, Insolvenz.** *(weiterhin offen)* Vom
+Nutzer nicht gewählt. Ohne dieses System bleibt „zu viele Flugzeuge kaufen"
 folgenlos und es gibt keine Verlustbedingung.
 
----
+**Zusätzlich.** Die beiden byte-gleichen Großkreis-Implementierungen mit ihren
+zwei getrennt geschlüsselten Caches sind zu `src/lib/geoUtils.ts`
+zusammengeführt; jeder Pfad wird jetzt einmal berechnet statt zweimal.
 
 # Verifikation
 
