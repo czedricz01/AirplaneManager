@@ -1682,6 +1682,7 @@ export default function App() {
   });
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
   const [editingCabinRouteId, setEditingCabinRouteId] = useState<string | null>(null);
+  const [editingPricingRouteId, setEditingPricingRouteId] = useState<string | null>(null);
   const [isPurchasingForRoute, setIsPurchasingForRoute] = useState(false);
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
   const [routeFilter, setRouteFilter] = useState<string>("");
@@ -3371,6 +3372,9 @@ export default function App() {
                           onEditCabinServices={(id) => {
                              setEditingCabinRouteId(id);
                           }}
+                          onEditFinancials={(id) => {
+                             setEditingPricingRouteId(id);
+                          }}
                           onUpdatePricing={(id, pricing) => {
                              setRoutes(prev => prev.map(r => {
                                if (r.id !== id) return r;
@@ -3481,6 +3485,37 @@ export default function App() {
                           setEditingCabinRouteId(null);
                         }}
                         onClose={() => setEditingCabinRouteId(null)}
+                        aiAirlines={aiAirlines}
+                        airlineCode={airlineCode}
+                      />
+                     </ErrorBoundary>
+                    </div>
+                  )}
+
+                  {editingPricingRouteId && (
+                    <div className="absolute inset-0 z-[60] flex">
+                     <ErrorBoundary label="Pricing Editor" onReset={() => setEditingPricingRouteId(null)} resetLabel="CLOSE EDITOR">
+                      <RoutePlannerView
+                        airports={airports}
+                        fleet={fleet}
+                        routes={routes}
+                        onNotify={setAppAlert}
+                        demandFactor={playerDemandFactor}
+                        rivalOffers={rivalOffers}
+                        airportManagement={airportManagement}
+                        capital={capital}
+                        onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
+                        pendingSlotBills={pendingSlotBills}
+                        currentYear={1960 + Math.floor(currentDateOffset / 12)}
+                        currentMonth={1 + (currentDateOffset % 12)}
+                        difficulty={difficulty}
+                        initialRouteId={editingPricingRouteId}
+                        isEditingPricingOnly={true}
+                        onSaveRoute={(route) => {
+                          setRoutes(prev => prev.map(r => r.id === route.id ? route : r));
+                          setEditingPricingRouteId(null);
+                        }}
+                        onClose={() => setEditingPricingRouteId(null)}
                         aiAirlines={aiAirlines}
                         airlineCode={airlineCode}
                       />
@@ -3717,7 +3752,7 @@ export default function App() {
                     </div>
                   )}
                   {/* Floating Next Month Button */}
-                  {activeWindow === 'map' && !isPlanningRoute && !editingCabinRouteId && (
+                  {activeWindow === 'map' && !isPlanningRoute && !editingCabinRouteId && !editingPricingRouteId && (
                     <div className="fixed bottom-6 right-6 z-[1000] pointer-events-auto">
                       <button
                         onClick={handleAdvanceMonth}

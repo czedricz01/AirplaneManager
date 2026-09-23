@@ -21,8 +21,6 @@ import { airports, airportsMapAdjusted } from '../data/airportRegistry';
 import { OwnedAircraft } from './MyFleetView';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
 
-import { RoutePricingEditView } from './RoutePricingEditView';
-
 interface RouteDetailViewProps {
   route: any; // We'll refine this type
   routes: any[];
@@ -39,19 +37,18 @@ interface RouteDetailViewProps {
   onChangeAircraft?: () => void;
   onEditSchedule?: (routeId: string) => void;
   onEditCabinServices?: (routeId: string) => void;
-  onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
+  onEditFinancials?: (routeId: string) => void;
 }
 
 const formatNumber = (num: number) => Math.round(num).toLocaleString();
 
-export function RouteDetailView({ 
-  route, routes, fleet, fuelPrice = 1.05, airportManagement, 
+export function RouteDetailView({
+  route, routes, fleet, fuelPrice = 1.05, airportManagement,
   currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = [],
-  onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onUpdatePricing 
+  onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onEditFinancials
 }: RouteDetailViewProps) {
   const flightNo = route.schedule?.[0]?.flightNumOut ? 'NE' + route.schedule[0].flightNumOut : route.airline;
   const [activeConfig, setActiveConfig] = useState<'timetable' | 'cabin' | 'finance' | null>(null);
-  const [showPricingEdit, setShowPricingEdit] = useState(false);
   const [showAircraftDetails, setShowAircraftDetails] = useState(false);
 
   const assignedAircraft = fleet?.find(ac => ac.registration === route.aircraft);
@@ -452,15 +449,13 @@ export function RouteDetailView({
 
           
           {/* Finances Box */}
-          <div className="border border-white/10 bg-black/40 flex flex-col transition-colors group relative overflow-hidden">
+          <div onClick={() => onEditFinancials?.(route.id)} className="border border-white/10 bg-black/40 flex flex-col hover:border-aero-yellow/50 hover:bg-aero-yellow/5 transition-colors cursor-pointer group relative overflow-hidden">
             <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10 p-4">
               <div className="flex items-center gap-3">
                 <DollarSign className="text-aero-yellow" size={20} />
-                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Financials</h3>
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest group-hover:text-aero-yellow transition-colors">Financials</h3>
               </div>
-              <button type="button" onClick={() => setShowPricingEdit(true)} title="Adjust Pricing" aria-label="Adjust Pricing" className="text-white/20 hover:text-aero-yellow transition-colors cursor-pointer">
-                <Settings size={16} />
-              </button>
+              <Settings size={16} className="text-white/20 group-hover:text-aero-yellow transition-colors" />
             </div>
             <div className="flex-1 flex flex-col p-4 pt-0">
                {financials && (
@@ -508,28 +503,12 @@ export function RouteDetailView({
                        .map(cls => {
                          const cd = financials.paxByClass[cls];
                          const lf = cd.max > 0 ? Math.round((cd.actual / cd.max) * 100) : 0;
-                         const currentPrices = route.activeTicketPrices || route.ticketPrices || {};
-                         const price = currentPrices[cls] || 0;
+                         const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
                          return (
                            <div key={cls} className="flex flex-col items-center bg-white/5 border border-white/10 rounded-sm p-2">
                              <span className="text-[8px] text-white/30 uppercase tracking-widest font-black">{cls}</span>
                              <span className={`text-lg font-mono font-bold ${lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn'}`}>{lf}%</span>
-                             <span className="text-[8px] text-white/30 font-mono">{cd.actual}/{cd.max} pax</span>
-                             <div className="flex items-center gap-1 mt-1">
-                               <span className="text-[9px] text-white/40">$</span>
-                               <input
-                                 key={`${cls}-${price}`}
-                                 type="number"
-                                 defaultValue={price}
-                                 onBlur={(e) => {
-                                   const val = parseInt(e.target.value, 10);
-                                   if (!isNaN(val) && val > 0 && val !== price && onUpdatePricing) {
-                                     onUpdatePricing(route.id, { ...currentPrices, [cls]: val });
-                                   }
-                                 }}
-                                 className="w-16 bg-black/40 border border-white/10 text-center text-[10px] font-mono text-white py-0.5 focus:outline-none focus:border-aero-yellow/50"
-                               />
-                             </div>
+                             <span className="text-[8px] text-white/30 font-mono">{cd.actual}/{cd.max} pax @ ${price}</span>
                            </div>
                          );
                        })}
@@ -537,31 +516,16 @@ export function RouteDetailView({
                  </>
                )}
             </div>
+            <div className="p-4 bg-black/40 border-t border-white/10 text-center uppercase tracking-widest text-[9px] font-black text-white/40 group-hover:text-aero-yellow transition-colors shrink-0">
+              Click to adjust pricing
+            </div>
           </div>
         </div>
       </div>
 
-      
+
       <AnimatePresence>
          {activeConfig && renderConfigWindow()}
-         {showPricingEdit && assignedAircraft && (
-           <RoutePricingEditView 
-             route={route}
-             routes={routes}
-             fleet={fleet}
-             aircraft={assignedAircraft}
-             fuelPrice={fuelPrice}
-             airportManagement={airportManagement}
-             currentYear={currentYear}
-             currentMonth={currentMonth}
-             difficulty={difficulty}
-             onSave={(pricing) => {
-               if (onUpdatePricing) onUpdatePricing(route.id, pricing);
-               setShowPricingEdit(false);
-             }}
-             onClose={() => setShowPricingEdit(false)}
-           />
-         )}
          {showAircraftDetails && assignedAircraft && (
            <AircraftDetailsModal 
              plane={assignedAircraft}

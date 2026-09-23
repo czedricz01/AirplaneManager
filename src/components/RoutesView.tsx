@@ -55,6 +55,7 @@ interface Props {
   onChangeAircraftRoute?: (route: any) => void;
   onEditSchedule?: (routeId: string) => void;
   onEditCabinServices?: (routeId: string) => void;
+  onEditFinancials?: (routeId: string) => void;
   onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
   fuelPrice?: number;
   /** Reputation effect on demand, so the list matches the monthly report. */
@@ -80,7 +81,7 @@ export function getFlightTimeClass(durMin: number): number {
 export function RoutesView({ 
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
-  onEditSchedule, onEditCabinServices, onUpdatePricing, fuelPrice, airportManagement,
+  onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
   currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = []
 }: Props) {
   const [search, setSearch] = useState("");
@@ -309,17 +310,20 @@ export function RoutesView({
                   </Td>
                   <Td className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
                     {onUpdatePricing && route.ticketPrices ? (
-                      <div className="flex gap-1">
-                        {[-0.10, -0.05, 0.05, 0.10].map(pct => (
-                          <button
-                            key={pct}
-                            onClick={() => quickAdjustPrice(route, pct)}
-                            title={`${pct > 0 ? '+' : ''}${Math.round(pct * 100)}% on all classes`}
-                            className="px-1.5 py-0.5 bg-black/40 border border-white/10 hover:border-aero-yellow/50 text-3xs font-bold text-white/60 hover:text-aero-yellow transition-all"
-                          >
-                            {pct > 0 ? '+' : ''}{Math.round(pct * 100)}%
-                          </button>
-                        ))}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-white/50 font-bold">${route.ticketPrices.economy ?? '-'}</span>
+                        <div className="flex gap-1">
+                          {[-0.10, -0.05, 0.05, 0.10].map(pct => (
+                            <button
+                              key={pct}
+                              onClick={() => quickAdjustPrice(route, pct)}
+                              title={`${pct > 0 ? '+' : ''}${Math.round(pct * 100)}% on all classes`}
+                              className="px-1.5 py-0.5 bg-black/40 border border-white/10 hover:border-aero-yellow/50 text-3xs font-bold text-white/60 hover:text-aero-yellow transition-all"
+                            >
+                              {pct > 0 ? '+' : ''}{Math.round(pct * 100)}%
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <span className="text-white/25">-</span>
@@ -384,7 +388,13 @@ export function RoutesView({
                  if (onClearExternalSelectedRoute) onClearExternalSelectedRoute();
                }
             }}
-            onUpdatePricing={onUpdatePricing}
+            onEditFinancials={(id) => {
+               if (onEditFinancials) {
+                 onEditFinancials(id);
+                 setSelectedRoute(null);
+                 if (onClearExternalSelectedRoute) onClearExternalSelectedRoute();
+               }
+            }}
           />
         )}
       </AnimatePresence>

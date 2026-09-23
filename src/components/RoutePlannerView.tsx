@@ -73,6 +73,7 @@ interface Props {
   initialSchedule?: any[];
   initialClassConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
   isEditingCabinOnly?: boolean;
+  isEditingPricingOnly?: boolean;
   currentYear: number;
   currentMonth: number;
   difficulty: string;
@@ -148,7 +149,7 @@ export function RoutePlannerView(props: Props) {
   return (
     <RoutePlannerProvider
       initialSelection={{
-        step: props.isEditingCabinOnly ? 3 : (props.initialRouteId ? 2 : (props.initialStep || 1)),
+        step: props.isEditingCabinOnly ? 3 : props.isEditingPricingOnly ? 4 : (props.initialRouteId ? 2 : (props.initialStep || 1)),
         originId: props.initialOriginId ?? null,
         destId: props.initialDestId ?? null,
         selectedReg: props.initialSelectedReg ?? null,
@@ -175,7 +176,7 @@ function RoutePlannerInner({
   airports, fleet, routes, airportManagement, capital, 
   onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, demandFactor = 1, rivalOffers = [], pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
-  initialSchedule, initialClassConfigs, isEditingCabinOnly,
+  initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
   aiAirlines = [],
   airlineCode = "NE"
@@ -1462,11 +1463,11 @@ function RoutePlannerInner({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
              <h2 className="text-sm font-black uppercase tracking-wider text-aero-yellow whitespace-nowrap">
-                {isEditingCabinOnly ? "Cabin Editor" : "Route Planner"}
+                {isEditingCabinOnly ? "Cabin Editor" : isEditingPricingOnly ? "Pricing Editor" : "Route Planner"}
              </h2>
              <span className="text-white/20 text-xs font-normal">|</span>
              <div className="flex bg-white/5 border border-white/10 rounded-sm">
-               {!isEditingCabinOnly && [
+               {!isEditingCabinOnly && !isEditingPricingOnly && [
                   { id: 1, label: "1. Setup" },
                   { id: 2, label: "2. Schedule" },
                   { id: 3, label: "3. Cabin" },
@@ -3566,8 +3567,9 @@ function RoutePlannerInner({
 </div>
                      </div>
                      <div className="flex gap-4">
-                        <button onClick={() => setStep(3)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>
-                        <button 
+                        {!isEditingPricingOnly && <button onClick={() => setStep(3)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
+                        {!isEditingPricingOnly && (
+                        <button
                           disabled={isFinalizing || schedule.length === 0}
                           onClick={() => {
                             if (isFinalizing || !routeDraft) return;
@@ -3582,8 +3584,8 @@ function RoutePlannerInner({
                               flightNumberOut: flightNumberOutbound,
                               flightNumberIn: flightNumberInbound,
                               isOneWay: false,
-                              aircraft: selectedAircraft.registration, 
-                              weeklyFlights: schedule.length, 
+                              aircraft: selectedAircraft.registration,
+                              weeklyFlights: schedule.length,
                               turnoverMin: getTurnoverMinutes(),
                               ...saveFinancials
                             });
@@ -3607,6 +3609,36 @@ function RoutePlannerInner({
                         >
                           {isFinalizing ? 'Finalizing...' : 'Finalize Route'}
                         </button>
+                        )}
+                        {isEditingPricingOnly && (
+                        <button
+                          disabled={isFinalizing}
+                          onClick={() => {
+                            if (isFinalizing) return;
+                            setIsFinalizing(true);
+                            const r = routes.find(rt => rt.id === initialRouteId);
+                            if (r) {
+                              // activeTicketPrices is intentionally left untouched: fares
+                              // already sold for this month stay at the old price, the new
+                              // one takes effect at the next month-end sync — only the
+                              // "what you're asking for" field changes right away.
+                              onSaveRoute({
+                                ...r,
+                                ticketPrices: ticketPrices || r.ticketPrices || { economy: 100 }
+                              });
+                            }
+                            setShowSuccessMsg(true);
+                            setTimeout(() => {
+                              setShowSuccessMsg(false);
+                              setIsFinalizing(false);
+                              onClose();
+                            }, 1500);
+                          }}
+                          className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl font-sans"
+                        >
+                          {isFinalizing ? 'Saving Pricing...' : 'Save Pricing'}
+                        </button>
+                        )}
                      </div>
                   </div>
                </div>
