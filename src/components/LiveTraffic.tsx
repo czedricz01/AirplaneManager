@@ -4,7 +4,6 @@ import L from 'leaflet';
 import { aircraftList } from "../data/aircraft";
 
 interface LiveTrafficProps {
-  realTime: Date;
   routes: any[];
   aiRoutes: any[];
   airports: any[];
@@ -213,7 +212,20 @@ interface ActiveFlight {
   cruiseSpeed: number;
 }
 
-export function LiveTraffic({ realTime, routes, aiRoutes, airports, offsets = [0], fleet = [] }: LiveTrafficProps) {
+export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet = [] }: LiveTrafficProps) {
+  /**
+   * The live-traffic clock lives here, not in App.
+   *
+   * It used to be App state, so every tick re-rendered the whole application --
+   * including the ~750 map polylines and every mounted view -- to move a few
+   * aircraft markers. Nothing outside this component reads it.
+   */
+  const [realTime, setRealTime] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const interval = setInterval(() => setRealTime(new Date()), 20000);
+    return () => clearInterval(interval);
+  }, []);
+
   const airportsMap = useMemo(() => new Map(airports.map(a => [a.id, a])), [airports]);
   const fleetByRegistration = useMemo(() => new Map(fleet.map(f => [f.registration, f])), [fleet]);
   const aircraftById = useMemo(() => new Map(aircraftList.map(a => [a.id, a])), []);
