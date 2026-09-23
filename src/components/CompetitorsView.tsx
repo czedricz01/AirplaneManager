@@ -162,6 +162,11 @@ export function CompetitorsView({
         hub: playerHub || "FRA",
         capital: playerCapital,
         aiDifficulty: 'Player' as any,
+        // The player has no AI strategy profile. Declaring the fields keeps this
+        // entry the same shape as the AI ones, so the detail panel can read them
+        // off the union and fall back to "Independent" / 5 on its own.
+        personality: undefined as string | undefined,
+        aggression: undefined as number | undefined,
         fleet: pFleet,
         routes: pRoutes,
         isPlayer: true,
@@ -244,8 +249,11 @@ export function CompetitorsView({
     const widebodyCount = found.fleet.filter(f => f.class === 'widebody').length;
     
     // Virtual calculation of average monthly earnings
-    const totalWeeklyDepartures = found.routes.reduce((sum, r) => sum + r.departures, 0);
-    const averageEarnings = found.routes.reduce((sum, r) => sum + r.monthlyProfit, 0);
+    // `found.routes` is a union of the player and AI route shapes, so the
+    // accumulator has to be annotated for TypeScript to pick the numeric overload.
+    const routeList: { departures: number; monthlyProfit: number }[] = found.routes;
+    const totalWeeklyDepartures = routeList.reduce((sum, r) => sum + r.departures, 0);
+    const averageEarnings = routeList.reduce((sum, r) => sum + r.monthlyProfit, 0);
 
     return {
       ...found,

@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { SupabaseBucketModal } from './SupabaseBucketModal';
+import { readString } from '../lib/safeStorage';
 
 interface Props {
   currentDateOffset: number;
@@ -20,7 +21,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
 
   // Falls back to storage only when the prop is absent. This used to poll
   // localStorage every 500 ms for a value that already lives in App's state.
-  const debugMode = debugModeProp ?? (typeof window !== 'undefined' && localStorage.getItem('airline_debug_mode') === 'true');
+  const debugMode = debugModeProp ?? (readString('airline_debug_mode') === 'true');
 
   // ZIP upload state
   const [dragActive, setDragActive] = useState(false);

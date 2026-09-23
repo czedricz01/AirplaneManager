@@ -459,7 +459,9 @@ export function RouteDetailView({
                 <DollarSign className="text-aero-yellow" size={20} />
                 <h3 className="text-sm font-bold text-white uppercase tracking-widest">Financials</h3>
               </div>
-              <Settings onClick={() => setShowPricingEdit(true)} size={16} className="text-white/20 hover:text-aero-yellow transition-colors cursor-pointer" title="Adjust Pricing" />
+              <button type="button" onClick={() => setShowPricingEdit(true)} title="Adjust Pricing" aria-label="Adjust Pricing" className="text-white/20 hover:text-aero-yellow transition-colors cursor-pointer">
+                <Settings size={16} />
+              </button>
             </div>
             <div className="flex-1 flex flex-col p-4 pt-0">
                {financials && (

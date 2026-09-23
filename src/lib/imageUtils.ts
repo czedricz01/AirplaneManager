@@ -1,22 +1,23 @@
+import { readString, writeString, removeKey } from './safeStorage';
+
 export const DEFAULT_SUPABASE_BUCKET_URLS = [
   'https://vupjxnkwagemsiafwgve.supabase.co/storage/v1/object/public/PlanePics',
   'https://vupjxnkwagemsiafwgve.storage.supabase.co/storage/v1/s3/PlanePics'
 ];
 
 export const getExternalImageBaseUrl = (): string => {
-  if (typeof window === 'undefined') return DEFAULT_SUPABASE_BUCKET_URLS[0];
-  return localStorage.getItem('supabase_bucket_url') || localStorage.getItem('external_image_base_url') || DEFAULT_SUPABASE_BUCKET_URLS[0];
+  return readString('supabase_bucket_url') || readString('external_image_base_url') || DEFAULT_SUPABASE_BUCKET_URLS[0];
 };
 
 export const setExternalImageBaseUrl = (url: string) => {
   if (typeof window === 'undefined') return;
   const cleaned = url ? url.trim().replace(/\/+$/, '') : '';
   if (!cleaned) {
-    localStorage.removeItem('external_image_base_url');
-    localStorage.removeItem('supabase_bucket_url');
+    removeKey('external_image_base_url');
+    removeKey('supabase_bucket_url');
   } else {
-    localStorage.setItem('external_image_base_url', cleaned);
-    localStorage.setItem('supabase_bucket_url', cleaned);
+    writeString('external_image_base_url', cleaned);
+    writeString('supabase_bucket_url', cleaned);
   }
   // A new bucket means the cached candidate lists and the 404 memory are stale.
   clearAircraftImageCandidateCache();
@@ -78,9 +79,7 @@ export const getAircraftImageCandidates = (
 
   const localCandidates: string[] = [];
   const remoteCandidates: string[] = [];
-  const userBaseUrl = typeof window !== 'undefined'
-    ? (localStorage.getItem('supabase_bucket_url') || localStorage.getItem('external_image_base_url'))
-    : null;
+  const userBaseUrl = readString('supabase_bucket_url') || readString('external_image_base_url');
 
   const baseUrls: string[] = [];
   if (userBaseUrl && userBaseUrl.trim()) {

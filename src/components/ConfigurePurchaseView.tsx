@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 // The shared version of what used to be a local SeatInfoTooltip here; the rest of
 // the interface needs the same affordance, so it now lives in its own module.
 import { InfoTooltip as SeatInfoTooltip } from './InfoTooltip';
+import { readJson, writeJson } from '../lib/safeStorage';
 
 export type ClassSetup = {
   seats: number;
@@ -84,14 +85,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const [showLoadConfig, setShowLoadConfig] = useState(false);
   const [showSaveConfig, setShowSaveConfig] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
-  const [savedPresets, setSavedPresets] = useState<any[]>(() => {
-    try {
-      const stored = localStorage.getItem('aero_saved_presets');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [savedPresets, setSavedPresets] = useState<any[]>(() => readJson<any[]>('aero_saved_presets', []));
   const [activeConfigTab, setActiveConfigTab] = useState<'general' | 'classes'>('classes');
   const [selectedClass, setSelectedClass] = useState<ClassType | null>(null);
 
@@ -400,7 +394,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
     };
     const newPresets = [...savedPresets, preset];
     setSavedPresets(newPresets);
-    localStorage.setItem('aero_saved_presets', JSON.stringify(newPresets));
+    writeJson('aero_saved_presets', newPresets);
     setSavePresetName("");
     setShowSaveConfig(false);
   };
@@ -409,7 +403,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
     e.stopPropagation();
     const newPresets = savedPresets.filter(p => p.id !== id);
     setSavedPresets(newPresets);
-    localStorage.setItem('aero_saved_presets', JSON.stringify(newPresets));
+    writeJson('aero_saved_presets', newPresets);
   };
 
   const handleLoadConfig = (plane: any) => {
