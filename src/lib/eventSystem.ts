@@ -17,6 +17,11 @@ export interface EventChoice {
    * gets cheaper instead, the hedge costs money.
    */
   hedgesFuel?: boolean;
+  /**
+   * Recovers this fraction of the event's demand shortfall, for the player
+   * only. 0.4 against a 0.65 multiplier leaves 0.65 + 0.35*0.4 = 0.79.
+   */
+  softensDemand?: number;
 }
 
 export interface HistoricalEvent {
@@ -107,6 +112,21 @@ export const historicalEvents: HistoricalEvent[] = [
     startOffset: (2001 - 1960) * 12 + 8, // Sep 2001
     duration: 12,
     title: "Aviation Downturn",
+    choices: [
+      {
+        id: "reassure",
+        label: "Campaign to win passengers back",
+        detail: "Advertising, refunds and flexible rebooking while confidence recovers. Recovers roughly 40% of the demand you would otherwise lose, for you alone.",
+        cost: 5000000,
+        softensDemand: 0.4
+      },
+      {
+        id: "ride",
+        label: "Wait for confidence to return",
+        detail: "Fly the schedule and absorb the empty seats. Costs nothing now.",
+        cost: 0
+      }
+    ],
     description: "Global passenger demand has plummeted dramatically.",
     demandMultiplier: 0.65,
     fuelMultiplier: 1.0,
@@ -115,6 +135,21 @@ export const historicalEvents: HistoricalEvent[] = [
     startOffset: (2008 - 1960) * 12 + 8, // Sep 2008
     duration: 24,
     title: "Global Financial Crisis",
+    choices: [
+      {
+        id: "yield",
+        label: "Chase volume with cut fares",
+        detail: "Discount aggressively and market hard for two years to keep the aircraft full. Recovers roughly a third of the lost demand, for you alone.",
+        cost: 8000000,
+        softensDemand: 0.33
+      },
+      {
+        id: "ride",
+        label: "Hold your fares",
+        detail: "Protect yield and fly emptier. Costs nothing now.",
+        cost: 0
+      }
+    ],
     description: "A severe worldwide economic crisis resulting in depressed passenger demand and volatile fuel prices.",
     demandMultiplier: 0.75,
     fuelMultiplier: 1.2,
@@ -123,6 +158,21 @@ export const historicalEvents: HistoricalEvent[] = [
     startOffset: (2020 - 1960) * 12 + 2, // Mar 2020
     duration: 24,
     title: "Global Pandemic",
+    choices: [
+      {
+        id: "cargo",
+        label: "Convert cabins to cargo",
+        detail: "Strip seats and fly freight while nobody is travelling. Expensive and slow to reverse, but recovers roughly 35% of a demand collapse that is otherwise near-total.",
+        cost: 25000000,
+        softensDemand: 0.35
+      },
+      {
+        id: "ride",
+        label: "Park the aircraft and wait",
+        detail: "Fly the schedule into empty cabins for two years. Costs nothing now.",
+        cost: 0
+      }
+    ],
     description: "International borders close and aviation demand nearly vanishes.",
     demandMultiplier: 0.20,
     fuelMultiplier: 0.7,

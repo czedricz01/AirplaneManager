@@ -42,6 +42,8 @@ interface Props {
   /** Milestones earned so far, with the full catalogue to show what is left. */
   milestones: string[];
   milestoneCatalogue: { id: string; title: string; detail: string }[];
+  /** The board's target for the current year, and what has been earned so far. */
+  annualGoal: { year: number; targetProfit: number } | null;
 }
 
 const label = (r: MonthlyReport) => `${String(r.month).padStart(2, '0')}/${r.year}`;
@@ -123,7 +125,7 @@ function History({ reports, pick, title }: { reports: MonthlyReport[]; pick: (r:
   );
 }
 
-export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue }: Props) {
+export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal }: Props) {
   const [series, setSeries] = useState<'profit' | 'revenue' | 'capital'>('profit');
   const [monthsShown, setMonthsShown] = useState(24);
 
@@ -201,6 +203,34 @@ export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, 
                 />
               </div>
             </div>
+            {annualGoal && (
+              <div className="bg-black/40 border border-white/10 p-4 rounded-sm">
+                <span className="text-[10px] uppercase tracking-widest text-white/40 font-black mb-2 block">
+                  {annualGoal.year} target
+                </span>
+                {(() => {
+                  const earned = reportHistory
+                    .filter(r => r.year === annualGoal.year)
+                    .reduce((a, r) => a + r.totalProfit, 0);
+                  const pct = annualGoal.targetProfit > 0
+                    ? Math.max(0, Math.min(100, (earned / annualGoal.targetProfit) * 100))
+                    : 0;
+                  return (
+                    <>
+                      <span className={`text-2xl font-mono font-bold ${pct >= 100 ? 'text-aero-good' : 'text-white/80'}`}>
+                        {compact(earned)}
+                      </span>
+                      <span className="block text-[9px] font-mono text-white/30 mt-1">
+                        of {compact(annualGoal.targetProfit)} operating profit
+                      </span>
+                      <div className="w-full h-1 bg-white/10 mt-2 overflow-hidden">
+                        <div className={`h-full ${pct >= 100 ? 'bg-aero-good' : 'bg-aero-yellow'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
             <div className="bg-black/40 border border-white/10 p-4 rounded-sm">
               <span className="text-[10px] uppercase tracking-widest text-white/40 font-black mb-2 block">Network</span>
               <span className="text-2xl font-mono font-bold text-white/80">{routeCount}</span>
