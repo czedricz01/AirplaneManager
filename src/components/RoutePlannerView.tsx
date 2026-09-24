@@ -40,6 +40,7 @@ import {
   getFlightDurationMinutes as sharedFlightDurationMinutes,
   toStoredRouteMetrics,
   marketKey,
+  buildRivalRoutesByPair,
   RouteOffer,
 } from '../lib/financeUtils';
 
@@ -787,16 +788,7 @@ function RoutePlannerInner({
   }, [selectedOrigin, selectedDest, selectedAircraft, schedule, classConfigs, ticketPrices, initialRouteId, draftRouteId]);
 
   // Rival routes per city pair, for the "COMP" hint in the destination list.
-  const rivalRoutesByPair = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const ai of aiAirlines) {
-      for (const r of ai.routes || []) {
-        const key = marketKey(r.origin, r.destination);
-        m.set(key, (m.get(key) || 0) + 1);
-      }
-    }
-    return m;
-  }, [aiAirlines]);
+  const rivalRoutesByPair = useMemo(() => buildRivalRoutesByPair(aiAirlines), [aiAirlines]);
 
   /**
    * The city pair's weekly market for the preview in step 1. It used to assume
@@ -1978,7 +1970,7 @@ function RoutePlannerInner({
                                    <div><span className="text-white/30">S (Diff {difficulty}):</span> <span className="text-aero-yellow">{d.formulaVars.S}</span></div>
                                  </div>
                                  <div className="text-white/40 mb-2 pb-2 border-b border-white/5">
-                                   Demand = 34.14 &times; Interaction^0.448 &times; S {d.formulaVars.S} &times; time class {formatNumber(d.formulaVars.tcDemandMultiplier, 2)} &times; events {formatNumber(d.formulaVars.eventMult, 2)} &times; your factor {formatNumber(d.formulaVars.extraDemandFactor, 2)}
+                                   Demand = 29.00 &times; Interaction^0.448 &times; S {d.formulaVars.S} &times; time class {formatNumber(d.formulaVars.tcDemandMultiplier, 2)} &times; events {formatNumber(d.formulaVars.eventMult, 2)} &times; your factor {formatNumber(d.formulaVars.extraDemandFactor, 2)}
                                    <br />
                                    Interaction: {formatNumber(d.formulaVars.totalInteraction)}
                                  </div>

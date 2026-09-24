@@ -189,7 +189,7 @@ export function computeReputationTarget(samples: {
  * network still beats a good reputation, large enough to be worth protecting.
  */
 export function reputationDemandFactor(reputation: number): number {
-  return 0.9 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;
+  return 0.85 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;
 }
 
 /**
