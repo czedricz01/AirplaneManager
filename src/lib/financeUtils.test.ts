@@ -101,6 +101,50 @@ test('the satisfaction screens show is the one the economy prices with', () => {
   assert.equal(shown.satisfactionDetails.business.satisfactionPercentage, fin.routeSat.business);
 });
 
+test('a cabin menu the aircraft or hub no longer supports is not priced or costed', () => {
+  // A route saved while the aircraft had a premium galley and the hub had a
+  // catering facility -- both required for a Premium-tier meal on a
+  // Narrowbody. Neither the route's classConfigs nor the aircraft's fleet
+  // record change on their own when one of those goes away; only the cabin
+  // editor used to notice, and only if the player happened to reopen it.
+  const spec = aircraftList.find(a => a.id === '737-100')!;
+  const origin = airportsMapAdjusted.get('FRA')!;
+  const dest = airportsMapAdjusted.get('CDG')!;
+  const makeAircraft = (hasPremiumCatering: boolean) => ({
+    ...spec, registration: 'T-REFIT', purchasedAt: 0, conditionInterior: 90, conditionGeneral: 90, baseInteriorPop: 60,
+    config: { economy: 100, premium: 0, business: 0, first: 0, details: { hasPremiumCatering } }
+  });
+  const withGalley = makeAircraft(true);
+  const durMin = getFlightDurationMinutes(origin, dest, withGalley);
+  const route = {
+    id: 'refit-route', origin: 'FRA', destination: 'CDG', aircraft: 'T-REFIT', distance: 450, durMin,
+    schedule: Array.from({ length: 7 }, (_, i) => ({ dayId: i + 1, startHour: 8, startMin: 0, durMin, turnoverMin: 60 })),
+    classConfigs: { economy: { catering: [['p1']], extras: ['none'], service: ['none'] } },
+    ticketPrices: { economy: 120 }
+  };
+  const infra = {
+    level: 2, slots: { regional: 0, narrowbody: 50, widebody: 0 }, stands: { narrowbody: 0 },
+    desks: { normal: 1, self: 0 }, hubFacilities: { catering: true }
+  };
+  const mgt = { FRA: infra, CDG: infra };
+
+  const beforeRefit = getRouteClassSatisfaction(route, withGalley, mgt, [route], [withGalley], 'Normal');
+  assert.equal(beforeRefit.classConfigs.economy.catering[0][0], 'p1', 'the premium meal is allowed while the galley is fitted');
+
+  // Refitted: the galley is gone, but the route's saved menu is untouched.
+  const refitted = makeAircraft(false);
+  const afterRefit = getRouteClassSatisfaction(route, refitted, mgt, [route], [refitted], 'Normal');
+  assert.equal(afterRefit.classConfigs.economy.catering[0][0], 'none', 'a meal the aircraft can no longer serve is dropped, not priced as-is');
+  assert.ok(afterRefit.routeSat.economy < beforeRefit.routeSat.economy, 'satisfaction reflects the downgrade');
+
+  const finBefore = calculateRouteFinancials(route, withGalley, 1, mgt, 1990, 6, 'Normal', airportsMapAdjusted, [route], [withGalley]);
+  const finAfter = calculateRouteFinancials(route, refitted, 1, mgt, 1990, 6, 'Normal', airportsMapAdjusted, [route], [refitted]);
+  assert.ok(finAfter.costsBreakdown.catering < finBefore.costsBreakdown.catering, 'catering cost drops once the meal it can no longer serve is dropped');
+
+  // The route's own saved state is never mutated by pricing it.
+  assert.equal(route.classConfigs.economy.catering[0][0], 'p1');
+});
+
 test("a route's own passengers count towards the check-in load it causes", () => {
   // One standard desk handles 5,000 seats a week; 40 round trips of 100 seats
   // need 4,000 -- 80% load, no penalty. 60 trips need 6,000 -- overloaded.

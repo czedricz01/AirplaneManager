@@ -25,7 +25,7 @@ import {
   tripInterval,
   tripStartMinute
 } from '../lib/scheduleUtils';
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { SimulatedRoute, AirportInfrastructure } from '../App';
 
 export type ScheduledTrip = { 

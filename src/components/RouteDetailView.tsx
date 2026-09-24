@@ -16,7 +16,7 @@ import {
 
 import { airports, airportsMapAdjusted } from '../data/airportRegistry';
 
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
 
 // A stable default, so a missing prop does not invalidate the memos on every render.

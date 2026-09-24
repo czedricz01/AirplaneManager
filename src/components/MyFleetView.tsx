@@ -4,7 +4,7 @@ import { Search, ChevronDown, ChevronUp, LayoutGrid, List, Plane, Layers, Activi
 import { AircraftDetailsModal } from './AircraftDetailsModal';
 import { getPlaneSat } from '../lib/financeUtils';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
-import { ConfigOutput } from './ConfigurePurchaseView';
+import type { ConfigOutput } from './ConfigurePurchaseView';
 import { AircraftImage } from './AircraftImage';
 import { ViewHeader } from './ui/ViewHeader';
 import { StatTile } from './ui/StatTile';

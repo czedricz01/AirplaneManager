@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { formatCurrency } from '../lib/format';
 import { Aircraft } from '../data/aircraft';
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, ChevronLeft, Info, Settings, Wifi, Tv, X, Download, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 // The shared version of what used to be a local SeatInfoTooltip here; the rest of

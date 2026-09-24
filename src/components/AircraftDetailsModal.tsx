@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, routeFlightNumber } from '../lib/format';
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { Plane, Wrench, ShieldAlert } from 'lucide-react';
 import { AircraftImage } from './AircraftImage';
 import { loadAircraftImagesMap } from '../lib/imageUtils';
