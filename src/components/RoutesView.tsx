@@ -2,13 +2,16 @@ import React, { useState, useMemo } from 'react';
 import { formatMoneyCompact, routeFlightNumber } from '../lib/format';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
-import { getFlightTimeClass, type RouteOffer } from '../lib/financeUtils';
+import { getFlightTimeClass, calculateRouteFinancials, type RouteOffer } from '../lib/financeUtils';
+import { airportsMapAdjusted } from '../data/airportRegistry';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
 import type { OwnedAircraft } from './MyFleetView';
 import { ViewHeader } from './ui/ViewHeader';
 import { TableScrollContainer, Table, Thead, Th, Td } from './ui/Table';
 import { Button } from './ui/Button';
+
+const CABIN_CLASSES = ['economy', 'premium', 'business', 'first'] as const;
 
 interface SimulatedRoute {
   id: string;
@@ -60,7 +63,138 @@ interface Props {
   airlineCode?: string;
 }
 
-function RoutesViewImpl({ 
+const routesAirportsMap = (() => {
+  const map = new Map<string, ReturnType<typeof airportsMapAdjusted.get>>();
+  airportsMapAdjusted.forEach((a, id) => map.set(id, a));
+  return map;
+})();
+
+interface RouteRowProps {
+  route: SimulatedRoute;
+  airlineCode: string;
+  fleetByRegistration: Map<string, OwnedAircraft>;
+  fleet: OwnedAircraft[];
+  routes: SimulatedRoute[];
+  routeProfit?: number;
+  onSelect: (route: SimulatedRoute) => void;
+  onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
+  fuelPrice?: number;
+  airportManagement?: Record<string, any>;
+  currentYear: number;
+  currentMonth: number;
+  difficulty: string;
+  demandFactor: number;
+  rivalOffers: RouteOffer[];
+}
+
+/** One "Economy/Premium/Business/First" line: dashes for classes the aircraft doesn't carry. */
+function ClassLine({ items }: { items: { cls: string; text: string; color?: string }[] }) {
+  return (
+    <div className="flex gap-1">
+      {items.map((it, i) => (
+        <React.Fragment key={it.cls}>
+          {i > 0 && <span className="text-white/20">/</span>}
+          <span className={it.color || 'text-white/25'}>{it.text}</span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A single row, memoised so buying a slot or advancing a month -- which
+ * replaces the `routes` array -- only recomputes the per-class load and
+ * price for rows whose own route object actually changed.
+ */
+const RouteRow = React.memo(function RouteRow({
+  route, airlineCode, fleetByRegistration, fleet, routes, routeProfit, onSelect, onUpdatePricing,
+  fuelPrice, airportManagement, currentYear, currentMonth, difficulty, demandFactor, rivalOffers
+}: RouteRowProps) {
+  const aircraft = fleetByRegistration.get(route.aircraft);
+
+  const financials = useMemo(() => {
+    if (!aircraft) return null;
+    return calculateRouteFinancials(
+      route, aircraft, fuelPrice ?? 1.05, airportManagement || {},
+      currentYear, currentMonth, difficulty, routesAirportsMap, routes, fleet,
+      false, demandFactor, rivalOffers
+    );
+  }, [route, aircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, routes, fleet, demandFactor, rivalOffers]);
+
+  const loadLine = CABIN_CLASSES.map(cls => {
+    const cd = financials?.paxByClass?.[cls];
+    if (!cd || cd.max <= 0) return { cls, text: '-' };
+    const lf = Math.round((cd.actual / cd.max) * 100);
+    return { cls, text: `${lf}%`, color: lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn' };
+  });
+
+  const priceLine = CABIN_CLASSES.map(cls => {
+    const cd = financials?.paxByClass?.[cls];
+    if (!cd || cd.max <= 0) return { cls, text: '-' };
+    const price = route.ticketPrices?.[cls];
+    return { cls, text: price ? `$${price}` : '?', color: price ? 'text-white/60' : undefined };
+  });
+
+  const quickAdjustPrice = (pct: number) => {
+    if (!onUpdatePricing) return;
+    const current = route.ticketPrices || {};
+    const next = { ...current };
+    CABIN_CLASSES.forEach(cls => {
+      if (current[cls]) next[cls] = Math.max(1, Math.round(current[cls] * (1 + pct)));
+    });
+    onUpdatePricing(route.id, next);
+  };
+
+  return (
+    <tr
+      onClick={() => onSelect(route)}
+      className="border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer"
+    >
+      <Td className="pl-4 font-bold text-white/90 tracking-widest hover:text-aero-yellow transition-colors underline decoration-white/20 underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
+      <Td className="font-bold text-aero-yellow">{route.origin}</Td>
+      <Td className="font-bold text-aero-yellow">{route.destination}</Td>
+      <Td className="text-xs font-mono">{route.distance} km</Td>
+      <Td className="text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
+      <Td className="text-xs font-mono">{route.durMin ? <span className="border border-white/20 px-2 py-0.5 rounded-sm bg-white/5">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
+      <Td>{route.aircraft}</Td>
+      <Td className="text-xs font-mono">{route.weeklyFlights}</Td>
+      <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
+      <Td className="text-xs font-mono"><ClassLine items={loadLine} /></Td>
+      <Td className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
+        {onUpdatePricing && route.ticketPrices ? (
+          <div className="flex flex-col gap-1">
+            <ClassLine items={priceLine} />
+            <div className="flex gap-1">
+              {[-0.10, -0.05, 0.05, 0.10].map(pct => (
+                <button
+                  key={pct}
+                  onClick={() => quickAdjustPrice(pct)}
+                  title={`${pct > 0 ? '+' : ''}${Math.round(pct * 100)}% on all classes`}
+                  className="px-1.5 py-0.5 bg-black/40 border border-white/10 hover:border-aero-yellow/50 text-3xs font-bold text-white/60 hover:text-aero-yellow transition-all"
+                >
+                  {pct > 0 ? '+' : ''}{Math.round(pct * 100)}%
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <span className="text-white/25">-</span>
+        )}
+      </Td>
+      <Td className="pr-4 text-right text-xs font-mono">
+        {routeProfit !== undefined ? (
+          <span className={routeProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'}>
+            {routeProfit >= 0 ? '+' : ''}{formatMoneyCompact(routeProfit)}
+          </span>
+        ) : (
+          <span className="text-white/25" title="No closed month for this route yet">-</span>
+        )}
+      </Td>
+    </tr>
+  );
+});
+
+function RoutesViewImpl({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
@@ -133,30 +267,6 @@ function RoutesViewImpl({
 
   const fleetByRegistration = useMemo(() => new Map(fleet.map(f => [f.registration, f])), [fleet]);
 
-  /** Weekly seat capacity for a route's assigned aircraft, or null with none assigned. */
-  const getWeeklySeats = (route: SimulatedRoute): number | null => {
-    const ac = fleetByRegistration.get(route.aircraft);
-    if (!ac) return null;
-    const configSeats = ac.config
-      ? ((ac.config.economy || 0) + (ac.config.premium || 0) + (ac.config.business || 0) + (ac.config.first || 0))
-      : 0;
-    const capacity = configSeats > 0 ? configSeats : ((ac as any).capacity || 0);
-    const legs = route.schedule
-      ? route.schedule.reduce((acc: number, s: any) => acc + (s.isOneWay ? 1 : 2), 0)
-      : route.weeklyFlights * 2;
-    return capacity * legs;
-  };
-
-  const quickAdjustPrice = (route: SimulatedRoute, pct: number) => {
-    if (!onUpdatePricing) return;
-    const current = route.ticketPrices || {};
-    const next = { ...current };
-    (['economy', 'premium', 'business', 'first'] as const).forEach(cls => {
-      if (current[cls]) next[cls] = Math.max(1, Math.round(current[cls] * (1 + pct)));
-    });
-    onUpdatePricing(route.id, next);
-  };
-
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
@@ -214,8 +324,8 @@ function RoutesViewImpl({
             <Th sortable onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</Th>
             <Th sortable onClick={() => toggleSort('weeklyFlights')}>Weekly Flights {getSortIcon('weeklyFlights')}</Th>
             <Th sortable onClick={() => toggleSort('paxPerWeek')}>Pax / Week {getSortIcon('paxPerWeek')}</Th>
-            <Th sortable={false}>Load %</Th>
-            <Th sortable={false}>Quick Price</Th>
+            <Th sortable={false} title="Economy / Premium / Business / First">Load %</Th>
+            <Th sortable={false} title="Economy / Premium / Business / First">Price</Th>
             <Th sortable className="pr-4 text-right" onClick={() => toggleSort('profit')}>Profit / Month {getSortIcon('profit')}</Th>
           </Thead>
           <tbody>
@@ -234,63 +344,24 @@ function RoutesViewImpl({
                </tr>
             ) : (
               filteredAndSortedRoutes.map((route, idx) => (
-                <tr
+                <RouteRow
                   key={`${route.id}-${idx}`}
-                  onClick={() => setSelectedRoute(route)}
-                  className="border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer"
-                >
-                  <Td className="pl-4 font-bold text-white/90 tracking-widest hover:text-aero-yellow transition-colors underline decoration-white/20 underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
-                  <Td className="font-bold text-aero-yellow">{route.origin}</Td>
-                  <Td className="font-bold text-aero-yellow">{route.destination}</Td>
-                  <Td className="text-xs font-mono">{route.distance} km</Td>
-                  <Td className="text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
-                  <Td className="text-xs font-mono">{route.durMin ? <span className="border border-white/20 px-2 py-0.5 rounded-sm bg-white/5">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
-                  <Td>{route.aircraft}</Td>
-                  <Td className="text-xs font-mono">{route.weeklyFlights}</Td>
-                  <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
-                  <Td className="text-xs font-mono">
-                    {(() => {
-                      const weeklySeats = getWeeklySeats(route);
-                      if (!weeklySeats || weeklySeats <= 0) return <span className="text-white/25">-</span>;
-                      const lf = Math.round((route.paxPerWeek / weeklySeats) * 100);
-                      return (
-                        <span className={lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn'}>
-                          {lf}%
-                        </span>
-                      );
-                    })()}
-                  </Td>
-                  <Td className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
-                    {onUpdatePricing && route.ticketPrices ? (
-                      <div className="flex flex-col gap-1">
-                        <span className="text-white/50 font-bold">${route.ticketPrices.economy ?? '-'}</span>
-                        <div className="flex gap-1">
-                          {[-0.10, -0.05, 0.05, 0.10].map(pct => (
-                            <button
-                              key={pct}
-                              onClick={() => quickAdjustPrice(route, pct)}
-                              title={`${pct > 0 ? '+' : ''}${Math.round(pct * 100)}% on all classes`}
-                              className="px-1.5 py-0.5 bg-black/40 border border-white/10 hover:border-aero-yellow/50 text-3xs font-bold text-white/60 hover:text-aero-yellow transition-all"
-                            >
-                              {pct > 0 ? '+' : ''}{Math.round(pct * 100)}%
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-white/25">-</span>
-                    )}
-                  </Td>
-                  <Td className="pr-4 text-right text-xs font-mono">
-                    {routeProfits && routeProfits[route.id] !== undefined ? (
-                      <span className={routeProfits[route.id] >= 0 ? 'text-aero-good' : 'text-aero-warn'}>
-                        {routeProfits[route.id] >= 0 ? '+' : ''}{formatMoneyCompact(routeProfits[route.id])}
-                      </span>
-                    ) : (
-                      <span className="text-white/25" title="No closed month for this route yet">-</span>
-                    )}
-                  </Td>
-                </tr>
+                  route={route}
+                  airlineCode={airlineCode}
+                  fleetByRegistration={fleetByRegistration}
+                  fleet={fleet}
+                  routes={routes}
+                  routeProfit={routeProfits?.[route.id]}
+                  onSelect={setSelectedRoute}
+                  onUpdatePricing={onUpdatePricing}
+                  fuelPrice={fuelPrice}
+                  airportManagement={airportManagement}
+                  currentYear={currentYear}
+                  currentMonth={currentMonth}
+                  difficulty={difficulty}
+                  demandFactor={demandFactor}
+                  rivalOffers={rivalOffers}
+                />
               ))
             )}
           </tbody>

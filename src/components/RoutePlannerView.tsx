@@ -875,9 +875,34 @@ function RoutePlannerInner({
     );
   }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, demandFactor, rivalOffers]);
 
+  // Break-even prices at 99%/75%/35% load, shared by the pricing step's sliders
+  // and the auto-seed effect below. `financials` (the calculateRouteFinancials
+  // result) has no basePriceBE* fields of its own -- those are derived here from
+  // its costs and the aircraft's weighted seat count. The effect used to read
+  // `financials.basePriceBE75` directly, which was always `undefined`, so every
+  // route whose price was never manually dragged saved NaN ticket prices --
+  // shown as $NaN on the sliders and, once run back through the safe formatter
+  // that clamps non-finite numbers to 0, as a stuck "$0" everywhere else,
+  // including reopening that route's pricing later.
+  const basePricePoints = useMemo(() => {
+    if (!financials || !selectedAircraft) return null;
+    const config = (selectedAircraft.config || {}) as Partial<ConfigOutput>;
+    const totalEstPaxWeightedMax = (
+      (config.economy || 0) * 1 +
+      (config.premium || 0) * 1.6 +
+      (config.business || 0) * 3.0 +
+      (config.first || 0) * 5.0
+    ) * financials.flightLegs;
+    return {
+      be75: totalEstPaxWeightedMax > 0 ? financials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.75) : 100,
+      be99: totalEstPaxWeightedMax > 0 ? financials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.99) : 80,
+      be35: totalEstPaxWeightedMax > 0 ? financials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.35) : 300
+    };
+  }, [financials, selectedAircraft]);
+
   useEffect(() => {
-    if (step === 4 && financials && Object.keys(ticketPrices).length === 0) {
-       const base = financials.basePriceBE75;
+    if (step === 4 && basePricePoints && Object.keys(ticketPrices).length === 0) {
+       const base = basePricePoints.be75;
        setTicketPrices({
          economy: Math.round(base),
          premium: Math.round(base * 1.6),
@@ -885,7 +910,7 @@ function RoutePlannerInner({
          first: Math.round(base * 5.0)
        });
     }
-  }, [step, financials, ticketPrices]);
+  }, [step, basePricePoints, ticketPrices]);
 
   useEffect(() => {
     onScheduleChange?.(schedule);
@@ -3128,11 +3153,20 @@ function RoutePlannerInner({
              business: aircraftConfig.business || 0,
              first: aircraftConfig.first || 0
            };
-           const totalEstPaxWeightedMax = (classSeatCount.economy * 1 + classSeatCount.premium * 1.6 + classSeatCount.business * 3.0 + classSeatCount.first * 5.0) * flightLegs;
-           const basePriceBE75 = totalEstPaxWeightedMax > 0 ? displayFinancials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.75) : 100;
-           const basePriceBE99 = totalEstPaxWeightedMax > 0 ? displayFinancials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.99) : 80;
-           const basePriceBE35 = totalEstPaxWeightedMax > 0 ? displayFinancials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.35) : 300;
-           
+           // Shares the one basePricePoints memo with the auto-seed effect above,
+           // so the sliders and the price ticketPrices gets seeded to can never
+           // drift apart (see the comment on that memo).
+           const basePriceBE75 = basePricePoints?.be75 ?? 100;
+           const basePriceBE99 = basePricePoints?.be99 ?? 80;
+           const basePriceBE35 = basePricePoints?.be35 ?? 300;
+           // Twice the room on both sides of the break-even-at-75% notch, which
+           // stays at the same relative spot on the bar either way, so a player
+           // testing a much cheaper or much pricier fare isn't capped at the
+           // 99%/35%-load break-even points.
+           const sliderMin = basePriceBE75 - 2 * (basePriceBE75 - basePriceBE99);
+           const sliderMax = basePriceBE75 + 2 * (basePriceBE35 - basePriceBE75);
+           const tickPct = (value: number, min: number, max: number) => ((value - min) / (max - min)) * 100;
+
            const actualCapacity = aircraftConfig 
              ? ((aircraftConfig.economy || 0) + (aircraftConfig.premium || 0) + (aircraftConfig.business || 0) + (aircraftConfig.first || 0)) 
              : 0;
@@ -3381,10 +3415,10 @@ function RoutePlannerInner({
                                  </div>
                               </div>
                               <div className="relative pt-4 z-10">
-                                 <input 
+                                 <input
                                     type="range"
-                                    min={Math.round(basePriceBE99)}
-                                    max={Math.round(basePriceBE35)}
+                                    min={Math.round(sliderMin)}
+                                    max={Math.round(sliderMax)}
                                     value={ticketPrices['economy'] || Math.round(basePriceBE75)}
                                     onChange={(e) => {
                                        const val = parseInt(e.target.value);
@@ -3399,21 +3433,29 @@ function RoutePlannerInner({
                                     }}
                                     className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                                  />
-                                 <div 
-                                    className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
-                                    style={{ left: `calc(${((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 100}% + ${8 - ((basePriceBE75 - basePriceBE99) / (basePriceBE35 - basePriceBE99)) * 16}px)`, transform: 'translateX(-50%)' }} 
+                                 <div
+                                    className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm"
+                                    style={{ left: `calc(${tickPct(basePriceBE75, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE75, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
+                                 />
+                                 <div
+                                    className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                    title={`Break-even at 99% full: $${Math.round(basePriceBE99)}`}
+                                    style={{ left: `calc(${tickPct(basePriceBE99, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE99, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
+                                 />
+                                 <div
+                                    className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                    title={`Break-even at 35% full: $${Math.round(basePriceBE35)}`}
+                                    style={{ left: `calc(${tickPct(basePriceBE35, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE35, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                  />
                                  <div className="flex justify-between mt-2 px-1">
-                                    <span className="text-2xs text-white/40 font-mono">
-                                      ${Math.round(basePriceBE99)}<span className="text-white/25 ml-1">break-even at 99% full</span>
-                                    </span>
-                                    <span className="text-2xs text-white/40 font-mono">
-                                      <span className="text-white/25 mr-1">break-even at 35% full</span>${Math.round(basePriceBE35)}
-                                    </span>
+                                    <span className="text-2xs text-white/40 font-mono">${Math.round(sliderMin)}</span>
+                                    <span className="text-2xs text-white/40 font-mono">${Math.round(sliderMax)}</span>
                                  </div>
                                  <p className="text-2xs text-white/30 leading-relaxed mt-1">
-                                   The notch is break-even at 75% full, a realistic year-round average. Below it you
-                                   are betting on filling more seats than that; well above it passengers stop booking.
+                                   The notch is break-even at 75% full, a realistic year-round average; the two thin
+                                   ticks mark break-even at 99% and 35% full. Below them you are betting on filling
+                                   more seats than that; well above, passengers stop booking. The bar itself reaches
+                                   twice as far past both ticks for testing more extreme fares.
                                  </p>
                               </div>
                            </div>
@@ -3424,9 +3466,13 @@ function RoutePlannerInner({
                              const multiplier = (c === 'premium' ? 1.6 : c === 'business' ? 3.0 : c === 'first' ? 5.0 : 1.0);
                              
                              const breakEvenPrice = Math.round(basePriceBE75 * multiplier);
-                             const minPossiblePrice = Math.round(basePriceBE99 * multiplier);
-                             const maxPossiblePrice = Math.round(basePriceBE35 * multiplier);
-                             
+                             const be99Price = Math.round(basePriceBE99 * multiplier);
+                             const be35Price = Math.round(basePriceBE35 * multiplier);
+                             // Same doubled headroom as the general-settings bar above, scaled
+                             // by this class's price multiplier.
+                             const minPossiblePrice = Math.round(sliderMin * multiplier);
+                             const maxPossiblePrice = Math.round(sliderMax * multiplier);
+
                              return (
                                <div key={c} className="flex flex-col gap-4 bg-black/40 p-4 border border-white/5 group hover:border-white/20 transition-all">
                                   <div className="flex justify-between items-center">
@@ -3448,13 +3494,23 @@ function RoutePlannerInner({
                                         onChange={(e) => setTicketPrices(prev => ({ ...prev, [c]: parseInt(e.target.value) }))}
                                         className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
                                      />
-                                     <div 
-                                        className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm" 
-                                        style={{ left: `calc(${((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 100}% + ${8 - ((breakEvenPrice - minPossiblePrice) / (maxPossiblePrice - minPossiblePrice)) * 16}px)`, transform: 'translateX(-50%)' }} 
+                                     <div
+                                        className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm"
+                                        style={{ left: `calc(${tickPct(breakEvenPrice, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(breakEvenPrice, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
+                                     />
+                                     <div
+                                        className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                        title={`Break-Even at 99% LF: $${be99Price}`}
+                                        style={{ left: `calc(${tickPct(be99Price, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(be99Price, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
+                                     />
+                                     <div
+                                        className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                        title={`Break-Even at 35% LF: $${be35Price}`}
+                                        style={{ left: `calc(${tickPct(be35Price, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(be35Price, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                      />
                                      <div className="flex justify-between mt-2 px-1">
-                                        <span className="text-2xs text-white/30 font-mono" title="Break-Even at 99% LF">${minPossiblePrice}</span>
-                                        <span className="text-2xs text-white/30 font-mono" title="Break-Even at 35% LF">${maxPossiblePrice}</span>
+                                        <span className="text-2xs text-white/30 font-mono">${minPossiblePrice}</span>
+                                        <span className="text-2xs text-white/30 font-mono">${maxPossiblePrice}</span>
                                      </div>
                                   </div>
                                </div>
