@@ -603,7 +603,13 @@ export function calculateClassSatisfaction(c: string, aircraft: any, config: any
       
       const providedQuality = Math.sqrt(hardProduct * softProduct);
       
-      const expectationBase: Record<string, number> = { economy: 12, premium: 30, business: 65, first: 95 };
+      // hardProduct/softProduct both carry a flat +20 floor, so providedQuality can
+      // never drop below ~20 (normal check-in desks) even with every service set to
+      // "none". economy's base has to clear that floor or baseSat is >100% no matter
+      // how bad the configuration is -- it was 12, which made worst-case economy SAT
+      // over 150% regardless of input. 25 keeps economy the easiest class to satisfy
+      // (still well below premium/business/first) while staying above the floor.
+      const expectationBase: Record<string, number> = { economy: 25, premium: 30, business: 65, first: 95 };
       const eBase = expectationBase[c] || 18;
       const expectationMultiplier = 1.0 + ((timeClass - 1) * 0.15);
       const expectationTarget = eBase * expectationMultiplier;
