@@ -5,17 +5,7 @@ import { ViewHeader } from './ui/ViewHeader';
 import { StatTile } from './ui/StatTile';
 import { Panel } from './ui/Panel';
 
-const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-
-const compact = (val: number) => {
-  const abs = Math.abs(val);
-  const sign = val < 0 ? '-' : '';
-  if (abs >= 1_000_000_000) return `${sign}$${(abs / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
-  return `${sign}$${abs.toFixed(0)}`;
-};
+import { formatCurrency, formatMoneyCompact as compact } from '../lib/format';
 
 interface MonthlyReport {
   month: number;
@@ -128,7 +118,7 @@ function History({ reports, pick, title }: { reports: MonthlyReport[]; pick: (r:
   );
 }
 
-export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal }: Props) {
+function MyCompanyViewImpl({ capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal }: Props) {
   const [series, setSeries] = useState<'profit' | 'revenue' | 'capital'>('profit');
   const [monthsShown, setMonthsShown] = useState(24);
 
@@ -340,20 +330,26 @@ export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, 
                   },
                   // Slots are billed into the month's result; the rest is not,
                   // which is exactly why cash and profit differ.
-                  ...((latest!.breakdown.purchasedSlots || 0) > 0
+                  // Signed: slot refunds and aircraft sales are money coming in.
+                  ...((latest!.breakdown.purchasedSlots || 0) !== 0
                     ? [{
                         id: 'slots',
-                        label: 'Permanent slots purchased',
-                        total: latest!.breakdown.purchasedSlots,
-                        items: [{ label: 'Slot rights bought this month', amount: latest!.breakdown.purchasedSlots }]
+                        label: 'Slot purchases & refunds',
+                        variant: 'net' as const,
+                        total: -latest!.breakdown.purchasedSlots,
+                        items: [{
+                          label: latest!.breakdown.purchasedSlots > 0 ? 'Slot rights bought this month' : 'Slot rights sold back this month',
+                          amount: -latest!.breakdown.purchasedSlots
+                        }]
                       }]
                     : []),
-                  ...((latest!.capex ?? 0) > 0
+                  ...((latest!.capexItems ?? []).some(i => i.amount !== 0)
                     ? [{
                         id: 'capex',
-                        label: 'One-off investments (below the line)',
-                        total: latest!.capex!,
-                        items: (latest!.capexItems ?? []).filter(i => i.amount > 0)
+                        label: 'One-off investments & sales (below the line)',
+                        variant: 'net' as const,
+                        total: -(latest!.capex ?? 0),
+                        items: (latest!.capexItems ?? []).filter(i => i.amount !== 0).map(i => ({ label: i.label, amount: -i.amount }))
                       }]
                     : []),
                   ...(latest!.routes && latest!.routes.length > 0
@@ -409,3 +405,10 @@ export function MyCompanyView({ capital, reportHistory, fleetValue, fleetCount, 
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const MyCompanyView = React.memo(MyCompanyViewImpl);

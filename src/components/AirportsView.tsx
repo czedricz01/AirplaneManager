@@ -20,7 +20,7 @@ interface Props {
   aiAirlines?: any[];
 }
 
-export function AirportsView({ currentYear, onSelectAirport, airportManagement, aiAirlines }: Props) {
+function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiAirlines }: Props) {
   const [search, setSearch] = useState("");
   const [icaoFilter, setIcaoFilter] = useState<string>("All");
   const [sortField, setSortField] = useState<SortField>('id');
@@ -127,7 +127,15 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
       if (valA > valB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [search, sortField, sortDir, currentYear]);
+    // icaoFilter was missing here, so choosing an ICAO class changed nothing.
+  }, [search, icaoFilter, sortField, sortDir, currentYear]);
+
+  // A narrower result keeps the old scroll offset otherwise, and the window of
+  // rendered rows then starts past the end of the list: an empty table.
+  React.useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    setScrollTop(0);
+  }, [search, icaoFilter]);
 
   const totalRows = filteredAndSortedAirports.length;
   const firstVisible = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -236,3 +244,10 @@ export function AirportsView({ currentYear, onSelectAirport, airportManagement, 
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const AirportsView = React.memo(AirportsViewImpl);

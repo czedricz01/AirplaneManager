@@ -1,4 +1,5 @@
 import { readString, writeString, removeKey } from './safeStorage';
+import { logDebug } from './debugLog';
 
 export const DEFAULT_SUPABASE_BUCKET_URLS = [
   'https://vupjxnkwagemsiafwgve.supabase.co/storage/v1/object/public/PlanePics',
@@ -186,3 +187,34 @@ export const getAircraftImageCandidates = (
   candidateCache.set(cacheKey, result);
   return result;
 };
+
+/**
+ * The server's map of uploaded aircraft pictures, fetched once per session.
+ *
+ * Every open of the details modal and of the market used to request it again.
+ * On the static GitHub Pages build there is no server at all, so each of those
+ * requests failed and logged an error. A failed or non-JSON answer now counts
+ * as "no uploaded pictures" for the rest of the session. `refresh` forces a new
+ * request, for after an upload.
+ */
+let imagesMapPromise: Promise<Record<string, string>> | null = null;
+
+export function loadAircraftImagesMap(refresh = false): Promise<Record<string, string>> {
+  if (!imagesMapPromise || refresh) {
+    imagesMapPromise = fetch('/api/aircraft-images')
+      .then(async res => {
+        const type = res.headers.get('content-type') || '';
+        if (!res.ok || !type.includes('application/json')) {
+          logDebug('images', `No image API here (status ${res.status}); using bundled and remote pictures only`);
+          return {};
+        }
+        const data = await res.json();
+        return data && typeof data === 'object' ? (data as Record<string, string>) : {};
+      })
+      .catch(err => {
+        logDebug('images', 'Image API unreachable', err);
+        return {};
+      });
+  }
+  return imagesMapPromise;
+}

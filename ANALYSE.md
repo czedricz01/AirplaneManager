@@ -744,3 +744,86 @@ Nach jedem Teilschritt, nicht erst am Ende:
 | `src/components/InfoTooltip.tsx` | **neu** — aus `ConfigurePurchaseView.tsx:8-37` gehoben |
 | `src/index.css` | Warn-/Gut-Farbtokens, Fokusring |
 | `src/data/aircraftVisuals.ts` u. a. | toter Code (A3.6) |
+
+---
+
+# Teil E — Analyse 23.09.2026: Debugging, Performance, Logik/Anzeige
+
+Vollständige Durchsicht von `src/`, `server.ts`, `supabase/` und `.github/`.
+Umgesetzt in drei Commits auf `claude/code-analysis-debugging-aukpih`:
+„Phase 1: debugging and robustness“, „Phase 2: performance“, „Phase 3: logic
+and display fixes“. Jede Zeile nennt den Ort vor der Änderung.
+
+## E1 — Debugging und Robustheit (Phase 1)
+
+| ID | Befund | Umsetzung |
+|---|---|---|
+| D1 | KI-Flugzeuge ohne `baseInteriorPop`/`conditionInterior` → `getPlaneSat` = NaN → Fallback: jede KI-Route pauschal 100.000 $/Monat | `aiSimulation.ts` (aus App ausgelagert, getestet), `buildAiSimAircraft`, Standardwerte in `getPlaneSat`, NaN wird geloggt statt ersetzt |
+| D2/D4 | Laden ohne Migration: fehlende Felder → NaN; fehlendes Inbox-Feld behielt alte Nachrichten | `saveMigration.ts` (`SAVE_VERSION` 2, 10 Tests) |
+| D3 | Speichern ohne Fehlerbehandlung, Autosave-Rejection unbehandelt | try/catch + Hinweis + Log |
+| D5 | „Start Game“ übernahm Ereignisse/Nachrichten des geladenen Spiels | `resetTransientGameState()` |
+| D6 | Routen-Spiegel `neo_routes` ohne Nutzertrennung | entfernt, Schlüssel wird gelöscht |
+| D7 | RouteConfigOverlay mutierte State (auch der gespeicherten Route) | unveränderliche Updates |
+| D8 | `find(...)!` im Flugplaneditor, keine Fehlergrenzen | Guard + `ErrorBoundary` um Ansichten, Karte, Bericht, Editor |
+| D9 | doppelte Nachrichten-IDs, unbegrenzte Inbox | `messages.ts`: monotone IDs, max. 200 |
+| D10 | Offline-Sync überschrieb neueren Cloud-Stand | Konflikt → eigener Slot „(offline copy)“ |
+| D11 | kein Produktions-Logging | `debugLog.ts` (Ringpuffer, globale Fehler, „Copy diagnostics“) |
+| D12 | CI ohne Tests | `npm test` in `deploy-pages.yml` |
+| D13/D14 | Button in Button; AuthGate blieb bei Ausnahme „busy“ | getrennt; `finally` |
+| S1–S4 | server.ts: Path-Traversal, SSRF, SVG-XSS, Zip-Bomb | Whitelist, https-Host-Allowlist, kein SVG, Größenlimits |
+
+## E2 — Performance (Phase 2)
+
+| ID | Befund | Messung vorher → nachher |
+|---|---|---|
+| P1 | `Intl.NumberFormat` pro Aufruf neu | 39,5 µs → 2,1 µs pro Aufruf (`format.ts`) |
+| P4 | „Max Flights“ prüfte jeden Kandidaten gegen jeden Block | 112,3 ms → 15,6 ms (`scheduleUtils.findMaxFlightStarts`, Äquivalenztest) |
+| P5 | ganzes Finanzobjekt in jeder Route gespeichert | 2.921 → 1.655 Byte pro Route (`toStoredRouteMetrics`) |
+| P2/P3/P6–P9 | Mehrfachberechnungen, fehlende Memos, Bild-API bei jedem Öffnen | `useMemo`/`React.memo`/stabile Callbacks, `loadAircraftImagesMap` |
+
+## E3 — Logik und Anzeige (Phase 3)
+
+| ID | Befund | Umsetzung |
+|---|---|---|
+| L1 | vier SAT-Formeln für dieselbe Route | `getRouteClassSatisfaction` = einzige Quelle für Wirtschaft, Planer, Overlay, Routendetail; Durchschnitt sitzgewichtet |
+| L2/L3/L31 | gespeicherte Pax ohne Ruf/Rivalen; Editor setzte volle Auslastung | Routenliste und Karte lesen `routesWithMetrics` (gleicher Engine-Aufruf wie der Monatsbericht); Memo-Abhängigkeiten ergänzt |
+| L4–L6 | Editor: Slots aller Klassen, 45 min Umdrehzeit, `startHour` als Abflug, One-Way ignoriert | Editor nutzt `scheduleUtils`; `startHour` = Blockbeginn überall |
+| L7/L8 | T1: 100.000 $ im Planer vs. Level × 30.000 $ in der Konsole; unterschiedliche Bau-Regeln | `getManagementUnlockCost`, `applyManagementUnlock`, `getInfraAvailability` |
+| L9 | Konsole: eigene Schalterlast-Formel | `getDeskSim` wie Wirtschaft |
+| L10 | Flugzeugverkauf und Slot-Rückerstattung fehlten im Bericht | vorzeichenrichtige Posten |
+| L11 | Konkurrenzansicht mit erfundenen Werten (380.420 $, 12,5 %, „Excellent“), Rang nach Sortierung | nur echte Daten, „–“ wo nichts bekannt ist; Rang nach Kapital; Marktanteil = Anteil wöchentlicher Abflüge; KI-Zuschuss (450.000 $/Monat) ausgewiesen |
+| L12–L17 | Planer: Budget eines Vollflugs, „$/FLT“ statt „/PAX“, nur Volllast-Gewinn, „€/Pax“, Prognose mit 850 km/h, YOU/COMP falsch, „NaN“-Flugnummern | korrigiert |
+| L18–L24 | Präfix „NE“, tote Filter, ICAO-Filter wirkungslos, Dialoge unter Vollbildansichten, Warnfarben dunkler als Normal, Modal-Snapshot, eigene Verkaufspreis-Formel | korrigiert |
+| L25/L26 | Kabinen-Flags nicht gespeichert, nicht bezahltes Wi-Fi freischaltbar, Tooltips mit doppeltem SAT-Wert | korrigiert; Werte aus gemeinsamen Konstanten |
+| L27–L35 | Hangar-Text, KI-Flugdauer, Banner ohne Entlastung, Löschen ohne Rückfrage, Sortier-Default, Einstellungen nicht gespeichert, Gewinnserie ohne Routen, deutsche Texte | korrigiert |
+
+Nebenbei gefunden und behoben: ein literales `);` wurde unter dem Preis-Editor
+gerendert (Textknoten im JSX); der Planer zählte beim Bearbeiten einer Route
+deren eigene Slots doppelt.
+
+**Bewusste Wirkungsänderung (Wirtschaft):** Die Schalterlast einer Route
+enthält jetzt ihre eigenen Passagiere. Vorher fehlten sie, sodass eine Route
+ihre eigenen Schalter nie überlasten konnte, obwohl der Planer genau das
+anzeigte. Betroffen sind nur überlastete Schalter; die drei Referenzrouten der
+Baseline (FRA–CDG, FRA–JFK, LHR–SIN in 1965/1975/2024) sind unverändert.
+
+## E4 — Offen
+
+- Gespeicherte Kabinenkonfigurationen werden nach einem Umbau nicht neu
+  geprüft. Entfällt z. B. die Premium-Galley, rechnet die Wirtschaft weiter mit
+  einem dann unzulässigen Menü, bis die Kabine im Planer neu gespeichert wird
+  (der Planer zeigt bereits den bereinigten Wert).
+- Der Haupt-Chunk ist 1,14 MB groß (Vite-Warnung); Code-Splitting der Ansichten
+  wäre der nächste Performance-Schritt.
+
+## E5 — Verifikation
+
+- `npm run lint` (tsc) ohne Fehler, `npm test` 57/57, `npm run build:pages` ok.
+- Browser (Playwright/Chromium) mit eingespieltem Spielstand: Flugnummer mit
+  Airline-Code; Auslastung 92 % statt 100 %; SAT Routendetail = Planer (381 %);
+  Löschen verlangt Bestätigung; Editor zeigt Block 08:00 / Takeoff 08:30 wie
+  Detail und Karte; Rang bleibt beim Sortieren; keine erfundenen Werte;
+  Marktanteil berechnet; KI-Zuschuss ausgewiesen; ICAO-Filter wirkt nach dem
+  Scrollen; Hinweis aus der Flughafenkonsole liegt obenauf; T1-Preis = Level ×
+  30.000 $; Dezimaltrenner übersteht Neuladen; keine Konsolenfehler.
+- `server.ts` per `curl`: Traversal, SVG, fremde Hosts → 400; gültiger Upload ok.

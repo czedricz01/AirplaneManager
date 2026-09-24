@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl } from '../lib/imageUtils';
+import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { SupabaseBucketModal } from './SupabaseBucketModal';
 import { ViewHeader } from './ui/ViewHeader';
@@ -17,7 +18,7 @@ interface Props {
   debugMode?: boolean;
 }
 
-export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp }: Props) {
+function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp }: Props) {
   const [expandedMfgs, setExpandedMfgs] = useState<Set<string>>(new Set());
   const [expandedPlaneId, setExpandedPlaneId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,7 +65,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
           success: false,
           extractedCount: 0,
           matchedPlanesCount: 0,
-          error: data.error || "Unerwarteter Fehler beim Herunterladen."
+          error: data.error || "Unexpected error while downloading."
         });
       }
     } catch (e: any) {
@@ -94,15 +95,15 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
   // Dynamic images map from API
   const [imagesMap, setImagesMap] = useState<Record<string, string>>({});
 
-  const fetchImagesMap = () => {
-    fetch('/api/aircraft-images')
-      .then(res => res.json())
-      .then(data => setImagesMap(data))
-      .catch(err => console.error("Error loading images map:", err));
+  /** Loaded once per session; `refresh` after an upload changed the pictures. */
+  const fetchImagesMap = (refresh = true) => {
+    loadAircraftImagesMap(refresh).then(setImagesMap);
   };
 
   useEffect(() => {
-    fetchImagesMap();
+    let active = true;
+    loadAircraftImagesMap().then(map => { if (active) setImagesMap(map); });
+    return () => { active = false; };
   }, []);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -135,7 +136,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
         success: false,
         extractedCount: 0,
         matchedPlanesCount: 0,
-        error: `Die hochgeladene ZIP-Datei ist zu groß (${fileSizeMB} MB). Das Cloud-Hosting (Google Cloud Run) begrenzt Uploads auf maximal 30 MB pro Anfrage. Bitte verkleinere deine ZIP-Datei (z. B. durch Komprimierung der Bilder als JPG/WebP) oder lade sie in kleineren Teilen hoch.`
+        error: `The ZIP file is too large (${fileSizeMB} MB). Uploads are limited to 30 MB per request. Make the archive smaller (for example by saving the images as JPG/WebP) or upload it in parts.`
       });
       return;
     }
@@ -154,7 +155,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
 
       // Gracefully inspect Response headers and status prior to parsing JSON
       if (!response.ok) {
-        let errMessage = `Server-Fehler ${response.status}: ${response.statusText}`;
+        let errMessage = `Server error ${response.status}: ${response.statusText}`;
         try {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
@@ -165,7 +166,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
             if (textContent.includes("413") || textContent.toLowerCase().includes("too large")) {
               errMessage = "The ZIP file is too large for the server. Please shrink it and upload again.";
             } else {
-              errMessage = `Der Server antwortete mit einem nicht-JSON Format (${response.status}). Möglicherweise ist die ZIP-Datei zu groß oder beschädigt.`;
+              errMessage = `The server did not answer with JSON (${response.status}). The ZIP file may be too large or damaged.`;
             }
           }
         } catch (innerErr) {
@@ -211,7 +212,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
           success: false,
           extractedCount: 0,
           matchedPlanesCount: 0,
-          error: data.error || "Unerwarteter Fehler beim Extrahieren der ZIP-Datei."
+          error: data.error || "Unexpected error while extracting the ZIP file."
         });
       }
     } catch (err: any) {
@@ -219,7 +220,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
         success: false,
         extractedCount: 0,
         matchedPlanesCount: 0,
-        error: err.message || "Netzwerkfehler beim Hochladen des ZIP-Archivs."
+        error: err.message || "Network error while uploading the ZIP archive."
       });
     } finally {
       setUploading(false);
@@ -245,10 +246,12 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
   const processSingleFile = async (file: File) => {
     if (!file) return;
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    if (!['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext)) {
+    // SVG is refused by the server: it can carry script and would be served
+    // from the game's own origin.
+    if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
       setSingleUploadResult({
         success: false,
-        error: "Erlaubt sind nur Bilddateien (.png, .jpg, .jpeg, .webp, .svg)."
+        error: "Only image files are allowed (.png, .jpg, .jpeg, .webp)."
       });
       return;
     }
@@ -281,7 +284,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
       });
 
       if (!response.ok) {
-        let errMessage = "Fehler beim Hochladen.";
+        let errMessage = "Upload failed.";
         try {
           const data = await response.json();
           errMessage = data.error || errMessage;
@@ -296,16 +299,16 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
       if (resData.success) {
         setSingleUploadResult({
           success: true,
-          message: `Bild für ${selectedAircraft.manufacturer} ${selectedAircraft.type} wurde erfolgreich hochgeladen und dauerhaft ersetzt!`
+          message: `The image for ${selectedAircraft.manufacturer} ${selectedAircraft.type} was uploaded and replaces the previous one.`
         });
         setSingleImageFile(null);
         // Reload map right away
         fetchImagesMap();
       } else {
-        setSingleUploadResult({ success: false, error: resData.error || "Unerwarteter Fehler." });
+        setSingleUploadResult({ success: false, error: resData.error || "Unexpected error." });
       }
     } catch (err: any) {
-      setSingleUploadResult({ success: false, error: err.message || "Netzwerkfehler beim Hochladen." });
+      setSingleUploadResult({ success: false, error: err.message || "Network error during upload." });
     } finally {
       setSingleUploading(false);
     }
@@ -374,9 +377,6 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
     });
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-  };
 
   const generateSummary = (plane: Aircraft) => {
     return (
@@ -478,7 +478,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     <Badge tone="warn">Debug</Badge>
                   </h3>
                   <p className="text-xs text-white/40 font-mono mt-0.5">
-                    Lade ein ZIP-Archiv mit passenden Flugzeugbildern (.png, .jpg, .webp) hoch. Diese werden automatisch den richtigen Ordnern zugeordnet.
+                    Upload a ZIP archive of aircraft images (.png, .jpg, .webp). Each image is matched to its aircraft folder automatically.
                   </p>
                 </div>
                 
@@ -518,9 +518,9 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                 
                 <p className="text-xs font-mono text-white/50 text-center">
                   {uploading ? (
-                    <span className="text-aero-yellow animate-pulse">ZIP-Datei wird analysiert und extrahiert... Bitte warten.</span>
+                    <span className="text-aero-yellow animate-pulse">Analysing and extracting the ZIP file... please wait.</span>
                   ) : (
-                    <span>Zieh deine Bilder-.zip-Datei hierher oder <span className="text-aero-yellow font-bold cursor-pointer underline">klicke zum Durchsuchen</span></span>
+                    <span>Drop your image .zip here or <span className="text-aero-yellow font-bold cursor-pointer underline">click to browse</span></span>
                   )}
                 </p>
               </div>
@@ -543,7 +543,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     onClick={handleZipUrlSubmit}
                     disabled={!zipUrl || fetchingUrl}
                   >
-                    {fetchingUrl ? "Loading..." : "Aus URL laden"}
+                    {fetchingUrl ? "Loading..." : "Load from URL"}
                   </button>
                 </div>
               </div>
@@ -561,7 +561,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                       <div>
                         <div className="font-bold uppercase tracking-wider">ZIP-EXTRAKTION ERFOLGREICH</div>
                         <div className="mt-1 leading-relaxed">
-                          Insgesamt wurden <strong className="text-white">{uploadResult.extractedCount} Bilder</strong> extrahiert und <strong className="text-white">{uploadResult.matchedPlanesCount} verschiedenen Flugzeugmodellen</strong> dauerhaft zugeordnet!
+                          <strong className="text-white">{uploadResult.extractedCount} images</strong> were extracted and assigned to <strong className="text-white">{uploadResult.matchedPlanesCount} aircraft models</strong>.
                         </div>
                       </div>
                     </>
@@ -589,7 +589,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                   Single Aircraft Image Uploader (SAT APPROVED)
                 </h3>
                 <p className="text-xs text-white/40 font-mono mt-0.5">
-                  Suche nach bestimmten Flugzeugtypen, filtere nach Modellen ohne Bilder, und lade direkt ein einzelnes Bild hoch. Alte Bilder werden dabei automatisch durch das neueste ersetzt.
+                  Search for an aircraft type, filter for models without an image and upload a single image. It replaces any previous image.
                 </p>
               </div>
 
@@ -606,7 +606,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                         <input
                           type="text"
                           className="w-full bg-black/50 border border-white/5 rounded-sm py-1.5 pl-8 pr-3 text-xs text-white focus:outline-none focus:border-aero-yellow/40 font-mono"
-                          placeholder="Modell suchen (z.B. A320)..."
+                          placeholder="Search model (e.g. A320)..."
                           value={singleSearchTerm}
                           onChange={(e) => setSingleSearchTerm(e.target.value)}
                         />
@@ -623,7 +623,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${onlyMissingImages ? "bg-aero-yellow animate-pulse" : "bg-white/20"}`} />
-                        OOhne Bild filtern
+                        Only without image
                       </button>
                     </div>
                   </div>
@@ -634,7 +634,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     className="border border-white/5 bg-black/50 rounded-sm max-h-48 overflow-y-auto custom-scrollbar font-mono text-xs divide-y divide-white/5"
                   >
                     {singleImageFilteredAircraft.length === 0 ? (
-                      <div className="p-4 text-center text-white/30 uppercase tracking-widest text-2xs">Keine entsprechenden Modelle gefunden</div>
+                      <div className="p-4 text-center text-white/30 uppercase tracking-widest text-2xs">No matching models</div>
                     ) : (
                       singleImageFilteredAircraft.map(a => {
                         const safeName = (a.manufacturer + ' ' + a.type).split('/').join('-').split('\\').join('-');
@@ -657,7 +657,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                             <span className="truncate pr-1">{a.manufacturer} {a.type}</span>
                             <div className="flex items-center gap-1.5 shrink-0 ml-2">
                               <span className="text-3xs text-white/30 truncate max-w-[80px]">{a.family}</span>
-                              <span className={`w-1.5 h-1.5 rounded-full ${hasCustom ? "bg-aero-yellow/20" : "bg-yellow-500"}`} title={hasCustom ? "Hat Bild" : "Kein Bild"} />
+                              <span className={`w-1.5 h-1.5 rounded-full ${hasCustom ? "bg-aero-yellow/20" : "bg-yellow-500"}`} title={hasCustom ? "Has image" : "No image"} />
                             </div>
                           </div>
                         );
@@ -665,8 +665,8 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                     )}
                   </div>
                   <div className="mt-1 text-3xs font-mono text-white/30 flex justify-between">
-                    <span>{singleImageFilteredAircraft.length} Modelle gefunden</span>
-                    <span>{Object.keys(imagesMap).length} hochgeladene Bilder gesamt</span>
+                    <span>{singleImageFilteredAircraft.length} models found</span>
+                    <span>{Object.keys(imagesMap).length} uploaded images in total</span>
                   </div>
                 </div>
 
@@ -688,7 +688,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                             }}
                             className="text-white/40 hover:text-aero-yellow/60 text-3xs uppercase cursor-pointer"
                           >
-                            [Abbrechen]
+                            [Cancel]
                           </button>
                         </div>
                         <div className="font-bold text-xs text-white uppercase tracking-wider bg-white/5 p-1.5 rounded-sm truncate">
@@ -707,7 +707,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                           <input
                             id="single-image-file-input"
                             type="file"
-                            accept=".png,.jpg,.jpeg,.webp,.svg"
+                            accept=".png,.jpg,.jpeg,.webp"
                             className="hidden"
                             onChange={(e) => {
                               if (e.target.files && e.target.files[0]) {
@@ -728,7 +728,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                             <div className="text-center text-white/40 space-y-1 py-1">
                               <UploadCloud size={18} className="mx-auto text-white/20" />
                               <span className="text-2xs block text-aero-yellow font-bold underline">Choose image file</span>
-                              <span className="text-4xs block">PNG, JPG, WEBP oder SVG</span>
+                              <span className="text-4xs block">PNG, JPG or WEBP</span>
                             </div>
                           )}
                         </div>
@@ -750,7 +750,7 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
                         className="w-full bg-aero-yellow text-black font-mono font-bold uppercase tracking-widest text-2xs py-2 px-3 hover:bg-white transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
                         disabled={singleUploading}
                       >
-                        {singleUploading ? "BILD WIRD HOCHGELADEN..." : "BILD HOCHLADEN & ERSETZEN"}
+                        {singleUploading ? "UPLOADING IMAGE..." : "UPLOAD & REPLACE IMAGE"}
                       </button>
                     )}
 
@@ -876,3 +876,10 @@ export function BuyAircraftView({ currentDateOffset, onSelectAircraft, debugMode
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const BuyAircraftView = React.memo(BuyAircraftViewImpl);

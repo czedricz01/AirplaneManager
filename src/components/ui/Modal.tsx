@@ -22,8 +22,13 @@ interface ModalProps {
   title?: ReactNode;
   icon?: ReactNode;
   accent?: ModalAccent;
-  /** 'default' = z-[100] for standard modals. 'critical' = z-[110] for blocking/crisis modals. */
-  layer?: 'default' | 'critical';
+  /**
+   * 'default' = z-[100] for standard modals. 'critical' = z-[110] for blocking/crisis modals.
+   * 'top' = z-[5000], above the full-screen views (airport console, route planner and
+   * cabin editor sit at z-[2000]); for app-level alerts and decisions, which were
+   * otherwise hidden behind whichever of those views had raised them.
+   */
+  layer?: 'default' | 'critical' | 'top';
   children: ReactNode;
   footer?: ReactNode;
 }
@@ -41,8 +46,8 @@ export function Modal({
 }: ModalProps) {
   const borderClass = accent === 'warn' ? 'border-aero-warn/40' : 'border-white/10';
   const titleClass = accent === 'warn' ? 'text-aero-warn' : 'text-aero-yellow';
-  const zClass = layer === 'critical' ? 'z-[110]' : 'z-[100]';
-  const bgOpacity = layer === 'critical' ? 'bg-black/85' : 'bg-black/80';
+  const zClass = layer === 'top' ? 'z-[5000]' : layer === 'critical' ? 'z-[110]' : 'z-[100]';
+  const bgOpacity = layer === 'default' ? 'bg-black/80' : 'bg-black/85';
 
   return (
     <AnimatePresence>

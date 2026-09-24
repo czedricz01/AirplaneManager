@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
+import { AI_MONTHLY_SUBSIDY } from '../lib/aiSimulation';
 import { 
   Search, 
   ChevronDown, 
@@ -77,12 +79,19 @@ interface Props {
   playerRoutes?: any[];
   /** The player's own closed months, oldest first. */
   playerProfitHistory?: number[];
+  /** Last closed month's profit per player route id. */
+  playerRouteProfits?: Record<string, number>;
 }
 
 type SortField = 'rank' | 'name' | 'capital' | 'fleet' | 'routes';
+
+// Stable defaults, so a missing prop does not invalidate the memos on every render.
+const NONE: any[] = [];
+
+const dash = '-';
 type SortDir = 'asc' | 'desc';
 
-export function CompetitorsView({ 
+function CompetitorsViewImpl({ 
   aiAirlines, 
   playerCapital, 
   playerFleetCount, 
@@ -90,74 +99,52 @@ export function CompetitorsView({
   playerAirlineName, 
   playerAirlineCode, 
   playerHub,
-  playerFleet = [],
-  playerRoutes = [],
-  playerProfitHistory = []
+  playerFleet = NONE,
+  playerRoutes = NONE,
+  playerProfitHistory = NONE,
+  playerRouteProfits
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>('capital');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedAirlineId, setSelectedAirlineId] = useState<string | null>(null);
 
-  // Combine Player and AI Airlines to show a unified Leaderboard list
-  const leaderboard = useMemo(() => {
-    // Map player's actual owned fleet & routes if they correspond
-    const pFleet = playerFleet.length > 0 
-      ? playerFleet.map(f => ({
-          id: f.id || 'unknown',
-          manufacturer: f.manufacturer || 'Boeing',
-          family: f.family || '727',
-          type: f.type || '727-100',
-          model: f.type || '727-100',
-          class: (f.class || 'narrowbody').toLowerCase() as 'regional' | 'narrowbody' | 'widebody',
-          reg: f.registration || 'NX-XXX',
-          maxRange: f.maxRange || 5000,
-          capacity: f.capacity || 131,
-          basePrice: f.basePrice || 14000000,
-          efficiency: f.efficiency || 50,
-          popularity: f.popularity || 60,
-          purchasedAt: f.purchasedAt || 0,
-          conditionInterior: f.conditionInterior || 100,
-          conditionGeneral: f.conditionGeneral || 100,
-          config: f.config || { economy: 131, premium: 0, business: 0, first: 0 }
-        }))
-      : Array(playerFleetCount).fill(null).map((_, i) => ({
-          id: 'starter',
-          manufacturer: 'Boeing',
-          family: '727',
-          type: '727-100',
-          model: '727-100',
-          class: 'narrowbody' as const,
-          reg: `${playerAirlineCode || 'NX'}-P${100 + i}`,
-          maxRange: 5000,
-          capacity: 131,
-          basePrice: 14000000,
-          conditionInterior: 100
-        }));
+  // Player and AI airlines in one list. Only real figures: where the game has no
+  // number for something, the screen shows "-" rather than a made-up value.
+  const allAirlines = useMemo(() => {
+    const fleetByRegistration = new Map<string, any>(playerFleet.map(f => [f.registration, f]));
+    const pFleet = playerFleet.map(f => {
+      const seats = f.config ? (f.config.economy || 0) + (f.config.premium || 0) + (f.config.business || 0) + (f.config.first || 0) : 0;
+      return {
+        id: f.id,
+        manufacturer: f.manufacturer,
+        family: f.family,
+        type: f.type,
+        model: f.type,
+        class: String(f.class || '').toLowerCase() as 'regional' | 'narrowbody' | 'widebody',
+        reg: f.registration,
+        maxRange: f.maxRange as number | undefined,
+        capacity: (seats || f.capacity) as number | undefined,
+        basePrice: f.basePrice as number | undefined,
+        efficiency: f.efficiency as number | undefined,
+        conditionGeneral: f.conditionGeneral as number | undefined
+      };
+    });
 
-    const pRoutes = playerRoutes.length > 0
-      ? playerRoutes.map(r => ({
-          origin: r.origin,
-          destination: r.destination,
-          aircraftClass: (r.aircraftClass || 'narrowbody').toLowerCase() as 'regional' | 'narrowbody' | 'widebody',
-          departures: r.schedule?.length || r.departures || 10,
-          monthlyProfit: r.monthlyProfit || 0,
-          distance: r.distance || 1500,
-          durMin: r.durMin || 130,
-          aircraftReg: r.aircraft || ''
-        }))
-      : Array(playerRoutesCount).fill(null).map((_, i) => ({
-          origin: playerHub || 'FRA',
-          destination: 'ANY',
-          aircraftClass: 'narrowbody' as const,
-          departures: 10,
-          monthlyProfit: 0,
-          distance: 1500,
-          durMin: 120,
-          aircraftReg: 'NX-XXX'
-        }));
+    const pRoutes = playerRoutes.map(r => ({
+      origin: r.origin,
+      destination: r.destination,
+      // The class of the aircraft actually flying it; this was "narrowbody" for
+      // every player route, and the profit was always 0.
+      aircraftClass: String(fleetByRegistration.get(r.aircraft)?.class || '').toLowerCase() as 'regional' | 'narrowbody' | 'widebody',
+      departures: r.schedule?.length || 0,
+      monthlyProfit: playerRouteProfits?.[r.id] as number | undefined,
+      distance: r.distance as number | undefined,
+      durMin: r.durMin as number | undefined,
+      aircraftReg: r.aircraft || ''
+    }));
 
-    const list = [
+    return [
       {
         id: 'player_airline',
         name: playerAirlineName || "Neo Airlines",
@@ -192,20 +179,33 @@ export function CompetitorsView({
         isPlayer: false
       }))
     ];
+  }, [aiAirlines, playerCapital, playerAirlineName, playerAirlineCode, playerHub, playerFleet, playerRoutes, playerRouteProfits, playerProfitHistory]);
 
-    // Search filter
-    let filtered = list;
+  // Rank by capital over everyone. It used to be the row index after sorting
+  // and searching, so sorting by name or typing in the search box re-ranked.
+  const rankById = useMemo(() => {
+    const byCapital = [...allAirlines].sort((a, b) => b.capital - a.capital);
+    return new Map(byCapital.map((a, i) => [a.id, i + 1]));
+  }, [allAirlines]);
+
+  // Weekly departures of everyone, for a market share that is actually computed.
+  const totalMarketDepartures = useMemo(
+    () => allAirlines.reduce((sum, a) => sum + (a.routes as { departures: number }[]).reduce((s, r) => s + (r.departures || 0), 0), 0),
+    [allAirlines]
+  );
+
+  const leaderboard = useMemo(() => {
+    let filtered = allAirlines;
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      filtered = filtered.filter(item => 
-        item.name.toLowerCase().includes(lower) || 
+      filtered = filtered.filter(item =>
+        item.name.toLowerCase().includes(lower) ||
         item.code.toLowerCase().includes(lower) ||
         item.hub.toLowerCase().includes(lower)
       );
     }
 
-    // Sort
-    return filtered.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       let valA: any = 0;
       let valB: any = 0;
 
@@ -213,10 +213,6 @@ export function CompetitorsView({
         case 'name':
           valA = a.name;
           valB = b.name;
-          break;
-        case 'capital':
-          valA = a.capital;
-          valB = b.capital;
           break;
         case 'fleet':
           valA = a.fleet.length;
@@ -226,7 +222,7 @@ export function CompetitorsView({
           valA = a.routes.length;
           valB = b.routes.length;
           break;
-        default: // rank is based on capital
+        default: // capital, and rank, which is based on capital
           valA = a.capital;
           valB = b.capital;
           break;
@@ -238,25 +234,23 @@ export function CompetitorsView({
         return sortDir === 'asc' ? valA - valB : valB - valA;
       }
     });
-  }, [aiAirlines, playerCapital, playerFleetCount, playerRoutesCount, playerAirlineName, playerAirlineCode, playerHub, playerFleet, playerRoutes, playerProfitHistory, searchTerm, sortField, sortDir]);
+  }, [allAirlines, searchTerm, sortField, sortDir]);
 
   // Find currently selected airline details
   const selectedAirline = useMemo(() => {
     if (!selectedAirlineId) return null;
-    const found = leaderboard.find(a => a.id === selectedAirlineId);
+    const found = allAirlines.find(a => a.id === selectedAirlineId);
     if (!found) return null;
 
-    // Calculate dynamic helper stats for selected competitor
     const regionalCount = found.fleet.filter(f => f.class === 'regional').length;
     const narrowbodyCount = found.fleet.filter(f => f.class === 'narrowbody').length;
     const widebodyCount = found.fleet.filter(f => f.class === 'widebody').length;
-    
-    // Virtual calculation of average monthly earnings
+
     // `found.routes` is a union of the player and AI route shapes, so the
     // accumulator has to be annotated for TypeScript to pick the numeric overload.
-    const routeList: { departures: number; monthlyProfit: number }[] = found.routes;
-    const totalWeeklyDepartures = routeList.reduce((sum, r) => sum + r.departures, 0);
-    const averageEarnings = routeList.reduce((sum, r) => sum + r.monthlyProfit, 0);
+    const routeList: { departures: number }[] = found.routes;
+    const totalWeeklyDepartures = routeList.reduce((sum, r) => sum + (r.departures || 0), 0);
+    const history = found.monthlyProfitsHistory || [];
 
     return {
       ...found,
@@ -265,10 +259,11 @@ export function CompetitorsView({
         narrowbodyCount,
         widebodyCount,
         totalWeeklyDepartures,
-        averageEarnings
+        marketShare: totalMarketDepartures > 0 ? totalWeeklyDepartures / totalMarketDepartures : 0,
+        lastProfit: history.length > 0 ? history[history.length - 1] : null
       }
     };
-  }, [selectedAirlineId, leaderboard]);
+  }, [selectedAirlineId, allAirlines, totalMarketDepartures]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -284,13 +279,6 @@ export function CompetitorsView({
     return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1 text-aero-yellow" /> : <ChevronDown size={12} className="inline ml-1 text-aero-yellow" />;
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(val);
-  };
 
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
@@ -396,7 +384,7 @@ export function CompetitorsView({
                 <div>
                   <div className="text-2xl font-mono font-black text-aero-yellow">{selectedAirline.hub}</div>
                   <div className="text-2xs text-white/50 font-mono mt-1 flex items-center gap-1.5">
-                    <Shield size={10} className="text-white/40" /> Operating Tier: {selectedAirline.isPlayer ? '1' : selectedAirline.aiDifficulty}
+                    <Shield size={10} className="text-white/40" /> Operating Tier: {selectedAirline.isPlayer ? 'Player' : selectedAirline.aiDifficulty}
                   </div>
                 </div>
               </div>
@@ -427,11 +415,11 @@ export function CompetitorsView({
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {selectedAirline.routes.map((route, rIndex) => {
-                          const routeDistance = route.distance || Math.floor(1200 + (rIndex * 480));
-                          const routeDuration = route.durMin 
-                            ? `${Math.floor(route.durMin / 60)}h ${route.durMin % 60}m`
-                            : `${Math.floor(routeDistance / 800)}h ${Math.floor((routeDistance % 800) / 13)}m`;
-                          const maxPaxDemand = Math.floor(750 + (route.departures * 115));
+                          const routeDistance = route.distance ? `${formatNumber(route.distance)} km` : dash;
+                          const routeDuration = route.durMin
+                            ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m`
+                            : dash;
+                          const profit = route.monthlyProfit;
                           return (
                             <div key={rIndex} className="bg-black/35 border border-white/5 p-4 rounded-sm hover:border-white/10 transition-all flex flex-col justify-between">
                               <div>
@@ -440,7 +428,7 @@ export function CompetitorsView({
                                     {route.origin} <span className="text-aero-yellow font-black">↔</span> {route.destination}
                                   </span>
                                   <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-3xs rounded-sm font-mono text-white/60 uppercase font-bold">
-                                    {route.aircraftClass}
+                                    {route.aircraftClass || dash}
                                   </span>
                                 </div>
                                 <div className="text-2xs text-white/40 space-y-1 mt-3">
@@ -450,7 +438,7 @@ export function CompetitorsView({
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Sector Distance:</span>
-                                    <strong className="text-white/85 font-mono">{routeDistance} km</strong>
+                                    <strong className="text-white/85 font-mono">{routeDistance}</strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Flight Duration:</span>
@@ -466,9 +454,11 @@ export function CompetitorsView({
                               </div>
                               
                               <div className="border-t border-white/5 pt-3 mt-4 flex justify-between items-center bg-white/[0.01] -mx-4 -mb-4 p-4 rounded-b-sm">
-                                <span className="text-3xs uppercase tracking-wider text-white/30 font-semibold font-mono">Net Route Yield</span>
-                                <span className="font-mono text-aero-yellow font-bold block text-sm">
-                                  +{formatCurrency(route.monthlyProfit || selectedAirline.stats.averageEarnings / selectedAirline.routes.length || 380420)}/mo
+                                <span className="text-3xs uppercase tracking-wider text-white/30 font-semibold font-mono">Last month</span>
+                                {/* The real result, with its sign. A missing one used to
+                                    become an average or a fixed $380,420, always as a gain. */}
+                                <span className={`font-mono font-bold block text-sm ${profit === undefined || !Number.isFinite(profit) ? 'text-white/30' : profit >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
+                                  {profit === undefined || !Number.isFinite(profit) ? dash : `${formatSignedCurrency(profit)}/mo`}
                                 </span>
                               </div>
                             </div>
@@ -493,7 +483,7 @@ export function CompetitorsView({
                   <div className="space-y-2 font-mono">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {selectedAirline.fleet.map((plane, pIdx) => {
-                        const scoreSatisfaction = plane.conditionGeneral || (85 + (pIdx % 3) * 5);
+                        const airframe = Number.isFinite(plane.conditionGeneral) ? Math.round(plane.conditionGeneral as number) : null;
                         return (
                           <div key={pIdx} className="bg-black/35 border border-white/5 p-4 rounded-sm flex flex-col justify-between font-sans">
                             <div>
@@ -514,25 +504,25 @@ export function CompetitorsView({
                               <div className="mt-4 space-y-1.5 font-mono text-2xs text-white/50 border-t border-white/5 pt-3">
                                 <div className="flex justify-between">
                                   <span>Seats Capacity:</span>
-                                  <strong className="text-white">{plane.capacity || '131'} paxs</strong>
+                                  <strong className="text-white">{plane.capacity ? `${plane.capacity} seats` : dash}</strong>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Service Range:</span>
-                                  <strong className="text-white">{plane.maxRange || '4500'} km</strong>
+                                  <strong className="text-white">{plane.maxRange ? `${formatNumber(plane.maxRange)} km` : dash}</strong>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span>Efficiency Metric:</span>
-                                  <strong className="text-aero-yellow">+{plane.efficiency || '50'}%</strong>
+                                  <span>Fuel efficiency:</span>
+                                  <strong className="text-aero-yellow">{plane.efficiency !== undefined ? `${plane.efficiency} / 100` : dash}</strong>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Value Appraisal:</span>
-                                  <strong className="text-white/80">{formatCurrency(plane.basePrice || 14000000)}</strong>
+                                  <strong className="text-white/80">{plane.basePrice ? formatCurrency(plane.basePrice) : dash}</strong>
                                 </div>
                               </div>
                             </div>
                             <div className="mt-4 border-t border-white/5 pt-2.5 flex justify-between items-center text-2xs text-white/40 font-mono">
-                              <span>Operating SAT status</span>
-                              <span className="text-aero-yellow font-black">{scoreSatisfaction}%</span>
+                              <span>Airframe condition</span>
+                              <span className={`font-black ${airframe === null ? 'text-white/30' : airframe < 40 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{airframe === null ? dash : `${airframe}%`}</span>
                             </div>
                           </div>
                         );
@@ -637,14 +627,26 @@ export function CompetitorsView({
                     </div>
                     )}
 
+                    {!selectedAirline.isPlayer && (
+                      <div className="text-3xs text-white/30 uppercase leading-snug">
+                        AI results include a fixed operating subsidy of {formatCurrency(AI_MONTHLY_SUBSIDY)} per month.
+                      </div>
+                    )}
+
                     <div className="space-y-1 text-xs border-t border-white/5 pt-3">
                       <div className="flex justify-between text-2xs">
-                        <span className="text-white/40">Performance Status:</span>
-                        <span className="text-aero-yellow font-bold uppercase tracking-wide">Excellent / Capitalized</span>
+                        <span className="text-white/40">Last month:</span>
+                        {selectedAirline.stats.lastProfit === null ? (
+                          <span className="text-white/30 font-bold uppercase tracking-wide">No month closed yet</span>
+                        ) : (
+                          <span className={`font-bold uppercase tracking-wide ${selectedAirline.stats.lastProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
+                            {selectedAirline.stats.lastProfit >= 0 ? 'Profitable' : 'Loss-making'} ({formatSignedCurrency(selectedAirline.stats.lastProfit)})
+                          </span>
+                        )}
                       </div>
                       <div className="flex justify-between text-2xs mt-1">
-                        <span className="text-white/40">Market Share Score:</span>
-                        <strong className="text-white font-bold">12.5%</strong>
+                        <span className="text-white/40">Share of weekly departures:</span>
+                        <strong className="text-white font-bold">{formatNumber(selectedAirline.stats.marketShare * 100, 1)}%</strong>
                       </div>
                     </div>
                   </div>
@@ -707,7 +709,7 @@ export function CompetitorsView({
 
                   <p className="text-xs leading-relaxed text-white/60 font-sans">
                     {selectedAirline.isPlayer ? (
-                      "You are currently leading your airline with strong strategic and commercial options. Expand your fleets and optimize route frequency to outmaneuver active competitor airlines."
+                      `Your airline ranks #${rankById.get(selectedAirline.id) ?? '-'} of ${allAirlines.length} by capital. Expand your fleet and optimise route frequency to outmanoeuvre the competition.`
                     ) : selectedAirline.personality === 'flag' ? (
                       `CARRIER ANALYSIS: ${selectedAirline.name} is a prestige-focused premium flag carrier operating high-status connections directly from their primary hub at ${selectedAirline.hub}. They prioritize luxury cabin configurations, high-end fine dining, and deluxe pricing structures.`
                     ) : selectedAirline.personality === 'lcc' ? (
@@ -770,9 +772,8 @@ export function CompetitorsView({
                   <div className="text-white/30 font-mono uppercase tracking-widest text-xs">No competing airlines found matching query.</div>
                 </div>
               ) : (
-                leaderboard.map((airline, idx) => {
-                  // Compute Rank based on original sorted index
-                  const rank = idx + 1;
+                leaderboard.map((airline) => {
+                  const rank = rankById.get(airline.id) ?? 0;
                   const lastProfit = airline.monthlyProfitsHistory && airline.monthlyProfitsHistory.length > 0
                     ? airline.monthlyProfitsHistory[airline.monthlyProfitsHistory.length - 1]
                     : 0;
@@ -848,7 +849,7 @@ export function CompetitorsView({
                           <span className="text-white/30 text-xs md:hidden pr-2 tracking-wider">CAPITAL</span>
                           {formatCurrency(airline.capital)}
                           {lastProfit !== 0 && (
-                            <span className={`block text-3xs ${lastProfit >= 0 ? 'text-aero-yellow' : 'text-aero-yellow/60'} font-normal mt-0.5`}>
+                            <span className={`block text-3xs ${lastProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'} font-normal mt-0.5`}>
                               {lastProfit >= 0 ? <TrendingUp size={10} className="inline mr-1" /> : <TrendingDown size={10} className="inline mr-1" />}
                               {lastProfit >= 0 ? '+' : '-'}{formatCurrency(Math.abs(lastProfit))}
                             </span>
@@ -891,3 +892,10 @@ export function CompetitorsView({
     </div>
   );
 }
+
+/**
+ * Memoised: this view stays mounted while App re-renders for unrelated state
+ * (messages, dialogs, settings), and it only needs to redraw when its own
+ * props change. App passes stable callbacks for exactly this reason.
+ */
+export const CompetitorsView = React.memo(CompetitorsViewImpl);

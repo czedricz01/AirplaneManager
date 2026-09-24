@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatCurrency } from '../lib/format';
 import { Aircraft } from '../data/aircraft';
 import { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, ChevronLeft, Info, Settings, Wifi, Tv, X, Download, Trash2 } from 'lucide-react';
@@ -77,6 +78,25 @@ interface Props {
 }
 
 type ClassType = 'first' | 'business' | 'premium' | 'economy';
+
+/**
+ * Interior SAT points per seat feature, per cabin. The calculation below and the
+ * tooltips both read these; the tooltips used to state twice the real value.
+ */
+const FEATURE_POP = {
+  economy: { ife: 5, power: 5, hooks: 1, armrests: 2.5, headrests: 2.5, shell: 5, ped: 4 },
+  premium: { ife: 5, power: 5, table: 2.5, calf: 5, foot: 4, light: 2.5, usbc: 4 },
+  business: { ife: 7.5, power: 5, lumbar: 4, control: 7.5, massage: 10, divider: 12.5, charging: 5 },
+  first: { ife: 10, power: 7.5, wardrobe: 7.5, wood: 12.5, mirror: 5, minibar: 15, climate: 17.5 }
+} as const;
+
+/** Interior SAT points of the cabin-wide extras. */
+const CABIN_EXTRA_POP = { wifi: 5, ambient: 2.5, catering: 2.5, bar: 7.5, shower: 10, reduced: -2.5, minimal: -7.5 } as const;
+
+/** A seat type's `pop` counts double in the interior score. */
+const SEAT_TYPE_POP_FACTOR = 2;
+
+const signedPts = (v: number) => `${v > 0 ? '+' : ''}${v} interior SAT pts`;
 
 export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, initialPlane, fleet = [], onCancel, onConfirmPurchase }: Props) {
   const isRenovating = !!initialPlane;
@@ -222,54 +242,54 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
   // Pop Calcs
   const getEcoPop = () => {
-    let p = 50 + getDef('economy', ecoType).pop * 2; // base lower
+    let p = 50 + getDef('economy', ecoType).pop * SEAT_TYPE_POP_FACTOR; // base lower
     p += (ecoPitch - 74) * 4;
-    if (ecoIFE && currentDateOffset >= 240) p += 5;
-    if (ecoPower && currentDateOffset >= 420) p += 5;
-    if (ecoHooks && currentDateOffset >= 180) p += 1;
-    if (ecoMovableArmrests && currentDateOffset >= 300) p += 2.5;
-    if (ecoAdjHeadrests && currentDateOffset >= 420) p += 2.5;
-    if (ecoFixedShell && currentDateOffset >= 540) p += 5;
-    if (ecoPedHolder && currentDateOffset >= 660) p += 4;
+    if (ecoIFE && currentDateOffset >= 240) p += FEATURE_POP.economy.ife;
+    if (ecoPower && currentDateOffset >= 420) p += FEATURE_POP.economy.power;
+    if (ecoHooks && currentDateOffset >= 180) p += FEATURE_POP.economy.hooks;
+    if (ecoMovableArmrests && currentDateOffset >= 300) p += FEATURE_POP.economy.armrests;
+    if (ecoAdjHeadrests && currentDateOffset >= 420) p += FEATURE_POP.economy.headrests;
+    if (ecoFixedShell && currentDateOffset >= 540) p += FEATURE_POP.economy.shell;
+    if (ecoPedHolder && currentDateOffset >= 660) p += FEATURE_POP.economy.ped;
     return Math.max(0, p);
   };
 
   const getPremPop = () => {
-    let p = 55 + getDef('premium', premType).pop * 2;
+    let p = 55 + getDef('premium', premType).pop * SEAT_TYPE_POP_FACTOR;
     p += (premPitch - 85) * 3;
-    if (premIFE && currentDateOffset >= 240) p += 5;
-    if (premPower && currentDateOffset >= 420) p += 5;
-    if (premCocktailTable && currentDateOffset >= 180) p += 2.5;
-    if (premCalfRest && currentDateOffset >= 300) p += 5;
-    if (premFootrests && currentDateOffset >= 420) p += 4;
-    if (premGooseneckLight && currentDateOffset >= 600) p += 2.5;
-    if (premUSBC && currentDateOffset >= 720) p += 4;
+    if (premIFE && currentDateOffset >= 240) p += FEATURE_POP.premium.ife;
+    if (premPower && currentDateOffset >= 420) p += FEATURE_POP.premium.power;
+    if (premCocktailTable && currentDateOffset >= 180) p += FEATURE_POP.premium.table;
+    if (premCalfRest && currentDateOffset >= 300) p += FEATURE_POP.premium.calf;
+    if (premFootrests && currentDateOffset >= 420) p += FEATURE_POP.premium.foot;
+    if (premGooseneckLight && currentDateOffset >= 600) p += FEATURE_POP.premium.light;
+    if (premUSBC && currentDateOffset >= 720) p += FEATURE_POP.premium.usbc;
     return Math.max(0, p);
   };
 
   const getBizPop = () => {
-    let p = 60 + getDef('business', bizType).pop * 2;
+    let p = 60 + getDef('business', bizType).pop * SEAT_TYPE_POP_FACTOR;
     p += (bizPitch - 100) * 2.4;
-    if (bizIFE && currentDateOffset >= 240) p += 7.5;
-    if (bizPower && currentDateOffset >= 360) p += 5;
-    if (bizLumbarSupport && currentDateOffset >= 180) p += 4;
-    if (bizElecSeatControl && currentDateOffset >= 300) p += 7.5;
-    if (bizMassage && currentDateOffset >= 420) p += 10;
-    if (bizPrivacyDivider && currentDateOffset >= 540) p += 12.5;
-    if (bizInductiveCharging && currentDateOffset >= 720) p += 5;
+    if (bizIFE && currentDateOffset >= 240) p += FEATURE_POP.business.ife;
+    if (bizPower && currentDateOffset >= 360) p += FEATURE_POP.business.power;
+    if (bizLumbarSupport && currentDateOffset >= 180) p += FEATURE_POP.business.lumbar;
+    if (bizElecSeatControl && currentDateOffset >= 300) p += FEATURE_POP.business.control;
+    if (bizMassage && currentDateOffset >= 420) p += FEATURE_POP.business.massage;
+    if (bizPrivacyDivider && currentDateOffset >= 540) p += FEATURE_POP.business.divider;
+    if (bizInductiveCharging && currentDateOffset >= 720) p += FEATURE_POP.business.charging;
     return Math.max(0, p);
   };
 
   const getFirstPop = () => {
-    let p = 70 + getDef('first', firstType).pop * 2;
+    let p = 70 + getDef('first', firstType).pop * SEAT_TYPE_POP_FACTOR;
     p += (firstPitch - 150) * 1.6;
-    if (firstIFE && currentDateOffset >= 240) p += 10;
-    if (firstPower && currentDateOffset >= 360) p += 7.5;
-    if (firstWardrobe && currentDateOffset >= 240) p += 7.5;
-    if (firstWoodLeather && currentDateOffset >= 360) p += 12.5;
-    if (firstMirrors && currentDateOffset >= 480) p += 5;
-    if (firstMinibar && currentDateOffset >= 600) p += 15;
-    if (firstActiveClimate && currentDateOffset >= 720) p += 17.5;
+    if (firstIFE && currentDateOffset >= 240) p += FEATURE_POP.first.ife;
+    if (firstPower && currentDateOffset >= 360) p += FEATURE_POP.first.power;
+    if (firstWardrobe && currentDateOffset >= 240) p += FEATURE_POP.first.wardrobe;
+    if (firstWoodLeather && currentDateOffset >= 360) p += FEATURE_POP.first.wood;
+    if (firstMirrors && currentDateOffset >= 480) p += FEATURE_POP.first.mirror;
+    if (firstMinibar && currentDateOffset >= 600) p += FEATURE_POP.first.minibar;
+    if (firstActiveClimate && currentDateOffset >= 720) p += FEATURE_POP.first.climate;
     return Math.max(0, p);
   };
 
@@ -285,13 +305,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const baseInteriorPop = useMemo(() => {
     if (totalSeats === 0) return 0;
     let score = interiorPopRaw;
-    if (hasWifi && isWifiAvailable) score += 5;
-    if (hasAmbientLighting && isAmbientAvailable) score += 2.5;
-    if (hasPremiumCatering) score += 2.5;
-    if (hasOnboardBar && isBarAvailable) score += 7.5;
-    if (hasShower && isShowerAvailable) score += 10;
-    if (hasReducedGalley) score -= 2.5;
-    if (hasMinimalServices) score -= 7.5;
+    if (hasWifi && isWifiAvailable) score += CABIN_EXTRA_POP.wifi;
+    if (hasAmbientLighting && isAmbientAvailable) score += CABIN_EXTRA_POP.ambient;
+    if (hasPremiumCatering) score += CABIN_EXTRA_POP.catering;
+    if (hasOnboardBar && isBarAvailable) score += CABIN_EXTRA_POP.bar;
+    if (hasShower && isShowerAvailable) score += CABIN_EXTRA_POP.shower;
+    if (hasReducedGalley) score += CABIN_EXTRA_POP.reduced;
+    if (hasMinimalServices) score += CABIN_EXTRA_POP.minimal;
     return Math.round(score);
   }, [interiorPopRaw, hasWifi, isWifiAvailable, hasAmbientLighting, isAmbientAvailable, hasPremiumCatering, hasOnboardBar, isBarAvailable, hasShower, isShowerAvailable, hasReducedGalley, hasMinimalServices]);
 
@@ -350,9 +370,6 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const totalPrice = unitPrice * quantity;
   const canAfford = capital >= totalPrice;
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-  };
 
   const pFirstRaw = ((firstSeats * firstPitch * firstMultiplier) / TOTAL_SPACE) * 100;
   const pBizRaw = ((bizSeats * bizPitch * bizMultiplier) / TOTAL_SPACE) * 100;
@@ -369,17 +386,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const handleSavePreset = () => {
     if (!savePresetName.trim()) return;
     
-    let finalSat = 0;
-    if (totalUsedP > 0) {
-      finalSat = ((firstSeats * pFirstRaw) + (bizSeats * pBizRaw) + (premSeats * pPremRaw) + (ecoSeats * pEcoRaw)) / totalUsedP;
-    }
-    const baseSat = finalSat + (hasWifi ? 2 : 0) + (hasAmbientLighting ? 2 : 0) + (hasPremiumCatering ? 2.5 : 0) + (hasOnboardBar ? 7.5 : 0) + (hasShower ? 10 : 0) + (hasReducedGalley ? -2.5 : 0) + (hasMinimalServices ? -5 : 0);
-    
     const preset = {
       id: Math.random().toString(36).substring(7),
       aircraftId: aircraft.id,
       name: savePresetName.trim(),
-      baseInteriorPop: baseSat,
+      // The score the purchase itself uses. Presets used to store a different
+      // formula (weighted by cabin space, other extra values).
+      baseInteriorPop,
       config: {
         first: firstSeats, business: bizSeats, premium: premSeats, economy: ecoSeats,
         details: {
@@ -458,6 +471,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       setPremCalfRest(c.premium.hasCalfRest ?? false);
       setPremFootrests(c.premium.hasFootrests ?? false);
       setPremGooseneckLight(c.premium.hasGooseneckLight ?? false);
+      setPremUSBC(c.premium.hasUSBC ?? false);
     }
     
     // Eco
@@ -488,7 +502,18 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         business: { seats: bizSeats, pitch: bizPitch, seatType: bizType, hasIFE: bizIFE, hasPower: bizPower, hasLumbarSupport: bizLumbarSupport, hasElecSeatControl: bizElecSeatControl, hasMassage: bizMassage, hasPrivacyDivider: bizPrivacyDivider, hasInductiveCharging: bizInductiveCharging },
         premium: { seats: premSeats, pitch: premPitch, seatType: premType, hasIFE: premIFE, hasPower: premPower, hasCocktailTable: premCocktailTable, hasCalfRest: premCalfRest, hasFootrests: premFootrests, hasGooseneckLight: premGooseneckLight, hasUSBC: premUSBC },
         economy: { seats: ecoSeats, pitch: ecoPitch, seatType: ecoType, hasIFE: ecoIFE, hasPower: ecoPower, hasHooks: ecoHooks, hasMovableArmrests: ecoMovableArmrests, hasAdjHeadrests: ecoAdjHeadrests, hasFixedShell: ecoFixedShell, hasPedHolder: ecoPedHolder },
-        hasWifi, hasAmbientLighting, hasPremiumCatering, hasOnboardBar, hasShower
+        // Only what was actually paid for and fitted. A preset loaded in an
+        // earlier year could carry Wi-Fi that was never charged, and
+        // details.hasWifi is what unlocks the Wi-Fi cabin services.
+        hasWifi: hasWifi && isWifiAvailable,
+        hasAmbientLighting: hasAmbientLighting && isAmbientAvailable,
+        hasPremiumCatering,
+        hasOnboardBar: hasOnboardBar && isBarAvailable,
+        hasShower: hasShower && isShowerAvailable,
+        // Both change the usable cabin space. They were not stored, so the
+        // next refit started without them and silently changed the seat count.
+        hasReducedGalley,
+        hasMinimalServices
       } as any
     };
     onConfirmPurchase(initialPlane || aircraft, quantity, output, baseInteriorPop, totalPrice);
@@ -644,7 +669,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         {firstType === t.n && <div className="w-1.5 h-1.5 bg-aero-yellow rounded-full" />}
                       </div>
                       <span className={`text-sm font-mono transition-colors ${firstType === t.n ? 'text-aero-yellow' : 'text-white/70'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${firstType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
@@ -660,13 +685,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: firstIFE, setter: setFirstIFE, req: 240, price: 1000, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: 'Personal screens with movies and games. Increases satisfaction (+20).' },
-                { id: 'power', state: firstPower, setter: setFirstPower, req: 360, price: 300, label: 'In-Seat Power', title: 'In-Seat Power', desc: 'Provides AC power/USB ports. Increases satisfaction (+15).' },
-                { id: 'wardrobe', state: firstWardrobe, setter: setFirstWardrobe, req: 240, price: 800, label: 'Pers. Wardrobe', title: 'Persönlicher Kleiderschrank', desc: 'In die Sitzschale integrierter schmaler Spind für Anzüge/Mäntel. Increases satisfaction (+15).' },
-                { id: 'wood', state: firstWoodLeather, setter: setFirstWoodLeather, req: 360, price: 3000, label: 'Wood/Leather', title: 'Edelhölzer & Echtleder', desc: 'Hochwertige Materialeinfassungen an Konsolen und Armlehnen. Increases satisfaction (+25).' },
-                { id: 'mirror', state: firstMirrors, setter: setFirstMirrors, req: 480, price: 400, label: 'Vanity Mirror', title: 'Beleuchteter Schminkspiegel', desc: 'In ein aufklappbares Staufach integrierter Vanity-Spiegel. Increases satisfaction (+10).' },
-                { id: 'minibar', state: firstMinibar, setter: setFirstMinibar, req: 600, price: 2500, label: 'Personal Minibar', title: 'Integrierte Minibar', desc: 'Eigenes, teilweise gekühltes Getränkefach direkt in der Seitenwand. Increases satisfaction (+30).' },
-                { id: 'climate', state: firstActiveClimate, setter: setFirstActiveClimate, req: 720, price: 4000, label: 'Active Climate', title: 'Aktive Sitzklimatisierung', desc: 'Fest in das Sitzpolster und die Rückenlehne integrierte Heizmatten und Mikrostrom-Ventilatoren zur individuellen Temperaturregelung. Increases satisfaction (+35).' }
+                { id: 'ife', state: firstIFE, setter: setFirstIFE, req: 240, price: 1000, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.first.ife)}.` },
+                { id: 'power', state: firstPower, setter: setFirstPower, req: 360, price: 300, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.first.power)}.` },
+                { id: 'wardrobe', state: firstWardrobe, setter: setFirstWardrobe, req: 240, price: 800, label: 'Pers. Wardrobe', title: 'Personal Wardrobe', desc: `A slim locker built into the seat shell for suits and coats. ${signedPts(FEATURE_POP.first.wardrobe)}.` },
+                { id: 'wood', state: firstWoodLeather, setter: setFirstWoodLeather, req: 360, price: 3000, label: 'Wood/Leather', title: 'Fine Wood & Leather', desc: `High-quality trim on consoles and armrests. ${signedPts(FEATURE_POP.first.wood)}.` },
+                { id: 'mirror', state: firstMirrors, setter: setFirstMirrors, req: 480, price: 400, label: 'Vanity Mirror', title: 'Illuminated Vanity Mirror', desc: `A vanity mirror built into a fold-out stowage compartment. ${signedPts(FEATURE_POP.first.mirror)}.` },
+                { id: 'minibar', state: firstMinibar, setter: setFirstMinibar, req: 600, price: 2500, label: 'Personal Minibar', title: 'Integrated Minibar', desc: `A private, partly chilled drinks compartment in the side wall. ${signedPts(FEATURE_POP.first.minibar)}.` },
+                { id: 'climate', state: firstActiveClimate, setter: setFirstActiveClimate, req: 720, price: 4000, label: 'Active Climate', title: 'Active Seat Climate', desc: `Heating mats and micro fans in cushion and backrest for individual temperature control. ${signedPts(FEATURE_POP.first.climate)}.` }
               ].sort((a, b) => {
                 const aAvail = currentDateOffset >= a.req;
                 const bAvail = currentDateOffset >= b.req;
@@ -723,7 +748,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         {bizType === t.n && <div className="w-1.5 h-1.5 bg-white/10 rounded-full" />}
                       </div>
                       <span className={`text-sm font-mono transition-colors ${bizType === t.n ? 'text-white/80' : 'text-white/70'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${bizType === t.n ? 'text-white/80 opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
@@ -739,13 +764,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: bizIFE, setter: setBizIFE, req: 240, price: 600, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: 'Personal screens with movies and games. Increases satisfaction (+15).' },
-                { id: 'power', state: bizPower, setter: setBizPower, req: 360, price: 200, label: 'In-Seat Power', title: 'In-Seat Power', desc: 'Provides AC power/USB ports. Increases satisfaction (+10).' },
-                { id: 'lumbar', state: bizLumbarSupport, setter: setBizLumbarSupport, req: 180, price: 200, label: 'Lumbar Support', title: 'Mechanische Lordosenstütze', desc: 'Verstellbares Kissen im unteren Rückenbereich für besseren Halt. Increases satisfaction (+8).' },
-                { id: 'control', state: bizElecSeatControl, setter: setBizElecSeatControl, req: 300, price: 800, label: 'Elec. Seat Control', title: 'Elektronische Sitzverstellung', desc: 'Stufenlose Verstellung via Knopfdruck statt mechanischer Hebel. Increases satisfaction (+15).' },
-                { id: 'massage', state: bizMassage, setter: setBizMassage, req: 420, price: 1200, label: 'Pneumatic Massage', title: 'Pneumatische Massagefunktion', desc: 'Luftkissen in der Lehne pumpen sich rhythmisch auf und ab. Increases satisfaction (+20).' },
-                { id: 'divider', state: bizPrivacyDivider, setter: setBizPrivacyDivider, req: 540, price: 1500, label: 'Privacy Divider', title: 'Motorisierte Privacy Divider', desc: 'Auf Knopfdruck hochfahrende Trennwand zum Nachbarsitz. Increases satisfaction (+25).' },
-                { id: 'charging', state: bizInductiveCharging, setter: setBizInductiveCharging, req: 720, price: 300, label: 'Inductive Charging', title: 'Induktives Ladepad', desc: 'Kabelloses Laden auf der Mittelkonsole neben dem Sitz. Increases satisfaction (+10).' }
+                { id: 'ife', state: bizIFE, setter: setBizIFE, req: 240, price: 600, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.business.ife)}.` },
+                { id: 'power', state: bizPower, setter: setBizPower, req: 360, price: 200, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.business.power)}.` },
+                { id: 'lumbar', state: bizLumbarSupport, setter: setBizLumbarSupport, req: 180, price: 200, label: 'Lumbar Support', title: 'Mechanical Lumbar Support', desc: `An adjustable cushion in the lower back for better support. ${signedPts(FEATURE_POP.business.lumbar)}.` },
+                { id: 'control', state: bizElecSeatControl, setter: setBizElecSeatControl, req: 300, price: 800, label: 'Elec. Seat Control', title: 'Electric Seat Control', desc: `Continuous adjustment at the push of a button instead of mechanical levers. ${signedPts(FEATURE_POP.business.control)}.` },
+                { id: 'massage', state: bizMassage, setter: setBizMassage, req: 420, price: 1200, label: 'Pneumatic Massage', title: 'Pneumatic Massage', desc: `Air cells in the backrest inflate and deflate rhythmically. ${signedPts(FEATURE_POP.business.massage)}.` },
+                { id: 'divider', state: bizPrivacyDivider, setter: setBizPrivacyDivider, req: 540, price: 1500, label: 'Privacy Divider', title: 'Motorised Privacy Divider', desc: `A partition to the neighbouring seat that rises at the push of a button. ${signedPts(FEATURE_POP.business.divider)}.` },
+                { id: 'charging', state: bizInductiveCharging, setter: setBizInductiveCharging, req: 720, price: 300, label: 'Inductive Charging', title: 'Inductive Charging Pad', desc: `Wireless charging on the console beside the seat. ${signedPts(FEATURE_POP.business.charging)}.` }
               ].sort((a, b) => {
                 const aAvail = currentDateOffset >= a.req;
                 const bAvail = currentDateOffset >= b.req;
@@ -802,7 +827,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         {premType === t.n && <div className="w-1.5 h-1.5 bg-aero-yellow rounded-full" />}
                       </div>
                       <span className={`text-sm font-mono transition-colors ${premType === t.n ? 'text-aero-yellow' : 'text-white/70'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${premType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
@@ -818,13 +843,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: premIFE, setter: setPremIFE, req: 240, price: 400, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: 'Personal screens with movies and games. Increases satisfaction (+10).' },
-                { id: 'power', state: premPower, setter: setPremPower, req: 420, price: 150, label: 'In-Seat Power', title: 'In-Seat Power', desc: 'Provides AC power/USB ports. Increases satisfaction (+10).' },
-                { id: 'table', state: premCocktailTable, setter: setPremCocktailTable, req: 180, price: 50, label: 'Cocktail Table', title: 'Integrierter Cocktailtisch', desc: 'Kleiner, fest installierter Zwischentisch auf der Armlehne. Increases satisfaction (+5).' },
-                { id: 'calf', state: premCalfRest, setter: setPremCalfRest, req: 300, price: 150, label: 'Calf Rest', title: 'Ausklappbare Wadenstütze', desc: 'In den Sitz integrierte Stütze, die hochgeklappt werden kann. Increases satisfaction (+10).' },
-                { id: 'foot', state: premFootrests, setter: setPremFootrests, req: 420, price: 100, label: 'Multi-Stage Footrest', title: 'Mehrstufige Fußrasten', desc: 'Ausklappbare Bügel unter dem Vordersitz für die Füße. Increases satisfaction (+8).' },
-                { id: 'light', state: premGooseneckLight, setter: setPremGooseneckLight, req: 600, price: 80, label: 'Gooseneck Lamp', title: 'Schwanenhals-Leselampe', desc: 'Individuell verstellbare LED-Leselampe direkt am Sitz. Increases satisfaction (+5).' },
-                { id: 'usbc', state: premUSBC, setter: setPremUSBC, req: 720, price: 100, label: 'USB-C Fast Charge', title: 'USB-C Fast Charging', desc: 'Integrierte Schnellladeanschlüsse (z.B. 60W) in der Armlehne. Increases satisfaction (+8).' }
+                { id: 'ife', state: premIFE, setter: setPremIFE, req: 240, price: 400, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.premium.ife)}.` },
+                { id: 'power', state: premPower, setter: setPremPower, req: 420, price: 150, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.premium.power)}.` },
+                { id: 'table', state: premCocktailTable, setter: setPremCocktailTable, req: 180, price: 50, label: 'Cocktail Table', title: 'Integrated Cocktail Table', desc: `A small fixed side table on the armrest. ${signedPts(FEATURE_POP.premium.table)}.` },
+                { id: 'calf', state: premCalfRest, setter: setPremCalfRest, req: 300, price: 150, label: 'Calf Rest', title: 'Fold-out Calf Rest', desc: `A rest built into the seat that folds up. ${signedPts(FEATURE_POP.premium.calf)}.` },
+                { id: 'foot', state: premFootrests, setter: setPremFootrests, req: 420, price: 100, label: 'Multi-Stage Footrest', title: 'Multi-Stage Footrest', desc: `Fold-out bars under the seat in front for the feet. ${signedPts(FEATURE_POP.premium.foot)}.` },
+                { id: 'light', state: premGooseneckLight, setter: setPremGooseneckLight, req: 600, price: 80, label: 'Gooseneck Lamp', title: 'Gooseneck Reading Lamp', desc: `An individually adjustable LED reading light at the seat. ${signedPts(FEATURE_POP.premium.light)}.` },
+                { id: 'usbc', state: premUSBC, setter: setPremUSBC, req: 720, price: 100, label: 'USB-C Fast Charge', title: 'USB-C Fast Charging', desc: `Fast-charging ports (e.g. 60 W) in the armrest. ${signedPts(FEATURE_POP.premium.usbc)}.` }
               ].sort((a, b) => {
                 const aAvail = currentDateOffset >= a.req;
                 const bAvail = currentDateOffset >= b.req;
@@ -881,7 +906,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         {ecoType === t.n && <div className="w-1.5 h-1.5 bg-[#1a1a1a] rounded-full" />}
                       </div>
                       <span className={`text-sm font-mono transition-colors ${ecoType === t.n ? 'text-slate-400' : 'text-white/70'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`Base popularity impact: ${t.pop > 0 ? '+'+t.pop : t.pop}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${ecoType === t.n ? 'text-slate-400 opacity-80' : 'text-white/40'}`}>
                       {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
@@ -897,13 +922,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: ecoIFE, setter: setEcoIFE, req: 240, price: 300, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: 'Personal screens with movies and games. Increases satisfaction (+10).' },
-                { id: 'power', state: ecoPower, setter: setEcoPower, req: 420, price: 100, label: 'In-Seat Power', title: 'In-Seat Power', desc: 'Provides AC power/USB ports. Increases satisfaction (+10).' },
-                { id: 'hooks', state: ecoHooks, setter: setEcoHooks, req: 180, price: 20, label: 'Coat Hooks', title: 'Integrierte Kleiderhaken', desc: 'Fest verankert an der Rückenlehne oder am Tischverschluss. Increases satisfaction (+2).' },
-                { id: 'armrests', state: ecoMovableArmrests, setter: setEcoMovableArmrests, req: 300, price: 50, label: 'Mov. Armrests', title: 'Bewegliche Armlehnen', desc: 'Vollständig hochklappbare Armlehnen für leichtere Zugänglichkeit. Increases satisfaction (+5).' },
-                { id: 'headrests', state: ecoAdjHeadrests, setter: setEcoAdjHeadrests, req: 420, price: 80, label: 'Adj. Headrests', title: 'Verstellbare Kopfstützen', desc: 'Mit biegbaren Seitenflügeln zur Stabilisierung des Kopfes. Increases satisfaction (+5).' },
-                { id: 'shell', state: ecoFixedShell, setter: setEcoFixedShell, req: 540, price: 200, label: 'Fixed-Shell', title: 'Fixed-Shell-Design', desc: 'Eine starre Kunststoffschale an der Sitzrückseite. Beim Zurücklehnen gleitet die innere Sitzmechanik nach vorne, während die äußere Schale starr bleibt, um den Freiraum des Hintermanns nicht zu beeinträchtigen. Increases satisfaction (+10).' },
-                { id: 'ped', state: ecoPedHolder, setter: setEcoPedHolder, req: 660, price: 60, label: 'PED Holder', title: 'Gerätehalter / PED-Holder', desc: 'Bauliche Kante oder Klemme auf Augenhöhe für eigene Tablets/Smartphones. Increases satisfaction (+8).' }
+                { id: 'ife', state: ecoIFE, setter: setEcoIFE, req: 240, price: 300, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.economy.ife)}.` },
+                { id: 'power', state: ecoPower, setter: setEcoPower, req: 420, price: 100, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.economy.power)}.` },
+                { id: 'hooks', state: ecoHooks, setter: setEcoHooks, req: 180, price: 20, label: 'Coat Hooks', title: 'Integrated Coat Hooks', desc: `Fixed to the seat back or the tray-table latch. ${signedPts(FEATURE_POP.economy.hooks)}.` },
+                { id: 'armrests', state: ecoMovableArmrests, setter: setEcoMovableArmrests, req: 300, price: 50, label: 'Mov. Armrests', title: 'Movable Armrests', desc: `Armrests that fold fully up for easier access. ${signedPts(FEATURE_POP.economy.armrests)}.` },
+                { id: 'headrests', state: ecoAdjHeadrests, setter: setEcoAdjHeadrests, req: 420, price: 80, label: 'Adj. Headrests', title: 'Adjustable Headrests', desc: `With bendable side wings to steady the head. ${signedPts(FEATURE_POP.economy.headrests)}.` },
+                { id: 'shell', state: ecoFixedShell, setter: setEcoFixedShell, req: 540, price: 200, label: 'Fixed-Shell', title: 'Fixed-Shell Design', desc: `A rigid shell on the seat back: reclining slides the seat forward inside it, so the passenger behind keeps their space. ${signedPts(FEATURE_POP.economy.shell)}.` },
+                { id: 'ped', state: ecoPedHolder, setter: setEcoPedHolder, req: 660, price: 60, label: 'PED Holder', title: 'Device Holder (PED)', desc: `A ledge or clip at eye level for your own tablet or phone. ${signedPts(FEATURE_POP.economy.ped)}.` }
               ].sort((a, b) => {
                 const aAvail = currentDateOffset >= a.req;
                 const bAvail = currentDateOffset >= b.req;
@@ -1224,13 +1249,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             </h3>
             <div className="flex flex-col gap-2 relative">
               {[
-                { id: 'wifi', state: hasWifi, setter: setHasWifi, available: isWifiAvailable, price: 150000, label: 'In-Flight Wi-Fi', title: 'In-Flight Wi-Fi', desc: `Satellite broadband connection for passengers. Crucial for modern business travelers.\n\n+5 Satisfaction rating\n+$150,000 Upfront Cost${!isWifiAvailable ? '\n\nTechnology not yet available (req. Year 2000+)' : ''}`, sub: isWifiAvailable ? '+$150,000' : 'Avail. 2000' },
-                { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: isAmbientAvailable, price: 100000, label: 'Ambient Lighting', title: 'Ambient Lighting', desc: `Dynamic LED mood lighting that reduces jet lag and improves cabin aesthetics.\n\n+2.5 Satisfaction rating\n+$100,000 Upfront Cost${!isAmbientAvailable ? '\n\nTechnology not yet available (req. Year 2005+)' : ''}`, sub: isAmbientAvailable ? '+$100,000' : 'Avail. 2005' },
-                { id: 'catering', state: hasPremiumCatering, setter: setHasPremiumCatering, available: true, price: 300000, label: 'Prem. Catering Fac.', title: 'Premium Catering', desc: `Expanded galley with ovens and chillers for multi-course hot meals. Takes up floor space.\n\n+2.5 Satisfaction rating\n+$300,000 Upfront Cost\n-200 Cabin Space`, sub: '+$300,000' },
-                { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: isBarAvailable, price: 500000, label: 'Onboard Bar', title: 'Onboard Bar & Lounge', desc: `A luxurious standing bar and lounge area for premium passengers. Massive satisfaction boost but consumes extreme floor space.\n\n+7.5 Satisfaction rating\n+$500,000 Upfront Cost\n-400 Cabin Space${!isBarAvailable ? '\n\nRequires Widebody (200+ Cap) & Year 1970+' : ''}`, sub: isBarAvailable ? '+$500,000' : 'Req. >200 CAP / >1970' },
-                { id: 'shower', state: hasShower, setter: setHasShower, available: isShowerAvailable, price: 1000000, label: 'Shower Spa', title: 'Shower Spa', desc: `The ultimate luxury. Allows first-class passengers to arrive refreshed. Carries large water tanks decreasing usable space dramatically.\n\n+10 Satisfaction rating\n+$1,000,000 Upfront Cost\n-800 Cabin Space${!isShowerAvailable ? '\n\nRequires Super Jumbo (300+ Cap) & Year 2008+' : ''}`, sub: isShowerAvailable ? '+$1,000,000' : 'Req. >300 CAP / >2008' },
-                { id: 'reduced', state: hasReducedGalley, setter: (v) => { setHasReducedGalley(v); if(v) setHasMinimalServices(false); }, available: true, price: -25000, label: 'Reduced Galley', title: 'Reduced Galley', desc: `Shrink the kitchen areas to cram in more seats. Saves money but passengers will notice the reduced service.\n\n-2.5 Satisfaction rating\n-$25,000 Upfront Cost\n+3% Cabin Space`, sub: '-$25,000' },
-                { id: 'minimal', state: hasMinimalServices, setter: (v) => { setHasMinimalServices(v); if(v) setHasReducedGalley(false); }, available: true, price: -50000, label: 'Minimal Services', title: 'Minimal Services', desc: `Remove nearly all service areas (galleys, closets, extra bathrooms) to maximize passenger density. Expect complaints.\n\n-5 Satisfaction rating\n-$50,000 Upfront Cost\n+6% Cabin Space`, sub: '-$50,000' }
+                { id: 'wifi', state: hasWifi, setter: setHasWifi, available: isWifiAvailable, price: 150000, label: 'In-Flight Wi-Fi', title: 'In-Flight Wi-Fi', desc: `Satellite broadband connection for passengers. Crucial for modern business travelers.\n\n${signedPts(CABIN_EXTRA_POP.wifi)}\n+$150,000 Upfront Cost${!isWifiAvailable ? '\n\nTechnology not yet available (req. Year 2000+)' : ''}`, sub: isWifiAvailable ? '+$150,000' : 'Avail. 2000' },
+                { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: isAmbientAvailable, price: 100000, label: 'Ambient Lighting', title: 'Ambient Lighting', desc: `Dynamic LED mood lighting that reduces jet lag and improves cabin aesthetics.\n\n${signedPts(CABIN_EXTRA_POP.ambient)}\n+$100,000 Upfront Cost${!isAmbientAvailable ? '\n\nTechnology not yet available (req. Year 2005+)' : ''}`, sub: isAmbientAvailable ? '+$100,000' : 'Avail. 2005' },
+                { id: 'catering', state: hasPremiumCatering, setter: setHasPremiumCatering, available: true, price: 300000, label: 'Prem. Catering Fac.', title: 'Premium Catering', desc: `Expanded galley with ovens and chillers for multi-course hot meals. Takes up floor space.\n\n${signedPts(CABIN_EXTRA_POP.catering)}\n+$300,000 Upfront Cost\n-200 Cabin Space`, sub: '+$300,000' },
+                { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: isBarAvailable, price: 500000, label: 'Onboard Bar', title: 'Onboard Bar & Lounge', desc: `A luxurious standing bar and lounge area for premium passengers. Massive satisfaction boost but consumes extreme floor space.\n\n${signedPts(CABIN_EXTRA_POP.bar)}\n+$500,000 Upfront Cost\n-400 Cabin Space${!isBarAvailable ? '\n\nRequires Widebody (200+ Cap) & Year 1970+' : ''}`, sub: isBarAvailable ? '+$500,000' : 'Req. >200 CAP / >1970' },
+                { id: 'shower', state: hasShower, setter: setHasShower, available: isShowerAvailable, price: 1000000, label: 'Shower Spa', title: 'Shower Spa', desc: `The ultimate luxury. Allows first-class passengers to arrive refreshed. Carries large water tanks decreasing usable space dramatically.\n\n${signedPts(CABIN_EXTRA_POP.shower)}\n+$1,000,000 Upfront Cost\n-800 Cabin Space${!isShowerAvailable ? '\n\nRequires Super Jumbo (300+ Cap) & Year 2008+' : ''}`, sub: isShowerAvailable ? '+$1,000,000' : 'Req. >300 CAP / >2008' },
+                { id: 'reduced', state: hasReducedGalley, setter: (v) => { setHasReducedGalley(v); if(v) setHasMinimalServices(false); }, available: true, price: -25000, label: 'Reduced Galley', title: 'Reduced Galley', desc: `Shrink the kitchen areas to cram in more seats. Saves money but passengers will notice the reduced service.\n\n${signedPts(CABIN_EXTRA_POP.reduced)}\n-$25,000 Upfront Cost\n+3% Cabin Space`, sub: '-$25,000' },
+                { id: 'minimal', state: hasMinimalServices, setter: (v) => { setHasMinimalServices(v); if(v) setHasReducedGalley(false); }, available: true, price: -50000, label: 'Minimal Services', title: 'Minimal Services', desc: `Remove nearly all service areas (galleys, closets, extra bathrooms) to maximize passenger density. Expect complaints.\n\n${signedPts(CABIN_EXTRA_POP.minimal)}\n-$50,000 Upfront Cost\n+6% Cabin Space`, sub: '-$50,000' }
               ].sort((a, b) => {
                 const aAvail = a.available;
                 const bAvail = b.available;

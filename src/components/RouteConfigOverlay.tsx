@@ -6,18 +6,12 @@ import { OwnedAircraft } from './MyFleetView';
 import { AirportInfrastructure } from '../App';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 
-import { 
-  getPlaneSat, 
-  getDeskSim, 
-  getStandBonus, 
-  getLoungeBonus, 
-  calculateClassSatisfaction, 
-   
-  getFlightTimeClass, 
-  getCateringOpt, 
+import {
+  getFlightTimeClass,
+  getCateringOpt,
   getMultiOptionSum,
-  TIME_CLASS_SAT_MULTIPLIERS,
-  adjustSatForDifficulty
+  seatWeightedSatisfaction,
+  TIME_CLASS_SAT_MULTIPLIERS
 } from '../lib/financeUtils';
 
 interface RouteConfigOverlayProps {
@@ -32,11 +26,12 @@ interface RouteConfigOverlayProps {
   takeControl: Record<string, boolean>;
   setTakeControl: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   getFlightDurationMinutes: () => number;
-  routes: any[];
-  fleet: OwnedAircraft[];
-  schedule: any[];
-  initialRouteId?: string;
-  difficulty?: string;
+  /**
+   * Route satisfaction per cabin class, as the economy computes it
+   * (getRouteClassSatisfaction). This overlay used to run its own formula with
+   * an empty airport table, made-up airport ids and a fixed difficulty.
+   */
+  routeSat: Record<string, number>;
 }
 
 export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
@@ -51,11 +46,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
   takeControl,
   setTakeControl,
   getFlightDurationMinutes,
-  routes,
-  fleet,
-  schedule,
-  initialRouteId,
-  difficulty = 'Normal'
+  routeSat
 }) => {
   const [activeMealIndex, setActiveMealIndex] = useState(0);
   const [expandedMealCats, setExpandedMealCats] = useState<Record<string, boolean>>({
@@ -69,17 +60,38 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
   const timeClass = getFlightTimeClass(duration);
   const satMultiplier = TIME_CLASS_SAT_MULTIPLIERS[timeClass] || 1.0;
 
-  const getRouteSatForClass = (className: string) => {
-    const clsConfig = classConfigs[className];
-    const duration = getFlightDurationMinutes();
-    const sce = calculateClassSatisfaction(className, selectedAircraft, clsConfig, duration, {}, 'A', 'B', 'Normal').satisfactionPercentage;
-    const lBonus = getLoungeBonus(selectedOrigin.id, className, airportManagement) + getLoungeBonus(selectedDest.id, className, airportManagement);
-    const pSat = getPlaneSat(selectedAircraft);
-    const dPenalty = getDeskSim(selectedOrigin.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat + 
-                      getDeskSim(selectedDest.id, airportManagement, routes, fleet, selectedOrigin, selectedDest, selectedAircraft, schedule.length, initialRouteId).sat;
-    const sBonus = getStandBonus(selectedOrigin, selectedDest, selectedAircraft, airportManagement);
-    const baseSat = (pSat * 0.4) + (sce * 0.6) + lBonus + dPenalty + sBonus;
-    return adjustSatForDifficulty(baseSat, difficulty);
+  // "general" has no seats of its own; it shows the seat-weighted route figure.
+  const getRouteSatForClass = (className: string) =>
+    className === 'general'
+      ? seatWeightedSatisfaction(routeSat, selectedAircraft.config)
+      : routeSat[className] ?? 0;
+
+  /**
+   * Writes one service field of "General" into every cabin class.
+   *
+   * This used to assign into the class objects in place after a shallow copy of
+   * the outer record. Those objects are shared with React state -- in the cabin
+   * editor they are the saved route's own classConfigs -- so "Take Control"
+   * changed the route even when the editor was closed without saving.
+   */
+  const copyToCabinClasses = (next: Record<string, any>, field: 'catering' | 'extras' | 'service', value: any) => {
+    ['economy', 'premium', 'business', 'first'].forEach(cl => {
+      if (next[cl]) next[cl] = { ...next[cl], [field]: value };
+    });
+  };
+
+  // Kept outside any state updater: updaters must be pure, and this one used to
+  // dispatch a second state change from inside the first.
+  const toggleTakeControl = (field: 'catering' | 'extras' | 'service') => {
+    const enabling = !takeControl[field];
+    setTakeControl({ ...takeControl, [field]: enabling });
+    if (enabling) {
+      setClassConfigs(prev => {
+        const next = { ...prev };
+        copyToCabinClasses(next, field, prev.general?.[field]);
+        return next;
+      });
+    }
   };
 
   const hasAdvancedCateringHub = airportManagement[selectedOrigin.id]?.hubFacilities?.catering || airportManagement[selectedDest.id]?.hubFacilities?.catering;
@@ -146,7 +158,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             </div>
             {activeConfigClass === 'general' && (
               <button 
-                onClick={() => { setTakeControl(prev => { const newState = { ...prev, catering: !prev.catering }; if (newState.catering) { setClassConfigs(cPrev => { const next = { ...cPrev }; const gen = next.general.catering; ["economy", "premium", "business", "first"].forEach(cl => { next[cl].catering = gen; }); return next; }); } return newState; }); }}
+                onClick={() => toggleTakeControl('catering')}
                 className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest border transition-all ${takeControl.catering ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
               >
                 Take Control
@@ -198,7 +210,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       currentArr[activeMealIndex] = ['none'];
                       next[activeConfigClass!] = { ...next[activeConfigClass!], catering: currentArr };
                       if (activeConfigClass === 'general' && takeControl.catering) {
-                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].catering = currentArr; });
+                        copyToCabinClasses(next, 'catering', currentArr);
                       }
                       return next;
                     });
@@ -250,7 +262,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                                       currentArr[activeMealIndex] = mIds;
                                       next[activeConfigClass!] = { ...next[activeConfigClass!], catering: currentArr };
                                       if (activeConfigClass === 'general' && takeControl.catering) {
-                                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].catering = currentArr; });
+                                        copyToCabinClasses(next, 'catering', currentArr);
                                       }
                                       return next;
                                     });
@@ -261,7 +273,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                                     <span className="text-[9px] font-black uppercase leading-tight line-clamp-2">{meal.label}</span>
                                     <span className="text-[8px] opacity-60 block mt-0.5">${meal.cost.toFixed(2)}</span>
                                   </div>
-                                  <span className="text-xs font-black italic mt-auto">+{Math.round(meal.sat * satMultiplier)}%</span>
+                                  <span className="text-xs font-black italic mt-auto">+{Math.round(meal.sat * satMultiplier)} pts</span>
                                 </button>
                               );
                             })}
@@ -287,7 +299,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             </div>
             {activeConfigClass === 'general' && (
               <button 
-                onClick={() => { setTakeControl(prev => { const newState = { ...prev, extras: !prev.extras }; if (newState.extras) { setClassConfigs(cPrev => { const next = { ...cPrev }; const gen = next.general.extras; ["economy", "premium", "business", "first"].forEach(cl => { next[cl].extras = gen; }); return next; }); } return newState; }); }}
+                onClick={() => toggleTakeControl('extras')}
                 className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest border transition-all ${takeControl.extras ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
               >
                 Take Control
@@ -327,7 +339,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       }
                       next[activeConfigClass!] = { ...next[activeConfigClass!], extras: current };
                       if (activeConfigClass === 'general' && takeControl.extras) {
-                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].extras = current; });
+                        copyToCabinClasses(next, 'extras', current);
                       }
                       return next;
                     });
@@ -340,11 +352,11 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       {isWifiDisabled && <span className="text-[7px] bg-[#111] text-aero-yellow/60 px-1 py-0.5 rounded italic font-black font-mono">REQ. WIFI</span>}
                       {isGalleyDisabled && <span className="text-[7px] bg-[#111] text-aero-yellow/60 px-1 py-0.5 rounded italic font-black font-mono">REQ. PREM. GALLEY</span>}
                     </div>
-                    <span className="text-xs font-bold font-mono">${opt.cost} / FLT</span>
+                    <span className="text-xs font-bold font-mono">${opt.cost} / PAX</span>
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-[10px] font-black uppercase ${isSelected ? 'text-black/60' : 'text-white/40'}`}>SAT</span>
-                    <span className="text-lg font-black italic">+{Math.round(opt.sat * satMultiplier)}%</span>
+                    <span className="text-lg font-black italic">+{Math.round(opt.sat * satMultiplier)} pts</span>
                   </div>
                 </button>
               );
@@ -363,7 +375,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             </div>
             {activeConfigClass === 'general' && (
               <button 
-                onClick={() => { setTakeControl(prev => { const newState = { ...prev, service: !prev.service }; if (newState.service) { setClassConfigs(cPrev => { const next = { ...cPrev }; const gen = next.general.service; ["economy", "premium", "business", "first"].forEach(cl => { next[cl].service = gen; }); return next; }); } return newState; }); }}
+                onClick={() => toggleTakeControl('service')}
                 className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest border transition-all ${takeControl.service ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
               >
                 Take Control
@@ -388,7 +400,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       }
                       next[activeConfigClass!] = { ...next[activeConfigClass!], service: current };
                       if (activeConfigClass === 'general' && takeControl.service) {
-                        ["economy", "premium", "business", "first"].forEach(cl => { next[cl].service = current; });
+                        copyToCabinClasses(next, 'service', current);
                       }
                       return next;
                     });
@@ -401,7 +413,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-[10px] font-black uppercase ${isSelected ? 'text-black/60' : 'text-white/40'}`}>SAT</span>
-                    <span className="text-lg font-black italic">+{Math.round(opt.sat * satMultiplier)}%</span>
+                    <span className="text-lg font-black italic">+{Math.round(opt.sat * satMultiplier)} pts</span>
                   </div>
                 </button>
               );

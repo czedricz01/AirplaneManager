@@ -22,7 +22,7 @@ export function conditionTone(value: number): 'warn' | 'yellow' | 'neutral' {
 }
 
 export const CONDITION_TEXT_CLASS: Record<ReturnType<typeof conditionTone>, string> = {
-  warn: 'text-aero-yellow/60 font-black animate-pulse',
+  warn: 'text-aero-warn font-black animate-pulse',
   yellow: 'text-yellow-400 font-bold',
   neutral: 'text-white font-bold',
 };
