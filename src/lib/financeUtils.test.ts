@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getCateringOpt, getMultiOptionSum, applyDiminishingReturns } from './financeUtils';
+import { getCateringOpt, getMultiOptionSum, applyDiminishingReturns, buildRivalRoutesByPair, marketKey } from './financeUtils';
 import { MEAL_DATA, EXTRAS_OPTIONS } from '../data/catering';
 
 test('getCateringOpt sums cost across combined meal items instead of averaging', () => {
@@ -190,4 +190,28 @@ test('unlocking a tier applies its effects and never lowers the tier', () => {
 test('what can be built follows the airport size and the year', () => {
   assert.deepEqual(getInfraAvailability({ level: 2 }, 1990), { widebodySlots: false, stands: false, selfCheckIn: false });
   assert.deepEqual(getInfraAvailability({ level: 3 }, 1995), { widebodySlots: true, stands: true, selfCheckIn: true });
+});
+
+test('COMP hint counts rivals on the exact origin-destination pair, not merely at the destination', () => {
+  // Regression for a historical bug where the "COMP" count on the route planner's
+  // destination list was built from any rival route touching the candidate airport
+  // -- origin or destination -- instead of the exact pair the player was building.
+  const aiAirlines = [
+    { routes: [{ origin: 'FRA', destination: 'JFK' }, { origin: 'FRA', destination: 'CDG' }] },
+    { routes: [{ origin: 'JFK', destination: 'FRA' }] }, // same market as FRA-JFK, reversed
+    { routes: [{ origin: 'LHR', destination: 'JFK' }] },  // touches JFK, but a different pair
+  ];
+  const byPair = buildRivalRoutesByPair(aiAirlines);
+
+  // Player is building FRA -> JFK: two rivals fly this exact pair (one each direction).
+  assert.equal(byPair.get(marketKey('FRA', 'JFK')), 2);
+
+  // Player is building CDG -> JFK: nobody flies this exact pair, even though CDG has a
+  // FRA rival and JFK has two others. The old destination-only bug would have counted
+  // every route touching JFK (3) here instead of 0.
+  assert.equal(byPair.get(marketKey('CDG', 'JFK')) || 0, 0);
+
+  // Player is building FRA -> CDG: exactly the one rival on that exact pair, not the
+  // two other rivals that merely touch FRA on unrelated pairs.
+  assert.equal(byPair.get(marketKey('FRA', 'CDG')) || 0, 1);
 });

@@ -482,7 +482,7 @@ export function calculateDemand(
     // Adjusted to be lower on long-haul routes (higher timeClass)
     const tcDemandMultiplier = Math.max(0.4, 3.1 - (timeClass * 0.35));
 
-    const baseDemand = 34.141967 * Math.pow(totalInteraction, 0.448351) * S * E * tcDemandMultiplier * eventMult * extraDemandFactor;
+    const baseDemand = 29.0 * Math.pow(totalInteraction, 0.448351) * S * E * tcDemandMultiplier * eventMult * extraDemandFactor;
     const businessRatio = totalInteraction > 0 ? businessInteraction / totalInteraction : 0.5;
     const premiumMultiplier = Math.pow(timeClass / 8, 0.7);
 
@@ -605,11 +605,12 @@ export function calculateClassSatisfaction(c: string, aircraft: any, config: any
       
       // hardProduct/softProduct both carry a flat +20 floor, so providedQuality can
       // never drop below ~20 (normal check-in desks) even with every service set to
-      // "none". economy's base has to clear that floor or baseSat is >100% no matter
-      // how bad the configuration is -- it was 12, which made worst-case economy SAT
-      // over 150% regardless of input. 25 keeps economy the easiest class to satisfy
-      // (still well below premium/business/first) while staying above the floor.
-      const expectationBase: Record<string, number> = { economy: 25, premium: 30, business: 65, first: 95 };
+      // "none". Economy and premium sit far below business/first here on purpose --
+      // a zero-spend config used to clear 100% in both regardless of input, so 100%
+      // cost real catering/extras/service spend only in the classes passengers
+      // already expect to pay more for. Business/first were raised only slightly:
+      // they already required real investment to satisfy.
+      const expectationBase: Record<string, number> = { economy: 42, premium: 48, business: 72, first: 104 };
       const eBase = expectationBase[c] || 18;
       const expectationMultiplier = 1.0 + ((timeClass - 1) * 0.15);
       const expectationTarget = eBase * expectationMultiplier;
@@ -744,7 +745,7 @@ export function getPriceDemandMultiplier(price: number, satBasePrice: number, sa
  * a full aircraft worth a modest premium; beyond it, raising the fare costs
  * passengers in every era, which is what makes pricing a decision again.
  */
-export const MAX_DEMAND_SURPLUS = 1.3;
+export const MAX_DEMAND_SURPLUS = 1.2;
 
 /**
  * One airline's offer on a city pair, for the market-share split below.
@@ -760,6 +761,25 @@ export interface RouteOffer {
 
 /** City pair, direction-insensitive: FRA-CDG and CDG-FRA are the same market. */
 export const marketKey = (a: string, b: string) => [a, b].sort().join('>');
+
+/**
+ * Rival AI routes grouped by exact city pair, for an O(1) "how many rivals
+ * fly this exact route" lookup per candidate. Keying by `marketKey` (both
+ * endpoints) rather than by a single airport is what makes this exact --
+ * grouping by destination alone would count every rival merely touching that
+ * airport, on any origin, as "competition" on a route that hasn't been picked
+ * yet.
+ */
+export function buildRivalRoutesByPair(aiAirlines: any[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const ai of aiAirlines || []) {
+    for (const r of ai.routes || []) {
+      const key = marketKey(r.origin, r.destination);
+      m.set(key, (m.get(key) || 0) + 1);
+    }
+  }
+  return m;
+}
 
 /**
  * How attractive an offer is to a passenger choosing between airlines.
