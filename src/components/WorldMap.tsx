@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { Airport } from '../data/airportTypes';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { LiveTraffic } from './LiveTraffic';
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { MAP_YELLOW, MAP_CONGESTION_COLORS } from '../lib/theme';
 
 /**

@@ -807,18 +807,47 @@ ihre eigenen Schalter nie überlasten konnte, obwohl der Planer genau das
 anzeigte. Betroffen sind nur überlastete Schalter; die drei Referenzrouten der
 Baseline (FRA–CDG, FRA–JFK, LHR–SIN in 1965/1975/2024) sind unverändert.
 
-## E4 — Offen
+## E4 — Nachträge (24.09.2026)
 
-- Gespeicherte Kabinenkonfigurationen werden nach einem Umbau nicht neu
-  geprüft. Entfällt z. B. die Premium-Galley, rechnet die Wirtschaft weiter mit
-  einem dann unzulässigen Menü, bis die Kabine im Planer neu gespeichert wird
-  (der Planer zeigt bereits den bereinigten Wert).
-- Der Haupt-Chunk ist 1,14 MB groß (Vite-Warnung); Code-Splitting der Ansichten
-  wäre der nächste Performance-Schritt.
+Die beiden zuvor offenen Punkte sind behoben:
+
+- **Kabinenkonfiguration nach Umbau.** `getRouteClassSatisfaction` in
+  `financeUtils.ts` validiert `route.classConfigs` jetzt selbst, über
+  `validateClassConfigs` (bisher nur im Planer-Editor aufgerufen), bevor sie
+  in die Zufriedenheit und die Cateringkosten einfließt. `classConfigFor` wird
+  in Wirtschaft, Planer, Overlay und Routendetail ausnahmslos mit dem
+  zurückgegebenen, bereinigten Objekt aufgerufen — nicht mehr mit der rohen,
+  gespeicherten Route. Verliert ein Flugzeug beim Umbau z. B. die
+  Premium-Galley oder ein Hub seine Catering-Einrichtung, entfällt das dann
+  unzulässige Menü ab dem nächsten Monatswechsel automatisch, ohne dass der
+  Kabinen-Editor der Route erneut geöffnet werden muss. Die Route selbst
+  bleibt dabei unverändert (kein Schreibzugriff auf den gespeicherten
+  Spielstand); nur die Berechnung liest bereinigt. Test:
+  `financeUtils.test.ts`, „a cabin menu the aircraft or hub no longer
+  supports is not priced or costed“.
+- **Haupt-Chunk 1,14 MB.** Die zehn Hauptansichten (`BuyAircraftView`,
+  `ConfigurePurchaseView`, `MyFleetView`, `RoutesView`, `RoutePlannerView`,
+  `AirportsView`, `AirportDetailView`, `RouteScheduleEditView`,
+  `MyCompanyView`, `CompetitorsView`) werden jetzt per `React.lazy` erst beim
+  Öffnen des jeweiligen Tabs nachgeladen, mit `React.Suspense` und einer
+  neuen `LazyFallback`-Komponente als Ladeanzeige; die bestehende
+  `ErrorBoundary` je Ansicht bleibt darüber liegen. Reine Typ-Importe
+  (`OwnedAircraft`, `ConfigOutput`, `AiAirline`) wurden auf `import type`
+  umgestellt, damit sie keine Laufzeit-Kopplung an die jetzt asynchron
+  geladenen Module mehr erzeugen. Wirkung im produktiven Build
+  (`build:pages`, von `deploy-pages.yml` verwendet): Haupt-Chunk 1.138,59 kB
+  → 744,39 kB (−35 %), keine Vite-Warnung mehr; jede Ansicht liegt jetzt in
+  einem eigenen, einzeln cachefähigen Chunk (meist < 35 kB, `RoutePlannerView`
+  132 kB, `ConfigurePurchaseView` 68 kB). Der einzeldatei-Offline-Build
+  (`build:static`, der bewusst eine Datei bleiben soll) bündelt die
+  dynamischen Importe unverändert per `inlineDynamicImports` zu einer Datei
+  zurück — geprüft, keine Regression.
 
 ## E5 — Verifikation
 
-- `npm run lint` (tsc) ohne Fehler, `npm test` 57/57, `npm run build:pages` ok.
+- `npm run lint` (tsc) ohne Fehler, `npm test` 58/58 (ein neuer Test für die
+  Kabinenvalidierung), `npm run build:pages` ohne Warnung, `npm run
+  build:static` weiterhin eine Datei.
 - Browser (Playwright/Chromium) mit eingespieltem Spielstand: Flugnummer mit
   Airline-Code; Auslastung 92 % statt 100 %; SAT Routendetail = Planer (381 %);
   Löschen verlangt Bestätigung; Editor zeigt Block 08:00 / Takeoff 08:30 wie
@@ -826,4 +855,9 @@ Baseline (FRA–CDG, FRA–JFK, LHR–SIN in 1965/1975/2024) sind unverändert.
   Marktanteil berechnet; KI-Zuschuss ausgewiesen; ICAO-Filter wirkt nach dem
   Scrollen; Hinweis aus der Flughafenkonsole liegt obenauf; T1-Preis = Level ×
   30.000 $; Dezimaltrenner übersteht Neuladen; keine Konsolenfehler.
+- Browser, zusätzlich für E4: alle sechs Haupttabs sowie der (in „Routes“
+  verschachtelte) Routenplaner und die (in „Airports“ verschachtelte)
+  Flughafenkonsole laden fehlerfrei über ihre jeweiligen Chunks; unter
+  gedrosseltem Netzwerk (40 KB/s) zeigt „Route Planner“ kurz die
+  `LazyFallback`-Anzeige, bevor der Inhalt erscheint.
 - `server.ts` per `curl`: Traversal, SVG, fremde Hosts → 400; gültiger Upload ok.

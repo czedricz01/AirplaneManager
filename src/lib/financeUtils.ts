@@ -662,6 +662,18 @@ export function getRouteClassSatisfaction(
 
   const origin = { id: route.origin };
   const dest = { id: route.destination };
+
+  // A saved cabin selection can go stale: a refit that drops premium catering
+  // or Wi-Fi, or a hub that loses its catering facility, used to leave the
+  // route's classConfigs pointing at a menu nothing can still serve. The
+  // economy priced and costed it anyway, silently, until the player happened
+  // to reopen the cabin editor -- the only place this ran before. Validated
+  // here instead, so every route is always priced against what its aircraft
+  // and airports can currently support.
+  const classConfigs = aircraft
+    ? validateClassConfigs(route.classConfigs, aircraft, mgt, origin, dest)
+    : (route.classConfigs || {});
+
   const originDeskSim = getDeskSim(route.origin, mgt, allRoutes, fleet, origin, dest, aircraft, weeklyFlights, route.id);
   const destDeskSim = getDeskSim(route.destination, mgt, allRoutes, fleet, origin, dest, aircraft, weeklyFlights, route.id);
   const overloadPenalty = (originDeskSim.sat < 0 ? originDeskSim.sat : 0) + (destDeskSim.sat < 0 ? destDeskSim.sat : 0);
@@ -673,7 +685,7 @@ export function getRouteClassSatisfaction(
     const seats = aircraft?.config?.[c] || 0;
     if (seats <= 0) continue;
     const satData = calculateClassSatisfaction(
-      c, aircraft, classConfigFor(route.classConfigs, c), durMin, mgt,
+      c, aircraft, classConfigFor(classConfigs, c), durMin, mgt,
       route.origin, route.destination, difficulty, slotType
     );
     routeSat[c] = Math.max(0, satData.satisfactionPercentage + overloadPenalty);
@@ -686,7 +698,7 @@ export function getRouteClassSatisfaction(
     };
   }
 
-  return { routeSat, satisfactionDetails, overloadPenalty, originDeskSim, destDeskSim };
+  return { routeSat, satisfactionDetails, overloadPenalty, originDeskSim, destDeskSim, classConfigs };
 }
 
 /** Seat-weighted mean satisfaction over the classes an aircraft actually has. */
@@ -854,12 +866,13 @@ export function calculateRouteFinancials(
 
   const timeClass = getFlightTimeClass(durMin);
 
-  const classConfigs = route.classConfigs || {};
-
   // Satisfaction per class: the single definition every screen also uses.
   // Returned as part of the result instead of being written onto the route
-  // argument, which is a React state object at most call sites.
-  const { routeSat, satisfactionDetails } = getRouteClassSatisfaction(route, aircraft, airportManagement, allRoutes, fleet, difficulty);
+  // argument, which is a React state object at most call sites. `classConfigs`
+  // comes back validated against the aircraft and airports, so the catering
+  // cost below never bills for an option the satisfaction figure has already
+  // discarded.
+  const { routeSat, satisfactionDetails, classConfigs } = getRouteClassSatisfaction(route, aircraft, airportManagement, allRoutes, fleet, difficulty);
 
   const originStats = getAirportStats(originAirport, currentYear);
   const destStats = getAirportStats(destAirport, currentYear);

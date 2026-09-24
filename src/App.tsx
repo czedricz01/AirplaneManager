@@ -258,15 +258,9 @@ const createDefaultPlanningClassConfigs = (): Record<string, any> => ({
   first: { catering: [['none']], extras: ['none'], service: ['none'] }
 });
 
-import { BuyAircraftView } from "./components/BuyAircraftView";
-import { MyFleetView, OwnedAircraft } from "./components/MyFleetView";
-import { RoutesView } from "./components/RoutesView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
-import { RoutePlannerView } from "./components/RoutePlannerView";
-import { AirportsView } from "./components/AirportsView";
-import { AirportDetailView } from "./components/AirportDetailView";
-import RouteScheduleEditView from "./components/RouteScheduleEditView";
 import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
@@ -276,9 +270,31 @@ import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
 import type { GameMessage } from "./lib/gameTypes";
 export type { GameMessage };
-import { ConfigurePurchaseView, ConfigOutput } from "./components/ConfigurePurchaseView";
-import { MyCompanyView } from "./components/MyCompanyView";
-import { CompetitorsView, AiAirline } from "./components/CompetitorsView";
+import type { OwnedAircraft } from "./components/MyFleetView";
+import type { ConfigOutput } from "./components/ConfigurePurchaseView";
+import type { AiAirline } from "./components/CompetitorsView";
+
+/**
+ * Every one of these is reached only after a tab click or opening a route or
+ * an aircraft -- never on the first paint (the start menu, then the map) --
+ * so bundling all of them into the entry chunk only slowed that first paint
+ * down for a screen a session might not even open. `lazy()` plus the
+ * `<Suspense>` around each render site below defers the download and the
+ * parse to the moment it is actually opened; on a warm cache the difference
+ * is imperceptible. `RoutePlannerView` alone is ~3,600 lines and
+ * `ConfigurePurchaseView` ~1,500 -- between them the two biggest single cuts
+ * to the shipped bundle.
+ */
+const BuyAircraftView = React.lazy(() => import("./components/BuyAircraftView").then(m => ({ default: m.BuyAircraftView })));
+const MyFleetView = React.lazy(() => import("./components/MyFleetView").then(m => ({ default: m.MyFleetView })));
+const RoutesView = React.lazy(() => import("./components/RoutesView").then(m => ({ default: m.RoutesView })));
+const RoutePlannerView = React.lazy(() => import("./components/RoutePlannerView").then(m => ({ default: m.RoutePlannerView })));
+const AirportsView = React.lazy(() => import("./components/AirportsView").then(m => ({ default: m.AirportsView })));
+const AirportDetailView = React.lazy(() => import("./components/AirportDetailView").then(m => ({ default: m.AirportDetailView })));
+const RouteScheduleEditView = React.lazy(() => import("./components/RouteScheduleEditView"));
+const ConfigurePurchaseView = React.lazy(() => import("./components/ConfigurePurchaseView").then(m => ({ default: m.ConfigurePurchaseView })));
+const MyCompanyView = React.lazy(() => import("./components/MyCompanyView").then(m => ({ default: m.MyCompanyView })));
+const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").then(m => ({ default: m.CompetitorsView })));
 
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
@@ -2674,6 +2690,7 @@ export default function App() {
                   <React.Fragment key={decimalSymbol}>
                   {activeWindow === 'buy-aircraft' ? (
                     <ViewFrame label="Buy Aircraft" onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="Buy Aircraft" />}>
                         <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} />
                         {selectedPurchasingAircraft && (
                           <ConfigurePurchaseView
@@ -2686,9 +2703,11 @@ export default function App() {
                             onConfirmPurchase={handlePurchase}
                           />
                         )}
+                      </React.Suspense>
                     </ViewFrame>
                   ) : activeWindow === 'my-fleet' ? (
                     <ViewFrame label="My Fleet" onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="My Fleet" />}>
                         <MyFleetView
                            fleet={fleet}
                            routes={routes}
@@ -2699,9 +2718,11 @@ export default function App() {
                            onSell={handleSellAircraft}
                            airlineCode={airlineCode}
                         />
+                      </React.Suspense>
                     </ViewFrame>
                   ) : activeWindow === 'routes' ? (
                     <ViewFrame label="Routes" onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="Routes" />}>
                         <RoutesView
                           routes={routesWithMetrics}
                           fleet={fleet}
@@ -2725,18 +2746,22 @@ export default function App() {
                           difficulty={difficulty}
                           airlineCode={airlineCode}
                         />
+                      </React.Suspense>
                     </ViewFrame>
                   ) : activeWindow === 'airports' ? (
                     <ViewFrame label="Airports" onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="Airports" />}>
                         <AirportsView
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           onSelectAirport={setSelectedAirport}
                           airportManagement={airportManagement}
                           aiAirlines={aiAirlines}
                         />
+                      </React.Suspense>
                     </ViewFrame>
                   ) : activeWindow === 'my-company' ? (
                     <ViewFrame label="My Company" onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="My Company" />}>
                         <MyCompanyView
                           capital={capital}
                           reportHistory={reportHistory}
@@ -2748,9 +2773,11 @@ export default function App() {
                           fleetCount={fleet.length}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
                         />
+                      </React.Suspense>
                     </ViewFrame>
                   ) : activeWindow === 'competitors' ? (
                     <ViewFrame label="Rivals" onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="Rivals" />}>
                         <CompetitorsView
                           aiAirlines={aiAirlines}
                           playerCapital={capital}
@@ -2764,6 +2791,7 @@ export default function App() {
                           playerProfitHistory={playerProfitHistory}
                           playerRouteProfits={routeProfits}
                         />
+                      </React.Suspense>
                     </ViewFrame>
                   ) : activeWindow !== 'map' && (
                     <ViewFrame contentClassName="w-full h-full flex flex-col items-center p-4 overflow-y-auto pt-8">
@@ -2786,7 +2814,8 @@ export default function App() {
                     if (!editRoute || !editAircraft) return null;
                     return (
                      <ErrorBoundary label="Schedule Editor" onReset={() => setIsEditingSchedule(false)} resetLabel="CLOSE EDITOR">
-                      <RouteScheduleEditView 
+                      <React.Suspense fallback={<LazyFallback label="Schedule Editor" />}>
+                      <RouteScheduleEditView
                         route={editRoute}
                         aircraft={editAircraft}
                         allAirports={airports}
@@ -2805,6 +2834,7 @@ export default function App() {
                           }
                         }}
                       />
+                      </React.Suspense>
                      </ErrorBoundary>
                     );
                   })()}
@@ -2812,6 +2842,7 @@ export default function App() {
                   {editingCabinRouteId && (
                     <div className="absolute inset-0 z-[60] flex">
                      <ErrorBoundary label="Cabin Editor" onReset={() => setEditingCabinRouteId(null)} resetLabel="CLOSE EDITOR">
+                      <React.Suspense fallback={<LazyFallback label="Cabin Editor" />}>
                       <RoutePlannerView
                         airports={airports}
                         fleet={fleet}
@@ -2836,6 +2867,7 @@ export default function App() {
                         aiAirlines={aiAirlines}
                         airlineCode={airlineCode}
                       />
+                      </React.Suspense>
                      </ErrorBoundary>
                     </div>
                   )}
@@ -2843,6 +2875,7 @@ export default function App() {
                   {editingPricingRouteId && (
                     <div className="absolute inset-0 z-[60] flex">
                      <ErrorBoundary label="Pricing Editor" onReset={() => setEditingPricingRouteId(null)} resetLabel="CLOSE EDITOR">
+                      <React.Suspense fallback={<LazyFallback label="Pricing Editor" />}>
                       <RoutePlannerView
                         airports={airports}
                         fleet={fleet}
@@ -2867,6 +2900,7 @@ export default function App() {
                         aiAirlines={aiAirlines}
                         airlineCode={airlineCode}
                       />
+                      </React.Suspense>
                      </ErrorBoundary>
                     </div>
                   )}
@@ -2874,6 +2908,7 @@ export default function App() {
                   {isPlanningRoute && (
                     <div className="absolute inset-0 z-[45] flex">
                      <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="CLOSE PLANNER">
+                      <React.Suspense fallback={<LazyFallback label="Route Planner" />}>
                       <RoutePlannerView
                         airports={airports}
                         fleet={fleet}
@@ -2948,6 +2983,7 @@ export default function App() {
                         onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
                         pendingSlotBills={pendingSlotBills}
                       />
+                      </React.Suspense>
                      </ErrorBoundary>
                     </div>
                   )}
@@ -2956,6 +2992,7 @@ export default function App() {
                   {selectedAirport && (
                     <div className="absolute inset-0 z-[2000]">
                      <ErrorBoundary label="Airport" onReset={() => setSelectedAirport(null)} resetLabel="CLOSE AIRPORT">
+                      <React.Suspense fallback={<LazyFallback label="Airport" />}>
                       <AirportDetailView
                         airport={selectedAirport}
                         currentDateOffset={currentDateOffset}
@@ -3027,6 +3064,7 @@ export default function App() {
                           setSelectedAirport(null);
                         }}
                       />
+                      </React.Suspense>
                      </ErrorBoundary>
                     </div>
                   )}

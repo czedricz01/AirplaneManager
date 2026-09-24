@@ -5,7 +5,7 @@ import { RouteDetailView } from './RouteDetailView';
 import { getFlightTimeClass, type RouteOffer } from '../lib/financeUtils';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { ViewHeader } from './ui/ViewHeader';
 import { TableScrollContainer, Table, Thead, Th, Td } from './ui/Table';
 import { Button } from './ui/Button';

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Utensils, Wifi, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport } from '../data/airports';
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { AirportInfrastructure } from '../App';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 

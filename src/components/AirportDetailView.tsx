@@ -4,7 +4,7 @@ import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info } from 'lucide-react';
 import { ManagementLevel, AirportInfrastructure } from '../App';
 
-import { OwnedAircraft } from './MyFleetView';
+import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { SimulatedRoute } from '../App';
 
