@@ -127,7 +127,15 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
       if (valA > valB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [search, sortField, sortDir, currentYear]);
+    // icaoFilter was missing here, so choosing an ICAO class changed nothing.
+  }, [search, icaoFilter, sortField, sortDir, currentYear]);
+
+  // A narrower result keeps the old scroll offset otherwise, and the window of
+  // rendered rows then starts past the end of the list: an empty table.
+  React.useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    setScrollTop(0);
+  }, [search, icaoFilter]);
 
   const totalRows = filteredAndSortedAirports.length;
   const firstVisible = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);

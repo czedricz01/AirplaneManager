@@ -44,7 +44,8 @@ const defaultUi: PlannerUiState = {
   originSearch: '',
   destSearch: '',
   aircraftSearch: '',
-  destSortBy: 'tb',
+  // Must be one of the sort buttons' ids, or none of them shows as active.
+  destSortBy: 'combined',
   activeConfigClass: null,
   expandedSections: { plane: false, sce: false, airport: false },
   expandedMealCats: { Basic: false, Standard: false, Premium: false, Luxury: false },

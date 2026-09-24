@@ -15,8 +15,16 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Airport } from '../data/airports';
-import { getFlightDurationMinutes } from '../lib/financeUtils';
-import { Aircraft } from '../data/aircraft';
+import {
+  BOARDING_MIN,
+  DAY_MIN,
+  WEEK_MIN,
+  blockMinutes,
+  checkOverlap,
+  occupiedIntervals,
+  tripInterval,
+  tripStartMinute
+} from '../lib/scheduleUtils';
 import { OwnedAircraft } from './MyFleetView';
 import { SimulatedRoute, AirportInfrastructure } from '../App';
 
@@ -44,6 +52,9 @@ interface RouteScheduleEditViewProps {
   onSave: (updatedRoute: SimulatedRoute) => void;
   onClose: () => void;
 }
+
+const referenceTrip = <T extends { isGroupLead?: boolean }>(trips: T[]): T | undefined =>
+  trips.find(s => s.isGroupLead) || trips[0];
 
 const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   route,
@@ -75,186 +86,71 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       turnoverMin: Number(s.turnoverMin) || 0
     }));
   });
+  // The clock follows this trip; the shift below moves every trip by the same
+  // amount. It must be the same trip the clock starts from, or opening the
+  // editor would already shift the timetable.
   const [flightHour, setFlightHour] = useState<number>(() => {
-    const val = Number(route.schedule && route.schedule.length > 0 ? route.schedule[0].startHour : 12);
+    const val = Number(referenceTrip(route.schedule || [])?.startHour ?? 12);
     return isNaN(val) ? 12 : val;
   });
   const [flightMinute, setFlightMinute] = useState<number>(() => {
-    const val = Number(route.schedule && route.schedule.length > 0 ? route.schedule[0].startMin : 0);
+    const val = Number(referenceTrip(route.schedule || [])?.startMin ?? 0);
     return isNaN(val) ? 0 : val;
   });
-  const [multipleOps, setMultipleOps] = useState(1);
-  const [maximizeFlights, setMaximizeFlights] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [validationMsg, setValidationMsg] = useState<string | null>(null);
 
-  const initialBaseNum = route.schedule?.[0]?.flightNumOut ? parseInt(route.schedule[0].flightNumOut) : Math.floor(1000 + Math.random() * 8000);
-  const [flightNumberBase, setFlightNumberBase] = useState(isNaN(initialBaseNum) ? 1000 : initialBaseNum);
-
-  const getTurnoverMinutes = () => 45; // Fixed for now or based on aircraft
-
-  // Shared with the route planner, so a schedule edited here keeps the duration
-  // the route was planned and priced with.
-  const durMin = getFlightDurationMinutes(selectedOrigin, selectedDest, aircraft);
-  const turnMin = getTurnoverMinutes();
-
-  const displayMins = (Number(flightHour) * 60 + Number(flightMinute) - 30 + 10080) % 1440;
-  const displayH = Math.floor(displayMins / 60);
-  const displayM = displayMins % 60;
+  // `startHour/startMin` is the start of the block, as everywhere else: the
+  // clock shows it directly and takeoff is BOARDING_MIN later. This editor
+  // used to read it as the takeoff time, so it drew every flight half an hour
+  // earlier than the planner, the route details and the live map.
+  const blockStartMin = Number(flightHour) * 60 + Number(flightMinute);
+  const displayH = Math.floor(blockStartMin / 60) % 24;
+  const displayM = blockStartMin % 60;
+  const takeoffMin = (blockStartMin + BOARDING_MIN) % DAY_MIN;
+  const fmtClock = (m: number) => `${Math.floor(m / 60).toString().padStart(2, '0')}:${(m % 60).toString().padStart(2, '0')}`;
 
   const updateFromDisplay = (newH: number, newM: number) => {
     const h = Number(newH);
     const m = Number(newM);
     if (isNaN(h) || isNaN(m)) return;
-    const newFlightTotal = (h * 60 + m + 30) % 1440;
-    setFlightHour(Math.floor(newFlightTotal / 60));
-    setFlightMinute(newFlightTotal % 60);
+    setFlightHour(h);
+    setFlightMinute(m);
   };
 
-  // Find optimal config for maximize or initial auto-fill
-  const findOptimalConfig = () => {
-    const totalDurRaw = (30 + durMin + turnMin + durMin + 30);
-    const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
-    const maxWeekMins = 10080;
-
-    const otherRoutes = allRoutes.filter(r => r.aircraft === aircraft.registration && r.id !== route.id);
-    const occupied = otherRoutes.flatMap(r => r.schedule?.map(s => {
-      const exCycleRaw = (s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
-      const exCycle = Math.ceil(exCycleRaw / 5) * 5;
-      const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
-      return { start, end: start + exCycle };
-    }) || []);
-
-    const aircraftClass = aircraft.class;
-    const slotKey = aircraftClass.toLowerCase() as 'regional' | 'narrowbody' | 'widebody';
-    const originInfra = airportManagement[route.origin];
-    const destInfra = airportManagement[route.destination];
-    const originCap = originInfra?.slots?.[slotKey] || 0;
-    const destCap = destInfra?.slots?.[slotKey] || 0;
-    const originUsed = getUsedWeeklySlots(route.origin, aircraftClass);
-    const destUsed = getUsedWeeklySlots(route.destination, aircraftClass);
-    const remainingSlots = Math.min(originCap - originUsed, destCap - destUsed);
-
-    if (remainingSlots <= 0) return { hour: 8, minute: 0, autoSchedule: [] };
-
-    let bestCount = -1;
-    let bestStartTimes: number[] = [];
-
-    // Search for the best start time to pack as many flights as possible
-    for (let testStart = 0; testStart < 1440; testStart += 5) {
-      let searchTime = testStart;
-      let added = 0;
-      let i = 0;
-      const localOccupied = [...occupied];
-
-      // Test all 7 days for this specific start time
-      for (let dayId = 1; dayId <= 7; dayId++) {
-        const candidateStart = ((dayId - 1) * 1440 + testStart) % maxWeekMins;
-        const candidateEnd = candidateStart + cycleMin;
-        
-        let conflict = false;
-        for (const occ of localOccupied) {
-          if (checkOverlap(candidateStart, candidateEnd, occ.start, occ.end)) {
-            conflict = true; break;
-          }
-        }
-        
-        if (!conflict && added < remainingSlots) {
-          localOccupied.push({ start: candidateStart, end: candidateEnd });
-          added++;
-        }
-      }
-
-      if (added > bestCount) {
-        bestCount = added;
-        bestStartTimes = [testStart];
-      } else if (added === bestCount) {
-        bestStartTimes.push(testStart);
-      }
-    }
-
-    const chosenPrepStart = bestStartTimes[0] !== undefined ? bestStartTimes[0] : (displayH * 60 + displayM);
-    const departureTotal = (chosenPrepStart + 30 + 10080) % 10080;
-    const h = Math.floor((departureTotal % 1440) / 60);
-    const m = (departureTotal % 1440) % 60;
-    
-    const autoSchedule: ScheduledTrip[] = [];
-    const groupId = Math.random().toString();
-    let numOffset = 0;
-
-    for (let dayId = 1; dayId <= 7; dayId++) {
-      if (autoSchedule.length >= remainingSlots) break;
-      const prepStart = (dayId - 1) * 1440 + chosenPrepStart;
-      const depStart = (prepStart + 30 + 10080) % 10080;
-      
-      let conflict = false;
-      for (const occ of occupied) {
-        if (checkOverlap(prepStart, prepStart + cycleMin, occ.start, occ.end)) { conflict = true; break; }
-      }
-      if (conflict) continue;
-
-        autoSchedule.push({
-          id: Math.random().toString(),
-          groupId,
-          isGroupLead: autoSchedule.length === 0,
-          flightNumOut: (flightNumberBase + (autoSchedule.length * 2)).toString(),
-          flightNumIn: (flightNumberBase + (autoSchedule.length * 2) + 1).toString(),
-          dayId: Math.floor((depStart % 10080) / 1440) + 1,
-          startHour: Math.floor((depStart % 1440) / 60),
-          startMin: (depStart % 1440) % 60,
-          durMin,
-          turnoverMin: turnMin
-        });
-    }
-
-    return { hour: h, minute: m, autoSchedule };
-  };
+  // The other routes this aircraft flies; they cannot move from here.
+  const occupied = useMemo(
+    () => occupiedIntervals(allRoutes, aircraft.registration, route.id),
+    [allRoutes, aircraft.registration, route.id]
+  );
+  const conflictsWithOtherRoutes = (trips: ScheduledTrip[]) =>
+    trips.some(trip => {
+      const own = tripInterval(trip);
+      return occupied.some(occ => checkOverlap(own.start, own.end, occ.start, occ.end));
+    });
 
   // Shift schedule when flightHour/Minute changes
   useEffect(() => {
-    if (schedule.length > 0 && !maximizeFlights) {
-      const firstLead = schedule.find(s => s.isGroupLead);
-      if (firstLead) {
-        const deltaMin = (flightHour * 60 + flightMinute) - (firstLead.startHour * 60 + firstLead.startMin);
-        if (deltaMin === 0) return;
+    if (schedule.length === 0) return;
+    const firstLead = referenceTrip(schedule)!;
+    const deltaMin = (flightHour * 60 + flightMinute) - (firstLead.startHour * 60 + firstLead.startMin);
+    if (deltaMin === 0) return;
 
-        const nextSchedule = schedule.map(trip => {
-          const currentTotal = (trip.dayId - 1) * 1440 + trip.startHour * 60 + trip.startMin;
-          const newTotalWeekMin = (currentTotal + deltaMin + 10080) % 10080;
-          return {
-            ...trip,
-            dayId: Math.floor(newTotalWeekMin / 1440) + 1,
-            startHour: Math.floor((newTotalWeekMin % 1440) / 60),
-            startMin: (newTotalWeekMin % 1440) % 60,
-          };
-        });
+    const nextSchedule = schedule.map(trip => {
+      const newTotalWeekMin = (tripStartMinute(trip) + deltaMin + WEEK_MIN) % WEEK_MIN;
+      return {
+        ...trip,
+        dayId: Math.floor(newTotalWeekMin / DAY_MIN) + 1,
+        startHour: Math.floor((newTotalWeekMin % DAY_MIN) / 60),
+        startMin: (newTotalWeekMin % DAY_MIN) % 60,
+      };
+    });
 
-        // Simple validation for shift
-        const otherRoutes = allRoutes.filter(r => r.aircraft === aircraft.registration && r.id !== route.id);
-        const occupied = otherRoutes.flatMap(r => r.schedule?.map(s => {
-          const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
-          const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
-          return { start, end: start + c };
-        }) || []);
-
-        let conflict = false;
-        for (const trip of nextSchedule) {
-          const s = (trip.dayId - 1) * 1440 + trip.startHour * 60 + trip.startMin;
-          const cycle = Math.ceil((30 + trip.durMin + trip.turnoverMin + trip.durMin + 30) / 5) * 5;
-          const e = s + cycle;
-          for (const occ of occupied) {
-            if (checkOverlap(s, e, occ.start, occ.end)) { conflict = true; break; }
-          }
-          if (conflict) break;
-        }
-
-        if (!conflict) {
-          setSchedule(nextSchedule);
-          setValidationMsg(null);
-        } else {
-          setValidationMsg("Cannot shift schedule: overlapping with existing flights.");
-        }
-      }
+    if (!conflictsWithOtherRoutes(nextSchedule)) {
+      setSchedule(nextSchedule);
+      setValidationMsg(null);
+    } else {
+      setValidationMsg("Cannot shift schedule: overlapping with existing flights.");
     }
   }, [flightHour, flightMinute]);
 
@@ -268,53 +164,10 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
     { id: 7, label: 'SUN' },
   ];
 
-  const checkOverlap = (s1: number, e1: number, s2: number, e2: number) => {
-    const maxWeek = 10080;
-    const normalize = (t: number) => ((t % maxWeek) + maxWeek) % maxWeek;
-    
-    let a1 = normalize(s1), b1 = normalize(e1);
-    let a2 = normalize(s2), b2 = normalize(e2);
-
-    const getIntervals = (s: number, e: number) => {
-      if (e <= s) return [[s, maxWeek], [0, e]];
-      return [[s, e]];
-    };
-
-    const i1 = getIntervals(a1, b1);
-    const i2 = getIntervals(a2, b2);
-
-    for (const [start1, end1] of i1) {
-      for (const [start2, end2] of i2) {
-        if (Math.max(start1, start2) < Math.min(end1, end2)) return true;
-      }
-    }
-    return false;
-  };
-
-  const getUsedWeeklySlots = (airportId: string, aircraftClass: string) => {
-    const slotKey = aircraftClass.toLowerCase() as 'regional' | 'narrowbody' | 'widebody';
-    let count = 0;
-    allRoutes.forEach(r => {
-      // Skip current route because we are managing its schedule locally
-      if (r.id === route.id) return;
-
-      if (r.origin === airportId || r.destination === airportId) {
-        // We use weeklyFlights if provided, otherwise count the schedule
-        count += r.schedule?.length || r.weeklyFlights || 0;
-      }
-    });
-    return count;
-  };
-
   // Handle trip deletion
   const handleToggleDay = (dayId: number) => {
-    // Determine which groups or trips start on this day (prep-normalized)
-    const existingGroups = schedule.filter(s => {
-      const depT = (s.dayId - 1) * 1440 + s.startHour * 60 + s.startMin;
-      const pStart = (depT - 30 + 10080) % 10080;
-      const dId = Math.floor(pStart / 1440) + 1;
-      return dId === dayId;
-    });
+    // Trips whose block starts on this day.
+    const existingGroups = schedule.filter(s => s.dayId === dayId);
 
     if (existingGroups.length > 0) {
       // Toggle OFF: Remove these trips
@@ -335,13 +188,8 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       const originName = r.origin || '???';
       const destName = r.destination || '???';
       r.schedule?.forEach(s => {
-        const depTotal = (s.dayId - 1) * 1440 + s.startHour * 60 + s.startMin;
-        const prepStartTotal = (depTotal - 30 + 10080) % 10080;
-        const totalDurRaw = ((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30));
-        const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
-        
-        let remaining = cycleMin;
-        let currentWeekMin = prepStartTotal;
+        let remaining = blockMinutes(s);
+        let currentWeekMin = tripStartMinute(s) % WEEK_MIN;
         let isFirst = true;
         
         while (remaining > 0) {
@@ -372,12 +220,9 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
 
     // Current schedule blocks
     schedule.forEach(s => {
-      const depTotal = (s.dayId - 1) * 1440 + s.startHour * 60 + s.startMin;
-      const prepStartTotal = (depTotal - 30 + 10080) % 10080;
-      const cycleMin = Math.ceil((30 + s.durMin + s.turnoverMin + s.durMin + 30) / 5) * 5;
-      
-      let remaining = cycleMin;
-      let currentWeekMin = prepStartTotal;
+      // One-way legs block less time; this used to draw every leg as a round trip.
+      let remaining = blockMinutes(s);
+      let currentWeekMin = tripStartMinute(s) % WEEK_MIN;
       let isFirst = true;
 
       while (remaining > 0) {
@@ -416,8 +261,10 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
 
     const updatedRoute = {
       ...route,
+      // Passenger figures are left to the engine (App recomputes them). This
+      // used to store full capacity, so the route showed a 100% load factor
+      // until the month closed.
       weeklyFlights: schedule.length,
-      paxPerWeek: schedule.length * aircraft.capacity * 2,
       schedule: schedule
     };
     onSave(updatedRoute);
@@ -434,17 +281,10 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
     const startY = e.clientY;
     
     // Shift all trips in the current schedule proportionally
-    const initialPositions = schedule.map(s => ({ 
-      id: s.id, 
-      startWeekMin: (s.dayId - 1) * 1440 + s.startHour * 60 + s.startMin
+    const initialPositions = schedule.map(s => ({
+      id: s.id,
+      startWeekMin: tripStartMinute(s)
     }));
-
-    const otherRoutes = allRoutes.filter(r => r.aircraft === aircraft.registration && r.id !== route.id);
-    const occupied = otherRoutes.flatMap(r => r.schedule?.map(s => {
-      const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
-      const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
-      return { start, end: start + c };
-    }) || []);
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaY = moveEvent.clientY - startY;
@@ -465,25 +305,11 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
         return trip;
       });
 
-      let conflict = false;
-      for (const trip of nextSchedule) {
-        const tempStart = (trip.dayId - 1) * 1440 + trip.startHour * 60 + trip.startMin;
-        const cycle = Math.ceil((30 + trip.durMin + trip.turnoverMin + trip.durMin + 30) / 5) * 5;
-        const newEnd = tempStart + cycle;
-        for (const occ of occupied) {
-          if (checkOverlap(tempStart, newEnd, occ.start, occ.end)) {
-            conflict = true;
-            break;
-          }
-        }
-        if (conflict) break;
-      }
-
-      if (!conflict) {
+      if (!conflictsWithOtherRoutes(nextSchedule)) {
         setSchedule(nextSchedule);
-        
+
         // Update the reference flight control time based on the lead trip's movement
-        const lead = nextSchedule.find(s => s.isGroupLead);
+        const lead = referenceTrip(nextSchedule);
         if (lead) {
           setFlightHour(lead.startHour);
           setFlightMinute(lead.startMin);
@@ -551,12 +377,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
 
             <div className={`grid grid-cols-4 gap-2 transition-opacity`}>
                 {daysOfWeek.map(day => {
-                  const isSelected = schedule.some(s => {
-                    const depTotal = (Number(s.dayId) - 1) * 1440 + Number(s.startHour) * 60 + Number(s.startMin);
-                    const prepStartTotal = (depTotal - 30 + 10080) % 10080;
-                    const dayIdForPrep = Math.floor(prepStartTotal / 1440) + 1;
-                    return dayIdForPrep === day.id;
-                  });
+                  const isSelected = schedule.some(s => Number(s.dayId) === day.id);
                   return (
                     <button
                       key={day.id}
@@ -574,11 +395,11 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
 
           <div className="h-px bg-white/10"></div>
 
-          <div className={maximizeFlights ? 'opacity-30 pointer-events-none grayscale transition-opacity' : 'transition-opacity'}>
+          <div className="transition-opacity">
             <div className="flex justify-between items-end mb-3">
               <label className="block text-[10px] uppercase tracking-widest text-white/40 font-black">Starting Time</label>
               <div className="text-[9px] font-mono text-aero-yellow bg-aero-yellow/10 px-2 py-0.5 border border-aero-yellow/20 uppercase">
-                Takeoff: {flightHour.toString().padStart(2, '0')}:{flightMinute.toString().padStart(2, '0')}
+                Takeoff: {fmtClock(takeoffMin)}
               </div>
             </div>
             <div className="flex items-center justify-center gap-4 bg-black/80 border border-white/5 p-4 font-mono rounded-sm shadow-inner relative overflow-hidden group">
@@ -595,13 +416,13 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                  <button onClick={() => updateFromDisplay(displayH, (displayM + 55) % 60)} className="p-2 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft className="rotate-270" /></button>
                </div>
             </div>
-            <div className="mt-2 text-[8px] text-center text-white/20 uppercase tracking-[0.2em] font-bold">Adjusting Prep Start time</div>
+            <div className="mt-2 text-[8px] text-center text-white/20 uppercase tracking-[0.2em] font-bold">Block start (boarding) · takeoff {BOARDING_MIN} min later</div>
           </div>
 
           {validationMsg && (
             <div className="bg-[#111] border border-white/20 p-3 flex gap-2 items-start">
-               <AlertCircle size={14} className="text-aero-yellow/60 shrink-0 mt-0.5" />
-               <span className="text-[10px] text-aero-yellow/60 font-bold leading-tight">{validationMsg}</span>
+               <AlertCircle size={14} className="text-aero-warn shrink-0 mt-0.5" />
+               <span className="text-[10px] text-aero-warn font-bold leading-tight">{validationMsg}</span>
             </div>
           )}
 

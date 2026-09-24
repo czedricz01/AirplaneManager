@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { formatMoneyCompact } from '../lib/format';
+import { formatMoneyCompact, routeFlightNumber } from '../lib/format';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
-import type { RouteOffer } from '../lib/financeUtils';
+import { getFlightTimeClass, type RouteOffer } from '../lib/financeUtils';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
 import { OwnedAircraft } from './MyFleetView';
@@ -17,6 +17,7 @@ interface SimulatedRoute {
   destination: string;
   distance: number;
   aircraft: string;
+  airlineCode?: string;
   weeklyFlights: number;
   paxPerWeek: number;
   schedule?: any[];
@@ -24,8 +25,6 @@ interface SimulatedRoute {
   ticketPrices?: Record<string, number>;
   activeTicketPrices?: Record<string, number>;
 }
-
-const mockRoutes: SimulatedRoute[] = [];
 
 type SortField = 'origin' | 'destination' | 'distance' | 'aircraft' | 'weeklyFlights' | 'paxPerWeek' | 'durMin' | 'profit';
 type SortDir = 'asc' | 'desc';
@@ -57,28 +56,18 @@ interface Props {
   currentYear: number;
   currentMonth: number;
   difficulty: string;
-}
-
-export function getFlightTimeClass(durMin: number): number {
-  if (durMin < 60) return 1;
-  if (durMin < 120) return 2;
-  if (durMin < 180) return 3;
-  if (durMin < 240) return 4;
-  if (durMin < 360) return 5;
-  if (durMin < 540) return 6;
-  if (durMin < 720) return 7;
-  return 8;
+  /** Flight-number prefix for routes saved before they carried their own. */
+  airlineCode?: string;
 }
 
 function RoutesViewImpl({ 
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
-  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = []
+  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = [], airlineCode = ''
 }: Props) {
   const [search, setSearch] = useState("");
   const [airportFilter, setAirportFilter] = useState(initialAirportFilter);
-  const [airlineFilter, setAirlineFilter] = useState("All");
   const [sortField, setSortField] = useState<SortField>('origin');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [selectedRoute, setSelectedRoute] = useState<SimulatedRoute | null>(null);
@@ -105,13 +94,7 @@ function RoutesViewImpl({
 
   const filteredAndSortedRoutes = useMemo(() => {
     let result = routes;
-    
-    if (airlineFilter !== "All") {
-      result = result.filter(r => 
-        airlineFilter === "Competitors" ? r.airline !== "My Airline" : r.airline === airlineFilter
-      );
-    }
-    
+
     if (airportFilter) {
       const lowerAirport = airportFilter.toLowerCase();
       result = result.filter(r => 
@@ -141,13 +124,7 @@ function RoutesViewImpl({
       if (valA > valB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [routes, routeProfits, search, sortField, sortDir, airlineFilter, airportFilter]);
-
-  /** Distinct competitor airline names present in the route list. */
-  const rivalNames = useMemo(
-    () => [...new Set(routes.map(r => r.airline).filter(a => a && a !== 'My Airline'))].sort(),
-    [routes]
-  );
+  }, [routes, routeProfits, search, sortField, sortDir, airportFilter]);
 
   const activeRoute = useMemo(() => {
     if (!selectedRoute) return null;
@@ -195,25 +172,6 @@ function RoutesViewImpl({
         }
         right={
           <div className="flex gap-4 items-center relative z-20">
-            <select
-              value={airlineFilter}
-              onChange={(e) => setAirlineFilter(e.target.value)}
-              className="bg-black/40 border border-white/10 rounded-sm py-2 pl-4 pr-10 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors appearance-none cursor-pointer"
-            >
-              <option value="My Airline">My Airline</option>
-              <option value="All">All Airlines</option>
-              <option value="Competitors">All Competitors</option>
-              {/* Built from the routes actually present. The two hardcoded
-                  "Competitor A"/"Competitor B" entries matched no generated
-                  airline, so selecting either emptied the table. */}
-              {rivalNames.map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none -ml-8 text-white/50">
-              <ChevronDown size={16} />
-            </div>
-
             <div className="relative w-48">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Navigation size={16} className="text-white/40" />
@@ -281,7 +239,7 @@ function RoutesViewImpl({
                   onClick={() => setSelectedRoute(route)}
                   className="border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer"
                 >
-                  <Td className="pl-4 font-bold text-white/90 tracking-widest hover:text-aero-yellow transition-colors underline decoration-white/20 underline-offset-4">{route.schedule?.[0]?.flightNumOut ? 'NE' + route.schedule[0].flightNumOut : route.airline}</Td>
+                  <Td className="pl-4 font-bold text-white/90 tracking-widest hover:text-aero-yellow transition-colors underline decoration-white/20 underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
                   <Td className="font-bold text-aero-yellow">{route.origin}</Td>
                   <Td className="font-bold text-aero-yellow">{route.destination}</Td>
                   <Td className="text-xs font-mono">{route.distance} km</Td>
@@ -352,6 +310,7 @@ function RoutesViewImpl({
             currentYear={currentYear}
             currentMonth={currentMonth}
             difficulty={difficulty}
+            airlineCode={airlineCode}
             onClose={() => {
                setSelectedRoute(null);
                if (onClearExternalSelectedRoute) onClearExternalSelectedRoute();

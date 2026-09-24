@@ -15,6 +15,7 @@ import {
   getFlightTimeClass,
   calculateBasePrices,
   getJetFuelPrice,
+  getFlightDurationMinutes,
   RouteOffer
 } from './financeUtils';
 import type { AiAirline } from '../components/CompetitorsView';
@@ -22,6 +23,13 @@ import type { GameMessage } from './gameTypes';
 import { findNonFinite } from './invariants';
 import { logWarn, logError } from './debugLog';
 import { nextMessageId } from './messages';
+
+/**
+ * Fixed monthly income every AI airline receives on top of its route results,
+ * so that rivals do not all go bankrupt early. Shown on the rivals screen,
+ * because it is part of every AI profit figure there.
+ */
+export const AI_MONTHLY_SUBSIDY = 450_000;
 
 type Personality = 'flag' | 'lcc' | 'expansionist' | 'optimizer' | 'boutique';
 
@@ -274,7 +282,10 @@ export const generateAiAirlines = (count: number, difficultyVal: string, playerH
         
         if (pickedDest) {
           const distance = Math.floor(calculateDistance(hubAirport.coords[0], hubAirport.coords[1], pickedDest.coords[0], pickedDest.coords[1]));
-          const durMin = Math.floor((distance / activePlane.cruiseSpeed) * 60 + 40);
+          // The same flight-time model as the player's routes. The AI used
+          // distance / speed + 40 min, which put its routes in other time
+          // classes and so gave them different demand and fares.
+          const durMin = getFlightDurationMinutes(hubAirport, pickedDest, activePlane);
           
           let departures = difficultyVal === 'Hard' ? 14 : difficultyVal === 'Normal' ? 10 : 7;
           if (personality === 'lcc') departures = Math.floor(departures * 1.4);
@@ -305,7 +316,9 @@ export const generateAiAirlines = (count: number, difficultyVal: string, playerH
       aiDifficulty: difficultyVal as 'Easy' | 'Normal' | 'Hard',
       fleet,
       routes,
-      monthlyProfitsHistory: [Math.floor(finalCapital * 0.05)],
+      // Empty until a month has closed. It used to open with 5% of the
+      // starting capital, a "profit" no month had produced.
+      monthlyProfitsHistory: [],
       personality,
       aggression
     };
@@ -382,7 +395,11 @@ export const simulateAiAirlinesTurn = (
       const destAir = airportsMapAdjusted.get(r.destination);
       const distance = r.distance || (originAir && destAir ? Math.floor(calculateDistance(originAir.coords[0], originAir.coords[1], destAir.coords[0], destAir.coords[1])) : 1500);
       r.distance = distance;
-      r.durMin = r.durMin || Math.floor((distance / (assignedPlane.cruiseSpeed || 800)) * 60 + 40);
+      // Recomputed every month: the aircraft on a route changes when the fleet
+      // is modernised, and saves carry durations from the old formula.
+      r.durMin = originAir && destAir
+        ? getFlightDurationMinutes(originAir, destAir, assignedPlane)
+        : (r.durMin || Math.floor((distance / (assignedPlane.cruiseSpeed || 800)) * 60 + 40));
 
       if (assignedPlane.maxRange && assignedPlane.maxRange < distance) {
         r.monthlyProfit = -150000;
@@ -524,8 +541,7 @@ export const simulateAiAirlinesTurn = (
       totalMonthlyProfit += r.monthlyProfit;
     });
 
-    const baseSubsidy = 450000;
-    const finalCalculatedTurnover = totalMonthlyProfit + baseSubsidy;
+    const finalCalculatedTurnover = totalMonthlyProfit + AI_MONTHLY_SUBSIDY;
 
     let newCapital = ai.capital + finalCalculatedTurnover;
     const nextProfitsHistory = [...(ai.monthlyProfitsHistory || []), finalCalculatedTurnover];
@@ -814,7 +830,7 @@ export const simulateAiAirlinesTurn = (
 
             if (idlePlane.maxRange >= distance && newCapital >= routeCost) {
               newCapital -= routeCost;
-              const durMin = Math.floor((distance / (idlePlane.cruiseSpeed || 800)) * 60 + 40);
+              const durMin = getFlightDurationMinutes(originAir, destAir, idlePlane);
 
               let departures = ai.aiDifficulty === 'Hard' ? 14 : ai.aiDifficulty === 'Normal' ? 10 : 7;
               if (personality === 'lcc') departures = Math.floor(departures * 1.4);

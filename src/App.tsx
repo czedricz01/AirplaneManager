@@ -219,6 +219,25 @@ export function eventReliefFactor(
   return factor;
 }
 
+/** Adds a one-off amount to the month's list, merging items with the same label. */
+function addCapexItem(list: { label: string; amount: number }[], label: string, amount: number) {
+  return list.some(c => c.label === label)
+    ? list.map(c => (c.label === label ? { ...c, amount: c.amount + amount } : c))
+    : [...list, { label, amount }];
+}
+
+/** Every rival departure, as offers the finance engine can split demand by. */
+function buildRivalOffers(ais: any[] | null | undefined) {
+  return (ais || []).flatMap((ai: any) =>
+    (ai.routes || []).map((r: any) => ({
+      origin: r.origin,
+      destination: r.destination,
+      departures: r.departures || 0,
+      airline: ai.name
+    }))
+  );
+}
+
 import { WorldMap } from "./components/WorldMap";
 import { getRoutePath } from "./lib/geoUtils";
 
@@ -248,7 +267,7 @@ import { RoutePlannerView } from "./components/RoutePlannerView";
 import { AirportsView } from "./components/AirportsView";
 import { AirportDetailView } from "./components/AirportDetailView";
 import RouteScheduleEditView from "./components/RouteScheduleEditView";
-import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics } from "./lib/financeUtils";
+import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
@@ -435,11 +454,17 @@ export default function App() {
   
   const unreadMessagesCount = messages.filter(m => !m.isRead).length;
 
-  const [decimalSymbol, setDecimalSymbolState] = useState<DecimalSymbol>(".");
+  // Kept across sessions; both settings used to reset on every reload.
+  const [decimalSymbol, setDecimalSymbolState] = useState<DecimalSymbol>(() => {
+    const stored = readString('aero_decimal_symbol') === ',' ? ',' : '.';
+    setNumberFormatSymbol(stored);
+    return stored;
+  });
   /** The formatters are module-level, so they follow the setting from here. */
   const setDecimalSymbol = (symbol: DecimalSymbol) => {
     setNumberFormatSymbol(symbol);
     setDecimalSymbolState(symbol);
+    writeString('aero_decimal_symbol', symbol);
   };
   const [airportManagement, setAirportManagement] = useState<Record<string, AirportInfrastructure>>({});
   const [showRivalRoutes, setShowRivalRoutes] = useState(true);
@@ -518,20 +543,25 @@ export default function App() {
    */
   const [monthlyCapex, setMonthlyCapex] = useState<{ label: string; amount: number }[]>([]);
 
-  /** Deducts a one-off cost and records it so the month's report can explain it. */
+  /**
+   * Deducts a one-off cost and records it so the month's report can explain it.
+   * A negative amount is money coming in (an aircraft sale).
+   */
   const spend = (amount: number, label: string) => {
     setCapital(prev => prev - amount);
-    setMonthlyCapex(prev => {
-      const existing = prev.find(c => c.label === label);
-      return existing
-        ? prev.map(c => (c.label === label ? { ...c, amount: c.amount + amount } : c))
-        : [...prev, { label, amount }];
-    });
+    setMonthlyCapex(prev => addCapexItem(prev, label, amount));
   };
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
   
-  const [uiScaleSetting, setUiScaleSetting] = useState(1.0);
+  const [uiScaleSetting, setUiScaleSettingState] = useState(() => {
+    const stored = parseFloat(readString('aero_ui_scale') || '');
+    return Number.isFinite(stored) && stored >= 0.5 && stored <= 1.5 ? stored : 1.0;
+  });
+  const setUiScaleSetting = (value: number) => {
+    setUiScaleSettingState(value);
+    writeString('aero_ui_scale', String(value));
+  };
   const [autoScale, setAutoScale] = useState(1.0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -591,18 +621,7 @@ export default function App() {
     [reputation, currentDateOffset, eventChoices, randomEvents]
   );
 
-  const rivalOffers = useMemo(
-    () =>
-      (aiAirlines || []).flatMap((ai: any) =>
-        (ai.routes || []).map((r: any) => ({
-          origin: r.origin,
-          destination: r.destination,
-          departures: r.departures || 0,
-          airline: ai.name
-        }))
-      ),
-    [aiAirlines]
-  );
+  const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
 
   const activeWorldEvents = useMemo(() => {
     return getActiveEvents(currentDateOffset).map(ev => {
@@ -694,6 +713,29 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentDateOffset, difficulty, eventChoices, randomEvents]
   );
+
+  /**
+   * Every route with this month's figures, from the same engine call the
+   * monthly report makes. The route list and the map read these. The copy
+   * stored on each route changes only when a month closes, so a new rival, a
+   * new timetable or a new route next door showed up there a month late.
+   */
+  const routesWithMetrics = useMemo(() => {
+    const byRegistration = new Map(fleet.map(p => [p.registration, p]));
+    const year = 1960 + Math.floor(currentDateOffset / 12);
+    const month = 1 + (currentDateOffset % 12);
+    return routes.map(r => {
+      const ac = byRegistration.get(r.aircraft);
+      if (!ac) return r;
+      const fin = calculateRouteFinancials(
+        r, ac, fuelData.price, airportManagement, year, month, difficulty,
+        airportsMapAdjusted, routes, fleet, false, playerDemandFactor, rivalOffers
+      );
+      return { ...r, ...toStoredRouteMetrics(fin) };
+    });
+    // randomEvents: calculateDemand reads the active events from module state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerDemandFactor, rivalOffers, randomEvents]);
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
@@ -1067,7 +1109,9 @@ export default function App() {
     }
 
     // --- Milestones -------------------------------------------------------
-    const nextStreak = totalMonthlyProfit >= 0 ? profitStreak + 1 : 0;
+    // A month without a single route is not a profitable month; it neither
+    // extends the streak nor breaks it unless it lost money.
+    const nextStreak = totalMonthlyProfit < 0 ? 0 : routes.length > 0 ? profitStreak + 1 : profitStreak;
     setProfitStreak(nextStreak);
 
     const servedContinents = new Set<string>();
@@ -1157,6 +1201,7 @@ export default function App() {
 
     // Simulate AI Controlled Airlines
     let aiMessages: GameMessage[] = [];
+    let aisAfterTurn = aiAirlines;
     if (aiAirlines.length > 0) {
       const { updatedAis, newMessages } = simulateAiAirlinesTurn(
         aiAirlines,
@@ -1167,6 +1212,7 @@ export default function App() {
       );
       setAiAirlines(updatedAis);
       aiMessages = newMessages;
+      aisAfterTurn = updatedAis;
     }
 
     const nextOffset = currentDateOffset + 1;
@@ -1325,6 +1371,11 @@ export default function App() {
     }
     setCurrentDateOffset(nextOffset);
 
+    // The figures stored on each route are next month's forecast. They used to
+    // leave out reputation, crisis relief and every rival, so the route list and
+    // the map disagreed with the report the same route then produced.
+    const nextDemandFactor = reputationDemandFactor(nextReputation) * eventReliefFactor(nextOffset, eventChoices);
+    const nextRivalOffers = buildRivalOffers(aisAfterTurn);
     setRoutes(prevRoutes => prevRoutes.map(r => {
       const activePrices = r.ticketPrices || { economy: 100 };
       const ac = fleet.find(a => a.registration === r.aircraft);
@@ -1343,7 +1394,10 @@ export default function App() {
           difficulty,
           localAirportsMap,
           prevRoutes,
-          fleet
+          fleet,
+          false,
+          nextDemandFactor,
+          nextRivalOffers
         );
         updatedRoute = { ...updatedRoute, ...toStoredRouteMetrics(fin) };
       }
@@ -1633,7 +1687,10 @@ export default function App() {
   const handleSellAircraft = React.useCallback((plane: OwnedAircraft) => {
     const value = getAircraftResaleValue(plane);
 
+    // Recorded like any other one-off amount, so the month's report explains
+    // the jump in capital instead of leaving it unaccounted for.
     setCapital(prev => prev + value);
+    setMonthlyCapex(prev => addCapexItem(prev, 'Aircraft Sales', -value));
     setFleet(prev => prev.filter(p => p.registration !== plane.registration));
     setRoutes(prev => prev.filter(r => r.aircraft !== plane.registration));
     
@@ -1658,6 +1715,21 @@ export default function App() {
   }, []);
 
   const handleOpenPlanner = React.useCallback(() => setIsPlanningRoute(true), []);
+  /**
+   * Unlocks a management tier at an airport. The route planner and the airport
+   * console each had their own copy of this with different prices, and only
+   * the console's applied the tier's effects.
+   */
+  const handleUnlockManagement = (airportId: string, tier: ManagementLevel) => {
+    const cost = getManagementUnlockCost(airportsMapAdjusted.get(airportId)?.level || 1, tier);
+    if (capital < cost) {
+      setAppAlert(`Unlocking T${tier} management at ${airportId} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
+      return;
+    }
+    spend(cost, `Airport Management T${tier}`);
+    setAirportManagement(prev => ({ ...prev, [airportId]: applyManagementUnlock(prev[airportId], tier) }));
+  };
+
   const handleDeleteRoute = React.useCallback((id: string) => setRoutes(prev => prev.filter(r => r.id !== id)), []);
   const handleClearExternalRoute = React.useCallback(() => setExternalSelectedRoute(null), []);
 
@@ -1839,7 +1911,7 @@ export default function App() {
           {/* World event decision. The first point in the game where a crisis
               asks the player something instead of simply happening to them. */}
           {pendingDecision && (
-            <Modal open size="lg" accent="warn" layer="critical">
+            <Modal open size="lg" accent="warn" layer="top">
               <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
                 <AlertTriangle size={22} /> {pendingDecision.title}
               </h3>
@@ -1890,7 +1962,7 @@ export default function App() {
             </Modal>
           )}
           {appAlert && (
-            <Modal open size="md" onClose={() => setAppAlert(null)}>
+            <Modal open size="md" layer="top" onClose={() => setAppAlert(null)}>
               <h3 className="text-aero-yellow font-black uppercase tracking-widest text-lg mb-4 flex items-center gap-2">
                 <AlertTriangle size={24} /> System Alert
               </h3>
@@ -2326,7 +2398,7 @@ export default function App() {
                                { label: `Jet Fuel (${formatNumber(latestReport.breakdown.fuelLiters || 0)} L @ $${(latestReport.breakdown.fuelPriceL || 0).toFixed(3)})`, amount: latestReport.breakdown.fuel },
                                { label: 'In-Flight Catering & Amenities', amount: latestReport.breakdown.catering },
                                { label: 'Flight Crew & Ground Staff Salaries', amount: latestReport.breakdown.staff },
-                               { label: 'Route Infrastructure (Slots & Pax Fees)', amount: latestReport.breakdown.routeInfra }
+                               { label: 'Landing & passenger fees', amount: latestReport.breakdown.routeInfra }
                              ]
                            },
                            {
@@ -2340,20 +2412,30 @@ export default function App() {
                            },
                            // Slots are billed into the month's result, so they
                            // belong above the line, not in capex.
-                           ...((latestReport.breakdown.purchasedSlots || 0) > 0 ? [{
+                           // Signed: selling slots back refunds money, which the
+                           // report used to drop because only purchases were shown.
+                           ...((latestReport.breakdown.purchasedSlots || 0) !== 0 ? [{
                              id: 'slots',
-                             label: 'Permanent Slots Purchased',
-                             total: latestReport.breakdown.purchasedSlots,
-                             items: [{ label: 'Slot rights bought this month', amount: latestReport.breakdown.purchasedSlots }]
+                             label: 'Slot purchases & refunds',
+                             variant: 'net' as const,
+                             total: -latestReport.breakdown.purchasedSlots,
+                             items: [{
+                               label: latestReport.breakdown.purchasedSlots > 0 ? 'Slot rights bought this month' : 'Slot rights sold back this month',
+                               amount: -latestReport.breakdown.purchasedSlots
+                             }]
                            }] : []),
                            // These left the bank account but are not part of the
                            // operating profit above — without them the profit and
                            // the change in capital never reconcile.
-                           ...((latestReport.capex || 0) > 0 ? [{
+                           // Signed as well: aircraft sales come in here.
+                           ...((latestReport.capexItems || []).some((i: any) => i.amount !== 0) ? [{
                              id: 'capex',
-                             label: 'One-off Investments (below the line)',
-                             total: latestReport.capex,
-                             items: (latestReport.capexItems || []).filter((i: any) => i.amount > 0)
+                             label: 'One-off investments & sales (below the line)',
+                             variant: 'net' as const,
+                             total: -(latestReport.capex || 0),
+                             items: (latestReport.capexItems || [])
+                               .filter((i: any) => i.amount !== 0)
+                               .map((i: any) => ({ label: i.label, amount: -i.amount }))
                            }] : []),
                            ...(latestReport.routes && latestReport.routes.length > 0 ? [{
                              id: 'routeBreakdown',
@@ -2540,7 +2622,17 @@ export default function App() {
                          )}
                          <span className="text-[10px] md:text-[11px] opacity-70 truncate font-mono">{ev.description}</span>
                          <span className="text-[10px] md:text-[11px] font-bold text-aero-warn ml-auto whitespace-nowrap">
-                            PAX: {ev.demandMultiplier >= 1 ? '+' : ''}{((ev.demandMultiplier - 1) * 100).toFixed(0)}% | FUEL: {ev.fuelMultiplier >= 1 ? '+' : ''}{((ev.fuelMultiplier - 1) * 100).toFixed(0)}%
+                            {/* What the player actually gets: bought relief softens the
+                                event's demand hit (see eventReliefFactor). The banner
+                                used to show the raw hit even after paying for relief. */}
+                            {(() => {
+                              const softens = ev.chosen?.softensDemand;
+                              const effective = softens && ev.demandMultiplier < 1
+                                ? ev.demandMultiplier + (1 - ev.demandMultiplier) * softens
+                                : ev.demandMultiplier;
+                              const pct = (m: number) => `${m >= 1 ? '+' : ''}${((m - 1) * 100).toFixed(0)}%`;
+                              return `PAX: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''} | FUEL: ${pct(ev.fuelMultiplier)}`;
+                            })()}
                          </span>
                       </div>
                    </div>
@@ -2561,7 +2653,7 @@ export default function App() {
                         visibleAirports={visibleAirports}
                         visibleWorldOffsets={visibleWorldOffsets}
                         airports={airports}
-                        routes={routes}
+                        routes={routesWithMetrics}
                         aiRouteList={aiRouteList}
                         aiAirlines={aiAirlines}
                         fleet={fleet}
@@ -2605,12 +2697,13 @@ export default function App() {
                            onSelectRoute={handleShowRoute}
                            onStartRoute={handleStartRouteWithAircraft}
                            onSell={handleSellAircraft}
+                           airlineCode={airlineCode}
                         />
                     </ViewFrame>
                   ) : activeWindow === 'routes' ? (
                     <ViewFrame label="Routes" onReset={backToMap}>
                         <RoutesView
-                          routes={routes}
+                          routes={routesWithMetrics}
                           fleet={fleet}
                           routeProfits={routeProfits}
                           initialAirportFilter={routeFilter}
@@ -2630,6 +2723,7 @@ export default function App() {
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           currentMonth={1 + (currentDateOffset % 12)}
                           difficulty={difficulty}
+                          airlineCode={airlineCode}
                         />
                     </ViewFrame>
                   ) : activeWindow === 'airports' ? (
@@ -2668,6 +2762,7 @@ export default function App() {
                           playerFleet={fleet}
                           playerRoutes={routes}
                           playerProfitHistory={playerProfitHistory}
+                          playerRouteProfits={routeProfits}
                         />
                     </ViewFrame>
                   ) : activeWindow !== 'map' && (
@@ -2845,29 +2940,7 @@ export default function App() {
                           setIsPlanningRoute(false);
                           setActiveWindow('map');
                         }}
-                        onUnlockManagement={(airportId, level) => {
-                          const cost = level === 1 ? 100000 : level === 2 ? 500000 : 2500000;
-                          if (capital < cost) {
-                            setAppAlert(`Unlocking T${level} management at ${airportId} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
-                            return;
-                          }
-                          if (capital >= cost) {
-                            spend(cost, `Airport Management T${level}`);
-                            setAirportManagement(prev => {
-                              const existing = prev[airportId] || { slots: { regional: 0, narrowbody: 0, widebody: 0 }, stands: { narrowbody: 0, widebody: 0 }, desks: { normal: 0, self: 0 } };
-                              const desks = { ...existing.desks };
-                              if (level >= 1 && desks.normal < 1) desks.normal = 1;
-                              return {
-                                ...prev,
-                                [airportId]: {
-                                  ...existing,
-                                  desks,
-                                  level: level as ManagementLevel
-                                }
-                              };
-                            });
-                          }
-                        }}
+                        onUnlockManagement={handleUnlockManagement}
                         onUpdateInfrastructure={(airportId, infra) => {
                           setAirportManagement(prev => ({ ...prev, [airportId]: infra }));
                         }}
@@ -2922,48 +2995,7 @@ export default function App() {
                           stands: { narrowbody: 0, widebody: 0 },
                           desks: { normal: 0, self: 0 }
                         }}
-                        onBuyManagement={(tier) => {
-                          const level = selectedAirport.level;
-                          let cost = 0;
-                          if (tier === 1) cost = level * 30000;
-                          if (tier === 2) cost = level * 750000;
-                          if (tier === 3) cost = level * 500000000;
-
-                          if (capital < cost) {
-                            setAppAlert(`Unlocking T${tier} management at ${selectedAirport.id} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
-                            return;
-                          }
-                          if (capital >= cost) {
-                            spend(cost, `Airport Management T${tier}`);
-                            setAirportManagement(prev => {
-                              const infra = prev[selectedAirport.id] || {
-                                slots: { regional: 0, narrowbody: 0, widebody: 0 },
-                                stands: { narrowbody: 0, widebody: 0, regional: 0 },
-                                desks: { normal: 0, self: 0 }
-                              };
-                              const desks = { ...infra.desks };
-                              if (tier >= 1 && desks.normal < 1) desks.normal = 1;
-
-                              return {
-                                ...prev,
-                                [selectedAirport.id]: {
-                                  ...infra,
-                                  desks,
-                                  level: tier as ManagementLevel,
-                                  hubAutoUpgrade: tier >= 2,
-                                  ...(tier >= 2 ? {
-                                    stands: {
-                                      ...infra.stands,
-                                      narrowbody: infra.slots.narrowbody,
-                                      widebody: infra.slots.widebody,
-                                      regional: infra.slots.regional || 0
-                                    }
-                                  } : {})
-                                }
-                              };
-                            });
-                          }
-                        }}
+                        onBuyManagement={(tier) => handleUnlockManagement(selectedAirport.id, tier as ManagementLevel)}
                         onUpdateInfrastructure={(infra) => {
                           // Costs are settled by onSubtractCapital / onAddPendingSlotBills
                           // before this runs; here we only store the new layout.

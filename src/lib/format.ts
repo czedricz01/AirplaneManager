@@ -61,3 +61,17 @@ export function formatMoneyCompact(value: number): string {
   if (abs >= 1_000) return `${sign}$${formatNumber(abs / 1_000, 0)}K`;
   return `${sign}$${formatNumber(abs, 0)}`;
 }
+
+/**
+ * "LH1234" -- the airline's own code, not a fixed "NE". Routes created before
+ * they stored `airlineCode` fall back to the current one. A route without a
+ * timetable shows its airline name.
+ */
+export function routeFlightNumber(
+  route: { schedule?: any[]; airline?: string; airlineCode?: string },
+  fallbackCode = ''
+): string {
+  const num = route.schedule?.[0]?.flightNumOut;
+  if (!num) return route.airline || '-';
+  return `${route.airlineCode || fallbackCode}${num}`;
+}

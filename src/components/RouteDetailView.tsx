@@ -1,18 +1,15 @@
 import { FinancialReport } from "./FinancialReport";
-import { formatNumber } from '../lib/format';
+import { formatNumber, routeFlightNumber } from '../lib/format';
 import React, { useState, useMemo } from 'react';
-import { X, Plane, Clock, Coffee, DollarSign, Trash2, Settings, Info } from 'lucide-react';
+import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport } from '../data/airports';
 
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
-import { 
-  getFlightTimeClass, 
-  TIME_CLASS_SAT_MULTIPLIERS,
-  getCateringOpt,
-  getMultiOptionSum,
-  calculateClassSatisfaction,
+import {
+  getFlightTimeClass,
   calculateRouteFinancials,
+  seatWeightedSatisfaction,
   RouteOffer,
   marketKey,
 } from '../lib/financeUtils';
@@ -21,6 +18,9 @@ import { airports, airportsMapAdjusted } from '../data/airportRegistry';
 
 import { OwnedAircraft } from './MyFleetView';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
+
+// A stable default, so a missing prop does not invalidate the memos on every render.
+const NO_RIVAL_OFFERS: RouteOffer[] = [];
 
 interface RouteDetailViewProps {
   route: any; // We'll refine this type
@@ -39,17 +39,21 @@ interface RouteDetailViewProps {
   onEditSchedule?: (routeId: string) => void;
   onEditCabinServices?: (routeId: string) => void;
   onEditFinancials?: (routeId: string) => void;
+  airlineCode?: string;
 }
 
 
 export function RouteDetailView({
   route, routes, fleet, fuelPrice = 1.05, airportManagement,
-  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = [],
-  onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onEditFinancials
+  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = NO_RIVAL_OFFERS,
+  onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
+  airlineCode = ''
 }: RouteDetailViewProps) {
-  const flightNo = route.schedule?.[0]?.flightNumOut ? 'NE' + route.schedule[0].flightNumOut : route.airline;
-  const [activeConfig, setActiveConfig] = useState<'timetable' | 'cabin' | 'finance' | null>(null);
+  const codePrefix = route.airlineCode || airlineCode;
+  const flightNo = routeFlightNumber(route, airlineCode);
   const [showAircraftDetails, setShowAircraftDetails] = useState(false);
+  // Deleting a route cannot be undone, so the first click only arms the button.
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const assignedAircraft = fleet?.find(ac => ac.registration === route.aircraft);
 
@@ -92,55 +96,12 @@ export function RouteDetailView({
       demandFactor,
       rivalOffers
     );
-  }, [route, assignedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet]);
+  }, [route, assignedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, demandFactor, rivalOffers]);
 
   const actualConfigSeats = assignedAircraft?.config 
     ? ((assignedAircraft.config.economy || 0) + (assignedAircraft.config.premium || 0) + (assignedAircraft.config.business || 0) + (assignedAircraft.config.first || 0)) 
     : 0;
   const actualCapacity = actualConfigSeats > 0 ? actualConfigSeats : (assignedAircraft?.capacity || 0);
-
-  // Render dummy configuration window
-  const renderConfigWindow = () => {
-    if (!activeConfig) return null;
-
-    let title = '';
-    let content = null;
-
-    if (activeConfig === 'timetable') {
-      title = 'Timetable Configuration';
-      content = <div className="text-white/50 text-sm">Timetable editor placeholder.</div>;
-    } else if (activeConfig === 'finance') {
-      title = 'Financial Details';
-      content = <div className="text-white/50 text-sm">Detailed financial drill-down placeholder.</div>;
-    }
-
-    return (
-      <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur flex items-center justify-center p-4">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-[#1a1a1a] border border-white/20 p-4 w-full max-w-2xl"
-        >
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-2xl font-mono text-white uppercase tracking-widest font-black flex items-center gap-3">
-               <Settings className="text-aero-yellow" size={24} />
-               {title}
-            </h3>
-            <button onClick={() => setActiveConfig(null)} className="text-white/50 hover:text-white transition-colors"><X size={24} /></button>
-          </div>
-          <div className="py-4 bg-black/40 border border-white/5 p-4 rounded-sm">
-            {content}
-          </div>
-          <div className="mt-8 flex justify-end">
-             <button onClick={() => setActiveConfig(null)} className="px-3 py-2 bg-aero-yellow text-black font-black uppercase text-xs tracking-widest hover:bg-white transition-colors">
-               Save & Close
-             </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  };
 
   return (
     <motion.div
@@ -156,14 +117,28 @@ export function RouteDetailView({
           <span className="text-white">{flightNo}</span>
         </h2>
         <div className="flex items-center gap-4">
+          {confirmDelete && (
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="px-4 py-2 border border-white/20 text-white/60 hover:text-white hover:bg-white/10 transition-colors uppercase text-xs tracking-widest font-bold"
+            >
+              Keep Route
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
+              if (!confirmDelete) {
+                setConfirmDelete(true);
+                return;
+              }
               onDelete(route.id);
             }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#111] hover:bg-[#1a1a1a] outline outline-1 outline-red-500/50 text-white transition-colors uppercase text-xs tracking-widest font-bold"
+            className={`flex items-center justify-center gap-2 px-4 py-2 outline outline-1 transition-colors uppercase text-xs tracking-widest font-bold ${
+              confirmDelete ? 'bg-aero-warn text-black outline-aero-warn' : 'bg-[#111] hover:bg-[#1a1a1a] outline-red-500/50 text-white'
+            }`}
           >
-            <Trash2 size={16} /> Delete Route
+            <Trash2 size={16} /> {confirmDelete ? 'Confirm: Delete Route' : 'Delete Route'}
           </button>
           <button
             onClick={onClose}
@@ -226,7 +201,7 @@ export function RouteDetailView({
             <div className="flex gap-4 items-center bg-white/5 p-4 border border-white/10 rounded-sm">
               <div className="flex flex-col">
                 <span className="text-white/30 text-[8px] uppercase tracking-widest font-bold mb-1">Weekly Pax</span>
-                <span className="text-2xl font-black text-aero-yellow">{(route.paxPerWeek || 0).toLocaleString()}</span>
+                <span className="text-2xl font-black text-aero-yellow">{formatNumber(financials?.paxPerWeek ?? route.paxPerWeek ?? 0)}</span>
               </div>
               <div className="ml-auto">
                 {assignedAircraft && (
@@ -250,7 +225,7 @@ export function RouteDetailView({
             <div className="mt-4 flex items-center justify-between">
               {route.durMin && (
                 <div className="flex items-center gap-3">
-                  <span className="text-aero-yellow font-mono border border-aero-yellow/30 px-2 py-0.5 bg-aero-yellow/10 rounded-sm text-[10px]">TIME-CLASS: {route.durMin ? (route.durMin < 60 ? 1 : route.durMin < 120 ? 2 : route.durMin < 180 ? 3 : route.durMin < 240 ? 4 : route.durMin < 360 ? 5 : route.durMin < 540 ? 6 : route.durMin < 720 ? 7 : 8) : '-'}</span>
+                  <span className="text-aero-yellow font-mono border border-aero-yellow/30 px-2 py-0.5 bg-aero-yellow/10 rounded-sm text-[10px]">TIME-CLASS: {getFlightTimeClass(route.durMin)}</span>
                   <span className="text-white/40 text-[10px] font-mono uppercase">
                       Flight Time: {Math.floor(route.durMin / 60)}h {(route.durMin % 60).toString().padStart(2, '0')}m
                   </span>
@@ -321,9 +296,9 @@ export function RouteDetailView({
                         <div className="flex justify-between items-start">
                           <div className="flex flex-col">
                             <div className="flex gap-2 items-center mb-1">
-                               <span className="text-aero-yellow font-black text-sm italic tracking-tighter">{route.airlineCode}{s.flightNumOut}</span>
+                               <span className="text-aero-yellow font-black text-sm italic tracking-tighter">{codePrefix}{s.flightNumOut}</span>
                                {!s.isOneWay && (
-                                 <span className="text-white/40 font-mono text-[10px]">/ {route.airlineCode}{s.flightNumIn}</span>
+                                 <span className="text-white/40 font-mono text-[10px]">/ {codePrefix}{s.flightNumIn}</span>
                                )}
                             </div>
                             <div className="flex gap-1 flex-wrap">
@@ -374,23 +349,15 @@ export function RouteDetailView({
                <div className="grid grid-cols-2 gap-4 mb-4 overflow-y-auto custom-scrollbar pr-2 max-h-[300px]">
                   {(() => {
                     const classes = ['economy', 'premium', 'business', 'first'];
-                    let totalSat = 0;
-                    let count = 0;
-
                     const classSats = classes.filter(cls => {
                       const seats = assignedAircraft?.config?.[cls as keyof typeof assignedAircraft.config] as number;
                       return seats !== undefined && seats > 0;
-                    }).map(cls => {
-                      let sat = financials?.routeSat?.[cls] ?? 0;
-                      
-                      if (sat > 0) {
-                        totalSat += sat;
-                        count++;
-                      }
-                      return { name: cls, sat };
-                    });
+                    }).map(cls => ({ name: cls, sat: financials?.routeSat?.[cls] ?? 0 }));
 
-                    const avgSat = count > 0 ? totalSat / count : 0;
+                    // Seat-weighted, like the planner and the economy. The plain mean
+                    // over classes above 0% hid a failing cabin and over-weighted a
+                    // handful of first-class seats.
+                    const avgSat = financials ? seatWeightedSatisfaction(financials.routeSat, assignedAircraft?.config) : 0;
 
                     return (
                       <>
@@ -404,8 +371,9 @@ export function RouteDetailView({
                           const expectation = satDetails?.expectationTarget || 0;
                           const reality = satDetails?.providedQuality || 0;
                           
-                          let barColor = 'bg-[#1a1a1a] shadow-2xl';
-                          let textColor = 'text-aero-yellow/60';
+                          // The worst band is the most visible, not the darkest.
+                          let barColor = 'bg-aero-warn shadow-2xl';
+                          let textColor = 'text-aero-warn';
                           if (cs.sat >= 100) { barColor = 'bg-aero-yellow shadow-2xl'; textColor = 'text-aero-yellow'; }
                           else if (cs.sat >= 85) { barColor = 'bg-lime-400 shadow-2xl'; textColor = 'text-lime-400'; }
                           else if (cs.sat >= 60) { barColor = 'bg-yellow-500 shadow-2xl'; textColor = 'text-yellow-400'; }
@@ -489,7 +457,7 @@ export function RouteDetailView({
                          label: 'Direct flight costs',
                          total: financials.estWeeklyCosts,
                          items: [
-                           { label: `Fuel (${formatNumber(financials.costsBreakdown.fuelLiters)}L @ ${financials.costsBreakdown.fuelPriceL})`, amount: financials.costsBreakdown.fuel },
+                           { label: `Fuel (${formatNumber(financials.costsBreakdown.fuelLiters)} L @ $${formatNumber(financials.costsBreakdown.fuelPriceL, 3)}/L)`, amount: financials.costsBreakdown.fuel },
                            { label: 'Crew & Ground Staff', amount: financials.costsBreakdown.crew },
                            { label: 'Catering & Cabin', amount: financials.costsBreakdown.catering },
                            { label: 'Landing & pax fees', amount: financials.costsBreakdown.infra }
@@ -526,14 +494,14 @@ export function RouteDetailView({
 
 
       <AnimatePresence>
-         {activeConfig && renderConfigWindow()}
          {showAircraftDetails && assignedAircraft && (
            <AircraftDetailsModal 
              plane={assignedAircraft}
              currentDateOffset={(currentYear - 1960) * 12 + (currentMonth - 1)}
              onClose={() => setShowAircraftDetails(false)}
              onRenovate={() => {}} 
-             aircraftRoutes={[route]} 
+             aircraftRoutes={[route]}
+             airlineCode={codePrefix}
            />
          )}
       </AnimatePresence>

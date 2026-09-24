@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, routeFlightNumber } from '../lib/format';
 import { OwnedAircraft } from './MyFleetView';
 import { Plane, Wrench, ShieldAlert } from 'lucide-react';
 import { AircraftImage } from './AircraftImage';
 import { loadAircraftImagesMap } from '../lib/imageUtils';
-import { getPlaneSat } from '../lib/financeUtils';
+import { getPlaneSat, getAircraftResaleValue } from '../lib/financeUtils';
 import { Modal } from './ui/Modal';
 import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
 
@@ -18,9 +18,11 @@ interface Props {
   onSell?: (plane: OwnedAircraft) => void;
   /** Months since 01/1960. Without it the age below cannot be computed. */
   currentDateOffset?: number;
+  /** Flight-number prefix for routes saved before they carried their own. */
+  airlineCode?: string;
 }
 
-export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell, currentDateOffset }: Props) {
+export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell, currentDateOffset, airlineCode = '' }: Props) {
   // The same function the economy prices with (financeUtils.getPlaneSat). This
   // screen used to apply the interior condition to the interior score alone,
   // which produced a different number here than in the fleet list for the same
@@ -198,12 +200,8 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
 
             {/* Liquidation & Market Value */}
             {(() => {
-              const baseValue = plane.basePrice || 10000000;
-              const condGenFactor = (plane.conditionGeneral / 100) * 0.45;
-              const condIntFactor = (plane.conditionInterior / 100) * 0.15;
-              const residualFactor = 0.30;
-              const factor = residualFactor + condGenFactor + condIntFactor;
-              const salePrice = Math.round(baseValue * factor);
+              // The amount the sale actually credits (App.handleSellAircraft).
+              const salePrice = getAircraftResaleValue(plane);
               const formatUSD = formatCurrency;
 
               return (
@@ -249,7 +247,7 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                         }}
                         className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-bold bg-white/5 text-white/80 border border-white/10 uppercase tracking-wider hover:bg-white/5 hover:text-white/80 transition-colors"
                       >
-                        {r.schedule?.[0]?.flightNumOut ? 'NE' + r.schedule[0].flightNumOut : `${r.origin}-${r.destination}`}
+                        {r.schedule?.[0]?.flightNumOut ? routeFlightNumber(r, airlineCode) : `${r.origin}-${r.destination}`}
                       </button>
                     ))}
                   </div>

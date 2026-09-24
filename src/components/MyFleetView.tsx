@@ -46,16 +46,24 @@ interface Props {
   onSelectRoute?: (route: any) => void;
   onStartRoute?: (reg: string) => void;
   onSell?: (plane: OwnedAircraft) => void;
+  airlineCode?: string;
 }
 
-function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell }: Props) {
+function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, airlineCode = '' }: Props) {
   const [search, setSearch] = useState("");
   const [filterAlertsOnly, setFilterAlertsOnly] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>('family');
   const [viewMode, setViewMode] = useState<ViewMode>('models');
   const [sortField, setSortField] = useState<SortField>('registration');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [selectedPlane, setSelectedPlane] = useState<OwnedAircraft | null>(null);
+  // Held by registration: a stored copy of the aircraft went stale as soon as it
+  // was renovated or aged a month while the details were open.
+  const [selectedReg, setSelectedReg] = useState<string | null>(null);
+  const selectedPlane = useMemo(
+    () => (selectedReg ? fleet.find(p => p.registration === selectedReg) ?? null : null),
+    [selectedReg, fleet]
+  );
+  const setSelectedPlane = (plane: OwnedAircraft | null) => setSelectedReg(plane ? plane.registration : null);
   const [selectedModel, setSelectedModel] = useState<{
     modelKey: string;
     manufacturer: string;
@@ -110,10 +118,9 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       let valB: any = b[sortField];
 
       if (sortField === 'popularity') {
-         const popA = Math.round((a.popularity * 0.33) + (a.baseInteriorPop * (a.conditionInterior / 100) * 0.67));
-         const popB = Math.round((b.popularity * 0.33) + (b.baseInteriorPop * (b.conditionInterior / 100) * 0.67));
-         valA = popA;
-         valB = popB;
+         // The figure the column shows and the economy uses, not a variant of it.
+         valA = getPlaneSat(a);
+         valB = getPlaneSat(b);
       } else if (sortField === 'status') {
          valA = (routesByAircraft[a.registration] || []).length > 0 ? 1 : 0;
          valB = (routesByAircraft[b.registration] || []).length > 0 ? 1 : 0;
@@ -170,9 +177,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
         if (isAlertCondition(p)) alertCount++;
 
-        const genSat = Math.round((p.popularity * 0.33) + (p.baseInteriorPop * 0.67));
-        const combSat = Math.round(genSat * (0.4 + 0.6 * (p.conditionInterior / 100)));
-        sumSat += combSat;
+        sumSat += getPlaneSat(p);
 
         const planeRoutes = routesByAircraft[p.registration] || [];
         activeRoutesCount += planeRoutes.length;
@@ -260,11 +265,11 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                 filterAlertsOnly
                   ? 'bg-aero-warn text-black shadow-md shadow-aero-warn/40'
                   : summaryStats.alertsCount > 0
-                  ? 'bg-aero-panel border border-white/20 text-aero-yellow/60 hover:bg-aero-panel'
+                  ? 'bg-aero-warn/10 border border-aero-warn/50 text-aero-warn hover:bg-aero-warn/20'
                   : 'bg-black/50 border border-white/10 text-white/50 hover:text-white'
               }`}
             >
-              <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-aero-yellow/60 animate-pulse' : ''} />
+              <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-aero-warn animate-pulse' : ''} />
               <span>Alerts (&lt;40%)</span>
               {summaryStats.alertsCount > 0 && (
                 <span className="bg-aero-warn text-black text-2xs px-1.5 py-0.2 rounded-full font-black">
@@ -347,7 +352,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         <div className="bg-aero-panel border border-white/10 px-3 py-2 rounded-sm">
           <StatTile
             size="sm"
-            label="Active Routes"
+            label="Active Aircraft"
             value={<>{summaryStats.activeCount} <span className="text-3xs text-white/40">({summaryStats.idleCount} Idle)</span></>}
             valueClassName="text-white/80"
           />
@@ -368,7 +373,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             size="sm"
             label="Alerts (<40%)"
             value={summaryStats.alertsCount}
-            valueClassName={summaryStats.alertsCount > 0 ? 'text-aero-yellow/60' : 'text-white/50'}
+            valueClassName={summaryStats.alertsCount > 0 ? 'text-aero-warn' : 'text-white/50'}
           />
         </div>
 
@@ -397,7 +402,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             <Plane size={48} className="mx-auto text-white/20 mb-4" />
             <h3 className="text-lg text-aero-yellow uppercase tracking-widest font-bold mb-2">No Aircraft in Fleet</h3>
             <p className="text-xs text-white/50 max-w-md mx-auto leading-relaxed">
-              Your airline fleet is currently empty. Visit the aircraft market to purchase or lease your first aircraft and start building your route network.
+              Your airline fleet is currently empty. Visit the aircraft market to purchase your first aircraft and start building your route network.
             </p>
           </div>
         ) : filteredAndSortedFleet.length === 0 ? (
@@ -464,7 +469,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                         <div className="text-2xs text-aero-yellow/80 uppercase tracking-widest font-bold flex items-center justify-between">
                           <span>{m.manufacturer}</span>
                           {hasAlert && (
-                            <span className="text-aero-yellow/60 text-3xs font-black uppercase tracking-wider animate-pulse flex items-center gap-0.5">
+                            <span className="text-aero-warn text-3xs font-black uppercase tracking-wider animate-pulse flex items-center gap-0.5">
                               <ShieldAlert size={10} /> Maintenance Required
                             </span>
                           )}
@@ -685,7 +690,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                               View Details &rarr;
                             </span>
                             {critical ? (
-                              <span className="text-aero-yellow/60 flex items-center gap-1 text-2xs font-black uppercase tracking-wider animate-pulse">
+                              <span className="text-aero-warn flex items-center gap-1 text-2xs font-black uppercase tracking-wider animate-pulse">
                                 <ShieldAlert size={12} /> Maintenance Urgent
                               </span>
                             ) : (plane.conditionInterior < 50 || plane.conditionGeneral < 50) && (
@@ -746,7 +751,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             onClick={() => setSelectedPlane(plane)}
                             className={`border-b transition-colors cursor-pointer ${
                               critical
-                                ? 'bg-aero-panel border-white/20 hover:bg-aero-panel text-aero-yellow/60 font-medium'
+                                ? 'bg-aero-warn/10 border-aero-warn/40 hover:bg-aero-warn/15 text-aero-warn font-medium'
                                 : 'border-white/5 hover:bg-white/5 text-white/70'
                             }`}
                           >
@@ -764,7 +769,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                               </div>
                             </td>
                             <td className="py-3 pl-3 font-bold tracking-wider">
-                              <span className={critical ? 'text-aero-yellow/60 flex items-center gap-1 font-black' : 'text-aero-yellow'}>
+                              <span className={critical ? 'text-aero-warn flex items-center gap-1 font-black' : 'text-aero-yellow'}>
                                 {critical && <ShieldAlert size={13} className="animate-pulse" />}
                                 {plane.registration}
                               </span>
@@ -861,14 +866,14 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                       onClick={() => setSelectedPlane(plane)}
                       className={`border rounded-sm p-3 flex flex-col justify-between cursor-pointer transition-all group ${
                         critical
-                          ? 'bg-aero-panel-2 border-white/20 hover:border-white/10'
+                          ? 'bg-aero-warn/10 border-aero-warn/50 hover:border-aero-warn'
                           : 'bg-black/50 border-white/10 hover:border-aero-yellow/60 hover:bg-white/5'
                       }`}
                     >
                       {critical && (
-                        <div className="bg-aero-panel-2 border border-white/20 text-aero-yellow/60 text-2xs font-bold px-2 py-1 rounded-sm mb-2 flex items-center justify-between">
+                        <div className="bg-aero-warn/10 border border-aero-warn/40 text-aero-warn text-2xs font-bold px-2 py-1 rounded-sm mb-2 flex items-center justify-between">
                           <span className="flex items-center gap-1">
-                            <ShieldAlert size={12} className="animate-pulse text-aero-yellow/60" />
+                            <ShieldAlert size={12} className="animate-pulse text-aero-warn" />
                             CRITICAL CONDITION (&lt;40%)
                           </span>
                           <span className="uppercase text-3xs font-black">Maintenance Urgent</span>
@@ -877,7 +882,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                       <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
                         <div>
-                          <span className={`text-sm font-bold tracking-widest block ${critical ? 'text-aero-yellow/60 font-black' : 'text-aero-yellow'}`}>
+                          <span className={`text-sm font-bold tracking-widest block ${critical ? 'text-aero-warn font-black' : 'text-aero-yellow'}`}>
                             {plane.registration}
                           </span>
                           <span className="text-2xs text-white/40">
@@ -944,8 +949,9 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       {/* Aircraft Details Modal */}
       {selectedPlane && (
         <AircraftDetailsModal 
-          plane={selectedPlane} 
+          plane={selectedPlane}
           currentDateOffset={currentDateOffset}
+          airlineCode={airlineCode}
           onClose={() => setSelectedPlane(null)} 
           onRenovate={() => {
             setSelectedPlane(null);

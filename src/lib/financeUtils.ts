@@ -616,8 +616,90 @@ export function calculateClassSatisfaction(c: string, aircraft: any, config: any
          softProduct: Math.round(softProduct),
          providedQuality: Math.round(providedQuality),
          expectationTarget: Math.round(expectationTarget),
-         satisfactionPercentage: adjustedSat
+         satisfactionPercentage: adjustedSat,
+         // The ground-side inputs, in quality points, so screens can show what
+         // the model actually applied instead of re-deriving it their own way.
+         standBonus,
+         loungeBonus,
+         deskPenalty
       };
+}
+
+export const CABIN_CLASSES = ['economy', 'premium', 'business', 'first'] as const;
+
+/** A class's cabin set-up, falling back to "general" and then to nothing at all. */
+export function classConfigFor(classConfigs: Record<string, any> | undefined, cabinClass: string) {
+  const configs = classConfigs || {};
+  return configs[cabinClass] || configs.general || { catering: [['none']], extras: ['none'], service: ['none'] };
+}
+
+/**
+ * Satisfaction per cabin class for a route, exactly as the economy prices it.
+ *
+ * This is the one definition. The route planner, the cabin overlay and the
+ * route details each used to compute "route satisfaction" their own way --
+ * one weighted the aircraft score twice, one called the engine with an empty
+ * airport table and made-up airport ids, one averaged only the classes above
+ * zero -- so the same route showed four different numbers, none of them the
+ * one that set its fares and loads.
+ *
+ * The check-in load now includes this route's own passengers. It used to be
+ * excluded, so a route on its own could never overload the desks it used,
+ * while the planner's desk panel showed it doing exactly that.
+ */
+export function getRouteClassSatisfaction(
+  route: any,
+  aircraft: any,
+  airportManagement: Record<string, any>,
+  allRoutes: any[] = [],
+  fleet: any[] = [],
+  difficulty: string
+) {
+  const durMin = Number(route.durMin) || 0;
+  const weeklyFlights = route.schedule?.length || route.weeklyFlights || 0;
+  const slotType = String(aircraft?.class || 'regional').toLowerCase();
+  const mgt = airportManagement || {};
+
+  const origin = { id: route.origin };
+  const dest = { id: route.destination };
+  const originDeskSim = getDeskSim(route.origin, mgt, allRoutes, fleet, origin, dest, aircraft, weeklyFlights, route.id);
+  const destDeskSim = getDeskSim(route.destination, mgt, allRoutes, fleet, origin, dest, aircraft, weeklyFlights, route.id);
+  const overloadPenalty = (originDeskSim.sat < 0 ? originDeskSim.sat : 0) + (destDeskSim.sat < 0 ? destDeskSim.sat : 0);
+
+  const routeSat: Record<string, number> = {};
+  const satisfactionDetails: Record<string, any> = {};
+
+  for (const c of CABIN_CLASSES) {
+    const seats = aircraft?.config?.[c] || 0;
+    if (seats <= 0) continue;
+    const satData = calculateClassSatisfaction(
+      c, aircraft, classConfigFor(route.classConfigs, c), durMin, mgt,
+      route.origin, route.destination, difficulty, slotType
+    );
+    routeSat[c] = Math.max(0, satData.satisfactionPercentage + overloadPenalty);
+    satisfactionDetails[c] = {
+      ...satData,
+      // Before the check-in overload penalty, for the "cabin services" figure.
+      baseSatisfaction: satData.satisfactionPercentage,
+      satisfactionPercentage: routeSat[c],
+      overloadPenalty
+    };
+  }
+
+  return { routeSat, satisfactionDetails, overloadPenalty, originDeskSim, destDeskSim };
+}
+
+/** Seat-weighted mean satisfaction over the classes an aircraft actually has. */
+export function seatWeightedSatisfaction(routeSat: Record<string, number>, config: Record<string, any> | undefined): number {
+  let seats = 0;
+  let sum = 0;
+  for (const c of CABIN_CLASSES) {
+    const n = config?.[c] || 0;
+    if (n <= 0) continue;
+    seats += n;
+    sum += (routeSat[c] || 0) * n;
+  }
+  return seats > 0 ? sum / seats : 0;
 }
 
 export function getPriceDemandMultiplier(price: number, satBasePrice: number, sat: number) {
@@ -772,33 +854,12 @@ export function calculateRouteFinancials(
 
   const timeClass = getFlightTimeClass(durMin);
 
-  let routeSat: Record<string, number> = {};
-  const satisfactionDetails: Record<string, any> = {};
   const classConfigs = route.classConfigs || {};
 
-  // PRE-CALCULATE SATISFACTION PER CLASS
-  const originDeskSim = getDeskSim(route.origin, airportManagement, allRoutes, fleet, undefined, undefined, aircraft, weeklyFlights, route.id);
-  const destDeskSim = getDeskSim(route.destination, airportManagement, allRoutes, fleet, undefined, undefined, aircraft, weeklyFlights, route.id);
-  const overloadPenalty = (originDeskSim.sat < 0 ? originDeskSim.sat : 0) + (destDeskSim.sat < 0 ? destDeskSim.sat : 0);
-
-  ['economy', 'premium', 'business', 'first'].forEach(c => {
-    const seats = aircraft.config?.[c] || 0;
-    if (seats > 0) {
-      const config = classConfigs[c] || classConfigs.general || { catering: [['none']], extras: ['none'], service: ['none'] };
-      
-      const satData = calculateClassSatisfaction(c, aircraft, config, durMin, airportManagement, route.origin, route.destination, difficulty, slotType);
-
-      routeSat[c] = Math.max(0, satData.satisfactionPercentage + overloadPenalty);
-
-      // Returned as part of the result instead of being written onto the route
-      // argument, which is a React state object at most call sites.
-      satisfactionDetails[c] = {
-        ...satData,
-        satisfactionPercentage: routeSat[c],
-        overloadPenalty
-      };
-    }
-  });
+  // Satisfaction per class: the single definition every screen also uses.
+  // Returned as part of the result instead of being written onto the route
+  // argument, which is a React state object at most call sites.
+  const { routeSat, satisfactionDetails } = getRouteClassSatisfaction(route, aircraft, airportManagement, allRoutes, fleet, difficulty);
 
   const originStats = getAirportStats(originAirport, currentYear);
   const destStats = getAirportStats(destAirport, currentYear);
@@ -866,7 +927,7 @@ export function calculateRouteFinancials(
       totalRev += actualPax * price;
       
       // Calculate catering cost for this class's ACTUAL pax
-      const config = classConfigs[c] || classConfigs.general || { catering: [['none']], extras: ['none'], service: ['none'] };
+      const config = classConfigFor(classConfigs, c);
       const mealCount = timeClass <= 5 ? 1 : timeClass <= 7 ? 2 : 3;
       let catSum = 0;
       for (let i = 0; i < mealCount; i++) catSum += getCateringOpt(config.catering, i).cost;
@@ -1000,6 +1061,69 @@ export function getAircraftResaleValue(plane: {
   const condGenFactor = ((plane.conditionGeneral ?? 100) / 100) * 0.45;
   const condIntFactor = ((plane.conditionInterior ?? 100) / 100) * 0.15;
   return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor));
+}
+
+/**
+ * Price of an airport management tier, per level of the airport.
+ *
+ * The route planner charged a flat $100,000 / $500,000 / $2,500,000 while the
+ * airport console charged these per-level prices, and only the console also
+ * applied the tier's effects (hub auto-upgrade, stands). Both now use this.
+ */
+const MANAGEMENT_COST_PER_AIRPORT_LEVEL: Record<number, number> = { 1: 30_000, 2: 750_000, 3: 500_000_000 };
+
+export function getManagementUnlockCost(airportLevel: number, tier: number): number {
+  return Math.max(1, Number(airportLevel) || 1) * (MANAGEMENT_COST_PER_AIRPORT_LEVEL[tier] ?? 0);
+}
+
+/**
+ * Infrastructure after unlocking a management tier. Never lowers the tier.
+ * Every tier brings at least one standard check-in desk; tier 2 and above
+ * turn on the hub auto-upgrade, which keeps a stand for every slot.
+ */
+export function applyManagementUnlock(infra: any | undefined, tier: number) {
+  const base = infra || {
+    level: 0,
+    slots: { regional: 0, narrowbody: 0, widebody: 0 },
+    stands: { regional: 0, narrowbody: 0, widebody: 0 },
+    desks: { normal: 0, self: 0 }
+  };
+  const slots = base.slots || { regional: 0, narrowbody: 0, widebody: 0 };
+  const level = Math.max(Number(base.level) || 0, tier);
+  const desks = { normal: 0, self: 0, ...base.desks };
+  if (desks.normal < 1) desks.normal = 1;
+  return {
+    ...base,
+    slots,
+    desks,
+    level,
+    hubAutoUpgrade: level >= 2,
+    ...(level >= 2
+      ? {
+          stands: {
+            ...base.stands,
+            regional: slots.regional || 0,
+            narrowbody: slots.narrowbody || 0,
+            widebody: slots.widebody || 0
+          }
+        }
+      : {})
+  };
+}
+
+/**
+ * What can be built at an airport. The airport console and the route planner
+ * each had their own answer: the console offered widebody slots and stands
+ * only from airport level 3 and self check-in only from 1995; the planner
+ * offered all of it everywhere and always.
+ */
+export function getInfraAvailability(airport: { level?: number } | null | undefined, year: number) {
+  const level = airport?.level || 0;
+  return {
+    widebodySlots: level >= 3,
+    stands: level >= 3,
+    selfCheckIn: year >= 1995
+  };
 }
 
 export function getSlotPurchaseCost(type: string) {

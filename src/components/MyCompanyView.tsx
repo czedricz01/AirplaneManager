@@ -330,20 +330,26 @@ function MyCompanyViewImpl({ capital, reportHistory, fleetValue, fleetCount, rou
                   },
                   // Slots are billed into the month's result; the rest is not,
                   // which is exactly why cash and profit differ.
-                  ...((latest!.breakdown.purchasedSlots || 0) > 0
+                  // Signed: slot refunds and aircraft sales are money coming in.
+                  ...((latest!.breakdown.purchasedSlots || 0) !== 0
                     ? [{
                         id: 'slots',
-                        label: 'Permanent slots purchased',
-                        total: latest!.breakdown.purchasedSlots,
-                        items: [{ label: 'Slot rights bought this month', amount: latest!.breakdown.purchasedSlots }]
+                        label: 'Slot purchases & refunds',
+                        variant: 'net' as const,
+                        total: -latest!.breakdown.purchasedSlots,
+                        items: [{
+                          label: latest!.breakdown.purchasedSlots > 0 ? 'Slot rights bought this month' : 'Slot rights sold back this month',
+                          amount: -latest!.breakdown.purchasedSlots
+                        }]
                       }]
                     : []),
-                  ...((latest!.capex ?? 0) > 0
+                  ...((latest!.capexItems ?? []).some(i => i.amount !== 0)
                     ? [{
                         id: 'capex',
-                        label: 'One-off investments (below the line)',
-                        total: latest!.capex!,
-                        items: (latest!.capexItems ?? []).filter(i => i.amount > 0)
+                        label: 'One-off investments & sales (below the line)',
+                        variant: 'net' as const,
+                        total: -(latest!.capex ?? 0),
+                        items: (latest!.capexItems ?? []).filter(i => i.amount !== 0).map(i => ({ label: i.label, amount: -i.amount }))
                       }]
                     : []),
                   ...(latest!.routes && latest!.routes.length > 0
