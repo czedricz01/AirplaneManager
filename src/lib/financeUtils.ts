@@ -887,7 +887,19 @@ export function calculateRouteFinancials(
   let totalPax = 0;
   let totalRev = 0;
   const paxByClass: Record<string, { actual: number, max: number }> = {};
-  const ticketPrices = route.activeTicketPrices || route.ticketPrices || { economy: bases.economy, premium: bases.premium, business: bases.business, first: bases.first };
+  // A route mid-creation carries `ticketPrices: {}` (and copies that into
+  // `activeTicketPrices` too, see RoutePlannerView's routeDraft) until the
+  // player's first price edit. `{}` is truthy, so `a || b || c` never reached
+  // the base-price fallback for it -- every class priced at `undefined`,
+  // which turned pax, revenue and every cost that scales with pax into NaN,
+  // shown as a stuck "$NaN" on the price sliders and, once safely formatted
+  // elsewhere, a stuck "$0" on the Financial Summary next to it.
+  const hasPrices = (p: unknown): p is Record<string, number> => !!p && Object.keys(p).length > 0;
+  const ticketPrices = hasPrices(route.activeTicketPrices)
+    ? route.activeTicketPrices
+    : hasPrices(route.ticketPrices)
+      ? route.ticketPrices
+      : { economy: bases.economy, premium: bases.premium, business: bases.business, first: bases.first };
 
   let totalWeeklyCateringCost = 0;
 
