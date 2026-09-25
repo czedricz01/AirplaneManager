@@ -211,7 +211,9 @@ function migrateMarketing(m: unknown, currentDateOffset: number): Marketing {
     .filter(c => c && isString(c.id) && CAMPAIGN_TIERS.includes(c.tier) && REGION_IDS.includes(c.region))
     .map(c => ({
       ...c,
-      startOffset: Math.max(0, Math.round(finiteOr(c.startOffset, currentDateOffset))),
+      // One dated in the future starts now: the marketing screen shows only
+      // running campaigns, so a future one blocked its region unseen.
+      startOffset: clamp(Math.round(finiteOr(c.startOffset, currentDateOffset)), 0, currentDateOffset),
       duration: clamp(Math.round(finiteOr(c.duration, 0)), 0, MAX_CAMPAIGN_MONTHS)
     }))
     // Over already, or never running at all: the month close would drop them.

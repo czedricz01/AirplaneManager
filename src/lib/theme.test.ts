@@ -46,7 +46,7 @@ test('the heatmap scale is the 80th percentile of the results, not the largest',
   // Ten ordinary routes and one trunk route earning a hundred times as much.
   const ordinary = [-40_000, -10_000, 20_000, 30_000, 40_000, 50_000, 60_000, 70_000, 80_000, 90_000];
   const scale = heatmapScale([...ordinary, 9_000_000]);
-  assert.equal(scale, 80_000, 'nearest rank: the 9th of 11 absolute values');
+  assert.equal(scale, 80_000, 'rank floor(10 x 0.8): the 9th of 11 absolute values');
   // So the typical route is clearly coloured...
   assert.ok(colorDistance(profitColor(50_000, scale), HEATMAP_COLORS.profit) < 0.25 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.profit));
   assert.ok(colorDistance(profitColor(-40_000, scale), HEATMAP_COLORS.loss) < 0.4 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.loss));
@@ -54,6 +54,23 @@ test('the heatmap scale is the 80th percentile of the results, not the largest',
   assert.ok(colorDistance(profitColor(50_000, 9_000_000), HEATMAP_COLORS.neutral) < 0.05 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.profit));
   // And the outlier clamps at the end colour.
   assert.equal(profitColor(9_000_000, scale), HEATMAP_COLORS.profit);
+});
+
+test('on a small network one big earner does not set the heatmap scale', () => {
+  // Four routes, one of them earning twenty times the others. The old
+  // nearest rank, ceil(4 x 0.8) = 4th of 4, was the million itself.
+  const scale = heatmapScale([1_000_000, 50_000, 40_000, -30_000]);
+  assert.equal(scale, 50_000);
+  assert.ok(colorDistance(profitColor(40_000, scale), HEATMAP_COLORS.profit) < 0.25 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.profit), 'the small earner reads green');
+  assert.ok(colorDistance(profitColor(-30_000, scale), HEATMAP_COLORS.loss) < 0.4 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.loss), 'the loss reads red');
+  assert.equal(profitColor(1_000_000, scale), HEATMAP_COLORS.profit, 'the big earner at the end colour');
+
+  // Five routes or fewer: never the largest. One route: its own result.
+  for (let n = 2; n <= 5; n++) {
+    const values = Array.from({ length: n }, (_, i) => (i + 1) * 1000);
+    assert.ok(heatmapScale(values) < n * 1000, `n = ${n}`);
+  }
+  assert.equal(heatmapScale([-70_000]), 70_000);
 });
 
 test('the heatmap scale is at least 1 and ignores unusable numbers', () => {

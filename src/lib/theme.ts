@@ -180,19 +180,25 @@ export const HEATMAP_SCALE_PERCENTILE = 0.8;
 
 /**
  * The profit or loss that reaches the heatmap's full colour: the 80th
- * percentile of the absolute results on the map (nearest rank), at least 1.
+ * percentile of the absolute results on the map, at least 1. The percentile
+ * is taken at rank floor((n - 1) x 0.8), the nearest value at or below it.
  *
  * The largest result used to set it, so a single trunk route earning ten
  * times the rest washed every other line out to grey. With a percentile the
  * typical route reads clearly red or green, and the few beyond the scale
  * simply stay at the end colour.
+ *
+ * Rounding the rank down matters on a small network: with five routes or
+ * fewer it never lands on the largest result, which the nearest-rank rule,
+ * ceil(n x 0.8), always did there, leaving an early airline with one big
+ * earner as grey as before.
  */
 export function heatmapScale(profits: Iterable<number>): number {
   const abs: number[] = [];
   for (const p of profits) if (Number.isFinite(p)) abs.push(Math.abs(p));
   if (abs.length === 0) return 1;
   abs.sort((a, b) => a - b);
-  const rank = Math.max(0, Math.ceil(HEATMAP_SCALE_PERCENTILE * abs.length) - 1);
+  const rank = Math.floor(HEATMAP_SCALE_PERCENTILE * (abs.length - 1));
   return Math.max(1, abs[rank]);
 }
 

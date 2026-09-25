@@ -963,19 +963,27 @@ export function calculateRouteFinancials(
 
   // --- Competition on this city pair ------------------------------------
   // Own parallel services count too: flying the same pair twice splits the
-  // same passengers rather than doubling them.
+  // same passengers rather than doubling them. They are kept apart from the
+  // rivals because loyalty (below) favours them as much as this route.
   const ownKey = marketKey(route.origin, route.destination);
-  let rivalAttractiveness = 0;
+  let otherAirlinesAttractiveness = 0;
   for (const offer of rivalOffers) {
     if (marketKey(offer.origin, offer.destination) !== ownKey) continue;
-    rivalAttractiveness += offerAttractiveness(offer.departures);
+    otherAirlinesAttractiveness += offerAttractiveness(offer.departures);
   }
+  let ownParallelAttractiveness = 0;
   for (const other of allRoutes) {
     if (!other || other.id === route.id) continue;
     if (marketKey(other.origin, other.destination) !== ownKey) continue;
     const otherFlights = other.schedule?.length || other.weeklyFlights || 0;
-    rivalAttractiveness += offerAttractiveness(otherFlights);
+    ownParallelAttractiveness += offerAttractiveness(otherFlights);
   }
+  /** Everyone else on the pair, own parallel routes included, as the result reports it. */
+  const rivalAttractiveness = otherAirlinesAttractiveness + ownParallelAttractiveness;
+  // Loyal passengers (the frequent-flyer programme) prefer the airline, not
+  // one of its flights: the bonus lifts this route and its own parallel
+  // routes alike, so it wins passengers from rivals and never from itself.
+  const loyalty = 1 + (mods?.loyaltyBonus ?? 0);
 
   // What serving one passenger in class `c` costs: meals, extras and service.
   const cateringPerPax = (c: string) => {
@@ -1001,13 +1009,14 @@ export function calculateRouteFinancials(
 
       // The share of this class's demand won against the rivals above. With
       // nobody else on the pair this is 1 and nothing changes.
-      // Loyal passengers (the frequent-flyer programme) stay a little longer.
       const ownAttractiveness = offerAttractiveness(
         weeklyFlights,
         price > 0 ? satBase / price : 1,
         sat / 100
-      ) * (1 + (mods?.loyaltyBonus ?? 0));
-      const share = marketShare(ownAttractiveness, rivalAttractiveness);
+      );
+      const share = loyalty === 1
+        ? marketShare(ownAttractiveness, rivalAttractiveness)
+        : marketShare(ownAttractiveness * loyalty, ownParallelAttractiveness * loyalty + otherAirlinesAttractiveness);
 
       // Whole seats: with part of the timetable cancelled, flightLegs is a
       // fraction, and so would be every passenger count derived from it.

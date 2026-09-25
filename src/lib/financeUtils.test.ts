@@ -236,6 +236,7 @@ test('COMP hint counts rivals on the exact origin-destination pair, not merely a
 // --- Player modifiers ----------------------------------------------------------
 
 import type { PlayerModifiers } from './gameState';
+import type { RouteOffer } from './financeUtils';
 
 /** Fourteen rival departures: enough that the market-share split matters. */
 const RIVALS = [{ origin: 'CDG', destination: 'FRA', departures: 14, airline: 'Rival' }];
@@ -296,4 +297,30 @@ test('loyalty wins passengers back from rivals on a shared city pair', () => {
   const loyal = priceWith(1, { demandFactor: 1, loyaltyBonus: 0.2 }, rivals);
   assert.ok(loyal.paxPerWeek > base.paxPerWeek, `${loyal.paxPerWeek} vs ${base.paxPerWeek}`);
   assert.deepStrictEqual(priceWith(1, { demandFactor: 1, loyaltyBonus: 0.2 }, []), priceWith(1, { demandFactor: 1 }, []), 'no rivals, nothing to win back');
+});
+
+test('loyalty does not take passengers from the airline\'s own parallel route', () => {
+  // Two identical FRA-CDG routes of the player's. Loyalty lifted only the
+  // route being priced, while the other one counted as an unboosted rival:
+  // each won a bigger share of the same market, and together they carried
+  // passengers who did not exist.
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const twin = { ...route, id: 'r2', aircraft: 'T-TWIN' };
+  const twinAircraft = { ...aircraft, registration: 'T-TWIN' };
+  const both = [route, twin];
+  const fleet = [aircraft, twinAircraft];
+  const total = (mods: PlayerModifiers, rivals: RouteOffer[] = []) =>
+    [route, twin].reduce((sum, r, i) => sum + calculateRouteFinancials(
+      r, fleet[i], 1.2, mgt, 1970, 6, 'Normal', airportsMapAdjusted, both, fleet, false, 1, rivals, mods
+    ).paxPerWeek, 0);
+
+  // Thin demand, so each route carries its share of the market rather than
+  // what its seats allow.
+  const plain = total({ demandFactor: 0.2 });
+  assert.ok(plain > 0);
+  assert.equal(total({ demandFactor: 0.2, loyaltyBonus: 0.2 }), plain, 'no rivals: loyalty changes nothing');
+
+  // With a rival on the pair, loyalty wins passengers, from the rival.
+  const rival: RouteOffer[] = [{ origin: 'CDG', destination: 'FRA', departures: 14, airline: 'Rival' }];
+  assert.ok(total({ demandFactor: 0.2, loyaltyBonus: 0.2 }, rival) > total({ demandFactor: 0.2 }, rival));
 });

@@ -136,9 +136,13 @@ export function regionDemandFactors(marketing: Marketing, offset: number): Parti
 /**
  * Why a campaign cannot be launched now, or null when it can. Cash is not
  * checked here; the caller knows the balance.
+ *
+ * Only campaigns running now count, the same ones the marketing screen shows
+ * with a cancel button. The game never books one for later, and a save that
+ * holds one has it moved to the present on load.
  */
 export function campaignBlocker(marketing: Marketing, tier: CampaignTier, region: RegionId, offset: number): string | null {
-  const running = marketing.campaigns.filter(c => isCampaignActive(c, offset) || c.startOffset > offset);
+  const running = marketing.campaigns.filter(c => isCampaignActive(c, offset));
   if (tier === 'global') {
     return running.some(c => c.tier === 'global') ? 'A global campaign is already running.' : null;
   }

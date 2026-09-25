@@ -187,3 +187,18 @@ test('saved marketing is repaired: bad lengths clamped, finished campaigns and d
   assert.equal(migrated.campaigns[1].duration, 120);
   assert.equal(migrated.ffpSinceOffset, 50, 'a start in the future counts from now');
 });
+
+test('a campaign dated in the future starts on load, and only running campaigns block a region', () => {
+  // The marketing screen lists running campaigns only. One scheduled for
+  // later blocked its region with nothing on screen to cancel.
+  const migrated = migrateSave({
+    currentDateOffset: 50,
+    marketing: { campaigns: [{ id: 'future', tier: 'national', region: 'EU', startOffset: 70, duration: 6 }], ffpActive: false }
+  }).marketing;
+  assert.equal(migrated.campaigns[0].startOffset, 50);
+  assert.equal(isCampaignActive(migrated.campaigns[0], 50), true, 'running, so shown with its cancel button');
+  assert.ok(campaignBlocker(migrated, 'local', 'EU', 50), 'and it blocks a second one, visibly');
+
+  const scheduled = marketingWith(createCampaign('national', 'EU', 6, 70, 'later'));
+  assert.equal(campaignBlocker(scheduled, 'local', 'EU', 50), null, 'nothing running in Europe now');
+});
