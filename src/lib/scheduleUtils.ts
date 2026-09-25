@@ -145,45 +145,13 @@ export function findMaxFlightStarts(
   remainingSlots: number
 ): { bestCount: number; bestStartTimes: number[] } {
   const cyc = Math.max(1, Math.round(cycleMin));
-
-  // blocked[m] = 1 when minute m of the week is taken. Duplicated over two
-  // weeks so a block crossing Sunday midnight is a plain range.
-  const blocked = new Uint8Array(WEEK_MIN);
-  for (const occ of occupied) {
-    const len = Math.max(0, Math.ceil(occ.end) - Math.floor(occ.start));
-    if (len >= WEEK_MIN) { blocked.fill(1); break; }
-    const s = ((Math.floor(occ.start) % WEEK_MIN) + WEEK_MIN) % WEEK_MIN;
-    for (let k = 0; k < len; k++) blocked[(s + k) % WEEK_MIN] = 1;
-  }
-  const prefix = new Int32Array(2 * WEEK_MIN + 1);
-  for (let m = 0; m < 2 * WEEK_MIN; m++) prefix[m + 1] = prefix[m] + blocked[m % WEEK_MIN];
-  const takenBetween = (s: number, e: number) => prefix[e] - prefix[s];
+  const takenBetween = blockedMinutes(occupied);
 
   let bestCount = -1;
   let bestStartTimes: number[] = [];
 
   for (let testStart = 0; testStart < WEEK_MIN; testStart += 5) {
-    let searchTime = testStart;
-    let added = 0;
-    let firstPlaced = -1;
-    let i = 0;
-
-    while (added < remainingSlots && i < 2100) {
-      i++;
-      const candidateStart = searchTime % WEEK_MIN;
-      let conflict = cyc >= WEEK_MIN || takenBetween(candidateStart, candidateStart + cyc) > 0;
-      if (!conflict && firstPlaced >= 0 && searchTime + cyc > firstPlaced + WEEK_MIN) conflict = true;
-
-      if (!conflict) {
-        if (firstPlaced < 0) firstPlaced = searchTime;
-        added++;
-        searchTime += cyc;
-      } else {
-        searchTime += 5;
-      }
-      if (searchTime >= testStart + WEEK_MIN) break;
-    }
-
+    const added = greedyPack(takenBetween, cyc, remainingSlots, testStart).length;
     if (added > bestCount) {
       bestCount = added;
       bestStartTimes = [testStart];
@@ -193,4 +161,154 @@ export function findMaxFlightStarts(
   }
 
   return { bestCount, bestStartTimes };
+}
+
+/**
+ * Counts taken minutes in a range of the week. The minutes are a prefix sum
+ * duplicated over two weeks, so a block crossing Sunday midnight is a plain
+ * range and every check is O(1).
+ */
+function blockedMinutes(occupied: Interval[]): (start: number, end: number) => number {
+  const blocked = new Uint8Array(WEEK_MIN);
+  for (const occ of occupied) {
+    const len = Math.max(0, Math.ceil(occ.end) - Math.floor(occ.start));
+    if (len >= WEEK_MIN) { blocked.fill(1); break; }
+    const s = ((Math.floor(occ.start) % WEEK_MIN) + WEEK_MIN) % WEEK_MIN;
+    for (let k = 0; k < len; k++) blocked[(s + k) % WEEK_MIN] = 1;
+  }
+  const prefix = new Int32Array(2 * WEEK_MIN + 1);
+  for (let m = 0; m < 2 * WEEK_MIN; m++) prefix[m + 1] = prefix[m] + blocked[m % WEEK_MIN];
+  return (s, e) => prefix[e] - prefix[s];
+}
+
+/**
+ * One pass of the "Max Flights" search from `testStart`: places blocks of
+ * `cyc` minutes forward, retrying 5 minutes later on a conflict. Returns the
+ * block starts (they may pass WEEK_MIN; reduce them with minuteToTripStart).
+ */
+function greedyPack(
+  takenBetween: (start: number, end: number) => number,
+  cyc: number,
+  remainingSlots: number,
+  testStart: number
+): number[] {
+  const placed: number[] = [];
+  let searchTime = testStart;
+  let i = 0;
+
+  while (placed.length < remainingSlots && i < 2100) {
+    i++;
+    const candidateStart = searchTime % WEEK_MIN;
+    let conflict = cyc >= WEEK_MIN || takenBetween(candidateStart, candidateStart + cyc) > 0;
+    // A block placed in this pass can only be hit by wrapping round onto the first one.
+    if (!conflict && placed.length > 0 && searchTime + cyc > placed[0] + WEEK_MIN) conflict = true;
+
+    if (!conflict) {
+      placed.push(searchTime);
+      searchTime += cyc;
+    } else {
+      searchTime += 5;
+    }
+    if (searchTime >= testStart + WEEK_MIN) break;
+  }
+  return placed;
+}
+
+/**
+ * "Max Flights" as a timetable: the most blocks of `cycleMin` the week can
+ * hold next to `occupied`, capped by `remainingSlots`.
+ *
+ * The start is chosen as in the route planner: with other flights on the
+ * aircraft, the best start closest after the end of its first block (so the
+ * new flights pack against the existing ones); on an empty aircraft,
+ * `preferredStart` (any start is equally good there).
+ */
+export function maxFlightStarts(
+  occupied: Interval[],
+  cycleMin: number,
+  remainingSlots: number,
+  preferredStart = 0
+): number[] {
+  if (remainingSlots <= 0) return [];
+  const cyc = Math.max(1, Math.round(cycleMin));
+  const takenBetween = blockedMinutes(occupied);
+
+  let chosen = ((Math.round(preferredStart / 5) * 5) % WEEK_MIN + WEEK_MIN) % WEEK_MIN;
+  if (occupied.length > 0) {
+    const { bestCount, bestStartTimes } = findMaxFlightStarts(occupied, cyc, remainingSlots);
+    if (bestCount <= 0 || bestStartTimes.length === 0) return [];
+    const firstEnd = [...occupied].sort((a, b) => a.start - b.start)[0].end;
+    let minDiff = Infinity;
+    for (const st of bestStartTimes) {
+      const diff = (((st - firstEnd) % WEEK_MIN) + WEEK_MIN) % WEEK_MIN;
+      if (diff < minDiff) { minDiff = diff; chosen = st; }
+    }
+  }
+  return greedyPack(takenBetween, cyc, remainingSlots, chosen).map(m => m % WEEK_MIN);
+}
+
+/**
+ * "Multiple Ops" for one day: the block start (minute of the week) at which
+ * `ops` round trips can fly back to back from `dayId` without touching `busy`.
+ * `preferredStartInDay` is tried first, then every later 5-minute start of the
+ * same day, wrapping round to the morning. Null when none fits.
+ */
+export function findDayRunStart(
+  dayId: number,
+  ops: number,
+  cycleMin: number,
+  busy: Interval[],
+  preferredStartInDay: number
+): number | null {
+  const n = Math.max(1, Math.round(ops));
+  const cyc = Math.max(5, Math.ceil(cycleMin / 5) * 5);
+  if (n * cyc > WEEK_MIN) return null;
+  const dayStart = (dayId - 1) * DAY_MIN;
+  const pref = ((Math.round(preferredStartInDay / 5) * 5) % DAY_MIN + DAY_MIN) % DAY_MIN;
+  for (let k = 0; k < DAY_MIN; k += 5) {
+    const start = dayStart + ((pref + k) % DAY_MIN);
+    let fits = true;
+    for (let op = 0; op < n && fits; op++) {
+      const s = start + op * cyc;
+      for (const b of busy) {
+        if (checkOverlap(s, s + cyc, b.start, b.end)) { fits = false; break; }
+      }
+    }
+    if (fits) return start;
+  }
+  return null;
+}
+
+/**
+ * "Select All" with Multiple Ops: one start time of day at which every day in
+ * `days` can fly its `ops` round trips. Tries `preferredStartInDay` first,
+ * then every later 5-minute start. Null when no single time fits every day.
+ */
+export function findCommonRunStart(
+  days: number[],
+  ops: number,
+  cycleMin: number,
+  busy: Interval[],
+  preferredStartInDay: number
+): number | null {
+  const n = Math.max(1, Math.round(ops));
+  const cyc = Math.max(5, Math.ceil(cycleMin / 5) * 5);
+  const pref = ((Math.round(preferredStartInDay / 5) * 5) % DAY_MIN + DAY_MIN) % DAY_MIN;
+  // The days' own runs must not overlap each other either.
+  if (n * cyc > DAY_MIN && days.length > 1) return null;
+  for (let k = 0; k < DAY_MIN; k += 5) {
+    const t = (pref + k) % DAY_MIN;
+    let fits = true;
+    for (const d of days) {
+      for (let op = 0; op < n && fits; op++) {
+        const s = (d - 1) * DAY_MIN + t + op * cyc;
+        for (const b of busy) {
+          if (checkOverlap(s, s + cyc, b.start, b.end)) { fits = false; break; }
+        }
+      }
+      if (!fits) break;
+    }
+    if (fits) return t;
+  }
+  return null;
 }
