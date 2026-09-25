@@ -610,7 +610,16 @@ export function calculateClassSatisfaction(c: string, aircraft: any, config: any
       // cost real catering/extras/service spend only in the classes passengers
       // already expect to pay more for. Business/first were raised only slightly:
       // they already required real investment to satisfy.
-      const expectationBase: Record<string, number> = { economy: 42, premium: 48, business: 72, first: 104 };
+      //
+      // First's original base (104) combined with the multiplicative long-haul
+      // expectationMultiplier below made 100% mathematically out of reach on
+      // long-haul widebody routes even with every option maxed out (~80%
+      // ceiling), because TIME_CLASS_SAT_MULTIPLIERS simultaneously dampens the
+      // inputs on exactly those routes. Lowered so a strong (not necessarily
+      // maxed) first-class setup can clear 100% on any route length. Business
+      // was already reachable near/at max spend; lowered a bit further so it
+      // clears 100% with more comfortable margin at realistic spend too.
+      const expectationBase: Record<string, number> = { economy: 42, premium: 48, business: 64, first: 70 };
       const eBase = expectationBase[c] || 18;
       const expectationMultiplier = 1.0 + ((timeClass - 1) * 0.15);
       const expectationTarget = eBase * expectationMultiplier;
