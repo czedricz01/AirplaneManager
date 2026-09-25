@@ -1,5 +1,5 @@
 import { FinancialReport } from "./FinancialReport";
-import { formatNumber, routeFlightNumber } from '../lib/format';
+import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
 import React, { useState, useMemo } from 'react';
 import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14,6 +14,7 @@ import {
   marketKey,
 } from '../lib/financeUtils';
 import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers } from '../lib/gameState';
+import type { RouteTransfer } from '../lib/transferUtils';
 
 import { airports, airportsMapAdjusted } from '../data/airportRegistry';
 
@@ -31,6 +32,11 @@ interface RouteDetailViewProps {
   /** The player-only effects on the economy, so the detail matches the monthly report. */
   playerMods?: PlayerModifiers;
   rivalOffers?: RouteOffer[];
+  /**
+   * This route's connecting passengers, for the breakdown. The figures
+   * themselves come from `playerMods.transfer` through the engine.
+   */
+  transfer?: RouteTransfer;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -47,7 +53,7 @@ interface RouteDetailViewProps {
 
 export function RouteDetailView({
   route, routes, fleet, fuelPrice = 1.05, airportManagement,
-  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS,
+  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS, transfer,
   onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
   airlineCode = ''
 }: RouteDetailViewProps) {
@@ -205,6 +211,16 @@ export function RouteDetailView({
               <div className="flex flex-col">
                 <span className="text-white/30 text-3xs uppercase tracking-widest font-bold mb-1">Weekly Pax</span>
                 <span className="text-2xl font-black text-aero-yellow">{formatNumber(financials?.paxPerWeek ?? route.paxPerWeek ?? 0)}</span>
+                {(financials?.transferPax ?? 0) > 0 && (
+                  <span className="text-3xs font-mono text-white/50 mt-1">
+                    incl. {formatNumber(financials!.transferPax)} transfer pax/wk ({formatCurrency(financials!.transferRev)})
+                  </span>
+                )}
+                {(financials?.transferPax ?? 0) > 0 && transfer && transfer.flows.length > 0 && (
+                  <span className="text-3xs font-mono text-white/35 mt-0.5">
+                    {transfer.flows.slice(0, 3).map(f => `${f.o}→${f.hub}→${f.d} ${formatNumber(f.pax)}`).join(' · ')}
+                  </span>
+                )}
               </div>
               <div className="ml-auto">
                 {assignedAircraft && (
@@ -453,7 +469,11 @@ export function RouteDetailView({
                            label: `${cls[0].toUpperCase()}${cls.slice(1)} — ${cd.actual}/${cd.max} pax @ $${price} (${lf}% LF)`,
                            amount: cd.actual * price
                          };
-                       })}
+                       })
+                       .concat(financials.transferPax > 0 ? [{
+                         label: `Connecting — ${formatNumber(financials.transferPax)} transfer pax (share of fare by distance)`,
+                         amount: financials.transferRev
+                       }] : [])}
                      expenses={[
                        {
                          id: 'opx',

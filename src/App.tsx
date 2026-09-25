@@ -209,7 +209,8 @@ const createDefaultPlanningClassConfigs = (): Record<string, any> => ({
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
-import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
+import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
+import { computeNetworkFinancials } from "./lib/transferUtils";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
   buildPlayerModifiers,
@@ -742,27 +743,43 @@ export default function App() {
   );
 
   /**
+   * The whole network priced once for this month, connecting passengers
+   * included: the same call the monthly report makes, so the two agree.
+   */
+  const network = useMemo(() => computeNetworkFinancials(routes, fleet, playerMods, {
+    fuelPrice: fuelData.price,
+    airportManagement,
+    year: 1960 + Math.floor(currentDateOffset / 12),
+    month: 1 + (currentDateOffset % 12),
+    difficulty,
+    airportsMap: airportsMapAdjusted,
+    rivalOffers
+  }),
+    // randomEvents: calculateDemand reads the active events from module state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerMods, rivalOffers, randomEvents]
+  );
+
+  /**
+   * The player's modifiers with this month's connecting passengers, for the
+   * screens that price one route at a time (the route list and its detail
+   * view). Reading `transfer` from here, their figures match the network's.
+   */
+  const playerModsWithTransfer = useMemo(
+    () => Object.keys(network.transfer).length > 0 ? { ...playerMods, transfer: network.transfer } : playerMods,
+    [playerMods, network]
+  );
+
+  /**
    * Every route with this month's figures, from the same engine call the
    * monthly report makes. The route list and the map read these. The copy
    * stored on each route changes only when a month closes, so a new rival, a
    * new timetable or a new route next door showed up there a month late.
    */
-  const routesWithMetrics = useMemo(() => {
-    const byRegistration = new Map(fleet.map(p => [p.registration, p]));
-    const year = 1960 + Math.floor(currentDateOffset / 12);
-    const month = 1 + (currentDateOffset % 12);
-    return routes.map(r => {
-      const ac = byRegistration.get(r.aircraft);
-      if (!ac) return r;
-      const fin = calculateRouteFinancials(
-        r, ac, fuelData.price, airportManagement, year, month, difficulty,
-        airportsMapAdjusted, routes, fleet, false, playerMods.demandFactor, rivalOffers, playerMods
-      );
-      return { ...r, ...toStoredRouteMetrics(fin) };
-    });
-    // randomEvents: calculateDemand reads the active events from module state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerMods, rivalOffers, randomEvents]);
+  const routesWithMetrics = useMemo(() => routes.map(r => {
+    const fin = network.finById.get(r.id);
+    return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
+  }), [routes, network]);
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
@@ -1042,21 +1059,27 @@ export default function App() {
     let infraCosts = 0;
     let landingFees = 0;
     let paxFees = 0;
-    const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number, paxPerWeek: number, capacity: number }[] = [];
+    const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number, paxPerWeek: number, capacity: number, transferPax: number }[] = [];
     // Samples for the reputation update further down.
     let repPaxWeek = 0;
     let repSatTimesPax = 0;
     let repSeatsWeek = 0;
     const flyingRegs = new Set<string>();
 
+    // The same network pricing the route list shows, connecting passengers included.
+    const monthNetwork = computeNetworkFinancials(routes, fleet, playerMods, {
+      fuelPrice: currentFuelPrice,
+      airportManagement,
+      year: currentYearNum,
+      month: currentMonthNum,
+      difficulty,
+      airportsMap: localAirportsMap,
+      rivalOffers
+    });
+
     routes.forEach(r => {
-      const ac = fleet.find(a => a.registration === r.aircraft);
-      if (ac) {
-        const fin = calculateRouteFinancials(
-          r, ac, currentFuelPrice, airportManagement, currentYearNum, currentMonthNum,
-          difficulty, localAirportsMap, routes, fleet, false,
-          playerMods.demandFactor, rivalOffers, playerMods
-        );
+      const fin = monthNetwork.finById.get(r.id);
+      if (fin) {
         // `|| 0` below would hide a NaN as a zero; name the field instead.
         const nonFinite = findNonFinite(fin);
         if (nonFinite.length > 0) {
@@ -1102,7 +1125,8 @@ export default function App() {
           revenue: mRev,
           cost: mCost,
           paxPerWeek: fin.paxPerWeek || 0,
-          capacity: weeklySeats
+          capacity: weeklySeats,
+          transferPax: fin.transferPax || 0
         });
       } else {
         logWarn('month', `Route ${r.id} has no aircraft ${r.aircraft}; it earned nothing this month`);
@@ -1419,34 +1443,25 @@ export default function App() {
     // the map disagreed with the report the same route then produced.
     const nextMods = buildPlayerModifiers({ reputation: nextReputation, eventChoices }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
-    setRoutes(prevRoutes => prevRoutes.map(r => {
-      const activePrices = r.ticketPrices || { economy: 100 };
-      const ac = fleet.find(a => a.registration === r.aircraft);
-      let updatedRoute = { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
-      if (ac) {
-        const nextFuelPrice = getFuelData(nextOffset).price;
-        const nextYearNum = 1960 + Math.floor(nextOffset / 12);
-        const nextMonthNum = 1 + (nextOffset % 12);
-        const fin = calculateRouteFinancials(
-          updatedRoute,
-          ac,
-          nextFuelPrice,
-          airportManagement,
-          nextYearNum,
-          nextMonthNum,
-          difficulty,
-          localAirportsMap,
-          prevRoutes,
-          fleet,
-          false,
-          nextMods.demandFactor,
-          nextRivalOffers,
-          nextMods
-        );
-        updatedRoute = { ...updatedRoute, ...toStoredRouteMetrics(fin) };
-      }
-      return updatedRoute;
-    }));
+    setRoutes(prevRoutes => {
+      const repriced = prevRoutes.map(r => {
+        const activePrices = r.ticketPrices || { economy: 100 };
+        return { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
+      });
+      const nextNetwork = computeNetworkFinancials(repriced, fleet, nextMods, {
+        fuelPrice: getFuelData(nextOffset).price,
+        airportManagement,
+        year: 1960 + Math.floor(nextOffset / 12),
+        month: 1 + (nextOffset % 12),
+        difficulty,
+        airportsMap: localAirportsMap,
+        rivalOffers: nextRivalOffers
+      });
+      return repriced.map(r => {
+        const fin = nextNetwork.finById.get(r.id);
+        return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
+      });
+    });
 
     setView('monthly-overview');
 
@@ -2546,7 +2561,7 @@ export default function App() {
                          netProfit={latestReport.totalProfit}
                          totalRevenue={latestReport.routeRevenues}
                          revenues={(latestReport.routes || []).map((r: any) => ({
-                           label: `${r.name}${r.capacity > 0 ? ` (${Math.round((r.paxPerWeek / r.capacity) * 100)}% LF)` : ''}`,
+                           label: `${r.name}${r.capacity > 0 ? ` (${Math.round((r.paxPerWeek / r.capacity) * 100)}% LF)` : ''}${r.transferPax > 0 ? ` incl. ${formatNumber(r.transferPax)} transfer pax/wk` : ''}`,
                            amount: r.revenue
                          }))}
                          expenses={[
@@ -2882,8 +2897,9 @@ export default function App() {
                           onEditFinancials={setEditingPricingRouteId}
                           onUpdatePricing={handleUpdatePricing}
                           fuelPrice={fuelData.price}
-                        playerMods={playerMods}
-                        rivalOffers={rivalOffers}
+                          playerMods={playerModsWithTransfer}
+                          rivalOffers={rivalOffers}
+                          transferFlows={network.flowsByRoute}
                           airportManagement={airportManagement}
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           currentMonth={1 + (currentDateOffset % 12)}
@@ -3140,6 +3156,7 @@ export default function App() {
                       <AirportDetailView
                         airport={selectedAirport}
                         currentDateOffset={currentDateOffset}
+                        transferHub={network.hubStats[selectedAirport.id]}
                         onNotify={setAppAlert}
                         onClose={() => setSelectedAirport(null)}
                         fleet={fleet}

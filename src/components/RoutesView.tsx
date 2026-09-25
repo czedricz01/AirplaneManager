@@ -4,6 +4,7 @@ import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
 import { getFlightTimeClass, calculateRouteFinancials, type RouteOffer } from '../lib/financeUtils';
 import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers } from '../lib/gameState';
+import type { RouteTransfer } from '../lib/transferUtils';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
@@ -56,6 +57,8 @@ interface Props {
   /** The player-only effects on the economy, so the list matches the monthly report. */
   playerMods?: PlayerModifiers;
   rivalOffers?: RouteOffer[];
+  /** Connecting passengers per route id, for the detail view's breakdown. */
+  transferFlows?: Record<string, RouteTransfer>;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -199,7 +202,7 @@ function RoutesViewImpl({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
-  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = [], airlineCode = ''
+  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = [], transferFlows, airlineCode = ''
 }: Props) {
   const [search, setSearch] = useState("");
   const [airportFilter, setAirportFilter] = useState(initialAirportFilter);
@@ -379,6 +382,7 @@ function RoutesViewImpl({
             fuelPrice={fuelPrice}
             playerMods={playerMods}
             rivalOffers={rivalOffers}
+            transfer={transferFlows?.[activeRoute.id]}
             airportManagement={airportManagement}
             currentYear={currentYear}
             currentMonth={currentMonth}

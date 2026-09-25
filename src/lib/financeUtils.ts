@@ -978,6 +978,17 @@ export function calculateRouteFinancials(
     rivalAttractiveness += offerAttractiveness(otherFlights);
   }
 
+  // What serving one passenger in class `c` costs: meals, extras and service.
+  const cateringPerPax = (c: string) => {
+    const config = classConfigFor(classConfigs, c);
+    const mealCount = timeClass <= 5 ? 1 : timeClass <= 7 ? 2 : 3;
+    let catSum = 0;
+    for (let i = 0; i < mealCount; i++) catSum += getCateringOpt(config.catering, i).cost;
+    const extSum = getMultiOptionSum(config.extras, EXTRAS_OPTIONS).cost;
+    const srvSum = getMultiOptionSum(config.service, SERVICE_OPTIONS).cost;
+    return catSum + extSum + srvSum;
+  };
+
   // CALCULATE PAX AND DEPENDENT COSTS
   ['economy', 'premium', 'business', 'first'].forEach(c => {
     const seats = aircraft.config?.[c] || 0;
@@ -1012,16 +1023,23 @@ export function calculateRouteFinancials(
       totalRev += actualPax * price;
       
       // Calculate catering cost for this class's ACTUAL pax
-      const config = classConfigFor(classConfigs, c);
-      const mealCount = timeClass <= 5 ? 1 : timeClass <= 7 ? 2 : 3;
-      let catSum = 0;
-      for (let i = 0; i < mealCount; i++) catSum += getCateringOpt(config.catering, i).cost;
-      const extSum = getMultiOptionSum(config.extras, EXTRAS_OPTIONS).cost;
-      const srvSum = getMultiOptionSum(config.service, SERVICE_OPTIONS).cost;
-      
-      totalWeeklyCateringCost += (catSum + extSum + srvSum) * actualPax;
+      totalWeeklyCateringCost += cateringPerPax(c) * actualPax;
     }
   });
+
+  // Connecting passengers, worked out across the whole network by
+  // computeNetworkFinancials (transferUtils.ts). They only ever take seats the
+  // local passengers above left empty, travel in economy, and pay the fees and
+  // catering every other passenger does. A full-load preview has no empty
+  // seat to give them.
+  const transfer = forceFullLoad ? undefined : mods?.transfer?.[route.id];
+  const transferPax = Math.max(0, Math.floor(Number(transfer?.pax) || 0));
+  const transferRev = transferPax > 0 ? Math.max(0, Number(transfer?.revenue) || 0) : 0;
+  if (transferPax > 0) {
+    totalPax += transferPax;
+    totalRev += transferRev;
+    totalWeeklyCateringCost += cateringPerPax('economy') * transferPax;
+  }
 
   const originPaxHandlingFees = totalPax * getPaxHandlingUnit(originLevel);
   const destPaxHandlingFees = totalPax * getPaxHandlingUnit(destLevel);
@@ -1051,6 +1069,10 @@ export function calculateRouteFinancials(
     estWeeklyRev: totalRev,
     paxPerWeek: totalPax,
     paxByClass,
+    /** Connecting passengers per week, included in paxPerWeek. */
+    transferPax,
+    /** Their share of the fare, included in estWeeklyRev. */
+    transferRev,
     routeSat,
     satisfactionDetails,
     demandData,
@@ -1084,6 +1106,8 @@ export function calculateRouteFinancials(
     }
   };
 }
+
+export type RouteFinancials = ReturnType<typeof calculateRouteFinancials>;
 
 /**
  * The figures a route keeps between months: what the route list, the map and

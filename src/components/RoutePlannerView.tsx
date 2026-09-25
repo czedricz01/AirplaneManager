@@ -47,6 +47,7 @@ import {
   RouteOffer,
 } from '../lib/financeUtils';
 import { NEUTRAL_PLAYER_MODIFIERS, routeDemandFactor, type PlayerModifiers } from '../lib/gameState';
+import { computeNetworkFinancials } from '../lib/transferUtils';
 
 const EMPTY_DESK_SIM = { load: 0, sat: 0, myPax: 0, cap: 0 };
 // A stable default, so a missing prop does not invalidate the memos below on every render.
@@ -817,6 +818,26 @@ function RoutePlannerInner({
     };
   }, [selectedOrigin, selectedDest, selectedAircraft, schedule, classConfigs, ticketPrices, initialRouteId, draftRouteId]);
 
+  /**
+   * The player's network with this draft in it -- replacing the route being
+   * edited, or added as a new one -- priced the way the monthly report will
+   * price it. Connecting passengers depend on every route meeting the draft,
+   * and on the empty seats the draft leaves them, so they can only come from
+   * the whole network. Only the draft's transfers are read from it; the
+   * previews below still come from the one engine call each.
+   */
+  const plannerMods = useMemo(() => {
+    if (!routeDraft || !selectedAircraft) return playerMods;
+    const withDraft = routes.some(r => r.id === routeDraft.id)
+      ? routes.map(r => (r.id === routeDraft.id ? routeDraft : r))
+      : [...routes, routeDraft];
+    const network = computeNetworkFinancials(withDraft, fleet, playerMods, {
+      fuelPrice, airportManagement, year: currentYear, month: currentMonth, difficulty, airportsMap, rivalOffers
+    });
+    const own = network.transfer[routeDraft.id];
+    return own ? { ...playerMods, transfer: { [routeDraft.id]: own } } : playerMods;
+  }, [routeDraft, selectedAircraft, routes, fleet, playerMods, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, rivalOffers]);
+
   // Rival routes per city pair, for the "COMP" hint in the destination list.
   const rivalRoutesByPair = useMemo(() => buildRivalRoutesByPair(aiAirlines), [aiAirlines]);
 
@@ -861,7 +882,7 @@ function RoutePlannerInner({
     const engine = calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      difficulty !== 'Easy', playerMods.demandFactor, rivalOffers, playerMods
+      difficulty !== 'Easy', plannerMods.demandFactor, rivalOffers, plannerMods
     );
     const b = engine.costsBreakdown;
 
@@ -885,7 +906,7 @@ function RoutePlannerInner({
       originPaxHandlingFees: b.originPaxHandlingFees,
       destPaxHandlingFees: b.destPaxHandlingFees
     };
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, schedule, playerMods, rivalOffers]);
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, schedule, plannerMods, rivalOffers]);
 
   // The figures actually stored on the route: realistic load factors, not full load.
   const saveFinancials = useMemo(() => {
@@ -893,9 +914,9 @@ function RoutePlannerInner({
     return calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      false, playerMods.demandFactor, rivalOffers, playerMods
+      false, plannerMods.demandFactor, rivalOffers, plannerMods
     );
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, playerMods, rivalOffers]);
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, plannerMods, rivalOffers]);
 
   // Break-even prices at 99%/75%/35% load, shared by the pricing step's sliders
   // and the auto-seed effect below. `financials` (the calculateRouteFinancials
@@ -3134,9 +3155,9 @@ function RoutePlannerInner({
                                  routes,
                                  fleet,
                                  false,
-                                 playerMods.demandFactor,
+                                 plannerMods.demandFactor,
                                  rivalOffers,
-                                 playerMods
+                                 plannerMods
                                );
 
                                onSaveRoute({
@@ -3360,7 +3381,10 @@ function RoutePlannerInner({
                              <span className={`text-3xl font-black italic tracking-tighter ${saveFinancials.estWeeklyProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
                                {formatSignedCurrency(saveFinancials.estWeeklyProfit)}
                              </span>
-                             <span className="text-3xs text-white/40 font-mono mt-1">{formatNumber(saveFinancials.paxPerWeek)} / {formatNumber(totalEstPaxMax)} pax per week</span>
+                             <span className="text-3xs text-white/40 font-mono mt-1">
+                               {formatNumber(saveFinancials.paxPerWeek)} / {formatNumber(totalEstPaxMax)} pax per week
+                               {saveFinancials.transferPax > 0 && ` · incl. ${formatNumber(saveFinancials.transferPax)} transfer`}
+                             </span>
                           </div>
                         )}
                         <div className={`p-4 border ${estProfit >= 0 ? 'bg-aero-yellow/10 border-aero-yellow/30' : 'bg-aero-panel border-white/20'} flex flex-col items-center justify-center`}>
