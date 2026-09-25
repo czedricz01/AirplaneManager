@@ -156,7 +156,10 @@ const RouteRow = React.memo(function RouteRow({
       <Td className="text-xs font-mono">{route.distance} km</Td>
       <Td className="text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
       <Td className="text-xs font-mono">{route.durMin ? <span className="border border-white/20 px-2 py-0.5 rounded-sm bg-white/5">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
-      <Td>{route.aircraft}</Td>
+      <Td>
+        <div>{route.aircraft}</div>
+        {aircraft && <div className="text-2xs text-white/40">{aircraft.manufacturer} {aircraft.type}</div>}
+      </Td>
       <Td className="text-xs font-mono">{route.weeklyFlights}</Td>
       <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
       <Td className="text-xs font-mono"><ClassLine items={loadLine} /></Td>
