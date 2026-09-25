@@ -15,6 +15,7 @@ import {
   REGION_IDS,
   SALARY_PCT_MAX,
   SALARY_PCT_MIN,
+  ensureFreeOption,
   type Branding,
   type ChronicleEntry,
   type Disruption,
@@ -255,8 +256,10 @@ function migrateDecisions(list: unknown): GameDecision[] {
         .filter(o => o && isString(o.id) && isString(o.label))
         .map(o => ({ ...o, detail: isString(o.detail) ? o.detail : '', cost: Math.max(0, finiteOr(o.cost, 0)) }))
     }))
-    // A question with nothing to answer would block the game.
-    .filter(d => d.options.length > 0);
+    // A question with nothing to answer would block the game, and so would
+    // one whose every answer costs more than the player has.
+    .filter(d => d.options.length > 0)
+    .map(ensureFreeOption);
 }
 
 function migrateChronicle(list: unknown): ChronicleEntry[] {

@@ -175,12 +175,33 @@ function mixHex(a: string, b: string, t: number): string {
   return '#' + ca.map((v, i) => Math.round(v + (cb[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }
 
+/** The share of routes whose profit or loss stays inside the heatmap's scale. */
+export const HEATMAP_SCALE_PERCENTILE = 0.8;
+
+/**
+ * The profit or loss that reaches the heatmap's full colour: the 80th
+ * percentile of the absolute results on the map (nearest rank), at least 1.
+ *
+ * The largest result used to set it, so a single trunk route earning ten
+ * times the rest washed every other line out to grey. With a percentile the
+ * typical route reads clearly red or green, and the few beyond the scale
+ * simply stay at the end colour.
+ */
+export function heatmapScale(profits: Iterable<number>): number {
+  const abs: number[] = [];
+  for (const p of profits) if (Number.isFinite(p)) abs.push(Math.abs(p));
+  if (abs.length === 0) return 1;
+  abs.sort((a, b) => a - b);
+  const rank = Math.max(0, Math.ceil(HEATMAP_SCALE_PERCENTILE * abs.length) - 1);
+  return Math.max(1, abs[rank]);
+}
+
 /**
  * A route's colour on the profit heatmap: red for a loss, grey around break
- * even, green for a profit. `maxAbs` is the largest profit or loss on the map,
- * which reaches the full colour. The curve is a tanh, steep around zero, so
- * that small routes next to one very large earner still read as clearly
- * losing or clearly earning instead of all fading to grey.
+ * even, green for a profit. `maxAbs` is the profit or loss that reaches the
+ * full colour (see heatmapScale); anything beyond it stays there. The curve is
+ * a tanh, steep around zero, so that small results still read as clearly
+ * losing or clearly earning instead of fading to grey.
  */
 export function profitColor(profit: number, maxAbs: number): string {
   if (!(maxAbs > 0) || !Number.isFinite(profit)) return HEATMAP_COLORS.neutral;

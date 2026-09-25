@@ -206,8 +206,24 @@ const directionKey = (routeId: string, from: string, to: string) => `${routeId}|
 /** Plain code-unit order: fixed across locales, and far cheaper than localeCompare. */
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-const byPaxThenKey = (a: TransferFlow, b: TransferFlow) =>
-  b.pax - a.pax || cmp(`${a.o}>${a.hub}>${a.d}`, `${b.o}>${b.hub}>${b.d}`);
+const flowKey = (f: TransferFlow) => `${f.o}>${f.hub}>${f.d}`;
+
+const byPaxThenKey = (a: TransferFlow, b: TransferFlow) => b.pax - a.pax || cmp(flowKey(a), flowKey(b));
+
+/**
+ * One entry per O -> hub -> D, largest first. Two parallel routes feeding the
+ * same market each sell part of it, and used to show up as two identical
+ * lines -- with the same React key -- on the hub and the onward route.
+ */
+function mergeFlows(flows: TransferFlow[]): TransferFlow[] {
+  const byKey = new Map<string, TransferFlow>();
+  for (const f of flows) {
+    const hit = byKey.get(flowKey(f));
+    if (hit) hit.pax += f.pax;
+    else byKey.set(flowKey(f), { ...f });
+  }
+  return [...byKey.values()].sort(byPaxThenKey);
+}
 
 /**
  * Connecting passengers on the player's network.
@@ -416,10 +432,10 @@ export function computeTransferFlows(
   for (const [id, entry] of Object.entries(result.flowsByRoute)) {
     // Whole dollars, so adding it to a route's revenue is exact.
     entry.revenue = Math.round(entry.revenue);
-    entry.flows.sort(byPaxThenKey);
+    entry.flows = mergeFlows(entry.flows);
     result.transfer[id] = { pax: entry.pax, revenue: entry.revenue };
   }
-  for (const entry of Object.values(result.hubStats)) entry.flows.sort(byPaxThenKey);
+  for (const entry of Object.values(result.hubStats)) entry.flows = mergeFlows(entry.flows);
   return result;
 }
 
@@ -494,4 +510,48 @@ export function computeNetworkFinancials(
   }
 
   return { finById, ...flows };
+}
+
+// --- The route planner ---------------------------------------------------------
+
+/**
+ * The player's routes with a draft put in: in place of the saved route with
+ * the same id when that route is being edited, so it is not counted twice, or
+ * added at the end when it is new.
+ */
+export function withDraftRoute<T extends { id: string }>(routes: T[], draft: T): T[] {
+  return routes.some(r => r.id === draft.id)
+    ? routes.map(r => (r.id === draft.id ? draft : r))
+    : [...routes, draft];
+}
+
+export interface DraftPricing {
+  /** The draft's result, connecting passengers included. */
+  fin: RouteFinancials;
+  /** Its connecting passengers, as computeNetworkFinancials hands them to the engine. */
+  transfer: { pax: number; revenue: number } | undefined;
+}
+
+/**
+ * A route the planner is drafting, priced inside the player's network exactly
+ * as the monthly report will price it once it is saved.
+ *
+ * The draft must name its aircraft's registration in `aircraft`:
+ * computeNetworkFinancials prices only routes whose aircraft it finds in the
+ * fleet. The planner's draft used to have none, so it was silently left out
+ * of the network, and its preview never included a connecting passenger while
+ * the route list, once saved, did.
+ *
+ * Null when the draft's aircraft is not in the fleet.
+ */
+export function priceDraftInNetwork(
+  draft: any,
+  routes: any[],
+  fleet: any[],
+  mods: PlayerModifiers,
+  env: NetworkEnv
+): DraftPricing | null {
+  const network = computeNetworkFinancials(withDraftRoute(routes, draft), fleet, mods, env);
+  const fin = network.finById.get(draft.id);
+  return fin ? { fin, transfer: network.transfer[draft.id] } : null;
 }

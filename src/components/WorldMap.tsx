@@ -5,7 +5,7 @@ import { Airport } from '../data/airportTypes';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { LiveTraffic } from './LiveTraffic';
 import type { OwnedAircraft } from './MyFleetView';
-import { MAP_YELLOW, MAP_CONGESTION_COLORS, HEATMAP_COLORS, profitColor, paxWeight } from '../lib/theme';
+import { MAP_YELLOW, MAP_CONGESTION_COLORS, HEATMAP_COLORS, heatmapScale, profitColor, paxWeight } from '../lib/theme';
 import { formatNumber, formatSignedCurrency } from '../lib/format';
 
 /**
@@ -210,12 +210,11 @@ function WorldMapImpl({
       entry.routes += 1;
       totals.set(key, entry);
     }
-    let maxAbs = 0;
+    // A percentile rather than the largest result, so one big earner does not
+    // turn every other line grey.
+    const maxAbs = heatmapScale([...totals.values()].map(p => p.profit));
     let maxPax = 0;
-    for (const p of totals.values()) {
-      maxAbs = Math.max(maxAbs, Math.abs(p.profit));
-      maxPax = Math.max(maxPax, p.pax);
-    }
+    for (const p of totals.values()) maxPax = Math.max(maxPax, p.pax);
     const pairs = new Map<string, HeatPair>();
     for (const [key, p] of totals) {
       pairs.set(key, {

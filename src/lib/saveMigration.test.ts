@@ -95,7 +95,7 @@ test('engine internals stored on routes by older versions are removed', () => {
 // --- Version 3 ---------------------------------------------------------------
 
 import { MAP_YELLOW, RIVAL_PALETTE } from './theme';
-import { DEFAULT_STAFF } from './gameState';
+import { DEFAULT_STAFF, FREE_OPTION_ID } from './gameState';
 
 const v2Save = () => ({
   ...oldSave(),
@@ -153,4 +153,18 @@ test('broken version 3 fields are repaired rather than trusted', () => {
   assert.equal(migrated.chronicle.length, 300);
   assert.equal(migrated.chronicle[0].offset, 100, 'the oldest entries go first');
   assert.equal(migrated.tutorialStep, 2);
+});
+
+test('a loaded decision with only paid answers gets a free one', () => {
+  const migrated = migrateSave({
+    ...v2Save(),
+    pendingDecisions: [
+      { id: 'd1', kind: 'disruption', title: 'Charter?', options: [{ id: 'charter', label: 'Charter', cost: 5_000_000 }] }
+    ]
+  });
+  const options = migrated.pendingDecisions[0].options;
+  assert.equal(options.length, 2);
+  assert.equal(options[0].id, 'charter');
+  assert.equal(options[1].id, FREE_OPTION_ID);
+  assert.equal(options[1].cost, 0);
 });

@@ -9,6 +9,8 @@ import {
   hubQuality,
   isFeasibleConnection,
   legTimes,
+  priceDraftInNetwork,
+  withDraftRoute,
   type NetworkEnv
 } from './transferUtils';
 import { calculateRouteFinancials, getFlightDurationMinutes } from './financeUtils';
@@ -202,6 +204,72 @@ test('the result is deterministic, whatever order the routes come in', () => {
   const shuffled = computeNetworkFinancials([routes[2], routes[0], routes[3], routes[1]], fleet, { demandFactor: 1 }, env);
   assert.deepStrictEqual(shuffled.transfer, first.transfer);
   assert.deepStrictEqual(shuffled.hubStats, first.hubStats);
+});
+
+test('two parallel routes feeding one market give one line per O -> hub -> D', () => {
+  // Two FRA-MAD services with ten seats left between them, so that both
+  // carry part of the VIE-MAD connecting market instead of one taking it all.
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'MAD', 'VIE']);
+  const local = new Map(routes.map(r => [r.id, {
+    paxByClass: r.destination === 'MAD'
+      ? { economy: { actual: 1000, max: 1010 } }
+      : { economy: { actual: 0, max: 2000 } }
+  }]));
+  const flows = computeTransferFlows(routes, local, { ...env, mods: { demandFactor: 1 }, fleet });
+  const keyOf = (f: { o: string; hub: string; d: string }) => `${f.o}>${f.hub}>${f.d}`;
+  const lists = [flows.hubStats.FRA.flows, ...Object.values(flows.flowsByRoute).map(e => e.flows)];
+  for (const list of lists) {
+    assert.equal(new Set(list.map(keyOf)).size, list.length, 'no line twice');
+  }
+  // Both parallel services sold VIE-MAD, and the lines add them up.
+  const viaA = flows.flowsByRoute[routes[0].id].flows.find(f => f.o === 'VIE')!.pax;
+  const viaB = flows.flowsByRoute[routes[1].id].flows.find(f => f.o === 'VIE')!.pax;
+  assert.ok(viaA > 0 && viaB > 0);
+  assert.equal(flows.flowsByRoute[routes[2].id].flows.find(f => f.d === 'MAD')!.pax, viaA + viaB);
+  assert.equal(flows.hubStats.FRA.flows.find(f => f.o === 'VIE' && f.d === 'MAD')!.pax, viaA + viaB);
+  // Merging moves no passenger.
+  for (const entry of Object.values(flows.flowsByRoute)) {
+    assert.equal(entry.flows.reduce((a, f) => a + f.pax, 0), entry.pax);
+  }
+  assert.equal(flows.hubStats.FRA.flows.reduce((a, f) => a + f.pax, 0), flows.hubStats.FRA.pax);
+});
+
+// --- The route planner -------------------------------------------------------------
+
+test('a new route in the planner is priced with its connecting passengers', () => {
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE', 'ATH']);
+  const saved = computeNetworkFinancials(routes, fleet, { demandFactor: 1 }, env);
+  const draft = routes[2];
+  assert.ok(saved.transfer[draft.id]?.pax > 0, 'the fixture has connections on this route');
+
+  // The two other routes are the network; the third is still being planned.
+  const priced = priceDraftInNetwork(draft, routes.slice(0, 2), fleet, { demandFactor: 1 }, env)!;
+  assert.deepStrictEqual(priced.fin, saved.finById.get(draft.id), 'the preview is what the report will book');
+  assert.deepStrictEqual(priced.transfer, saved.transfer[draft.id]);
+  assert.ok(priced.fin.transferPax > 0);
+
+  // A draft that does not name its aircraft is left out of the network.
+  const { aircraft: _unused, ...withoutAircraft } = draft;
+  assert.equal(priceDraftInNetwork(withoutAircraft, routes.slice(0, 2), fleet, { demandFactor: 1 }, env), null);
+});
+
+test('a route edited in the planner replaces itself in the network', () => {
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE', 'ATH']);
+  assert.equal(withDraftRoute(routes, routes[1]).length, routes.length);
+  assert.equal(withDraftRoute(routes.slice(0, 2), routes[2]).length, routes.length);
+
+  // Unchanged, the edit prices exactly as the saved route does; were it
+  // counted twice, it would split its own market with itself.
+  const saved = computeNetworkFinancials(routes, fleet, { demandFactor: 1 }, env);
+  const same = priceDraftInNetwork({ ...routes[1] }, routes, fleet, { demandFactor: 1 }, env)!;
+  assert.deepStrictEqual(same.fin, saved.finById.get(routes[1].id));
+
+  // Dearer fares fill fewer seats locally, leaving more for connections.
+  const bases = saved.finById.get(routes[1].id)!;
+  const dear = { ...routes[1], ticketPrices: { economy: 400, business: 1200 }, activeTicketPrices: { economy: 400, business: 1200 } };
+  const edited = priceDraftInNetwork(dear, routes, fleet, { demandFactor: 1 }, env)!;
+  assert.ok(edited.fin.paxPerWeek - edited.fin.transferPax < bases.paxPerWeek - bases.transferPax);
+  assert.ok(edited.fin.transferPax >= bases.transferPax);
 });
 
 // --- The engine ------------------------------------------------------------------

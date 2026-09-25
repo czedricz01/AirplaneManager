@@ -7,7 +7,10 @@ import {
   eventReliefFactor,
   normalizeGameSettings,
   DEFAULT_GAME_SETTINGS,
-  createGameSystems
+  createGameSystems,
+  ensureFreeOption,
+  FREE_OPTION_ID,
+  type GameDecision
 } from './gameState';
 import { continentOf, regionOf } from './geoUtils';
 import { assignRivalColors, colorDistance, MAP_YELLOW, RIVAL_PALETTE } from './theme';
@@ -61,4 +64,23 @@ test('rival colours are distinct and keep clear of the player', () => {
   // A player in sky blue never sees a rival in sky blue.
   const sky = RIVAL_PALETTE[0];
   assert.ok(!assignRivalColors(rivals, sky).includes(sky));
+});
+
+test('a decision always has an answer that costs nothing', () => {
+  const base: GameDecision = { id: 'd', kind: 'strike', title: 'Strike', description: '', options: [] };
+  const paid = { ...base, options: [{ id: 'raise', label: 'Pay more', detail: '', cost: 2_000_000 }] };
+  const fixed = ensureFreeOption(paid);
+  assert.deepEqual(fixed.options.map(o => o.id), ['raise', FREE_OPTION_ID]);
+  assert.equal(fixed.options[1].cost, 0);
+  assert.equal(paid.options.length, 1, 'the input is not modified');
+
+  // One free answer is enough; nothing is added then.
+  const withFree = { ...base, options: [...paid.options, { id: 'wait', label: 'Sit it out', detail: '', cost: 0 }] };
+  assert.equal(ensureFreeOption(withFree), withFree);
+
+  // The added option's id never collides with one already there.
+  const clash = { ...base, options: [{ id: FREE_OPTION_ID, label: 'Costly', detail: '', cost: 10 }] };
+  const ids = ensureFreeOption(clash).options.map(o => o.id);
+  assert.equal(new Set(ids).size, 2);
+  assert.ok(ids[1].startsWith(FREE_OPTION_ID));
 });

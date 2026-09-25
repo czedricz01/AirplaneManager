@@ -114,8 +114,8 @@ export interface GameDecisionOption {
  * event (those carry their own EventChoice list). Queued in pendingDecisions,
  * answered one at a time, and dispatched on `kind` once answered.
  *
- * At least one option should cost nothing, so a player short of cash is never
- * left with a dialog they cannot answer.
+ * At least one option costs nothing, so a player short of cash is never left
+ * with a dialog they cannot answer; ensureFreeOption sees to that.
  */
 export interface GameDecision {
   id: string;
@@ -125,6 +125,33 @@ export interface GameDecision {
   options: GameDecisionOption[];
   /** What the decision is about -- a route, a disruption -- for its handler. */
   ref?: string;
+}
+
+/**
+ * The id of the option ensureFreeOption adds. A decision handler receiving it
+ * applies whatever doing nothing means for its kind.
+ */
+export const FREE_OPTION_ID = 'no-action';
+
+/**
+ * The decision with an option that costs nothing, adding "Take no action" when
+ * every option has a price. The dialog disables what the player cannot pay
+ * for and cannot be closed, so a question with only paid answers would lock a
+ * player short of cash out of the game. Every decision passes through here
+ * when it is queued and when it is loaded.
+ */
+export function ensureFreeOption(decision: GameDecision): GameDecision {
+  if (decision.options.some(o => !(o.cost > 0))) return decision;
+  const taken = new Set(decision.options.map(o => o.id));
+  let id = FREE_OPTION_ID;
+  for (let n = 2; taken.has(id); n++) id = `${FREE_OPTION_ID}-${n}`;
+  return {
+    ...decision,
+    options: [
+      ...decision.options,
+      { id, label: 'Take no action', detail: 'Spend nothing and let events run their course.', cost: 0 }
+    ]
+  };
 }
 
 /** The scenario a game was started from. Null for a free game. */

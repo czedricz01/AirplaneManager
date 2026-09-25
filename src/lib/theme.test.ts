@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  heatmapScale,
   profitColor,
   paxWeight,
   readableTextColor,
@@ -39,6 +40,28 @@ test('profitColor leans clearly red or green for small results next to a large o
   assert.ok(colorDistance(smallProfit, HEATMAP_COLORS.neutral) > 0.15 * colorDistance(HEATMAP_COLORS.profit, HEATMAP_COLORS.neutral));
   // And it grows monotonically with the profit.
   assert.ok(colorDistance(profitColor(800, 1000), HEATMAP_COLORS.profit) < colorDistance(smallProfit, HEATMAP_COLORS.profit));
+});
+
+test('the heatmap scale is the 80th percentile of the results, not the largest', () => {
+  // Ten ordinary routes and one trunk route earning a hundred times as much.
+  const ordinary = [-40_000, -10_000, 20_000, 30_000, 40_000, 50_000, 60_000, 70_000, 80_000, 90_000];
+  const scale = heatmapScale([...ordinary, 9_000_000]);
+  assert.equal(scale, 80_000, 'nearest rank: the 9th of 11 absolute values');
+  // So the typical route is clearly coloured...
+  assert.ok(colorDistance(profitColor(50_000, scale), HEATMAP_COLORS.profit) < 0.25 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.profit));
+  assert.ok(colorDistance(profitColor(-40_000, scale), HEATMAP_COLORS.loss) < 0.4 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.loss));
+  // ...where scaling to the largest result left it next to grey.
+  assert.ok(colorDistance(profitColor(50_000, 9_000_000), HEATMAP_COLORS.neutral) < 0.05 * colorDistance(HEATMAP_COLORS.neutral, HEATMAP_COLORS.profit));
+  // And the outlier clamps at the end colour.
+  assert.equal(profitColor(9_000_000, scale), HEATMAP_COLORS.profit);
+});
+
+test('the heatmap scale is at least 1 and ignores unusable numbers', () => {
+  assert.equal(heatmapScale([]), 1);
+  assert.equal(heatmapScale([0, 0, 0]), 1);
+  assert.equal(heatmapScale([0.2, -0.5]), 1);
+  assert.equal(heatmapScale([Number.NaN, 500, Infinity]), 500);
+  assert.equal(heatmapScale([-700]), 700, 'a single route sets the scale by itself');
 });
 
 test('paxWeight runs from 1 to 5 px with the square root of the passengers', () => {

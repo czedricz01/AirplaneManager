@@ -217,6 +217,7 @@ import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
   buildPlayerModifiers,
   createGameSystems,
+  ensureFreeOption,
   normalizeGameSettings,
   DEFAULT_BRANDING,
   DEFAULT_MARKETING,
@@ -561,9 +562,19 @@ export default function App() {
   };
 
   /**
+   * Puts a question to the player. Every system queues through here, so each
+   * decision carries an answer that costs nothing (see ensureFreeOption).
+   */
+  const queueDecision = (decision: GameDecision) => {
+    setPendingDecisions(prev => [...prev, ensureFreeOption(decision)]);
+  };
+
+  /**
    * What answering a decision does, by kind. Each system that puts questions
    * to the player adds its handler here. By the time one runs, the option's
-   * cost has been paid and the decision has left the queue.
+   * cost has been paid and the decision has left the queue. A handler must
+   * also accept the free option ensureFreeOption may have added, whose id
+   * starts with FREE_OPTION_ID, as "do nothing".
    */
   const decisionHandlers: Partial<Record<GameDecisionKind, (decision: GameDecision, option: GameDecisionOption) => void>> = {};
 
@@ -3172,6 +3183,7 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         playerMods={playerMods}
+                        fuelPrice={fuelData.price}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -3205,6 +3217,7 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         playerMods={playerMods}
+                        fuelPrice={fuelData.price}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -3238,6 +3251,7 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         playerMods={playerMods}
+                        fuelPrice={fuelData.price}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
