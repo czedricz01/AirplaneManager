@@ -80,6 +80,28 @@ test('setting a schedule keeps the stash current, clearing it does not wipe the 
   assert.equal(cleared.stashedSchedule.length, 1, 'a later swap can still restore it');
 });
 
+test('hydrate loads origin, destination, aircraft and schedule together without wiping the schedule', () => {
+  // Loading an existing route (e.g. opening the Pricing Editor) used to
+  // dispatch setSchedule, then selectOrigin/selectDest/selectAircraft
+  // separately. Those three cases clear the schedule and stash whenever the
+  // endpoint or aircraft differs from the current (null) state, so the
+  // schedule set moments earlier was wiped out before the wizard ever
+  // rendered -- leaving flightLegs at 0 and the Financial Summary at 0.
+  const blank = init({ step: 4 });
+  const t = reduce(blank, {
+    type: 'hydrate',
+    patch: {
+      originId: 'FRA', destId: 'CDG', selectedReg: 'D-AAAA',
+      schedule: [trip('a'), trip('b')], stashedSchedule: [trip('a'), trip('b')]
+    }
+  });
+  assert.equal(t.originId, 'FRA');
+  assert.equal(t.destId, 'CDG');
+  assert.equal(t.selectedReg, 'D-AAAA');
+  assert.equal(t.schedule.length, 2);
+  assert.equal(t.stashedSchedule.length, 2);
+});
+
 test('the reducer never mutates what it is given', () => {
   const s = planned();
   const before = JSON.stringify(s);

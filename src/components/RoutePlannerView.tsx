@@ -8,6 +8,7 @@ import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerContext';
+import type { PlannerSelection } from './routePlanner/plannerState';
 import { CabinConfigDialogs } from './routePlanner/CabinConfigDialogs';
 // The component used to declare a near-identical ScheduledTrip that shadowed
 // this one, differing only in groupId being required. One type now.
@@ -366,24 +367,37 @@ function RoutePlannerInner({
     if (initialRouteId) {
       const r = routes.find(rt => rt.id === initialRouteId);
       if (r) {
-        if (!initialSchedule || initialSchedule.length === 0) {
-          if (r.schedule) {
-            const cleanSchedule = (r.schedule || []).map((s: any) => ({
-              ...s,
-              startHour: Number(s.startHour) || 0,
-              startMin: Number(s.startMin) || 0,
-              dayId: Number(s.dayId) || 1,
-              durMin: Number(s.durMin) || 0,
-              turnoverMin: Number(s.turnoverMin) || 0
-            }));
-            setSchedule(cleanSchedule);
-          }
+        // A single 'hydrate' patch, not the individual setOriginId/setDestId/
+        // setSelectedReg/setSchedule setters: those go through the
+        // selectOrigin/selectDest/selectAircraft reducer cases, which clear
+        // the schedule whenever the origin, destination or aircraft change
+        // (by design, for the interactive wizard). Dispatched separately here,
+        // the schedule set first would immediately be wiped out by the origin
+        // and destination hydration right after it -- leaving an existing
+        // route's schedule empty, and with it flightLegs at 0, so every
+        // Financial Summary figure that depends on flightLegs (revenue,
+        // fuel/crew/infra cost) came out as 0.
+        const patch: Partial<PlannerSelection> = {};
+        if (!originId) patch.originId = r.origin;
+        if (!destId) patch.destId = r.destination;
+        if (!selectedReg) patch.selectedReg = r.aircraft;
+        if ((!initialSchedule || initialSchedule.length === 0) && r.schedule) {
+          const cleanSchedule = (r.schedule || []).map((s: any) => ({
+            ...s,
+            startHour: Number(s.startHour) || 0,
+            startMin: Number(s.startMin) || 0,
+            dayId: Number(s.dayId) || 1,
+            durMin: Number(s.durMin) || 0,
+            turnoverMin: Number(s.turnoverMin) || 0
+          }));
+          patch.schedule = cleanSchedule;
+          patch.stashedSchedule = cleanSchedule;
         }
-        if (!originId) setOriginId(r.origin);
-        if (!destId) setDestId(r.destination);
-        if (!selectedReg) setSelectedReg(r.aircraft);
         if (r.ticketPrices && Object.keys(ticketPrices).length === 0) {
-          setTicketPrices(r.ticketPrices);
+          patch.ticketPrices = r.ticketPrices;
+        }
+        if (Object.keys(patch).length > 0) {
+          dispatch({ type: 'hydrate', patch });
         }
       }
     }
