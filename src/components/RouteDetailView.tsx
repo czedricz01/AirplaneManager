@@ -20,6 +20,7 @@ import { airports, airportsMapAdjusted } from '../data/airportRegistry';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
+import { RouteAircraftPicker } from './AircraftReassign';
 
 // A stable default, so a missing prop does not invalidate the memos on every render.
 const NO_RIVAL_OFFERS: RouteOffer[] = [];
@@ -43,7 +44,8 @@ interface RouteDetailViewProps {
   difficulty: string;
   onClose: () => void;
   onDelete: (id: string) => void;
-  onChangeAircraft?: () => void;
+  /** "Change": the player picked `registration`; the new time slot is chosen next. */
+  onReassignAircraft?: (routeId: string, registration: string) => void;
   onEditSchedule?: (routeId: string) => void;
   onEditCabinServices?: (routeId: string) => void;
   onEditFinancials?: (routeId: string) => void;
@@ -54,12 +56,13 @@ interface RouteDetailViewProps {
 export function RouteDetailView({
   route, routes, fleet, fuelPrice = 1.05, airportManagement,
   currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS, transfer,
-  onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
+  onClose, onDelete, onReassignAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
   airlineCode = ''
 }: RouteDetailViewProps) {
   const codePrefix = route.airlineCode || airlineCode;
   const flightNo = routeFlightNumber(route, airlineCode);
   const [showAircraftDetails, setShowAircraftDetails] = useState(false);
+  const [isPickingAircraft, setIsPickingAircraft] = useState(false);
   // Deleting a route cannot be undone, so the first click only arms the button.
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -230,7 +233,8 @@ export function RouteDetailView({
                     <div className="flex items-center justify-end gap-2 mt-1">
                         <button onClick={() => setShowAircraftDetails(true)} className="text-3xs px-1.5 py-0.5 bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/10 font-bold">Details</button>
                         <button 
-                          onClick={onChangeAircraft} 
+                          onClick={() => setIsPickingAircraft(true)}
+                          disabled={!onReassignAircraft}
                           className="text-3xs px-1.5 py-0.5 bg-white/10 hover:bg-aero-yellow hover:text-black text-white font-bold transition-all border border-white/10"
                         >
                           Change
@@ -528,6 +532,20 @@ export function RouteDetailView({
            />
          )}
       </AnimatePresence>
+      {isPickingAircraft && onReassignAircraft && (
+        <RouteAircraftPicker
+          route={route}
+          fleet={fleet || []}
+          routes={routes}
+          airportManagement={airportManagement || {}}
+          airlineCode={airlineCode}
+          onClose={() => setIsPickingAircraft(false)}
+          onPick={(registration) => {
+            setIsPickingAircraft(false);
+            onReassignAircraft(route.id, registration);
+          }}
+        />
+      )}
     </motion.div>
   );
 }

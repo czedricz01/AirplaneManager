@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, routeFlightNumber } from '../lib/format';
 import type { OwnedAircraft } from './MyFleetView';
-import { Plane, Wrench, ShieldAlert } from 'lucide-react';
+import { Plane, Wrench, ShieldAlert, ArrowLeftRight } from 'lucide-react';
 import { AircraftImage } from './AircraftImage';
 import { loadAircraftImagesMap } from '../lib/imageUtils';
 import { getPlaneSat, getAircraftResaleValue } from '../lib/financeUtils';
 import { Modal } from './ui/Modal';
 import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
+import { AircraftSwapPanel } from './AircraftReassign';
+import type { AssignmentContext, RoutePatch } from '../lib/aircraftAssignment';
 
 interface Props {
   plane: OwnedAircraft;
@@ -20,9 +22,22 @@ interface Props {
   currentDateOffset?: number;
   /** Flight-number prefix for routes saved before they carried their own. */
   airlineCode?: string;
+  /**
+   * Everything the swap needs to check the other aircraft. Without
+   * `onReassignRoutes` the Swap button is not offered.
+   */
+  fleet?: OwnedAircraft[];
+  allRoutes?: any[];
+  airportManagement?: AssignmentContext['airportManagement'];
+  onReassignRoutes?: (patches: RoutePatch[], note: string) => void;
 }
 
-export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell, currentDateOffset, airlineCode = '' }: Props) {
+export function AircraftDetailsModal({
+  plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell, currentDateOffset, airlineCode = '',
+  fleet = [], allRoutes = [], airportManagement = {}, onReassignRoutes
+}: Props) {
+  const [isSwapping, setIsSwapping] = useState(false);
+
   // The same function the economy prices with (financeUtils.getPlaneSat). This
   // screen used to apply the interior condition to the interior score alone,
   // which produced a different number here than in the fleet list for the same
@@ -53,6 +68,28 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
   }, []);
 
   const safeName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
+
+  if (isSwapping && onReassignRoutes) {
+    return (
+      <Modal open onClose={onClose} size="xl" title={`Swap ${plane.registration}`} icon={<ArrowLeftRight size={20} />}>
+        <AircraftSwapPanel
+          plane={plane}
+          fleet={fleet}
+          routes={allRoutes}
+          airportManagement={airportManagement}
+          airlineCode={airlineCode}
+          onBack={() => setIsSwapping(false)}
+          onSwap={(patches, replacement) => {
+            onReassignRoutes(
+              patches,
+              `${replacement.registration} now flies the ${patches.length} route${patches.length === 1 ? '' : 's'} of ${plane.registration}`
+            );
+            setIsSwapping(false);
+          }}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal open onClose={onClose} size="xl" title={plane.registration} icon={<Plane size={20} />}>
@@ -255,12 +292,24 @@ export function AircraftDetailsModal({ plane, onClose, onRenovate, aircraftRoute
                   <span className="text-white/40 uppercase tracking-widest text-xs">No routes assigned</span>
                 )}
               </div>
-              <button
-                onClick={() => onStartRoute?.(plane.registration)}
-                className="px-3 py-3 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-2xs border border-white/10 rounded-sm"
-              >
-                New Route +
-              </button>
+              <div className="flex gap-2 shrink-0">
+                {onReassignRoutes && (
+                  <button
+                    onClick={() => setIsSwapping(true)}
+                    disabled={aircraftRoutes.length === 0}
+                    title={aircraftRoutes.length === 0 ? 'This aircraft flies no routes to hand over.' : 'Hand all routes of this aircraft to an idle one.'}
+                    className="px-3 py-3 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-2xs border border-white/10 rounded-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-white"
+                  >
+                    <ArrowLeftRight size={12} /> Swap
+                  </button>
+                )}
+                <button
+                  onClick={() => onStartRoute?.(plane.registration)}
+                  className="px-3 py-3 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-2xs border border-white/10 rounded-sm"
+                >
+                  New Route +
+                </button>
+              </div>
             </div>
 
       </div>

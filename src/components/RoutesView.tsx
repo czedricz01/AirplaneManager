@@ -48,7 +48,7 @@ interface Props {
   onDeleteRoute?: (id: string) => void;
   externalSelectedRoute?: SimulatedRoute | null;
   onClearExternalSelectedRoute?: () => void;
-  onChangeAircraftRoute?: (route: any) => void;
+  onReassignAircraft?: (routeId: string, registration: string) => void;
   onEditSchedule?: (routeId: string) => void;
   onEditCabinServices?: (routeId: string) => void;
   onEditFinancials?: (routeId: string) => void;
@@ -200,7 +200,7 @@ const RouteRow = React.memo(function RouteRow({
 
 function RoutesViewImpl({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
-  externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
+  externalSelectedRoute, onClearExternalSelectedRoute, onReassignAircraft,
   onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
   currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = [], transferFlows, airlineCode = ''
 }: Props) {
@@ -397,13 +397,11 @@ function RoutesViewImpl({
               setSelectedRoute(null);
               if (onClearExternalSelectedRoute) onClearExternalSelectedRoute();
             }} 
-            onChangeAircraft={() => {
-              if (onChangeAircraftRoute) {
-                onChangeAircraftRoute(activeRoute);
-                setSelectedRoute(null);
-                if (onClearExternalSelectedRoute) onClearExternalSelectedRoute();
-              }
-            }}
+            onReassignAircraft={onReassignAircraft && ((routeId, registration) => {
+              onReassignAircraft(routeId, registration);
+              setSelectedRoute(null);
+              if (onClearExternalSelectedRoute) onClearExternalSelectedRoute();
+            })}
             onEditSchedule={(id) => {
                if (onEditSchedule) {
                  onEditSchedule(id);
