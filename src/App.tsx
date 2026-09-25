@@ -30,7 +30,8 @@ import {
   Trash2,
   Edit2,
   Check,
-  CheckCircle2
+  CheckCircle2,
+  Newspaper
 } from "lucide-react";
 
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
@@ -215,6 +216,8 @@ import { readJson, writeJson, readString, writeString, removeKey } from "./lib/s
 import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials } from "./lib/transferUtils";
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
+import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
+import { NewspaperOverlay } from "./components/NewspaperOverlay";
 import {
   CAMPAIGN_SPECS,
   REGION_LABELS,
@@ -501,6 +504,14 @@ export default function App() {
   const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
   /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
+  /**
+   * The newspaper of the last month close. Not part of the savegame: it is
+   * written from that close's events, which a loaded game no longer has.
+   */
+  const [edition, setEdition] = useState<Edition | null>(null);
+  const [isNewspaperOpen, setIsNewspaperOpen] = useState(false);
+  /** Stable, so the overlay's key listener is not re-attached on every render. */
+  const closeNewspaper = React.useCallback(() => setIsNewspaperOpen(false), []);
   const [selectedMessage, setSelectedMessage] = useState<GameMessage | null>(null);
 
   useEffect(() => {
@@ -1742,6 +1753,48 @@ export default function App() {
     });
     if (monthChronicle.length > 0) setChronicle(appendChronicle(chronicle, monthChronicle));
 
+    // --- The newspaper --------------------------------------------------------
+    // Written from the same facts as the chronicle, plus what the rivals did
+    // in their turn and where the markets stand for the coming month.
+    const capitalAfterMonth = capital + totalMonthlyProfit;
+    const nextFuel = getFuelData(nextOffset);
+    const nextDemand = getBaseGlobalDemand(nextOffset);
+    setEdition(buildEdition({
+      offset: currentDateOffset,
+      airlineName,
+      report: fullReport,
+      prevReport: latestReport,
+      profitHistory: reportHistory.map(r => r.totalProfit),
+      chronicle: monthChronicle,
+      milestones: newlyEarned,
+      eventsStarted,
+      eventsEnded,
+      eventsRunning: afterEvents,
+      strike: staffMonth.strikeCalled ? { morale: nextStaff.morale } : null,
+      disruptions: rolledDisruptions.map(d => ({
+        kind: d.kind,
+        title: disruptionTitle(d),
+        text: describeDisruption(d, routeLabel).replace(/^\u2022\s*/, ''),
+        cancelShare: d.cancelShare,
+        ref: d.ref
+      })),
+      rivalMoves: rivalMoves(aiAirlines, aisAfterTurn),
+      launches: marketing.campaigns
+        .filter(c => c.startOffset === currentDateOffset)
+        .map(c => ({ tier: CAMPAIGN_SPECS[c.tier].label, region: c.tier === 'global' ? 'global' as const : c.region })),
+      ffpStarted: marketing.ffpActive && marketing.ffpSinceOffset === currentDateOffset,
+      airportName: id => localAirportsMap.get(id)?.name || id,
+      ticker: {
+        fuelPerLitre: nextFuel.price / 3.78541,
+        fuelTrend: nextFuel.trend,
+        demand: nextDemand.value,
+        demandTrend: nextDemand.trend,
+        rank: 1 + aisAfterTurn.filter(ai => (ai.capital || 0) > capitalAfterMonth).length,
+        airlines: aisAfterTurn.length + 1
+      }
+    }));
+    if (gameSettings.newspaper) setIsNewspaperOpen(true);
+
     // Campaigns whose last month just closed come off the books. Next
     // month's forecast below prices without them, and with any still running.
     const nextMarketing = dropExpiredCampaigns(marketing, nextOffset);
@@ -2138,6 +2191,8 @@ export default function App() {
    */
   const resetTransientGameState = () => {
     applyGameSystems(createGameSystems());
+    setEdition(null);
+    setIsNewspaperOpen(false);
     const welcome = [createWelcomeMessage()];
     setMessages(welcome);
     reserveMessageIds(welcome);
@@ -2507,7 +2562,11 @@ export default function App() {
         <div className="w-full h-full relative flex flex-col">
           {/* World event decision. The first point in the game where a crisis
               asks the player something instead of simply happening to them. */}
-          {pendingDecision && (
+          {/* The month's newspaper comes before any question: the paper tells
+              what happened, the dialogs below ask what to do about it. It can
+              always be closed, so no question ever waits on it for long. */}
+          <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
+          {pendingDecision && !isNewspaperOpen && (
             <Modal open size="lg" accent="warn" layer="top">
               <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
                 <AlertTriangle size={22} /> {pendingDecision.title}
@@ -2559,8 +2618,8 @@ export default function App() {
             </Modal>
           )}
           {/* Any other question for the player, one at a time. Waits while a
-              world event decision is open, so the two never stack. */}
-          {!pendingDecision && pendingDecisions.length > 0 && (() => {
+              world event decision or the newspaper is open, so none stack. */}
+          {!pendingDecision && !isNewspaperOpen && pendingDecisions.length > 0 && (() => {
             const decision = pendingDecisions[0];
             return (
               <Modal open size="lg" accent="warn" layer="top">
@@ -3162,7 +3221,16 @@ export default function App() {
                    </ErrorBoundary>
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3">
+                    {edition && (
+                      <button
+                        type="button"
+                        onClick={() => setIsNewspaperOpen(true)}
+                        className="flex items-center justify-center gap-2 border border-white/15 text-white/70 px-4 py-4 font-bold uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all w-full md:w-auto"
+                      >
+                        <Newspaper size={18} /> Read the newspaper
+                      </button>
+                    )}
                     <button 
                       onClick={() => setView('game')}
                       className="group flex items-center bg-aero-yellow text-black px-4 py-4 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
@@ -3218,7 +3286,19 @@ export default function App() {
                          <div className="absolute top-full right-0 mt-2 w-80 bg-aero-panel border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
                            <div className="p-3 border-b border-white/10 flex justify-between items-center">
                              <span className="text-aero-yellow text-2xs uppercase tracking-widest font-bold">Communications</span>
-                             <button onClick={() => setIsMessagesOpen(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
+                             <div className="flex items-center gap-2">
+                               {edition && (
+                                 <button
+                                   type="button"
+                                   onClick={() => { setIsMessagesOpen(false); setIsNewspaperOpen(true); }}
+                                   className="flex items-center gap-1 px-2 py-0.5 border border-white/10 text-3xs uppercase tracking-widest font-bold text-white/60 hover:text-aero-yellow hover:border-aero-yellow/40 transition-colors"
+                                   title={`Read The Aviation Times, ${edition.date}`}
+                                 >
+                                   <Newspaper size={11} /> Latest newspaper
+                                 </button>
+                               )}
+                               <button onClick={() => setIsMessagesOpen(false)} className="text-white/40 hover:text-white" aria-label="Close messages"><X size={14}/></button>
+                             </div>
                            </div>
                            <div className="max-h-64 overflow-y-auto no-scrollbar">
                              {messages.length === 0 ? (
@@ -3922,6 +4002,24 @@ export default function App() {
                     <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={gameSettings.newspaper}
+                  onClick={() => setGameSettings(prev => ({ ...prev, newspaper: !prev.newspaper }))}
+                  className="w-full flex items-center gap-3 bg-white/5 p-4 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                >
+                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.newspaper ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                    {gameSettings.newspaper && <Check size={14} />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-white uppercase tracking-widest font-black">Monthly Newspaper</span>
+                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Show The Aviation Times after every month. When off, the latest edition is still under Messages and on the monthly report.</span>
+                  </div>
+                </button>
               </div>
             </div>
 
