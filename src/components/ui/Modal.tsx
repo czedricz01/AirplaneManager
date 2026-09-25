@@ -64,7 +64,7 @@ export function Modal({
             initial={{ y: 20, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 10, opacity: 0, scale: 0.97 }}
-            className={`bg-aero-carbon border ${borderClass} shadow-2xl w-full ${SIZE_CLASSES[size]} rounded-sm overflow-hidden max-h-[90vh] flex flex-col`}
+            className={`bg-aero-carbon border ${borderClass} shadow-2xl w-full ${SIZE_CLASSES[size]} rounded-sm overflow-hidden max-h-[90dvh] flex flex-col`}
           >
             {(title || onClose) && (
               <div className="px-4 py-3 bg-black/40 border-b border-white/5 flex items-center justify-between shrink-0">

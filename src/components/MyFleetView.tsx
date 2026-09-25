@@ -249,7 +249,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         right={
           <div className="flex flex-wrap items-center gap-2 lg:gap-3">
             {/* Search Input */}
-            <div className="relative flex-1 sm:w-64">
+            <div className="relative flex-1 min-w-40 sm:w-64">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={15} className="text-white/40" />
               </div>

@@ -533,7 +533,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       {/* Header */}
       <div className="relative z-10 px-4 py-3 border-b border-white/10 flex justify-between items-center bg-black/40 backdrop-blur-md">
         <div className="flex flex-col">
-          <h2 className="text-3xl font-black uppercase tracking-widest text-aero-yellow italic">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
+          <h2 className="text-xl md:text-3xl font-black uppercase tracking-widest text-aero-yellow italic">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{selectedOrigin?.id}</span>
             <span className="text-aero-yellow/50">→</span>
@@ -553,9 +553,11 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 flex overflow-hidden relative z-10">
+      {/* Upright phones: the controls above the timetable, scrolling together;
+          the timetable keeps its own scroll area at most of the screen height. */}
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden relative z-10">
         {/* Left Control Panel */}
-        <div className="w-80 border-r border-white/10 bg-black/60 p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar uppercase">
+        <div className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-black/60 p-4 flex flex-col gap-3 md:overflow-y-auto custom-scrollbar uppercase">
           
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -743,7 +745,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
         </div>
 
         {/* Timetable Grid Area */}
-        <div className="flex-1 bg-black flex flex-col overflow-hidden relative">
+        <div className="flex-none md:flex-1 h-[75dvh] md:h-auto bg-black flex flex-col overflow-hidden relative">
            <div className="flex shrink-0">
               <div className="w-16 border-r border-white/10 bg-black"></div>
               {daysOfWeek.map(day => (
@@ -763,10 +765,12 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                 ))}
               </div>
 
-              {/* Grid content */}
-              <div className="flex-1 flex min-w-[700px]">
+              {/* Grid content. No minimum width on phones, upright or sideways:
+                  the day headers above do not scroll sideways, so seven narrow
+                  columns stay aligned with them. */}
+              <div className="flex-1 flex md:min-w-[700px] short:min-w-0">
                  {daysOfWeek.map(day => (
-                   <div key={day.id} className="flex-1 border-r border-white/5 relative">
+                   <div key={day.id} className="flex-1 min-w-0 border-r border-white/5 relative">
                       <div className="relative h-[720px]">
                          {allBlocks.filter(b => b.dayId === day.id).map(b => (
                            <div 

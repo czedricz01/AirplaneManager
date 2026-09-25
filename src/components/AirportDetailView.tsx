@@ -197,14 +197,15 @@ export function AirportDetailView({
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
-        <div className="p-4 pb-4 flex justify-between items-start border-b border-white/5 bg-aero-carbon/80 backdrop-blur-sm">
-          <div className="flex flex-col">
+        {/* Phones: title above the buttons, and a smaller title. */}
+        <div className="p-4 pb-4 flex flex-col md:flex-row justify-between items-start gap-3 border-b border-white/5 bg-aero-carbon/80 backdrop-blur-sm">
+          <div className="flex flex-col min-w-0">
             <div className="text-aero-yellow text-2xs uppercase tracking-[0.4em] mb-2 font-black">Strategic Operations Console</div>
-            <h1 className="text-5xl font-black italic uppercase tracking-tighter text-white flex items-center gap-4">
+            <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-white flex flex-wrap items-center gap-x-4 gap-y-1">
               {airport.name} <span className="text-aero-yellow font-normal not-italic opacity-50">[{airport.id}] <span className="text-[24px] ml-4 italic font-black uppercase text-aero-yellow tracking-widest">L{airport.level}</span></span>
             </h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <button
               onClick={handleStartRouteClick}
               className="px-3 py-3 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-xs border border-white/10"
@@ -227,7 +228,8 @@ export function AirportDetailView({
         </div>
 
         {/* Infobar */}
-        <div className="bg-aero-panel border-b border-white/10 py-2 px-4 flex justify-between items-center gap-2 uppercase tracking-widest text-3xs">
+        {/* Wraps onto several lines on phones instead of running off the right edge. */}
+        <div className="bg-aero-panel border-b border-white/10 py-2 px-4 flex flex-wrap md:flex-nowrap justify-between items-center gap-x-4 gap-y-2 md:gap-2 uppercase tracking-widest text-3xs">
           <Metric label="Level" value={`L${airport.level}`} highlight />
           <Metric label="Mgmt" value={
             infrastructure.level === 0 ? 'None' : 
@@ -281,7 +283,7 @@ export function AirportDetailView({
 
 
         {/* Main Interface */}
-        <div className="flex-1 p-4 grid grid-cols-2 gap-4 overflow-y-auto no-scrollbar">
+        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto no-scrollbar">
           {/* Left Column: Operations Dashboard */}
           <div className="flex flex-col gap-3">
             <div className="bg-aero-carbon border border-white/10 p-4 flex flex-col gap-4">

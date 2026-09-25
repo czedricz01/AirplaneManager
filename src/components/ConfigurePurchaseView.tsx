@@ -960,28 +960,30 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-aero-panel border border-white/10 shadow-2xl w-full h-full max-h-[90vh] flex flex-col rounded-sm overflow-hidden text-white font-sans">
+    <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-2 md:p-4 short:p-1">
+      <div className="bg-aero-panel border border-white/10 shadow-2xl w-full h-full max-h-[90vh] short:max-h-full flex flex-col rounded-sm overflow-hidden text-white font-sans">
         
-        {/* Header */}
-        <div className="h-16 px-4 bg-black/40 border-b border-white/5 flex items-center shrink-0 justify-between">
+        {/* Header. Wraps onto two lines on phones. */}
+        <div className="md:h-16 short:h-auto px-3 md:px-4 py-2 md:py-0 short:py-1.5 bg-black/40 border-b border-white/5 flex flex-wrap md:flex-nowrap items-center shrink-0 justify-between gap-x-4 gap-y-1">
           <div className="flex items-center gap-4">
             
-            <h2 className="text-xl font-black uppercase tracking-widest text-aero-yellow">
+            <h2 className="text-base md:text-xl short:text-base font-black uppercase tracking-widest text-aero-yellow">
               {isRenovating ? `Reconfigure / Renovate: ${initialPlane.registration}` : `Configure: ${aircraft.manufacturer} ${aircraft.type}`}
             </h2>
           </div>
-          <div className="font-mono text-white/50 text-xs tracking-widest uppercase flex gap-4">
+          <div className="font-mono text-white/50 text-2xs md:text-xs tracking-widest uppercase flex flex-wrap gap-x-4">
             <div>Plane Type SAT: {aircraft.popularity}%</div>
             <div>Max Empty Space: {TOTAL_SPACE} units</div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-row relative bg-gradient-to-br from-[#0a0a0a] to-[#111111]">
+        {/* Content. Phones, upright or sideways, stack the work area above the
+            cabin panel and scroll the two together; from md up they sit side
+            by side and scroll separately. */}
+        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden short:overflow-y-auto flex flex-col md:flex-row short:flex-col relative bg-gradient-to-br from-[#0a0a0a] to-[#111111]">
           
           {/* Main Work Area */}
-          <div className="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-start p-4 relative overflow-y-auto custom-scrollbar border-r border-white/5">
+          <div className="flex-none md:flex-1 short:flex-none md:min-h-0 min-w-0 flex flex-col items-center justify-start p-3 md:p-4 relative md:overflow-y-auto short:overflow-visible custom-scrollbar border-b md:border-b-0 short:border-b md:border-r short:border-r-0 border-white/5">
              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center opacity-5 pointer-events-none mix-blend-screen" />
             
              {/* Plane Schematic Container */}
@@ -1079,7 +1081,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              </div>
 
              {/* Configuration Mode Switcher */}
-             <div className="flex gap-4 w-full max-w-4xl relative z-10 mb-3 shrink-0 justify-center">
+             <div className="flex gap-2 md:gap-4 w-full max-w-4xl relative z-10 mb-3 shrink-0 justify-center">
                 <div 
                   id="general-settings-btn"
                   onClick={() => setActiveConfigTab('general')} 
@@ -1099,7 +1101,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              {activeConfigTab === 'classes' ? (
                <>
                  {/* Clickable Stats Grid */}
-             <div className="grid grid-cols-4 gap-4 w-full max-w-4xl relative z-10 mb-4 shrink-0">
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 w-full max-w-4xl relative z-10 mb-4 shrink-0">
                 <div onClick={() => setSelectedClass('first')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'first' ? 'border-amber-500 bg-aero-yellow/10' : 'border-amber-500/20 hover:border-amber-500/50'}`}>
                   <div className="text-aero-yellow text-2xl font-black">{firstSeats}</div>
                   <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">First Class</div>
@@ -1177,7 +1179,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
           </div>
 
           {/* Right Side: Narrow Regulators & Extras */}
-          <div className="w-[350px] min-h-0 shrink-0 bg-black/20 p-4 flex flex-col overflow-y-auto custom-scrollbar">
+          <div className="w-full md:w-[350px] short:w-full md:min-h-0 shrink-0 bg-black/20 p-4 flex flex-col md:overflow-y-auto short:overflow-visible custom-scrollbar">
             <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
               <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 flex items-center gap-2">
                 <Settings size={16} className="text-aero-yellow" />
@@ -1321,9 +1323,11 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         </div>
 
         {/* Footer */}
-        <div className="h-24 px-4 bg-black/80 border-t border-white/5 flex flex-wrap items-center justify-between shrink-0 gap-4 relative z-20">
+        {/* Footer. On phones the quantity, total and confirm button wrap
+            below Cancel and the unit price. */}
+        <div className="md:h-24 short:h-auto px-3 md:px-4 py-3 md:py-0 short:py-2 bg-black/80 border-t border-white/5 flex flex-wrap items-center justify-between shrink-0 gap-3 md:gap-4 relative z-20">
           
-          <button onClick={onCancel} className="border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all mr-auto">Cancel</button>
+          <button onClick={onCancel} className="border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-3 md:py-4 px-4 md:px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all mr-auto short:py-2">Cancel</button>
           <div className="flex items-center gap-3">
              <div className="flex flex-col">
                <span className="text-2xs uppercase font-mono tracking-[0.2em] text-white/40">
@@ -1335,7 +1339,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between md:justify-start gap-3 w-full md:w-auto short:w-auto">
             {!isRenovating && (
               <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-sm p-1">
                 <button 
@@ -1377,7 +1381,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <button 
               onClick={handleConfirm}
               disabled={!canAfford || isOverbooked}
-              className="bg-aero-yellow text-black font-black uppercase tracking-widest text-sm px-4 py-4 rounded-sm hover:bg-white transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-aero-yellow disabled:transform-none"
+              className="w-full md:w-auto short:w-auto bg-aero-yellow text-black font-black uppercase tracking-widest text-sm px-4 py-4 short:py-2.5 rounded-sm hover:bg-white transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-aero-yellow disabled:transform-none"
             >
               {isRenovating ? 'CONFIRM RENOVATION' : 'CONFIRM PURCHASE'}
             </button>

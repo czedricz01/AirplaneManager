@@ -68,7 +68,9 @@ export const InfoTooltip = ({
             className="fixed z-[999999] flex flex-col bg-aero-panel border border-white/20 p-3 rounded-sm shadow-2xl w-[250px] pointer-events-none"
             style={{
               top: pos.y > window.innerHeight - 160 ? Math.max(8, pos.y - 170) : pos.y,
-              left: pos.x > window.innerWidth - 260 ? pos.x - 280 : pos.x,
+              // Clamped: on a phone, flipping 280px to the left of the icon would
+              // otherwise start the tooltip off the screen.
+              left: pos.x > window.innerWidth - 260 ? Math.max(8, pos.x - 280) : pos.x,
             }}
           >
             <span className="font-mono text-xs text-aero-yellow font-bold uppercase tracking-widest leading-tight mb-1">
