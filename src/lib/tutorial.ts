@@ -254,3 +254,35 @@ export function placeTooltip(
     side: 'inside'
   };
 }
+
+// --- Stepping aside ------------------------------------------------------------------
+
+/**
+ * Dialogs that want the player's whole attention: while one is on screen the
+ * tutorial steps aside, whatever it points at. The in-app modals carry
+ * `aria-modal="true"`; the scenario's verdict is an alertdialog.
+ */
+export const MODAL_SELECTOR = '[aria-modal="true"], [role="alertdialog"]';
+
+/** The middle of the part of a box inside the viewport; null when none of it is. */
+export function visibleCenter(box: Box, viewport: { width: number; height: number }): { x: number; y: number } | null {
+  const left = Math.max(0, box.x);
+  const right = Math.min(viewport.width, box.x + box.width);
+  const top = Math.max(0, box.y);
+  const bottom = Math.min(viewport.height, box.y + box.height);
+  if (!(right > left && bottom > top)) return null;
+  return { x: (left + right) / 2, y: (top + bottom) / 2 };
+}
+
+/**
+ * Whether something else is drawn over the target: `stack` is what is on
+ * screen at the middle of it, topmost first (document.elementsFromPoint),
+ * and `ignore` leaves out the tutorial's own card. The target is covered
+ * unless the topmost of the rest is the target, part of it or around it --
+ * a modal, a console or anything else opened over it is none of those.
+ */
+export function isCovered<T extends { contains(other: T): boolean }>(target: T, stack: readonly T[], ignore: (el: T) => boolean = () => false): boolean {
+  const top = stack.find(el => !ignore(el));
+  if (!top) return false;
+  return !(top === target || target.contains(top) || top.contains(target));
+}

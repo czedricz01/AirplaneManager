@@ -4,9 +4,12 @@
  * Called once at every month's close with what the close worked out, it
  * answers "running", "won" or "lost" and how far each goal has come:
  *
- *   - A goal is met when the month's figure reaches its target. Without
- *     `atDeadline`, the scenario is won at the FIRST close where every goal
- *     is met at once -- a player does not have to wait for the deadline.
+ *   - A goal is met when the month's figure reaches its target. A target of
+ *     zero (an operating profit) wants more than nothing: a month that only
+ *     breaks even does not meet it, and neither does a monthly figure before
+ *     the first month has closed. Without `atDeadline`, the scenario is won
+ *     at the FIRST close where every goal is met at once -- a player does
+ *     not have to wait for the deadline.
  *   - A scenario with an `atDeadline` goal is only decided at the deadline's
  *     close; every goal must be met at that close.
  *   - When the deadline's close passes without a win, the scenario is lost.
@@ -17,6 +20,7 @@
  * is simply not met. Everything is pure.
  */
 import type { CapitalFloorGoal, GoalMetric, Scenario, TargetGoal } from '../data/scenarios';
+import { marketKey } from './financeUtils';
 import { formatCurrency, formatMoneyCompact, formatMonthOffset, formatNumber } from './format';
 import type { ScenarioStatus } from './gameState';
 
@@ -28,15 +32,21 @@ export interface ScenarioContext {
   offset: number;
   /** Cash at its end. */
   capital: number;
-  /** Every route flown, with its weekly departures. */
-  routes: { weeklyFlights: number }[];
+  /**
+   * Every route flown, with its weekly departures. A route is one aircraft's
+   * timetable, so one city pair may be flown by several of them.
+   */
+  routes: { origin: string; destination: string; weeklyFlights: number }[];
   reputation: number;
   /** World regions the network touches. */
   regionsServed: number;
-  /** Passengers who changed planes at the player's airports in the month, each counted once. */
-  transferPaxMonth: number;
-  /** The month's operating profit. */
-  monthlyProfit: number;
+  /**
+   * Passengers who changed planes at the player's airports in the month, each
+   * counted once. Null before the scenario's first month has closed.
+   */
+  transferPaxMonth: number | null;
+  /** The month's operating profit; null before the scenario's first month has closed. */
+  monthlyProfit: number | null;
   /** Capital at every month-end since the scenario started, oldest first, this one included. */
   capitalHistory: number[];
 }
@@ -47,7 +57,8 @@ export interface GoalProgress {
   /** A goal to reach, or a way to lose. */
   kind: 'win' | 'lose';
   metric: GoalMetric | 'capitalFloor';
-  current: number;
+  /** Null for a monthly figure before any month has closed: nothing to show yet. */
+  current: number | null;
   target: number;
   /**
    * 0-1. For a win goal how much of the target is reached; for a lose goal
@@ -72,14 +83,28 @@ export interface ScenarioEvaluation {
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
-/** The month's figure a target goal is measured by. */
-export function goalValue(goal: TargetGoal, ctx: ScenarioContext): number {
+/**
+ * City pairs flown with at least `minWeekly` departures a week between them,
+ * every aircraft on the pair and both directions counted together: a daily
+ * service needing two aircraft (4 + 3 a week) is daily, and thirty aircraft
+ * on the same pair are still one city pair.
+ */
+export function cityPairsServed(routes: ScenarioContext['routes'], minWeekly = 0): number {
+  const weekly = new Map<string, number>();
+  for (const r of routes) {
+    const key = marketKey(r.origin, r.destination);
+    weekly.set(key, (weekly.get(key) ?? 0) + Math.max(0, Number(r.weeklyFlights) || 0));
+  }
+  let count = 0;
+  for (const flights of weekly.values()) if (flights >= minWeekly) count++;
+  return count;
+}
+
+/** The month's figure a target goal is measured by; null while a monthly figure has no month to show. */
+export function goalValue(goal: TargetGoal, ctx: ScenarioContext): number | null {
   switch (goal.metric) {
     case 'capital': return ctx.capital;
-    case 'routes': {
-      const min = goal.minWeeklyFlights ?? 0;
-      return ctx.routes.filter(r => (r.weeklyFlights || 0) >= min).length;
-    }
+    case 'routes': return cityPairsServed(ctx.routes, goal.minWeeklyFlights ?? 0);
     case 'reputation': return ctx.reputation;
     case 'regions': return ctx.regionsServed;
     case 'transferPax': return ctx.transferPaxMonth;
@@ -98,17 +123,31 @@ export function capitalFloorStreak(history: number[], threshold: number): number
   return streak;
 }
 
-/** A figure as its goal speaks of it: money, or a count. `compact` shortens money to "$12.5M". */
-export function formatGoalValue(metric: GoalMetric | 'capitalFloor', value: number, compact = false): string {
+/**
+ * A figure as its goal speaks of it: money, or a count. `compact` shortens
+ * money to "$12.5M". A figure not known yet is a dash.
+ */
+export function formatGoalValue(metric: GoalMetric | 'capitalFloor', value: number | null, compact = false): string {
+  if (value === null || !Number.isFinite(value)) return '\u2014';
   if (metric === 'capital' || metric === 'monthlyProfit' || metric === 'capitalFloor') {
     return compact ? formatMoneyCompact(value) : formatCurrency(value);
   }
   return formatNumber(Math.round(value));
 }
 
+/**
+ * Whether a figure meets a target. A target of zero, an operating profit,
+ * wants a figure above it: breaking even is no profit. No figure yet meets
+ * nothing.
+ */
+export function meetsTarget(value: number | null, target: number): boolean {
+  if (value === null || !Number.isFinite(value)) return false;
+  return target === 0 ? value > 0 : value >= target;
+}
+
 function targetProgress(goal: TargetGoal, ctx: ScenarioContext): GoalProgress {
   const current = goalValue(goal, ctx);
-  const done = current >= goal.target;
+  const done = meetsTarget(current, goal.target);
   return {
     id: goal.id,
     label: goal.label,
@@ -117,7 +156,7 @@ function targetProgress(goal: TargetGoal, ctx: ScenarioContext): GoalProgress {
     current,
     target: goal.target,
     // A target of zero or less (an operating profit) is met or it is not.
-    progress: goal.target > 0 ? clamp01(current / goal.target) : done ? 1 : 0,
+    progress: goal.target > 0 && current !== null ? clamp01(current / goal.target) : done ? 1 : 0,
     done,
     ...(goal.atDeadline ? { atDeadline: true } : {})
   };

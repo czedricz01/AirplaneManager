@@ -59,6 +59,8 @@ export function Modal({
           className={`absolute inset-0 ${zClass} flex items-center justify-center ${bgOpacity} backdrop-blur-sm p-4`}
         >
           <motion.div
+            role="dialog"
+            aria-modal="true"
             initial={{ y: 20, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 10, opacity: 0, scale: 0.97 }}

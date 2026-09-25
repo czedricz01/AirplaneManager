@@ -1,8 +1,10 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, ChevronRight, GraduationCap, Minus, X } from 'lucide-react';
 import {
+  MODAL_SELECTOR,
   TUTORIAL_STEPS,
+  isCovered,
   isLastTutorialStep,
   isOnScreen,
   nextTutorialStep,
@@ -11,7 +13,8 @@ import {
   type Box,
   type TutorialDestination,
   type TutorialState,
-  type TutorialView
+  type TutorialView,
+  visibleCenter
 } from '../lib/tutorial';
 
 /** Space between the target and the spotlight's edge. */
@@ -40,19 +43,31 @@ const sameBox = (a: Box | null, b: Box | null) =>
 
 const viewportSize = () => ({ width: window.innerWidth, height: window.innerHeight });
 
+const hasSize = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+};
+
 /**
- * Where the target is on screen, kept up to date. Measured again, at most
- * once a frame, on resizes, on scrolling anywhere, when the target itself
- * changes size, when the screen underneath changes (`layoutKey`), and every
- * so often for targets that appear late: most views are loaded lazily.
+ * Where the target is on screen, kept up to date, and whether the tutorial
+ * should step aside: when something the App does not tell it about -- a
+ * modal, a console, a full-screen view -- is drawn over the target, or any
+ * modal is open at all, which a card in the middle of the screen would
+ * cover. Measured again, at most once a frame, on resizes, on scrolling
+ * anywhere, on clicks and keys (which open and close dialogs), when the
+ * target itself changes size, when the screen underneath changes
+ * (`layoutKey`), and every so often for targets that appear late: most
+ * views are loaded lazily. `own` is the overlay itself, never in the way.
  */
-function useTargetBox(selector: string, layoutKey: string) {
+function useTargetBox(selector: string, layoutKey: string, own: RefObject<HTMLElement | null>) {
   const [box, setBox] = useState<Box | null>(null);
   const [viewport, setViewport] = useState(viewportSize);
+  const [blocked, setBlocked] = useState(false);
 
   useLayoutEffect(() => {
     let frame = 0;
     let observed: Element | null = null;
+    const ours = (node: Element) => !!own.current?.contains(node);
     const measure = () => {
       frame = 0;
       let el: Element | null = null;
@@ -69,10 +84,12 @@ function useTargetBox(selector: string, layoutKey: string) {
       const r = el?.getBoundingClientRect();
       const vp = viewportSize();
       const next = r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null;
-      setBox(prev => {
-        const usable = isOnScreen(next, vp) ? next : null;
-        return sameBox(prev, usable) ? prev : usable;
-      });
+      const usable = isOnScreen(next, vp) ? next : null;
+      const center = el && usable ? visibleCenter(usable, vp) : null;
+      const covered = !!el && !!center && isCovered<Element>(el, document.elementsFromPoint(center.x, center.y), ours);
+      const modalOpen = Array.from(document.querySelectorAll(MODAL_SELECTOR)).some(m => !ours(m) && hasSize(m));
+      setBox(prev => (sameBox(prev, usable) ? prev : usable));
+      setBlocked(covered || modalOpen);
       setViewport(prev => (prev.width === vp.width && prev.height === vp.height ? prev : vp));
     };
     const schedule = () => {
@@ -83,17 +100,21 @@ function useTargetBox(selector: string, layoutKey: string) {
     measure();
     window.addEventListener('resize', schedule);
     window.addEventListener('scroll', schedule, true);
+    window.addEventListener('click', schedule, true);
+    window.addEventListener('keyup', schedule, true);
     const poll = window.setInterval(schedule, 400);
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener('resize', schedule);
       window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('click', schedule, true);
+      window.removeEventListener('keyup', schedule, true);
       window.clearInterval(poll);
       resize?.disconnect();
     };
-  }, [selector, layoutKey]);
+  }, [selector, layoutKey, own]);
 
-  return { box, viewport };
+  return { box, viewport, blocked };
 }
 
 /**
@@ -104,14 +125,18 @@ function useTargetBox(selector: string, layoutKey: string) {
  * Next. The card folds down to a small button when it is in the way. With
  * reduced motion nothing slides or pulses.
  *
- * Rendered outside the app's scaled root, so it works in screen pixels.
+ * Rendered outside the app's scaled root, so it works in screen pixels,
+ * and above everything in it: so it steps aside -- nothing drawn but the
+ * screen-reader line -- while its target is covered or a modal is open.
+ * The App hides it outright for the dialogs and consoles it knows about.
  */
 export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, onNavigate }: TutorialOverlayProps) {
   const def = TUTORIAL_STEPS[step];
   const reduceMotion = useReducedMotion();
   const titleId = useId();
   const maskId = `tutorial-mask-${useId().replace(/:/g, '')}`;
-  const { box, viewport } = useTargetBox(def?.target ?? '', `${layoutKey}|${step}`);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { box, viewport, blocked } = useTargetBox(def?.target ?? '', `${layoutKey}|${step}`, rootRef);
   const tipRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [tipSize, setTipSize] = useState(INITIAL_SIZE);
@@ -141,7 +166,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
   const manual = !def.done;
   const last = isLastTutorialStep(step);
   const back = manual ? previousTutorialStep(step, state) : step;
-  const dim = !!box && def.dim !== false && !busy && !collapsed;
+  const dim = !!box && def.dim !== false && !busy && !collapsed && !blocked;
   const spot = box && {
     x: box.x - PAD,
     y: box.y - PAD,
@@ -164,7 +189,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
   })();
 
   return (
-    <div className="fixed inset-0 z-[4800] pointer-events-none font-sans">
+    <div ref={rootRef} className="fixed inset-0 z-[4800] pointer-events-none font-sans">
       {dim && spot && (
         <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
           <defs>
@@ -182,7 +207,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
           <rect x="0" y="0" width="100%" height="100%" fill="rgba(0, 0, 0, 0.55)" mask={`url(#${maskId})`} />
         </svg>
       )}
-      {spot && (
+      {spot && !blocked && (
         <motion.div
           aria-hidden="true"
           initial={false}
@@ -197,7 +222,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
       </div>
 
       <AnimatePresence initial={false}>
-        {collapsed ? (
+        {blocked ? null : collapsed ? (
           <motion.button
             key="pill"
             type="button"

@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  MODAL_SELECTOR,
   TUTORIAL_STEPS,
+  isCovered,
   isLastTutorialStep,
   isOnScreen,
   nextTutorialStep,
@@ -11,7 +13,8 @@ import {
   restartTutorial,
   settleTutorialStep,
   skipTutorial,
-  type TutorialState
+  type TutorialState,
+  visibleCenter
 } from './tutorial';
 
 const fresh: TutorialState = { fleetSize: 0, routeCount: 0, planning: false, reportOpen: false };
@@ -88,4 +91,42 @@ test('the tooltip sits beside its target, or in the middle without one', () => {
   assert.equal(missing.x, (1440 - 300) / 2);
   assert.equal(placeTooltip({ x: 2000, y: 10, width: 50, height: 50 }, size, viewport).side, 'center', 'off screen counts as missing');
   assert.equal(isOnScreen({ x: 0, y: 0, width: 0, height: 10 }, viewport), false, 'a hidden element has no size');
+});
+
+/** A stand-in for DOM elements: a name and its parent, enough for `contains`. */
+class FakeNode {
+  constructor(readonly name: string, readonly parent: FakeNode | null = null) {}
+  contains(other: FakeNode | null): boolean {
+    for (let n = other; n; n = n.parent) if (n === this) return true;
+    return false;
+  }
+}
+
+test('the tutorial notices when something is drawn over its target', () => {
+  const body = new FakeNode('body');
+  const sidebar = new FakeNode('sidebar', body);
+  const newRoute = new FakeNode('new route', sidebar);
+  const icon = new FakeNode('icon', newRoute);
+  const console_ = new FakeNode('airport console', body);
+  const modal = new FakeNode('modal', body);
+  const overlay = new FakeNode('tutorial', body);
+  const card = new FakeNode('card', overlay);
+  const ours = (n: FakeNode) => overlay.contains(n);
+
+  assert.equal(isCovered(newRoute, [newRoute, sidebar, body], ours), false, 'on top');
+  assert.equal(isCovered(newRoute, [icon, newRoute, sidebar, body], ours), false, 'its own icon is part of it');
+  assert.equal(isCovered(newRoute, [sidebar, body], ours), false, 'something around it, as when it lets clicks through');
+  assert.equal(isCovered(newRoute, [console_, newRoute, sidebar, body], ours), true, 'a console opened over it');
+  assert.equal(isCovered(newRoute, [modal, body], ours), true, 'a modal over it');
+  assert.equal(isCovered(newRoute, [card, newRoute, sidebar, body], ours), false, 'its own card is never in the way');
+  assert.equal(isCovered(newRoute, [card, modal, newRoute], ours), true, 'but what is under the card is');
+  assert.equal(isCovered(newRoute, [], ours), false, 'nothing there to cover it');
+
+  const viewport = { width: 1440, height: 900 };
+  assert.deepEqual(visibleCenter({ x: 0, y: 140, width: 64, height: 60 }, viewport), { x: 32, y: 170 });
+  assert.deepEqual(visibleCenter({ x: 1400, y: -40, width: 100, height: 100 }, viewport), { x: 1420, y: 30 }, 'the part on screen');
+  assert.equal(visibleCenter({ x: 1500, y: 10, width: 50, height: 50 }, viewport), null);
+
+  assert.match(MODAL_SELECTOR, /aria-modal="true"/);
+  assert.match(MODAL_SELECTOR, /alertdialog/);
 });

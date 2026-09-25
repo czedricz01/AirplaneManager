@@ -493,9 +493,14 @@ function rivalsColumn(input: EditionInput, skip: RivalMove | undefined): { title
   };
 }
 
-function briefColumn(input: EditionInput, story: Story): { title: string; body: string } | null {
+function briefColumn(input: EditionInput, story: Story, nextMonth: string): { title: string; body: string } | null {
   const name = input.airlineName || 'Your airline';
   const lines: string[] = [];
+  // A strike called in a month with bigger news (a scenario decided, a
+  // crisis) is still news. The chronicle's own strike entry is skipped below.
+  if (input.strike && story.kind !== 'strike') {
+    lines.push(`Staff at ${name} walk out: the unions have called a strike for ${nextMonth}, with morale at ${Math.round(input.strike.morale)}.`);
+  }
   // What the chronicle took from the month and the front page did not already tell.
   for (const e of input.chronicle || []) {
     if (e.kind === 'crisis' || e.kind === 'strike' || e.kind === 'disruption' || e.kind === 'milestone' || e.kind === 'scenario') continue;
@@ -527,7 +532,7 @@ export function buildEdition(input: EditionInput): Edition {
     : undefined;
 
   const columns = [resultsColumn(input, closedMonth), marketsColumn(input, nextMonth), rivalsColumn(input, headlineRival)];
-  const brief = briefColumn(input, story);
+  const brief = briefColumn(input, story, nextMonth);
   if (brief) columns.push(brief);
 
   const ticker: Edition['ticker'] = [];

@@ -826,7 +826,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       {/* Model Aircraft List Modal */}
       {selectedModel && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-aero-panel border border-aero-yellow/40 rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col font-mono shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div role="dialog" aria-modal="true" className="bg-aero-panel border border-aero-yellow/40 rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col font-mono shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="p-4 bg-black/60 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">

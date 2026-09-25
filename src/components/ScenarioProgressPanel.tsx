@@ -79,7 +79,7 @@ export function ScenarioProgressPanel({ scenario, goals, monthsLeft }: ScenarioP
                   <div className={`h-full ${g.done ? 'bg-aero-good' : 'bg-aero-yellow'}`} style={{ width: `${pct}%` }} />
                 </div>
                 <div className="flex justify-between text-3xs text-white/45 mt-1 tabular-nums">
-                  <span className={g.done ? 'text-aero-good' : undefined}>{formatGoalValue(g.metric, g.current, true)}{MONTHLY.has(g.metric) ? ' last month' : ''}</span>
+                  <span className={g.done ? 'text-aero-good' : undefined}>{formatGoalValue(g.metric, g.current, true)}{MONTHLY.has(g.metric) && g.current !== null ? ' last month' : ''}</span>
                   <span>{formatGoalValue(g.metric, g.target, true)}</span>
                 </div>
               </div>

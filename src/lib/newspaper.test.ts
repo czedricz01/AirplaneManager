@@ -62,6 +62,27 @@ test('the brief lists every disruption but the one on the front page', () => {
   assert.doesNotMatch(brief.body, /Airport strike/);
 });
 
+test('a strike called in a month with bigger news still makes the paper', () => {
+  const strikeEntry = { offset: 181, kind: 'strike' as const, text: 'Staff strike called for 02/1975, with morale at 28.' };
+  const scenario = { title: 'Jet Age', won: true, reason: 'Every goal met in 01/1975.' };
+  const paper = buildEdition(quiet({ scenario, strike: { morale: 27.6 }, chronicle: [strikeEntry] }));
+  assert.equal(paper.kind, 'scenario');
+  const brief = paper.columns.find(c => c.title === 'In brief')!;
+  assert.ok(brief, 'the brief carries it');
+  assert.match(brief.body, /Staff at Neo Airlines walk out: the unions have called a strike for February 1975, with morale at 28\./);
+  assert.equal(brief.body.match(/strike/gi)!.length, 1, 'once, not again from the chronicle');
+
+  // Behind a crisis as well.
+  const crisis = buildEdition(quiet({ eventsStarted: [oil], strike: { morale: 30 } }));
+  assert.equal(crisis.kind, 'crisis');
+  assert.match(crisis.columns.find(c => c.title === 'In brief')!.body, /called a strike for February 1975/);
+
+  // On the front page itself it is not repeated underneath.
+  const front = buildEdition(quiet({ strike: { morale: 28 }, chronicle: [strikeEntry] }));
+  assert.equal(front.kind, 'strike');
+  assert.ok(front.columns.every(c => !/strike/i.test(c.body)));
+});
+
 test('a scenario decided at the close makes the front page, won or lost', () => {
   const won = buildEdition(quiet({ scenario: { title: 'Jet Age', won: true, reason: 'Every goal met in 01/1975.' } }));
   assert.equal(won.kind, 'scenario');

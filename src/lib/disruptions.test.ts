@@ -362,3 +362,37 @@ test('charters on one route share what they save instead of each claiming it who
   assert.equal(calls, 3, 'one call with the base known, two without');
   assert.equal(disruptionRoutesLabel({ routeIds: ['a', 'b', 'c', 'd'] }, id => id.toUpperCase(), 3), 'A, B, C and 1 more');
 });
+
+test('charters that save nothing alone but something together still split the bill', () => {
+  // A route 60% full: a 25% defect or a 30% airport strike alone leaves seats
+  // for everyone booked; both at once (47.5% cancelled) do not. Revenue
+  // follows the seats flown, up to the 60% that are sold.
+  const full: Record<string, number> = { r1: 100_000, r2: 50_000 };
+  const priceWith = (list: Disruption[]) => {
+    const shares = disruptionCancelShares(list, 200) ?? {};
+    return Object.entries(full).reduce((sum, [id, rev]) => sum + rev * Math.min(0.6, 1 - (shares[id] ?? 0)), 0);
+  };
+  const tech = disruption({ id: 'tech', routeIds: ['r1'], mitigated: true });
+  const airport = disruption({ id: 'ap', kind: 'airport-strike', routeIds: ['r1'], cancelShare: 0.3, mitigated: true });
+  assert.equal(marginalLostRevenue(tech, [tech, airport], priceWith), 0, 'the defect alone costs nobody a seat');
+  assert.equal(marginalLostRevenue(airport, [tech, airport], priceWith), 0, 'nor does the strike alone');
+
+  // Together: 52.5% of the seats fly against 60% sold, $7,500 saved by chartering both.
+  const joint = 100_000 * (0.6 - 0.75 * 0.7);
+  const fees = charterFeesFor([tech, airport], 200, priceWith);
+  assert.ok(fees.tech > 0 && fees.ap > 0, 'neither charter flies for free');
+  assert.ok(Math.abs(fees.tech + fees.ap - 0.9 * joint) <= 1, `${fees.tech} + ${fees.ap} is 90% of ${joint}`);
+  assert.equal(fees.tech, Math.round(0.9 * joint * (0.25 / 0.55)), 'split by the flights each cancels');
+  assert.equal(fees.ap, Math.round(0.9 * joint * (0.3 / 0.55)));
+
+  // The airport strike hitting two routes cancels twice the flights; on its
+  // own the second route still has seats to spare, so the split is by share times routes.
+  const wide = { ...airport, routeIds: ['r1', 'r2'] };
+  const wideFees = charterFeesFor([tech, wide], 200, priceWith);
+  assert.ok(Math.abs(wideFees.tech + wideFees.ap - 0.9 * joint) <= 1);
+  assert.equal(wideFees.ap, Math.round(0.9 * joint * (0.6 / 0.85)));
+
+  // Nothing saved together either: nothing billed.
+  const light = disruption({ id: 'light', kind: 'weather', routeIds: ['r1'], cancelShare: 0.1, mitigated: true });
+  assert.deepEqual(charterFeesFor([tech, light], 200, priceWith), {}, '32.5% cancelled still flies everyone booked');
+});

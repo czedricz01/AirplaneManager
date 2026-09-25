@@ -414,6 +414,13 @@ function groupsSharingRoutes(list: Disruption[]): Disruption[][] {
  * across the group in proportion to what each would save on its own. A
  * disruption alone on its routes is billed exactly its marginalLostRevenue.
  *
+ * Together they may save what none saves alone: with seats to spare, a 25%
+ * defect or a 30% airport strike each leaves enough flights for everyone
+ * booked, both at once do not. Such a saving is split by the flights each
+ * cancels, its share times the routes it hits. Either way the group's fees
+ * add up to CHARTER_COST_SHARE of the group's saving, give or take a dollar
+ * of rounding each.
+ *
  * `revenueWith` prices the month's network for a list of disruptions, the
  * strike and everything else as it is. `baseRevenue`, when given, is its
  * price for `disruptions` as they are, which the month's close has already.
@@ -435,8 +442,13 @@ export function charterFeesFor(
     const joint = saved(group.map(d => d.id));
     const alone = group.length === 1 ? [joint] : group.map(d => saved([d.id]));
     const total = alone.reduce((sum, v) => sum + v, 0);
+    // Nothing saved alone but something together: weigh by the flights each cancels, or evenly.
+    const flights = group.map(d => clamp01(Number(d.cancelShare) || 0) * d.routeIds.length);
+    const flightsTotal = flights.reduce((sum, v) => sum + v, 0);
+    const weight = (i: number) =>
+      total > 0 ? alone[i] / total : flightsTotal > 0 ? flights[i] / flightsTotal : 1 / group.length;
     group.forEach((d, i) => {
-      const fee = charterFee(total > 0 ? joint * (alone[i] / total) : 0);
+      const fee = charterFee(joint * weight(i));
       if (fee > 0) fees[d.id] = fee;
     });
   }

@@ -44,6 +44,9 @@ import {
 /** Written into every new save. Bump it whenever the shape changes. */
 export const SAVE_VERSION = 4;
 
+/** The first save version whose tutorial step means anything; older saves load with the tutorial off. */
+const TUTORIAL_SAVE_VERSION = 4;
+
 const PERSONALITIES = ['flag', 'lcc', 'expansionist', 'optimizer', 'boutique'] as const;
 const AGGRESSION: Record<string, number> = { expansionist: 9, lcc: 8, flag: 6, optimizer: 4, boutique: 5 };
 
@@ -412,9 +415,10 @@ export function migrateSave(raw: any): any {
     pendingDecisions,
     scenario: migrateScenario(raw.scenario, startDateOffset, currentDateOffset),
     chronicle: migrateChronicle(raw.chronicle),
-    // Older saves were started before the tutorial existed; their players do
-    // not need it, so it stays off rather than starting on load.
-    tutorialStep: typeof raw.tutorialStep === 'number' && Number.isFinite(raw.tutorialStep)
+    // Saves from before version 4 were started before the tutorial existed;
+    // their players do not need it, so it stays off rather than starting on
+    // load. Version 3 saves wrote a step 0 that nothing ever showed.
+    tutorialStep: (raw.saveVersion ?? 1) >= TUTORIAL_SAVE_VERSION && typeof raw.tutorialStep === 'number' && Number.isFinite(raw.tutorialStep)
       ? Math.max(0, Math.round(raw.tutorialStep))
       : null
   };

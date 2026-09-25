@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { capitalFloorStreak, evaluateScenario, goalValue, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from './scenarioEval';
+import { capitalFloorStreak, cityPairsServed, evaluateScenario, formatGoalValue, goalValue, meetsTarget, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from './scenarioEval';
 import { SCENARIOS, scenarioById, type Scenario } from '../data/scenarios';
 import { setDecimalSymbol } from './format';
 
@@ -86,21 +86,76 @@ test('the oil shock allows not a single month-end below zero', () => {
   assert.equal(evaluateScenario(oilShock, ctx({ offset: oilShock.startOffset, capital: 0, capitalHistory: [0] })).status, 'running');
 });
 
-test('only daily routes count towards deregulation, and the month must be in profit', () => {
-  const routes = [...Array(29).fill({ weeklyFlights: 7 }), { weeklyFlights: 3 }];
+/** A route from New York to destination number `i`, flown `weeklyFlights` times a week by one aircraft. */
+const fromJfk = (i: number, weeklyFlights: number) => ({ origin: 'JFK', destination: `D${String(i).padStart(2, '0')}`, weeklyFlights });
+
+test('only daily city pairs count towards deregulation, and the month must be in profit', () => {
+  const routes = [...Array.from({ length: 29 }, (_, i) => fromJfk(i, 7)), fromJfk(29, 3)];
   const goal = deregulation.win[0];
   assert.equal(goalValue(goal, ctx({ routes })), 29);
   assert.equal(evaluateScenario(deregulation, ctx({ offset: deregulation.startOffset + 5, routes, monthlyProfit: 1 })).status, 'running');
 
-  const thirty = [...routes, { weeklyFlights: 14 }];
+  const thirty = [...routes, fromJfk(30, 14)];
   const loss = evaluateScenario(deregulation, ctx({ offset: deregulation.startOffset + 5, routes: thirty, monthlyProfit: -1 }));
-  assert.equal(loss.status, 'running', 'thirty routes flown at a loss are not enough');
+  assert.equal(loss.status, 'running', 'thirty pairs flown at a loss are not enough');
   assert.equal(loss.goals[1].progress, 0);
-  assert.equal(evaluateScenario(deregulation, ctx({ offset: deregulation.startOffset + 5, routes: thirty, monthlyProfit: 0 })).status, 'won');
+  assert.equal(evaluateScenario(deregulation, ctx({ offset: deregulation.startOffset + 5, routes: thirty, monthlyProfit: 1 })).status, 'won');
+});
+
+test('a city pair counts once, with every aircraft flying it added up', () => {
+  const goal = deregulation.win[0];
+  // Daily JFK-LHR needs two 707s, one flying it four times a week and one three times.
+  const twoAircraft = [
+    { origin: 'JFK', destination: 'LHR', weeklyFlights: 4 },
+    { origin: 'JFK', destination: 'LHR', weeklyFlights: 3 }
+  ];
+  assert.equal(goalValue(goal, ctx({ routes: twoAircraft })), 1, 'four and three a week make a daily service');
+  assert.equal(cityPairsServed([{ origin: 'LHR', destination: 'JFK', weeklyFlights: 4 }, { origin: 'JFK', destination: 'LHR', weeklyFlights: 3 }], 7), 1,
+    'either direction is the same pair');
+
+  // Thirty daily aircraft on the one pair are one daily pair, not thirty.
+  const onePair = Array.from({ length: 30 }, () => ({ origin: 'JFK', destination: 'LHR', weeklyFlights: 7 }));
+  assert.equal(goalValue(goal, ctx({ routes: onePair })), 1);
+  assert.equal(evaluateScenario(deregulation, ctx({ offset: deregulation.startOffset + 5, routes: onePair, monthlyProfit: 1 })).status, 'running');
+
+  // Thirty pairs, each shared by two aircraft that are only daily together: won.
+  const shared = Array.from({ length: 30 }, (_, i) => [fromJfk(i, 4), fromJfk(i, 3)]).flat();
+  assert.equal(goalValue(goal, ctx({ routes: shared })), 30);
+  assert.equal(evaluateScenario(deregulation, ctx({ offset: deregulation.startOffset + 5, routes: shared, monthlyProfit: 1 })).status, 'won');
+  assert.equal(cityPairsServed(shared), 30, 'without a minimum every pair flown counts');
+  assert.equal(deregulation.win[0].label, '30 city pairs with daily service');
+});
+
+test('an operating profit means more than breaking even, and needs a closed month', () => {
+  const profit = deregulation.win[1];
+  assert.equal(profit.target, 0);
+  const at = (monthlyProfit: number | null) => scenarioGoals(deregulation, ctx({ monthlyProfit })).find(g => g.id === 'profit')!;
+  assert.equal(at(0).done, false, 'a month that only breaks even has made no profit');
+  assert.equal(at(0).progress, 0);
+  assert.equal(at(1).done, true);
+  assert.equal(at(1).progress, 1);
+  assert.equal(at(-5).done, false);
+
+  // Before the scenario's first close there is no month to judge.
+  const none = at(null);
+  assert.equal(none.done, false);
+  assert.equal(none.current, null);
+  assert.equal(none.progress, 0);
+  assert.equal(formatGoalValue('monthlyProfit', none.current, true), '\u2014');
+  assert.equal(formatGoalValue('transferPax', null), '\u2014');
+  const pax = scenarioGoals(scenarioById('hub-builder')!, ctx({ transferPaxMonth: null }))[0];
+  assert.equal(pax.current, null);
+  assert.equal(pax.done, false);
+
+  // Only a target of zero is strict; any other is met on reaching it.
+  assert.equal(meetsTarget(0, 0), false);
+  assert.equal(meetsTarget(100, 100), true);
+  assert.equal(meetsTarget(-1_000, -1_000), true);
+  assert.equal(meetsTarget(null, -1_000), false);
 });
 
 test('every metric reads its own figure', () => {
-  const c = ctx({ capital: 1, reputation: 2, regionsServed: 3, transferPaxMonth: 4, monthlyProfit: 5, routes: [{ weeklyFlights: 1 }] });
+  const c = ctx({ capital: 1, reputation: 2, regionsServed: 3, transferPaxMonth: 4, monthlyProfit: 5, routes: [fromJfk(1, 1)] });
   const value = (metric: any) => goalValue({ id: 'x', kind: 'target', metric, target: 1, label: '' }, c);
   assert.deepEqual(['capital', 'reputation', 'regions', 'transferPax', 'monthlyProfit', 'routes'].map(value), [1, 2, 3, 4, 5, 1]);
 });

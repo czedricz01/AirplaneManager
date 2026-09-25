@@ -24,7 +24,11 @@ const at = (year: number, month: number) => (year - 1960) * 12 + (month - 1);
 export type GoalMetric =
   /** Cash at the month's end, as the top bar shows it. */
   | 'capital'
-  /** Routes flown, optionally only those with at least `minWeeklyFlights` departures a week. */
+  /**
+   * City pairs flown, optionally only those with at least `minWeeklyFlights`
+   * departures a week between them: every aircraft on a pair, in either
+   * direction, counts towards the one pair.
+   */
   | 'routes'
   | 'reputation'
   /** World regions the network touches, the hub's own included. */
@@ -46,7 +50,7 @@ export interface TargetGoal {
   target: number;
   label: string;
   atDeadline?: boolean;
-  /** For 'routes': only routes with at least this many departures a week count. */
+  /** For 'routes': only city pairs with at least this many departures a week, all aircraft together, count. */
   minWeeklyFlights?: number;
 }
 
@@ -168,10 +172,12 @@ export const SCENARIOS: readonly Scenario[] = [
   },
   {
     // From New York in 1978 a narrowbody with a proper cabin finds 40 or more
-    // profitable destinations; 30 daily routes need roughly a dozen aircraft
-    // and about $20M of slots, so the airline has to keep reinvesting through
-    // the 1979 energy crisis. Only daily routes count: a weekly flight to
-    // everywhere would otherwise meet the goal in a month.
+    // profitable destinations; 30 daily city pairs need roughly a dozen
+    // aircraft and about $20M of slots, so the airline has to keep
+    // reinvesting through the 1979 energy crisis. Only pairs served daily
+    // count, however many aircraft share the timetable: a weekly flight to
+    // everywhere would otherwise meet the goal in a month, and thirty
+    // aircraft on one pair are still one pair.
     id: 'deregulation',
     title: 'Deregulation',
     tagline: 'New York, 1978',
@@ -190,7 +196,7 @@ export const SCENARIOS: readonly Scenario[] = [
     difficulty: 'Normal',
     rivals: { count: 8, difficulty: 'Normal' },
     win: [
-      { id: 'routes', kind: 'target', metric: 'routes', target: 30, minWeeklyFlights: 7, label: '30 routes with daily service' },
+      { id: 'routes', kind: 'target', metric: 'routes', target: 30, minWeeklyFlights: 7, label: '30 city pairs with daily service' },
       { id: 'profit', kind: 'target', metric: 'monthlyProfit', target: 0, label: 'An operating profit in that same month' }
     ],
     lose: [BANKRUPTCY]

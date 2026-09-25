@@ -573,7 +573,7 @@ export function AirportDetailView({
       {/* Management Required Modal */}
       {showMgmtModal && (
         <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-aero-carbon p-4 border border-white/10 max-w-md w-full relative z-[101]">
+          <div role="dialog" aria-modal="true" className="bg-aero-carbon p-4 border border-white/10 max-w-md w-full relative z-[101]">
             <h3 className="text-xl font-black uppercase text-aero-yellow mb-2">Management Required</h3>
             <p className="text-white/70 mb-4 text-sm">
               Level-1 management is required to create a route. Do you want to buy it now?

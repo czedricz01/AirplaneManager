@@ -140,8 +140,7 @@ test('broken version 3 fields are repaired rather than trusted', () => {
       { id: 'd2', kind: 'strike', title: 'Nothing to choose', options: [] },
       { id: 'd3', kind: 'unknown', title: 'From the future', options: [{ id: 'a', label: 'OK' }] }
     ],
-    chronicle: Array.from({ length: 400 }, (_, i) => ({ offset: i, kind: 'record', text: `r${i}` })),
-    tutorialStep: 2.4
+    chronicle: Array.from({ length: 400 }, (_, i) => ({ offset: i, kind: 'record', text: `r${i}` }))
   });
   assert.equal(migrated.branding.color, MAP_YELLOW);
   assert.equal(migrated.branding.icon, 'initials');
@@ -152,7 +151,17 @@ test('broken version 3 fields are repaired rather than trusted', () => {
   assert.equal(migrated.pendingDecisions[0].options[0].cost, 0);
   assert.equal(migrated.chronicle.length, 300);
   assert.equal(migrated.chronicle[0].offset, 100, 'the oldest entries go first');
-  assert.equal(migrated.tutorialStep, 2);
+});
+
+test('the tutorial step loads from version 4 saves on, and stays off in older ones', () => {
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: 2.4 }).tutorialStep, 2);
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: -3 }).tutorialStep, 0);
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: null }).tutorialStep, null, 'finished or skipped');
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: NaN }).tutorialStep, null);
+  // Version 3 saves wrote a 0 that no tutorial ever showed; their players are not sent through it now.
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 3, tutorialStep: 0 }).tutorialStep, null);
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 3, tutorialStep: 2 }).tutorialStep, null);
+  assert.equal(migrateSave({ ...oldSave(), tutorialStep: 0 }).tutorialStep, null, 'no version at all is version 1');
 });
 
 test('chronicle keys and record values survive a load, and keyed firsts outlast trimming', () => {

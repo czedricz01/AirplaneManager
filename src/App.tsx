@@ -178,12 +178,19 @@ function addCapexItem(list: { label: string; amount: number }[], label: string, 
     : [...list, { label, amount }];
 }
 
+/** The month a saved report closed, as an offset from 01/1960. */
+const reportOffset = (r: { year: number; month: number }) => (r.year - 1960) * 12 + (r.month - 1);
+
 /** Capital at the month-ends a scenario has seen so far, oldest first, from the saved reports. */
 function scenarioCapitalHistory(reports: any[], startedOffset: number): number[] {
   return reports
-    .filter(r => r && (r.year - 1960) * 12 + (r.month - 1) >= startedOffset && Number.isFinite(r.capitalAfter))
+    .filter(r => r && reportOffset(r) >= startedOffset && Number.isFinite(r.capitalAfter))
     .map(r => r.capitalAfter);
 }
+
+/** The player's routes as a scenario's goals count them: by city pair, with their weekly departures. */
+const scenarioRoutes = (routes: SimulatedRoute[]): ScenarioContext['routes'] =>
+  routes.map(r => ({ origin: r.origin, destination: r.destination, weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 }));
 
 /** Every rival departure, as offers the finance engine can split demand by. */
 function buildRivalOffers(ais: any[] | null | undefined) {
@@ -980,14 +987,16 @@ export default function App() {
   const activeScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
   const scenarioProgress = useMemo(() => {
     if (!activeScenario || !scenario) return null;
+    // Until the scenario's first month has closed there is no monthly figure to judge.
+    const lastClose = latestReport && reportOffset(latestReport) >= scenario.startedOffset ? latestReport : null;
     const ctx: ScenarioContext = {
       offset: currentDateOffset,
       capital,
-      routes: routes.map(r => ({ weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 })),
+      routes: scenarioRoutes(routes),
       reputation,
       regionsServed: regionsServed(routes, airportsMapAdjusted).size,
-      transferPaxMonth: latestReport?.transferPax ?? 0,
-      monthlyProfit: latestReport?.totalProfit ?? 0,
+      transferPaxMonth: lastClose ? (Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
+      monthlyProfit: lastClose && Number.isFinite(lastClose.totalProfit) ? lastClose.totalProfit : null,
       capitalHistory: scenarioCapitalHistory(reportHistory, scenario.startedOffset)
     };
     return { goals: scenarioGoals(activeScenario, ctx), monthsLeft: monthsLeft(activeScenario, currentDateOffset) };
@@ -1874,7 +1883,7 @@ export default function App() {
       const evaluation = evaluateScenario(runningScenario, {
         offset: currentDateOffset,
         capital: closingCapital,
-        routes: routes.map(r => ({ weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 })),
+        routes: scenarioRoutes(routes),
         reputation: nextReputation,
         regionsServed: regionsNow.size,
         transferPaxMonth: fullReport.transferPax,
@@ -2821,11 +2830,15 @@ export default function App() {
 
   /**
    * The tutorial steps aside for anything that asks for the player's
-   * attention: decisions, the newspaper, alerts, the menus' dialogs and the
-   * scenario's verdict. It comes back once they are dealt with.
+   * attention: decisions, the newspaper, alerts, the menus and their
+   * dialogs, the scenario's verdict, and the consoles opened over the map
+   * (an airport, a route's timetable) that leave the sidebar it points at in
+   * view. It comes back once they are dealt with. Modals it is not told
+   * about here it notices itself (see TutorialOverlay).
    */
   const tutorialHidden = !inGame || !!pendingDecision || pendingDecisions.length > 0 || isNewspaperOpen || !!appAlert ||
-    isSettingsOpen || !!selectedMessage || showSaveMenu || showLoadMenu || showExitSavePrompt || scenarioResultOpen;
+    isSettingsOpen || !!selectedMessage || showSaveMenu || showLoadMenu || showExitSavePrompt || scenarioResultOpen ||
+    !!selectedAirport || isEditingSchedule || !!reassigning || isMessagesOpen || isGameMenuOpen || isMapSettingsOpen;
 
   // What a diagnostics export says about the game it was taken from. A ref, so
   // the provider always reads the latest render without re-registering.
@@ -3823,7 +3836,9 @@ export default function App() {
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
                   
                   {/* Map Viewport - Leaflet Map */}
-                  <div className="absolute inset-0 z-0 bg-aero-panel" data-tour="map">
+                  {/* The tutorial's "map" only while the map is what is on screen: under
+                      a window it is not there to point at. */}
+                  <div className="absolute inset-0 z-0 bg-aero-panel" data-tour={activeWindow === 'map' && !isPlanningRoute ? 'map' : undefined}>
                      <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
                       <WorldMap
                         sessionKey={sessionKey}
