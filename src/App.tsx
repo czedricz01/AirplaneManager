@@ -351,6 +351,7 @@ import { ScenarioPicker } from "./components/ScenarioPicker";
 import { TutorialOverlay } from "./components/TutorialOverlay";
 import { restartTutorial, settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
+import { autoScaleFor } from "./lib/layout";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
@@ -741,13 +742,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1280) {
-        setAutoScale(window.innerWidth / 1280);
-      } else {
-        setAutoScale(1.0);
-      }
-    };
+    const handleResize = () => setAutoScale(autoScaleFor(window.innerWidth, window.innerHeight));
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -3094,39 +3089,47 @@ export default function App() {
               </div>
             </Modal>
           )}
-          <div className="flex-1 relative flex overflow-hidden">
-            {/* Sidebar for Game View */}
+          {/* Upright phones stack the content above a bottom navigation bar; in
+              the rail layout (md and up, or a phone held sideways) the navigation
+              is the left-hand column. See the variants in index.css. */}
+          <div className="flex-1 relative flex flex-col rail:flex-row overflow-hidden">
+            {/* Sidebar for Game View. On upright phones the same buttons form the
+                bottom bar, so the tutorial's data-tour anchors exist in every
+                layout. Buttons there are as wide as their short label and share
+                out any spare width; the bar scrolls sideways on very narrow
+                screens. Sideways phones get a slightly wider, compact rail with
+                no spacer, since height is what they lack. */}
         {view === 'game' && (
-          <div className="w-14 lg:w-16 bg-aero-panel border-r border-white/10 flex flex-col items-center pb-4 shrink-0 z-50 h-full overflow-y-auto no-scrollbar">
+          <div className="order-last rail:order-none w-full rail:w-14 lg:rail:w-16 short:w-16 bg-aero-panel border-t rail:border-t-0 rail:border-r border-white/10 flex flex-row rail:flex-col items-stretch rail:items-center rail:pb-4 short:pb-0 shrink-0 z-50 rail:h-full overflow-auto no-scrollbar bar:scrollbar-hidden short:scrollbar-hidden">
             {/* Spacer corresponding to the h-14 height of the Game Stats Bar */}
-            <div className="h-14 shrink-0 w-full" />
-            <div className="flex flex-col w-full">
+            <div className="hidden rail:block short:hidden h-14 shrink-0 w-full" />
+            <div className="flex flex-row rail:flex-col w-full">
               {/* Fleet & Ops */}
-              <div className="flex flex-col divide-y divide-white/5">
+              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5">
                 <SidebarIcon icon={<MapIcon size={28} />} label="MAP" tour="nav-map" active={activeWindow === 'map' && !isPlanningRoute} onClick={() => openWindow('map')} />
-                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" tour="nav-buy-aircraft" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => openWindow('buy-aircraft')} />
-                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" tour="nav-my-fleet" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => openWindow('my-fleet')} />
+                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" shortLabel="BUY" tour="nav-buy-aircraft" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => openWindow('buy-aircraft')} />
+                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" shortLabel="FLEET" tour="nav-my-fleet" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => openWindow('my-fleet')} />
               </div>
 
               {/* Network */}
-              <div className="flex flex-col divide-y divide-white/5 border-t border-white/10">
+              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
                 <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" tour="nav-routes" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => { setRouteFilter(""); openWindow('routes'); }} />
                 <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" tour="nav-airports" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => openWindow('airports')} />
               </div>
 
               {/* Business */}
-              <div className="flex flex-col divide-y divide-white/5 border-t border-white/10">
-                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
+              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
+                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" shortLabel="COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
                 <SidebarIcon icon={<Users size={28} />} label="RIVALS" tour="nav-rivals" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => openWindow('competitors')} />
               </div>
 
               {/* Actions */}
-              <div className="flex flex-col border-t border-white/10 bg-aero-yellow/5">
-                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" tour="nav-new-route" active={isPlanningRoute} onClick={openPlanner} />
+              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none border-l rail:border-l-0 rail:border-t border-white/10 bg-aero-yellow/5">
+                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" shortLabel="NEW" tour="nav-new-route" active={isPlanningRoute} onClick={openPlanner} />
               </div>
             </div>
-            <div className="mt-4 pb-4 shrink-0 w-full mb-3">
-              
+            <div className="hidden rail:block short:hidden mt-4 pb-4 shrink-0 w-full mb-3">
+
             </div>
           </div>
         )}
@@ -3143,15 +3146,19 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center p-4 bg-aero-black relative"
+                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start p-4 pt-14 md:pt-4 short:pt-14 bg-aero-black relative"
               >
-                <div className="absolute top-4 right-8 z-50 flex items-center gap-4">
+                {/* The menu card is centred with auto margins instead of
+                    justify-center, which would push its top out of reach whenever it
+                    is taller than the screen, as on phones; on those pt-14 keeps it
+                    clear of this bar. */}
+                <div className="absolute top-4 right-4 md:right-8 z-50 flex items-center gap-3 md:gap-4">
                   <div className="text-white/40 font-mono text-xs tracking-widest flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full shadow-2xl ${userId ? (cloudOnline ? 'bg-aero-yellow animate-pulse' : 'bg-white/30') : 'bg-white/20'}`}></div>
                     {user || 'UNKNOWN_USER'}
                   </div>
-                  <div className="h-4 w-px bg-white/10"></div>
-                  <span className="text-white/25 font-mono text-2xs uppercase tracking-widest">{cloudStatusLabel}</span>
+                  <div className="hidden sm:block h-4 w-px bg-white/10"></div>
+                  <span className="hidden sm:inline text-white/25 font-mono text-2xs uppercase tracking-widest">{cloudStatusLabel}</span>
                   <div className="h-4 w-px bg-white/10"></div>
                   <button 
                     onClick={handleDisconnect}
@@ -3167,10 +3174,10 @@ export default function App() {
                   <circle cx="700" cy="80" r="3" fill="#FACC15" />
                 </svg>
 
-                <div className="w-full max-w-2xl z-10 flex flex-col gap-12 border border-white/5 bg-aero-panel/30 rounded-sm p-8 lg:p-14">
+                <div className="w-full max-w-2xl z-10 flex flex-col gap-8 sm:gap-12 short:gap-6 border border-white/5 bg-aero-panel/30 rounded-sm p-5 sm:p-8 lg:p-14 short:p-6 my-auto">
                   <div className="space-y-4">
                     <Bird className="text-aero-yellow" size={64} strokeWidth={2.5} />
-                    <h1 className="text-8xl font-black italic tracking-tighter leading-none">
+                    <h1 className="text-6xl sm:text-8xl short:text-6xl font-black italic tracking-tighter leading-none">
                       <span className="text-aero-yellow">AM</span><br/>
                       <span className="text-white">NEO</span>
                     </h1>
@@ -3247,14 +3254,14 @@ export default function App() {
                 className="flex-1 min-h-0 p-4 lg:p-12 overflow-y-auto custom-scrollbar"
               >
                 <div className="max-w-4xl mx-auto space-y-12 pb-20">
-                  <div className="flex items-end justify-between border-b border-white/10 pb-6">
+                  <div className="flex items-end justify-between gap-4 border-b border-white/10 pb-6">
                     <div>
                       <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2">Operation: Initialize</span>
-                      <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none">Pre-Flight <span className="text-aero-yellow">Config</span></h2>
+                      <h2 className="text-4xl sm:text-5xl font-black italic uppercase tracking-tighter leading-none">Pre-Flight <span className="text-aero-yellow">Config</span></h2>
                     </div>
                     <button 
                       onClick={() => setView('main-menu')}
-                      className="text-xs font-mono uppercase tracking-widest text-white/40 hover:text-aero-yellow transition-colors"
+                      className="shrink-0 whitespace-nowrap text-xs font-mono uppercase tracking-widest text-white/40 hover:text-aero-yellow transition-colors"
                     >
                       [ Abort_Mission ]
                     </button>
@@ -3660,9 +3667,15 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="flex-1 flex flex-col bg-aero-black relative"
               >
-                {/* Game Stats Bar */}
-                <div className="h-14 bg-aero-carbon border-b border-white/5 flex items-center justify-between px-4 shrink-0 relative z-50">
-                  <div className="flex gap-5 items-center">
+                {/* Game Stats Bar. On upright phones it has two rows: date and
+                    buttons on top, then the stats as a 3x2 grid so every figure
+                    stays visible. The dropdowns below are anchored to this bar there
+                    (their wrappers are only `relative` in the rail layout), so they
+                    open below it at the right edge instead of running off the left
+                    of the screen. Sideways phones keep one lower row, and the stats
+                    scroll sideways when they do not all fit. */}
+                <div className="rail:h-14 short:h-11 bg-aero-carbon border-b border-white/5 flex flex-col rail:flex-row rail:items-center rail:justify-between gap-2 rail:gap-0 short:gap-3 px-3 rail:px-4 short:px-3 py-2 rail:py-0 shrink-0 relative z-50">
+                  <div className="order-last rail:order-none grid grid-cols-3 gap-x-2 gap-y-2 rail:flex rail:gap-5 rail:items-center short:gap-4 short:min-w-0 short:overflow-x-auto short:scrollbar-hidden">
                     <GameStat label="Capital" value={formatCurrency(capital)} />
                     <GameStat label="Fleet" value={fleet.length.toString()} />
                     <GameStat label="Routes" value={routes.length.toString()} />
@@ -3670,30 +3683,31 @@ export default function App() {
                     <GameStat label="Global Demand" value={`${Math.round(globalDemandData.value * 100)}%`} trend={globalDemandData.trend} />
                     <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / 3.78541, 3)}`} trend={fuelData.trend} goodDirection="down" />
                   </div>
-                  <div className="flex items-center gap-3 relative">
-                    <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 short:gap-2 short:shrink-0 rail:relative">
+                    <div className="flex items-center gap-4 mr-auto rail:mr-0">
                       <div className="text-aero-yellow font-mono text-sm font-bold tracking-widest">{formatDate(currentDateOffset)}</div>
                     </div>
 
-                    <div className="relative">
-                       <button 
+                    <div className="rail:relative">
+                       <button
                          onClick={() => {
                            setIsMessagesOpen(!isMessagesOpen);
                            if (!isMessagesOpen) {
                              setMessages(messages.map(m => ({ ...m, isRead: true })));
                            }
                          }}
+                         aria-label={unreadMessagesCount > 0 ? `Messages, ${unreadMessagesCount} unread` : 'Messages'}
                          className={`flex items-center gap-2 px-3 py-1 border text-2xs uppercase font-bold tracking-widest transition-all rounded-sm ${unreadMessagesCount > 0 ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white hover:bg-white/10 border-white/10'}`}
                        >
                          <Bell size={12} />
-                         <span className="hidden sm:inline">Messages</span>
+                         <span className="hidden sm:inline short:hidden">Messages</span>
                          {unreadMessagesCount > 0 && (
                            <span className="ml-1 bg-black text-aero-yellow px-1.5 py-0.5 text-4xs rounded-sm">{unreadMessagesCount}</span>
                          )}
                        </button>
                        
                        {isMessagesOpen && (
-                         <div className="absolute top-full right-0 mt-2 w-80 bg-aero-panel border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
+                         <div className="absolute top-full right-2 rail:right-0 mt-2 w-[min(20rem,calc(100vw-1rem))] bg-aero-panel border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
                            <div className="p-3 border-b border-white/10 flex justify-between items-center">
                              <span className="text-aero-yellow text-2xs uppercase tracking-widest font-bold">Communications</span>
                              <div className="flex items-center gap-2">
@@ -3733,15 +3747,15 @@ export default function App() {
                        )}
                     </div>
                     
-                    <div className="relative">
-                      <button 
+                    <div className="rail:relative">
+                      <button
                          onClick={() => setIsMapSettingsOpen(!isMapSettingsOpen)}
                          className="px-3 py-2 border border-white/10 text-white/40 text-2xs font-black uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-2"
                       >
                         [ Map ]
                       </button>
                       {isMapSettingsOpen && (
-                        <div className="absolute top-12 right-0 mt-2 w-64 bg-aero-panel border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
+                        <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-64 bg-aero-panel border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
                           <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow cursor-pointer hover:bg-white/5 p-2 transition-colors">
                             <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-aero-yellow w-4 h-4 cursor-pointer" />
                             Your Routes
@@ -3777,7 +3791,7 @@ export default function App() {
                       [ Menu ]
                     </button>
                     {isGameMenuOpen && (
-                      <div className="absolute top-12 right-0 mt-2 w-56 bg-aero-carbon border border-white/10 shadow-2xl flex flex-col z-[100] py-2">
+                      <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-56 bg-aero-carbon border border-white/10 shadow-2xl flex flex-col z-[100] py-2">
                         <GameMenuOption label="Continue" onClick={() => setIsGameMenuOpen(false)} />
                         <GameMenuOption label="Save Game" onClick={() => { setShowSaveMenu(true); setIsGameMenuOpen(false); }} />
                         <GameMenuOption label="Settings" onClick={() => { setIsSettingsOpen(true); setIsGameMenuOpen(false); }} />
@@ -3868,9 +3882,12 @@ export default function App() {
                      </ErrorBoundary>
                   </div>
                   
-                  {/* The running scenario's goals, over the map's top-left corner. */}
+                  {/* The running scenario's goals, over the map's top-left corner.
+                      On phones the top bar's dropdowns open over this corner, and
+                      at z-[900] the panel would sit on top of them, so it steps
+                      aside while one is open. */}
                   {scenarioProgress && activeScenario && activeWindow === 'map' && !isPlanningRoute && (
-                    <div className="absolute top-3 left-3 z-[900]" data-tour="scenario-panel">
+                    <div className={`absolute top-3 left-3 z-[900] ${isMessagesOpen || isGameMenuOpen || isMapSettingsOpen ? 'bar:hidden short:hidden' : ''}`} data-tour="scenario-panel">
                       <ScenarioProgressPanel scenario={activeScenario} goals={scenarioProgress.goals} monthsLeft={scenarioProgress.monthsLeft} />
                     </div>
                   )}
@@ -4332,9 +4349,11 @@ export default function App() {
                      </ErrorBoundary>
                     </div>
                   )}
-                  {/* Floating Next Month Button */}
+                  {/* Floating Next Month Button. Positioned in the map viewport rather
+                      than the screen, so on upright phones it sits above the bottom
+                      navigation. */}
                   {activeWindow === 'map' && !isPlanningRoute && !editingCabinRouteId && !editingPricingRouteId && (
-                    <div className="fixed bottom-6 right-6 z-[1000] pointer-events-auto">
+                    <div className="absolute bottom-4 right-4 rail:bottom-6 rail:right-6 short:bottom-3 short:right-3 z-[1000] pointer-events-auto">
                       <button
                         onClick={handleAdvanceMonth}
                         data-tour="next-month"
@@ -4358,7 +4377,9 @@ export default function App() {
       {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-aero-carbon border border-white/10 shadow-2xl p-4 max-w-lg w-full">
+          {/* Scrolls when taller than the screen, as on a phone held sideways;
+              otherwise its top was cut off with no way to reach it. */}
+          <div className="bg-aero-carbon border border-white/10 shadow-2xl p-4 max-w-lg w-full max-h-full overflow-y-auto custom-scrollbar">
             <h2 className="text-2xl font-mono text-aero-yellow uppercase tracking-[0.2em] font-black drop-shadow-md mb-3">System Settings</h2>
             
             <div className="flex flex-col gap-4">
@@ -4671,8 +4692,12 @@ function ThemeMenuButton({
  * A real <button>, not a clickable <div>. The whole primary navigation used to
  * be unreachable by keyboard, and the 7.5px label was the smallest type in the
  * interface.
+ *
+ * On upright phones all eight buttons share one row of the bottom bar, and on
+ * sideways phones one short column, so both use `shortLabel` (when given),
+ * smaller icons and tighter letter spacing.
  */
-function SidebarIcon({ icon, label, active = false, onClick, tour }: { icon: ReactNode, label: string, active?: boolean, onClick?: () => void, tour?: string }) {
+function SidebarIcon({ icon, label, shortLabel, active = false, onClick, tour }: { icon: ReactNode, label: string, shortLabel?: string, active?: boolean, onClick?: () => void, tour?: string }) {
   return (
     <button
       type="button"
@@ -4680,14 +4705,17 @@ function SidebarIcon({ icon, label, active = false, onClick, tour }: { icon: Rea
       data-tour={tour}
       aria-current={active ? 'page' : undefined}
       className={`
-      py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all w-full select-none bg-transparent border-0
+      py-1.5 short:py-1 flex flex-col items-center gap-0.5 cursor-pointer transition-all flex-auto rail:flex-none rail:w-full select-none bg-transparent border-0
       focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow
       ${active ? 'text-aero-yellow opacity-100' : 'text-white opacity-40 hover:opacity-100 hover:text-white'}
     `}>
-      <div className={`p-1.5 rounded-sm border border-transparent ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
+      <div className={`p-1 rail:p-1.5 short:p-0.5 rounded-sm border border-transparent [&_svg]:size-6 rail:[&_svg]:size-7 short:[&_svg]:size-5 ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
         {icon}
       </div>
-      <span className="text-3xs font-black tracking-widest text-center px-1 leading-[1.2]">{label}</span>
+      <span className="text-3xs font-black tracking-tight rail:tracking-widest short:tracking-tight text-center px-0.5 rail:px-1 short:px-0.5 leading-[1.2]">
+        <span className="rail:hidden short:inline">{shortLabel ?? label}</span>
+        <span className="hidden rail:inline short:hidden">{label}</span>
+      </span>
     </button>
   );
 }

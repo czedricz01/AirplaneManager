@@ -152,8 +152,8 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
       <ViewHeader
         title="AIRPORTS"
         right={
-          <div className="flex gap-4 items-center">
-            <div className="relative w-40">
+          <div className="flex gap-2 md:gap-4 items-center">
+            <div className="relative w-32 md:w-40 shrink-0">
               <select
                 value={icaoFilter}
                 onChange={(e) => setIcaoFilter(e.target.value)}
@@ -168,7 +168,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
                 <ChevronDown size={14} />
               </div>
             </div>
-            <div className="relative w-72">
+            <div className="relative flex-1 min-w-0 md:flex-none md:w-72">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={16} className="text-white/40" />
               </div>
@@ -185,7 +185,11 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
       />
 
       <TableScrollContainer ref={scrollRef}>
-        <Table>
+        {/* A minimum width on phones, upright or sideways, so the columns
+            scroll sideways instead of being squeezed into each other. Between
+            md and lg the desktop layout is scaled from 1280px (lib/layout.ts),
+            which is wider than this minimum, so only phones are affected. */}
+        <Table className="min-w-[720px] lg:min-w-0">
           <Thead>
             <Th first sortable onClick={() => toggleSort('id')}>IATA {getSortIcon('id')}</Th>
             <Th sortable onClick={() => toggleSort('name')}>Name {getSortIcon('name')}</Th>

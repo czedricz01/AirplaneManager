@@ -100,13 +100,14 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
 
   return (
     <div className="absolute inset-0 bg-black z-[2000] flex flex-col animate-in slide-in-from-bottom duration-500 shadow-2xl overflow-hidden">
-      <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
+      {/* Upright phones: the Confirm button drops below the title. */}
+      <div className="p-4 short:py-2 border-b border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/[0.02]">
         <div className="flex items-center gap-4">
           <div onClick={() => setActiveConfigClass(null)} className="w-12 h-12 flex items-center justify-center border border-white/10 rounded-sm cursor-pointer hover:bg-white hover:text-black hover:border-white transition-all shadow-inner group">
             <ChevronRight className="rotate-180 group-hover:scale-125 transition-transform" />
           </div>
           <div className="flex flex-col">
-            <h4 className="text-4xl font-black uppercase tracking-tighter text-white leading-none">
+            <h4 className="text-2xl md:text-4xl short:text-2xl font-black uppercase tracking-tighter text-white leading-none">
               Configure <span className="text-aero-yellow">{activeConfigClass === 'general' ? 'Global Standards' : activeConfigClass.toUpperCase()}</span>
             </h4>
             <div className="text-2xs text-white/40 uppercase font-bold tracking-[0.3em] mt-3 flex flex-wrap gap-x-6 items-baseline">
@@ -136,19 +137,20 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 w-full md:w-auto">
           <button 
             onClick={() => setActiveConfigClass(null)} 
-            className="px-10 py-4 bg-white text-black font-black uppercase text-xs tracking-widest hover:bg-aero-yellow transition-all shadow-2xl active:scale-95"
+            className="w-full md:w-auto px-10 py-4 short:py-2.5 bg-white text-black font-black uppercase text-xs tracking-widest hover:bg-aero-yellow transition-all shadow-2xl active:scale-95"
           >
             Confirm & Apply
           </button>
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-3 gap-1 overflow-hidden bg-white/5">
+      {/* Upright phones: the three columns one below the other, scrolling together. */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-1 overflow-y-auto md:overflow-hidden bg-white/5">
         {/* Catering Column */}
-        <div className={`flex-1 min-h-0 flex flex-col p-4 border-r border-white/10 overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.catering ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
+        <div className={`flex-1 md:min-h-0 flex flex-col p-4 border-b md:border-b-0 md:border-r border-white/10 md:overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.catering ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-aero-yellow/10 flex items-center justify-center border border-aero-yellow/30">
@@ -289,7 +291,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
         </div>
 
         {/* Extras Column */}
-        <div className={`flex-1 min-h-0 flex flex-col p-4 border-r border-white/10 overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.extras ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
+        <div className={`flex-1 md:min-h-0 flex flex-col p-4 border-b md:border-b-0 md:border-r border-white/10 md:overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.extras ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-aero-yellow/10 flex items-center justify-center border border-aero-yellow/30">
@@ -365,7 +367,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
         </div>
 
         {/* Service Column */}
-        <div className={`flex-1 min-h-0 flex flex-col p-4 overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.service ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
+        <div className={`flex-1 md:min-h-0 flex flex-col p-4 md:overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.service ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-aero-yellow/10 flex items-center justify-center border border-aero-yellow/30">

@@ -124,8 +124,9 @@ export function RouteDetailView({
       exit={{ opacity: 0, y: 50 }}
       className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col font-sans p-4 overflow-y-auto custom-scrollbar"
     >
-      <div className="flex justify-between items-center mb-4 shrink-0">
-        <h2 className="text-4xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg flex items-center gap-4">
+      {/* Upright phones: smaller title, buttons below it. */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 shrink-0">
+        <h2 className="text-2xl md:text-4xl short:text-2xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg flex flex-wrap items-center gap-x-4">
           Route Detail
           <span className="text-white/30 text-2xl">|</span>
           <span className="text-white">{flightNo}</span>
@@ -177,15 +178,18 @@ export function RouteDetailView({
           </div>
         )}
         {/* Top Third: Hub - Aircraft - Destination */}
-        <div className="min-h-[280px] flex border border-white/10 bg-black/40 relative overflow-hidden">
+        {/* Origin, route and destination side by side; stacked on upright phones,
+            where each block takes its own height (flex-none), or the middle one
+            gets clipped. */}
+        <div className="min-h-[280px] shrink-0 md:shrink flex flex-col md:flex-row border border-white/10 bg-black/40 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-aero-yellow/5 to-transparent pointer-events-none"></div>
-          <div className="flex-1 flex flex-col items-center justify-center border-r border-white/10 relative z-10">
+          <div className="flex-none md:flex-1 flex flex-col items-center justify-center py-4 md:py-0 border-b md:border-b-0 md:border-r border-white/10 relative z-10">
             <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4">Origin Hub</span>
             <span className="text-6xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.origin}</span>
             <span className="text-white/50 text-xs mt-2 uppercase tracking-widest font-bold">{airportsMap.get(route.origin)?.name || "Unknown Airport"}</span>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center px-12 relative overflow-hidden group border-r border-white/10 z-10">
+          <div className="flex-none md:flex-1 flex flex-col justify-center px-4 md:px-12 py-4 md:py-0 relative overflow-hidden group border-b md:border-b-0 md:border-r border-white/10 z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
                 <span className="text-white/30 text-2xs uppercase tracking-widest font-bold block mb-1">Assigned Aircraft</span>
@@ -271,7 +275,7 @@ export function RouteDetailView({
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center relative z-10">
+          <div className="flex-none md:flex-1 flex flex-col items-center justify-center py-4 md:py-0 relative z-10">
             <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4">Destination</span>
             <span className="text-6xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.destination}</span>
             <span className="text-white/50 text-xs mt-2 uppercase tracking-widest font-bold">{airportsMap.get(route.destination)?.name || "Unknown Airport"}</span>

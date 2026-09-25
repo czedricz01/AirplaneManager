@@ -10,7 +10,9 @@ import { forwardRef, type ReactNode, type ThHTMLAttributes, type TdHTMLAttribute
 export const TableScrollContainer = forwardRef<HTMLDivElement, { children: ReactNode; className?: string }>(
   function TableScrollContainer({ children, className = '' }, ref) {
     return (
-      <div ref={ref} className={`flex-1 overflow-y-auto pr-4 custom-scrollbar bg-black/20 border border-white/5 rounded-sm p-4 ${className}`}>
+      // overflow-auto, not overflow-y-auto: on a phone the columns are wider than
+      // the screen and have to scroll sideways instead of being cut off.
+      <div ref={ref} className={`flex-1 overflow-auto pr-2 md:pr-4 custom-scrollbar bg-black/20 border border-white/5 rounded-sm p-2 md:p-4 ${className}`}>
         {children}
       </div>
     );

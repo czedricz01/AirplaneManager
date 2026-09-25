@@ -305,8 +305,8 @@ function RoutesViewImpl({
           </>
         }
         right={
-          <div className="flex gap-4 items-center relative z-20">
-            <div className="relative w-48">
+          <div className="flex gap-2 md:gap-4 items-center relative z-20">
+            <div className="relative flex-1 min-w-0 md:flex-none md:w-48">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Navigation size={16} className="text-white/40" />
               </div>
@@ -321,7 +321,7 @@ function RoutesViewImpl({
               />
             </div>
 
-            <div className="relative w-64">
+            <div className="relative flex-1 min-w-0 md:flex-none md:w-64">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={16} className="text-white/40" />
               </div>
@@ -338,7 +338,11 @@ function RoutesViewImpl({
       />
 
       <TableScrollContainer>
-        <Table>
+        {/* A minimum width on phones, upright or sideways, so the columns
+            scroll sideways instead of being squeezed into each other. Between
+            md and lg the desktop layout is scaled from 1280px (lib/layout.ts),
+            which is wider than this minimum, so only phones are affected. */}
+        <Table className="min-w-[1100px] lg:min-w-0">
           <Thead>
             <Th first sortable={false}>Flight No.</Th>
             <Th sortable onClick={() => toggleSort('origin')}>Origin {getSortIcon('origin')}</Th>

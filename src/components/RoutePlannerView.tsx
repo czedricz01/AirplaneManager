@@ -1646,12 +1646,13 @@ function RoutePlannerInner({
       {/* 1. SHARED UNIFIED HEADER WITH DYNAMIC ROUTE INFO BADGES */}
       <div className="flex flex-col gap-2 mb-2 shrink-0 relative bg-black/60 border-b border-white/10 px-4 py-2 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+          {/* Phones: the step buttons drop below the title and share its width. */}
+          <div className="flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-2 w-full md:w-auto">
              <h2 className="text-sm font-black uppercase tracking-wider text-aero-yellow whitespace-nowrap">
                 {isEditingCabinOnly ? "Cabin Editor" : isEditingPricingOnly ? "Pricing Editor" : "Route Planner"}
              </h2>
-             <span className="text-white/20 text-xs font-normal">|</span>
-             <div className="flex bg-white/5 border border-white/10 rounded-sm">
+             <span className="hidden md:inline text-white/20 text-xs font-normal">|</span>
+             <div className="flex w-full md:w-auto bg-white/5 border border-white/10 rounded-sm">
                {!isEditingCabinOnly && !isEditingPricingOnly && [
                   { id: 1, label: "1. Setup" },
                   { id: 2, label: "2. Schedule" },
@@ -1672,7 +1673,7 @@ function RoutePlannerInner({
                      disabled={!isAllowed}
                      aria-current={isActive ? 'step' : undefined}
                      onClick={() => isAllowed && setStep(s.id)}
-                     className={`flex items-center px-3 py-1.5 text-2xs uppercase font-bold tracking-widest border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
+                     className={`flex flex-1 md:flex-none justify-center items-center px-2 md:px-3 py-1.5 text-2xs uppercase font-bold tracking-wider md:tracking-widest whitespace-nowrap border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
                        isActive ? 'bg-aero-yellow/10 text-aero-yellow cursor-default' : 
                        isAllowed ? 'text-white/60 hover:text-white hover:bg-white/5 cursor-pointer' : 'text-white/20 cursor-not-allowed'
                      }`}
@@ -2232,9 +2233,11 @@ function RoutePlannerInner({
       )}
 
         {step === 2 && selectedOrigin && selectedDest && selectedAircraft && (
-          <div className="w-full flex gap-4 h-full">
+          /* Phones: the form above the timetable, scrolling together; the
+             timetable keeps its own scroll area at most of the screen height. */
+          <div className="w-full flex flex-col md:flex-row gap-4 h-full overflow-y-auto md:overflow-visible">
             {/* Left Column: Form */}
-            <div className="w-1/3 border border-white/10 bg-black/40 flex flex-col overflow-y-auto">
+            <div className="w-full md:w-1/3 shrink-0 border border-white/10 bg-black/40 flex flex-col md:overflow-y-auto">
               <div className="p-4 bg-aero-yellow/10 border-b border-aero-yellow/20 text-center uppercase tracking-[0.2em] font-black text-aero-yellow text-sm">Timetable Configuration</div>
               
               <div className="p-4 space-y-8">
@@ -2741,7 +2744,7 @@ function RoutePlannerInner({
             </div>
 
             {/* Right Column: Timetable */}
-            <div className="flex-1 border border-white/10 bg-black/60 flex flex-col overflow-hidden relative">
+            <div className="flex-none md:flex-1 h-[75dvh] md:h-auto border border-white/10 bg-black/60 flex flex-col overflow-hidden relative">
               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover opacity-[0.03] pointer-events-none"></div>
               
               {/* Header Days */}
@@ -2786,9 +2789,12 @@ function RoutePlannerInner({
                   </div>
                 </div>
 
-                <div className="flex-1 flex min-w-[700px]">
+                {/* No minimum width on phones, upright or sideways: the day headers
+                    above do not scroll sideways, so seven narrow columns stay
+                    aligned with them. */}
+                <div className="flex-1 flex md:min-w-[700px] short:min-w-0">
                   {daysOfWeek.map(day => (
-                    <div key={day.id} className="flex-1 border-r border-white/5 relative bg-gradient-to-b from-white/[0.02] to-transparent">
+                    <div key={day.id} className="flex-1 min-w-0 border-r border-white/5 relative bg-gradient-to-b from-white/[0.02] to-transparent">
                        <div className="relative h-[720px] border-y border-aero-yellow/30 shadow-2xl"> {/* 24 * 30px */}
                           <div className="absolute inset-0 grid grid-rows-[repeat(24,minmax(0,1fr))] pointer-events-none opacity-20">
                             {Array.from({ length: 24 }).map((_, i) => (
@@ -2860,9 +2866,9 @@ function RoutePlannerInner({
                  </div>
               </div>
               
-              <div className="p-4 border-t border-white/10 bg-white/[0.01] flex gap-4 shrink-0 rounded-sm w-full">
+              <div className="p-4 short:p-2 border-t border-white/10 bg-white/[0.01] flex gap-4 shrink-0 rounded-sm w-full">
                   {!initialRouteId && (
-                    <button onClick={() => setStep(1)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>
+                    <button onClick={() => setStep(1)} className="flex-1 py-4 short:py-2 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>
                   )}
                   {initialRouteId ? (
                     <button 
@@ -2896,7 +2902,7 @@ function RoutePlannerInner({
                           onClose();
                         }, 2000);
                       }} 
-                      className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
+                      className="flex-[2] py-4 short:py-2 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
                     >
                       {isFinalizing ? 'Saving...' : 'Save Changes'} <Check size={16} />
                     </button>
@@ -2904,7 +2910,7 @@ function RoutePlannerInner({
                     <button 
                       onClick={() => setStep(3)} 
                       disabled={schedule.length === 0}
-                      className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
+                      className="flex-[2] py-4 short:py-2 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
                     >
                       Proceed to Cabin Services <ChevronRight size={16} />
                     </button>
@@ -2932,12 +2938,13 @@ function RoutePlannerInner({
              <div className="flex-1 w-full max-w-[1800px] mx-auto p-4 flex flex-col lg:flex-row gap-4">
                 {/* Left Area: Class Selection Boxes */}
                 <div className="flex-1 flex flex-col gap-3">
-                   <div className="flex justify-between items-center bg-white/[0.03] border border-white/10 p-4 rounded-sm">
+                   {/* Upright phones: the Load/Save buttons drop below the heading. */}
+                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0 bg-white/[0.03] border border-white/10 p-4 rounded-sm">
                       <div className="flex flex-col">
                          <h3 className="text-2xl font-black uppercase tracking-tighter text-white leading-none">In-Flight Configuration</h3>
                          <span className="text-2xs text-white/40 uppercase tracking-widest mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 shrink-0 md:shrink">
                         <button 
                           onClick={() => setShowConfigLoadModal(true)}
                           className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 hover:border-aero-yellow transition-all uppercase text-2xs font-black tracking-widest"
