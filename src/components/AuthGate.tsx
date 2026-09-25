@@ -57,7 +57,7 @@ export function AuthGate({ onLocalOnly }: Props) {
   const inputClass =
     'w-full bg-black border border-white/10 p-3 outline-none focus:border-aero-yellow transition-colors font-mono text-sm text-white disabled:opacity-50';
   const labelClass =
-    'block text-[10px] uppercase tracking-widest text-white/40 mb-2 font-bold font-mono';
+    'block text-2xs uppercase tracking-widest text-white/40 mb-2 font-bold font-mono';
 
   return (
     <motion.div
@@ -73,15 +73,18 @@ export function AuthGate({ onLocalOnly }: Props) {
 
       <div className="z-10 w-full max-w-md">
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col mb-6">
-          <h1 className="text-7xl lg:text-8xl font-black italic tracking-tighter leading-none mb-2 flex flex-col items-start gap-4">
-            <Bird className="text-aero-yellow shrink-0" size={80} strokeWidth={2.5} />
+          <h1 className="text-6xl lg:text-7xl font-black italic tracking-tighter leading-none mb-3 flex flex-col items-start gap-4">
+            <Bird className="text-aero-yellow shrink-0" size={72} strokeWidth={2.5} />
+            {/* One line per word: the name as a single token overflowed the column and wrapped mid-name. */}
             <div>
               <span className="text-aero-yellow">AIRLINE</span>
               <br />
-              <span className="text-white">MANAGERNEO</span>
+              <span className="text-white">MANAGER</span>
+              <br />
+              <span className="text-aero-yellow">NEO</span>
             </div>
           </h1>
-          <p className="text-[10px] tracking-[0.4em] font-light text-white/40 pl-2 uppercase">
+          <p className="text-2xs tracking-[0.4em] font-light text-white/40 pl-2 uppercase">
             Aviation Management Core
           </p>
         </motion.div>
@@ -90,11 +93,11 @@ export function AuthGate({ onLocalOnly }: Props) {
           <div className="bg-aero-carbon p-4 rounded-sm border border-white/5 space-y-4 shadow-2xl">
             <div className="flex items-start gap-3 text-aero-yellow">
               <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-              <div className="text-[11px] font-mono uppercase tracking-widest font-bold">
+              <div className="text-xs font-mono uppercase tracking-widest font-bold">
                 Cloud accounts not configured
               </div>
             </div>
-            <p className="text-[11px] font-mono text-white/50 leading-relaxed">
+            <p className="text-xs font-mono text-white/50 leading-relaxed">
               This build has no Supabase project attached, so there are no accounts and no
               cloud savegames. You can still play — progress is kept in this browser only.
             </p>
@@ -115,9 +118,9 @@ export function AuthGate({ onLocalOnly }: Props) {
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
-                className="bg-[#111] border-l-2 border-aero-yellow p-3"
+                className="bg-aero-panel border-l-2 border-aero-yellow p-3"
               >
-                <p className="text-[10px] font-mono text-aero-yellow/70 uppercase tracking-widest">
+                <p className="text-2xs font-mono text-aero-yellow/70 uppercase tracking-widest">
                   {error}
                 </p>
               </motion.div>
@@ -162,7 +165,7 @@ export function AuthGate({ onLocalOnly }: Props) {
                 {isBusy ? 'Processing...' : 'Initialize System'} <LogIn size={18} />
               </button>
 
-              <p className="text-[10px] font-mono text-white/30 leading-relaxed text-center">
+              <p className="text-2xs font-mono text-white/30 leading-relaxed text-center">
                 Accounts are issued by the operator running this server.
                 There is no self-registration.
               </p>

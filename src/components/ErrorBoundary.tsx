@@ -76,14 +76,14 @@ export class ErrorBoundary extends Component<Props, State> {
           screen and carry on; if it keeps happening, the message below identifies
           the fault.
         </div>
-        <code className="text-white/40 text-[11px] break-all max-w-[520px]">
+        <code className="text-white/40 text-xs break-all max-w-[520px]">
           {error.message || String(error)}
         </code>
         <div className="flex gap-2 mt-1">
           <button
             type="button"
             onClick={this.handleReset}
-            className="px-3 py-1.5 border border-aero-yellow/40 text-aero-yellow text-[11px] tracking-wider hover:bg-aero-yellow/10"
+            className="px-3 py-1.5 border border-aero-yellow/40 text-aero-yellow text-xs tracking-wider hover:bg-aero-yellow/10"
           >
             {this.props.resetLabel ?? 'CLOSE'}
           </button>
@@ -91,7 +91,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <button
             type="button"
             onClick={this.handleCopy}
-            className="px-3 py-1.5 border border-white/20 text-white/60 text-[11px] tracking-wider hover:bg-white/10"
+            className="px-3 py-1.5 border border-white/20 text-white/60 text-xs tracking-wider hover:bg-white/10"
           >
             {this.state.copied === 'done' ? 'COPIED' : this.state.copied === 'failed' ? 'COPY FAILED' : 'COPY DIAGNOSTICS'}
           </button>

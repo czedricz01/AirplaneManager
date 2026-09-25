@@ -289,7 +289,8 @@ function RoutesViewImpl({
               <input
                 type="text"
                 className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors uppercase"
-                placeholder="Airport Filter (e.g. FRA)"
+                placeholder="Airport, e.g. FRA"
+                title="Show only routes touching this airport (IATA code)"
                 value={airportFilter}
                 onChange={(e) => setAirportFilter(e.target.value)}
                 maxLength={3}

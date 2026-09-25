@@ -362,14 +362,14 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               {schedule.length > 0 && (
                 <button 
                   onClick={() => setSchedule([])}
-                  className="w-full h-10 text-[10px] font-bold border border-white/20 text-aero-yellow/60 bg-[#111] hover:bg-[#1a1a1a] hover:text-white transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-widest"
+                  className="w-full h-10 text-2xs font-bold border border-white/20 text-aero-yellow/60 bg-aero-panel hover:bg-aero-carbon hover:text-white transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-widest"
                 >
                   <Trash2 size={14} /> Clear All Flights
                 </button>
               )}
               
               <div className="p-4 bg-white/5 border border-white/10 rounded-sm">
-                <p className="text-[9px] text-white/30 leading-relaxed uppercase tracking-widest text-center">
+                <p className="text-3xs text-white/30 leading-relaxed uppercase tracking-widest text-center">
                   Select day buttons below to remove specific flights, or drag flights in the timetable to shift the schedule.
                 </p>
               </div>
@@ -385,7 +385,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                       onClick={() => handleToggleDay(day.id)}
                       className={`h-12 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/20 text-white/10 border-white/5 opacity-50 cursor-not-allowed'}`}
                     >
-                      <span className="text-[10px] leading-none">{day.label}</span>
+                      <span className="text-2xs leading-none">{day.label}</span>
                       <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-black/40' : 'bg-white/5'}`}></div>
                     </button>
                   )
@@ -397,8 +397,8 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
 
           <div className="transition-opacity">
             <div className="flex justify-between items-end mb-3">
-              <label className="block text-[10px] uppercase tracking-widest text-white/40 font-black">Starting Time</label>
-              <div className="text-[9px] font-mono text-aero-yellow bg-aero-yellow/10 px-2 py-0.5 border border-aero-yellow/20 uppercase">
+              <label className="block text-2xs uppercase tracking-widest text-white/40 font-black">Starting Time</label>
+              <div className="text-3xs font-mono text-aero-yellow bg-aero-yellow/10 px-2 py-0.5 border border-aero-yellow/20 uppercase">
                 Takeoff: {fmtClock(takeoffMin)}
               </div>
             </div>
@@ -416,24 +416,24 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                  <button onClick={() => updateFromDisplay(displayH, (displayM + 55) % 60)} className="p-2 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft className="rotate-270" /></button>
                </div>
             </div>
-            <div className="mt-2 text-[8px] text-center text-white/20 uppercase tracking-[0.2em] font-bold">Block start (boarding) · takeoff {BOARDING_MIN} min later</div>
+            <div className="mt-2 text-3xs text-center text-white/20 uppercase tracking-[0.2em] font-bold">Block start (boarding) · takeoff {BOARDING_MIN} min later</div>
           </div>
 
           {validationMsg && (
-            <div className="bg-[#111] border border-white/20 p-3 flex gap-2 items-start">
+            <div className="bg-aero-panel border border-white/20 p-3 flex gap-2 items-start">
                <AlertCircle size={14} className="text-aero-warn shrink-0 mt-0.5" />
-               <span className="text-[10px] text-aero-warn font-bold leading-tight">{validationMsg}</span>
+               <span className="text-2xs text-aero-warn font-bold leading-tight">{validationMsg}</span>
             </div>
           )}
 
           <div className="mt-auto space-y-3">
              <div className="bg-aero-yellow/10 border border-aero-yellow/20 p-4 rounded-sm">
                 <div className="flex justify-between items-center mb-1">
-                   <span className="text-[9px] uppercase font-black text-white/40">Total Flights</span>
+                   <span className="text-3xs uppercase font-black text-white/40">Total Flights</span>
                    <span className="text-xl font-black text-aero-yellow italic">{schedule.length}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                   <span className="text-[9px] uppercase font-black text-white/40">Daily Average</span>
+                   <span className="text-3xs uppercase font-black text-white/40">Daily Average</span>
                    <span className="text-sm font-bold text-white">{(schedule.length / 7).toFixed(1)}</span>
                 </div>
              </div>
@@ -453,7 +453,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
            <div className="flex shrink-0">
               <div className="w-16 border-r border-white/10 bg-black"></div>
               {daysOfWeek.map(day => (
-                <div key={day.id} className="flex-1 text-center text-[10px] uppercase font-black text-white/40 py-4 bg-black border-b border-white/10">
+                <div key={day.id} className="flex-1 text-center text-2xs uppercase font-black text-white/40 py-4 bg-black border-b border-white/10">
                   {day.label}
                 </div>
               ))}
@@ -464,7 +464,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               <div className="w-16 shrink-0 border-r border-white/20 bg-black/90 relative z-20">
                 {Array.from({ length: 24 }).map((_, i) => (
                   <div key={i} className="h-[30px] border-b border-white/5 flex items-start justify-end pr-2 relative">
-                    <span className="text-[9px] font-mono text-white/30 absolute top-[-6px]">{i.toString().padStart(2, '0')}:00</span>
+                    <span className="text-3xs font-mono text-white/30 absolute top-[-6px]">{i.toString().padStart(2, '0')}:00</span>
                   </div>
                 ))}
               </div>
@@ -492,7 +492,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                                  }
                               }}
                               title={b.isBusy ? 'Busy - Cannot edit' : 'Drag to adjust time. Ctrl+Click to delete.'}
-                              className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-[10px] font-mono shadow-xl transition-all ${
+                              className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono shadow-xl transition-all ${
                                 b.isBusy 
                                   ? 'bg-white/10 border-l-2 border-white/20 italic opacity-40 cursor-not-allowed' 
                                   : 'bg-aero-yellow/20 border-l-2 border-aero-yellow text-aero-yellow cursor-ns-resize hover:bg-aero-yellow/40 hover:border-white group select-none'
@@ -500,10 +500,10 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                               style={{ top: b.top, height: b.height, zIndex: b.isBusy ? 5 : 10 }}
                            >
                               <div className="flex flex-col h-full overflow-hidden relative">
-                                {b.isFirst && <div className="text-[8px] opacity-70 mb-0.5">{b.orig} → {b.dest}</div>}
+                                {b.isFirst && <div className="text-3xs opacity-70 mb-0.5">{b.orig} → {b.dest}</div>}
                                 <div className="font-bold truncate group-hover:text-white transition-colors">{aircraft.registration}</div>
-                                {!b.isBusy && b.isFirst && <div className="text-[7px] text-white/40 mt-1 uppercase font-bold tracking-tighter">Adjust Time</div>}
-                                {b.isLast && <div className="mt-auto text-[8px] text-right opacity-50 font-bold">End</div>}
+                                {!b.isBusy && b.isFirst && <div className="text-3xs text-white/40 mt-1 uppercase font-bold tracking-tighter">Adjust Time</div>}
+                                {b.isLast && <div className="mt-auto text-3xs text-right opacity-50 font-bold">End</div>}
                               </div>
                            </div>
                          ))}

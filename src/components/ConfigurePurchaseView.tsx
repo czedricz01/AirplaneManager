@@ -566,7 +566,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       seatColor = "bg-aero-yellow"; backColor = "bg-aero-yellow"; bodyColor = "bg-aero-yellow/80";
     }
     else if (cls === 'economy') {
-      seatColor = "bg-[#1a1a1a]"; backColor = "bg-[#1a1a1a]"; bodyColor = "bg-[#1a1a1a]/80";
+      seatColor = "bg-aero-carbon"; backColor = "bg-aero-carbon"; bodyColor = "bg-aero-carbon/80";
     }
 
     const isSuite = type.includes('Suite') || type === 'Residence';
@@ -599,7 +599,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                        return (
                            <div key={c}
                                 className={`relative flex-1 flex flex-col justify-between overflow-hidden shadow-sm rounded-[1.5px] ${
-                                  isSuite ? 'border border-white/40 bg-[#1a1a1a]' : `${bodyColor} border border-white/10`
+                                  isSuite ? 'border border-white/40 bg-aero-carbon' : `${bodyColor} border border-white/10`
                                 }`}
                                 style={{
                                    marginBottom: isAisle ? (cls === 'first' && !isSuite ? (acClass === 'Regional' ? '24px' : '44px') : (acClass === 'Regional' ? '8px' : '14px')) : '1px',
@@ -899,7 +899,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                     <div className="flex items-center gap-3">
                       <input type="radio" checked={ecoType === t.n} disabled={disabled} onChange={() => setEcoType(t.n)} className="accent-slate-400 hidden" />
                       <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${ecoType === t.n ? 'border-slate-400' : 'border-white/20'}`}>
-                        {ecoType === t.n && <div className="w-1.5 h-1.5 bg-[#1a1a1a] rounded-full" />}
+                        {ecoType === t.n && <div className="w-1.5 h-1.5 bg-aero-carbon rounded-full" />}
                       </div>
                       <span className={`text-sm font-mono transition-colors ${ecoType === t.n ? 'text-slate-400' : 'text-white/70'}`}>{t.n}</span>
                       <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
@@ -1062,7 +1062,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                            </motion.div>
                          )}
                          {pEco > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pEco}%` }} className={`group bg-[#1a1a1a]/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-[#1a1a1a]/40 transition-colors`} onClick={() => setSelectedClass('economy')}>
+                           <motion.div initial={false} animate={{ width: `${pEco}%` }} className={`group bg-aero-carbon/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-aero-carbon/40 transition-colors`} onClick={() => setSelectedClass('economy')}>
                               {renderSeatDots(ecoSeats, 'economy', ecoType, CAPACITY, aircraft.class)}
                               <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">ECONOMY</span>
                            
@@ -1115,10 +1115,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                   <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Premium Eco</div>
                   <div className="text-2xs bg-aero-yellow/20 text-aero-yellow px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getPremPop())}%</div>
                 </div>
-                <div onClick={() => setSelectedClass('economy')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-slate-500 bg-[#1a1a1a]/10' : 'border-slate-500/20 hover:border-slate-500/50'}`}>
+                <div onClick={() => setSelectedClass('economy')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-slate-500 bg-aero-carbon/10' : 'border-slate-500/20 hover:border-slate-500/50'}`}>
                   <div className="text-slate-400 text-2xl font-black">{ecoSeats}</div>
                   <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Economy</div>
-                  <div className="text-2xs bg-[#1a1a1a]/20 text-slate-400 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getEcoPop())}%</div>
+                  <div className="text-2xs bg-aero-carbon/20 text-slate-400 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getEcoPop())}%</div>
                 </div>
              </div>
 

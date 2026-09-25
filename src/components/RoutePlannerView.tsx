@@ -1556,7 +1556,7 @@ function RoutePlannerInner({
             )}
             <button 
                onClick={() => setIsStopoverMode(!isStopoverMode)}
-               className={`hidden px-2 py-1 text-3xs uppercase font-bold tracking-widest border transition-all ${isStopoverMode ? 'bg-[#FACC15] text-black border-transparent shadow-2xl' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/30'}`}
+               className={`hidden px-2 py-1 text-3xs uppercase font-bold tracking-widest border transition-all ${isStopoverMode ? 'bg-aero-yellow text-black border-transparent shadow-2xl' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/30'}`}
             >
               Stopover
             </button>
