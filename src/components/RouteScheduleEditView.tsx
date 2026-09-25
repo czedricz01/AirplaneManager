@@ -474,7 +474,10 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
     }, 1500);
   };
 
-  const handleDragStart = (e: React.MouseEvent, dragTrip: ScheduledTrip) => {
+  // Pointer events rather than mouse events, so a block can be dragged with a
+  // finger as well as a mouse; the block itself is touch-none so the drag does
+  // not scroll the timetable instead.
+  const handleDragStart = (e: React.PointerEvent, dragTrip: ScheduledTrip) => {
     e.preventDefault();
     const startY = e.clientY;
     
@@ -484,7 +487,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       startWeekMin: tripStartMinute(s)
     }));
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
+    const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaY = moveEvent.clientY - startY;
       const deltaMin = Math.round(deltaY / 10) * 5;
       if (deltaMin === 0) return;
@@ -515,13 +518,16 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       }
     };
 
-    const handleMouseUp = () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+    // pointercancel: the browser took the touch over (e.g. a system gesture).
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
   };
 
   return (
@@ -775,7 +781,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                          {allBlocks.filter(b => b.dayId === day.id).map(b => (
                            <div 
                               key={b.id} 
-                              onMouseDown={(e) => {
+                              onPointerDown={(e) => {
                                  if (!b.isBusy) {
                                      handleDragStart(e, b.s);
                                  }
@@ -787,7 +793,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                               className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono shadow-xl transition-all ${
                                 b.isBusy 
                                   ? 'bg-white/10 border-l-2 border-white/20 italic opacity-40 cursor-not-allowed' 
-                                  : 'bg-aero-yellow/20 border-l-2 border-aero-yellow text-aero-yellow cursor-ns-resize hover:bg-aero-yellow/40 hover:border-white group select-none'
+                                  : 'bg-aero-yellow/20 border-l-2 border-aero-yellow text-aero-yellow cursor-ns-resize touch-none hover:bg-aero-yellow/40 hover:border-white group select-none'
                               }`}
                               style={{ top: b.top, height: b.height, zIndex: b.isBusy ? 5 : 10 }}
                            >
