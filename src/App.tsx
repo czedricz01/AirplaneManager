@@ -1482,15 +1482,48 @@ export default function App() {
 
   const [sessionKey, setSessionKey] = useState(Date.now());
   
-  const handleSaveGame = async (slotId?: string, customName?: string, isAutosave: boolean = false) => {
+  const handleSaveGame = async (slotId?: string, customName?: string, isAutosave: boolean = false): Promise<boolean> => {
     try {
       await saveGameUnsafe(slotId, customName, isAutosave);
+      return true;
     } catch (e) {
       // Saving must never fail silently: the player would carry on believing
       // the game is safe. The autosave path used to reject into the void.
       logError('saves', 'Saving failed', e);
       setAppAlert(`Saving failed: ${(e as Error)?.message || 'unknown error'}. Your game is still running; try again or free some browser storage.`);
+      return false;
     }
+  };
+
+  // Autosave clones carry an "_auto_N" suffix; "save and exit" writes back to the
+  // manual save they were cloned from instead of into one of the rotating slots.
+  const manualSaveTarget = () => {
+    if (!currentSaveId) return null;
+    return {
+      id: currentSaveId.split('_auto_')[0],
+      name: (currentSaveName || 'Save').replace(/\s*\(Autosave.*\)$/, ''),
+    };
+  };
+
+  const [showExitSavePrompt, setShowExitSavePrompt] = useState(false);
+  const [isSavingBeforeExit, setIsSavingBeforeExit] = useState(false);
+
+  const returnToMainMenu = () => {
+    setShowExitSavePrompt(false);
+    setView('main-menu');
+    setIsGameMenuOpen(false);
+    setActiveWindow('map');
+    setSelectedPurchasingAircraft(null);
+    setSelectedAirport(null);
+  };
+
+  const saveAndReturnToMainMenu = async () => {
+    const target = manualSaveTarget();
+    setIsSavingBeforeExit(true);
+    const ok = await handleSaveGame(target?.id, target?.name, false);
+    setIsSavingBeforeExit(false);
+    if (ok) returnToMainMenu();
+    else setShowExitSavePrompt(false);
   };
 
   const saveGameUnsafe = async (slotId?: string, customName?: string, isAutosave: boolean = false) => {
@@ -2623,7 +2656,7 @@ export default function App() {
                         <GameMenuOption label="Save Game" onClick={() => { setShowSaveMenu(true); setIsGameMenuOpen(false); }} />
                         <GameMenuOption label="Settings" onClick={() => { setIsSettingsOpen(true); setIsGameMenuOpen(false); }} />
                         <div className="h-px bg-white/10 my-2"></div>
-                        <GameMenuOption label="Return to Main Menu" onClick={() => { setView('main-menu'); setIsGameMenuOpen(false); setActiveWindow('map'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                        <GameMenuOption label="Return to Main Menu" onClick={() => { setIsGameMenuOpen(false); setShowExitSavePrompt(true); }} />
                       </div>
                     )}
                   </div>
@@ -3191,6 +3224,49 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {showExitSavePrompt && (() => {
+        const target = manualSaveTarget();
+        const existing = target ? saves.find(s => s.id === target.id) : undefined;
+        return (
+          <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div role="dialog" aria-modal="true" aria-labelledby="exit-save-title" className="bg-aero-carbon border border-white/10 shadow-2xl p-4 max-w-md w-full">
+              <h2 id="exit-save-title" className="text-lg font-mono text-aero-yellow uppercase tracking-[0.2em] font-black mb-3">Save before leaving?</h2>
+              <p className="text-sm text-white/80 mb-4">
+                {existing
+                  ? <>This overwrites <span className="text-white font-bold">"{existing.name}"</span> (last saved {new Date(existing.timestamp).toLocaleString()}).</>
+                  : target
+                    ? <>This saves your game as <span className="text-white font-bold">"{target.name}"</span>.</>
+                    : <>This game has not been saved yet. It will be stored as a new save.</>}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                <button
+                  onClick={() => setShowExitSavePrompt(false)}
+                  disabled={isSavingBeforeExit}
+                  className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-2 font-mono text-xs tracking-widest uppercase transition-all disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={returnToMainMenu}
+                  disabled={isSavingBeforeExit}
+                  className="bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 px-3 py-2 font-mono text-xs tracking-widest uppercase transition-all disabled:opacity-40"
+                >
+                  Leave without saving
+                </button>
+                <button
+                  autoFocus
+                  onClick={saveAndReturnToMainMenu}
+                  disabled={isSavingBeforeExit}
+                  className="bg-aero-yellow text-black border border-aero-yellow px-3 py-2 font-mono text-xs tracking-widest uppercase font-black transition-all hover:brightness-110 disabled:opacity-60"
+                >
+                  {isSavingBeforeExit ? 'Saving…' : 'Save & leave'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <AnimatePresence>
         {showSaveMenu && (
