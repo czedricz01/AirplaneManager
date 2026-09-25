@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getCateringOpt, getMultiOptionSum, applyDiminishingReturns, buildRivalRoutesByPair, marketKey } from './financeUtils';
+import { getCateringOpt, getMultiOptionSum, applyDiminishingReturns, buildRivalRoutesByPair, marketKey, getPriceDemandMultiplier } from './financeUtils';
 import { MEAL_DATA, EXTRAS_OPTIONS } from '../data/catering';
 
 test('getCateringOpt sums cost across combined meal items instead of averaging', () => {
@@ -15,6 +15,23 @@ test('getCateringOpt sums cost across combined meal items instead of averaging',
 
   const threeWagyu = getCateringOpt(['l15', 'l15', 'l15']);
   assert.equal(threeWagyu.cost, 272.58);
+});
+
+test('getPriceDemandMultiplier falls faster above the base price than it grows below it', () => {
+  const base = 100;
+  const sat = 50;
+
+  assert.equal(getPriceDemandMultiplier(base, base, sat), 1, 'no premium or discount at the base price');
+
+  const underpriced = getPriceDemandMultiplier(80, base, sat);
+  const overpriced = getPriceDemandMultiplier(120, base, sat);
+  assert.ok(underpriced > 1, 'a discount must still grow demand');
+  assert.ok(overpriced < 1, 'a premium must still shrink demand');
+
+  const elasticity = Math.max(0.5, 1.5 - sat / 200);
+  const symmetricOverpriced = Math.pow(base / 120, elasticity);
+  assert.ok(overpriced < symmetricOverpriced, 'overpricing must fall off steeper than the plain elasticity curve');
+  assert.equal(underpriced, Math.pow(base / 80, elasticity), 'underpricing is unaffected by the overprice penalty');
 });
 
 test('getMultiOptionSum collapses a stale double-selection within a tiered family', () => {
