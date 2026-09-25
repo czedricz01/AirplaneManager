@@ -554,8 +554,6 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
     let seatColor = "bg-aero-yellow";
     let backColor = "bg-aero-yellow";
     let bodyColor = "bg-aero-yellow/80";
-    let paddingClass = "p-[1px]";
-    let roundedClass = "rounded-none";
 
     if (cls === 'first') {
       sizeStyle = { width: `${calculatedSize + 4}px`, height: `${calculatedSize}px` };
@@ -600,8 +598,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
                        return (
                            <div key={c}
-                                className={`relative flex-1 flex flex-col justify-between overflow-hidden shadow-sm ${
-                                  isSuite ? 'border border-white/40 bg-[#1a1a1a] rounded-[2px]' : `${bodyColor} border border-white/10`
+                                className={`relative flex-1 flex flex-col justify-between overflow-hidden shadow-sm rounded-[1.5px] ${
+                                  isSuite ? 'border border-white/40 bg-[#1a1a1a]' : `${bodyColor} border border-white/10`
                                 }`}
                                 style={{
                                    marginBottom: isAisle ? (cls === 'first' && !isSuite ? (acClass === 'Regional' ? '24px' : '44px') : (acClass === 'Regional' ? '8px' : '14px')) : '1px',
@@ -620,17 +618,15 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                                  </div>
                                ) : (
                                  <>
-                                   {/* Seat Cushion */}
-                                   <div className={`absolute top-0 bottom-0 left-[5%] right-[20%] ${seatColor} shadow-inner bg-gradient-to-r from-transparent to-black/20`} />
+                                   {/* Seat Cushion: rounded at the front (nose-facing) edge, shaded towards the back */}
+                                   <div className={`absolute inset-y-0 left-[6%] right-[26%] rounded-l-[1px] ${seatColor} shadow-inner bg-gradient-to-r from-transparent to-black/25`} />
                                    {/* Seat Back */}
-                                   <div className={`absolute top-0 bottom-0 right-0 w-[20%] ${backColor} shadow-md border-l border-white/5 rounded-r-[2px]`} />
-                                   {/* Armrests */}
-                                   {cls !== 'economy' && (
-                                     <>
-                                       <div className="absolute top-0 left-0 right-px h-[1px] bg-white/20" />
-                                       <div className="absolute bottom-0 left-0 right-px h-[1px] bg-white/20" />
-                                     </>
-                                   )}
+                                   <div className={`absolute inset-y-0 right-0 w-[26%] ${backColor} shadow-md border-l border-white/5 rounded-r-[1.5px]`} />
+                                   {/* Headrest, narrower than the backrest so its curve reads as a headrest bump */}
+                                   <div className="absolute right-[3%] top-[18%] bottom-[18%] w-[14%] bg-white/15 rounded-full" />
+                                   {/* Armrests separating neighbouring seats */}
+                                   <div className={`absolute top-0 left-[4%] right-[24%] h-[1px] ${cls === 'economy' ? 'bg-white/10' : 'bg-white/20'}`} />
+                                   <div className={`absolute bottom-0 left-[4%] right-[24%] h-[1px] ${cls === 'economy' ? 'bg-white/10' : 'bg-white/20'}`} />
                                  </>
                                )}
                            </div>
@@ -1016,7 +1012,17 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                             <line x1="12" y1="150" x2="35" y2="140" stroke="#ebf0f5" strokeWidth="4" />
                          </svg>
                       </div>
-                      
+
+                      {/* Cabin Windows: rows of fuselage windows along both sides, purely decorative */}
+                      <div
+                        className="absolute left-[12%] sm:left-[13%] right-[12%] sm:right-[15%] top-[4%] h-[2px] opacity-70 pointer-events-none z-0"
+                        style={{ backgroundImage: 'radial-gradient(circle, rgba(180,220,245,0.9) 40%, transparent 65%)', backgroundSize: '10px 100%', backgroundRepeat: 'repeat-x' }}
+                      />
+                      <div
+                        className="absolute left-[12%] sm:left-[13%] right-[12%] sm:right-[15%] bottom-[4%] h-[2px] opacity-70 pointer-events-none z-0"
+                        style={{ backgroundImage: 'radial-gradient(circle, rgba(180,220,245,0.9) 40%, transparent 65%)', backgroundSize: '10px 100%', backgroundRepeat: 'repeat-x' }}
+                      />
+
                       {/* Zones container */}
                       <div className="relative flex-1 flex ml-[12%] sm:ml-[13%] mr-[12%] sm:mr-[15%] my-0 rounded-none overflow-hidden bg-black/5 border border-black/10">
                          {pFirst > 0 && (
