@@ -13,6 +13,24 @@ import { MAP_YELLOW, MAP_CONGESTION_COLORS } from '../lib/theme';
  */
 const iconCache: Record<string, L.DivIcon> = {};
 
+// Zoom range the map allows (see MapContainer minZoom / TileLayer maxZoom below).
+const MIN_MAP_ZOOM = 2;
+const MAX_MAP_ZOOM = 20;
+const MIN_ICON_PX = 5;
+const MAX_ICON_PX = 30;
+
+/**
+ * One continuous, monotonic size curve shared by every marker style
+ * (CircleMarker below the icon threshold, and every DivIcon tier above it).
+ * Previously each zoom tier had its own ad-hoc formula (`zoom * 1.2`,
+ * `zoom * 2.5`, a fixed 2-3px dot, ...), so airports visibly jumped in size
+ * at the tier boundaries instead of scaling smoothly with the zoom level.
+ */
+function iconDiameter(zoomLevel: number): number {
+  const t = Math.min(1, Math.max(0, (zoomLevel - MIN_MAP_ZOOM) / (MAX_MAP_ZOOM - MIN_MAP_ZOOM)));
+  return MIN_ICON_PX + t * (MAX_ICON_PX - MIN_ICON_PX);
+}
+
 function getAirportIcon(zoomLevel: number, level: number): L.DivIcon {
   const key = `${zoomLevel}-${level}`;
   if (iconCache[key]) return iconCache[key];
@@ -22,31 +40,22 @@ function getAirportIcon(zoomLevel: number, level: number): L.DivIcon {
   else if (level === 2) bgColor = MAP_CONGESTION_COLORS.medium;
   else if (level >= 3) bgColor = MAP_CONGESTION_COLORS.high;
 
+  const size = iconDiameter(zoomLevel);
   let iconInfo: L.DivIcon;
-  if (zoomLevel < 5) {
-    // Simple dot for low zoom
-    const dotSize = zoomLevel < 3 ? 2 : 3;
-    iconInfo = L.divIcon({
-      className: '',
-      html: `<div style="width: ${dotSize}px; height: ${dotSize}px; background-color: ${bgColor}; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;"></div>`,
-      iconSize: [0, 0],
-      iconAnchor: [0, 0],
-    });
-  } else if (zoomLevel < 8) {
+  if (zoomLevel < 8) {
     // Small circle with border
-    const outerSize = Math.max(6, zoomLevel * 1.2);
     iconInfo = L.divIcon({
       className: '',
-      html: `<div style="width: ${outerSize}px; height: ${outerSize}px; background-color: ${bgColor}; border: 1px solid black; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+      html: `<div style="width: ${size}px; height: ${size}px; background-color: ${bgColor}; border: 1px solid black; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
       iconSize: [0, 0],
       iconAnchor: [0, 0],
     });
   } else {
-    // Complex "radar" icon for high zoom
-    const outerSize = Math.max(10, zoomLevel * 2.5);
+    // "Radar" icon for high zoom, sized on the same curve so it lines up
+    // with the plain circle at the zoom=8 boundary instead of jumping.
     iconInfo = L.divIcon({
       className: '',
-      html: `<div style="width: ${outerSize}px; height: ${outerSize}px; background-color: ${bgColor}; border: 2px solid black; border-radius: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 8px rgba(0,0,0,0.5);">
+      html: `<div style="position: relative; width: ${size}px; height: ${size}px; background-color: ${bgColor}; border: 2px solid black; border-radius: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 8px rgba(0,0,0,0.5);">
                <div style="width: 30%; height: 30%; background-color: black; border-radius: 50%;"></div>
                <div style="position: absolute; width: 120%; height: 120%; border: 1px dashed ${bgColor}; border-radius: 50%; opacity: 0.3;"></div>
              </div>`,
@@ -148,10 +157,13 @@ function WorldMapImpl({
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               attribution='&copy; Esri'
               noWrap={false}
-              updateInterval={100}
+              maxNativeZoom={19}
+              maxZoom={20}
+              detectRetina={true}
+              updateInterval={150}
               keepBuffer={6}
               updateWhenIdle={false}
-              updateWhenZooming={true}
+              updateWhenZooming={false}
               zIndex={2}
             />
           <MapEvents setZoom={setZoom} setBounds={setMapBounds} />
@@ -267,7 +279,10 @@ function WorldMapImpl({
                     </Marker>
                   );
                 } else {
-                  const radius = Math.max(3, zoom * 1.2);
+                  // Same size curve as getAirportIcon, so the marker doesn't
+                  // jump in size when it switches from CircleMarker to Marker
+                  // at the zoom >= 6 threshold.
+                  const radius = iconDiameter(zoom) / 2;
                   const isGreen = mgtLvl > 0;
                   return (
                     <CircleMarker
