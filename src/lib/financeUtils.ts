@@ -730,10 +730,15 @@ export function seatWeightedSatisfaction(routeSat: Record<string, number>, confi
   return seats > 0 ? sum / seats : 0;
 }
 
+/** Overpricing hits demand harder than underpricing rewards it. */
+const OVERPRICE_ELASTICITY_FACTOR = 1.5;
+
 export function getPriceDemandMultiplier(price: number, satBasePrice: number, sat: number) {
     const baseElasticity = 1.5;
     const elasticity = Math.max(0.5, baseElasticity - (sat / 200));
-    const rawDemand = Math.pow(satBasePrice / price, elasticity);
+    const overpriced = price > satBasePrice;
+    const effectiveElasticity = overpriced ? elasticity * OVERPRICE_ELASTICITY_FACTOR : elasticity;
+    const rawDemand = Math.pow(satBasePrice / price, effectiveElasticity);
     return Math.min(1.5, rawDemand);
 }
 
