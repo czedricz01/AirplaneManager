@@ -284,7 +284,10 @@ export function AircraftDetailsModal({
                         }}
                         className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-bold bg-white/5 text-white/80 border border-white/10 uppercase tracking-wider hover:bg-white/5 hover:text-white/80 transition-colors"
                       >
-                        {r.schedule?.[0]?.flightNumOut ? routeFlightNumber(r, airlineCode) : `${r.origin}-${r.destination}`}
+                        {r.schedule?.[0]?.flightNumOut && (
+                          <span className="mr-2">{routeFlightNumber(r, airlineCode)}</span>
+                        )}
+                        <span className="text-aero-yellow">{r.origin}–{r.destination}</span>
                       </button>
                     ))}
                   </div>
