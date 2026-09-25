@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import {
   blockMinutes,
   checkOverlap,
+  findCommonRunStart,
+  findDayRunStart,
   findMaxFlightStarts,
+  maxFlightStarts,
   getTurnoverMinutes,
   getUsedWeeklySlots,
   minuteToTripStart,
@@ -113,3 +116,55 @@ test('occupiedIntervals skips other aircraft and the excluded route', () => {
   assert.equal(occupiedIntervals(routes, 'X').length, 3);
   assert.equal(occupiedIntervals(routes, 'X', 'b').length, 1);
 });
+
+test('maxFlightStarts places as many blocks as the search found, none overlapping', () => {
+  const occupied: Interval[] = [{ start: 600, end: 900 }, { start: 5000, end: 5400 }];
+  const cyc = 240;
+  const { bestCount } = findMaxFlightStarts(occupied, cyc, 100);
+  const starts = maxFlightStarts(occupied, cyc, 100);
+  assert.equal(starts.length, bestCount);
+  for (const s of starts) {
+    for (const o of occupied) assert.equal(checkOverlap(s, s + cyc, o.start, o.end), false);
+  }
+  for (let i = 0; i < starts.length; i++) {
+    for (let j = i + 1; j < starts.length; j++) {
+      assert.equal(checkOverlap(starts[i], starts[i] + cyc, starts[j], starts[j] + cyc), false);
+    }
+  }
+});
+
+test('maxFlightStarts respects the slot limit and starts at the preferred time on an empty aircraft', () => {
+  const starts = maxFlightStarts([], 300, 5, 480);
+  assert.equal(starts.length, 5);
+  assert.equal(starts[0], 480);
+  assert.deepEqual(maxFlightStarts([], 300, 0), []);
+});
+
+test('findDayRunStart keeps the preferred time when it is free', () => {
+  assert.equal(findDayRunStart(3, 2, 200, [], 480), 2 * 1440 + 480);
+});
+
+test('findDayRunStart moves the run past a busy block on the same day', () => {
+  // Tuesday 09:00-12:00 is taken; two 120-minute trips wanted from 08:00.
+  const busy: Interval[] = [{ start: 1440 + 540, end: 1440 + 720 }];
+  const start = findDayRunStart(2, 2, 120, busy, 480);
+  assert.ok(start !== null);
+  for (let op = 0; op < 2; op++) {
+    const s = start! + op * 120;
+    assert.equal(checkOverlap(s, s + 120, busy[0].start, busy[0].end), false);
+  }
+  assert.equal(start, 1440 + 720);
+});
+
+test('findDayRunStart returns null when the week is full', () => {
+  assert.equal(findDayRunStart(1, 1, 60, [{ start: 0, end: WEEK_MIN }], 0), null);
+});
+
+test('findCommonRunStart finds one time of day that fits every day', () => {
+  // Every day 06:00-10:00 is taken.
+  const busy: Interval[] = [1, 2, 3, 4, 5, 6, 7].map(d => ({ start: (d - 1) * 1440 + 360, end: (d - 1) * 1440 + 600 }));
+  const t = findCommonRunStart([1, 2, 3, 4, 5, 6, 7], 1, 180, busy, 420);
+  assert.equal(t, 600);
+  assert.equal(findCommonRunStart([1, 2], 2, 800, [], 0), null);
+});
+

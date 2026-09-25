@@ -22,10 +22,17 @@ import {
   WEEK_MIN,
   blockMinutes,
   checkOverlap,
+  findCommonRunStart,
+  findDayRunStart,
+  getTurnoverMinutes,
+  getUsedWeeklySlots,
+  maxFlightStarts,
+  minuteToTripStart,
   occupiedIntervals,
   tripInterval,
   tripStartMinute
 } from '../lib/scheduleUtils';
+import { getFlightDurationMinutes } from '../lib/financeUtils';
 import { formatWeekMinute, openShiftWindows, shiftTrips, timetablePeriod } from '../lib/aircraftAssignment';
 import type { OwnedAircraft } from './MyFleetView';
 import { SimulatedRoute, AirportInfrastructure } from '../App';
@@ -49,6 +56,8 @@ interface RouteScheduleEditViewProps {
   aircraft: OwnedAircraft;
   allAirports: Airport[];
   allRoutes: SimulatedRoute[];
+  /** For the slot count: slots are rented per aircraft class. */
+  fleet: OwnedAircraft[];
   airportManagement: Record<string, AirportInfrastructure>;
   airlineCode: string;
   /**
@@ -69,6 +78,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   aircraft,
   allAirports,
   allRoutes,
+  fleet,
   airportManagement,
   airlineCode,
   reassignFrom,
@@ -202,19 +212,169 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
     { id: 7, label: 'SUN' },
   ];
 
-  // Handle trip deletion
-  const handleToggleDay = (dayId: number) => {
-    // Trips whose block starts on this day.
-    const existingGroups = schedule.filter(s => s.dayId === dayId);
+  // ---- Adding flights: "Multiple Ops" and "Max Flights" as in the route planner ----
 
-    if (existingGroups.length > 0) {
-      // Toggle OFF: Remove these trips
-      const idsToRemove = new Set(existingGroups.map(g => g.id));
-      const groupIdsToRemove = new Set(existingGroups.filter(g => g.groupId).map(g => g.groupId));
-      
-      setSchedule(schedule.filter(s => !idsToRemove.has(s.id) && (!s.groupId || !groupIdsToRemove.has(s.groupId))));
-      setValidationMsg(null);
-    } 
+  // New trips copy the route's own leg time, turnaround and one-way flag, so
+  // they block the aircraft exactly as long as the trips already there. A
+  // route moving aircraft arrives here already re-timed for the new one.
+  const tripTemplate = useMemo(() => {
+    const first = (route.schedule || [])[0];
+    return {
+      durMin: Number(first?.durMin) || getFlightDurationMinutes(selectedOrigin, selectedDest, aircraft) || Number(route.durMin) || 0,
+      turnoverMin: Number(first?.turnoverMin) || getTurnoverMinutes(aircraft.class),
+      isOneWay: !!first?.isOneWay
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const cycleMin = blockMinutes(tripTemplate);
+
+  // Round trips that fit into one day back to back (the planner's limit).
+  const maxMultipleOps = cycleMin >= DAY_MIN / 2 ? 1 : Math.max(1, Math.floor(DAY_MIN / cycleMin));
+  const [multipleOps, setMultipleOps] = useState<number>(() => {
+    const perDay = new Map<number, number>();
+    for (const t of route.schedule || []) perDay.set(Number(t.dayId), (perDay.get(Number(t.dayId)) || 0) + 1);
+    return Math.max(1, ...Array.from(perDay.values()));
+  });
+  const ops = Math.min(multipleOps, maxMultipleOps);
+  const [maximizeFlights, setMaximizeFlights] = useState(false);
+
+  // Flight numbers continue the route's own: the n-th trip of a day flies
+  // base + 2n out and base + 2n + 1 back, as the planner numbers them.
+  const [baseOut, baseIn] = useMemo(() => {
+    const lead = referenceTrip(route.schedule || []);
+    const out = parseInt(String(lead?.flightNumOut ?? ''), 10);
+    const inn = parseInt(String(lead?.flightNumIn ?? ''), 10);
+    const o = Number.isFinite(out) ? out : 1000;
+    return [o, Number.isFinite(inn) ? inn : o + 1];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Weekly slots this route may use at each end, for the aircraft's class.
+  const fleetByRegistration = useMemo(() => new Map(fleet.map(a => [a.registration, a])), [fleet]);
+  const slotKey = String(aircraft.class || '').toLowerCase() as 'regional' | 'narrowbody' | 'widebody';
+  const slotInfo = [route.origin, route.destination].map(id => ({
+    id,
+    used: getUsedWeeklySlots(allRoutes, fleetByRegistration, id, aircraft.class, route.id),
+    cap: airportManagement[id]?.slots?.[slotKey] || 0
+  }));
+  const slotRoom = Math.max(0, Math.min(...slotInfo.map(a => a.cap - a.used)));
+
+  const makeTrip = (weekMin: number, op: number, groupId: string, isGroupLead: boolean): ScheduledTrip => ({
+    id: Math.random().toString(),
+    groupId,
+    isGroupLead,
+    flightNumOut: (baseOut + op * 2).toString(),
+    flightNumIn: (baseIn + op * 2).toString(),
+    ...minuteToTripStart(weekMin),
+    durMin: tripTemplate.durMin,
+    turnoverMin: tripTemplate.turnoverMin,
+    ...(tripTemplate.isOneWay ? { isOneWay: true } : {})
+  });
+  // `count` round trips back to back from `start`, as one group.
+  const makeRun = (start: number, count: number) => {
+    const groupId = Math.random().toString();
+    return Array.from({ length: count }, (_, op) => makeTrip(start + op * cycleMin, op, groupId, op === 0));
+  };
+
+  // Sets the timetable and keeps the clock on its reference trip, so the next
+  // clock change moves the timetable from where it now is.
+  const applySchedule = (next: ScheduledTrip[]) => {
+    setSchedule(next);
+    const lead = referenceTrip(next);
+    if (lead) {
+      setFlightHour(lead.startHour);
+      setFlightMinute(lead.startMin);
+    }
+  };
+
+  // The trips a click removes: a trip's whole run when it belongs to one
+  // day's Multiple Ops run (it may spill past midnight), otherwise the trip.
+  // Max Flights trips share one group across the week and go one by one.
+  const runOf = (trip: ScheduledTrip, trips: ScheduledTrip[]) => {
+    if (!trip.groupId || trip.groupId === 'maximized') return [trip];
+    const group = trips.filter(t => t.groupId === trip.groupId);
+    const lead = referenceTrip(group)!;
+    const leadStart = tripStartMinute(lead);
+    const isDayRun = group.every(t => (tripStartMinute(t) - leadStart + WEEK_MIN) % WEEK_MIN < DAY_MIN);
+    return isDayRun ? group : [trip];
+  };
+  const removeTrips = (toRemove: ScheduledTrip[]) => {
+    const ids = new Set(toRemove.map(t => t.id));
+    applySchedule(schedule.filter(t => !ids.has(t.id)));
+    setValidationMsg(null);
+  };
+
+  // Day buttons: a day with flights loses them (with the rest of their runs),
+  // an empty day gets `ops` round trips at the clock time, or the next free
+  // time that day.
+  const handleToggleDay = (dayId: number) => {
+    const onDay = schedule.filter(s => Number(s.dayId) === dayId);
+
+    if (onDay.length > 0) {
+      const removed = onDay.flatMap(t => {
+        const run = runOf(t, schedule);
+        const lead = referenceTrip(run)!;
+        return Number(lead.dayId) === dayId ? run : [t];
+      });
+      removeTrips(removed);
+      return;
+    }
+
+    const label = daysOfWeek[dayId - 1].label;
+    if (schedule.length + ops > slotRoom) {
+      setValidationMsg(`Not enough ${aircraft.class} slots for ${ops} more flight${ops > 1 ? 's' : ''} (${slotRoom - schedule.length} left).`);
+      return;
+    }
+    const busy = [...occupied, ...schedule.map(tripInterval)];
+    const start = findDayRunStart(dayId, ops, cycleMin, busy, blockStartMin);
+    if (start === null) {
+      setValidationMsg(`No free time on ${label} for ${ops} flight${ops > 1 ? 's' : ''}.`);
+      return;
+    }
+    applySchedule([...schedule, ...makeRun(start, ops)]);
+    setValidationMsg(null);
+  };
+
+  // "Apply to all days": every day gets `ops` round trips, at one common time
+  // when there is one, otherwise each day at its next free time.
+  const handleApplyAllDays = () => {
+    const days = daysOfWeek.map(d => d.id);
+    const common = findCommonRunStart(days, ops, cycleMin, occupied, blockStartMin);
+    let room = slotRoom;
+    const next: ScheduledTrip[] = [];
+    for (const d of days) {
+      if (room < ops) break;
+      const start = common !== null
+        ? (d - 1) * DAY_MIN + common
+        : findDayRunStart(d, ops, cycleMin, [...occupied, ...next.map(tripInterval)], blockStartMin);
+      if (start === null) continue;
+      next.push(...makeRun(start, ops));
+      room -= ops;
+    }
+    if (next.length === 0) {
+      setValidationMsg(room < ops ? `Not enough ${aircraft.class} slots for ${ops} flight${ops > 1 ? 's' : ''} a day.` : 'No valid slots or days available.');
+      return;
+    }
+    applySchedule(next);
+    setValidationMsg(next.length < days.length * ops ? `Only ${next.length / ops} of 7 days fit.` : null);
+  };
+
+  // "Max Flights": as many round trips as the aircraft's week and the slots allow.
+  const handleApplyMaxFlights = () => {
+    const starts = maxFlightStarts(occupied, cycleMin, slotRoom, blockStartMin);
+    if (starts.length === 0) {
+      setValidationMsg(slotRoom <= 0 ? `No free ${aircraft.class} slots.` : 'No free time on this aircraft.');
+      return;
+    }
+    // One flight number per time of day, in the order the times come up.
+    const numberByTime = new Map<number, number>();
+    const next = starts.map((m, i) => {
+      const timeOfDay = m % DAY_MIN;
+      if (!numberByTime.has(timeOfDay)) numberByTime.set(timeOfDay, numberByTime.size);
+      return makeTrip(m, numberByTime.get(timeOfDay)!, 'maximized', i === 0);
+    });
+    applySchedule(next);
+    setValidationMsg(null);
   };
 
   const allBlocks = useMemo(() => {
@@ -402,35 +562,90 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               <span className="text-xs font-black tracking-widest text-white/40">Timetable Management</span>
             </div>
 
+            {/* Slots this route may use, as in the planner */}
+            <div className="bg-white/5 border border-white/10 p-3 space-y-1 rounded-sm border-t-2 border-t-aero-yellow">
+              <div className="text-3xs font-black tracking-widest text-aero-yellow flex justify-between">
+                <span>Required Slots</span>
+                <span>({aircraft.class})</span>
+              </div>
+              {slotInfo.map(a => (
+                <div key={a.id} className="flex justify-between font-mono text-2xs text-white/70">
+                  <span>{a.id}</span>
+                  <span className={a.used + schedule.length > a.cap ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                    {a.used + schedule.length} / {a.cap}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Multiple Ops / Max Flights, as in the planner's timetable step */}
+            <div className="flex items-center justify-between gap-2 bg-black/40 border border-white/10 p-2">
+              <div className={`flex items-center gap-2 transition-opacity ${maximizeFlights ? 'opacity-30 pointer-events-none' : ''}`}>
+                <label className="text-3xs font-black tracking-widest text-white/50 whitespace-nowrap" title="Round trips flown back to back on each day you add">Multiple Ops</label>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setMultipleOps(Math.max(1, ops - 1))}
+                    disabled={ops <= 1}
+                    className="w-5 h-5 flex items-center justify-center bg-white/5 border border-white/10 text-white hover:border-aero-yellow disabled:opacity-20"
+                  >
+                    <Minus className="w-2 h-2" />
+                  </button>
+                  <div className="w-6 h-5 flex items-center justify-center bg-black border border-white/20 font-mono text-2xs text-aero-yellow font-bold">{ops}</div>
+                  <button
+                    onClick={() => setMultipleOps(Math.min(maxMultipleOps, ops + 1))}
+                    disabled={ops >= maxMultipleOps}
+                    className="w-5 h-5 flex items-center justify-center bg-white/5 border border-white/10 text-white hover:border-aero-yellow disabled:opacity-20"
+                  >
+                    <Plus className="w-2 h-2" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setMaximizeFlights(!maximizeFlights)} title="Fill the aircraft's free week with as many round trips as the slots allow">
+                <span className="text-3xs font-black tracking-widest text-white/50 hover:text-white transition-colors whitespace-nowrap">Max Flights</span>
+                <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                  {maximizeFlights && <Check className="w-2 h-2" />}
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-2">
+              <button
+                onClick={maximizeFlights ? handleApplyMaxFlights : handleApplyAllDays}
+                className="w-full h-10 text-2xs font-bold border border-aero-yellow bg-aero-yellow text-black hover:bg-aero-yellow/80 transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-widest"
+                title={maximizeFlights ? 'Replace the timetable with the most flights that fit' : `Replace the timetable with ${ops} flight${ops > 1 ? 's' : ''} on every day`}
+              >
+                <Calendar size={14} /> {maximizeFlights ? 'Apply Max Flights' : 'Apply to All Days'}
+              </button>
               {schedule.length > 0 && (
                 <button 
-                  onClick={() => setSchedule([])}
+                  onClick={() => { setSchedule([]); setValidationMsg(null); }}
                   className="w-full h-10 text-2xs font-bold border border-white/20 text-aero-yellow/60 bg-aero-panel hover:bg-aero-carbon hover:text-white transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-widest"
                 >
                   <Trash2 size={14} /> Clear All Flights
                 </button>
               )}
               
-              <div className="p-4 bg-white/5 border border-white/10 rounded-sm">
+              <div className="p-3 bg-white/5 border border-white/10 rounded-sm">
                 <p className="text-3xs text-white/30 leading-relaxed uppercase tracking-widest text-center">
-                  Select day buttons below to remove specific flights, or drag flights in the timetable to shift the schedule.
+                  Click a day to add {ops} flight{ops > 1 ? 's' : ''} at the starting time (or the next free time), or to remove its flights. Drag flights in the timetable to shift the schedule.
                 </p>
               </div>
             </div>
 
-            <div className={`grid grid-cols-4 gap-2 transition-opacity`}>
+            <div className={`grid grid-cols-4 gap-2 transition-opacity ${maximizeFlights ? 'opacity-30 pointer-events-none' : ''}`}>
                 {daysOfWeek.map(day => {
-                  const isSelected = schedule.some(s => Number(s.dayId) === day.id);
+                  const count = schedule.filter(s => Number(s.dayId) === day.id).length;
+                  const isSelected = count > 0;
                   return (
                     <button
                       key={day.id}
-                      disabled={!isSelected}
+                      disabled={maximizeFlights}
                       onClick={() => handleToggleDay(day.id)}
-                      className={`h-12 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/20 text-white/10 border-white/5 opacity-50 cursor-not-allowed'}`}
+                      title={isSelected ? `Remove the ${day.label} flights` : `Add ${ops} flight${ops > 1 ? 's' : ''} on ${day.label}`}
+                      className={`h-12 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl hover:bg-aero-yellow/80' : 'bg-black/40 text-white/30 border-white/10 hover:border-white/40 hover:text-white'}`}
                     >
                       <span className="text-2xs leading-none">{day.label}</span>
-                      <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-black/40' : 'bg-white/5'}`}></div>
+                      <span className={`text-4xs font-mono leading-none ${isSelected ? 'text-black/60' : 'text-white/20'}`}>{isSelected ? `${count}x` : '+'}</span>
                     </button>
                   )
                 })}
@@ -562,13 +777,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                                  }
                               }}
                               onClick={(e) => {
-                                 if (!b.isBusy && e.ctrlKey) {
-                                     if (b.s.groupId) {
-                                         setSchedule(schedule.filter(s => s.groupId !== b.s.groupId));
-                                     } else {
-                                         setSchedule(schedule.filter(s => s.id !== b.s.id));
-                                     }
-                                 }
+                                 if (!b.isBusy && e.ctrlKey) removeTrips(runOf(b.s, schedule));
                               }}
                               title={b.isBusy ? 'Busy - Cannot edit' : 'Drag to adjust time. Ctrl+Click to delete.'}
                               className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono shadow-xl transition-all ${

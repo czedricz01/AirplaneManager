@@ -4033,6 +4033,7 @@ export default function App() {
                         aircraft={editAircraft}
                         allAirports={airports}
                         allRoutes={routes}
+                        fleet={fleet}
                         airportManagement={airportManagement}
                         airlineCode={airlineCode}
                         onSave={(updatedRoute) => {
@@ -4073,6 +4074,7 @@ export default function App() {
                         reassignFrom={from}
                         allAirports={airports}
                         allRoutes={routes}
+                        fleet={fleet}
                         airportManagement={airportManagement}
                         airlineCode={airlineCode}
                         onSave={(updatedRoute) => {
