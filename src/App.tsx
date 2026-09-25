@@ -340,6 +340,8 @@ import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
 import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
 import { ScenarioPicker } from "./components/ScenarioPicker";
+import { TutorialOverlay } from "./components/TutorialOverlay";
+import { restartTutorial, settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
@@ -1262,6 +1264,25 @@ export default function App() {
       return true;
     });
   }, [zoom, mapBounds, airportManagement]);
+
+  /** Opens one of the sidebar's screens, closing whatever editor or panel is open. */
+  const openWindow = (win: ActiveWindow) => {
+    setIsPlanningRoute(false);
+    setIsEditingSchedule(false);
+    setEditingRouteId(null);
+    setActiveWindow(win);
+    setSelectedPurchasingAircraft(null);
+    setSelectedAirport(null);
+  };
+
+  /** Opens the route planner, as the sidebar's New Route does. */
+  const openPlanner = () => {
+    setIsPlanningRoute(true);
+    setIsEditingSchedule(false);
+    setEditingRouteId(null);
+    setSelectedPurchasingAircraft(null);
+    setSelectedAirport(null);
+  };
 
   const handleAdvanceMonth = () => {
     // Generate Report First using CURRENT date
@@ -2745,6 +2766,55 @@ export default function App() {
     }
   }, [isEditingSchedule, editingRouteId, routes, fleet]);
 
+  // --- Tutorial -------------------------------------------------------------
+  // The step on screen is saved with the game; see lib/tutorial.ts for the
+  // steps and when each finishes by itself.
+  const tutorialState = useMemo<TutorialState>(() => ({
+    fleetSize: fleet.length,
+    routeCount: routes.length,
+    planning: isPlanningRoute,
+    reportOpen: view === 'monthly-overview'
+  }), [fleet.length, routes.length, isPlanningRoute, view]);
+  const inGame = view === 'game' || view === 'monthly-overview';
+
+  // A step whose goal is reached moves on, past any others already done.
+  useEffect(() => {
+    if (tutorialStep === null || !inGame) return;
+    const next = settleTutorialStep(tutorialStep, tutorialState);
+    if (next !== tutorialStep) {
+      setTutorialStep(next);
+      if (next === null) setToast('Tutorial complete. Settings can restart it any time.');
+    }
+  }, [tutorialStep, tutorialState, inGame]);
+
+  /** Next, Back, Finish and Skip on the tutorial card. */
+  const goToTutorialStep = React.useCallback((step: number | null, skipped?: boolean) => {
+    setTutorialStep(step);
+    if (step === null) setToast(skipped ? 'Tutorial skipped. Settings can restart it any time.' : 'Tutorial complete. Settings can restart it any time.');
+  }, []);
+
+  /** "Show me": takes the player to where a step's control is. */
+  const showTutorialTarget = (target: TutorialDestination) => {
+    if (view === 'monthly-overview') setView('game');
+    if (target === 'new-route') openPlanner();
+    else openWindow(target);
+  };
+
+  /** Where the player is, in the tutorial's terms. */
+  const tutorialView: TutorialView | null = view === 'monthly-overview' ? 'report'
+    : view !== 'game' ? null
+    : isPlanningRoute ? 'new-route'
+    : activeWindow === 'map' || activeWindow === 'buy-aircraft' || activeWindow === 'my-company' ? activeWindow
+    : null;
+
+  /**
+   * The tutorial steps aside for anything that asks for the player's
+   * attention: decisions, the newspaper, alerts, the menus' dialogs and the
+   * scenario's verdict. It comes back once they are dealt with.
+   */
+  const tutorialHidden = !inGame || !!pendingDecision || pendingDecisions.length > 0 || isNewspaperOpen || !!appAlert ||
+    isSettingsOpen || !!selectedMessage || showSaveMenu || showLoadMenu || showExitSavePrompt || scenarioResultOpen;
+
   // What a diagnostics export says about the game it was taken from. A ref, so
   // the provider always reads the latest render without re-registering.
   const diagnosticsRef = useRef<Record<string, unknown>>({});
@@ -3008,26 +3078,26 @@ export default function App() {
             <div className="flex flex-col w-full">
               {/* Fleet & Ops */}
               <div className="flex flex-col divide-y divide-white/5">
-                <SidebarIcon icon={<MapIcon size={28} />} label="MAP" active={activeWindow === 'map' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('map'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('buy-aircraft'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('my-fleet'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<MapIcon size={28} />} label="MAP" tour="nav-map" active={activeWindow === 'map' && !isPlanningRoute} onClick={() => openWindow('map')} />
+                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" tour="nav-buy-aircraft" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => openWindow('buy-aircraft')} />
+                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" tour="nav-my-fleet" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => openWindow('my-fleet')} />
               </div>
 
               {/* Network */}
               <div className="flex flex-col divide-y divide-white/5 border-t border-white/10">
-                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setRouteFilter(""); setActiveWindow('routes'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('airports'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" tour="nav-routes" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => { setRouteFilter(""); openWindow('routes'); }} />
+                <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" tour="nav-airports" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => openWindow('airports')} />
               </div>
 
               {/* Business */}
               <div className="flex flex-col divide-y divide-white/5 border-t border-white/10">
-                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('my-company'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<Users size={28} />} label="RIVALS" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('competitors'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
+                <SidebarIcon icon={<Users size={28} />} label="RIVALS" tour="nav-rivals" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => openWindow('competitors')} />
               </div>
 
               {/* Actions */}
               <div className="flex flex-col border-t border-white/10 bg-aero-yellow/5">
-                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" active={isPlanningRoute} onClick={() => { setIsPlanningRoute(true); setIsEditingSchedule(false); setEditingRouteId(null); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" tour="nav-new-route" active={isPlanningRoute} onClick={openPlanner} />
               </div>
             </div>
             <div className="mt-4 pb-4 shrink-0 w-full mb-3">
@@ -3408,7 +3478,7 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center bg-aero-black relative p-12"
               >
-                <div className="max-w-4xl w-full">
+                <div className="max-w-4xl w-full" data-tour="monthly-report">
                   <div className="border-b border-white/10 pb-6 mb-6">
                     <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2">Operation: Execution</span>
                     <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
@@ -3741,7 +3811,7 @@ export default function App() {
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
                   
                   {/* Map Viewport - Leaflet Map */}
-                  <div className="absolute inset-0 z-0 bg-aero-panel">
+                  <div className="absolute inset-0 z-0 bg-aero-panel" data-tour="map">
                      <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
                       <WorldMap
                         sessionKey={sessionKey}
@@ -4069,7 +4139,7 @@ export default function App() {
                   )}
 
                   {isPlanningRoute && (
-                    <div className="absolute inset-0 z-[45] flex">
+                    <div className="absolute inset-0 z-[45] flex" data-tour="route-planner">
                      <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="CLOSE PLANNER">
                       <React.Suspense fallback={<LazyFallback label="Route Planner" />}>
                       <RoutePlannerView
@@ -4238,6 +4308,7 @@ export default function App() {
                     <div className="fixed bottom-6 right-6 z-[1000] pointer-events-auto">
                       <button
                         onClick={handleAdvanceMonth}
+                        data-tour="next-month"
                         className="flex items-center gap-3 bg-aero-yellow text-black px-3 py-3 font-bold uppercase tracking-[0.2em] text-xs shadow-2xl border-2 border-aero-yellow hover:bg-white hover:border-white transition-all transform hover:scale-105 group font-sans italic"
                         title="Advance to next month"
                       >
@@ -4342,6 +4413,38 @@ export default function App() {
                     <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Show The Aviation Times after every month. When off, the latest edition is still under Messages and on the monthly report.</span>
                   </div>
                 </button>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={gameSettings.tutorial}
+                  onClick={() => setGameSettings(prev => ({ ...prev, tutorial: !prev.tutorial }))}
+                  className="w-full flex items-center gap-3 bg-white/5 p-4 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                >
+                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.tutorial ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                    {gameSettings.tutorial && <Check size={14} />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-white uppercase tracking-widest font-black">Tutorial for New Games</span>
+                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Start every new game with the guided tour of the first steps. Skipping it ends the tour for that game only.</span>
+                  </div>
+                </button>
+                {(view === 'game' || view === 'monthly-overview') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTutorialStep(restartTutorial());
+                      setIsSettingsOpen(false);
+                      if (view === 'monthly-overview') setView('game');
+                      openWindow('map');
+                    }}
+                    className="self-start flex items-center gap-2 px-3 py-2 border border-white/10 text-white/70 hover:text-aero-yellow hover:border-aero-yellow/50 font-mono text-2xs uppercase tracking-widest transition-colors"
+                  >
+                    <RotateCcw size={12} aria-hidden="true" /> Restart tutorial in this game
+                  </button>
+                )}
               </div>
             </div>
 
@@ -4468,6 +4571,17 @@ export default function App() {
       </AnimatePresence>
       </div>
     </div>
+      {/* Outside the scaled root: the tutorial measures and draws in screen pixels. */}
+      {tutorialStep !== null && !tutorialHidden && (
+        <TutorialOverlay
+          step={tutorialStep}
+          state={tutorialState}
+          currentView={tutorialView}
+          layoutKey={`${view}|${activeWindow}|${isPlanningRoute}|${selectedAirport?.id ?? ''}|${isEditingSchedule}|${finalUiScale}`}
+          onGoTo={goToTutorialStep}
+          onNavigate={showTutorialTarget}
+        />
+      )}
     </div>
   );
 }
@@ -4529,11 +4643,12 @@ function ThemeMenuButton({
  * be unreachable by keyboard, and the 7.5px label was the smallest type in the
  * interface.
  */
-function SidebarIcon({ icon, label, active = false, onClick }: { icon: ReactNode, label: string, active?: boolean, onClick?: () => void }) {
+function SidebarIcon({ icon, label, active = false, onClick, tour }: { icon: ReactNode, label: string, active?: boolean, onClick?: () => void, tour?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      data-tour={tour}
       aria-current={active ? 'page' : undefined}
       className={`
       py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all w-full select-none bg-transparent border-0
