@@ -239,6 +239,20 @@ import {
   settleStrikeWithPayRise,
   strikeCancelShare
 } from "./lib/staff";
+import {
+  DISRUPTION_OPTION_CHARTER,
+  MAJOR_DISRUPTION_SHARE,
+  buildDisruptionDecision,
+  cancelReputationPenalty,
+  describeDisruption,
+  describeRouteCancellations,
+  disruptionIncidents,
+  disruptionRepairCost,
+  disruptionTitle,
+  disruptionsToAsk,
+  dropPastDisruptions,
+  rollDisruptions
+} from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
   buildPlayerModifiers,
@@ -620,6 +634,21 @@ export default function App() {
         setReputation(prev => Math.max(0, prev - STRIKE_REPUTATION_PENALTY));
         setToast(`Strike sat out: no flights this month, reputation -${STRIKE_REPUTATION_PENALTY}`);
       }
+    },
+    // A disruption of 25% or more: charter a replacement and nothing is
+    // cancelled, or cancel the flights, which is what any other answer means.
+    // `ref` is the disruption's id; one that is gone by now changes nothing.
+    disruption: (decision, option) => {
+      const target = disruptions.find(d => d.id === decision.ref);
+      if (!target) return;
+      if (option.id === DISRUPTION_OPTION_CHARTER) {
+        setDisruptions(prev => prev.map(d => (d.id === target.id ? { ...d, mitigated: true } : d)));
+        setToast(`Replacement aircraft chartered: ${disruptionTitle(target)}`);
+      } else {
+        const penalty = cancelReputationPenalty(target);
+        setReputation(prev => Math.max(0, prev - penalty));
+        setToast(`Flights cancelled: ${disruptionTitle(target)}, reputation -${penalty}`);
+      }
     }
   };
 
@@ -704,10 +733,10 @@ export default function App() {
    * receives, so the route list, the planner and the report agree.
    */
   const playerMods = useMemo(
-    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff }, currentDateOffset),
+    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions }, currentDateOffset),
     // randomEvents: eventReliefFactor reads the active events from module state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reputation, currentDateOffset, eventChoices, marketing, staff, randomEvents]
+    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents]
   );
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
@@ -877,13 +906,16 @@ export default function App() {
    * and the detail view. The shares are exactly what playerMods hands the
    * engine, so the badge and the figures beside it agree.
    */
-  const routeCancellations = useMemo(() => {
-    const out: Record<string, RouteCancellation> = {};
-    const strike = playerMods.cancelShareAll ?? 0;
-    if (strike <= 0) return out;
-    for (const r of routes) out[r.id] = { share: routeCancelShare(playerMods, r.id), reasons: ['Staff strike'] };
-    return out;
-  }, [routes, playerMods]);
+  const routeCancellations = useMemo<Record<string, RouteCancellation>>(
+    () => describeRouteCancellations(
+      routes.map(r => r.id),
+      id => routeCancelShare(playerMods, id),
+      disruptions,
+      currentDateOffset,
+      playerMods.cancelShareAll ?? 0
+    ),
+    [routes, playerMods, disruptions, currentDateOffset]
+  );
 
   /** A strike is waiting for the player's answer; no second one is called meanwhile. */
   const strikePending = pendingDecisions.some(d => d.kind === 'strike');
@@ -1278,7 +1310,10 @@ export default function App() {
     // demand and loyalty are already in this month's route figures above,
     // through playerMods; here they are paid for.
     const marketingCost = marketingMonthCost(marketing, currentDateOffset, paxWeek * 4);
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total;
+    // Repairs after this month's disruptions (bird strikes). Their
+    // cancellations are already in the route figures above, through playerMods.
+    const incidentRepairs = disruptionRepairCost(disruptions, currentDateOffset);
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total - incidentRepairs;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
@@ -1416,6 +1451,11 @@ export default function App() {
         routeCount: routes.length
       });
     }
+    const routeLabel = (id: string) => {
+      const r = routes.find(x => x.id === id);
+      return r ? `${r.origin}-${r.destination}` : 'a closed route';
+    };
+    incidents.push(...disruptionIncidents(disruptions, currentDateOffset, routeLabel));
 
     const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
 
@@ -1448,7 +1488,8 @@ export default function App() {
         purchasedSlots: pendingSlotBills,
         marketing: marketingCost.total,
         marketingCampaigns: marketingCost.campaigns,
-        ffp: marketingCost.ffp
+        ffp: marketingCost.ffp,
+        incidents: incidentRepairs
       },
       marketingItems: marketingCost.items,
       // Only in months that had any; older reports have none.
@@ -1548,6 +1589,33 @@ export default function App() {
       setRandomEventsState(updatedRandomEvents);
       setRuntimeRandomEvents(updatedRandomEvents);
 
+    }
+
+    // 2b. Roll next month's operational disruptions. They are known for the
+    // whole month they hit, so the forecast below and every screen in it
+    // already leave the cancelled flights out; the month's close books that.
+    const rolledDisruptions = rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap);
+    const nextDisruptions = [...dropPastDisruptions(disruptions, nextOffset), ...rolledDisruptions];
+    if (nextDisruptions.length !== disruptions.length || rolledDisruptions.length > 0) setDisruptions(nextDisruptions);
+    if (rolledDisruptions.length > 0) {
+      const monthStr = offsetToDateStr(nextOffset);
+      const lines = rolledDisruptions.map(d => describeDisruption(d, routeLabel));
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: rolledDisruptions.length === 1
+          ? `OPERATIONS: ${disruptionTitle(rolledDisruptions[0])} in ${monthStr}.`
+          : `OPERATIONS: ${rolledDisruptions.length} disruptions in ${monthStr}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `Operations outlook ${monthStr}`,
+          source: 'Operations control',
+          content:
+            `The following will cost flights in ${monthStr}:\n\n${lines.join('\n')}\n\n` +
+            `The route list marks the routes hit and its figures already leave the cancelled flights out. ` +
+            `A hangar at a route's origin halves the chance of a technical defect; worn and old aircraft break more often.`
+        }
+      });
     }
 
     // --- Annual goal -------------------------------------------------------
@@ -1663,22 +1731,42 @@ export default function App() {
     // The figures stored on each route are next month's forecast. They used to
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
-    const nextMods = buildPlayerModifiers({ reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff }, nextOffset);
+    const nextMods = buildPlayerModifiers({
+      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions
+    }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
+    const nextEnv = {
+      fuelPrice: getFuelData(nextOffset).price,
+      airportManagement,
+      year: 1960 + Math.floor(nextOffset / 12),
+      month: 1 + (nextOffset % 12),
+      difficulty,
+      airportsMap: localAirportsMap,
+      rivalOffers: nextRivalOffers
+    };
+    const repriceForNextMonth = (list: SimulatedRoute[]) => list.map(r => {
+      const activePrices = r.ticketPrices || { economy: 100 };
+      return { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
+    });
+
+    // The bigger disruptions are put to the player: charter a replacement or
+    // cancel. What is at stake is each route's revenue in next month's
+    // forecast before anything is cancelled.
+    const majorCandidates = rolledDisruptions.filter(d => d.cancelShare >= MAJOR_DISRUPTION_SHARE);
+    if (majorCandidates.length > 0) {
+      const { cancelShare: _c, cancelShareAll: _a, ...uncancelled } = nextMods;
+      const baseNetwork = computeNetworkFinancials(repriceForNextMonth(routes), fleet, uncancelled, nextEnv);
+      const revenueByRoute: Record<string, number> = {};
+      baseNetwork.finById.forEach((fin, id) => { revenueByRoute[id] = (fin.estWeeklyRev || 0) * 4; });
+      const monthStr = offsetToDateStr(nextOffset);
+      for (const d of disruptionsToAsk(majorCandidates, revenueByRoute)) {
+        queueDecision(buildDisruptionDecision(d, monthStr, revenueByRoute, routeLabel));
+      }
+    }
+
     setRoutes(prevRoutes => {
-      const repriced = prevRoutes.map(r => {
-        const activePrices = r.ticketPrices || { economy: 100 };
-        return { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
-      });
-      const nextNetwork = computeNetworkFinancials(repriced, fleet, nextMods, {
-        fuelPrice: getFuelData(nextOffset).price,
-        airportManagement,
-        year: 1960 + Math.floor(nextOffset / 12),
-        month: 1 + (nextOffset % 12),
-        difficulty,
-        airportsMap: localAirportsMap,
-        rivalOffers: nextRivalOffers
-      });
+      const repriced = repriceForNextMonth(prevRoutes);
+      const nextNetwork = computeNetworkFinancials(repriced, fleet, nextMods, nextEnv);
       return repriced.map(r => {
         const fin = nextNetwork.finById.get(r.id);
         return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
@@ -2952,6 +3040,15 @@ export default function App() {
                                { label: 'Advertising campaigns', amount: latestReport.breakdown.marketingCampaigns || 0 },
                                { label: 'Frequent flyer programme', amount: latestReport.breakdown.ffp || 0 }
                              ]
+                           }] : []),
+                           // Only in months with a repair bill, e.g. after a bird strike.
+                           ...((latestReport.breakdown.incidents || 0) > 0 ? [{
+                             id: 'incidents',
+                             label: 'Incident repairs',
+                             total: latestReport.breakdown.incidents,
+                             items: (latestReport.incidents || [])
+                               .filter((i: ReportIncident) => (i.cost || 0) > 0)
+                               .map((i: ReportIncident) => ({ label: i.title, amount: i.cost || 0 }))
                            }] : []),
                            // Slots are billed into the month's result, so they
                            // belong above the line, not in capex.

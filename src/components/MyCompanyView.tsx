@@ -406,6 +406,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-white/80">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
                   <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
                   <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
+                  <p><strong className="text-white/80">Incident repairs</strong> — repair bills after operational disruptions such as bird strikes.</p>
                   <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers. Deducted from cash but not from operating profit, which is why the two differ.</p>
                 </div>
               </div>
@@ -450,6 +451,14 @@ function MyCompanyViewImpl({
                           { label: 'Advertising campaigns', amount: latest!.breakdown.marketingCampaigns || 0 },
                           { label: 'Frequent flyer programme', amount: latest!.breakdown.ffp || 0 }
                         ]
+                      }]
+                    : []),
+                  ...((latest!.breakdown.incidents || 0) > 0
+                    ? [{
+                        id: 'incidents',
+                        label: 'Incident repairs',
+                        total: latest!.breakdown.incidents,
+                        items: (latest!.incidents ?? []).filter(i => (i.cost ?? 0) > 0).map(i => ({ label: i.title, amount: i.cost ?? 0 }))
                       }]
                     : []),
                   // Slots are billed into the month's result; the rest is not,

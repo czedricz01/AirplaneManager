@@ -126,9 +126,11 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           <span className="block text-3xs font-mono text-white/40 mt-1">
             {strikePending
               ? 'none while a strike awaits your answer'
-              : outlook.strikeChance > 0
-                ? 'chance of a strike at this month end'
-                : `none while morale stays at ${STRIKE_MORALE_THRESHOLD} or above`}
+              : striking
+                ? 'no new strike straight after this one'
+                : outlook.strikeChance > 0
+                  ? 'chance of a strike at this month end'
+                  : `none while morale stays at ${STRIKE_MORALE_THRESHOLD} or above`}
           </span>
         </StatTile>
         <StatTile size="md" label="Satisfaction effect" value={signed(satNow)} valueClassName={satNow > 0 ? 'text-aero-good' : satNow < 0 ? 'text-aero-warn' : ''}>

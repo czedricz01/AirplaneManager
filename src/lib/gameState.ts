@@ -15,8 +15,10 @@ import { getActiveEvents, eventKey } from './eventSystem';
 import { regionOf } from './geoUtils';
 import { ffpLoyaltyBonus, regionDemandFactors } from './marketing';
 import { crewCostFactor, moraleSatDelta, strikeCancelShare } from './staff';
+import { combineCancelShares, disruptionCancelShares } from './disruptions';
 
 export { SALARY_PCT_MIN, SALARY_PCT_MAX } from './staff';
+export { combineCancelShares } from './disruptions';
 
 /** The coarse regions of the world the game tells apart. See regionOf. */
 export type RegionId = 'EU' | 'NA' | 'SA' | 'AF' | 'AS' | 'OC';
@@ -88,7 +90,7 @@ export type DisruptionKind = 'technical' | 'birdstrike' | 'airport-strike' | 'we
 
 export const DISRUPTION_KINDS: readonly DisruptionKind[] = ['technical', 'birdstrike', 'airport-strike', 'weather'];
 
-/** Something that cancels part of the player's flights for one month. */
+/** Something that cancels part of the player's flights for one month. See disruptions.ts. */
 export interface Disruption {
   id: string;
   kind: DisruptionKind;
@@ -98,8 +100,12 @@ export interface Disruption {
   routeIds: string[];
   /** Share of each hit route's flights cancelled, 0-1. */
   cancelShare: number;
-  /** What it is attached to, for messages: an airport id or a region. */
+  /** What it is attached to, for messages: an aircraft registration, an airport id or a region. */
   ref?: string;
+  /** A repair bill, charged in the month it hits. */
+  cost?: number;
+  /** A chartered replacement aircraft flies the cancelled flights: nothing is cancelled. */
+  mitigated?: boolean;
 }
 
 /**
@@ -300,6 +306,8 @@ export interface PlayerModifierState {
   marketing?: Marketing;
   /** Pay, morale and any strike; neutral when absent. */
   staff?: Staff;
+  /** Rolled disruptions; only those for the month priced, and not chartered away, cancel anything. */
+  disruptions?: Disruption[];
 }
 
 /**
@@ -361,21 +369,9 @@ export function buildPlayerModifiers(state: PlayerModifierState, offset: number)
     const strike = strikeCancelShare(state.staff, offset);
     if (strike > 0) mods.cancelShareAll = strike;
   }
+  const cancelShare = disruptionCancelShares(state.disruptions, offset);
+  if (cancelShare) mods.cancelShare = cancelShare;
   return mods;
-}
-
-/**
- * The share of flights lost to several independent causes, 0-1: each one
- * cancels its share of what the others left flying, 1 - (1 - a)(1 - b)...
- * Two 25% cancellations take 43.75% of the flights, not 50%.
- */
-export function combineCancelShares(...shares: (number | undefined)[]): number {
-  let flown = 1;
-  for (const s of shares) {
-    const share = Number(s) || 0;
-    flown *= 1 - Math.max(0, Math.min(1, share));
-  }
-  return 1 - flown;
 }
 
 /** The share of one route's flights that do not operate under these modifiers, 0-1. */

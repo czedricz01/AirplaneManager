@@ -248,11 +248,17 @@ function migrateStaff(s: unknown): Staff {
 function migrateDisruptions(list: unknown): Disruption[] {
   return asArray<any>(list)
     .filter(d => d && isString(d.id) && DISRUPTION_KINDS.includes(d.kind) && Number.isFinite(d.offset))
-    .map(d => ({
-      ...d,
-      routeIds: asArray<unknown>(d.routeIds).filter(isString),
-      cancelShare: clamp(finiteOr(d.cancelShare, 0), 0, 1)
-    }));
+    .map(d => {
+      const { cost, mitigated, ...rest } = d;
+      return {
+        ...rest,
+        offset: Math.round(d.offset),
+        routeIds: asArray<unknown>(d.routeIds).filter(isString),
+        cancelShare: clamp(finiteOr(d.cancelShare, 0), 0, 1),
+        ...(Number.isFinite(cost) && cost > 0 ? { cost } : {}),
+        ...(mitigated === true ? { mitigated: true } : {})
+      };
+    });
 }
 
 function migrateDecisions(list: unknown): GameDecision[] {

@@ -1009,7 +1009,9 @@ export function calculateRouteFinancials(
       ) * (1 + (mods?.loyaltyBonus ?? 0));
       const share = marketShare(ownAttractiveness, rivalAttractiveness);
 
-      const weeklySupply = seats * flightLegs;
+      // Whole seats: with part of the timetable cancelled, flightLegs is a
+      // fraction, and so would be every passenger count derived from it.
+      const weeklySupply = Math.round(seats * flightLegs);
       // Demand beyond MAX_DEMAND_SURPLUS times what this route can carry is not
       // available to it at any price, so it cannot prop up an inflated fare.
       const reachableDemand = Math.min(maxPax * share, weeklySupply * MAX_DEMAND_SURPLUS);
