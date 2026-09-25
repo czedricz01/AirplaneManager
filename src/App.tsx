@@ -1709,8 +1709,9 @@ export default function App() {
     setCurrentDateOffset(saveObj.currentDateOffset);
     setAirportManagement(saveObj.airportManagement);
     setRoutes(saveObj.routes);
-    // Saves from before rival airlines existed get a fresh set.
-    setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.startDateOffset));
+    // Saves from before rival airlines existed get a fresh set, founded as of
+    // the save's current date so only carriers flying in that year appear.
+    setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode));
     setPendingSlotBills(saveObj.pendingSlotBills);
     setMonthlyCapex(saveObj.monthlyCapex);
     setReportHistory(saveObj.reportHistory);
@@ -2395,7 +2396,7 @@ export default function App() {
                             }
                           });
                           setRoutes([]);
-                          setAiAirlines(generateAiAirlines(aiAirlinesCount, aiDifficulty, selectedHub, startDateOffset));
+                          setAiAirlines(generateAiAirlines(aiAirlinesCount, aiDifficulty, selectedHub, startDateOffset, airlineCode));
                           setPendingSlotBills(0);
                           setMonthlyCapex([]);
                           setReportHistory([]);

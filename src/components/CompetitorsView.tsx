@@ -50,6 +50,8 @@ export interface AiAirline {
     conditionInterior?: number;
     conditionGeneral?: number;
     config?: { economy: number, premium: number, business: number, first: number };
+    /** Month offset since which the aircraft has had no route. */
+    idleSince?: number;
   }[];
   routes: {
     origin: string;
@@ -61,10 +63,16 @@ export interface AiAirline {
     durMin?: number;
     aircraftReg?: string;
     aircraft?: string;
+    /** Month offset the route opened; absent on routes from older saves. */
+    openedAt?: number;
+    /** Smoothed monthly profit the airline judges the route by. */
+    avgProfit?: number;
   }[];
   monthlyProfitsHistory: number[];
   personality?: 'flag' | 'lcc' | 'expansionist' | 'optimizer' | 'boutique';
   aggression?: number;
+  /** A real-world carrier (true) or an invented one (false). */
+  isReal?: boolean;
 }
 
 interface Props {
