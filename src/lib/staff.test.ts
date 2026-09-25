@@ -64,12 +64,13 @@ test('morale moves a fifth of the way to its target each month', () => {
   assert.ok(morale > 23 && morale < 25);
 });
 
-test('morale moves satisfaction by about four points either way, pay moves crew cost', () => {
-  assert.equal(moraleSatDelta(60), 0);
-  assert.equal(moraleSatDelta(100), 4);
-  assert.equal(moraleSatDelta(0), -6);
-  assert.equal(moraleSatDelta(50), -1, 'market pay settles slightly below neutral');
-  assert.equal(moraleSatDelta(-20), -6, 'clamped');
+test('morale moves satisfaction by up to five points either way, pay moves crew cost', () => {
+  assert.equal(moraleSatDelta(50), 0, 'market pay settles exactly at neutral');
+  assert.equal(moraleSatDelta(targetMorale(100, 0, false)), 0);
+  assert.equal(moraleSatDelta(100), 5);
+  assert.equal(moraleSatDelta(0), -5);
+  assert.equal(moraleSatDelta(60), 1);
+  assert.equal(moraleSatDelta(-20), -5, 'clamped');
 
   assert.equal(crewCostFactor(100), 1);
   assert.equal(crewCostFactor(SALARY_PCT_MIN), 0.8);
@@ -154,7 +155,7 @@ test('a strike grounds every route through the modifiers, in its own month only'
   assert.equal(during.cancelShareAll, 0.5);
   assert.equal(routeCancelShare(during, 'any-route'), 0.5, 'a route drafted during the strike too');
   assert.equal(during.crewCostFactor, 0.9);
-  assert.equal(during.satDelta, -3);
+  assert.equal(during.satDelta, -2);
 
   const after = buildPlayerModifiers({ reputation: 50, eventChoices: {}, staff }, 21);
   assert.equal(after.cancelShareAll, undefined);
@@ -166,8 +167,8 @@ test('a strike grounds every route through the modifiers, in its own month only'
   assert.equal(combineCancelShares(), 0);
   assert.equal(combineCancelShares(1, 0.3), 1);
 
-  // Neutral staff add nothing at all: market pay at morale 60.
-  const neutral = buildPlayerModifiers({ reputation: 50, eventChoices: {}, staff: staffAt(60) }, 20);
+  // Neutral staff add nothing at all: market pay at morale 50.
+  const neutral = buildPlayerModifiers({ reputation: 50, eventChoices: {}, staff: staffAt(50) }, 20);
   assert.deepEqual(neutral, buildPlayerModifiers({ reputation: 50, eventChoices: {} }, 20));
 });
 

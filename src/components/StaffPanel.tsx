@@ -4,6 +4,7 @@ import { StatTile } from './ui/StatTile';
 import { Badge } from './ui/Badge';
 import type { Staff } from '../lib/gameState';
 import {
+  BASE_MORALE,
   MORALE_INERTIA,
   MORALE_PER_PAY_POINT,
   NEUTRAL_MORALE,
@@ -56,8 +57,8 @@ function MoraleBar({ morale, target }: { morale: number; target: number }) {
       </div>
       <div className="relative h-4 mt-1 text-3xs font-mono text-white/40">
         <span className="absolute left-0">0</span>
-        <span className="absolute -translate-x-1/2 text-aero-warn/70" style={{ left: `${STRIKE_MORALE_THRESHOLD}%` }}>{STRIKE_MORALE_THRESHOLD} strike</span>
-        <span className="absolute -translate-x-1/2" style={{ left: `${NEUTRAL_MORALE}%` }}>{NEUTRAL_MORALE} neutral</span>
+        <span className="absolute -translate-x-1/2 text-aero-warn/70" style={{ left: `${STRIKE_MORALE_THRESHOLD}%` }}>{STRIKE_MORALE_THRESHOLD}<span className="hidden sm:inline"> strike</span></span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${NEUTRAL_MORALE}%` }}>{NEUTRAL_MORALE}<span className="hidden sm:inline"> neutral</span></span>
         <span className="absolute right-0">100</span>
       </div>
     </div>
@@ -206,10 +207,11 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
         </div>
         <MoraleBar morale={staff.morale} target={outlook.target} />
         <p className="text-2xs font-mono text-white/40 leading-relaxed mt-3">
-          Morale moves {Math.round(MORALE_INERTIA * 100)}% of the way to its target each month. The target is 50 at market pay,
+          Morale moves {Math.round(MORALE_INERTIA * 100)}% of the way to its target each month. The target is {BASE_MORALE} at market pay,
           {' '}{MORALE_PER_PAY_POINT} points for every percent of pay above or below it, +{PROFIT_STREAK_MORALE} after more
           than {PROFIT_STREAK_MONTHS} profitable months in a row and −{STRIKE_MORALE_PENALTY} for {STRIKE_MEMORY_MONTHS} months
-          after a strike. Every point above or below {NEUTRAL_MORALE} adds or takes a tenth of a satisfaction point in every cabin.
+          after a strike. Market pay is neutral: every point above or below {NEUTRAL_MORALE} adds or takes a tenth of a
+          satisfaction point in every cabin.
           Below {STRIKE_MORALE_THRESHOLD} the staff may strike: {formatNumber(STRIKE_CHANCE_PER_POINT * 100, 1)}% a month for every
           point under the line.
         </p>

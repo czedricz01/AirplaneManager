@@ -6,15 +6,16 @@
  * there each month, so a pay rise is felt over a season, not overnight.
  * Morale reaches the economy twice, through buildPlayerModifiers:
  *
- *   satisfaction  (morale - 60) / 10 points in every cabin, about +-4
+ *   satisfaction  (morale - 50) / 10 points in every cabin, about +-5
  *   crew cost     x pay / 100, for flight crew and ground staff alike
  *
  * Below morale 35 the staff may strike, (35 - morale) x 0.6% a month. A
  * strike is called for the coming month and grounds all of it until the
  * player answers: a 10% pay rise halves the cancellations, sitting it out
  * grounds everything and costs reputation. Market pay settles morale at 50,
- * well clear of the threshold; only an airline that underpays for months
- * ever sees a strike.
+ * which is also where satisfaction is neither helped nor hurt, and well clear
+ * of the threshold; only an airline that underpays for months ever sees a
+ * strike.
  *
  * Everything here is pure. The one random draw, whether a strike is called,
  * takes its generator as a parameter so a test can fix it.
@@ -57,8 +58,11 @@ export const STRIKE_MEMORY_MONTHS = 6;
 export const STRIKE_MORALE_PENALTY = 10;
 /** Share of the gap to the target morale closed each month. */
 export const MORALE_INERTIA = 0.2;
-/** Morale at which satisfaction is neither helped nor hurt. */
-export const NEUTRAL_MORALE = 60;
+/**
+ * Morale at which satisfaction is neither helped nor hurt: where market pay
+ * settles, so paying the going rate costs nothing.
+ */
+export const NEUTRAL_MORALE = BASE_MORALE;
 /** Satisfaction points per morale point away from NEUTRAL_MORALE. */
 export const SAT_PER_MORALE_POINT = 0.1;
 
@@ -89,7 +93,7 @@ export function stepMorale(morale: number, target: number): number {
   return clampMorale(morale + (target - morale) * MORALE_INERTIA);
 }
 
-/** Satisfaction points morale adds to every cabin class: -6 at 0, +4 at 100. */
+/** Satisfaction points morale adds to every cabin class: -5 at 0, +5 at 100. */
 export function moraleSatDelta(morale: number): number {
   return (clampMorale(morale) - NEUTRAL_MORALE) * SAT_PER_MORALE_POINT;
 }
