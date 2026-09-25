@@ -371,7 +371,8 @@ export function computeTransferFlows(
         const connF = Math.min(1, conn / Math.min(arrivals.length, departures.length));
 
         const m = market(o, d);
-        const share = marketShare(offerAttractiveness(conn), m.rivals);
+        // Frequent flyers stay loyal on a connection just as on a direct flight.
+        const share = marketShare(offerAttractiveness(conn) * (1 + (mods?.loyaltyBonus ?? 0)), m.rivals);
         // calculateDemand is both directions of the market; this is one.
         const pot = Math.floor((m.demand / 2) * TRANSFER_DEMAND_SHARE * detourF * quality * connF * share);
         if (pot <= 0) continue;

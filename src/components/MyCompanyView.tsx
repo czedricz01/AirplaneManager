@@ -6,6 +6,7 @@ import { StatTile } from './ui/StatTile';
 import { Panel } from './ui/Panel';
 import { BrandBadge } from './BrandBadge';
 import { BrandingPicker } from './BrandingPicker';
+import { MarketingPanel, type MarketingPanelProps } from './MarketingPanel';
 import type { Branding } from '../lib/gameState';
 
 import { formatCurrency, formatMoneyCompact as compact } from '../lib/format';
@@ -23,9 +24,11 @@ interface MonthlyReport {
   capitalAfter?: number;
   routes?: { name: string; revenue: number; cost: number; profit: number; paxPerWeek?: number; capacity?: number }[];
   breakdown: Record<string, number>;
+  /** One line per campaign and the frequent-flyer programme; absent before marketing existed. */
+  marketingItems?: { label: string; amount: number }[];
 }
 
-interface Props {
+interface Props extends Omit<MarketingPanelProps, 'capital'> {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
@@ -180,8 +183,9 @@ function History({ reports, pick, title }: { reports: MonthlyReport[]; pick: (r:
 
 function MyCompanyViewImpl({
   capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal,
-  branding, airlineName, airlineCode, onBrandingChange
+  branding, airlineName, airlineCode, onBrandingChange, ...marketingProps
 }: Props) {
+  const [section, setSection] = useState<'overview' | 'marketing'>('overview');
   const [series, setSeries] = useState<'profit' | 'revenue' | 'capital'>('profit');
   const [monthsShown, setMonthsShown] = useState(24);
 
@@ -226,7 +230,31 @@ function MyCompanyViewImpl({
         right={<LiveryEditor branding={branding} airlineName={airlineName} airlineCode={airlineCode} onBrandingChange={onBrandingChange} />}
       />
 
+      <div className="pr-4 mb-3">
+       <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
+        {([['overview', 'Overview'], ['marketing', 'Marketing']] as const).map(([id, text]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={section === id}
+            onClick={() => setSection(id)}
+            className={`px-4 py-2 -mb-px text-2xs uppercase tracking-widest font-black border-b-2 transition-colors ${
+              section === id ? 'border-aero-yellow text-aero-yellow' : 'border-transparent text-white/40 hover:text-white'
+            }`}
+          >
+            {text}
+          </button>
+        ))}
+       </div>
+      </div>
+
       <div className="flex-1 overflow-auto pr-4 custom-scrollbar">
+        {section === 'marketing' ? (
+          <div className="max-w-4xl mx-auto pb-6">
+            <MarketingPanel capital={capital} {...marketingProps} />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 gap-3 max-w-4xl mx-auto pb-6">
 
           {/* Balance sheet */}
@@ -361,6 +389,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-white/80">Flight revenue</strong> — ticket sales on your active routes.</p>
                   <p><strong className="text-white/80">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
                   <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
+                  <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
                   <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers. Deducted from cash but not from operating profit, which is why the two differ.</p>
                 </div>
               </div>
@@ -396,6 +425,17 @@ function MyCompanyViewImpl({
                       { label: 'Service desk operations', amount: latest!.breakdown.desks }
                     ]
                   },
+                  ...((latest!.breakdown.marketing || 0) > 0
+                    ? [{
+                        id: 'marketing',
+                        label: 'Marketing & loyalty',
+                        total: latest!.breakdown.marketing,
+                        items: latest!.marketingItems ?? [
+                          { label: 'Advertising campaigns', amount: latest!.breakdown.marketingCampaigns || 0 },
+                          { label: 'Frequent flyer programme', amount: latest!.breakdown.ffp || 0 }
+                        ]
+                      }]
+                    : []),
                   // Slots are billed into the month's result; the rest is not,
                   // which is exactly why cash and profit differ.
                   // Signed: slot refunds and aircraft sales are money coming in.
@@ -469,6 +509,7 @@ function MyCompanyViewImpl({
             </div>
           </Panel>
         </div>
+        )}
       </div>
     </div>
   );

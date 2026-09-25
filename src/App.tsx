@@ -189,7 +189,7 @@ function buildRivalOffers(ais: any[] | null | undefined) {
 import { WorldMap } from "./components/WorldMap";
 import { BrandingPicker } from "./components/BrandingPicker";
 import { recolorClashingRivals } from "./lib/theme";
-import { getRoutePath, continentOf } from "./lib/geoUtils";
+import { getRoutePath, continentOf, regionOf } from "./lib/geoUtils";
 
 /**
  * The hub picker's option list. This used to be sorted inline in the start
@@ -213,6 +213,20 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials } from "./lib/transferUtils";
+import {
+  CAMPAIGN_SPECS,
+  REGION_LABELS,
+  campaignBlocker,
+  campaignMonthlyCost,
+  createCampaign,
+  dropExpiredCampaigns,
+  ffpMonthlyCost,
+  marketingMonthCost,
+  marketingReputation,
+  routesByRegion,
+  startFfp,
+  stopFfp
+} from "./lib/marketing";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
   buildPlayerModifiers,
@@ -223,7 +237,9 @@ import {
   DEFAULT_MARKETING,
   DEFAULT_STAFF,
   type Branding,
+  type CampaignTier,
   type Marketing,
+  type RegionId,
   type Staff,
   type Disruption,
   type GameDecision,
@@ -659,10 +675,10 @@ export default function App() {
    * receives, so the route list, the planner and the report agree.
    */
   const playerMods = useMemo(
-    () => buildPlayerModifiers({ reputation, eventChoices }, currentDateOffset),
+    () => buildPlayerModifiers({ reputation, eventChoices, marketing }, currentDateOffset),
     // randomEvents: eventReliefFactor reads the active events from module state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reputation, currentDateOffset, eventChoices, randomEvents]
+    [reputation, currentDateOffset, eventChoices, marketing, randomEvents]
   );
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
@@ -812,6 +828,22 @@ export default function App() {
     });
     return { profit, pax };
   }, [network]);
+
+  /** Passengers this month at the current forecast, for the frequent-flyer programme's bill. */
+  const projectedMonthlyPax = useMemo(() => {
+    let week = 0;
+    network.finById.forEach(fin => { week += fin.paxPerWeek || 0; });
+    return week * 4;
+  }, [network]);
+
+  /** How many of the player's routes a campaign in each region would reach. */
+  const regionRouteCounts = useMemo(() => routesByRegion(routes, airportsMapAdjusted), [routes]);
+
+  /** The hub's region: where a global campaign is booked from, for the record. */
+  const homeRegion = useMemo<RegionId>(() => {
+    const hub = airportsMapAdjusted.get(selectedHub);
+    return hub ? regionOf(hub.coords) : 'EU';
+  }, [selectedHub]);
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
@@ -1098,6 +1130,8 @@ export default function App() {
     let repPaxWeek = 0;
     let repSatTimesPax = 0;
     let repSeatsWeek = 0;
+    // Passengers flown, connecting ones on each leg, for the frequent-flyer bill.
+    let paxWeek = 0;
     const flyingRegs = new Set<string>();
 
     // The same network pricing the route list shows, connecting passengers included.
@@ -1148,6 +1182,7 @@ export default function App() {
           }
         });
         repSeatsWeek += fin.weightedSeatsPerWeek || 0;
+        paxWeek += fin.paxPerWeek || 0;
         flyingRegs.add(r.aircraft);
 
         const weeklySeats = Object.values(fin.paxByClass || {}).reduce((sum: number, pax: any) => sum + (pax?.max || 0), 0);
@@ -1186,7 +1221,12 @@ export default function App() {
     });
 
     const totalAirportUpkeep = managementCosts + deskCosts;
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills;
+
+    // Campaigns running this month and the frequent-flyer programme. Their
+    // demand and loyalty are already in this month's route figures above,
+    // through playerMods; here they are paid for.
+    const marketingCost = marketingMonthCost(marketing, currentDateOffset, paxWeek * 4);
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
@@ -1208,6 +1248,9 @@ export default function App() {
       });
       nextReputation = reputation + (target - reputation) * REPUTATION_INERTIA;
     }
+    // Advertising and a loyalty scheme build the brand whether or not
+    // anything flew; ahead of the milestones, which may reward the result.
+    nextReputation = Math.max(0, Math.min(100, nextReputation + marketingReputation(marketing, currentDateOffset)));
 
     // --- Milestones -------------------------------------------------------
     // A month without a single route is not a profitable month; it neither
@@ -1287,8 +1330,12 @@ export default function App() {
         paxFees: paxFees,
         mgt: managementCosts,
         desks: deskCosts,
-        purchasedSlots: pendingSlotBills
-      }
+        purchasedSlots: pendingSlotBills,
+        marketing: marketingCost.total,
+        marketingCampaigns: marketingCost.campaigns,
+        ffp: marketingCost.ffp
+      },
+      marketingItems: marketingCost.items
     };
 
     // Keep ten years. Long enough for any chart the game shows, short enough
@@ -1460,6 +1507,30 @@ export default function App() {
       }
     }
 
+    // Campaigns whose last month just closed come off the books. Next
+    // month's forecast below prices without them, and with any still running.
+    const nextMarketing = dropExpiredCampaigns(marketing, nextOffset);
+    if (nextMarketing !== marketing) {
+      setMarketing(nextMarketing);
+      for (const c of marketing.campaigns) {
+        if (nextMarketing.campaigns.includes(c)) continue;
+        const where = c.tier === 'global' ? 'worldwide' : `in ${REGION_LABELS[c.region]}`;
+        additionalMessages.push({
+          id: nextMessageId(),
+          text: `CAMPAIGN ENDED: ${CAMPAIGN_SPECS[c.tier].label} campaign ${where}.`,
+          isRead: false,
+          dateStr: offsetToDateStr(currentDateOffset),
+          details: {
+            title: 'Campaign ended',
+            source: 'Marketing department',
+            content:
+              `The ${CAMPAIGN_SPECS[c.tier].label.toLowerCase()} campaign ${where} has run its ${c.duration} months. ` +
+              `Its demand boost ends with this month.\n\nA new one can be booked under My Company > Marketing.`
+          }
+        });
+      }
+    }
+
     if (aiMessages.length > 0 || additionalMessages.length > 0) {
       setMessages(prev => capMessages([...additionalMessages, ...aiMessages, ...prev]));
     }
@@ -1475,7 +1546,7 @@ export default function App() {
     // The figures stored on each route are next month's forecast. They used to
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
-    const nextMods = buildPlayerModifiers({ reputation: nextReputation, eventChoices }, nextOffset);
+    const nextMods = buildPlayerModifiers({ reputation: nextReputation, eventChoices, marketing: nextMarketing }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
     setRoutes(prevRoutes => {
       const repriced = prevRoutes.map(r => {
@@ -1722,6 +1793,59 @@ export default function App() {
         ? prev
         : prev.map((ai, i) => ({ ...ai, color: colors[i] }));
     });
+  }, []);
+
+  /**
+   * What the marketing handlers below read. They are handed to the memoised
+   * company view, so they keep one identity and read the current cash, month
+   * and campaigns from here rather than closing over a stale render.
+   */
+  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax });
+  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax };
+
+  /**
+   * Books a campaign from this month on. It is paid month by month at each
+   * close, so launching needs only the first month in the bank.
+   */
+  const handleLaunchCampaign = React.useCallback((tier: CampaignTier, region: RegionId, months: number) => {
+    const { capital: cash, currentDateOffset: offset, marketing: current } = marketingCtx.current;
+    const blocker = campaignBlocker(current, tier, region, offset);
+    if (blocker) {
+      setAppAlert(blocker);
+      return;
+    }
+    const firstMonth = campaignMonthlyCost(tier, offset);
+    if (cash < firstMonth) {
+      setAppAlert(`Not enough cash: the first month of this campaign costs ${formatCurrency(firstMonth)}, and you have ${formatCurrency(cash)}.`);
+      return;
+    }
+    const id = `cmp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    setMarketing(prev => ({ ...prev, campaigns: [...prev.campaigns, createCampaign(tier, region, months, offset, id)] }));
+    const where = tier === 'global' ? 'worldwide' : `in ${REGION_LABELS[region]}`;
+    setToast(`${CAMPAIGN_SPECS[tier].label} campaign launched ${where} for ${months} months`);
+  }, []);
+
+  /** Stops a campaign now. Nothing is charged for the month it is stopped in. */
+  const handleCancelCampaign = React.useCallback((id: string) => {
+    setMarketing(prev => ({ ...prev, campaigns: prev.campaigns.filter(c => c.id !== id) }));
+    setToast('Campaign cancelled');
+  }, []);
+
+  /** Starts or ends the frequent-flyer programme. Ending it throws away the loyalty built up. */
+  const handleSetFfp = React.useCallback((active: boolean) => {
+    const { capital: cash, currentDateOffset: offset, projectedMonthlyPax: pax } = marketingCtx.current;
+    if (active) {
+      const cost = ffpMonthlyCost(pax);
+      if (cash < cost) {
+        setAppAlert(`Not enough cash: the frequent flyer programme would cost about ${formatCurrency(cost)} this month, and you have ${formatCurrency(cash)}.`);
+        return;
+      }
+      setMarketing(prev => startFfp(prev, offset));
+      setToast('Frequent flyer programme launched');
+    } else {
+      setMarketing(prev => stopFfp(prev));
+      setToast('Frequent flyer programme ended');
+    }
   }, []);
 
   /** Sets every system saved since version 3 at once, from a save or from defaults. */
@@ -2691,6 +2815,17 @@ export default function App() {
                                { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
                              ]
                            },
+                           // Only in months with campaigns or the frequent-flyer
+                           // programme running; older reports have no such line.
+                           ...((latestReport.breakdown.marketing || 0) > 0 ? [{
+                             id: 'marketing',
+                             label: 'Marketing & Loyalty',
+                             total: latestReport.breakdown.marketing,
+                             items: latestReport.marketingItems || [
+                               { label: 'Advertising campaigns', amount: latestReport.breakdown.marketingCampaigns || 0 },
+                               { label: 'Frequent flyer programme', amount: latestReport.breakdown.ffp || 0 }
+                             ]
+                           }] : []),
                            // Slots are billed into the month's result, so they
                            // belong above the line, not in capex.
                            // Signed: selling slots back refunds money, which the
@@ -3060,6 +3195,14 @@ export default function App() {
                           airlineName={airlineName}
                           airlineCode={airlineCode}
                           onBrandingChange={handleBrandingChange}
+                          marketing={marketing}
+                          currentDateOffset={currentDateOffset}
+                          projectedMonthlyPax={projectedMonthlyPax}
+                          regionRouteCounts={regionRouteCounts}
+                          homeRegion={homeRegion}
+                          onLaunchCampaign={handleLaunchCampaign}
+                          onCancelCampaign={handleCancelCampaign}
+                          onSetFfp={handleSetFfp}
                         />
                       </React.Suspense>
                     </ViewFrame>

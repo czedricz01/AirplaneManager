@@ -201,22 +201,31 @@ function migrateBranding(b: unknown): Branding {
   };
 }
 
+/** Longest campaign a save may hold, in months; the game books at most 12. */
+const MAX_CAMPAIGN_MONTHS = 120;
+
 function migrateMarketing(m: unknown, currentDateOffset: number): Marketing {
   const src = asObject<any>(m, {});
+  const seen = new Set<string>();
   const campaigns = asArray<any>(src.campaigns)
     .filter(c => c && isString(c.id) && CAMPAIGN_TIERS.includes(c.tier) && REGION_IDS.includes(c.region))
     .map(c => ({
       ...c,
       startOffset: Math.max(0, Math.round(finiteOr(c.startOffset, currentDateOffset))),
-      duration: Math.max(0, Math.round(finiteOr(c.duration, 0)))
-    }));
+      duration: clamp(Math.round(finiteOr(c.duration, 0)), 0, MAX_CAMPAIGN_MONTHS)
+    }))
+    // Over already, or never running at all: the month close would drop them.
+    .filter(c => c.duration > 0 && c.startOffset + c.duration > currentDateOffset)
+    // Cancelling works by id, so two with one id would go together.
+    .filter(c => !seen.has(c.id) && !!seen.add(c.id));
   const ffpActive = src.ffpActive === true;
   // A programme without a start date starts over; loyalty is rebuilt from here.
+  // One dated in the future counts from now.
   const since = typeof src.ffpSinceOffset === 'number' ? src.ffpSinceOffset : NaN;
   return {
     campaigns,
     ffpActive,
-    ffpSinceOffset: ffpActive ? Math.max(0, Math.round(finiteOr(since, currentDateOffset))) : null
+    ffpSinceOffset: ffpActive ? clamp(Math.round(finiteOr(since, currentDateOffset)), 0, currentDateOffset) : null
   };
 }
 

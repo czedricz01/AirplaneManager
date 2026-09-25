@@ -13,6 +13,7 @@
 import { MAP_YELLOW } from './theme';
 import { getActiveEvents, eventKey } from './eventSystem';
 import { regionOf } from './geoUtils';
+import { ffpLoyaltyBonus, regionDemandFactors } from './marketing';
 
 /** The coarse regions of the world the game tells apart. See regionOf. */
 export type RegionId = 'EU' | 'NA' | 'SA' | 'AF' | 'AS' | 'OC';
@@ -36,11 +37,11 @@ export type CampaignTier = 'local' | 'national' | 'global';
 
 export const CAMPAIGN_TIERS: readonly CampaignTier[] = ['local', 'national', 'global'];
 
-/** One advertising campaign. */
+/** One advertising campaign. See marketing.ts for what each tier does. */
 export interface Campaign {
   id: string;
   tier: CampaignTier;
-  /** The region it runs in. */
+  /** The region it runs in; a global campaign runs in all of them and keeps this only for the record. */
   region: RegionId;
   /** Month offset it started. */
   startOffset: number;
@@ -257,6 +258,8 @@ export interface PlayerModifierState {
   reputation: number;
   /** Which choice was taken for each world event, keyed by eventKey. */
   eventChoices: Record<string, string>;
+  /** Campaigns and the frequent-flyer programme; none when absent. */
+  marketing?: Marketing;
 }
 
 /**
@@ -299,9 +302,18 @@ export function eventReliefFactor(
  * month always give the same object contents.
  */
 export function buildPlayerModifiers(state: PlayerModifierState, offset: number): PlayerModifiers {
-  return {
+  const mods: PlayerModifiers = {
     demandFactor: reputationDemandFactor(state.reputation) * eventReliefFactor(offset, state.eventChoices)
   };
+  // Fields are only set when they do something, so an airline without any
+  // marketing prices its routes exactly as before marketing existed.
+  if (state.marketing) {
+    const regionDemand = regionDemandFactors(state.marketing, offset);
+    if (regionDemand) mods.regionDemand = regionDemand;
+    const loyalty = ffpLoyaltyBonus(state.marketing, offset);
+    if (loyalty > 0) mods.loyaltyBonus = loyalty;
+  }
+  return mods;
 }
 
 /**

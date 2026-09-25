@@ -167,6 +167,14 @@ test('a rival flying the city pair direct takes most of its connecting market', 
   assert.ok(rivalled < alone / 2, `${rivalled} vs ${alone}`);
 });
 
+test('frequent-flyer loyalty keeps connecting passengers from a direct rival too', () => {
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE']);
+  const rivalled = { ...env, rivalOffers: [{ origin: 'VIE', destination: 'MAD', departures: 28, airline: 'Rival' }] };
+  const flowOf = (mods: { demandFactor: number; loyaltyBonus?: number }) =>
+    computeNetworkFinancials(routes, fleet, mods, rivalled).hubStats.FRA?.flows.find(f => f.o === 'MAD' && f.d === 'VIE')?.pax ?? 0;
+  assert.ok(flowOf({ demandFactor: 1, loyaltyBonus: 0.2 }) > flowOf({ demandFactor: 1 }));
+});
+
 test('connecting passengers never take more seats than the local traffic left empty', () => {
   // One trip a day: fewer seats, so the flows run into capacity.
   for (const spokes of [['MAD', 'VIE', 'ATH', 'LIS', 'WAW'], ['MAD', 'VIE']]) {
