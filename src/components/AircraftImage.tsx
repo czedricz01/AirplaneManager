@@ -11,6 +11,9 @@ interface AircraftImageProps {
   className?: string;
   alt?: string;
   referrerPolicy?: React.HTMLAttributeReferrerPolicy;
+  /** Shown instead of the default placeholder when no picture loads. Small
+   *  thumbnails pass a plain icon, since the default text does not fit them. */
+  fallback?: React.ReactNode;
 }
 
 export const AircraftImage: React.FC<AircraftImageProps> = ({
@@ -21,7 +24,8 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   keyLookup,
   className = "w-full h-full object-cover",
   alt,
-  referrerPolicy = "no-referrer"
+  referrerPolicy = "no-referrer",
+  fallback
 }) => {
   const [candidateIndex, setCandidateIndex] = useState(0);
 
@@ -51,6 +55,7 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   const currentSrc = candidates[candidateIndex];
 
   if (!currentSrc || candidateIndex >= candidates.length) {
+    if (fallback) return <>{fallback}</>;
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-white/20 font-mono text-center px-4 bg-black/60 border border-white/5 rounded-sm">
         <Plane size={36} className="mb-2 text-aero-yellow/40" />
