@@ -15,7 +15,7 @@ export function LazyFallback({ label }: { label?: string }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-aero-black text-white/40 font-mono">
       <Loader2 size={28} className="animate-spin text-aero-yellow" />
-      <div className="text-[11px] uppercase tracking-[0.3em]">
+      <div className="text-xs uppercase tracking-[0.3em]">
         {label ? `Loading ${label}` : 'Loading'}
       </div>
     </div>

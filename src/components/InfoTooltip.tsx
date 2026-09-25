@@ -65,7 +65,7 @@ export const InfoTooltip = ({
         createPortal(
           <div
             role="tooltip"
-            className="fixed z-[999999] flex flex-col bg-[#121212] border border-white/20 p-3 rounded-sm shadow-2xl w-[250px] pointer-events-none"
+            className="fixed z-[999999] flex flex-col bg-aero-panel border border-white/20 p-3 rounded-sm shadow-2xl w-[250px] pointer-events-none"
             style={{
               top: pos.y > window.innerHeight - 160 ? Math.max(8, pos.y - 170) : pos.y,
               left: pos.x > window.innerWidth - 260 ? pos.x - 280 : pos.x,
@@ -75,7 +75,7 @@ export const InfoTooltip = ({
               {title}
             </span>
             {desc && (
-              <span className="text-[10px] text-white/70 whitespace-pre-wrap leading-relaxed">{desc}</span>
+              <span className="text-2xs text-white/70 whitespace-pre-wrap leading-relaxed">{desc}</span>
             )}
           </div>,
           document.body

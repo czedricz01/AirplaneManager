@@ -135,7 +135,7 @@ export function RouteDetailView({
               onDelete(route.id);
             }}
             className={`flex items-center justify-center gap-2 px-4 py-2 outline outline-1 transition-colors uppercase text-xs tracking-widest font-bold ${
-              confirmDelete ? 'bg-aero-warn text-black outline-aero-warn' : 'bg-[#111] hover:bg-[#1a1a1a] outline-red-500/50 text-white'
+              confirmDelete ? 'bg-aero-warn text-black outline-aero-warn' : 'bg-aero-panel hover:bg-aero-carbon outline-red-500/50 text-white'
             }`}
           >
             <Trash2 size={16} /> {confirmDelete ? 'Confirm: Delete Route' : 'Delete Route'}
@@ -154,7 +154,7 @@ export function RouteDetailView({
         <div className="min-h-[280px] flex border border-white/10 bg-black/40 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-aero-yellow/5 to-transparent pointer-events-none"></div>
           <div className="flex-1 flex flex-col items-center justify-center border-r border-white/10 relative z-10">
-            <span className="text-white/30 text-[10px] uppercase tracking-widest font-bold mb-4">Origin Hub</span>
+            <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4">Origin Hub</span>
             <span className="text-6xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.origin}</span>
             <span className="text-white/50 text-xs mt-2 uppercase tracking-widest font-bold">{airportsMap.get(route.origin)?.name || "Unknown Airport"}</span>
           </div>
@@ -162,11 +162,11 @@ export function RouteDetailView({
           <div className="flex-1 flex flex-col justify-center px-12 relative overflow-hidden group border-r border-white/10 z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
-                <span className="text-white/30 text-[10px] uppercase tracking-widest font-bold block mb-1">Assigned Aircraft</span>
+                <span className="text-white/30 text-2xs uppercase tracking-widest font-bold block mb-1">Assigned Aircraft</span>
                 <span className="text-white/80 font-mono text-xl">{route.aircraft}</span>
               </div>
               <div className="text-right">
-                <span className="text-white/30 text-[10px] uppercase tracking-widest font-bold block mb-1">Route Distance</span>
+                <span className="text-white/30 text-2xs uppercase tracking-widest font-bold block mb-1">Route Distance</span>
                 <span className="text-white font-mono text-xl">{Math.round(route.distance || 0)} <span className="text-xs text-white/40">KM</span></span>
               </div>
             </div>
@@ -174,24 +174,24 @@ export function RouteDetailView({
             {competitors.length > 0 && (
               <div className="bg-aero-warn/5 p-3 border border-aero-warn/30 rounded-sm">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-aero-warn text-[9px] uppercase tracking-widest font-black">
+                  <span className="text-aero-warn text-3xs uppercase tracking-widest font-black">
                     Competing on this route
                   </span>
-                  <span className="text-[9px] font-mono text-white/40">
+                  <span className="text-3xs font-mono text-white/40">
                     passengers are shared
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-1">
                   {competitors.map((c, i) => (
-                    <span key={i} className="text-[10px] font-mono text-white/70">
+                    <span key={i} className="text-2xs font-mono text-white/70">
                       {c.name} <span className="text-white/40">{c.departures}x / week</span>
                     </span>
                   ))}
-                  <span className="text-[10px] font-mono text-white/40">
+                  <span className="text-2xs font-mono text-white/40">
                     you {route.schedule?.length || 0}x / week
                   </span>
                 </div>
-                <p className="text-[9px] font-mono text-white/35 mt-2 leading-relaxed">
+                <p className="text-3xs font-mono text-white/35 mt-2 leading-relaxed">
                   Your share of this market grows with frequency, a lower fare and higher
                   satisfaction. Fare matters most.
                 </p>
@@ -200,19 +200,19 @@ export function RouteDetailView({
 
             <div className="flex gap-4 items-center bg-white/5 p-4 border border-white/10 rounded-sm">
               <div className="flex flex-col">
-                <span className="text-white/30 text-[8px] uppercase tracking-widest font-bold mb-1">Weekly Pax</span>
+                <span className="text-white/30 text-3xs uppercase tracking-widest font-bold mb-1">Weekly Pax</span>
                 <span className="text-2xl font-black text-aero-yellow">{formatNumber(financials?.paxPerWeek ?? route.paxPerWeek ?? 0)}</span>
               </div>
               <div className="ml-auto">
                 {assignedAircraft && (
-                  <div className="flex flex-col text-[10px] uppercase tracking-widest text-right">
+                  <div className="flex flex-col text-2xs uppercase tracking-widest text-right">
                     <span className="text-white/50">{assignedAircraft.manufacturer} {assignedAircraft.type}</span>
                     <span className="text-white/30">{assignedAircraft.class} • Cap: {actualCapacity}</span>
                     <div className="flex items-center justify-end gap-2 mt-1">
-                        <button onClick={() => setShowAircraftDetails(true)} className="text-[9px] px-1.5 py-0.5 bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/10 font-bold">Details</button>
+                        <button onClick={() => setShowAircraftDetails(true)} className="text-3xs px-1.5 py-0.5 bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/10 font-bold">Details</button>
                         <button 
                           onClick={onChangeAircraft} 
-                          className="text-[9px] px-1.5 py-0.5 bg-white/10 hover:bg-aero-yellow hover:text-black text-white font-bold transition-all border border-white/10"
+                          className="text-3xs px-1.5 py-0.5 bg-white/10 hover:bg-aero-yellow hover:text-black text-white font-bold transition-all border border-white/10"
                         >
                           Change
                         </button>
@@ -225,8 +225,8 @@ export function RouteDetailView({
             <div className="mt-4 flex items-center justify-between">
               {route.durMin && (
                 <div className="flex items-center gap-3">
-                  <span className="text-aero-yellow font-mono border border-aero-yellow/30 px-2 py-0.5 bg-aero-yellow/10 rounded-sm text-[10px]">TIME-CLASS: {getFlightTimeClass(route.durMin)}</span>
-                  <span className="text-white/40 text-[10px] font-mono uppercase">
+                  <span className="text-aero-yellow font-mono border border-aero-yellow/30 px-2 py-0.5 bg-aero-yellow/10 rounded-sm text-2xs">TIME-CLASS: {getFlightTimeClass(route.durMin)}</span>
+                  <span className="text-white/40 text-2xs font-mono uppercase">
                       Flight Time: {Math.floor(route.durMin / 60)}h {(route.durMin % 60).toString().padStart(2, '0')}m
                   </span>
                 </div>
@@ -235,7 +235,7 @@ export function RouteDetailView({
           </div>
 
           <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-            <span className="text-white/30 text-[10px] uppercase tracking-widest font-bold mb-4">Destination</span>
+            <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4">Destination</span>
             <span className="text-6xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.destination}</span>
             <span className="text-white/50 text-xs mt-2 uppercase tracking-widest font-bold">{airportsMap.get(route.destination)?.name || "Unknown Airport"}</span>
           </div>
@@ -251,7 +251,7 @@ export function RouteDetailView({
                 <h3 className="text-lg font-bold text-white uppercase tracking-widest group-hover:text-aero-yellow transition-colors">Flightplan</h3>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-[8px] text-white/30 uppercase tracking-widest font-black leading-none mb-1">Weekly Ops</span>
+                <span className="text-3xs text-white/30 uppercase tracking-widest font-black leading-none mb-1">Weekly Ops</span>
                 <span className="text-lg font-black text-white leading-none">{route.weeklyFlights}</span>
               </div>
             </div>
@@ -298,24 +298,24 @@ export function RouteDetailView({
                             <div className="flex gap-2 items-center mb-1">
                                <span className="text-aero-yellow font-black text-sm italic tracking-tighter">{codePrefix}{s.flightNumOut}</span>
                                {!s.isOneWay && (
-                                 <span className="text-white/40 font-mono text-[10px]">/ {codePrefix}{s.flightNumIn}</span>
+                                 <span className="text-white/40 font-mono text-2xs">/ {codePrefix}{s.flightNumIn}</span>
                                )}
                             </div>
                             <div className="flex gap-1 flex-wrap">
                                {sortedDays.map(d => (
-                                 <span key={d} className="text-[8px] bg-white/10 px-1 border border-white/10 font-bold">{dayNamesShort[d-1]}</span>
+                                 <span key={d} className="text-3xs bg-white/10 px-1 border border-white/10 font-bold">{dayNamesShort[d-1]}</span>
                                ))}
                             </div>
                           </div>
                           <div className="text-right space-y-1">
                              <div className="flex items-center gap-2 justify-end">
-                                <span className="text-[7px] uppercase font-bold text-white/30 tracking-widest">OUT:</span>
-                                <span className="text-white font-mono text-[10px] font-bold">{dep1} - {arr1}</span>
+                                <span className="text-3xs uppercase font-bold text-white/30 tracking-widest">OUT:</span>
+                                <span className="text-white font-mono text-2xs font-bold">{dep1} - {arr1}</span>
                              </div>
                              {!s.isOneWay && (
                                <div className="flex items-center gap-2 justify-end">
-                                  <span className="text-[7px] uppercase font-bold text-white/30 tracking-widest">IN:</span>
-                                  <span className="text-white/60 font-mono text-[10px] font-bold">{dep2} - {arr2}</span>
+                                  <span className="text-3xs uppercase font-bold text-white/30 tracking-widest">IN:</span>
+                                  <span className="text-white/60 font-mono text-2xs font-bold">{dep2} - {arr2}</span>
                                </div>
                              )}
                           </div>
@@ -325,13 +325,13 @@ export function RouteDetailView({
                   });
                 })()
               ) : (
-                <div className="h-full flex items-center justify-center text-white/20 text-[10px] uppercase font-bold italic">
+                <div className="h-full flex items-center justify-center text-white/20 text-2xs uppercase font-bold italic">
                   No flights scheduled
                 </div>
               )}
             </div>
 
-            <div className="p-4 bg-black/40 border-t border-white/10 text-center uppercase tracking-widest text-[9px] font-black text-white/40 group-hover:text-aero-yellow transition-colors shrink-0">
+            <div className="p-4 bg-black/40 border-t border-white/10 text-center uppercase tracking-widest text-3xs font-black text-white/40 group-hover:text-aero-yellow transition-colors shrink-0">
               Click to edit schedule
             </div>
           </div>
@@ -362,7 +362,7 @@ export function RouteDetailView({
                     return (
                       <>
                         <div className="col-span-2 flex flex-col items-center justify-center py-2 bg-white/5 border border-white/10 rounded-sm mb-2">
-                           <span className="text-[8px] text-white/30 uppercase font-black tracking-widest mb-1">Route Satisfaction</span>
+                           <span className="text-3xs text-white/30 uppercase font-black tracking-widest mb-1">Route Satisfaction</span>
                            <span className="text-3xl font-black text-aero-yellow italic tracking-tighter">{avgSat.toFixed(0)}%</span>
                         </div>
                         {classSats.map(cs => {
@@ -385,7 +385,7 @@ export function RouteDetailView({
                                <Coffee size={40} />
                              </div>
                              <div className="flex justify-between items-end mb-2 relative z-10">
-                               <span className="text-[10px] text-white/60 uppercase font-bold tracking-widest">{cs.name}</span>
+                               <span className="text-2xs text-white/60 uppercase font-bold tracking-widest">{cs.name}</span>
                                <span className={`text-sm font-black ${textColor} drop-shadow-md`}>{cs.sat.toFixed(0)}%</span>
                              </div>
                              
@@ -393,13 +393,13 @@ export function RouteDetailView({
                                 <div className={`h-full ${barColor} transition-all duration-1000 ease-out`} style={{ width: `${Math.min(100, cs.sat)}%` }}></div>
                              </div>
 
-                             <div className="flex justify-between text-[8px] text-white/40 uppercase tracking-widest relative z-10 mt-1">
+                             <div className="flex justify-between text-3xs text-white/40 uppercase tracking-widest relative z-10 mt-1">
                                 <span className="flex flex-col">
-                                   <span className="text-white/30 text-[7px]">Expectation</span>
+                                   <span className="text-white/30 text-3xs">Expectation</span>
                                    <span className="font-mono text-white/80">{expectation}</span>
                                 </span>
                                 <span className="flex flex-col text-right">
-                                   <span className="text-white/30 text-[7px]">Reality</span>
+                                   <span className="text-white/30 text-3xs">Reality</span>
                                    <span className="font-mono text-white/80">{reality}</span>
                                 </span>
                              </div>
@@ -411,7 +411,7 @@ export function RouteDetailView({
                   })()}
                </div>
                <div className="mt-auto text-center">
-                  <span className="text-white/30 text-[9px] uppercase tracking-widest font-bold">Configured Cabin Services</span>
+                  <span className="text-white/30 text-3xs uppercase tracking-widest font-bold">Configured Cabin Services</span>
                </div>
             </div>
           </div>
@@ -431,7 +431,7 @@ export function RouteDetailView({
                  <>
                    <div className="p-3 mb-4 bg-white/5 border border-white/10 rounded-sm flex gap-3">
                      <Info className="text-white/80 shrink-0 mt-0.5" size={14} />
-                     <div className="text-[9px] text-white/80/80 leading-relaxed font-bold uppercase tracking-tight space-y-1">
+                     <div className="text-3xs text-white/80/80 leading-relaxed font-bold uppercase tracking-tight space-y-1">
                        <p><strong>Ticket revenue:</strong> Ticket revenue for this route, at the estimated load factor.</p>
                        <p><strong>Direct flight costs:</strong> Variable costs that scale with each flight: fuel, crew, landing fees and catering.</p>
                      </div>
@@ -475,9 +475,9 @@ export function RouteDetailView({
                          const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
                          return (
                            <div key={cls} className="flex flex-col items-center bg-white/5 border border-white/10 rounded-sm p-2">
-                             <span className="text-[8px] text-white/30 uppercase tracking-widest font-black">{cls}</span>
+                             <span className="text-3xs text-white/30 uppercase tracking-widest font-black">{cls}</span>
                              <span className={`text-lg font-mono font-bold ${lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn'}`}>{lf}%</span>
-                             <span className="text-[8px] text-white/30 font-mono">{cd.actual}/{cd.max} pax @ ${price}</span>
+                             <span className="text-3xs text-white/30 font-mono">{cd.actual}/{cd.max} pax @ ${price}</span>
                            </div>
                          );
                        })}
@@ -485,7 +485,7 @@ export function RouteDetailView({
                  </>
                )}
             </div>
-            <div className="p-4 bg-black/40 border-t border-white/10 text-center uppercase tracking-widest text-[9px] font-black text-white/40 group-hover:text-aero-yellow transition-colors shrink-0">
+            <div className="p-4 bg-black/40 border-t border-white/10 text-center uppercase tracking-widest text-3xs font-black text-white/40 group-hover:text-aero-yellow transition-colors shrink-0">
               Click to adjust pricing
             </div>
           </div>

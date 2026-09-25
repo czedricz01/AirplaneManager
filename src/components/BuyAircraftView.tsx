@@ -552,8 +552,8 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               {uploadResult && (
                 <div className={`mt-3 p-3 rounded-sm border font-mono text-xs flex items-start gap-2.5 ${
                   uploadResult.success 
-                    ? "bg-[#0b1c0e] text-aero-yellow border-aero-yellow/20 animate-fade-in" 
-                    : "bg-[#250d0d] text-aero-yellow/60 border-white/20 animate-fade-in"
+                    ? "bg-aero-good/10 text-aero-good border-aero-good/30 animate-fade-in" 
+                    : "bg-aero-warn/10 text-aero-warn border-aero-warn/30 animate-fade-in"
                 }`}>
                   {uploadResult.success ? (
                     <>
@@ -757,8 +757,8 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     {singleUploadResult && (
                       <div className={`p-2.5 rounded-sm border font-mono text-2xs flex items-start gap-2 ${
                         singleUploadResult.success 
-                          ? "bg-[#0b1c0e] text-aero-yellow border-aero-yellow/20 animate-fade-in" 
-                          : "bg-[#250d0d] text-aero-yellow/60 border-white/20 animate-fade-in"
+                          ? "bg-aero-good/10 text-aero-good border-aero-good/30 animate-fade-in" 
+                          : "bg-aero-warn/10 text-aero-warn border-aero-warn/30 animate-fade-in"
                       }`}>
                         {singleUploadResult.success ? (
                           <CheckCircle2 size={12} className="shrink-0 mt-0.5 text-aero-yellow" />

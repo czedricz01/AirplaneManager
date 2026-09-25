@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   Trash2,
   Edit2,
-  Check
+  Check,
+  CheckCircle2
 } from "lucide-react";
 
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
@@ -877,6 +878,13 @@ export default function App() {
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
   const [routeFilter, setRouteFilter] = useState<string>("");
   const [appAlert, setAppAlert] = useState<string | null>(null);
+  // Confirmations that need no decision; a blocking dialog for these interrupted every save.
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
   
@@ -1569,9 +1577,9 @@ export default function App() {
 
     const where = userId ? (cloudOk ? ' (synced to your account)' : ' (saved locally — upload pending)') : '';
     if (!isAutosave) {
-      setAppAlert(`Game "${name}" saved successfully!${where}`);
+      setToast(`Game "${name}" saved${where}`);
     } else {
-      setAppAlert(`Autosave complete: "${name}"${where}`);
+      setToast(`Autosave complete: "${name}"${where}`);
     }
     setShowSaveMenu(false);
   };
@@ -1689,7 +1697,7 @@ export default function App() {
     setView('game');
     setIsGameMenuOpen(false);
     setShowLoadMenu(false);
-    setAppAlert("Game loaded successfully!");
+    setToast("Game loaded");
   };
 
   const deleteSave = async (id: string) => {
@@ -1977,6 +1985,16 @@ export default function App() {
               </div>
             </Modal>
           )}
+          {toast && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="fixed top-16 left-1/2 -translate-x-1/2 z-[4000] flex items-center gap-2 bg-aero-panel-2 border border-aero-good/40 px-4 py-2 text-xs font-mono text-white/90 shadow-2xl pointer-events-none"
+            >
+              <CheckCircle2 size={14} className="text-aero-good shrink-0" />
+              {toast}
+            </div>
+          )}
           {appAlert && (
             <Modal open size="md" layer="top" onClose={() => setAppAlert(null)}>
               <h3 className="text-aero-yellow font-black uppercase tracking-widest text-lg mb-4 flex items-center gap-2">
@@ -2153,7 +2171,7 @@ export default function App() {
                     </div>
                     <button 
                       onClick={() => setView('main-menu')}
-                      className="text-[11px] font-mono uppercase tracking-widest text-white/40 hover:text-aero-yellow transition-colors"
+                      className="text-xs font-mono uppercase tracking-widest text-white/40 hover:text-aero-yellow transition-colors"
                     >
                       [ Abort_Mission ]
                     </button>
@@ -2162,7 +2180,7 @@ export default function App() {
                   <div className="space-y-8 max-w-2xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-4">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Airline Name</label>
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Name</label>
                         <input 
                           type="text" 
                           value={airlineName}
@@ -2172,7 +2190,7 @@ export default function App() {
                         />
                       </div>
                       <div className="space-y-4">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Airline Code</label>
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Code</label>
                         <input 
                           type="text" 
                           value={airlineCode}
@@ -2184,7 +2202,7 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
+                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
                       <div className="relative w-full">
                         <select 
                           value={selectedHub}
@@ -2202,7 +2220,7 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
+                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
                       <div className="flex gap-4">
                         {['Easy', 'Normal', 'Hard'].map((diff) => (
                           <button
@@ -2217,13 +2235,13 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
+                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
                       <div className="flex flex-wrap gap-4">
                         {['$25M', '$50M', '$100M', '$200M'].map((budget) => (
                           <button
                             key={budget}
                             onClick={() => setStartingBudget(budget)}
-                            className={`flex-1 min-w-[100px] p-4 font-mono text-[11px] border uppercase tracking-widest transition-colors ${startingBudget === budget ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
+                            className={`flex-1 min-w-[100px] p-4 font-mono text-xs border uppercase tracking-widest transition-colors ${startingBudget === budget ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
                           >
                             {budget}
                           </button>
@@ -2232,7 +2250,7 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Debug Mode</label>
+                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Debug Mode</label>
                       <div className="flex gap-4">
                         {[
                           { label: 'Deactivated (Normal Play)', value: false },
@@ -2251,13 +2269,13 @@ export default function App() {
                           </button>
                         ))}
                       </div>
-                      <p className="text-[10px] text-white/40 italic">When activated, real-time demand calculation and pricing base debug tools are enabled.</p>
+                      <p className="text-2xs text-white/40 italic">When activated, real-time demand calculation and pricing base debug tools are enabled.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-4">
                         <div className="flex justify-between items-end">
-                          <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
+                          <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
                           <span className="text-xl font-mono text-aero-yellow">{aiAirlinesCount}</span>
                         </div>
                         <input 
@@ -2268,13 +2286,13 @@ export default function App() {
                           onChange={(e) => setAiAirlinesCount(parseInt(e.target.value))}
                           className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero"
                         />
-                        <div className="flex justify-between text-[10px] font-mono text-white/40">
+                        <div className="flex justify-between text-2xs font-mono text-white/40">
                           <span>0</span>
                           <span>12</span>
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
                         <select 
                           value={aiDifficulty}
                           onChange={(e) => setAiDifficulty(e.target.value)}
@@ -2289,7 +2307,7 @@ export default function App() {
 
                     <div className="space-y-4">
                       <div className="flex justify-between items-end">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
                         <span className="text-xl font-mono text-aero-yellow">{formatDate(startDateOffset)}</span>
                       </div>
                       <input 
@@ -2300,14 +2318,14 @@ export default function App() {
                         onChange={(e) => setStartDateOffset(parseInt(e.target.value))}
                         className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero"
                       />
-                      <div className="flex justify-between text-[10px] font-mono text-white/40">
+                      <div className="flex justify-between text-2xs font-mono text-white/40">
                         <span>01/1960</span>
                         <span>12/2020</span>
                       </div>
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-aero-yellow">Initial Save File Name</label>
+                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-aero-yellow">Initial Save File Name</label>
                       <input 
                         type="text" 
                         value={initialSaveFileName}
@@ -2315,7 +2333,7 @@ export default function App() {
                         placeholder="My Airline Save 1"
                         className="w-full bg-aero-carbon border border-aero-yellow/30 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
                       />
-                      <p className="text-[10px] text-white/40 italic mt-2">A save file name must be provided to initialize the system.</p>
+                      <p className="text-2xs text-white/40 italic mt-2">A save file name must be provided to initialize the system.</p>
                     </div>
                     
                     <div className="pt-8 flex justify-end">
@@ -2540,9 +2558,9 @@ export default function App() {
                        </button>
                        
                        {isMessagesOpen && (
-                         <div className="absolute top-full right-0 mt-2 w-80 bg-[#141414] border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
+                         <div className="absolute top-full right-0 mt-2 w-80 bg-aero-panel border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
                            <div className="p-3 border-b border-white/10 flex justify-between items-center">
-                             <span className="text-aero-yellow text-[10px] uppercase tracking-widest font-bold">Communications</span>
+                             <span className="text-aero-yellow text-2xs uppercase tracking-widest font-bold">Communications</span>
                              <button onClick={() => setIsMessagesOpen(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
                            </div>
                            <div className="max-h-64 overflow-y-auto no-scrollbar">
@@ -2558,7 +2576,7 @@ export default function App() {
                                    }}
                                    className="p-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group flex flex-col gap-1 text-left"
                                  >
-                                   <div className="text-[9px] text-white/40 font-mono flex justify-between items-center w-full"><span>{msg.dateStr}</span><span className="text-[8px] opacity-0 group-hover:opacity-100 text-aero-yellow font-bold uppercase transition-opacity">Read Dispatch</span></div>
+                                   <div className="text-3xs text-white/40 font-mono flex justify-between items-center w-full"><span>{msg.dateStr}</span><span className="text-3xs opacity-0 group-hover:opacity-100 text-aero-yellow font-bold uppercase transition-opacity">Read Dispatch</span></div>
                                    <div className={`text-xs ${msg.isRead ? 'text-white/60' : 'text-white font-semibold'} group-hover:text-aero-yellow transition-colors line-clamp-3`}>{msg.text}</div>
                                  </div>
                                ))
@@ -2571,12 +2589,12 @@ export default function App() {
                     <div className="relative">
                       <button 
                          onClick={() => setIsMapSettingsOpen(!isMapSettingsOpen)}
-                         className="px-3 py-2 border border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-2"
+                         className="px-3 py-2 border border-white/10 text-white/40 text-2xs font-black uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-2"
                       >
                         [ Map ]
                       </button>
                       {isMapSettingsOpen && (
-                        <div className="absolute top-12 right-0 mt-2 w-64 bg-[#141414] border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
+                        <div className="absolute top-12 right-0 mt-2 w-64 bg-aero-panel border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
                           <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow cursor-pointer hover:bg-white/5 p-2 transition-colors">
                             <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-aero-yellow w-4 h-4 cursor-pointer" />
                             Your Routes
@@ -2595,7 +2613,7 @@ export default function App() {
 
                     <button 
                        onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
-                       className="px-3 py-2 border border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all"
+                       className="px-3 py-2 border border-white/10 text-white/40 text-2xs font-black uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all"
                     >
                       [ Menu ]
                     </button>
@@ -2618,12 +2636,12 @@ export default function App() {
                    <div key={`idx-${i}`} className="bg-aero-warn/10 border-b border-aero-warn/40 text-white/80 px-4 py-2.5 flex items-center gap-4 z-40 shrink-0 shadow-2xl">
                       <AlertTriangle className="text-aero-warn shrink-0" size={16} />
                       <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-4 min-w-0">
-                         <span className="font-black uppercase tracking-widest text-aero-warn text-[10px] shrink-0">{ev.title}</span>
-                         <span className="text-[10px] md:text-[11px] font-bold text-white/70 shrink-0 whitespace-nowrap">
+                         <span className="font-black uppercase tracking-widest text-aero-warn text-2xs shrink-0">{ev.title}</span>
+                         <span className="text-2xs md:text-xs font-bold text-white/70 shrink-0 whitespace-nowrap">
                             {ev.monthsLeft} {ev.monthsLeft === 1 ? 'month' : 'months'} left
                          </span>
                          {ev.chosen && ev.chosen.cost > 0 && (
-                            <span className="text-[10px] font-mono font-bold text-aero-good shrink-0 whitespace-nowrap border border-aero-good/40 px-1.5 py-0.5">
+                            <span className="text-2xs font-mono font-bold text-aero-good shrink-0 whitespace-nowrap border border-aero-good/40 px-1.5 py-0.5">
                                {ev.chosen.label}
                             </span>
                          )}
@@ -2631,13 +2649,13 @@ export default function App() {
                             <button
                                type="button"
                                onClick={() => setPendingDecision(ev)}
-                               className="text-[10px] font-mono font-bold text-black bg-aero-yellow hover:bg-white shrink-0 whitespace-nowrap px-1.5 py-0.5 border-0 cursor-pointer transition-colors"
+                               className="text-2xs font-mono font-bold text-black bg-aero-yellow hover:bg-white shrink-0 whitespace-nowrap px-1.5 py-0.5 border-0 cursor-pointer transition-colors"
                             >
                                Decision pending
                             </button>
                          )}
-                         <span className="text-[10px] md:text-[11px] opacity-70 truncate font-mono">{ev.description}</span>
-                         <span className="text-[10px] md:text-[11px] font-bold text-aero-warn ml-auto whitespace-nowrap">
+                         <span className="text-2xs md:text-xs opacity-70 truncate font-mono">{ev.description}</span>
+                         <span className="text-2xs md:text-xs font-bold text-aero-warn ml-auto whitespace-nowrap">
                             {/* What the player actually gets: bought relief softens the
                                 event's demand hit (see eventReliefFactor). The banner
                                 used to show the raw hit even after paying for relief. */}
@@ -2655,11 +2673,11 @@ export default function App() {
                 ))}
 
                 {/* Main Viewport */}
-                <div className="flex-1 relative bg-[#0a0a0a]">
+                <div className="flex-1 relative bg-aero-panel">
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
                   
                   {/* Map Viewport - Leaflet Map */}
-                  <div className="absolute inset-0 z-0 bg-[#0a0a0a]">
+                  <div className="absolute inset-0 z-0 bg-aero-panel">
                      <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
                       <WorldMap
                         sessionKey={sessionKey}
@@ -3098,7 +3116,7 @@ export default function App() {
             
             <div className="flex flex-col gap-4">
               <div className="space-y-4">
-                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Number Format (Decimal Separator)</label>
+                <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Number Format (Decimal Separator)</label>
                 <div className="flex gap-4">
                   {[".", ","].map((symbol) => (
                     <button
@@ -3126,7 +3144,7 @@ export default function App() {
                   onChange={(e) => setUiScaleSetting(parseFloat(e.target.value))}
                   className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
                 />
-                <span className="text-[10px] text-white/30 font-mono">Adjusts the scale of the user interface. Auto-scaling is also active for small screens.</span>
+                <span className="text-2xs text-white/30 font-mono">Adjusts the scale of the user interface. Auto-scaling is also active for small screens.</span>
               </div>
 
               <div className="flex flex-col gap-4 pt-4 border-t border-white/10">
@@ -3144,7 +3162,7 @@ export default function App() {
                     onChange={(e) => setAutosaveInterval(parseInt(e.target.value))}
                     className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-aero-yellow"
                   />
-                  <div className="flex justify-between text-[10px] text-white/30 uppercase tracking-widest">
+                  <div className="flex justify-between text-2xs text-white/30 uppercase tracking-widest">
                     <span>1 Month</span>
                     <span>12 Months</span>
                   </div>
@@ -3156,7 +3174,7 @@ export default function App() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs text-white uppercase tracking-widest font-black">Overwrite Save File</span>
-                    <span className="text-[10px] text-white/40 max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
+                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
                   </div>
                 </div>
               </div>
@@ -3204,11 +3222,11 @@ export default function App() {
               initial={{ scale: 0.95, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 15 }}
-              className="bg-[#121212] border-2 border-aero-yellow/40 max-w-lg w-full p-4 shadow-2xl relative text-left"
+              className="bg-aero-panel border-2 border-aero-yellow/40 max-w-lg w-full p-4 shadow-2xl relative text-left"
             >
               <div className="flex justify-between items-start border-b border-white/10 pb-4 mb-4">
                 <div>
-                  <span className="text-[9px] font-mono text-white/40 block mb-1 uppercase tracking-widest font-black">
+                  <span className="text-3xs font-mono text-white/40 block mb-1 uppercase tracking-widest font-black">
                     {selectedMessage.details?.source || "Neo Airlines Dispatch"} • {selectedMessage.dateStr}
                   </span>
                   <h3 className="text-aero-yellow font-sans font-black italic tracking-wide text-lg uppercase leading-tight">
@@ -3389,10 +3407,10 @@ function SaveLoadOverlay({
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-[#141414] border border-white/10 w-full max-w-lg overflow-hidden flex flex-col shadow-2xl"
+        className="bg-aero-panel border border-white/10 w-full max-w-lg overflow-hidden flex flex-col shadow-2xl"
       >
         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
-           <h2 className="text-aero-yellow font-black uppercase tracking-[0.2em] text-[10px]">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
+           <h2 className="text-aero-yellow font-black uppercase tracking-[0.2em] text-2xs">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
            <button onClick={onClose} className="text-white/40 hover:text-white"><X size={20}/></button>
         </div>
 
@@ -3414,13 +3432,13 @@ function SaveLoadOverlay({
                 >
                   <div className="flex flex-col">
                     <span className={`text-sm font-bold uppercase tracking-tight ${selectedSlot === slot.id ? 'text-aero-yellow' : 'text-white'}`}>{slot.name}</span>
-                    <span className="text-[10px] font-mono text-white/30">{new Date(slot.timestamp).toLocaleString()}</span>
+                    <span className="text-2xs font-mono text-white/30">{new Date(slot.timestamp).toLocaleString()}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {mode === 'load' && selectedSlot === slot.id && <ChevronRight className="text-aero-yellow" size={16} />}
                     <button 
                       onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(slot.id); }}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-white/20 border border-transparent hover:text-aero-yellow/60 hover:border-white/20 hover:bg-[#111] transition-all rounded-sm"
+                      className="opacity-0 group-hover:opacity-100 p-2 text-white/20 border border-transparent hover:text-aero-yellow/60 hover:border-white/20 hover:bg-aero-panel transition-all rounded-sm"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -3434,7 +3452,7 @@ function SaveLoadOverlay({
             <div className="space-y-4">
               <div className="h-px bg-white/10"></div>
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">ARCHIVE_NAME_INPUT</label>
+                <label className="text-2xs uppercase font-bold tracking-[0.2em] text-white/40">ARCHIVE_NAME_INPUT</label>
                 <input 
                   type="text" 
                   value={saveName}
@@ -3488,7 +3506,7 @@ function SaveLoadOverlay({
                    </button>
                    <button 
                      onClick={handleConfirmOverwrite}
-                     className="flex-1 py-3 bg-[#1a1a1a] text-white font-bold uppercase tracking-widest hover:bg-[#1a1a1a] transition-all text-xs shadow-2xl"
+                     className="flex-1 py-3 bg-aero-carbon text-white font-bold uppercase tracking-widest hover:bg-aero-carbon transition-all text-xs shadow-2xl"
                    >
                      Overwrite
                    </button>
@@ -3521,7 +3539,7 @@ function SaveLoadOverlay({
                    </button>
                    <button 
                      onClick={handleConfirmDelete}
-                     className="flex-1 py-3 bg-[#1a1a1a] text-white font-bold uppercase tracking-widest hover:bg-[#1a1a1a] transition-all text-xs shadow-2xl"
+                     className="flex-1 py-3 bg-aero-carbon text-white font-bold uppercase tracking-widest hover:bg-aero-carbon transition-all text-xs shadow-2xl"
                    >
                      Delete
                    </button>
