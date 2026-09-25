@@ -1,7 +1,7 @@
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
-import { routeDemandFactor, type PlayerModifiers } from './gameState';
+import { routeCancelShare, routeDemandFactor, type PlayerModifiers } from './gameState';
 
 export function getAirportUpkeep(
   airport: Airport,
@@ -870,8 +870,7 @@ export function calculateRouteFinancials(
   // The share of the timetable that actually operates. Strikes and disruptions
   // cancel the rest: fuel, crew hours, fees and seats all scale with it, while
   // the timetable passengers chose the airline by does not.
-  const cancelled = Number(mods?.cancelShare?.[route.id]) || 0;
-  const flownShare = 1 - Math.min(1, Math.max(0, cancelled));
+  const flownShare = 1 - routeCancelShare(mods, route.id);
   const flightLegs = (route.schedule ? route.schedule.reduce((acc: number, s: any) => acc + (s.isOneWay ? 1 : 2), 0) : weeklyFlights * 2) * flownShare;
 
   // Initial Costs

@@ -14,6 +14,9 @@ import { MAP_YELLOW } from './theme';
 import { getActiveEvents, eventKey } from './eventSystem';
 import { regionOf } from './geoUtils';
 import { ffpLoyaltyBonus, regionDemandFactors } from './marketing';
+import { crewCostFactor, moraleSatDelta, strikeCancelShare } from './staff';
+
+export { SALARY_PCT_MIN, SALARY_PCT_MAX } from './staff';
 
 /** The coarse regions of the world the game tells apart. See regionOf. */
 export type RegionId = 'EU' | 'NA' | 'SA' | 'AF' | 'AS' | 'OC';
@@ -59,26 +62,27 @@ export interface Marketing {
 
 export const DEFAULT_MARKETING: Marketing = { campaigns: [], ffpActive: false, ffpSinceOffset: null };
 
+/** A strike by the airline's staff. It grounds flights in one month only. See staff.ts. */
 export interface Strike {
-  /** Month offset the strike was called. */
+  /** Month offset whose flights it cancels; the month after the one it was called in. */
   startOffset: number;
-  /** Share of the player's flights it cancels, 0-1. */
+  /** Share of every one of the player's flights it cancels, 0-1. */
   cancelShare: number;
 }
 
 export interface Staff {
-  /** Pay as a percentage of the market wage; 100 is the market rate. */
+  /** Pay as a percentage of the market wage; 100 is the market rate. SALARY_PCT_MIN to SALARY_PCT_MAX. */
   salaryPct: number;
   /** 0-100. Moves slowly towards what the pay and the airline's fortunes justify. */
   morale: number;
+  /**
+   * The latest strike. Kept after its month is over, because it weighs on
+   * morale for a while longer; only in its own month does it cancel flights.
+   */
   strike: Strike | null;
 }
 
 export const DEFAULT_STAFF: Staff = { salaryPct: 100, morale: 70, strike: null };
-
-/** The range pay can be set in, as a percentage of the market wage. */
-export const SALARY_PCT_MIN = 80;
-export const SALARY_PCT_MAX = 130;
 
 export type DisruptionKind = 'technical' | 'birdstrike' | 'airport-strike' | 'weather';
 
@@ -96,6 +100,33 @@ export interface Disruption {
   cancelShare: number;
   /** What it is attached to, for messages: an airport id or a region. */
   ref?: string;
+}
+
+/**
+ * Something that cost the player flights or money in a closed month, as the
+ * monthly report lists it under `incidents`.
+ */
+export interface ReportIncident {
+  kind: 'strike' | DisruptionKind;
+  title: string;
+  /** Where it hit: routes, an airport, a region. */
+  detail: string;
+  /** Share of the hit routes' flights cancelled, 0-1; 0 when a replacement flew them. */
+  cancelShare: number;
+  /** How many of the player's routes it hit. */
+  routeCount: number;
+  /** A chartered replacement aircraft flew the cancelled flights. */
+  mitigated?: boolean;
+  /** Repair bill charged in the month, in dollars. */
+  cost?: number;
+}
+
+/** Why part of a route's flights do not operate in a month, for the route screens. */
+export interface RouteCancellation {
+  /** The combined share cancelled, 0-1, as the engine applies it. */
+  share: number;
+  /** One short line per cause, e.g. "Staff strike". */
+  reasons: string[];
 }
 
 export type GameDecisionKind = 'strike' | 'disruption';
@@ -243,6 +274,13 @@ export interface PlayerModifiers {
   crewCostFactor?: number;
   /** Share of each route's flights that do not operate this month, by route id, 0-1. */
   cancelShare?: Record<string, number>;
+  /**
+   * Share of every route's flights that do not operate this month, 0-1: a
+   * strike. Not keyed by route, so it also reaches a route the planner is
+   * still drafting. Combined with the route's own cancelShare as an
+   * independent cause, see routeCancelShare.
+   */
+  cancelShareAll?: number;
   /** Connecting passengers and their revenue per week, by route id. */
   transfer?: Record<string, { pax: number; revenue: number }>;
 }
@@ -260,6 +298,8 @@ export interface PlayerModifierState {
   eventChoices: Record<string, string>;
   /** Campaigns and the frequent-flyer programme; none when absent. */
   marketing?: Marketing;
+  /** Pay, morale and any strike; neutral when absent. */
+  staff?: Staff;
 }
 
 /**
@@ -313,7 +353,35 @@ export function buildPlayerModifiers(state: PlayerModifierState, offset: number)
     const loyalty = ffpLoyaltyBonus(state.marketing, offset);
     if (loyalty > 0) mods.loyaltyBonus = loyalty;
   }
+  if (state.staff) {
+    const satDelta = moraleSatDelta(state.staff.morale);
+    if (satDelta !== 0) mods.satDelta = satDelta;
+    const crew = crewCostFactor(state.staff.salaryPct);
+    if (crew !== 1) mods.crewCostFactor = crew;
+    const strike = strikeCancelShare(state.staff, offset);
+    if (strike > 0) mods.cancelShareAll = strike;
+  }
   return mods;
+}
+
+/**
+ * The share of flights lost to several independent causes, 0-1: each one
+ * cancels its share of what the others left flying, 1 - (1 - a)(1 - b)...
+ * Two 25% cancellations take 43.75% of the flights, not 50%.
+ */
+export function combineCancelShares(...shares: (number | undefined)[]): number {
+  let flown = 1;
+  for (const s of shares) {
+    const share = Number(s) || 0;
+    flown *= 1 - Math.max(0, Math.min(1, share));
+  }
+  return 1 - flown;
+}
+
+/** The share of one route's flights that do not operate under these modifiers, 0-1. */
+export function routeCancelShare(mods: PlayerModifiers | undefined, routeId: string): number {
+  if (!mods) return 0;
+  return combineCancelShares(mods.cancelShare?.[routeId], mods.cancelShareAll);
 }
 
 /**

@@ -188,6 +188,7 @@ function buildRivalOffers(ais: any[] | null | undefined) {
 
 import { WorldMap } from "./components/WorldMap";
 import { BrandingPicker } from "./components/BrandingPicker";
+import { IncidentList } from "./components/IncidentList";
 import { recolorClashingRivals } from "./lib/theme";
 import { getRoutePath, continentOf, regionOf } from "./lib/geoUtils";
 
@@ -227,10 +228,22 @@ import {
   startFfp,
   stopFfp
 } from "./lib/marketing";
+import {
+  STRIKE_MORALE_THRESHOLD,
+  STRIKE_OPTION_RAISE,
+  STRIKE_PAY_RAISE,
+  STRIKE_REPUTATION_PENALTY,
+  advanceStaff,
+  buildStrikeDecision,
+  clampSalaryPct,
+  settleStrikeWithPayRise,
+  strikeCancelShare
+} from "./lib/staff";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
   buildPlayerModifiers,
   createGameSystems,
+  routeCancelShare,
   ensureFreeOption,
   normalizeGameSettings,
   DEFAULT_BRANDING,
@@ -247,6 +260,8 @@ import {
   type GameDecisionOption,
   type GameSettings,
   type GameSystems,
+  type ReportIncident,
+  type RouteCancellation,
   type ScenarioState,
   type ChronicleEntry
 } from "./lib/gameState";
@@ -592,7 +607,21 @@ export default function App() {
    * also accept the free option ensureFreeOption may have added, whose id
    * starts with FREE_OPTION_ID, as "do nothing".
    */
-  const decisionHandlers: Partial<Record<GameDecisionKind, (decision: GameDecision, option: GameDecisionOption) => void>> = {};
+  const decisionHandlers: Partial<Record<GameDecisionKind, (decision: GameDecision, option: GameDecisionOption) => void>> = {
+    // A strike: raise pay and half the flights operate, or sit it out and
+    // none do. Sitting it out is what any other answer means, the free one
+    // included. `ref` is the month the strike was called for.
+    strike: (decision, option) => {
+      const strikeOffset = Number(decision.ref);
+      if (option.id === STRIKE_OPTION_RAISE) {
+        setStaff(prev => settleStrikeWithPayRise(prev, strikeOffset));
+        setToast(`Pay raised by ${STRIKE_PAY_RAISE} points: half the flights operate during the strike`);
+      } else {
+        setReputation(prev => Math.max(0, prev - STRIKE_REPUTATION_PENALTY));
+        setToast(`Strike sat out: no flights this month, reputation -${STRIKE_REPUTATION_PENALTY}`);
+      }
+    }
+  };
 
   /** Answers the decision with the given id: pays for the option, dequeues it, applies it. */
   const resolveDecision = (decisionId: string, optionId: string) => {
@@ -675,10 +704,10 @@ export default function App() {
    * receives, so the route list, the planner and the report agree.
    */
   const playerMods = useMemo(
-    () => buildPlayerModifiers({ reputation, eventChoices, marketing }, currentDateOffset),
+    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff }, currentDateOffset),
     // randomEvents: eventReliefFactor reads the active events from module state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reputation, currentDateOffset, eventChoices, marketing, randomEvents]
+    [reputation, currentDateOffset, eventChoices, marketing, staff, randomEvents]
   );
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
@@ -835,6 +864,29 @@ export default function App() {
     network.finById.forEach(fin => { week += fin.paxPerWeek || 0; });
     return week * 4;
   }, [network]);
+
+  /** Crew and ground staff this month at the current forecast and pay, for the staff screen. */
+  const monthlyCrewCost = useMemo(() => {
+    let week = 0;
+    network.finById.forEach(fin => { week += fin.costsBreakdown?.crew || 0; });
+    return week * 4;
+  }, [network]);
+
+  /**
+   * The routes losing flights this month and why, for the route list's badge
+   * and the detail view. The shares are exactly what playerMods hands the
+   * engine, so the badge and the figures beside it agree.
+   */
+  const routeCancellations = useMemo(() => {
+    const out: Record<string, RouteCancellation> = {};
+    const strike = playerMods.cancelShareAll ?? 0;
+    if (strike <= 0) return out;
+    for (const r of routes) out[r.id] = { share: routeCancelShare(playerMods, r.id), reasons: ['Staff strike'] };
+    return out;
+  }, [routes, playerMods]);
+
+  /** A strike is waiting for the player's answer; no second one is called meanwhile. */
+  const strikePending = pendingDecisions.some(d => d.kind === 'strike');
 
   /** How many of the player's routes a campaign in each region would reach. */
   const regionRouteCounts = useMemo(() => routesByRegion(routes, airportsMapAdjusted), [routes]);
@@ -1302,6 +1354,69 @@ export default function App() {
     }
 
 
+    // --- Staff ------------------------------------------------------------
+    // Morale takes its monthly step towards what pay and the run of results
+    // justify. At the new morale the staff may call a strike for the month
+    // about to start, which grounds every flight until the player answers.
+    const staffMonth = advanceStaff(staff, {
+      profitStreak: nextStreak,
+      nextOffset: currentDateOffset + 1,
+      strikePending: pendingDecisions.some(d => d.kind === 'strike'),
+      noRoutes: routes.length === 0
+    }, Math.random);
+    const nextStaff = staffMonth.staff;
+    setStaff(nextStaff);
+    if (staff.morale >= STRIKE_MORALE_THRESHOLD && nextStaff.morale < STRIKE_MORALE_THRESHOLD && !staffMonth.strikeCalled) {
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `STAFF UNREST: morale has fallen to ${Math.round(nextStaff.morale)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: 'Staff unrest',
+          source: 'Human resources',
+          content:
+            `Morale among crew and ground staff is down to ${Math.round(nextStaff.morale)}. Below ${STRIKE_MORALE_THRESHOLD} the unions ` +
+            `may call a strike at any month's end, and the lower it goes the likelier that becomes.\n\n` +
+            `Pay is set under My Company > Staff. Morale follows it slowly, a fifth of the way each month.`
+        }
+      });
+    }
+    if (staffMonth.strikeCalled) {
+      const strikeMonth = offsetToDateStr(currentDateOffset + 1);
+      queueDecision(buildStrikeDecision(nextStaff, currentDateOffset + 1, strikeMonth, totalRouteRevenues));
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `STRIKE: your staff walk out in ${strikeMonth}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: 'Strike called',
+          source: 'Human resources',
+          content:
+            `With morale at ${Math.round(nextStaff.morale)} and pay at ${Math.round(nextStaff.salaryPct)}% of the market wage, ` +
+            `the unions have called a strike for ${strikeMonth}.\n\n` +
+            `Raising pay by ${STRIKE_PAY_RAISE} points gets half the flights back in the air; sitting it out grounds all of them ` +
+            `and costs ${STRIKE_REPUTATION_PENALTY} reputation. The route list already shows the month without them.`
+        }
+      });
+    }
+
+    // What cost the airline flights this month, for the report.
+    const incidents: ReportIncident[] = [];
+    const strikeShare = strikeCancelShare(staff, currentDateOffset);
+    if (strikeShare > 0 && routes.length > 0) {
+      incidents.push({
+        kind: 'strike',
+        title: 'Staff strike',
+        detail: strikeShare >= 1
+          ? 'Sat out: every route grounded'
+          : `Settled with a pay rise: ${Math.round((1 - strikeShare) * 100)}% of flights operated`,
+        cancelShare: strikeShare,
+        routeCount: routes.length
+      });
+    }
+
     const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
 
     const report = {
@@ -1335,7 +1450,9 @@ export default function App() {
         marketingCampaigns: marketingCost.campaigns,
         ffp: marketingCost.ffp
       },
-      marketingItems: marketingCost.items
+      marketingItems: marketingCost.items,
+      // Only in months that had any; older reports have none.
+      ...(incidents.length > 0 ? { incidents } : {})
     };
 
     // Keep ten years. Long enough for any chart the game shows, short enough
@@ -1546,7 +1663,7 @@ export default function App() {
     // The figures stored on each route are next month's forecast. They used to
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
-    const nextMods = buildPlayerModifiers({ reputation: nextReputation, eventChoices, marketing: nextMarketing }, nextOffset);
+    const nextMods = buildPlayerModifiers({ reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
     setRoutes(prevRoutes => {
       const repriced = prevRoutes.map(r => {
@@ -1846,6 +1963,16 @@ export default function App() {
       setMarketing(prev => stopFfp(prev));
       setToast('Frequent flyer programme ended');
     }
+  }, []);
+
+  /**
+   * Sets pay. It is felt at once: the crew bill and the forecast follow the
+   * slider, while morale only starts moving towards the new target at the
+   * next month's end.
+   */
+  const handleSetSalary = React.useCallback((pct: number) => {
+    const next = clampSalaryPct(pct);
+    setStaff(prev => (prev.salaryPct === next ? prev : { ...prev, salaryPct: next }));
   }, []);
 
   /** Sets every system saved since version 3 at once, from a save or from defaults. */
@@ -2868,6 +2995,7 @@ export default function App() {
                          ]}
                          defaultOpen={true}
                       />
+                      <IncidentList incidents={latestReport.incidents} className="mt-4" />
                       {/* Operating profit and the change in the bank balance are
                           different numbers whenever anything was bought. Stating
                           both, next to each other, is what makes the report add up. */}
@@ -3159,6 +3287,7 @@ export default function App() {
                           playerMods={playerModsWithTransfer}
                           rivalOffers={rivalOffers}
                           transferFlows={network.flowsByRoute}
+                          cancellations={routeCancellations}
                           airportManagement={airportManagement}
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           currentMonth={1 + (currentDateOffset % 12)}
@@ -3203,6 +3332,11 @@ export default function App() {
                           onLaunchCampaign={handleLaunchCampaign}
                           onCancelCampaign={handleCancelCampaign}
                           onSetFfp={handleSetFfp}
+                          staff={staff}
+                          profitStreak={profitStreak}
+                          monthlyCrewCost={monthlyCrewCost}
+                          strikePending={strikePending}
+                          onSetSalary={handleSetSalary}
                         />
                       </React.Suspense>
                     </ViewFrame>

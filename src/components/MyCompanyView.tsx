@@ -7,7 +7,9 @@ import { Panel } from './ui/Panel';
 import { BrandBadge } from './BrandBadge';
 import { BrandingPicker } from './BrandingPicker';
 import { MarketingPanel, type MarketingPanelProps } from './MarketingPanel';
-import type { Branding } from '../lib/gameState';
+import { StaffPanel, type StaffPanelProps } from './StaffPanel';
+import { IncidentList } from './IncidentList';
+import type { Branding, ReportIncident } from '../lib/gameState';
 
 import { formatCurrency, formatMoneyCompact as compact } from '../lib/format';
 
@@ -26,9 +28,11 @@ interface MonthlyReport {
   breakdown: Record<string, number>;
   /** One line per campaign and the frequent-flyer programme; absent before marketing existed. */
   marketingItems?: { label: string; amount: number }[];
+  /** Strikes and disruptions in the month; absent when there were none. */
+  incidents?: ReportIncident[];
 }
 
-interface Props extends Omit<MarketingPanelProps, 'capital'> {
+interface Props extends Omit<MarketingPanelProps, 'capital'>, Omit<StaffPanelProps, 'currentDateOffset'> {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
@@ -183,9 +187,10 @@ function History({ reports, pick, title }: { reports: MonthlyReport[]; pick: (r:
 
 function MyCompanyViewImpl({
   capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal,
-  branding, airlineName, airlineCode, onBrandingChange, ...marketingProps
+  branding, airlineName, airlineCode, onBrandingChange,
+  staff, profitStreak, monthlyCrewCost, strikePending, onSetSalary, ...marketingProps
 }: Props) {
-  const [section, setSection] = useState<'overview' | 'marketing'>('overview');
+  const [section, setSection] = useState<'overview' | 'marketing' | 'staff'>('overview');
   const [series, setSeries] = useState<'profit' | 'revenue' | 'capital'>('profit');
   const [monthsShown, setMonthsShown] = useState(24);
 
@@ -232,7 +237,7 @@ function MyCompanyViewImpl({
 
       <div className="pr-4 mb-3">
        <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
-        {([['overview', 'Overview'], ['marketing', 'Marketing']] as const).map(([id, text]) => (
+        {([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff']] as const).map(([id, text]) => (
           <button
             key={id}
             type="button"
@@ -253,6 +258,17 @@ function MyCompanyViewImpl({
         {section === 'marketing' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <MarketingPanel capital={capital} {...marketingProps} />
+          </div>
+        ) : section === 'staff' ? (
+          <div className="max-w-4xl mx-auto pb-6">
+            <StaffPanel
+              staff={staff}
+              profitStreak={profitStreak}
+              currentDateOffset={marketingProps.currentDateOffset}
+              monthlyCrewCost={monthlyCrewCost}
+              strikePending={strikePending}
+              onSetSalary={onSetSalary}
+            />
           </div>
         ) : (
         <div className="grid grid-cols-1 gap-3 max-w-4xl mx-auto pb-6">
@@ -474,6 +490,7 @@ function MyCompanyViewImpl({
                     : [])
                 ]}
               />
+              <IncidentList incidents={latest!.incidents} />
             </>
           )}
 

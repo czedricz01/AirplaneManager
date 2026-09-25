@@ -1,7 +1,7 @@
 import { FinancialReport } from "./FinancialReport";
 import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
 import React, { useState, useMemo } from 'react';
-import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info } from 'lucide-react';
+import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport } from '../data/airports';
 
@@ -13,7 +13,7 @@ import {
   RouteOffer,
   marketKey,
 } from '../lib/financeUtils';
-import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers } from '../lib/gameState';
+import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers, type RouteCancellation } from '../lib/gameState';
 import type { RouteTransfer } from '../lib/transferUtils';
 
 import { airports, airportsMapAdjusted } from '../data/airportRegistry';
@@ -38,6 +38,8 @@ interface RouteDetailViewProps {
    * themselves come from `playerMods.transfer` through the engine.
    */
   transfer?: RouteTransfer;
+  /** Flights this route loses this month and why; the engine already leaves them out through playerMods. */
+  cancellation?: RouteCancellation;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -55,7 +57,7 @@ interface RouteDetailViewProps {
 
 export function RouteDetailView({
   route, routes, fleet, fuelPrice = 1.05, airportManagement,
-  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS, transfer,
+  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS, transfer, cancellation,
   onClose, onDelete, onReassignAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
   airlineCode = ''
 }: RouteDetailViewProps) {
@@ -162,6 +164,18 @@ export function RouteDetailView({
       </div>
 
       <div className="flex flex-col flex-1 shrink-0 gap-3">
+        {cancellation && cancellation.share > 0 && (
+          <div className="flex items-center gap-3 border border-aero-warn/40 bg-aero-warn/10 px-4 py-2 rounded-sm font-mono text-xs">
+            <AlertTriangle size={16} className="text-aero-warn shrink-0" />
+            <span>
+              <span className="text-aero-warn font-black uppercase tracking-widest">
+                {Math.round(cancellation.share * 100)}% of flights cancelled this month:
+              </span>{' '}
+              <span className="text-white/70">{cancellation.reasons.join(', ')}</span>
+              <span className="text-white/40"> · the figures below already leave them out</span>
+            </span>
+          </div>
+        )}
         {/* Top Third: Hub - Aircraft - Destination */}
         <div className="min-h-[280px] flex border border-white/10 bg-black/40 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-aero-yellow/5 to-transparent pointer-events-none"></div>
