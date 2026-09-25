@@ -71,11 +71,12 @@ export function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && HEX_COLOR.test(value);
 }
 
+const rgbOf = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+
 /** Straight-line distance between two #RRGGBB colours in RGB space, 0-441. */
 export function colorDistance(a: string, b: string): number {
-  const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-  const [r1, g1, b1] = rgb(a);
-  const [r2, g2, b2] = rgb(b);
+  const [r1, g1, b1] = rgbOf(a);
+  const [r2, g2, b2] = rgbOf(b);
   return Math.hypot(r1 - r2, g1 - g2, b1 - b2);
 }
 
@@ -111,4 +112,90 @@ export function assignRivalColors(
     }
     return pool[start];
   });
+}
+
+/**
+ * Recolours only the rivals whose colour now sits too close to the player's,
+ * for when the player changes colour in the middle of a game. Everyone else
+ * keeps the colour the player has come to know them by.
+ */
+export function recolorClashingRivals(
+  rivals: { code?: string; color?: string }[],
+  playerColor: string
+): string[] {
+  const kept = rivals.map(rival =>
+    isHexColor(rival.color) && isHexColor(playerColor) && colorDistance(rival.color, playerColor) < MIN_PLAYER_COLOR_DISTANCE
+      ? { code: rival.code }
+      : rival
+  );
+  return assignRivalColors(kept, playerColor);
+}
+
+/** Brand colours offered when founding an airline; any other can be picked too. */
+export const BRAND_PRESETS: readonly { color: string; name: string }[] = [
+  { color: MAP_YELLOW, name: 'Signal yellow' },
+  { color: '#F97316', name: 'Orange' },
+  { color: '#EF4444', name: 'Red' },
+  { color: '#EC4899', name: 'Pink' },
+  { color: '#A855F7', name: 'Purple' },
+  { color: '#2563EB', name: 'Blue' },
+  { color: '#06B6D4', name: 'Cyan' },
+  { color: '#22C55E', name: 'Green' },
+];
+
+/** WCAG relative luminance of a #RRGGBB colour, 0 (black) to 1 (white). */
+export function relativeLuminance(hex: string): number {
+  const [r, g, b] = rgbOf(hex).map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Black or white, whichever contrasts more with the given background, for
+ * text and icons drawn on a brand colour the player picked.
+ */
+export function readableTextColor(background: string): '#000000' | '#FFFFFF' {
+  if (!isHexColor(background)) return '#000000';
+  const l = relativeLuminance(background);
+  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? '#000000' : '#FFFFFF';
+}
+
+/** The profit heatmap's three anchors: loss, break-even and profit. */
+export const HEATMAP_COLORS = {
+  loss: '#ef4444',
+  neutral: '#9ca3af',
+  profit: '#10b981',
+} as const;
+
+function mixHex(a: string, b: string, t: number): string {
+  const ca = rgbOf(a);
+  const cb = rgbOf(b);
+  return '#' + ca.map((v, i) => Math.round(v + (cb[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * A route's colour on the profit heatmap: red for a loss, grey around break
+ * even, green for a profit. `maxAbs` is the largest profit or loss on the map,
+ * which reaches the full colour. The curve is a tanh, steep around zero, so
+ * that small routes next to one very large earner still read as clearly
+ * losing or clearly earning instead of all fading to grey.
+ */
+export function profitColor(profit: number, maxAbs: number): string {
+  if (!(maxAbs > 0) || !Number.isFinite(profit)) return HEATMAP_COLORS.neutral;
+  const t = Math.max(-1, Math.min(1, Math.tanh((2 * profit) / maxAbs) / Math.tanh(2)));
+  return t < 0
+    ? mixHex(HEATMAP_COLORS.neutral, HEATMAP_COLORS.loss, -t)
+    : mixHex(HEATMAP_COLORS.neutral, HEATMAP_COLORS.profit, t);
+}
+
+/**
+ * Line width for a route on the heatmap, 1 to 5 px by passengers. Square-root
+ * scaled, so the busiest trunk route does not reduce every other line to a
+ * hairline.
+ */
+export function paxWeight(pax: number, maxPax: number): number {
+  if (!(maxPax > 0) || !(pax > 0)) return 1;
+  return Math.max(1, Math.min(5, 1 + 4 * Math.sqrt(pax / maxPax)));
 }

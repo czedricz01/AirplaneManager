@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Info, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Info, TrendingUp, TrendingDown, Minus, Palette } from 'lucide-react';
 import { FinancialReport } from './FinancialReport';
 import { ViewHeader } from './ui/ViewHeader';
 import { StatTile } from './ui/StatTile';
 import { Panel } from './ui/Panel';
+import { BrandBadge } from './BrandBadge';
+import { BrandingPicker } from './BrandingPicker';
+import type { Branding } from '../lib/gameState';
 
 import { formatCurrency, formatMoneyCompact as compact } from '../lib/format';
 
@@ -37,6 +40,63 @@ interface Props {
   milestoneCatalogue: { id: string; title: string; detail: string }[];
   /** The board's target for the current year, and what has been earned so far. */
   annualGoal: { year: number; targetProfit: number } | null;
+  branding: Branding;
+  airlineName: string;
+  airlineCode: string;
+  onBrandingChange: (next: Branding) => void;
+}
+
+/**
+ * The livery editor behind a button. Edits are a draft until applied: every
+ * colour change redraws the whole map, too much to do on each step of
+ * dragging through the colour picker.
+ */
+function LiveryEditor({ branding, airlineName, airlineCode, onBrandingChange }: Pick<Props, 'branding' | 'airlineName' | 'airlineCode' | 'onBrandingChange'>) {
+  const [draft, setDraft] = useState<Branding | null>(null);
+  const changed = draft !== null && (draft.color.toLowerCase() !== branding.color.toLowerCase() || draft.icon !== branding.icon);
+
+  return (
+    <div className="relative flex lg:justify-end">
+      <button
+        type="button"
+        onClick={() => setDraft(draft ? null : { ...branding })}
+        aria-expanded={draft !== null}
+        className={`flex items-center gap-2 px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border transition-colors ${
+          draft ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white/60 border-white/10 hover:text-white hover:border-white/30'
+        }`}
+      >
+        <Palette size={12} /> Edit livery
+      </button>
+      {draft && (
+        <div className="absolute left-0 lg:left-auto lg:right-0 top-full mt-2 z-50 w-[min(92vw,28rem)] bg-aero-panel border border-aero-yellow/20 shadow-2xl p-4">
+          <BrandingPicker value={draft} onChange={setDraft} code={airlineCode} name={airlineName} />
+          <p className="text-3xs font-mono text-white/40 mt-3">
+            Rivals whose colour would look too much like yours are given a new one.
+          </p>
+          <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-white/10">
+            <button
+              type="button"
+              onClick={() => setDraft(null)}
+              className="px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border border-white/10 text-white/60 hover:text-white hover:border-white/30"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!changed}
+              onClick={() => {
+                if (draft) onBrandingChange(draft);
+                setDraft(null);
+              }}
+              className="px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border border-aero-yellow bg-aero-yellow text-black hover:bg-white hover:border-white disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const label = (r: MonthlyReport) => `${String(r.month).padStart(2, '0')}/${r.year}`;
@@ -118,7 +178,10 @@ function History({ reports, pick, title }: { reports: MonthlyReport[]; pick: (r:
   );
 }
 
-function MyCompanyViewImpl({ capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal }: Props) {
+function MyCompanyViewImpl({
+  capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal,
+  branding, airlineName, airlineCode, onBrandingChange
+}: Props) {
   const [series, setSeries] = useState<'profit' | 'revenue' | 'capital'>('profit');
   const [monthsShown, setMonthsShown] = useState(24);
 
@@ -156,7 +219,12 @@ function MyCompanyViewImpl({ capital, reportHistory, fleetValue, fleetCount, rou
 
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
-      <ViewHeader title="MY COMPANY" />
+      <ViewHeader
+        eyebrow={[airlineName, airlineCode].filter(Boolean).join(' · ') || undefined}
+        title="MY COMPANY"
+        icon={<BrandBadge branding={branding} code={airlineCode} name={airlineName} size={36} className="mr-2" />}
+        right={<LiveryEditor branding={branding} airlineName={airlineName} airlineCode={airlineCode} onBrandingChange={onBrandingChange} />}
+      />
 
       <div className="flex-1 overflow-auto pr-4 custom-scrollbar">
         <div className="grid grid-cols-1 gap-3 max-w-4xl mx-auto pb-6">

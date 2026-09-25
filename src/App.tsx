@@ -187,6 +187,8 @@ function buildRivalOffers(ais: any[] | null | undefined) {
 }
 
 import { WorldMap } from "./components/WorldMap";
+import { BrandingPicker } from "./components/BrandingPicker";
+import { recolorClashingRivals } from "./lib/theme";
 import { getRoutePath, continentOf } from "./lib/geoUtils";
 
 /**
@@ -433,6 +435,8 @@ export default function App() {
   const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
   /** The airline's colour and badge. */
   const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
+  /** The colour and badge being picked on the new-game screen, until the game starts. */
+  const [newGameBranding, setNewGameBranding] = useState<Branding>(DEFAULT_BRANDING);
   /** Advertising campaigns and the frequent-flyer programme. */
   const [marketing, setMarketing] = useState<Marketing>(DEFAULT_MARKETING);
   /** Pay, morale and any strike in progress. */
@@ -682,7 +686,7 @@ export default function App() {
   // flattening used to discard it entirely and every rival flight popup fell back
   // to the generic "Rival Carrier" label.
   const aiRouteList = useMemo(
-    () => aiAirlines.flatMap(a => (a.routes || []).map(r => ({ ...r, airlineName: a.name, airlineCode: a.code, airlineId: a.id }))),
+    () => aiAirlines.flatMap(a => (a.routes || []).map(r => ({ ...r, airlineName: a.name, airlineCode: a.code, airlineId: a.id, airlineColor: a.color }))),
     [aiAirlines]
   );
 
@@ -781,6 +785,22 @@ export default function App() {
     const fin = network.finById.get(r.id);
     return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
   }), [routes, network]);
+
+  /**
+   * This month's profit and weekly passengers per route, for the map's profit
+   * heatmap. The forecast rather than the last closed month, so a route opened
+   * or repriced today shows its colour straight away. Profit is the weekly
+   * figure times four, as the monthly report books it.
+   */
+  const routeHeat = useMemo(() => {
+    const profit: Record<string, number> = {};
+    const pax: Record<string, number> = {};
+    network.finById.forEach((fin, id) => {
+      profit[id] = (fin.estWeeklyProfit || 0) * 4;
+      pax[id] = fin.paxPerWeek || 0;
+    });
+    return { profit, pax };
+  }, [network]);
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
@@ -1679,6 +1699,20 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDateOffset, pendingInitialSave]);
 
+  /**
+   * A new colour or badge mid-game. Rivals keep their colours, except one the
+   * new colour now sits too close to, which moves to a free one.
+   */
+  const handleBrandingChange = React.useCallback((next: Branding) => {
+    setBranding(next);
+    setAiAirlines(prev => {
+      const colors = recolorClashingRivals(prev, next.color);
+      return colors.every((c, i) => c === prev[i].color)
+        ? prev
+        : prev.map((ai, i) => ({ ...ai, color: colors[i] }));
+    });
+  }, []);
+
   /** Sets every system saved since version 3 at once, from a save or from defaults. */
   const applyGameSystems = (systems: GameSystems) => {
     setBranding(systems.branding);
@@ -2384,6 +2418,19 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
+                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Livery</div>
+                      <div className="bg-aero-carbon border border-white/10 p-4">
+                        <BrandingPicker
+                          value={newGameBranding}
+                          onChange={setNewGameBranding}
+                          code={airlineCode}
+                          name={airlineName}
+                        />
+                      </div>
+                      <p className="text-2xs text-white/40 italic">Your routes and aircraft are drawn in this colour; rivals get colours clearly apart from it.</p>
+                    </div>
+
+                    <div className="space-y-4">
                       <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
                       <div className="relative w-full">
                         <select 
@@ -2529,7 +2576,11 @@ export default function App() {
                           // editors carried over from a game played earlier.
                           resetTransientGameState();
                           // A new game offers the tutorial, unless it was switched off.
-                          const systems: GameSystems = { ...createGameSystems(), tutorialStep: gameSettings.tutorial ? 0 : null };
+                          const systems: GameSystems = {
+                            ...createGameSystems(),
+                            branding: { ...newGameBranding },
+                            tutorialStep: gameSettings.tutorial ? 0 : null
+                          };
                           applyGameSystems(systems);
                           setCurrentDateOffset(startDateOffset);
                           let initialCapital = 25000000; // Default for $25M
@@ -2792,6 +2843,18 @@ export default function App() {
                             <input type="checkbox" checked={showLiveTraffic} onChange={(e) => setShowLiveTraffic(e.target.checked)} className="accent-blue-400 w-4 h-4 cursor-pointer" />
                             Live Traffic
                           </label>
+                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-white/80 cursor-pointer hover:bg-white/5 p-2 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={gameSettings.heatmap}
+                              onChange={(e) => {
+                                const heatmap = e.target.checked;
+                                setGameSettings(prev => ({ ...prev, heatmap }));
+                              }}
+                              className="accent-emerald-500 w-4 h-4 cursor-pointer"
+                            />
+                            Profit Heatmap
+                          </label>
                         </div>
                       )}
                     </div>
@@ -2884,6 +2947,10 @@ export default function App() {
                         planningDestId={planningDestId}
                         setSelectedAirport={setSelectedAirport}
                         getRoutePath={getRoutePath}
+                        playerColor={branding.color}
+                        heatmap={gameSettings.heatmap}
+                        routeProfits={routeHeat.profit}
+                        routePax={routeHeat.pax}
                       />
                      </ErrorBoundary>
                   </div>
@@ -2978,6 +3045,10 @@ export default function App() {
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
+                          branding={branding}
+                          airlineName={airlineName}
+                          airlineCode={airlineCode}
+                          onBrandingChange={handleBrandingChange}
                         />
                       </React.Suspense>
                     </ViewFrame>
@@ -2996,6 +3067,7 @@ export default function App() {
                           playerRoutes={routes}
                           playerProfitHistory={playerProfitHistory}
                           playerRouteProfits={routeProfits}
+                          playerColor={branding.color}
                         />
                       </React.Suspense>
                     </ViewFrame>
