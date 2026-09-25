@@ -73,6 +73,8 @@ export interface AiAirline {
   aggression?: number;
   /** A real-world carrier (true) or an invented one (false). */
   isReal?: boolean;
+  /** #RRGGBB colour on the map. Assigned at founding, or when an older save loads. */
+  color?: string;
 }
 
 interface Props {

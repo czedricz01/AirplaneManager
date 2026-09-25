@@ -91,3 +91,66 @@ test('engine internals stored on routes by older versions are removed', () => {
   assert.equal(route.satisfactionDetails, undefined);
   assert.equal(route.paxPerWeek, 700, 'the figures screens read are kept');
 });
+
+// --- Version 3 ---------------------------------------------------------------
+
+import { MAP_YELLOW, RIVAL_PALETTE } from './theme';
+import { DEFAULT_STAFF } from './gameState';
+
+const v2Save = () => ({
+  ...oldSave(),
+  saveVersion: 2,
+  aiAirlines: [
+    { id: 'ai_lh', name: 'Lufthansa', code: 'LH', hub: 'FRA', capital: 1, fleet: [], routes: [], monthlyProfitsHistory: [] },
+    { id: 'ai_af', name: 'Air France', code: 'AF', hub: 'CDG', capital: 1, fleet: [], routes: [], monthlyProfitsHistory: [] },
+    { id: 'ai_ba', name: 'British Airways', code: 'BA', hub: 'LHR', capital: 1, fleet: [], routes: [], monthlyProfitsHistory: [], color: '#123456' }
+  ]
+});
+
+test('a version 2 save gets the version 3 systems at their defaults', () => {
+  const migrated = migrateSave(v2Save());
+  assert.equal(migrated.saveVersion, 3);
+  assert.deepEqual(migrated.branding, { color: MAP_YELLOW, icon: 'initials' }, 'the airline keeps the yellow it always had');
+  assert.deepEqual(migrated.marketing, { campaigns: [], ffpActive: false, ffpSinceOffset: null });
+  assert.deepEqual(migrated.staff, DEFAULT_STAFF);
+  assert.deepEqual(migrated.disruptions, []);
+  assert.deepEqual(migrated.pendingDecisions, []);
+  assert.deepEqual(migrated.chronicle, []);
+  assert.equal(migrated.scenario, null);
+  assert.equal(migrated.tutorialStep, null, 'an existing player is not sent through the tutorial');
+  assert.deepEqual(findNonFinite(migrated, 6), []);
+});
+
+test('rivals from a version 2 save get distinct palette colours, the same ones every load', () => {
+  const [lh, af, ba] = migrateSave(v2Save()).aiAirlines;
+  assert.ok((RIVAL_PALETTE as readonly string[]).includes(lh.color));
+  assert.ok((RIVAL_PALETTE as readonly string[]).includes(af.color));
+  assert.notEqual(lh.color, af.color);
+  assert.equal(ba.color, '#123456', 'a colour already chosen is kept');
+  assert.equal(migrateSave(v2Save()).aiAirlines[0].color, lh.color, 'deterministic');
+});
+
+test('broken version 3 fields are repaired rather than trusted', () => {
+  const migrated = migrateSave({
+    ...v2Save(),
+    branding: { color: 'red', icon: 7 },
+    staff: { salaryPct: 500, morale: NaN, strike: { startOffset: 3, cancelShare: 4 } },
+    pendingDecisions: [
+      { id: 'd1', kind: 'strike', title: 'Strike', options: [{ id: 'a', label: 'Pay', cost: NaN }] },
+      { id: 'd2', kind: 'strike', title: 'Nothing to choose', options: [] },
+      { id: 'd3', kind: 'unknown', title: 'From the future', options: [{ id: 'a', label: 'OK' }] }
+    ],
+    chronicle: Array.from({ length: 400 }, (_, i) => ({ offset: i, kind: 'record', text: `r${i}` })),
+    tutorialStep: 2.4
+  });
+  assert.equal(migrated.branding.color, MAP_YELLOW);
+  assert.equal(migrated.branding.icon, 'initials');
+  assert.equal(migrated.staff.salaryPct, 130);
+  assert.equal(migrated.staff.morale, 70);
+  assert.equal(migrated.staff.strike.cancelShare, 1);
+  assert.deepEqual(migrated.pendingDecisions.map((d: any) => d.id), ['d1']);
+  assert.equal(migrated.pendingDecisions[0].options[0].cost, 0);
+  assert.equal(migrated.chronicle.length, 300);
+  assert.equal(migrated.chronicle[0].offset, 100, 'the oldest entries go first');
+  assert.equal(migrated.tutorialStep, 2);
+});

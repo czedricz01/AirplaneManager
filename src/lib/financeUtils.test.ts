@@ -232,3 +232,68 @@ test('COMP hint counts rivals on the exact origin-destination pair, not merely a
   // two other rivals that merely touch FRA on unrelated pairs.
   assert.equal(byPair.get(marketKey('FRA', 'CDG')) || 0, 1);
 });
+
+// --- Player modifiers ----------------------------------------------------------
+
+import type { PlayerModifiers } from './gameState';
+
+/** Fourteen rival departures: enough that the market-share split matters. */
+const RIVALS = [{ origin: 'CDG', destination: 'FRA', departures: 14, airline: 'Rival' }];
+
+function priceWith(extraDemandFactor: number, mods?: PlayerModifiers, rivalOffers = RIVALS) {
+  const { aircraft, route, mgt } = sampleRoute(7);
+  return calculateRouteFinancials(
+    route, aircraft, 1.2, mgt, 1970, 6, 'Normal', airportsMapAdjusted, [route], [aircraft], false,
+    extraDemandFactor, rivalOffers, mods
+  );
+}
+
+test('neutral player modifiers price a route exactly as the plain demand factor did', () => {
+  const plain = priceWith(1.07);
+  assert.deepStrictEqual(priceWith(1, { demandFactor: 1.07 }), plain, 'mods.demandFactor replaces extraDemandFactor');
+  assert.deepStrictEqual(priceWith(1.07, { demandFactor: 1.07 }), plain);
+  assert.deepStrictEqual(
+    priceWith(1, {
+      demandFactor: 1.07, regionDemand: { EU: 1 }, loyaltyBonus: 0, satDelta: 0,
+      crewCostFactor: 1, cancelShare: { r1: 0 }, transfer: {}
+    }),
+    plain,
+    'every field at its neutral value changes nothing, not even the last bit'
+  );
+});
+
+test('player modifiers move a route the way they say', () => {
+  const base = priceWith(1, { demandFactor: 1 });
+
+  const happier = priceWith(1, { demandFactor: 1, satDelta: 10 });
+  assert.equal(happier.routeSat.economy, base.routeSat.economy + 10);
+  assert.equal(happier.routeSat.business, base.routeSat.business + 10);
+  assert.ok(happier.paxPerWeek > base.paxPerWeek, 'happier passengers fly more often');
+
+  const pricier = priceWith(1, { demandFactor: 1, crewCostFactor: 1.2 });
+  assert.ok(Math.abs(pricier.costsBreakdown.crew / base.costsBreakdown.crew - 1.2) < 1e-9);
+  assert.equal(pricier.costsBreakdown.fuel, base.costsBreakdown.fuel);
+  assert.ok(pricier.estWeeklyProfit < base.estWeeklyProfit);
+
+  const halved = priceWith(1, { demandFactor: 1, cancelShare: { r1: 0.5 } });
+  assert.ok(Math.abs(halved.costsBreakdown.fuel / base.costsBreakdown.fuel - 0.5) < 1e-9, 'fuel follows the flights flown');
+  assert.ok(Math.abs(halved.costsBreakdown.landingFees / base.costsBreakdown.landingFees - 0.5) < 1e-9);
+  assert.equal(halved.paxByClass.economy.max, base.paxByClass.economy.max / 2, 'half the seats');
+  assert.ok(halved.paxPerWeek <= base.paxPerWeek);
+  assert.equal(halved.weeklyFlights, base.weeklyFlights, 'the timetable itself is unchanged');
+  assert.deepStrictEqual(priceWith(1, { demandFactor: 1, cancelShare: { other: 0.5 } }), base, 'only the named route is hit');
+
+  const regional = priceWith(1, { demandFactor: 1, regionDemand: { EU: 1.2 } });
+  assert.ok(Math.abs(regional.demandData.total / base.demandData.total - 1.2) < 0.01, 'both ends in Europe: the full regional factor');
+  assert.deepStrictEqual(priceWith(1, { demandFactor: 1, regionDemand: { NA: 1.2 } }), base, 'a region the route does not touch');
+});
+
+test('loyalty wins passengers back from rivals on a shared city pair', () => {
+  // A dominant rival, so the route's demand is limited by its share rather
+  // than by its seats.
+  const rivals = [{ origin: 'CDG', destination: 'FRA', departures: 1000, airline: 'Giant' }];
+  const base = priceWith(1, { demandFactor: 1 }, rivals);
+  const loyal = priceWith(1, { demandFactor: 1, loyaltyBonus: 0.2 }, rivals);
+  assert.ok(loyal.paxPerWeek > base.paxPerWeek, `${loyal.paxPerWeek} vs ${base.paxPerWeek}`);
+  assert.deepStrictEqual(priceWith(1, { demandFactor: 1, loyaltyBonus: 0.2 }, []), priceWith(1, { demandFactor: 1 }, []), 'no rivals, nothing to win back');
+});

@@ -1,4 +1,5 @@
 import { Airport } from '../data/airportTypes';
+import type { RegionId } from './gameState';
 
 /**
  * Great-circle paths for drawing routes.
@@ -67,4 +68,40 @@ export function getRoutePath(a1: Airport, a2: Airport, offset: number): [number,
     .map(p => [p[0], p[1] + offset] as [number, number]);
   routePathCache.set(key, points);
   return points;
+}
+
+/**
+ * Coarse continent lookup from coordinates, for the "continents served"
+ * milestone. The airport dataset carries no region field, and this is
+ * approximate: it uses rectangles, so a handful of airports near a boundary
+ * (the Urals, Sinai, Panama) land on the wrong side. That is acceptable for
+ * counting how far a network reaches. A few islands between the rectangles
+ * come back as 'OT'; regionOf places those too.
+ */
+export function continentOf(coords: [number, number]): string {
+  const [lat, lon] = coords;
+  if (lat >= 7 && lon >= -170 && lon <= -50) return 'NA';
+  if (lat < 13 && lon >= -92 && lon <= -34) return 'SA';
+  if (lat >= 35 && lat <= 72 && lon >= -25 && lon <= 45) return 'EU';
+  if (lat >= -35 && lat <= 37 && lon >= -20 && lon <= 52) return 'AF';
+  if (lat <= 0 && lon >= 110 && lon <= 180) return 'OC';
+  if (lon >= 45 || lon <= -170) return 'AS';
+  return 'OT';
+}
+
+/**
+ * The region an airport belongs to, for effects that apply per region.
+ *
+ * The same rectangles as continentOf, which the milestone keeps using as it
+ * is, except that nothing is left over: the islands it returns 'OT' for
+ * (Polynesia, the Azores, Cape Verde, Svalbard) go to the nearest region.
+ */
+export function regionOf(coords: [number, number]): RegionId {
+  const continent = continentOf(coords);
+  if (continent !== 'OT') return continent as RegionId;
+  const [lat, lon] = coords;
+  // Only the South Pacific is left west of -90: everything north of it is NA.
+  if (lon < -90) return 'OC';
+  if (lat >= 30) return 'EU';
+  return lat < 0 ? 'SA' : 'AF';
 }

@@ -3,6 +3,7 @@ import { formatMoneyCompact, routeFlightNumber } from '../lib/format';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
 import { getFlightTimeClass, calculateRouteFinancials, type RouteOffer } from '../lib/financeUtils';
+import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers } from '../lib/gameState';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
@@ -52,8 +53,8 @@ interface Props {
   onEditFinancials?: (routeId: string) => void;
   onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
   fuelPrice?: number;
-  /** Reputation effect on demand, so the list matches the monthly report. */
-  demandFactor?: number;
+  /** The player-only effects on the economy, so the list matches the monthly report. */
+  playerMods?: PlayerModifiers;
   rivalOffers?: RouteOffer[];
   airportManagement?: Record<string, any>;
   currentYear: number;
@@ -83,7 +84,7 @@ interface RouteRowProps {
   currentYear: number;
   currentMonth: number;
   difficulty: string;
-  demandFactor: number;
+  playerMods: PlayerModifiers;
   rivalOffers: RouteOffer[];
 }
 
@@ -108,7 +109,7 @@ function ClassLine({ items }: { items: { cls: string; text: string; color?: stri
  */
 const RouteRow = React.memo(function RouteRow({
   route, airlineCode, fleetByRegistration, fleet, routes, routeProfit, onSelect, onUpdatePricing,
-  fuelPrice, airportManagement, currentYear, currentMonth, difficulty, demandFactor, rivalOffers
+  fuelPrice, airportManagement, currentYear, currentMonth, difficulty, playerMods, rivalOffers
 }: RouteRowProps) {
   const aircraft = fleetByRegistration.get(route.aircraft);
 
@@ -117,9 +118,9 @@ const RouteRow = React.memo(function RouteRow({
     return calculateRouteFinancials(
       route, aircraft, fuelPrice ?? 1.05, airportManagement || {},
       currentYear, currentMonth, difficulty, routesAirportsMap, routes, fleet,
-      false, demandFactor, rivalOffers
+      false, playerMods.demandFactor, rivalOffers, playerMods
     );
-  }, [route, aircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, routes, fleet, demandFactor, rivalOffers]);
+  }, [route, aircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, routes, fleet, playerMods, rivalOffers]);
 
   const loadLine = CABIN_CLASSES.map(cls => {
     const cd = financials?.paxByClass?.[cls];
@@ -198,7 +199,7 @@ function RoutesViewImpl({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onChangeAircraftRoute, 
   onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
-  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = [], airlineCode = ''
+  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = [], airlineCode = ''
 }: Props) {
   const [search, setSearch] = useState("");
   const [airportFilter, setAirportFilter] = useState(initialAirportFilter);
@@ -360,7 +361,7 @@ function RoutesViewImpl({
                   currentYear={currentYear}
                   currentMonth={currentMonth}
                   difficulty={difficulty}
-                  demandFactor={demandFactor}
+                  playerMods={playerMods}
                   rivalOffers={rivalOffers}
                 />
               ))
@@ -376,7 +377,7 @@ function RoutesViewImpl({
              route={activeRoute} 
              fleet={fleet}
             fuelPrice={fuelPrice}
-            demandFactor={demandFactor}
+            playerMods={playerMods}
             rivalOffers={rivalOffers}
             airportManagement={airportManagement}
             currentYear={currentYear}

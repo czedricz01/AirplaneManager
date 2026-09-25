@@ -1,6 +1,7 @@
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
+import { routeDemandFactor, type PlayerModifiers } from './gameState';
 
 export function getAirportUpkeep(
   airport: Airport,
@@ -855,12 +856,23 @@ export function calculateRouteFinancials(
    * Everyone else flying this city pair. Other operators' routes only; this
    * route's own entry must not be in here.
    */
-  rivalOffers: RouteOffer[] = []
+  rivalOffers: RouteOffer[] = [],
+  /**
+   * Everything that applies to the player's airline only. When given, its
+   * demandFactor replaces extraDemandFactor; its other fields are neutral when
+   * absent. The AI airlines never pass it.
+   */
+  mods?: PlayerModifiers
 ) {
   const dist = route.distance || 0;
   const fuelPricePerL = Math.round((fuelPrice / 3.78541) * 1000) / 1000;
   const weeklyFlights = route.schedule?.length || route.weeklyFlights || 0;
-  const flightLegs = route.schedule ? route.schedule.reduce((acc: number, s: any) => acc + (s.isOneWay ? 1 : 2), 0) : weeklyFlights * 2;
+  // The share of the timetable that actually operates. Strikes and disruptions
+  // cancel the rest: fuel, crew hours, fees and seats all scale with it, while
+  // the timetable passengers chose the airline by does not.
+  const cancelled = Number(mods?.cancelShare?.[route.id]) || 0;
+  const flownShare = 1 - Math.min(1, Math.max(0, cancelled));
+  const flightLegs = (route.schedule ? route.schedule.reduce((acc: number, s: any) => acc + (s.isOneWay ? 1 : 2), 0) : weeklyFlights * 2) * flownShare;
 
   // Initial Costs
   const totalWeeklyFuelLiters = (7.5 * aircraft.capacity * (dist / 100)) / (0.75 + (aircraft.efficiency / 70)) * flightLegs;
@@ -871,7 +883,8 @@ export function calculateRouteFinancials(
   const flightHoursWeekly = (durMin * flightLegs) / 60;
   const faCount = Math.ceil(aircraft.capacity / 50);
   const hourlyCrewRate = (2 * 100) + (faCount * 40);
-  const weeklyCrewCost = hourlyCrewRate * flightHoursWeekly;
+  // Pay above or below the market rate; ground staff below follow the crew.
+  const weeklyCrewCost = hourlyCrewRate * flightHoursWeekly * (mods?.crewCostFactor ?? 1);
   
   // Assuming staff cost is same as crew or similar if handled differently
   const weeklyStaffCost = weeklyCrewCost * 0.3; // Just a flat ground staff assumption
@@ -897,8 +910,8 @@ export function calculateRouteFinancials(
   // "widebody") while aircraft data capitalises them, so normalise once here.
   // Passing the capitalised form made every slots/stands lookup miss silently.
   const slotType = String(aircraft.class || 'regional').toLowerCase();
-  const originLandingFees = getLandingFee(originLevel, originHub, slotType) * weeklyFlights;
-  const destLandingFees = getLandingFee(destLevel, destHub, slotType) * weeklyFlights;
+  const originLandingFees = getLandingFee(originLevel, originHub, slotType) * weeklyFlights * flownShare;
+  const destLandingFees = getLandingFee(destLevel, destHub, slotType) * weeklyFlights * flownShare;
 
   const originCheckInUnit = originHub ? 0.475 : 0.5;
   const destCheckInUnit = destHub ? 0.475 : 0.5;
@@ -912,7 +925,12 @@ export function calculateRouteFinancials(
   // comes back validated against the aircraft and airports, so the catering
   // cost below never bills for an option the satisfaction figure has already
   // discarded.
-  const { routeSat, satisfactionDetails, classConfigs } = getRouteClassSatisfaction(route, aircraft, airportManagement, allRoutes, fleet, difficulty);
+  const { routeSat: cabinSat, satisfactionDetails, classConfigs } = getRouteClassSatisfaction(route, aircraft, airportManagement, allRoutes, fleet, difficulty);
+  // Staff morale moves every class the same way, on top of the cabin product.
+  const satDelta = mods?.satDelta ?? 0;
+  const routeSat: Record<string, number> = satDelta === 0
+    ? cabinSat
+    : Object.fromEntries(Object.entries(cabinSat).map(([c, sat]) => [c, Math.max(0, Math.round(sat + satDelta))]));
 
   const originStats = getAirportStats(originAirport, currentYear);
   const destStats = getAirportStats(destAirport, currentYear);
@@ -920,7 +938,8 @@ export function calculateRouteFinancials(
   const demandData = calculateDemand(
     originStats.business, originStats.tourism,
     destStats.business, destStats.tourism,
-    timeClass, currentMonth, difficulty, currentYear, extraDemandFactor
+    timeClass, currentMonth, difficulty, currentYear,
+    mods ? routeDemandFactor(mods, originAirport, destAirport) : extraDemandFactor
   );
 
   const bases = calculateBasePrices(dist, timeClass);
@@ -972,11 +991,12 @@ export function calculateRouteFinancials(
 
       // The share of this class's demand won against the rivals above. With
       // nobody else on the pair this is 1 and nothing changes.
+      // Loyal passengers (the frequent-flyer programme) stay a little longer.
       const ownAttractiveness = offerAttractiveness(
         weeklyFlights,
         price > 0 ? satBase / price : 1,
         sat / 100
-      );
+      ) * (1 + (mods?.loyaltyBonus ?? 0));
       const share = marketShare(ownAttractiveness, rivalAttractiveness);
 
       const weeklySupply = seats * flightLegs;

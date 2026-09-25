@@ -46,6 +46,7 @@ import {
   buildRivalRoutesByPair,
   RouteOffer,
 } from '../lib/financeUtils';
+import { NEUTRAL_PLAYER_MODIFIERS, routeDemandFactor, type PlayerModifiers } from '../lib/gameState';
 
 const EMPTY_DESK_SIM = { load: 0, sat: 0, myPax: 0, cap: 0 };
 // A stable default, so a missing prop does not invalidate the memos below on every render.
@@ -75,8 +76,8 @@ interface Props {
   onAddPendingSlotBills?: (amount: number) => void;
   /** Reports a refused or trimmed infrastructure purchase; these all used to fail silently. */
   onNotify?: (message: string) => void;
-  /** Reputation effect on demand, so the preview matches the monthly report. */
-  demandFactor?: number;
+  /** The player-only effects on the economy, so the preview matches the monthly report. */
+  playerMods?: PlayerModifiers;
   /** Rival departures per city pair, for the market-share split. */
   rivalOffers?: RouteOffer[];
   pendingSlotBills?: number;
@@ -198,7 +199,7 @@ const aircraftImageName = (ac: OwnedAircraft) =>
 
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, demandFactor = 1, rivalOffers = NO_RIVAL_OFFERS, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -831,9 +832,9 @@ function RoutePlannerInner({
     const tc = getFlightTimeClass(dur);
     const o = getAirportStats(selectedOrigin, currentYear);
     const t = getAirportStats(selectedDest, currentYear);
-    const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, tc, currentMonth, difficulty, currentYear, demandFactor);
+    const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, tc, currentMonth, difficulty, currentYear, routeDemandFactor(playerMods, selectedOrigin, selectedDest));
     return { d, tc, basePrices: calculateBasePrices(dist, tc), assumedAircraft: !selectedAircraft };
-  }, [selectedOrigin, selectedDest, selectedAircraft, currentYear, currentMonth, difficulty, demandFactor]);
+  }, [selectedOrigin, selectedDest, selectedAircraft, currentYear, currentMonth, difficulty, playerMods]);
 
   /**
    * Satisfaction per class and the check-in simulation at both ends of the
@@ -860,7 +861,7 @@ function RoutePlannerInner({
     const engine = calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      difficulty !== 'Easy', demandFactor, rivalOffers
+      difficulty !== 'Easy', playerMods.demandFactor, rivalOffers, playerMods
     );
     const b = engine.costsBreakdown;
 
@@ -884,7 +885,7 @@ function RoutePlannerInner({
       originPaxHandlingFees: b.originPaxHandlingFees,
       destPaxHandlingFees: b.destPaxHandlingFees
     };
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, schedule, demandFactor, rivalOffers]);
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, schedule, playerMods, rivalOffers]);
 
   // The figures actually stored on the route: realistic load factors, not full load.
   const saveFinancials = useMemo(() => {
@@ -892,9 +893,9 @@ function RoutePlannerInner({
     return calculateRouteFinancials(
       routeDraft, selectedAircraft, fuelPrice, airportManagement,
       currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      false, demandFactor, rivalOffers
+      false, playerMods.demandFactor, rivalOffers, playerMods
     );
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, demandFactor, rivalOffers]);
+  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, playerMods, rivalOffers]);
 
   // Break-even prices at 99%/75%/35% load, shared by the pricing step's sliders
   // and the auto-seed effect below. `financials` (the calculateRouteFinancials
@@ -3133,8 +3134,9 @@ function RoutePlannerInner({
                                  routes,
                                  fleet,
                                  false,
-                                 demandFactor,
-                                 rivalOffers
+                                 playerMods.demandFactor,
+                                 rivalOffers,
+                                 playerMods
                                );
 
                                onSaveRoute({

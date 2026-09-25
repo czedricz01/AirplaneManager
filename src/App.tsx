@@ -115,24 +115,6 @@ function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: nu
  */
 
 /**
- * Coarse continent lookup from coordinates, for the "continents served"
- * milestone only. The airport dataset carries no region field, and this is
- * approximate: it uses rectangles, so a handful of airports near a boundary
- * (the Urals, Sinai, Panama) land on the wrong side. That is acceptable for
- * counting how far a network reaches; it is not used anywhere in the economy.
- */
-export function continentOf(coords: [number, number]): string {
-  const [lat, lon] = coords;
-  if (lat >= 7 && lon >= -170 && lon <= -50) return 'NA';
-  if (lat < 13 && lon >= -92 && lon <= -34) return 'SA';
-  if (lat >= 35 && lat <= 72 && lon >= -25 && lon <= 45) return 'EU';
-  if (lat >= -35 && lat <= 37 && lon >= -20 && lon <= 52) return 'AF';
-  if (lat <= 0 && lon >= 110 && lon <= 180) return 'OC';
-  if (lon >= 45 || lon <= -170) return 'AS';
-  return 'OT';
-}
-
-/**
  * Milestones. Checked at the end of each month, awarded once, announced in the
  * inbox. They are the only thing in the game that accumulates across a whole
  * career, and each one nudges reputation, which is the reward that lasts.
@@ -185,41 +167,6 @@ export function computeReputationTarget(samples: {
   return 0.5 * satScore + 0.3 * condScore + 0.2 * loadScore;
 }
 
-/**
- * What reputation does to demand: a tenth either way. Small enough that a good
- * network still beats a good reputation, large enough to be worth protecting.
- */
-export function reputationDemandFactor(reputation: number): number {
-  return 0.85 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;
-}
-
-/**
- * The correction that turns a crisis's raw demand hit into the softened one the
- * player paid for.
- *
- * calculateDemand has already applied the event's own multiplier via
- * getEventMultipliers, and that path is shared with the AI airlines. Rather
- * than fork it, the player's demand factor carries the ratio between the
- * softened multiplier and the raw one, so only the player sees the relief.
- */
-export function eventReliefFactor(
-  offset: number,
-  choicesTaken: Record<string, string>
-): number {
-  let factor = 1;
-  for (const ev of getActiveEvents(offset)) {
-    const chosenId = choicesTaken[eventKey(ev)];
-    if (!chosenId) continue;
-    const choice = ev.choices?.find(c => c.id === chosenId);
-    if (!choice?.softensDemand) continue;
-    const raw = ev.demandMultiplier;
-    if (raw >= 1) continue;
-    const softened = raw + (1 - raw) * choice.softensDemand;
-    factor *= softened / raw;
-  }
-  return factor;
-}
-
 /** Adds a one-off amount to the month's list, merging items with the same label. */
 function addCapexItem(list: { label: string; amount: number }[], label: string, amount: number) {
   return list.some(c => c.label === label)
@@ -240,7 +187,7 @@ function buildRivalOffers(ais: any[] | null | undefined) {
 }
 
 import { WorldMap } from "./components/WorldMap";
-import { getRoutePath } from "./lib/geoUtils";
+import { getRoutePath, continentOf } from "./lib/geoUtils";
 
 /**
  * The hub picker's option list. This used to be sorted inline in the start
@@ -264,6 +211,25 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
+import {
+  buildPlayerModifiers,
+  createGameSystems,
+  normalizeGameSettings,
+  DEFAULT_BRANDING,
+  DEFAULT_MARKETING,
+  DEFAULT_STAFF,
+  type Branding,
+  type Marketing,
+  type Staff,
+  type Disruption,
+  type GameDecision,
+  type GameDecisionKind,
+  type GameDecisionOption,
+  type GameSettings,
+  type GameSystems,
+  type ScenarioState,
+  type ChronicleEntry
+} from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
@@ -463,6 +429,25 @@ export default function App() {
   const [annualGoal, setAnnualGoal] = useState<{ year: number; targetProfit: number } | null>(null);
   /** The event whose decision is waiting to be made, if any. */
   const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
+  /** The airline's colour and badge. */
+  const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
+  /** Advertising campaigns and the frequent-flyer programme. */
+  const [marketing, setMarketing] = useState<Marketing>(DEFAULT_MARKETING);
+  /** Pay, morale and any strike in progress. */
+  const [staff, setStaff] = useState<Staff>(DEFAULT_STAFF);
+  /** Cancellations rolled for the months ahead. */
+  const [disruptions, setDisruptions] = useState<Disruption[]>([]);
+  /**
+   * Questions for the player that are not world events, answered one at a
+   * time in the dialog below the event decision. See resolveDecision.
+   */
+  const [pendingDecisions, setPendingDecisions] = useState<GameDecision[]>([]);
+  /** The scenario this game was started from; null for a free game. */
+  const [scenario, setScenario] = useState<ScenarioState | null>(null);
+  /** The airline's history, newest last. */
+  const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
+  /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
+  const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<GameMessage | null>(null);
 
   useEffect(() => {
@@ -568,6 +553,27 @@ export default function App() {
     setCapital(prev => prev - amount);
     setMonthlyCapex(prev => addCapexItem(prev, label, amount));
   };
+
+  /**
+   * What answering a decision does, by kind. Each system that puts questions
+   * to the player adds its handler here. By the time one runs, the option's
+   * cost has been paid and the decision has left the queue.
+   */
+  const decisionHandlers: Partial<Record<GameDecisionKind, (decision: GameDecision, option: GameDecisionOption) => void>> = {};
+
+  /** Answers the decision with the given id: pays for the option, dequeues it, applies it. */
+  const resolveDecision = (decisionId: string, optionId: string) => {
+    const decision = pendingDecisions.find(d => d.id === decisionId);
+    const option = decision?.options.find(o => o.id === optionId);
+    if (!decision || !option) {
+      logWarn('decisions', `Decision ${decisionId} has no option ${optionId}; nothing was done`);
+      return;
+    }
+    if (option.cost > 0) spend(option.cost, `Decision: ${decision.title}`);
+    setPendingDecisions(prev => prev.filter(d => d.id !== decisionId));
+    decisionHandlers[decision.kind]?.(decision, option);
+  };
+
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
   
@@ -630,11 +636,15 @@ export default function App() {
    * Rebuilt only when the AI airlines change, not per route.
    */
   /**
-   * Everything that shifts the player's demand away from the shared baseline:
-   * reputation, plus any crisis relief bought this month.
+   * Everything that applies to the player's routes and not to the rivals --
+   * reputation, crisis relief bought this month, and whatever the other
+   * systems add -- in the one object every player call of the finance engine
+   * receives, so the route list, the planner and the report agree.
    */
-  const playerDemandFactor = useMemo(
-    () => reputationDemandFactor(reputation) * eventReliefFactor(currentDateOffset, eventChoices),
+  const playerMods = useMemo(
+    () => buildPlayerModifiers({ reputation, eventChoices }, currentDateOffset),
+    // randomEvents: eventReliefFactor reads the active events from module state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [reputation, currentDateOffset, eventChoices, randomEvents]
   );
 
@@ -746,13 +756,13 @@ export default function App() {
       if (!ac) return r;
       const fin = calculateRouteFinancials(
         r, ac, fuelData.price, airportManagement, year, month, difficulty,
-        airportsMapAdjusted, routes, fleet, false, playerDemandFactor, rivalOffers
+        airportsMapAdjusted, routes, fleet, false, playerMods.demandFactor, rivalOffers, playerMods
       );
       return { ...r, ...toStoredRouteMetrics(fin) };
     });
     // randomEvents: calculateDemand reads the active events from module state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerDemandFactor, rivalOffers, randomEvents]);
+  }, [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerMods, rivalOffers, randomEvents]);
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
@@ -955,6 +965,15 @@ export default function App() {
     writeJson('neo_autosave_settings', { autosaveInterval, autosaveOverwrite });
   }, [autosaveInterval, autosaveOverwrite]);
 
+  /** The newspaper, tutorial and heatmap switches. Per browser, not per game. */
+  const [gameSettings, setGameSettings] = useState<GameSettings>(
+    () => normalizeGameSettings(readJson<unknown>('neo_game_settings', null))
+  );
+
+  useEffect(() => {
+    writeJson('neo_game_settings', gameSettings);
+  }, [gameSettings]);
+
 
   // Fix for Leaflet marker icons in React
   useEffect(() => {
@@ -1036,7 +1055,7 @@ export default function App() {
         const fin = calculateRouteFinancials(
           r, ac, currentFuelPrice, airportManagement, currentYearNum, currentMonthNum,
           difficulty, localAirportsMap, routes, fleet, false,
-          playerDemandFactor, rivalOffers
+          playerMods.demandFactor, rivalOffers, playerMods
         );
         // `|| 0` below would hide a NaN as a zero; name the field instead.
         const nonFinite = findNonFinite(fin);
@@ -1398,7 +1417,7 @@ export default function App() {
     // The figures stored on each route are next month's forecast. They used to
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
-    const nextDemandFactor = reputationDemandFactor(nextReputation) * eventReliefFactor(nextOffset, eventChoices);
+    const nextMods = buildPlayerModifiers({ reputation: nextReputation, eventChoices }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
     setRoutes(prevRoutes => prevRoutes.map(r => {
       const activePrices = r.ticketPrices || { economy: 100 };
@@ -1420,8 +1439,9 @@ export default function App() {
           prevRoutes,
           fleet,
           false,
-          nextDemandFactor,
-          nextRivalOffers
+          nextMods.demandFactor,
+          nextRivalOffers,
+          nextMods
         );
         updatedRoute = { ...updatedRoute, ...toStoredRouteMetrics(fin) };
       }
@@ -1594,7 +1614,15 @@ export default function App() {
       airportManagement,
       routes,
       messages,
-      randomEvents
+      randomEvents,
+      branding,
+      marketing,
+      staff,
+      disruptions,
+      pendingDecisions,
+      scenario,
+      chronicle,
+      tutorialStep
     };
     
     // Writes to this browser first and then to the cloud, so a save never depends
@@ -1633,14 +1661,31 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDateOffset, pendingInitialSave]);
 
+  /** Sets every system saved since version 3 at once, from a save or from defaults. */
+  const applyGameSystems = (systems: GameSystems) => {
+    setBranding(systems.branding);
+    setMarketing(systems.marketing);
+    setStaff(systems.staff);
+    setDisruptions(systems.disruptions);
+    setPendingDecisions(systems.pendingDecisions);
+    setScenario(systems.scenario);
+    setChronicle(systems.chronicle);
+    setTutorialStep(systems.tutorialStep);
+  };
+
   /**
    * Clears everything that belongs to one game session but is not part of the
    * savegame: the planner, the editors, open dialogs, the inbox and the random
    * events. "Start Game" after a loaded game used to inherit the previous
    * game's events and messages, and a loaded game could open with the old
    * planner still half-filled.
+   *
+   * The systems added with save version 3 go back to their defaults here as
+   * well, so nothing of them survives into the next game; a load sets them
+   * again from the save right after.
    */
   const resetTransientGameState = () => {
+    applyGameSystems(createGameSystems());
     const welcome = [createWelcomeMessage()];
     setMessages(welcome);
     reserveMessageIds(welcome);
@@ -1711,7 +1756,7 @@ export default function App() {
     setRoutes(saveObj.routes);
     // Saves from before rival airlines existed get a fresh set, founded as of
     // the save's current date so only carriers flying in that year appear.
-    setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode));
+    setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode, saveObj.branding.color));
     setPendingSlotBills(saveObj.pendingSlotBills);
     setMonthlyCapex(saveObj.monthlyCapex);
     setReportHistory(saveObj.reportHistory);
@@ -1724,6 +1769,7 @@ export default function App() {
     reserveMessageIds(saveObj.messages);
     setRandomEventsState(saveObj.randomEvents);
     setRuntimeRandomEvents(saveObj.randomEvents);
+    applyGameSystems(saveObj);
 
     setSessionKey(Date.now());
     setCurrentSaveId(slotId);
@@ -2019,6 +2065,49 @@ export default function App() {
               </div>
             </Modal>
           )}
+          {/* Any other question for the player, one at a time. Waits while a
+              world event decision is open, so the two never stack. */}
+          {!pendingDecision && pendingDecisions.length > 0 && (() => {
+            const decision = pendingDecisions[0];
+            return (
+              <Modal open size="lg" accent="warn" layer="top">
+                <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+                  <AlertTriangle size={22} /> {decision.title}
+                </h3>
+                <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
+                  {decision.description}
+                </p>
+
+                <div className="space-y-2">
+                  {decision.options.map(option => {
+                    const affordable = option.cost <= 0 || capital >= option.cost;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={!affordable}
+                        onClick={() => resolveDecision(decision.id, option.id)}
+                        className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
+                      >
+                        <div className="flex items-baseline justify-between gap-3 mb-1">
+                          <span className="font-black uppercase tracking-widest text-2xs text-white">{option.label}</span>
+                          <span className={`font-mono text-2xs font-bold shrink-0 ${option.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
+                            {option.cost > 0 ? formatCurrency(option.cost) : 'No cost'}
+                          </span>
+                        </div>
+                        <p className="text-2xs font-mono text-white/50 leading-relaxed">{option.detail}</p>
+                        {!affordable && (
+                          <p className="text-2xs font-mono text-aero-warn mt-1">
+                            {formatCurrency(option.cost - capital)} short.
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Modal>
+            );
+          })()}
           {toast && (
             <div
               role="status"
@@ -2380,6 +2469,9 @@ export default function App() {
                           // A new game starts clean: no events, messages or open
                           // editors carried over from a game played earlier.
                           resetTransientGameState();
+                          // A new game offers the tutorial, unless it was switched off.
+                          const systems: GameSystems = { ...createGameSystems(), tutorialStep: gameSettings.tutorial ? 0 : null };
+                          applyGameSystems(systems);
                           setCurrentDateOffset(startDateOffset);
                           let initialCapital = 25000000; // Default for $25M
                           if (startingBudget === '$50M') initialCapital = 50000000;
@@ -2396,7 +2488,7 @@ export default function App() {
                             }
                           });
                           setRoutes([]);
-                          setAiAirlines(generateAiAirlines(aiAirlinesCount, aiDifficulty, selectedHub, startDateOffset, airlineCode));
+                          setAiAirlines(generateAiAirlines(aiAirlinesCount, aiDifficulty, selectedHub, startDateOffset, airlineCode, systems.branding.color));
                           setPendingSlotBills(0);
                           setMonthlyCapex([]);
                           setReportHistory([]);
@@ -2790,7 +2882,7 @@ export default function App() {
                           onEditFinancials={setEditingPricingRouteId}
                           onUpdatePricing={handleUpdatePricing}
                           fuelPrice={fuelData.price}
-                        demandFactor={playerDemandFactor}
+                        playerMods={playerMods}
                         rivalOffers={rivalOffers}
                           airportManagement={airportManagement}
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
@@ -2900,7 +2992,7 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={playerDemandFactor}
+                        playerMods={playerMods}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -2933,7 +3025,7 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={playerDemandFactor}
+                        playerMods={playerMods}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -2966,7 +3058,7 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={playerDemandFactor}
+                        playerMods={playerMods}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}

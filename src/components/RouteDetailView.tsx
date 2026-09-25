@@ -13,6 +13,7 @@ import {
   RouteOffer,
   marketKey,
 } from '../lib/financeUtils';
+import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers } from '../lib/gameState';
 
 import { airports, airportsMapAdjusted } from '../data/airportRegistry';
 
@@ -27,7 +28,8 @@ interface RouteDetailViewProps {
   routes: any[];
   fleet?: OwnedAircraft[];
   fuelPrice?: number;
-  demandFactor?: number;
+  /** The player-only effects on the economy, so the detail matches the monthly report. */
+  playerMods?: PlayerModifiers;
   rivalOffers?: RouteOffer[];
   airportManagement?: Record<string, any>;
   currentYear: number;
@@ -45,7 +47,7 @@ interface RouteDetailViewProps {
 
 export function RouteDetailView({
   route, routes, fleet, fuelPrice = 1.05, airportManagement,
-  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = NO_RIVAL_OFFERS,
+  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS,
   onClose, onDelete, onChangeAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
   airlineCode = ''
 }: RouteDetailViewProps) {
@@ -93,10 +95,11 @@ export function RouteDetailView({
       routes,
       fleet,
       false,
-      demandFactor,
-      rivalOffers
+      playerMods.demandFactor,
+      rivalOffers,
+      playerMods
     );
-  }, [route, assignedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, demandFactor, rivalOffers]);
+  }, [route, assignedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, playerMods, rivalOffers]);
 
   const actualConfigSeats = assignedAircraft?.config 
     ? ((assignedAircraft.config.economy || 0) + (assignedAircraft.config.premium || 0) + (assignedAircraft.config.business || 0) + (assignedAircraft.config.first || 0)) 

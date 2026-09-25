@@ -3,6 +3,26 @@ import { getFlightDurationMinutes, TRANSIENT_ROUTE_FIELDS } from './financeUtils
 import { finiteOr } from './invariants';
 import { capMessages, createWelcomeMessage } from './messages';
 import { logWarn } from './debugLog';
+import { assignRivalColors, isHexColor } from './theme';
+import {
+  CAMPAIGN_TIERS,
+  CHRONICLE_KINDS,
+  CHRONICLE_LIMIT,
+  DEFAULT_BRANDING,
+  DEFAULT_STAFF,
+  DISRUPTION_KINDS,
+  GAME_DECISION_KINDS,
+  REGION_IDS,
+  SALARY_PCT_MAX,
+  SALARY_PCT_MIN,
+  type Branding,
+  type ChronicleEntry,
+  type Disruption,
+  type GameDecision,
+  type Marketing,
+  type ScenarioState,
+  type Staff
+} from './gameState';
 
 /**
  * Brings any savegame, however old, into the shape the current game expects.
@@ -16,7 +36,7 @@ import { logWarn } from './debugLog';
  */
 
 /** Written into every new save. Bump it whenever the shape changes. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 const PERSONALITIES = ['flag', 'lcc', 'expansionist', 'optimizer', 'boutique'] as const;
 const AGGRESSION: Record<string, number> = { expansionist: 9, lcc: 8, flag: 6, optimizer: 4, boutique: 5 };
@@ -149,9 +169,9 @@ function migrateInfrastructure(mgt: unknown): Record<string, any> {
   return out;
 }
 
-function migrateAiAirlines(ais: unknown): any[] | null {
+function migrateAiAirlines(ais: unknown, playerColor: string): any[] | null {
   if (!Array.isArray(ais)) return null;
-  return ais.map((ai: any, idx: number) => {
+  const migrated = ais.map((ai: any, idx: number) => {
     const personality = ai?.personality || PERSONALITIES[idx % PERSONALITIES.length];
     return {
       ...ai,
@@ -163,6 +183,91 @@ function migrateAiAirlines(ais: unknown): any[] | null {
       monthlyProfitsHistory: asArray<number>(ai?.monthlyProfitsHistory).filter(v => Number.isFinite(v))
     };
   });
+  // Rivals from before version 3 were all drawn in one colour.
+  const colors = assignRivalColors(migrated, playerColor);
+  return migrated.map((ai, i) => ({ ...ai, color: colors[i] }));
+}
+
+// --- Systems added in version 3 ---------------------------------------------
+
+const isString = (v: unknown): v is string => typeof v === 'string';
+
+function migrateBranding(b: unknown): Branding {
+  const src = asObject<any>(b, {});
+  return {
+    color: isHexColor(src.color) ? src.color : DEFAULT_BRANDING.color,
+    icon: isString(src.icon) && src.icon ? src.icon : DEFAULT_BRANDING.icon
+  };
+}
+
+function migrateMarketing(m: unknown, currentDateOffset: number): Marketing {
+  const src = asObject<any>(m, {});
+  const campaigns = asArray<any>(src.campaigns)
+    .filter(c => c && isString(c.id) && CAMPAIGN_TIERS.includes(c.tier) && REGION_IDS.includes(c.region))
+    .map(c => ({
+      ...c,
+      startOffset: Math.max(0, Math.round(finiteOr(c.startOffset, currentDateOffset))),
+      duration: Math.max(0, Math.round(finiteOr(c.duration, 0)))
+    }));
+  const ffpActive = src.ffpActive === true;
+  // A programme without a start date starts over; loyalty is rebuilt from here.
+  const since = typeof src.ffpSinceOffset === 'number' ? src.ffpSinceOffset : NaN;
+  return {
+    campaigns,
+    ffpActive,
+    ffpSinceOffset: ffpActive ? Math.max(0, Math.round(finiteOr(since, currentDateOffset))) : null
+  };
+}
+
+function migrateStaff(s: unknown): Staff {
+  const src = asObject<any>(s, {});
+  const strike = src.strike && typeof src.strike === 'object' && Number.isFinite(src.strike.startOffset)
+    ? {
+        ...src.strike,
+        startOffset: Math.max(0, Math.round(src.strike.startOffset)),
+        cancelShare: clamp(finiteOr(src.strike.cancelShare, 0), 0, 1)
+      }
+    : null;
+  return {
+    salaryPct: clamp(finiteOr(src.salaryPct, DEFAULT_STAFF.salaryPct), SALARY_PCT_MIN, SALARY_PCT_MAX),
+    morale: clamp(finiteOr(src.morale, DEFAULT_STAFF.morale), 0, 100),
+    strike
+  };
+}
+
+function migrateDisruptions(list: unknown): Disruption[] {
+  return asArray<any>(list)
+    .filter(d => d && isString(d.id) && DISRUPTION_KINDS.includes(d.kind) && Number.isFinite(d.offset))
+    .map(d => ({
+      ...d,
+      routeIds: asArray<unknown>(d.routeIds).filter(isString),
+      cancelShare: clamp(finiteOr(d.cancelShare, 0), 0, 1)
+    }));
+}
+
+function migrateDecisions(list: unknown): GameDecision[] {
+  return asArray<any>(list)
+    .filter(d => d && isString(d.id) && GAME_DECISION_KINDS.includes(d.kind) && isString(d.title))
+    .map(d => ({
+      ...d,
+      description: isString(d.description) ? d.description : '',
+      options: asArray<any>(d.options)
+        .filter(o => o && isString(o.id) && isString(o.label))
+        .map(o => ({ ...o, detail: isString(o.detail) ? o.detail : '', cost: Math.max(0, finiteOr(o.cost, 0)) }))
+    }))
+    // A question with nothing to answer would block the game.
+    .filter(d => d.options.length > 0);
+}
+
+function migrateChronicle(list: unknown): ChronicleEntry[] {
+  return asArray<any>(list)
+    .filter(e => e && Number.isFinite(e.offset) && CHRONICLE_KINDS.includes(e.kind) && isString(e.text))
+    .slice(-CHRONICLE_LIMIT);
+}
+
+function migrateScenario(s: unknown): ScenarioState | null {
+  const src = asObject<any>(s, {});
+  return isString(src.id) && src.id ? { ...src } : null;
 }
 
 function migrateMessages(messages: unknown): any[] {
@@ -197,6 +302,8 @@ export function migrateSave(raw: any): any {
   if (droppedRoutes > 0) logWarn('saves', `Dropped ${droppedRoutes} unusable route(s) while loading`);
 
   const startDateOffset = Math.max(0, Math.round(finiteOr(raw.startDateOffset, 0)));
+  const currentDateOffset = Math.max(startDateOffset, Math.round(finiteOr(raw.currentDateOffset, startDateOffset)));
+  const branding = migrateBranding(raw.branding);
   const migrated = {
     ...raw,
     saveVersion: SAVE_VERSION,
@@ -209,7 +316,7 @@ export function migrateSave(raw: any): any {
     fleet,
     routes,
     aiAirlinesCount: finiteOr(raw.aiAirlinesCount, 6),
-    aiAirlines: migrateAiAirlines(raw.aiAirlines),
+    aiAirlines: migrateAiAirlines(raw.aiAirlines, branding.color),
     pendingSlotBills: finiteOr(raw.pendingSlotBills, 0),
     monthlyCapex: asArray<any>(raw.monthlyCapex).filter(c => c && Number.isFinite(c.amount)),
     reportHistory: asArray<any>(raw.reportHistory).filter(r => r && typeof r === 'object'),
@@ -221,13 +328,25 @@ export function migrateSave(raw: any): any {
       ? raw.annualGoal
       : null,
     startDateOffset,
-    currentDateOffset: Math.max(startDateOffset, Math.round(finiteOr(raw.currentDateOffset, startDateOffset))),
+    currentDateOffset,
     airportManagement: migrateInfrastructure(raw.airportManagement),
     messages: migrateMessages(raw.messages),
     randomEvents: asArray<any>(raw.randomEvents).filter(ev =>
       ev && Number.isFinite(ev.startOffset) && Number.isFinite(ev.duration) &&
       Number.isFinite(ev.demandMultiplier) && Number.isFinite(ev.fuelMultiplier)
-    )
+    ),
+    branding,
+    marketing: migrateMarketing(raw.marketing, currentDateOffset),
+    staff: migrateStaff(raw.staff),
+    disruptions: migrateDisruptions(raw.disruptions),
+    pendingDecisions: migrateDecisions(raw.pendingDecisions),
+    scenario: migrateScenario(raw.scenario),
+    chronicle: migrateChronicle(raw.chronicle),
+    // Older saves were started before the tutorial existed; their players do
+    // not need it, so it stays off rather than starting on load.
+    tutorialStep: typeof raw.tutorialStep === 'number' && Number.isFinite(raw.tutorialStep)
+      ? Math.max(0, Math.round(raw.tutorialStep))
+      : null
   };
 
   if ((raw.saveVersion ?? 1) < SAVE_VERSION) {
