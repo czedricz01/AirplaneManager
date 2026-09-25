@@ -7,6 +7,7 @@ import { motion } from 'motion/react';
 // The shared version of what used to be a local SeatInfoTooltip here; the rest of
 // the interface needs the same affordance, so it now lives in its own module.
 import { InfoTooltip as SeatInfoTooltip } from './InfoTooltip';
+import { useTapReveal } from './ui/useTapReveal';
 import { readJson, writeJson } from '../lib/safeStorage';
 
 export type ClassSetup = {
@@ -108,6 +109,16 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const [savedPresets, setSavedPresets] = useState<any[]>(() => readJson<any[]>('aero_saved_presets', []));
   const [activeConfigTab, setActiveConfigTab] = useState<'general' | 'classes'>('classes');
   const [selectedClass, setSelectedClass] = useState<ClassType | null>(null);
+  // Which cabin zone's details show under the diagram: the hovered one with a
+  // mouse, or for a moment the tapped one on a touch screen.
+  const [hoverZone, setHoverZone] = useState<ClassType | null>(null);
+  const [tappedZone, onZoneTap] = useTapReveal<ClassType>();
+  const shownZone = hoverZone ?? tappedZone;
+  const zonePointer = (zone: ClassType) => ({
+    onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') setHoverZone(zone); },
+    onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') setHoverZone(null); },
+    onPointerUp: onZoneTap(zone),
+  });
 
   // Extras state
   const [hasWifi, setHasWifi] = useState(initialPlane?.config?.details?.hasWifi ?? false);
@@ -639,13 +650,15 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
     );
   };
 
+  // Each class's details: seat type and pitch beside the soft product, or one
+  // above the other on phones, where two half-width columns are too narrow.
   const renderClassDetails = () => {
     if (!selectedClass) return null;
 
     if (selectedClass === 'first') {
       return (
-        <div className="w-full max-w-4xl relative z-10 flex border border-white/10 bg-black/60 rounded-sm">
-          <div className="w-1/2 p-4 border-r border-white/5 flex flex-col">
+        <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-white/10 bg-black/60 rounded-sm">
+          <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-white/5 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({firstPitch} cm)</label>
@@ -676,7 +689,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             </div>
             
           </div>
-          <div className="w-1/2 p-4 flex flex-col">
+          <div className="w-full md:w-1/2 p-4 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
@@ -723,8 +736,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
     if (selectedClass === 'business') {
       return (
-        <div className="w-full max-w-4xl relative z-10 flex border border-white/10 bg-black/60 rounded-sm">
-          <div className="w-1/2 p-4 border-r border-white/5 flex flex-col">
+        <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-white/10 bg-black/60 rounded-sm">
+          <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-white/5 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({bizPitch} cm)</label>
@@ -755,7 +768,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             </div>
             
           </div>
-          <div className="w-1/2 p-4 flex flex-col">
+          <div className="w-full md:w-1/2 p-4 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
@@ -802,8 +815,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
     if (selectedClass === 'premium') {
       return (
-        <div className="w-full max-w-4xl relative z-10 flex border border-white/10 bg-black/60 rounded-sm">
-          <div className="w-1/2 p-4 border-r border-white/5 flex flex-col">
+        <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-white/10 bg-black/60 rounded-sm">
+          <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-white/5 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({premPitch} cm)</label>
@@ -834,7 +847,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             </div>
             
           </div>
-          <div className="w-1/2 p-4 flex flex-col">
+          <div className="w-full md:w-1/2 p-4 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
@@ -881,8 +894,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
     if (selectedClass === 'economy') {
       return (
-        <div className="w-full max-w-4xl relative z-10 flex border border-white/10 bg-black/60 rounded-sm">
-          <div className="w-1/2 p-4 border-r border-white/5 flex flex-col">
+        <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-white/10 bg-black/60 rounded-sm">
+          <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-white/5 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-mono uppercase tracking-widest text-white/60">Seat Pitch ({ecoPitch} cm)</label>
@@ -913,7 +926,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             </div>
             
           </div>
-          <div className="w-1/2 p-4 flex flex-col">
+          <div className="w-full md:w-1/2 p-4 flex flex-col">
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 border-b border-white/10 pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
@@ -987,7 +1000,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center opacity-5 pointer-events-none mix-blend-screen" />
             
              {/* Plane Schematic Container */}
-             <div className="w-full relative z-10 mb-4 shrink-0" style={{ maxWidth: Math.max(800, Math.min(2048, 400 + CAPACITY * 5)) + 'px' }}>
+             {/* Raised above the mode switcher (z-10) only while the zone details
+                 show, since they overlap it; otherwise the switcher stays on top
+                 of the fuselage's drop shadow, as before. */}
+             <div className={`w-full relative ${shownZone ? 'z-20' : 'z-10'} mb-4 shrink-0`} style={{ maxWidth: Math.max(800, Math.min(2048, 400 + CAPACITY * 5)) + 'px' }}>
                <div className="text-2xs uppercase font-mono tracking-widest text-white/40 mb-4 text-center flex items-center justify-center gap-4">
                  <span>Cabin Layout ({aircraft.class})</span>
                  <span className={`flex items-center gap-1 ${isOverbooked ? 'text-aero-yellow/60 font-bold' : ''}`}>
@@ -1028,55 +1044,52 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       {/* Zones container */}
                       <div className="relative flex-1 flex ml-[12%] sm:ml-[13%] mr-[12%] sm:mr-[15%] my-0 rounded-none overflow-hidden bg-black/5 border border-black/10">
                          {pFirst > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pFirst}%` }} className="group bg-aero-yellow/20 relative overflow-visible flex items-center justify-center border-r border-amber-500/50 cursor-pointer hover:bg-aero-yellow/40 transition-colors" onClick={() => setSelectedClass('first')}>
+                           <motion.div initial={false} animate={{ width: `${pFirst}%` }} className="group bg-aero-yellow/20 relative overflow-visible flex items-center justify-center border-r border-amber-500/50 cursor-pointer hover:bg-aero-yellow/40 transition-colors" onClick={() => setSelectedClass('first')} {...zonePointer('first')}>
                               {renderSeatDots(firstSeats, 'first', firstType, CAPACITY, aircraft.class)}
-                              <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">FIRST</span>
-                              
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-amber-500/50 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-2xs text-aero-yellow font-bold uppercase tracking-widest mb-1">First Class</span>
-                                <span className="font-mono text-sm">{firstSeats} Seats</span>
-                                <span className="font-mono text-2xs text-white/50">{firstType} • {firstPitch}cm Pitch</span>
-                              </div>
+                              <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'first' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>FIRST</span>
                            </motion.div>
                          )}
                          {pBiz > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pBiz}%` }} className={`group bg-white/5 relative overflow-visible flex items-center justify-center border-r border-white/10 cursor-pointer hover:bg-white/5 transition-colors`} onClick={() => setSelectedClass('business')}>
+                           <motion.div initial={false} animate={{ width: `${pBiz}%` }} className={`group bg-white/5 relative overflow-visible flex items-center justify-center border-r border-white/10 cursor-pointer hover:bg-white/5 transition-colors`} onClick={() => setSelectedClass('business')} {...zonePointer('business')}>
                               {renderSeatDots(bizSeats, 'business', bizType, CAPACITY, aircraft.class)}
-                              <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">BUSINESS</span>
-                              
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-white/10 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-2xs text-white/80 font-bold uppercase tracking-widest mb-1">Business Class</span>
-                                <span className="font-mono text-sm">{bizSeats} Seats</span>
-                                <span className="font-mono text-2xs text-white/50">{bizType} • {bizPitch}cm Pitch</span>
-                              </div>
+                              <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'business' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>BUSINESS</span>
                            </motion.div>
                          )}
                          {pPrem > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pPrem}%` }} className={`group bg-aero-yellow/20 relative overflow-visible flex items-center justify-center border-r border-aero-yellow/50 cursor-pointer hover:bg-aero-yellow/40 transition-colors`} onClick={() => setSelectedClass('premium')}>
+                           <motion.div initial={false} animate={{ width: `${pPrem}%` }} className={`group bg-aero-yellow/20 relative overflow-visible flex items-center justify-center border-r border-aero-yellow/50 cursor-pointer hover:bg-aero-yellow/40 transition-colors`} onClick={() => setSelectedClass('premium')} {...zonePointer('premium')}>
                               {renderSeatDots(premSeats, 'premium', premType, CAPACITY, aircraft.class)}
-                              <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">PREMIUM</span>
-                           
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-aero-yellow/50 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-2xs text-aero-yellow font-bold uppercase tracking-widest mb-1">Premium Economy</span>
-                                <span className="font-mono text-sm">{premSeats} Seats</span>
-                                <span className="font-mono text-2xs text-white/50">{premType} • {premPitch}cm Pitch</span>
-                              </div>
+                              <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'premium' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>PREMIUM</span>
                            </motion.div>
                          )}
                          {pEco > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pEco}%` }} className={`group bg-aero-carbon/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-aero-carbon/40 transition-colors`} onClick={() => setSelectedClass('economy')}>
+                           <motion.div initial={false} animate={{ width: `${pEco}%` }} className={`group bg-aero-carbon/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-aero-carbon/40 transition-colors`} onClick={() => setSelectedClass('economy')} {...zonePointer('economy')}>
                               {renderSeatDots(ecoSeats, 'economy', ecoType, CAPACITY, aircraft.class)}
-                              <span className="font-mono text-xs font-bold text-white absolute opacity-0 group-hover:opacity-100 transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md">ECONOMY</span>
-                           
-                              <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none bg-black border border-slate-400/50 text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap">
-                                <span className="font-mono text-2xs text-slate-400 font-bold uppercase tracking-widest mb-1">Economy Class</span>
-                                <span className="font-mono text-sm">{ecoSeats} Seats</span>
-                                <span className="font-mono text-2xs text-white/50">{ecoType} • {ecoPitch}cm Pitch</span>
-                              </div>
+                              <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'economy' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>ECONOMY</span>
                            </motion.div>
                          )}
                       </div>
                    </div>
+
+                   {/* Details of the hovered or tapped zone. Kept out here, below
+                       the diagram: inside the zones, whose containers clip their
+                       overflow, a tooltip was cut off and never seen. On a phone
+                       held sideways little of the page shows below the diagram, so
+                       there it sits over the diagram instead. */}
+                   {shownZone && (() => {
+                     const zone = {
+                       first: { title: 'First Class', seats: firstSeats, type: firstType, pitch: firstPitch, border: 'border-amber-500/50', color: 'text-aero-yellow' },
+                       business: { title: 'Business Class', seats: bizSeats, type: bizType, pitch: bizPitch, border: 'border-white/10', color: 'text-white/80' },
+                       premium: { title: 'Premium Economy', seats: premSeats, type: premType, pitch: premPitch, border: 'border-aero-yellow/50', color: 'text-aero-yellow' },
+                       economy: { title: 'Economy Class', seats: ecoSeats, type: ecoType, pitch: ecoPitch, border: 'border-slate-400/50', color: 'text-slate-400' },
+                     }[shownZone];
+                     return (
+                       <div role="tooltip" className={`absolute top-full short:top-1/2 left-1/2 -translate-x-1/2 short:-translate-y-1/2 mt-2 short:mt-0 z-[100] pointer-events-none bg-black border ${zone.border} text-white p-3 rounded-sm shadow-2xl flex flex-col items-center min-w-[140px] whitespace-nowrap`}>
+                         <span className={`font-mono text-2xs ${zone.color} font-bold uppercase tracking-widest mb-1`}>{zone.title}</span>
+                         <span className="font-mono text-sm">{zone.seats} Seats</span>
+                         <span className="font-mono text-2xs text-white/50">{zone.type} • {zone.pitch}cm Pitch</span>
+                       </div>
+                     );
+                   })()}
                </div>
              </div>
 

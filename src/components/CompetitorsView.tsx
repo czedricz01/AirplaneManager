@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
+import { useTapReveal } from './ui/useTapReveal';
 import { AI_MONTHLY_SUBSIDY } from '../lib/aiSimulation';
 import { 
   Search, 
@@ -121,6 +122,8 @@ function CompetitorsViewImpl({
   const [sortField, setSortField] = useState<SortField>('capital');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedAirlineId, setSelectedAirlineId] = useState<string | null>(null);
+  // The profit bar last tapped on a touch screen, whose value is shown for a moment.
+  const [tappedBar, onBarTap] = useTapReveal<number>();
 
   // Player and AI airlines in one list. Only real figures: where the game has no
   // number for something, the screen shows "-" rather than a made-up value.
@@ -630,9 +633,9 @@ function CompetitorsViewImpl({
                         const maxValue = Math.max(...shown.map(Math.abs), 1000000);
                         const progressHeight = Math.max(10, Math.min(100, (Math.abs(val) / maxValue) * 100));
                         return (
-                          <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                            {/* Value tooltip */}
-                            <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black text-3xs px-1 rounded-sm pointer-events-none whitespace-nowrap z-10 font-black">
+                          <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end" onPointerUp={onBarTap(idx)}>
+                            {/* Value tooltip: on hover, or after a tap on a touch screen. */}
+                            <div className={`absolute bottom-full mb-1 ${tappedBar === idx ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity bg-white text-black text-3xs px-1 rounded-sm pointer-events-none whitespace-nowrap z-10 font-black`}>
                               {formatCurrency(val)}
                             </div>
                             <div 

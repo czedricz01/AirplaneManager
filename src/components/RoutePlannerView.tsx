@@ -1078,7 +1078,10 @@ function RoutePlannerInner({
     return false;
   };
 
-  const handleDragStart = (e: React.MouseEvent, dragTrip: ScheduledTrip) => {
+  // Pointer events rather than mouse events, so a block can be dragged with a
+  // finger as well as a mouse; the block itself is touch-none so the drag does
+  // not scroll the timetable instead.
+  const handleDragStart = (e: React.PointerEvent, dragTrip: ScheduledTrip) => {
     e.preventDefault();
     const startY = e.clientY;
     
@@ -1095,7 +1098,7 @@ function RoutePlannerInner({
       return { start, end: start + c };
     }) || []);
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
+    const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaY = moveEvent.clientY - startY;
       const deltaMin = Math.round(deltaY / 10) * 5;
       
@@ -1145,13 +1148,16 @@ function RoutePlannerInner({
       }
     };
 
-    const handleMouseUp = () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+    // pointercancel: the browser took the touch over (e.g. a system gesture).
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
   };
 
   const generateFlightNumber = () => {
@@ -2820,11 +2826,11 @@ function RoutePlannerInner({
                               return (
                                 <div 
                                   key={b.id} 
-                                  onMouseDown={!b.isBusy ? (e) => handleDragStart(e, b.s) : undefined}
+                                  onPointerDown={!b.isBusy ? (e) => handleDragStart(e, b.s) : undefined}
                                   className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono shadow-2xl backdrop-blur-md z-10 flex flex-col overflow-hidden transition-all ${
                                     b.isBusy 
                                       ? 'bg-white/10 border-l-2 border-white/30 cursor-default grayscale opacity-60' 
-                                      : 'bg-aero-yellow/30 border-l-2 border-aero-yellow cursor-ns-resize hover:bg-aero-yellow/40 hover:scale-[1.01] hover:z-20'
+                                      : 'bg-aero-yellow/30 border-l-2 border-aero-yellow cursor-ns-resize touch-none hover:bg-aero-yellow/40 hover:scale-[1.01] hover:z-20'
                                   }`}
                                   style={{ top: b.top, height: b.height, zIndex: b.isBusy ? 5 : 10 }}
                                 >
