@@ -4,9 +4,10 @@
  * It tells the month back as a story. The headline goes to the biggest news
  * in a fixed order,
  *
- *   scenario won or lost > world crisis > strike > major disruption >
- *   milestone > record month (profit or loss) > rival expansion > good news
- *   from the world > filler
+ *   scenario won or lost > world crisis > strike > disruption across routes
+ *   (an airport strike, winter weather, anything hitting several routes) >
+ *   milestone > record month (profit or loss) > disruption of one route (a
+ *   technical defect) > rival expansion > good news from the world > filler
  *
  * and the columns underneath carry the airline's results, the markets, the
  * rivals and whatever else the month brought. A quiet month gets a filler
@@ -86,6 +87,17 @@ export interface EditionEvent {
   duration: number;
 }
 
+/** A disruption rolled for the coming month. */
+export interface EditionDisruption {
+  kind: DisruptionKind;
+  title: string;
+  text: string;
+  cancelShare: number;
+  /** How many of the player's routes it hits; one when absent. */
+  routeCount?: number;
+  ref?: string;
+}
+
 export interface EditionReport {
   totalProfit: number;
   routeRevenues: number;
@@ -116,7 +128,7 @@ export interface EditionInput {
   /** A strike called for the coming month. */
   strike?: { morale: number } | null;
   /** Disruptions rolled for the coming month. */
-  disruptions?: { kind: DisruptionKind; title: string; text: string; cancelShare: number; ref?: string }[];
+  disruptions?: EditionDisruption[];
   rivalMoves?: RivalMove[];
   /** Campaigns launched and the frequent-flyer programme started in the month just closed. */
   launches?: { tier: string; region: RegionId | 'global' }[];
@@ -257,7 +269,12 @@ interface Story {
   headline: string;
   subhead: string;
   lead: string;
+  /** The disruption the front page is about, so the brief does not repeat it. */
+  disruption?: EditionDisruption;
 }
+
+/** Hits more than the one route: an airport strike, the weather, or anything else reaching several. */
+const isWideDisruption = (d: EditionDisruption) => d.kind === 'airport-strike' || d.kind === 'weather' || (d.routeCount ?? 1) > 1;
 
 const DISRUPTION_HEADLINES: Record<DisruptionKind, (name: string, ref: string) => string> = {
   technical: name => `Technical Fault Grounds ${name} Jet`,
@@ -307,17 +324,20 @@ function pickStory(input: EditionInput, nextMonth: string, closedMonth: string):
     };
   }
 
-  const disruption = [...(input.disruptions || [])]
+  // Big enough for the front page; those across routes come before a
+  // milestone, a single grounded aircraft only after the records.
+  const frontPage = [...(input.disruptions || [])]
     .filter(d => d.cancelShare >= HEADLINE_DISRUPTION_SHARE)
-    .sort((a, b) => b.cancelShare - a.cancelShare || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0))[0];
-  if (disruption) {
-    return {
-      kind: 'disruption',
-      headline: DISRUPTION_HEADLINES[disruption.kind](name, disruption.ref || ''),
-      subhead: `${Math.round(disruption.cancelShare * 100)}% of affected flights in doubt for ${nextMonth}`,
-      lead: `${disruption.text} Passengers are being rebooked while ${name} weighs its options.`
-    };
-  }
+    .sort((a, b) => b.cancelShare - a.cancelShare || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0));
+  const disruptionStory = (d: EditionDisruption): Story => ({
+    kind: 'disruption',
+    headline: DISRUPTION_HEADLINES[d.kind](name, d.ref || ''),
+    subhead: `${Math.round(d.cancelShare * 100)}% of affected flights in doubt for ${nextMonth}`,
+    lead: `${d.text} Passengers are being rebooked while ${name} weighs its options.`,
+    disruption: d
+  });
+  const wide = frontPage.find(isWideDisruption);
+  if (wide) return disruptionStory(wide);
 
   const milestone = (input.milestones || [])[0];
   if (milestone) {
@@ -347,6 +367,9 @@ function pickStory(input: EditionInput, nextMonth: string, closedMonth: string):
       lead: `Never has ${name} lost more in a single month. Shareholders will want to know what the board intends to do about it.`
     };
   }
+
+  const single = frontPage.find(d => !isWideDisruption(d));
+  if (single) return disruptionStory(single);
 
   const expansion = (input.rivalMoves || [])
     .filter(m => m.kind === 'expansion' || m.kind === 'founded')
@@ -480,7 +503,7 @@ function briefColumn(input: EditionInput, story: Story): { title: string; body: 
     lines.push(e.text);
   }
   for (const m of (input.milestones || []).slice(story.kind === 'milestone' ? 1 : 0)) lines.push(`Milestone: ${m.title}.`);
-  const minor = (input.disruptions || []).filter(d => story.kind !== 'disruption' || d.cancelShare < HEADLINE_DISRUPTION_SHARE);
+  const minor = (input.disruptions || []).filter(d => d !== story.disruption);
   if (minor.length > 0) lines.push(`Operations: ${listOf(minor.map(d => d.title))} will cost flights next month.`);
   for (const l of input.launches || []) {
     const where = l.region === 'global' ? 'worldwide' : `in ${REGION_LABELS[l.region]}`;

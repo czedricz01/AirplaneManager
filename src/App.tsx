@@ -258,11 +258,12 @@ import {
   MAJOR_DISRUPTION_SHARE,
   buildDisruptionDecision,
   cancelReputationPenalty,
-  charterFee,
+  charterFeesFor,
   combineCancelShares,
   describeDisruption,
   describeRouteCancellations,
   disruptionCancelShares,
+  disruptionRoutesLabel,
   disruptionIncidents,
   disruptionRepairCost,
   disruptionTitle,
@@ -1323,12 +1324,15 @@ export default function App() {
       rivalOffers
     };
     const monthNetwork = computeNetworkFinancials(routes, fleet, playerMods, monthEnv);
-    /** Ticket revenue of a whole network in a month, for pricing what a disruption costs. */
-    const networkRevenue = (list: SimulatedRoute[], mods: PlayerModifiers, env: NetworkEnv) => {
+    /** Ticket revenue of a priced network in a month. */
+    const revenueOf = (net: { finById: Map<string, { estWeeklyRev?: number }> }) => {
       let week = 0;
-      computeNetworkFinancials(list, fleet, mods, env).finById.forEach(fin => { week += fin.estWeeklyRev || 0; });
+      net.finById.forEach(fin => { week += fin.estWeeklyRev || 0; });
       return week * 4;
     };
+    /** Ticket revenue of a whole network in a month, for pricing what a disruption costs. */
+    const networkRevenue = (list: SimulatedRoute[], mods: PlayerModifiers, env: NetworkEnv) =>
+      revenueOf(computeNetworkFinancials(list, fleet, mods, env));
 
     routes.forEach(r => {
       const fin = monthNetwork.finById.get(r.id);
@@ -1418,14 +1422,14 @@ export default function App() {
     // cost: 90% of the tickets each one saved, with every other cause -- a
     // strike above all -- applied. The routes' figures above already fly
     // those flights, through playerMods.
-    const charterFees: Record<string, number> = {};
-    for (const d of disruptionsIn(disruptions, currentDateOffset)) {
-      if (!d.mitigated) continue;
-      const lost = marginalLostRevenue(d, disruptions, list =>
-        networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list }, currentDateOffset), monthEnv));
-      const fee = charterFee(lost);
-      if (fee > 0) charterFees[d.id] = fee;
-    }
+    // Charters sharing a route share what they save. The month as it is has
+    // been priced already, above: monthNetwork is that very network.
+    const charterFees = charterFeesFor(
+      disruptions,
+      currentDateOffset,
+      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list }, currentDateOffset), monthEnv),
+      revenueOf(monthNetwork)
+    );
     const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
     const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total - incidentRepairs - charterCosts;
 
@@ -1846,10 +1850,14 @@ export default function App() {
       eventsStarted,
       eventsEnded: eventsEnded.map(ev => ({ title: ev.title, endOffset: nextOffset })),
       strike: staffMonth.strikeCalled ? { offset: currentDateOffset + 1, morale: nextStaff.morale } : null,
-      disruptions: rolledDisruptions.map(d => ({
+      // What hit the month just closed, now that any charter is known.
+      disruptions: disruptionsIn(disruptions, currentDateOffset).map(d => ({
         offset: d.offset,
         cancelShare: d.cancelShare,
-        text: describeDisruption(d, routeLabel).replace(/^\u2022\s*/, '')
+        routeCount: d.routeIds.length,
+        mitigated: d.mitigated,
+        title: disruptionTitle(d),
+        where: disruptionRoutesLabel(d, routeLabel, 3)
       })),
       regions: regionsNow,
       homeRegion,
@@ -1927,6 +1935,7 @@ export default function App() {
         title: disruptionTitle(d),
         text: describeDisruption(d, routeLabel).replace(/^\u2022\s*/, ''),
         cancelShare: d.cancelShare,
+        routeCount: d.routeIds.length,
         ref: d.ref
       })),
       rivalMoves: rivalMoves(aiAirlines, aisAfterTurn),
@@ -2003,34 +2012,37 @@ export default function App() {
       const activePrices = r.ticketPrices || { economy: 100 };
       return { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
     });
+    // Next month priced once, as it stands: the forecast stored on the
+    // routes below, and the starting point for pricing the questions.
+    const repricedNext = repriceForNextMonth(routes);
+    const nextNetwork = computeNetworkFinancials(repricedNext, fleet, nextMods, nextEnv);
 
     // The bigger disruptions are put to the player: charter a replacement or
     // cancel. What is at stake is the revenue each one takes from next
     // month's forecast, every other disruption applied. A strike called at
     // this close is left out: its answer is still to come, and the charter
     // is billed at the month's close on what it actually saved anyway.
+    // Every candidate is still cancelling in nextDisruptions, so the month
+    // with it cancelling is the same network for all of them: priced once,
+    // and without a strike called at this close it is nextNetwork itself.
     const majorCandidates = rolledDisruptions.filter(d => d.cancelShare >= MAJOR_DISRUPTION_SHARE);
     if (majorCandidates.length > 0) {
-      const repriced = repriceForNextMonth(routes);
       const staffBeforeStrike: Staff = { ...nextStaff, strike: staffMonth.strikeCalled ? null : nextStaff.strike };
-      const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, list =>
-        networkRevenue(repriced, buildPlayerModifiers({
-          reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list
-        }, nextOffset), nextEnv))]));
+      const revenueWith = (list: Disruption[]) => networkRevenue(repricedNext, buildPlayerModifiers({
+        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list
+      }, nextOffset), nextEnv);
+      const allCancelling = staffMonth.strikeCalled ? revenueWith(nextDisruptions) : revenueOf(nextNetwork);
+      const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, revenueWith, allCancelling)]));
       const monthStr = offsetToDateStr(nextOffset);
       for (const d of disruptionsToAsk(majorCandidates, x => lostBy.get(x.id) ?? 0)) {
         queueDecision(buildDisruptionDecision(d, monthStr, lostBy.get(d.id) ?? 0, routeLabel));
       }
     }
 
-    setRoutes(prevRoutes => {
-      const repriced = repriceForNextMonth(prevRoutes);
-      const nextNetwork = computeNetworkFinancials(repriced, fleet, nextMods, nextEnv);
-      return repriced.map(r => {
-        const fin = nextNetwork.finById.get(r.id);
-        return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
-      });
-    });
+    setRoutes(prevRoutes => repriceForNextMonth(prevRoutes).map(r => {
+      const fin = nextNetwork.finById.get(r.id);
+      return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
+    }));
 
     setView('monthly-overview');
 

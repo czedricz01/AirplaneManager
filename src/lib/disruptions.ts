@@ -24,8 +24,10 @@
  *
  * A charter is billed at the close of the month it flies, as an operating
  * cost: 90% of the ticket revenue it saved, with every other cause applied
- * (marginalLostRevenue). A route a strike grounds anyway saves nothing and
- * costs nothing to charter, and cancelling there costs no reputation either.
+ * (marginalLostRevenue). Charters on the same route share what they save
+ * rather than each claiming it whole (charterFeesFor). A route a strike
+ * grounds anyway saves nothing and costs nothing to charter, and cancelling
+ * there costs no reputation either.
  *
  * Everything here is pure; the random generator is a parameter. Nothing here
  * reaches the AI airlines.
@@ -357,13 +359,88 @@ export function disruptionIncidents(
 export function marginalLostRevenue(
   d: Disruption,
   disruptions: Disruption[],
-  revenueWith: (disruptions: Disruption[]) => number
+  revenueWith: (disruptions: Disruption[]) => number,
+  /**
+   * The month's price with `d` cancelling, when the caller has it already:
+   * for several disruptions all still cancelling in `disruptions`, that is
+   * one and the same network, worth pricing once rather than per question.
+   */
+  revenueWithIt?: number
 ): number {
   const withIt = (mitigated: boolean) => {
     const list = disruptions.map(x => (x.id === d.id ? { ...x, mitigated } : x));
     return list.some(x => x.id === d.id) ? list : [...list, { ...d, mitigated }];
   };
-  return Math.max(0, revenueWith(withIt(true)) - revenueWith(withIt(false)));
+  const lost = revenueWithIt ?? revenueWith(withIt(false));
+  return Math.max(0, revenueWith(withIt(true)) - lost);
+}
+
+/**
+ * The chartered disruptions of a month in groups that share a route, each
+ * group in the order given. Disruptions on routes of their own stand alone.
+ */
+function groupsSharingRoutes(list: Disruption[]): Disruption[][] {
+  const parent = list.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const byRoute = new Map<string, number>();
+  list.forEach((d, i) => {
+    for (const id of d.routeIds) {
+      const j = byRoute.get(id);
+      if (j === undefined) byRoute.set(id, i);
+      else parent[find(i)] = find(j);
+    }
+  });
+  const groups = new Map<number, Disruption[]>();
+  list.forEach((d, i) => {
+    const root = find(i);
+    const group = groups.get(root);
+    if (group) group.push(d);
+    else groups.set(root, [d]);
+  });
+  return [...groups.values()];
+}
+
+/**
+ * What each replacement aircraft chartered for the month at `offset` is
+ * billed, by disruption id: CHARTER_COST_SHARE of the ticket revenue the
+ * charters save. Only fees above zero are listed.
+ *
+ * Charters on the same route save less together than each would alone: a
+ * defect (25%) and an airport strike (30%) on one route cancel 47.5% of its
+ * flights between them, not 55%. Pricing each against the other's charter
+ * counted that overlap twice. So the chartered disruptions are grouped by
+ * the routes they share; each group's saving is priced once -- the month as
+ * it is, against the month with the whole group cancelling -- and split
+ * across the group in proportion to what each would save on its own. A
+ * disruption alone on its routes is billed exactly its marginalLostRevenue.
+ *
+ * `revenueWith` prices the month's network for a list of disruptions, the
+ * strike and everything else as it is. `baseRevenue`, when given, is its
+ * price for `disruptions` as they are, which the month's close has already.
+ */
+export function charterFeesFor(
+  disruptions: Disruption[],
+  offset: number,
+  revenueWith: (disruptions: Disruption[]) => number,
+  baseRevenue?: number
+): Record<string, number> {
+  const chartered = disruptionsIn(disruptions, offset).filter(d => d.mitigated);
+  if (chartered.length === 0) return {};
+  const base = baseRevenue ?? revenueWith(disruptions);
+  const cancelling = (ids: Set<string>) => disruptions.map(x => (ids.has(x.id) ? { ...x, mitigated: false } : x));
+  const saved = (ids: string[]) => Math.max(0, base - revenueWith(cancelling(new Set(ids))));
+
+  const fees: Record<string, number> = {};
+  for (const group of groupsSharingRoutes(chartered)) {
+    const joint = saved(group.map(d => d.id));
+    const alone = group.length === 1 ? [joint] : group.map(d => saved([d.id]));
+    const total = alone.reduce((sum, v) => sum + v, 0);
+    group.forEach((d, i) => {
+      const fee = charterFee(total > 0 ? joint * (alone[i] / total) : 0);
+      if (fee > 0) fees[d.id] = fee;
+    });
+  }
+  return fees;
 }
 
 /** What a charter costs for the revenue it saves, in whole dollars. */
@@ -449,11 +526,16 @@ export function buildDisruptionDecision(
   };
 }
 
+/** "FRA-LHR, FRA-CDG and 3 more": the routes a disruption hits, the first `max` by name. */
+export function disruptionRoutesLabel(d: Pick<Disruption, 'routeIds'>, routeName: (routeId: string) => string, max = 4): string {
+  const names = d.routeIds.map(routeName);
+  return names.length <= max ? names.join(', ') : `${names.slice(0, max).join(', ')} and ${names.length - max} more`;
+}
+
 /** One line per disruption for the inbox. */
 export function describeDisruption(d: Disruption, routeName: (routeId: string) => string): string {
   const pct = Math.round(d.cancelShare * 100);
-  const names = d.routeIds.map(routeName);
-  const where = names.length <= 4 ? names.join(', ') : `${names.slice(0, 4).join(', ')} and ${names.length - 4} more`;
+  const where = disruptionRoutesLabel(d, routeName);
   const repair = (d.cost ?? 0) > 0 ? ` Repairs: ${formatCurrency(d.cost!)}.` : '';
   return `• ${disruptionTitle(d)}: ${pct}% of flights cancelled on ${where}.${repair}`;
 }

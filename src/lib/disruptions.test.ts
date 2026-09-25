@@ -13,7 +13,9 @@ import {
   buildDisruptionDecision,
   cancelReputationPenalty,
   charterFee,
+  charterFeesFor,
   combineCancelShares,
+  disruptionRoutesLabel,
   describeRouteCancellations,
   disruptionCancelShares,
   disruptionIncidents,
@@ -311,4 +313,52 @@ test('the chances are the documented ones', () => {
   assert.equal(BIRDSTRIKE_CHANCE, 0.004);
   assert.equal(AIRPORT_STRIKE_CHANCE, 0.01);
   assert.equal(WEATHER_CHANCE, 0.03);
+});
+
+test('charters on one route share what they save instead of each claiming it whole', () => {
+  // A stand-in network: each route earns its revenue less whatever share of its flights is cancelled.
+  const revenue: Record<string, number> = { r1: 1_000_000, r2: 400_000, r3: 600_000 };
+  let calls = 0;
+  const priceWith = (list: Disruption[]) => {
+    calls++;
+    const shares = disruptionCancelShares(list, 200) ?? {};
+    return Object.entries(revenue).reduce((sum, [id, rev]) => sum + rev * (1 - (shares[id] ?? 0)), 0);
+  };
+  const tech = disruption({ id: 'tech', routeIds: ['r1'], mitigated: true });
+  const airport = disruption({ id: 'ap', kind: 'airport-strike', routeIds: ['r1'], cancelShare: 0.3, mitigated: true });
+
+  // $1M on the route, 25% and 30% cancelled: together they take 47.5%, so the
+  // charters save $475,000 and cost 90% of it, not 90% of 250k + 300k.
+  const fees = charterFeesFor([tech, airport], 200, priceWith);
+  assert.equal(fees.tech + fees.ap, 427_500);
+  assert.equal(fees.tech, Math.round(0.9 * 475_000 * (250_000 / 550_000)), 'split by what each saves alone');
+  assert.equal(fees.ap, Math.round(0.9 * 475_000 * (300_000 / 550_000)));
+
+  // Alone on its routes, a charter is billed its marginal saving, as before.
+  const other = disruption({ id: 'other', routeIds: ['r3'], mitigated: true });
+  const separate = charterFeesFor([tech, airport, other], 200, priceWith);
+  assert.equal(separate.other, charterFee(marginalLostRevenue(other, [tech, airport, other], priceWith)));
+  assert.equal(separate.other, 135_000);
+  assert.equal(separate.tech + separate.ap, 427_500, 'the pair is not touched by a charter elsewhere');
+
+  // Chained through shared routes: one group. Not chartered, or another month: not billed.
+  const bridge = disruption({ id: 'bridge', kind: 'airport-strike', routeIds: ['r1', 'r2'], cancelShare: 0.3, mitigated: true });
+  const chained = charterFeesFor([tech, bridge], 200, priceWith);
+  const joint = 1_400_000 - (1_000_000 * 0.75 * 0.7 + 400_000 * 0.7);
+  assert.equal(chained.tech + chained.bridge, Math.round(0.9 * joint * (250_000 / (250_000 + 420_000))) + Math.round(0.9 * joint * (420_000 / (250_000 + 420_000))));
+  assert.deepEqual(charterFeesFor([{ ...tech, mitigated: false }, disruption({ id: 'later', offset: 201, mitigated: true })], 200, priceWith), {});
+
+  // The month as it is, when the close has priced it already, is not priced again.
+  calls = 0;
+  charterFeesFor([tech, airport, other], 200, priceWith, 2_000_000);
+  assert.equal(calls, 4, 'one per group, one per member of a shared group, none for the base');
+
+  // The questions: every candidate still cancelling shares one network with them all cancelling.
+  const a = disruption({ id: 'a', routeIds: ['r1'] });
+  const b = disruption({ id: 'b', routeIds: ['r2'] });
+  const allCancelling = priceWith([a, b]);
+  calls = 0;
+  assert.equal(marginalLostRevenue(a, [a, b], priceWith, allCancelling), marginalLostRevenue(a, [a, b], priceWith));
+  assert.equal(calls, 3, 'one call with the base known, two without');
+  assert.equal(disruptionRoutesLabel({ routeIds: ['a', 'b', 'c', 'd'] }, id => id.toUpperCase(), 3), 'A, B, C and 1 more');
 });

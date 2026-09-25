@@ -10,7 +10,11 @@
  *   goal        the board's annual target, met or missed
  *   crisis      every world event starting and ending, good news included
  *   strike      a strike called by the staff
- *   disruption  disruptions that cancel MAJOR_DISRUPTION_SHARE or more
+ *   disruption  at most one a month, written at the close of the month it
+ *               hit: one cancelling more than MAJOR_DISRUPTION_SHARE, or
+ *               hitting CHRONICLE_DISRUPTION_ROUTES routes or more. A single
+ *               technical defect is routine, not history; a chartered one is
+ *               written as such
  *   record      the first month in profit, then a best month only once it
  *               beats the last record written by RECORD_PROFIT_MARGIN, at
  *               least RECORD_MIN_GAP_MONTHS later; a reputation high only
@@ -21,11 +25,13 @@
  *
  * Firsts and records carry a `key`. The chronicle remembers what it has said
  * through those keys (trimChronicle never drops the newest entry of a key),
- * so no other state is needed to keep them from repeating.
+ * so no other state is needed to keep them from repeating. When it is full,
+ * routine entries go first: milestones, annual targets, world events and
+ * scenarios outlast them (CHRONICLE_KEEP_KINDS).
  *
  * Everything here is pure.
  */
-import { CHRONICLE_LIMIT, type ChronicleEntry, type RegionId } from './gameState';
+import { CHRONICLE_LIMIT, type ChronicleEntry, type ChronicleKind, type RegionId } from './gameState';
 import { marketKey, type RouteOffer } from './financeUtils';
 import { MAJOR_DISRUPTION_SHARE } from './disruptions';
 import { REGION_LABELS } from './marketing';
@@ -115,34 +121,41 @@ export function regionsServed(
 
 // --- Keeping the chronicle -----------------------------------------------------
 
+/** The kinds that make the airline's story, kept over routine entries when the chronicle is full. */
+export const CHRONICLE_KEEP_KINDS: readonly ChronicleKind[] = ['milestone', 'goal', 'crisis', 'scenario'];
+
 /**
- * The chronicle cut to `limit` entries, oldest first to go. The newest entry
- * of every key is kept as long as anything else can go instead: it is how the
- * chronicle knows a first has been written, and the value the next record has
- * to beat.
+ * The chronicle cut to `limit` entries. What goes first, oldest first:
+ *   1. routine entries -- disruptions, strikes, records, lows;
+ *   2. then milestones, annual targets, world events and scenarios;
+ *   3. only then the newest entry of a key: it is how the chronicle knows a
+ *      first has been written, and the value the next record has to beat.
+ * Sixty years of strikes and disruptions used to push every milestone out.
  */
 export function trimChronicle(list: ChronicleEntry[], limit = CHRONICLE_LIMIT): ChronicleEntry[] {
   if (list.length <= limit) return list;
-  const protectedIdx = new Set<number>();
+  const tier = list.map(() => 0);
+  list.forEach((entry, i) => {
+    if (CHRONICLE_KEEP_KINDS.includes(entry.kind)) tier[i] = 1;
+  });
   const seen = new Set<string>();
   for (let i = list.length - 1; i >= 0; i--) {
     const key = list[i].key;
     if (key && !seen.has(key)) {
       seen.add(key);
-      protectedIdx.add(i);
+      tier[i] = 2;
     }
   }
-  let excess = list.length - limit;
-  const kept: ChronicleEntry[] = [];
-  list.forEach((entry, i) => {
-    if (excess > 0 && !protectedIdx.has(i)) {
+  const dropped = new Set<number>();
+  let excess = list.length - Math.max(0, limit);
+  for (let t = 0; t <= 2 && excess > 0; t++) {
+    for (let i = 0; i < list.length && excess > 0; i++) {
+      if (tier[i] !== t) continue;
+      dropped.add(i);
       excess--;
-      return;
     }
-    kept.push(entry);
-  });
-  // Only protected entries were left to drop: the oldest of those go too.
-  return kept.length > limit ? kept.slice(kept.length - limit) : kept;
+  }
+  return list.filter((_, i) => !dropped.has(i));
 }
 
 /** The chronicle with a month's entries added, trimmed to its limit. */
@@ -187,14 +200,55 @@ export interface ChronicleMonth {
   eventsEnded?: { title: string; endOffset: number }[];
   /** A strike called at this close for the month at `offset`. */
   strike?: { offset: number; morale: number } | null;
-  /** Disruptions rolled at this close; only the major ones are written down. */
-  disruptions?: { offset: number; cancelShare: number; text: string }[];
+  /**
+   * Disruptions that hit the month just closed, chartered ones marked. At
+   * most one is written down; see chronicleDisruption.
+   */
+  disruptions?: ChronicleDisruption[];
   /** Every region the network touches now, with a route that reaches it. */
   regions?: Map<RegionId, string>;
   /** The hub's region: flying there is no news. */
   homeRegion?: RegionId;
   /** Connecting passengers this month by airport. */
   hubs?: { id: string; name: string; pax: number }[];
+}
+
+/** A disruption as the chronicle sees it, at the close of the month it hit. */
+export interface ChronicleDisruption {
+  offset: number;
+  cancelShare: number;
+  routeCount: number;
+  /** A chartered replacement flew the cancelled flights. */
+  mitigated?: boolean;
+  /** "Airport strike at CDG" */
+  title: string;
+  /** "FRA-CDG, LHR-CDG and 2 more" */
+  where: string;
+}
+
+/** A disruption hitting this many routes is worth recording, whatever its share. */
+export const CHRONICLE_DISRUPTION_ROUTES = 3;
+
+/**
+ * The one disruption of a month worth the history books, if any: more than
+ * MAJOR_DISRUPTION_SHARE cancelled, or CHRONICLE_DISRUPTION_ROUTES routes
+ * hit. A technical defect -- exactly 25%, one route -- is routine. Those
+ * that cancelled flights come before chartered ones; then the widest.
+ */
+export function chronicleDisruption(list: ChronicleDisruption[] | undefined): ChronicleEntry | null {
+  const worth = (list || []).filter(d => d.cancelShare > MAJOR_DISRUPTION_SHARE || d.routeCount >= CHRONICLE_DISRUPTION_ROUTES);
+  if (worth.length === 0) return null;
+  const weight = (d: ChronicleDisruption) => d.cancelShare * d.routeCount;
+  const d = [...worth].sort((a, b) =>
+    Number(!!a.mitigated) - Number(!!b.mitigated) || weight(b) - weight(a) || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0)
+  )[0];
+  return {
+    offset: d.offset,
+    kind: 'disruption',
+    text: d.mitigated
+      ? `${d.title}: replacement aircraft chartered, ${d.where} flew as planned.`
+      : `${d.title}: ${Math.round(d.cancelShare * 100)}% of flights cancelled on ${d.where}.`
+  };
 }
 
 const signedPct = (multiplier: number) => {
@@ -329,6 +383,10 @@ export function chronicleEntriesForMonth(chronicle: ChronicleEntry[], m: Chronic
     });
   }
 
+  // --- What hit the month ---
+  const disruption = chronicleDisruption(m.disruptions);
+  if (disruption) out.push(disruption);
+
   // --- What the coming month brings ---
   if (m.strike) {
     out.push({
@@ -336,9 +394,6 @@ export function chronicleEntriesForMonth(chronicle: ChronicleEntry[], m: Chronic
       kind: 'strike',
       text: `Staff strike called for ${formatMonthOffset(m.strike.offset)}, with morale at ${Math.round(m.strike.morale)}.`
     });
-  }
-  for (const d of m.disruptions || []) {
-    if (d.cancelShare >= MAJOR_DISRUPTION_SHARE) out.push({ offset: d.offset, kind: 'disruption', text: d.text });
   }
   for (const ev of m.eventsStarted || []) {
     const effects = eventEffects(ev);

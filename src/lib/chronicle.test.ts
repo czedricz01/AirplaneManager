@@ -8,6 +8,8 @@ import {
   departureMarketShare,
   regionsServed,
   trimChronicle,
+  chronicleDisruption,
+  type ChronicleDisruption,
   type ChronicleHistoryReport,
   type ChronicleMonth
 } from './chronicle';
@@ -162,15 +164,16 @@ test('capital below zero is written the first time only', () => {
   assert.deepEqual(chronicleEntriesForMonth([], month({ capitalAfter: -1, history: [{ capitalAfter: -5 }] })), []);
 });
 
-test('milestones, targets, strikes, major disruptions and world events, dated when they happen', () => {
+test('milestones, targets, strikes, the month\'s big disruption and world events, dated when they happen', () => {
   const entries = chronicleEntriesForMonth([], month({
     offset: 179,
     milestones: [{ title: 'Ten aircraft', detail: 'A fleet rather than a handful of aeroplanes.' }],
     goal: { year: 1974, target: 5e6, achieved: 4e6, met: false },
     strike: { offset: 180, morale: 28.4 },
     disruptions: [
-      { offset: 180, cancelShare: 0.25, text: 'Technical defect: D-ABCD: 25% of flights cancelled on FRA-LHR.' },
-      { offset: 180, cancelShare: 0.1, text: 'Bird strike: 10%.' }
+      { offset: 179, cancelShare: 0.25, routeCount: 1, title: 'Technical defect: D-ABCD', where: 'FRA-LHR' },
+      { offset: 179, cancelShare: 0.3, routeCount: 2, title: 'Airport strike at CDG', where: 'FRA-CDG, LHR-CDG' },
+      { offset: 179, cancelShare: 0.1, routeCount: 1, title: 'Bird strike: D-ABCE', where: 'FRA-MAD' }
     ],
     eventsStarted: [{ title: 'Oil crisis', startOffset: 180, duration: 12, demandMultiplier: 0.8, fuelMultiplier: 1.8 }],
     eventsEnded: [{ title: 'Summer surge', endOffset: 180 }]
@@ -178,8 +181,8 @@ test('milestones, targets, strikes, major disruptions and world events, dated wh
   assert.deepEqual(entries.map(e => [e.offset, e.kind, e.text]), [
     [179, 'milestone', 'Ten aircraft. A fleet rather than a handful of aeroplanes.'],
     [179, 'goal', '1974 target missed: $4,000,000 of the $5,000,000 the board expected.'],
+    [179, 'disruption', 'Airport strike at CDG: 30% of flights cancelled on FRA-CDG, LHR-CDG.'],
     [180, 'strike', 'Staff strike called for 01/1975, with morale at 28.'],
-    [180, 'disruption', 'Technical defect: D-ABCD: 25% of flights cancelled on FRA-LHR.'],
     [180, 'crisis', 'Oil crisis begins: demand −20%, fuel +80%, for 12 months.'],
     [180, 'crisis', 'Summer surge is over.']
   ]);
@@ -197,4 +200,40 @@ test('the same month always writes the same entries', () => {
   const a = chronicleEntriesForMonth([], m);
   assert.deepEqual(a, chronicleEntriesForMonth([], m));
   assert.deepEqual(a.filter(e => e.key?.startsWith('hub:')).map(e => e.key), ['hub:FRA', 'hub:CDG', 'hub:LHR'], 'busiest first, ties by code');
+});
+
+test('a disruption is history only when it is big, and one a month at most', () => {
+  const d = (over: Partial<ChronicleDisruption>): ChronicleDisruption => ({
+    offset: 200, cancelShare: 0.25, routeCount: 1, title: 'Technical defect: D-ABCD', where: 'FRA-LHR', ...over
+  });
+  assert.equal(chronicleDisruption([d({}), d({ title: 'Technical defect: D-ABCE' })]), null, 'a grounded aircraft is routine');
+  assert.equal(chronicleDisruption([d({ cancelShare: 0.15, routeCount: 2, title: 'Winter weather in Europe' })]), null);
+  assert.equal(chronicleDisruption([d({ cancelShare: 0.15, routeCount: 3, title: 'Winter weather in Europe', where: 'a, b, c' })])!.text,
+    'Winter weather in Europe: 15% of flights cancelled on a, b, c.', 'but not when it reaches three routes');
+
+  const strike = d({ cancelShare: 0.3, routeCount: 2, title: 'Airport strike at CDG', where: 'FRA-CDG, LHR-CDG' });
+  const weather = d({ cancelShare: 0.15, routeCount: 6, title: 'Winter weather in Europe', where: 'six routes' });
+  assert.equal(chronicleDisruption([strike, weather])!.text.startsWith('Winter weather'), true, 'the widest, when there are two');
+  assert.equal(chronicleDisruption([{ ...weather, mitigated: true }, strike])!.text.startsWith('Airport strike'), true, 'cancelled flights before chartered ones');
+  assert.equal(chronicleDisruption([{ ...strike, mitigated: true }])!.text,
+    'Airport strike at CDG: replacement aircraft chartered, FRA-CDG, LHR-CDG flew as planned.', 'a charter is not written as cancelled flights');
+
+  const entries = chronicleEntriesForMonth([], month({ offset: 200, disruptions: [strike, weather, d({})] }));
+  assert.equal(entries.filter(e => e.kind === 'disruption').length, 1);
+});
+
+test('when the chronicle is full, routine entries go before the story of the airline', () => {
+  const list: ChronicleEntry[] = [
+    { offset: 0, kind: 'milestone', text: 'First route opened.' },
+    { offset: 1, kind: 'goal', text: '1960 target met.' },
+    { offset: 2, kind: 'scenario', key: 'scenario:start', text: 'Scenario begins.' },
+    ...Array.from({ length: 10 }, (_, i) => ({ offset: 3 + i, kind: 'disruption' as const, text: `d${i}` })),
+    { offset: 20, kind: 'crisis', text: 'Oil crisis begins.' },
+    { offset: 21, kind: 'strike', text: 'Strike.' }
+  ];
+  const kept = trimChronicle(list, 6);
+  assert.deepEqual(kept.map(e => e.text), ['First route opened.', '1960 target met.', 'Scenario begins.', 'd9', 'Oil crisis begins.', 'Strike.']);
+  // With nothing routine left, the oldest of the rest go; a key's newest entry last of all.
+  assert.deepEqual(trimChronicle(list.filter(e => e.kind !== 'disruption' && e.kind !== 'strike'), 2).map(e => e.text), ['Scenario begins.', 'Oil crisis begins.']);
+  assert.deepEqual(trimChronicle(list.filter(e => e.kind !== 'disruption' && e.kind !== 'strike'), 1).map(e => e.text), ['Scenario begins.']);
 });

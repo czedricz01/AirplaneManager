@@ -20,32 +20,46 @@ const expansion = { airline: 'Lufthansa', code: 'LH', hub: 'FRA', kind: 'expansi
 const defect = { kind: 'technical' as const, title: 'Technical defect: D-ABXA', text: 'Technical defect: D-ABXA: 25% of flights cancelled on FRA-LHR.', cancelShare: 0.25 };
 
 test('the headline goes to the biggest news, in a fixed order', () => {
+  const airportStrike = { kind: 'airport-strike' as const, title: 'Airport strike at CDG', text: 'Airport strike at CDG: 30% of flights cancelled on FRA-CDG, LHR-CDG.', cancelShare: 0.3, routeCount: 2, ref: 'CDG' };
   const everything: Partial<EditionInput> = {
     eventsStarted: [surge, oil],
     strike: { morale: 28 },
-    disruptions: [defect],
+    disruptions: [defect, airportStrike],
     milestones: [{ title: 'Ten aircraft', detail: 'A fleet rather than a handful of aeroplanes.' }],
     chronicle: [{ offset: 180, kind: 'record', key: 'record:profit', value: 1e6, text: 'Best month yet: $1,000,000 operating profit.' }],
     rivalMoves: [expansion],
     eventsEnded: [{ title: 'Economic Slump' }],
     scenario: { title: 'Jet Age', won: true, reason: 'Every goal met in 01/1975, 23 months before the deadline.' }
   };
-  const order = ['scenario', 'crisis', 'strike', 'disruption', 'milestone', 'record', 'rival', 'event', 'filler'];
-  const drop: Record<string, Partial<EditionInput>> = {
-    scenario: { scenario: null },
-    crisis: { eventsStarted: [surge] },
-    strike: { strike: null },
-    disruption: { disruptions: [] },
-    milestone: { milestones: [] },
-    record: { chronicle: [] },
-    rival: { rivalMoves: [] },
-    event: { eventsStarted: [], eventsEnded: [] }
-  };
+  // Each story, and what to take away so the next one leads.
+  const steps: [string, Partial<EditionInput>][] = [
+    ['scenario', { scenario: null }],
+    ['crisis', { eventsStarted: [surge] }],
+    ['strike', { strike: null }],
+    ['disruption', { disruptions: [defect] }], // across routes: above a milestone
+    ['milestone', { milestones: [] }],
+    ['record', { chronicle: [] }],
+    ['disruption', { disruptions: [] }], // one grounded aircraft: below the records
+    ['rival', { rivalMoves: [] }],
+    ['event', { eventsStarted: [], eventsEnded: [] }],
+    ['filler', {}]
+  ];
   let input = quiet(everything);
-  for (const kind of order) {
+  for (const [kind, drop] of steps) {
     assert.equal(buildEdition(input).kind, kind);
-    input = { ...input, ...drop[kind] };
+    input = { ...input, ...drop };
   }
+  assert.equal(buildEdition(quiet({ ...everything, scenario: null, eventsStarted: [surge], strike: null })).headline, 'Airport Strike at CDG Snarls Neo Airlines Schedule');
+});
+
+test('the brief lists every disruption but the one on the front page', () => {
+  const weather = { kind: 'weather' as const, title: 'Winter weather in Europe', text: 'Winter weather.', cancelShare: 0.15, routeCount: 5, ref: 'EU' };
+  const strike = { kind: 'airport-strike' as const, title: 'Airport strike at CDG', text: 'x', cancelShare: 0.3, routeCount: 2, ref: 'CDG' };
+  const paper = buildEdition(quiet({ disruptions: [defect, strike, weather] }));
+  assert.equal(paper.kind, 'disruption');
+  const brief = paper.columns.find(c => c.title === 'In brief')!;
+  assert.match(brief.body, /Technical defect: D-ABXA and Winter weather in Europe will cost flights next month/);
+  assert.doesNotMatch(brief.body, /Airport strike/);
 });
 
 test('a scenario decided at the close makes the front page, won or lost', () => {
