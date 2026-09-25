@@ -9,6 +9,7 @@ import { AircraftImage } from './AircraftImage';
 import { ViewHeader } from './ui/ViewHeader';
 import { StatTile } from './ui/StatTile';
 import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
+import type { AssignmentContext, RoutePatch } from '../lib/aircraftAssignment';
 
 export interface OwnedAircraft extends Aircraft {
   registration: string;
@@ -47,9 +48,12 @@ interface Props {
   onStartRoute?: (reg: string) => void;
   onSell?: (plane: OwnedAircraft) => void;
   airlineCode?: string;
+  /** For the aircraft swap in the details modal. */
+  airportManagement?: AssignmentContext['airportManagement'];
+  onReassignRoutes?: (patches: RoutePatch[], note: string) => void;
 }
 
-function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, airlineCode = '' }: Props) {
+function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, airlineCode = '', airportManagement, onReassignRoutes }: Props) {
   const [search, setSearch] = useState("");
   const [filterAlertsOnly, setFilterAlertsOnly] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>('family');
@@ -967,6 +971,10 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             setSelectedPlane(null);
             onSell?.(plane);
           }}
+          fleet={fleet}
+          allRoutes={routes}
+          airportManagement={airportManagement}
+          onReassignRoutes={onReassignRoutes}
         />
       )}
     </div>
