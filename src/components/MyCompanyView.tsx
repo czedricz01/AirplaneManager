@@ -9,11 +9,15 @@ import { BrandingPicker } from './BrandingPicker';
 import { MarketingPanel, type MarketingPanelProps } from './MarketingPanel';
 import { StaffPanel, type StaffPanelProps } from './StaffPanel';
 import { IncidentList } from './IncidentList';
-import type { Branding, ReportIncident } from '../lib/gameState';
+import { ChronicleView } from './ChronicleView';
+import { LineChart } from './charts/LineChart';
+import type { Branding, ChronicleEntry, ReportIncident } from '../lib/gameState';
+import type { ReportMetrics } from '../lib/chronicle';
+import { CHART_COLORS } from '../lib/theme';
 
-import { formatCurrency, formatMoneyCompact as compact } from '../lib/format';
+import { CALENDAR_START_YEAR, formatCurrency, formatMoneyCompact as compact } from '../lib/format';
 
-interface MonthlyReport {
+interface MonthlyReport extends ReportMetrics {
   month: number;
   year: number;
   routeRevenues: number;
@@ -51,6 +55,8 @@ interface Props extends Omit<MarketingPanelProps, 'capital'>, Omit<StaffPanelPro
   airlineName: string;
   airlineCode: string;
   onBrandingChange: (next: Branding) => void;
+  /** The airline's history, oldest first, for the History tab. */
+  chronicle: ChronicleEntry[];
 }
 
 /**
@@ -134,97 +140,24 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
   );
 }
 
-/** Bars for one series across the visible months, with a zero line when needed. */
-function History({ reports, pick, title }: { reports: MonthlyReport[]; pick: (r: MonthlyReport) => number; title: string }) {
-  const values = reports.map(pick);
-  const max = Math.max(...values, 0);
-  const min = Math.min(...values, 0);
-  const span = max - min || 1;
-  const zeroPct = (max / span) * 100;
-
-  return (
-    <div>
-      <div className="flex items-baseline justify-between mb-2">
-        <span className="text-2xs uppercase tracking-widest text-white/40 font-black">{title}</span>
-        <span className="text-3xs font-mono text-white/30">
-          {compact(min)} … {compact(max)}
-        </span>
-      </div>
-      <div className="relative h-32 flex items-stretch gap-[3px] bg-black/30 border border-white/5 px-2 py-2">
-        {min < 0 && (
-          <div className="absolute left-0 right-0 border-t border-dashed border-white/15" style={{ top: `${zeroPct}%` }} />
-        )}
-        {reports.map((r, i) => {
-          const v = values[i];
-          const heightPct = (Math.abs(v) / span) * 100;
-          const isLast = i === reports.length - 1;
-          return (
-            <div key={`${r.year}-${r.month}`} className="relative flex-1 group" title={`${label(r)}: ${formatCurrency(v)}`}>
-              <div
-                className={`absolute left-0 right-0 min-h-[2px] ${
-                  v < 0 ? 'bg-aero-warn/70' : isLast ? 'bg-aero-yellow' : 'bg-aero-good/50'
-                }`}
-                style={
-                  v >= 0
-                    ? { bottom: `${100 - zeroPct}%`, height: `${heightPct}%` }
-                    : { top: `${zeroPct}%`, height: `${heightPct}%` }
-                }
-              />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black text-3xs px-1.5 py-0.5 whitespace-nowrap z-10 font-black pointer-events-none">
-                {label(r)}: {formatCurrency(v)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex justify-between mt-1 text-3xs font-mono text-white/25">
-        <span>{reports.length > 0 ? label(reports[0]) : ''}</span>
-        <span>{reports.length > 0 ? label(reports[reports.length - 1]) : ''}</span>
-      </div>
-    </div>
-  );
-}
-
 function MyCompanyViewImpl({
   capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal,
-  branding, airlineName, airlineCode, onBrandingChange,
+  branding, airlineName, airlineCode, onBrandingChange, chronicle,
   staff, profitStreak, monthlyCrewCost, strikePending, onSetSalary, ...marketingProps
 }: Props) {
-  const [section, setSection] = useState<'overview' | 'marketing' | 'staff'>('overview');
-  const [series, setSeries] = useState<'profit' | 'revenue' | 'capital'>('profit');
-  const [monthsShown, setMonthsShown] = useState(24);
+  const [section, setSection] = useState<'overview' | 'marketing' | 'staff' | 'history'>('overview');
 
-  const reports = useMemo(() => reportHistory.slice(-monthsShown), [reportHistory, monthsShown]);
+  // The last two years of profit at a glance; the History tab has the rest.
+  const recent = useMemo(() => reportHistory.slice(-24), [reportHistory]);
+  const recentOffsets = useMemo(() => recent.map(r => (r.year - CALENDAR_START_YEAR) * 12 + (r.month - 1)), [recent]);
+  const recentProfit = useMemo(
+    () => [{ id: 'profit', label: 'Operating profit', color: CHART_COLORS.series[0], values: recent.map(r => r.totalProfit) }],
+    [recent]
+  );
   const latest = reportHistory.length > 0 ? reportHistory[reportHistory.length - 1] : null;
   const previous = reportHistory.length > 1 ? reportHistory[reportHistory.length - 2] : undefined;
 
   const netWorth = capital + fleetValue;
-
-  const picker = {
-    profit: (r: MonthlyReport) => r.totalProfit,
-    revenue: (r: MonthlyReport) => r.routeRevenues,
-    capital: (r: MonthlyReport) => r.capitalAfter ?? 0,
-  }[series];
-
-  const seriesTitle = {
-    profit: 'Operating profit per month',
-    revenue: 'Ticket revenue per month',
-    capital: 'Capital at month end',
-  }[series];
-
-  const tab = (id: typeof series, text: string) => (
-    <button
-      key={id}
-      onClick={() => setSeries(id)}
-      className={`px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border transition-colors ${
-        series === id
-          ? 'bg-aero-yellow text-black border-aero-yellow'
-          : 'bg-white/5 text-white/50 border-white/10 hover:text-white hover:border-white/30'
-      }`}
-    >
-      {text}
-    </button>
-  );
 
   return (
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
@@ -237,7 +170,7 @@ function MyCompanyViewImpl({
 
       <div className="pr-4 mb-3">
        <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
-        {([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff']] as const).map(([id, text]) => (
+        {([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
           <button
             key={id}
             type="button"
@@ -255,7 +188,11 @@ function MyCompanyViewImpl({
       </div>
 
       <div className="flex-1 overflow-auto pr-4 custom-scrollbar">
-        {section === 'marketing' ? (
+        {section === 'history' ? (
+          <div className="max-w-4xl mx-auto pb-6">
+            <ChronicleView reportHistory={reportHistory} chronicle={chronicle} />
+          </div>
+        ) : section === 'marketing' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <MarketingPanel capital={capital} {...marketingProps} />
           </div>
@@ -367,31 +304,26 @@ function MyCompanyViewImpl({
                 </div>
               </Panel>
 
-              {/* History */}
+              {/* Recent profit; every other figure and the chronicle are under History. */}
               <Panel>
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                  <div className="flex gap-2">
-                    {tab('profit', 'Profit')}
-                    {tab('revenue', 'Revenue')}
-                    {tab('capital', 'Capital')}
-                  </div>
-                  <div className="flex gap-2">
-                    {[12, 24, 60].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setMonthsShown(n)}
-                        className={`px-2 py-1 text-2xs font-mono border transition-colors ${
-                          monthsShown === n
-                            ? 'border-aero-yellow text-aero-yellow'
-                            : 'border-white/10 text-white/40 hover:text-white'
-                        }`}
-                      >
-                        {n}m
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                  <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Operating profit, last {recent.length} month{recent.length === 1 ? '' : 's'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSection('history')}
+                    className="text-2xs font-mono uppercase tracking-widest text-aero-yellow hover:text-white"
+                  >
+                    Full history &rarr;
+                  </button>
                 </div>
-                <History reports={reports} pick={picker} title={seriesTitle} />
+                <LineChart
+                  series={recentProfit}
+                  offsets={recentOffsets}
+                  formatValue={formatCurrency}
+                  formatTick={compact}
+                  height={160}
+                  ariaLabel="Operating profit per month over the last two years"
+                />
                 <p className="text-2xs font-mono text-white/30 mt-3 leading-relaxed">
                   {reportHistory.length} month{reportHistory.length === 1 ? '' : 's'} on record.
                   History is kept for the last ten years and travels with the savegame.

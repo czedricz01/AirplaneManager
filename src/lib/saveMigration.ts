@@ -3,6 +3,7 @@ import { getFlightDurationMinutes, TRANSIENT_ROUTE_FIELDS } from './financeUtils
 import { finiteOr } from './invariants';
 import { capMessages, createWelcomeMessage } from './messages';
 import { logWarn } from './debugLog';
+import { trimChronicle } from './chronicle';
 import { assignRivalColors, isHexColor } from './theme';
 import {
   CAMPAIGN_TIERS,
@@ -280,9 +281,16 @@ function migrateDecisions(list: unknown): GameDecision[] {
 }
 
 function migrateChronicle(list: unknown): ChronicleEntry[] {
-  return asArray<any>(list)
+  const entries: ChronicleEntry[] = asArray<any>(list)
     .filter(e => e && Number.isFinite(e.offset) && CHRONICLE_KINDS.includes(e.kind) && isString(e.text))
-    .slice(-CHRONICLE_LIMIT);
+    .map(e => ({
+      offset: e.offset,
+      kind: e.kind,
+      text: e.text,
+      ...(isString(e.key) && e.key ? { key: e.key } : {}),
+      ...(Number.isFinite(e.value) ? { value: e.value } : {})
+    }));
+  return trimChronicle(entries, CHRONICLE_LIMIT);
 }
 
 function migrateScenario(s: unknown): ScenarioState | null {

@@ -214,6 +214,7 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials } from "./lib/transferUtils";
+import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
 import {
   CAMPAIGN_SPECS,
   REGION_LABELS,
@@ -1496,10 +1497,6 @@ export default function App() {
       ...(incidents.length > 0 ? { incidents } : {})
     };
 
-    // Keep ten years. Long enough for any chart the game shows, short enough
-    // that the savegame does not grow without bound over a sixty-year run.
-    setReportHistory(prev => [...prev, report].slice(-120));
-
     // Apply Financials
     setCapital(prev => prev + totalMonthlyProfit);
     setPendingSlotBills(0);
@@ -1624,6 +1621,7 @@ export default function App() {
     // delivered, with a floor so the first year is not trivially met.
     const closingYear = currentYearNum;
     const isDecember = currentMonthNum === 12;
+    let goalResult: { year: number; target: number; achieved: number; met: boolean } | null = null;
     if (isDecember) {
       const yearReports = [...reportHistory, report].filter(
         r => r && r.year === closingYear
@@ -1632,6 +1630,7 @@ export default function App() {
 
       if (annualGoal && annualGoal.year === closingYear) {
         const met = achieved >= annualGoal.targetProfit;
+        goalResult = { year: closingYear, target: annualGoal.targetProfit, achieved, met };
         if (met) nextReputation = Math.min(100, nextReputation + 4);
         additionalMessages.push({
           id: nextMessageId(),
@@ -1676,8 +1675,11 @@ export default function App() {
     const afterEvents = getActiveEvents(nextOffset);
     const activeAfter = new Set(afterEvents.map(eventKey));
 
+    const eventsStarted: HistoricalEvent[] = [];
+    const eventsEnded: HistoricalEvent[] = [];
     for (const ev of afterEvents) {
       if (!activeBefore.has(eventKey(ev))) {
+        eventsStarted.push(ev);
         additionalMessages.push(buildEventStartMessage(ev, nextMessageId()));
         // An event that offers a decision puts it to the player now, once. If
         // they close the dialog without choosing, the default is to do nothing.
@@ -1688,9 +1690,57 @@ export default function App() {
     }
     for (const ev of getActiveEvents(currentDateOffset)) {
       if (!activeAfter.has(eventKey(ev))) {
+        eventsEnded.push(ev);
         additionalMessages.push(buildEventEndMessage(ev, nextMessageId(), nextOffset));
       }
     }
+
+    // --- History ------------------------------------------------------------
+    // The report gains the figures the history charts plot, taken once
+    // everything above has had its say: reputation after the milestone and
+    // annual-goal bonuses, morale after this month's step.
+    const regionsNow = regionsServed(routes, localAirportsMap);
+    const hubsNow = Object.entries(monthNetwork.hubStats)
+      .filter(([, h]) => h.pax > 0)
+      .map(([id, h]) => ({ id, name: localAirportsMap.get(id)?.name || id, pax: h.pax * 4 }));
+    const fullReport = {
+      ...report,
+      reputation: nextReputation,
+      morale: nextStaff.morale,
+      paxTotal: Math.round(paxWeek * 4),
+      transferPax: Math.round(hubsNow.reduce((sum, h) => sum + h.pax, 0)),
+      fleetSize: fleet.length,
+      routeCount: routes.length,
+      marketShare: departureMarketShare(routes, rivalOffers),
+      regions: [...regionsNow.keys()],
+      transferHubs: hubsNow.map(h => h.id)
+    };
+    // Keep ten years. Long enough for any chart the game shows, short enough
+    // that the savegame does not grow without bound over a sixty-year run.
+    setReportHistory(prev => [...prev, fullReport].slice(-120));
+
+    const monthChronicle = chronicleEntriesForMonth(chronicle, {
+      offset: currentDateOffset,
+      profit: totalMonthlyProfit,
+      capitalAfter: capital + totalMonthlyProfit,
+      reputation: nextReputation,
+      reputationBefore: reputation,
+      history: reportHistory,
+      milestones: newlyEarned,
+      goal: goalResult,
+      eventsStarted,
+      eventsEnded: eventsEnded.map(ev => ({ title: ev.title, endOffset: nextOffset })),
+      strike: staffMonth.strikeCalled ? { offset: currentDateOffset + 1, morale: nextStaff.morale } : null,
+      disruptions: rolledDisruptions.map(d => ({
+        offset: d.offset,
+        cancelShare: d.cancelShare,
+        text: describeDisruption(d, routeLabel).replace(/^\u2022\s*/, '')
+      })),
+      regions: regionsNow,
+      homeRegion,
+      hubs: hubsNow
+    });
+    if (monthChronicle.length > 0) setChronicle(appendChronicle(chronicle, monthChronicle));
 
     // Campaigns whose last month just closed come off the books. Next
     // month's forecast below prices without them, and with any still running.
@@ -3421,6 +3471,7 @@ export default function App() {
                           airlineName={airlineName}
                           airlineCode={airlineCode}
                           onBrandingChange={handleBrandingChange}
+                          chronicle={chronicle}
                           marketing={marketing}
                           currentDateOffset={currentDateOffset}
                           projectedMonthlyPax={projectedMonthlyPax}

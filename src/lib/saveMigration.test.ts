@@ -155,6 +155,22 @@ test('broken version 3 fields are repaired rather than trusted', () => {
   assert.equal(migrated.tutorialStep, 2);
 });
 
+test('chronicle keys and record values survive a load, and keyed firsts outlast trimming', () => {
+  const migrated = migrateSave({
+    ...v2Save(),
+    chronicle: [
+      { offset: 1, kind: 'network', text: 'First route to Asia', key: 'region:AS' },
+      { offset: 2, kind: 'record', text: 'Best month', key: 'record:profit', value: 5e5 },
+      { offset: 3, kind: 'record', text: 'Odd', key: 42, value: 'much' },
+      ...Array.from({ length: 300 }, (_, i) => ({ offset: 10 + i, kind: 'crisis', text: `c${i}` }))
+    ]
+  });
+  assert.equal(migrated.chronicle.length, 300);
+  assert.deepEqual(migrated.chronicle[0], { offset: 1, kind: 'network', text: 'First route to Asia', key: 'region:AS' });
+  assert.deepEqual(migrated.chronicle[1], { offset: 2, kind: 'record', text: 'Best month', key: 'record:profit', value: 5e5 });
+  assert.equal(migrated.chronicle.some((e: any) => e.text === 'Odd'), false, 'unkeyed, so trimmed first');
+});
+
 test('a loaded decision with only paid answers gets a free one', () => {
   const migrated = migrateSave({
     ...v2Save(),

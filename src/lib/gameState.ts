@@ -197,16 +197,30 @@ export interface ScenarioState {
   id: string;
 }
 
-export type ChronicleKind = 'milestone' | 'goal' | 'crisis' | 'strike' | 'disruption' | 'record';
+/**
+ * What a chronicle entry is about. 'crisis' covers every world event, good
+ * news as well as bad; 'network' the firsts of the route map (a new region, a
+ * new transfer hub); 'finance' the lows (capital below zero).
+ */
+export type ChronicleKind = 'milestone' | 'goal' | 'crisis' | 'strike' | 'disruption' | 'record' | 'network' | 'finance';
 
-/** One line in the airline's history. */
+/** One line in the airline's history. See chronicle.ts for what is written when. */
 export interface ChronicleEntry {
   offset: number;
   kind: ChronicleKind;
   text: string;
+  /**
+   * What the entry is about, for entries that must not repeat: 'region:NA'
+   * is written once, 'record:profit' each time the record moves. The newest
+   * entry of every key survives trimming, so the chronicle itself remembers
+   * what it has already said.
+   */
+  key?: string;
+  /** The figure behind a record entry, which the next record has to beat. */
+  value?: number;
 }
 
-export const CHRONICLE_KINDS: readonly ChronicleKind[] = ['milestone', 'goal', 'crisis', 'strike', 'disruption', 'record'];
+export const CHRONICLE_KINDS: readonly ChronicleKind[] = ['milestone', 'goal', 'crisis', 'strike', 'disruption', 'record', 'network', 'finance'];
 
 /** Oldest entries go first; sixty years of history fit comfortably. */
 export const CHRONICLE_LIMIT = 300;

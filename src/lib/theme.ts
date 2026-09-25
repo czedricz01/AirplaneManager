@@ -226,3 +226,24 @@ export function paxWeight(pax: number, maxPax: number): number {
   if (!(maxPax > 0) || !(pax > 0)) return 1;
   return Math.max(1, Math.min(5, 1 + 4 * Math.sqrt(pax / maxPax)));
 }
+
+/**
+ * The history charts on the dark panels (aero-panel, #141414). Two series at
+ * most, always in this order, so revenue and costs, or all passengers and
+ * connecting ones, keep their colours from chart to chart.
+ *
+ * Both series colours pass the dataviz palette checks against that surface:
+ * lightness band, chroma floor, colour-blind separation (worst pair 27 dE)
+ * and 3:1 contrast. The first is the amber step of the app's signal yellow;
+ * #FACC15 itself is too light to sit in the band beside a second series.
+ * Grid, axis and muted text are one step off the surface, so the data is the
+ * only loud thing on the chart.
+ */
+export const CHART_COLORS = {
+  series: ['#c98500', '#3987e5'],
+  surface: '#141414',
+  grid: '#2c2c2a',
+  axis: '#383835',
+  muted: '#898781',
+  crosshair: 'rgba(255, 255, 255, 0.35)',
+} as const;
