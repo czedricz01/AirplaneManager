@@ -109,7 +109,7 @@ const v2Save = () => ({
 
 test('a version 2 save gets the version 3 systems at their defaults', () => {
   const migrated = migrateSave(v2Save());
-  assert.equal(migrated.saveVersion, 3);
+  assert.equal(migrated.saveVersion, SAVE_VERSION);
   assert.deepEqual(migrated.branding, { color: MAP_YELLOW, icon: 'initials' }, 'the airline keeps the yellow it always had');
   assert.deepEqual(migrated.marketing, { campaigns: [], ffpActive: false, ffpSinceOffset: null });
   assert.deepEqual(migrated.staff, DEFAULT_STAFF);
@@ -221,4 +221,25 @@ test('strikes and disruptions dated after the current month are dropped, and so 
   assert.equal(settled.staff.strike.agreedPct, 130, 'agreed pay is kept inside the range');
   const plain = migrateSave({ ...v2Save(), staff: { salaryPct: 100, morale: 40, strike: { startOffset: 12, cancelShare: 1, agreedPct: 'lots' } } });
   assert.equal('agreedPct' in plain.staff.strike, false);
+});
+
+// --- Version 4 ---------------------------------------------------------------
+
+test('a scenario game keeps its scenario, repaired where it has to be', () => {
+  const running = migrateSave({ ...v2Save(), saveVersion: 3, startDateOffset: 0, scenario: { id: 'jet-age' } });
+  assert.deepEqual(running.scenario, { id: 'jet-age', startedOffset: 0, status: 'running' }, 'a version 3 placeholder becomes a running scenario');
+
+  const won = migrateSave({
+    ...v2Save(),
+    scenario: { id: 'jet-age', startedOffset: 2, status: 'won', result: { offset: 10, reason: 'Every goal met.' } }
+  });
+  assert.deepEqual(won.scenario, { id: 'jet-age', startedOffset: 2, status: 'won', result: { offset: 10, reason: 'Every goal met.' } });
+
+  const odd = migrateSave({ ...v2Save(), scenario: { id: 'jet-age', startedOffset: 999, status: 'maybe', result: { offset: 3 } } });
+  assert.equal(odd.scenario.status, 'running', 'an unknown status is still being played');
+  assert.equal(odd.scenario.startedOffset, 12, 'never after the current month');
+  assert.equal('result' in odd.scenario, false, 'a running scenario has no result');
+
+  assert.equal(migrateSave({ ...v2Save(), scenario: { id: 'moon-landing' } }).scenario, null, 'an unknown scenario is played on as a free game');
+  assert.equal(migrateSave({ ...v2Save(), scenario: 'jet-age' }).scenario, null);
 });

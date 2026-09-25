@@ -216,17 +216,32 @@ export function ensureFreeOption(decision: GameDecision): GameDecision {
   };
 }
 
-/** The scenario a game was started from. Null for a free game. */
+/** How a scenario stands; see scenarioEval.ts. */
+export type ScenarioStatus = 'running' | 'won' | 'lost';
+
+export const SCENARIO_STATUSES: readonly ScenarioStatus[] = ['running', 'won', 'lost'];
+
+/**
+ * The scenario a game was started from (src/data/scenarios.ts). Null for a
+ * free game. Once won or lost it stays so: the game carries on as free play
+ * and is no longer judged.
+ */
 export interface ScenarioState {
   id: string;
+  /** The month the scenario started. */
+  startedOffset: number;
+  status: ScenarioStatus;
+  /** When and why it was decided; absent while running. */
+  result?: { offset: number; reason: string };
 }
 
 /**
  * What a chronicle entry is about. 'crisis' covers every world event, good
  * news as well as bad; 'network' the firsts of the route map (a new region, a
- * new transfer hub); 'finance' the lows (capital below zero).
+ * new transfer hub); 'finance' the lows (capital below zero); 'scenario' the
+ * start and the result of a scenario.
  */
-export type ChronicleKind = 'milestone' | 'goal' | 'crisis' | 'strike' | 'disruption' | 'record' | 'network' | 'finance';
+export type ChronicleKind = 'milestone' | 'goal' | 'crisis' | 'strike' | 'disruption' | 'record' | 'network' | 'finance' | 'scenario';
 
 /** One line in the airline's history. See chronicle.ts for what is written when. */
 export interface ChronicleEntry {
@@ -244,7 +259,7 @@ export interface ChronicleEntry {
   value?: number;
 }
 
-export const CHRONICLE_KINDS: readonly ChronicleKind[] = ['milestone', 'goal', 'crisis', 'strike', 'disruption', 'record', 'network', 'finance'];
+export const CHRONICLE_KINDS: readonly ChronicleKind[] = ['milestone', 'goal', 'crisis', 'strike', 'disruption', 'record', 'network', 'finance', 'scenario'];
 
 /** Oldest entries go first; sixty years of history fit comfortably. */
 export const CHRONICLE_LIMIT = 300;

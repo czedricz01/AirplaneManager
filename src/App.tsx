@@ -31,7 +31,10 @@ import {
   Edit2,
   Check,
   CheckCircle2,
-  Newspaper
+  Newspaper,
+  Lock,
+  Trophy,
+  RotateCcw
 } from "lucide-react";
 
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
@@ -175,6 +178,13 @@ function addCapexItem(list: { label: string; amount: number }[], label: string, 
     : [...list, { label, amount }];
 }
 
+/** Capital at the month-ends a scenario has seen so far, oldest first, from the saved reports. */
+function scenarioCapitalHistory(reports: any[], startedOffset: number): number[] {
+  return reports
+    .filter(r => r && (r.year - 1960) * 12 + (r.month - 1) >= startedOffset && Number.isFinite(r.capitalAfter))
+    .map(r => r.capitalAfter);
+}
+
 /** Every rival departure, as offers the finance engine can split demand by. */
 function buildRivalOffers(ais: any[] | null | undefined) {
   return (ais || []).flatMap((ai: any) =>
@@ -293,7 +303,7 @@ import {
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
-import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
+import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
 import type { GameMessage } from "./lib/gameTypes";
 export type { GameMessage };
@@ -325,7 +335,11 @@ const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").
 
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
-import { generateUniqueRegistration } from "./utils/registration";
+import { createOwnedAircraft, startingFleet } from "./lib/fleet";
+import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
+import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
+import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
+import { ScenarioPicker } from "./components/ScenarioPicker";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
@@ -507,6 +521,11 @@ export default function App() {
   const [pendingDecisions, setPendingDecisions] = useState<GameDecision[]>([]);
   /** The scenario this game was started from; null for a free game. */
   const [scenario, setScenario] = useState<ScenarioState | null>(null);
+  /** The scenario picked on the new-game screen; null for free play. */
+  const [newGameScenarioId, setNewGameScenarioId] = useState<string | null>(null);
+  const newGameScenario = scenarioById(newGameScenarioId);
+  /** The won-or-lost dialog, shown once after the close that decided the scenario. Not saved. */
+  const [scenarioResultOpen, setScenarioResultOpen] = useState(false);
   /** The airline's history, newest last. */
   const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
   /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
@@ -948,6 +967,28 @@ export default function App() {
     ),
     [routes, playerMods, disruptions, currentDateOffset]
   );
+
+  /**
+   * The running scenario's goals as they stand, for the progress panel:
+   * standing figures (cash, routes, reputation) as of now, monthly ones
+   * (connecting passengers, profit) from the last closed month, which is
+   * what the close judges them on. Null for a free game or a decided one.
+   */
+  const activeScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
+  const scenarioProgress = useMemo(() => {
+    if (!activeScenario || !scenario) return null;
+    const ctx: ScenarioContext = {
+      offset: currentDateOffset,
+      capital,
+      routes: routes.map(r => ({ weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 })),
+      reputation,
+      regionsServed: regionsServed(routes, airportsMapAdjusted).size,
+      transferPaxMonth: latestReport?.transferPax ?? 0,
+      monthlyProfit: latestReport?.totalProfit ?? 0,
+      capitalHistory: scenarioCapitalHistory(reportHistory, scenario.startedOffset)
+    };
+    return { goals: scenarioGoals(activeScenario, ctx), monthsLeft: monthsLeft(activeScenario, currentDateOffset) };
+  }, [activeScenario, scenario, currentDateOffset, capital, routes, reputation, latestReport, reportHistory]);
 
   /** A strike is waiting for the player's answer; no second one is called meanwhile. */
   const strikePending = pendingDecisions.some(d => d.kind === 'strike');
@@ -1793,6 +1834,53 @@ export default function App() {
       homeRegion,
       hubs: hubsNow
     });
+
+    // --- The scenario -----------------------------------------------------------
+    // Judged on the month's final figures. Once won or lost it stays so and
+    // the game carries on as free play, no longer judged.
+    const runningScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
+    let scenarioDecided: { title: string; won: boolean; reason: string } | null = null;
+    if (scenario && runningScenario) {
+      const closingCapital = capital + totalMonthlyProfit;
+      const evaluation = evaluateScenario(runningScenario, {
+        offset: currentDateOffset,
+        capital: closingCapital,
+        routes: routes.map(r => ({ weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 })),
+        reputation: nextReputation,
+        regionsServed: regionsNow.size,
+        transferPaxMonth: fullReport.transferPax,
+        monthlyProfit: totalMonthlyProfit,
+        capitalHistory: [...scenarioCapitalHistory(reportHistory, scenario.startedOffset), closingCapital]
+      });
+      if (evaluation.status !== 'running') {
+        const won = evaluation.status === 'won';
+        const reason = evaluation.reason || '';
+        scenarioDecided = { title: runningScenario.title, won, reason };
+        setScenario({ ...scenario, status: evaluation.status, result: { offset: currentDateOffset, reason } });
+        setScenarioResultOpen(true);
+        monthChronicle.push({
+          offset: currentDateOffset,
+          kind: 'scenario',
+          key: 'scenario:result',
+          text: `Scenario "${runningScenario.title}" ${won ? 'won' : 'lost'}. ${reason}`
+        });
+        additionalMessages.push({
+          id: nextMessageId(),
+          text: won ? `SCENARIO WON: ${runningScenario.title}.` : `SCENARIO LOST: ${runningScenario.title}.`,
+          isRead: false,
+          dateStr: offsetToDateStr(currentDateOffset),
+          details: {
+            title: `${runningScenario.title}: ${won ? 'scenario won' : 'scenario lost'}`,
+            source: 'Board of Directors',
+            content:
+              `${reason}\n\n` +
+              `Capital ${formatCurrency(closingCapital)}, ${routes.length} route${routes.length === 1 ? '' : 's'}, ` +
+              `${fleet.length} aircraft, reputation ${Math.round(nextReputation)}.\n\n` +
+              `The airline is yours to fly on as a free game; the scenario is no longer judged.`
+          }
+        });
+      }
+    }
     if (monthChronicle.length > 0) setChronicle(appendChronicle(chronicle, monthChronicle));
 
     // --- The newspaper --------------------------------------------------------
@@ -1825,6 +1913,7 @@ export default function App() {
         .filter(c => c.startOffset === currentDateOffset)
         .map(c => ({ tier: CAMPAIGN_SPECS[c.tier].label, region: c.tier === 'global' ? 'global' as const : c.region })),
       ffpStarted: marketing.ffpActive && marketing.ffpSinceOffset === currentDateOffset,
+      scenario: scenarioDecided,
       airportName: id => localAirportsMap.get(id)?.name || id,
       ticker: {
         fuelPerLitre: nextFuel.price / 3.78541,
@@ -2237,6 +2326,7 @@ export default function App() {
    */
   const resetTransientGameState = () => {
     applyGameSystems(createGameSystems());
+    setScenarioResultOpen(false);
     setEdition(null);
     setIsNewspaperOpen(false);
     const welcome = [createWelcomeMessage()];
@@ -2331,6 +2421,112 @@ export default function App() {
     setIsGameMenuOpen(false);
     setShowLoadMenu(false);
     setToast("Game loaded");
+  };
+
+  /**
+   * Picks free play (null) or a scenario on the new-game screen. A scenario
+   * fills in the fields it sets, which stay locked while it is picked.
+   */
+  const pickNewGameScenario = (id: string | null) => {
+    setNewGameScenarioId(id);
+    const chosen = scenarioById(id);
+    if (!chosen) return;
+    setSelectedHub(chosen.hub);
+    setStartDateOffset(chosen.startOffset);
+    setDifficulty(chosen.difficulty);
+    setAiAirlinesCount(chosen.rivals.count);
+    setAiDifficulty(chosen.rivals.difficulty);
+  };
+
+  /**
+   * Starts a new game from the new-game screen's settings, or from a
+   * scenario, which overrides the hub, the date, the money, the difficulty
+   * and the rivals and brings its own aircraft. Also what "Try again" on a
+   * lost scenario runs.
+   */
+  const startNewGame = (saveName: string, chosen?: Scenario, keepBranding?: Branding) => {
+    const hub = chosen?.hub ?? selectedHub;
+    const start = chosen?.startOffset ?? startDateOffset;
+    const gameDifficulty = chosen?.difficulty ?? difficulty;
+    const rivalCount = chosen?.rivals.count ?? aiAirlinesCount;
+    const rivalDifficulty = chosen?.rivals.difficulty ?? aiDifficulty;
+    let initialCapital = 25000000; // Default for $25M
+    if (startingBudget === '$50M') initialCapital = 50000000;
+    if (startingBudget === '$100M') initialCapital = 100000000;
+    if (startingBudget === '$200M') initialCapital = 200000000;
+    if (chosen) initialCapital = chosen.capital;
+
+    // A new game starts clean: no events, messages or open
+    // editors carried over from a game played earlier.
+    resetTransientGameState();
+    // A new game offers the tutorial, unless it was switched off.
+    const systems: GameSystems = {
+      ...createGameSystems(),
+      branding: { ...(keepBranding ?? newGameBranding) },
+      tutorialStep: gameSettings.tutorial ? 0 : null,
+      ...(chosen ? {
+        scenario: { id: chosen.id, startedOffset: start, status: 'running' as const },
+        chronicle: [{
+          offset: start,
+          kind: 'scenario' as const,
+          key: 'scenario:start',
+          text: `Scenario "${chosen.title}" begins: ${chosen.win.map(g => g.label).join(', ')}, by ${offsetToDateStr(chosen.deadlineOffset)}.`
+        }]
+      } : {})
+    };
+    applyGameSystems(systems);
+    setSelectedHub(hub);
+    setStartDateOffset(start);
+    setDifficulty(gameDifficulty);
+    setAiAirlinesCount(rivalCount);
+    setAiDifficulty(rivalDifficulty);
+    setCurrentDateOffset(start);
+    setCapital(initialCapital);
+    // A scenario's aircraft come free, through the same code a purchase uses.
+    setFleet(chosen ? startingFleet(chosen) : []);
+    setAirportManagement({ 
+      [hub]: {
+        level: 2,
+        slots: { regional: 0, narrowbody: 0, widebody: 0 },
+        stands: { narrowbody: 0, widebody: 0 },
+        desks: { normal: 1, self: 0 }
+      }
+    });
+    setRoutes([]);
+    setAiAirlines(generateAiAirlines(rivalCount, rivalDifficulty, hub, start, airlineCode, systems.branding.color));
+    setPendingSlotBills(0);
+    setMonthlyCapex([]);
+    setReportHistory([]);
+    setEventChoices({});
+    // A game that starts in the middle of a world event with a decision --
+    // the Oil Shock scenario opens in the 1973 crisis -- is asked it now:
+    // the question is otherwise only put when an event begins.
+    setPendingDecision(getActiveEvents(start).find(ev => ev.choices && ev.choices.length > 0) ?? null);
+    setReputation(50);
+    setMilestones([]);
+    setProfitStreak(0);
+    setAnnualGoal(null);
+    if (chosen) {
+      const welcome = createWelcomeMessage();
+      setMessages([{
+        id: nextMessageId(),
+        text: `SCENARIO: ${chosen.title}. ${chosen.win.map(g => g.label).join(', ')} by ${offsetToDateStr(chosen.deadlineOffset)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(start),
+        details: {
+          title: `Scenario: ${chosen.title}`,
+          source: 'Board of Directors',
+          content: scenarioBriefing(chosen)
+        }
+      }, welcome]);
+    }
+    setSessionKey(Date.now());
+    const newSaveId = `save_${Date.now()}`;
+    setCurrentSaveId(newSaveId);
+    setCurrentSaveName(saveName);
+    setPendingInitialSave(true);
+    setView('game');
+    setActiveWindow('map');
   };
 
   const deleteSave = async (id: string) => {
@@ -2485,28 +2681,13 @@ export default function App() {
            return p;
          }));
       } else {
-         const newPlanes: OwnedAircraft[] = [];
-         const existingRegistrations = fleet.map(p => p.registration);
-         for (let i = 0; i < quantity; i++) {
-           const hub = selectedHub || 'FRA';
-           const reg = generateUniqueRegistration(
-             aircraft.manufacturer,
-             aircraft.type,
-             aircraft.family || '',
-             hub,
-             [...existingRegistrations, ...newPlanes.map(np => np.registration)]
-           );
-           newPlanes.push({
-             ...aircraft,
-             registration: reg,
-             purchasedAt: currentDateOffset,
-             conditionInterior: 100,
-             conditionGeneral: 100,
-             refitsDone: 0,
-             config,
-             baseInteriorPop
-           });
-         }
+         const newPlanes = createOwnedAircraft(aircraft, quantity, {
+           config,
+           baseInteriorPop,
+           hub: selectedHub || 'FRA',
+           existingRegistrations: fleet.map(p => p.registration),
+           purchasedAt: currentDateOffset
+         });
          setFleet(prev => [...prev, ...newPlanes]);
 
          if (isPurchasingForRoute) {
@@ -2612,7 +2793,7 @@ export default function App() {
               what happened, the dialogs below ask what to do about it. It can
               always be closed, so no question ever waits on it for long. */}
           <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
-          {pendingDecision && !isNewspaperOpen && (
+          {pendingDecision && !isNewspaperOpen && !scenarioResultOpen && (
             <Modal open size="lg" accent="warn" layer="top">
               <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
                 <AlertTriangle size={22} /> {pendingDecision.title}
@@ -2665,7 +2846,7 @@ export default function App() {
           )}
           {/* Any other question for the player, one at a time. Waits while a
               world event decision or the newspaper is open, so none stack. */}
-          {!pendingDecision && !isNewspaperOpen && pendingDecisions.length > 0 && (() => {
+          {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length > 0 && (() => {
             const decision = pendingDecisions[0];
             return (
               <Modal open size="lg" accent="warn" layer="top">
@@ -2702,6 +2883,92 @@ export default function App() {
                       </button>
                     );
                   })}
+                </div>
+              </Modal>
+            );
+          })()}
+          {/* The scenario's verdict, once, after the newspaper that reports it.
+              Any question the same close raised waits until it is closed. */}
+          {scenarioResultOpen && !isNewspaperOpen && scenario && scenario.status !== 'running' && (() => {
+            const decided = scenarioById(scenario.id);
+            if (!decided) return null;
+            const won = scenario.status === 'won';
+            const months = (scenario.result?.offset ?? currentDateOffset) - scenario.startedOffset + 1;
+            const stats = [
+              { label: 'Capital', value: formatMoneyCompact(capital) },
+              { label: 'Routes', value: String(routes.length) },
+              { label: 'Fleet', value: String(fleet.length) },
+              { label: 'Reputation', value: String(Math.round(reputation)) },
+              { label: 'Months played', value: String(months) }
+            ];
+            return (
+              <Modal open size="lg" accent={won ? 'yellow' : 'warn'} layer="top">
+                <div role="alertdialog" aria-labelledby="scenario-result-title" aria-describedby="scenario-result-reason">
+                  <div className={`flex items-center gap-3 mb-2 ${won ? 'text-aero-yellow' : 'text-aero-warn'}`}>
+                    {won ? <Trophy size={28} aria-hidden="true" /> : <AlertTriangle size={28} aria-hidden="true" />}
+                    <div>
+                      <div className="text-3xs font-mono uppercase tracking-[0.3em] text-white/40">Scenario {won ? 'complete' : 'failed'}</div>
+                      <h3 id="scenario-result-title" className="font-black uppercase tracking-widest text-xl leading-tight">
+                        {decided.title}: {won ? 'you did it' : 'out of reach'}
+                      </h3>
+                    </div>
+                  </div>
+                  <p id="scenario-result-reason" className="text-sm text-white/80 leading-relaxed mb-4">{scenario.result?.reason}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+                    {stats.map(st => (
+                      <div key={st.label} className="border border-white/10 bg-white/[0.03] px-2 py-2">
+                        <div className="text-4xs font-mono uppercase tracking-widest text-white/40">{st.label}</div>
+                        <div className="text-sm font-mono font-bold text-white tabular-nums truncate">{st.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-2xs font-mono text-white/40 mb-4 leading-relaxed">
+                    {won
+                      ? 'The result is written into your chronicle. Fly on as a free game, or leave for the main menu.'
+                      : 'The airline still flies: carry on as a free game, or start the scenario over.'}
+                  </p>
+                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                    {won ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setScenarioResultOpen(false); setShowExitSavePrompt(true); }}
+                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
+                        >
+                          Main menu
+                        </button>
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => setScenarioResultOpen(false)}
+                          className="px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
+                        >
+                          Continue in free play
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setScenarioResultOpen(false)}
+                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
+                        >
+                          Continue in free play
+                        </button>
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => {
+                            const base = (currentSaveName || decided.title).replace(/\s*\((Autosave.*|retry)\)$/, '');
+                            startNewGame(`${base} (retry)`, decided, branding);
+                          }}
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
+                        >
+                          <RotateCcw size={14} aria-hidden="true" /> Try again
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </Modal>
             );
@@ -2899,6 +3166,17 @@ export default function App() {
                   </div>
 
                   <div className="space-y-8 max-w-2xl mx-auto">
+                    <div className="space-y-4">
+                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
+                      <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} />
+                      {newGameScenario && (
+                        <p className="text-2xs text-white/40 italic">
+                          {newGameScenario.title} sets the hub, start date, budget, difficulty and rivals below, so every
+                          player faces the same challenge. Name, code, livery and debug mode are yours to choose.
+                        </p>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-4">
                         <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Name</label>
@@ -2936,12 +3214,17 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
+                      <div className="flex justify-between items-end gap-2">
+                        <label htmlFor="new-game-hub" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
+                        <ScenarioLock scenario={newGameScenario} />
+                      </div>
                       <div className="relative w-full">
                         <select 
+                          id="new-game-hub"
                           value={selectedHub}
+                          disabled={!!newGameScenario}
                           onChange={(e) => setSelectedHub(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
                         >
                           {airportsByName.map(a => (
                             <option key={a.id} value={a.id}>{a.name} ({a.id}) - Level {a.level}</option>
@@ -2954,13 +3237,17 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
+                      <div className="flex justify-between items-end gap-2">
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
+                        <ScenarioLock scenario={newGameScenario} />
+                      </div>
                       <div className="flex gap-4">
                         {['Easy', 'Normal', 'Hard'].map((diff) => (
                           <button
                             key={diff}
+                            disabled={!!newGameScenario}
                             onClick={() => setDifficulty(diff)}
-                            className={`flex-1 p-4 font-mono text-sm border uppercase tracking-widest transition-colors ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
+                            className={`flex-1 p-4 font-mono text-sm border uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow disabled:opacity-40 disabled:hover:border-white/10'}`}
                           >
                             {diff}
                           </button>
@@ -2969,7 +3256,15 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
+                      <div className="flex justify-between items-end gap-2">
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
+                        <ScenarioLock scenario={newGameScenario} />
+                      </div>
+                      {newGameScenario ? (
+                        <div className="p-4 font-mono text-xs border uppercase tracking-widest bg-aero-yellow/10 border-aero-yellow/40 text-aero-yellow">
+                          {formatCurrency(newGameScenario.capital)} and the scenario's fleet
+                        </div>
+                      ) : (
                       <div className="flex flex-wrap gap-4">
                         {['$25M', '$50M', '$100M', '$200M'].map((budget) => (
                           <button
@@ -2981,6 +3276,7 @@ export default function App() {
                           </button>
                         ))}
                       </div>
+                      )}
                     </div>
 
                     <div className="space-y-4">
@@ -3009,16 +3305,21 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-4">
                         <div className="flex justify-between items-end">
-                          <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
-                          <span className="text-xl font-mono text-aero-yellow">{aiAirlinesCount}</span>
+                          <label htmlFor="new-game-rivals" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
+                          <span className="flex items-center gap-3">
+                            <ScenarioLock scenario={newGameScenario} />
+                            <span className="text-xl font-mono text-aero-yellow">{aiAirlinesCount}</span>
+                          </span>
                         </div>
                         <input 
+                          id="new-game-rivals"
                           type="range"
                           min="0"
                           max="12"
                           value={aiAirlinesCount}
+                          disabled={!!newGameScenario}
                           onChange={(e) => setAiAirlinesCount(parseInt(e.target.value))}
-                          className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero"
+                          className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
                         />
                         <div className="flex justify-between text-2xs font-mono text-white/40">
                           <span>0</span>
@@ -3026,11 +3327,16 @@ export default function App() {
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
+                        <div className="flex justify-between items-end gap-2">
+                          <label htmlFor="new-game-rival-difficulty" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
+                          <ScenarioLock scenario={newGameScenario} />
+                        </div>
                         <select 
+                          id="new-game-rival-difficulty"
                           value={aiDifficulty}
+                          disabled={!!newGameScenario}
                           onChange={(e) => setAiDifficulty(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-white"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option>Easy</option>
                           <option>Normal</option>
@@ -3040,17 +3346,22 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className="flex justify-between items-end">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
-                        <span className="text-xl font-mono text-aero-yellow">{formatDate(startDateOffset)}</span>
+                      <div className="flex justify-between items-end gap-2">
+                        <label htmlFor="new-game-start" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
+                        <span className="flex items-center gap-3">
+                          <ScenarioLock scenario={newGameScenario} />
+                          <span className="text-xl font-mono text-aero-yellow">{formatDate(startDateOffset)}</span>
+                        </span>
                       </div>
                       <input 
+                        id="new-game-start"
                         type="range"
                         min="0"
                         max="731"
                         value={startDateOffset}
+                        disabled={!!newGameScenario}
                         onChange={(e) => setStartDateOffset(parseInt(e.target.value))}
-                        className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero"
+                        className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
                       />
                       <div className="flex justify-between text-2xs font-mono text-white/40">
                         <span>01/1960</span>
@@ -3077,49 +3388,7 @@ export default function App() {
                             setAppAlert("You must provide a save file name to begin.");
                             return;
                           }
-                          // A new game starts clean: no events, messages or open
-                          // editors carried over from a game played earlier.
-                          resetTransientGameState();
-                          // A new game offers the tutorial, unless it was switched off.
-                          const systems: GameSystems = {
-                            ...createGameSystems(),
-                            branding: { ...newGameBranding },
-                            tutorialStep: gameSettings.tutorial ? 0 : null
-                          };
-                          applyGameSystems(systems);
-                          setCurrentDateOffset(startDateOffset);
-                          let initialCapital = 25000000; // Default for $25M
-                          if (startingBudget === '$50M') initialCapital = 50000000;
-                          if (startingBudget === '$100M') initialCapital = 100000000;
-                          if (startingBudget === '$200M') initialCapital = 200000000;
-                          setCapital(initialCapital);
-                          setFleet([]);
-                          setAirportManagement({ 
-                            [selectedHub]: {
-                              level: 2,
-                              slots: { regional: 0, narrowbody: 0, widebody: 0 },
-                              stands: { narrowbody: 0, widebody: 0 },
-                              desks: { normal: 1, self: 0 }
-                            }
-                          });
-                          setRoutes([]);
-                          setAiAirlines(generateAiAirlines(aiAirlinesCount, aiDifficulty, selectedHub, startDateOffset, airlineCode, systems.branding.color));
-                          setPendingSlotBills(0);
-                          setMonthlyCapex([]);
-                          setReportHistory([]);
-                          setEventChoices({});
-                          setPendingDecision(null);
-                          setReputation(50);
-                          setMilestones([]);
-                          setProfitStreak(0);
-                          setAnnualGoal(null);
-                          setSessionKey(Date.now());
-                          const newSaveId = `save_${Date.now()}`;
-                          setCurrentSaveId(newSaveId);
-                          setCurrentSaveName(initialSaveFileName.trim());
-                          setPendingInitialSave(true);
-                          setView('game');
-                          setActiveWindow('map');
+                          startNewGame(initialSaveFileName.trim(), newGameScenario);
                         }}
                         className="group flex items-center bg-aero-yellow text-black px-4 py-4 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
                       >
@@ -3502,6 +3771,13 @@ export default function App() {
                      </ErrorBoundary>
                   </div>
                   
+                  {/* The running scenario's goals, over the map's top-left corner. */}
+                  {scenarioProgress && activeScenario && activeWindow === 'map' && !isPlanningRoute && (
+                    <div className="absolute top-3 left-3 z-[900]" data-tour="scenario-panel">
+                      <ScenarioProgressPanel scenario={activeScenario} goals={scenarioProgress.goals} monthsLeft={scenarioProgress.monthsLeft} />
+                    </div>
+                  )}
+
                   {/* Active Window Views Overlay. Keyed by the number format so the
                       memoised views re-render when the separator setting changes. */}
                   <React.Fragment key={decimalSymbol}>
@@ -4193,6 +4469,16 @@ export default function App() {
       </div>
     </div>
     </div>
+  );
+}
+
+/** Why a new-game field cannot be changed: the scenario picked above sets it. */
+function ScenarioLock({ scenario }: { scenario?: Scenario }) {
+  if (!scenario) return null;
+  return (
+    <span className="flex items-center gap-1 text-3xs font-mono uppercase tracking-widest text-aero-yellow/70 whitespace-nowrap">
+      <Lock size={10} aria-hidden="true" /> Set by {scenario.title}
+    </span>
   );
 }
 

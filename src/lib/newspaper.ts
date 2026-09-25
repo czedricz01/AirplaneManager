@@ -4,8 +4,9 @@
  * It tells the month back as a story. The headline goes to the biggest news
  * in a fixed order,
  *
- *   world crisis > strike > major disruption > milestone > record month
- *   (profit or loss) > rival expansion > good news from the world > filler
+ *   scenario won or lost > world crisis > strike > major disruption >
+ *   milestone > record month (profit or loss) > rival expansion > good news
+ *   from the world > filler
  *
  * and the columns underneath carry the airline's results, the markets, the
  * rivals and whatever else the month brought. A quiet month gets a filler
@@ -120,6 +121,8 @@ export interface EditionInput {
   /** Campaigns launched and the frequent-flyer programme started in the month just closed. */
   launches?: { tier: string; region: RegionId | 'global' }[];
   ffpStarted?: boolean;
+  /** A scenario decided at this close: nothing else that month is bigger news. */
+  scenario?: { title: string; won: boolean; reason: string } | null;
   /** Names for airport codes in the rival column. */
   airportName?: (id: string) => string;
   ticker?: {
@@ -135,7 +138,7 @@ export interface EditionInput {
   };
 }
 
-export type HeadlineKind = 'crisis' | 'strike' | 'disruption' | 'milestone' | 'record' | 'rival' | 'event' | 'filler';
+export type HeadlineKind = 'scenario' | 'crisis' | 'strike' | 'disruption' | 'milestone' | 'record' | 'rival' | 'event' | 'filler';
 
 export interface Edition {
   /** The month the paper is dated. */
@@ -267,6 +270,23 @@ const DISRUPTION_HEADLINES: Record<DisruptionKind, (name: string, ref: string) =
 function pickStory(input: EditionInput, nextMonth: string, closedMonth: string): Story {
   const name = input.airlineName || 'Your airline';
   const profit = input.report.totalProfit;
+
+  const scenario = input.scenario;
+  if (scenario) {
+    return scenario.won
+      ? {
+          kind: 'scenario',
+          headline: `${name} Triumphs: ${scenario.title} Mission Accomplished`,
+          subhead: scenario.reason,
+          lead: `The board had set ${name} a target few thought it could meet, and in ${closedMonth} it met it. Shareholders are toasting the management; rivals are studying how it was done.`
+        }
+      : {
+          kind: 'scenario',
+          headline: `${name} Falls Short: ${scenario.title} Ends in Failure`,
+          subhead: scenario.reason,
+          lead: `The ${scenario.title} challenge is over for ${name}, and the target was not met. The airline flies on, but in the boardroom questions are being asked about what went wrong.`
+        };
+  }
 
   const crisis = (input.eventsStarted || []).find(isAdverse);
   if (crisis) {
@@ -455,7 +475,7 @@ function briefColumn(input: EditionInput, story: Story): { title: string; body: 
   const lines: string[] = [];
   // What the chronicle took from the month and the front page did not already tell.
   for (const e of input.chronicle || []) {
-    if (e.kind === 'crisis' || e.kind === 'strike' || e.kind === 'disruption' || e.kind === 'milestone') continue;
+    if (e.kind === 'crisis' || e.kind === 'strike' || e.kind === 'disruption' || e.kind === 'milestone' || e.kind === 'scenario') continue;
     if (story.kind === 'record' && e.key === 'record:profit') continue;
     lines.push(e.text);
   }

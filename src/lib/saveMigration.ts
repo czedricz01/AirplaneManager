@@ -6,6 +6,7 @@ import { logWarn } from './debugLog';
 import { trimChronicle } from './chronicle';
 import { DISRUPTION_OPTION_CHARTER } from './disruptions';
 import { assignRivalColors, isHexColor } from './theme';
+import { scenarioById } from '../data/scenarios';
 import {
   CAMPAIGN_TIERS,
   CHRONICLE_KINDS,
@@ -15,6 +16,7 @@ import {
   DISRUPTION_KINDS,
   GAME_DECISION_KINDS,
   REGION_IDS,
+  SCENARIO_STATUSES,
   SALARY_PCT_MAX,
   SALARY_PCT_MIN,
   decisionTargetExists,
@@ -40,7 +42,7 @@ import {
  */
 
 /** Written into every new save. Bump it whenever the shape changes. */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 const PERSONALITIES = ['flag', 'lcc', 'expansionist', 'optimizer', 'boutique'] as const;
 const AGGRESSION: Record<string, number> = { expansionist: 9, lcc: 8, flag: 6, optimizer: 4, boutique: 5 };
@@ -311,9 +313,26 @@ function migrateChronicle(list: unknown): ChronicleEntry[] {
   return trimChronicle(entries, CHRONICLE_LIMIT);
 }
 
-function migrateScenario(s: unknown): ScenarioState | null {
+/**
+ * A scenario game's state. One whose scenario the game no longer knows is
+ * played on as a free game: nothing could judge it. Version 3 saves held only
+ * an id; they are all free games in practice, since no scenario could be
+ * started before version 4.
+ */
+function migrateScenario(s: unknown, startDateOffset: number, currentDateOffset: number): ScenarioState | null {
   const src = asObject<any>(s, {});
-  return isString(src.id) && src.id ? { ...src } : null;
+  if (!isString(src.id) || !src.id) return null;
+  if (!scenarioById(src.id)) {
+    logWarn('saves', `Unknown scenario "${src.id}"; the game continues as free play`);
+    return null;
+  }
+  const status = SCENARIO_STATUSES.includes(src.status) ? src.status : 'running';
+  const startedOffset = clamp(Math.round(finiteOr(src.startedOffset, startDateOffset)), 0, currentDateOffset);
+  const rawResult = asObject<any>(src.result, {});
+  const result = status !== 'running' && Number.isFinite(rawResult.offset)
+    ? { offset: Math.round(rawResult.offset), reason: isString(rawResult.reason) ? rawResult.reason : '' }
+    : undefined;
+  return { id: src.id, startedOffset, status, ...(result ? { result } : {}) };
 }
 
 function migrateMessages(messages: unknown): any[] {
@@ -391,7 +410,7 @@ export function migrateSave(raw: any): any {
     staff,
     disruptions,
     pendingDecisions,
-    scenario: migrateScenario(raw.scenario),
+    scenario: migrateScenario(raw.scenario, startDateOffset, currentDateOffset),
     chronicle: migrateChronicle(raw.chronicle),
     // Older saves were started before the tutorial existed; their players do
     // not need it, so it stays off rather than starting on load.

@@ -27,10 +27,12 @@ test('the headline goes to the biggest news, in a fixed order', () => {
     milestones: [{ title: 'Ten aircraft', detail: 'A fleet rather than a handful of aeroplanes.' }],
     chronicle: [{ offset: 180, kind: 'record', key: 'record:profit', value: 1e6, text: 'Best month yet: $1,000,000 operating profit.' }],
     rivalMoves: [expansion],
-    eventsEnded: [{ title: 'Economic Slump' }]
+    eventsEnded: [{ title: 'Economic Slump' }],
+    scenario: { title: 'Jet Age', won: true, reason: 'Every goal met in 01/1975, 23 months before the deadline.' }
   };
-  const order = ['crisis', 'strike', 'disruption', 'milestone', 'record', 'rival', 'event', 'filler'];
+  const order = ['scenario', 'crisis', 'strike', 'disruption', 'milestone', 'record', 'rival', 'event', 'filler'];
   const drop: Record<string, Partial<EditionInput>> = {
+    scenario: { scenario: null },
     crisis: { eventsStarted: [surge] },
     strike: { strike: null },
     disruption: { disruptions: [] },
@@ -44,6 +46,16 @@ test('the headline goes to the biggest news, in a fixed order', () => {
     assert.equal(buildEdition(input).kind, kind);
     input = { ...input, ...drop[kind] };
   }
+});
+
+test('a scenario decided at the close makes the front page, won or lost', () => {
+  const won = buildEdition(quiet({ scenario: { title: 'Jet Age', won: true, reason: 'Every goal met in 01/1975.' } }));
+  assert.equal(won.kind, 'scenario');
+  assert.equal(won.headline, 'Neo Airlines Triumphs: Jet Age Mission Accomplished');
+  assert.equal(won.subhead, 'Every goal met in 01/1975.');
+  const lost = buildEdition(quiet({ scenario: { title: 'Oil Shock', won: false, reason: 'Capital fell below $0 at the end of 01/1975.' } }));
+  assert.equal(lost.headline, 'Neo Airlines Falls Short: Oil Shock Ends in Failure');
+  assert.match(lost.lead, /The Oil Shock challenge is over for Neo Airlines/);
 });
 
 test('front-page stories name what happened', () => {

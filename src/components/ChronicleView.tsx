@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Globe, Megaphone, Target, TrendingDown, TrendingUp, Trophy, Waypoints } from 'lucide-react';
+import { AlertTriangle, Flag, Globe, Megaphone, Target, TrendingDown, TrendingUp, Trophy, Waypoints } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { LineChart, type LineSeries } from './charts/LineChart';
 import { isValue, type ChartValue } from './charts/chartMath';
@@ -178,7 +178,8 @@ const KIND_META: Record<ChronicleKind, { label: string; icon: ReactNode; tone: s
   crisis: { label: 'World event', icon: <Globe size={13} />, tone: 'text-white/80 border-white/25' },
   strike: { label: 'Strike', icon: <Megaphone size={13} />, tone: 'text-aero-warn border-aero-warn/40' },
   disruption: { label: 'Disruption', icon: <AlertTriangle size={13} />, tone: 'text-aero-warn border-aero-warn/40' },
-  finance: { label: 'Finance', icon: <TrendingDown size={13} />, tone: 'text-aero-warn border-aero-warn/40' }
+  finance: { label: 'Finance', icon: <TrendingDown size={13} />, tone: 'text-aero-warn border-aero-warn/40' },
+  scenario: { label: 'Scenario', icon: <Flag size={13} />, tone: 'text-aero-yellow border-aero-yellow/40' }
 };
 
 const offsetOf = (r: { month: number; year: number }) => (r.year - CALENDAR_START_YEAR) * 12 + (r.month - 1);
