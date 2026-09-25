@@ -73,6 +73,8 @@ export interface AiAirline {
   aggression?: number;
   /** A real-world carrier (true) or an invented one (false). */
   isReal?: boolean;
+  /** #RRGGBB colour on the map. Assigned at founding, or when an older save loads. */
+  color?: string;
 }
 
 interface Props {
@@ -89,6 +91,8 @@ interface Props {
   playerProfitHistory?: number[];
   /** Last closed month's profit per player route id. */
   playerRouteProfits?: Record<string, number>;
+  /** The player's brand colour, for the colour dot beside each airline. */
+  playerColor?: string;
 }
 
 type SortField = 'rank' | 'name' | 'capital' | 'fleet' | 'routes';
@@ -110,7 +114,8 @@ function CompetitorsViewImpl({
   playerFleet = NONE,
   playerRoutes = NONE,
   playerProfitHistory = NONE,
-  playerRouteProfits
+  playerRouteProfits,
+  playerColor
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>('capital');
@@ -158,6 +163,7 @@ function CompetitorsViewImpl({
         name: playerAirlineName || "Neo Airlines",
         code: playerAirlineCode || "NX",
         hub: playerHub || "FRA",
+        color: playerColor,
         capital: playerCapital,
         aiDifficulty: 'Player' as any,
         // The player has no AI strategy profile. Declaring the fields keeps this
@@ -187,7 +193,7 @@ function CompetitorsViewImpl({
         isPlayer: false
       }))
     ];
-  }, [aiAirlines, playerCapital, playerAirlineName, playerAirlineCode, playerHub, playerFleet, playerRoutes, playerRouteProfits, playerProfitHistory]);
+  }, [aiAirlines, playerCapital, playerAirlineName, playerAirlineCode, playerHub, playerFleet, playerRoutes, playerRouteProfits, playerProfitHistory, playerColor]);
 
   // Rank by capital over everyone. It used to be the row index after sorting
   // and searching, so sorting by name or typing in the search box re-ranked.
@@ -306,6 +312,13 @@ function CompetitorsViewImpl({
               </button>
               <div>
                 <div className="flex items-center gap-3">
+                  {selectedAirline.color && (
+                    <span
+                      className="inline-block w-3.5 h-3.5 rounded-full shrink-0 border border-black/40"
+                      style={{ backgroundColor: selectedAirline.color }}
+                      title="Map colour"
+                    />
+                  )}
                   <h3 className="text-2xl font-mono uppercase font-black text-white leading-none tracking-wider">
                     {selectedAirline.name}
                   </h3>
@@ -814,6 +827,13 @@ function CompetitorsViewImpl({
                         <div className="col-span-3">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2 flex-wrap">
+                              {airline.color && (
+                                <span
+                                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0 border border-black/40"
+                                  style={{ backgroundColor: airline.color }}
+                                  title="Map colour"
+                                />
+                              )}
                               <span className="font-sans font-bold text-white tracking-wide">{airline.name}</span>
                               {airline.isPlayer && (
                                 <span className="px-2 py-0.5 bg-aero-yellow text-black text-3xs font-black uppercase tracking-widest rounded-sm">YOU</span>

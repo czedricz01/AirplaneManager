@@ -1388,7 +1388,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       
       {showSaveConfig && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-4 bg-black/80 backdrop-blur-sm pointer-events-auto" onClick={(e) => { if(e.target === e.currentTarget) setShowSaveConfig(false); }}>
-          <div className="relative w-full max-w-sm bg-aero-panel border border-white/20 shadow-2xl flex flex-col p-4">
+          <div role="dialog" aria-modal="true" className="relative w-full max-w-sm bg-aero-panel border border-white/20 shadow-2xl flex flex-col p-4">
             <button onClick={() => setShowSaveConfig(false)} className="absolute top-4 right-6 text-white/50 hover:text-white transition-colors">
               <X size={24} />
             </button>
@@ -1421,7 +1421,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
       {showLoadConfig && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-4 bg-black/80 backdrop-blur-sm pointer-events-auto" onClick={(e) => { if(e.target === e.currentTarget) setShowLoadConfig(false); }}>
-          <div className="relative w-full max-w-2xl bg-aero-panel border border-white/20 shadow-2xl flex flex-col p-4 max-h-[80vh]">
+          <div role="dialog" aria-modal="true" className="relative w-full max-w-2xl bg-aero-panel border border-white/20 shadow-2xl flex flex-col p-4 max-h-[80vh]">
             <button onClick={() => setShowLoadConfig(false)} className="absolute top-4 right-6 text-white/50 hover:text-white transition-colors">
               <X size={24} />
             </button>

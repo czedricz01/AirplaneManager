@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Airport } from '../data/airportTypes';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { LiveTraffic } from './LiveTraffic';
 import type { OwnedAircraft } from './MyFleetView';
-import { MAP_YELLOW, MAP_CONGESTION_COLORS } from '../lib/theme';
+import { MAP_YELLOW, MAP_CONGESTION_COLORS, HEATMAP_COLORS, heatmapScale, profitColor, paxWeight } from '../lib/theme';
+import { formatNumber, formatSignedCurrency } from '../lib/format';
 
 /**
  * Airport markers, cached by zoom and management tier. The cache used to be a
@@ -102,6 +103,57 @@ export interface WorldMapProps {
   planningDestId: string | null;
   setSelectedAirport: (a: Airport | null) => void;
   getRoutePath: (a1: Airport, a2: Airport, offset: number) => [number, number][];
+  /** The player's brand colour, for their routes and aircraft. */
+  playerColor: string;
+  /** Colour the player's routes by profit instead of by brand. */
+  heatmap: boolean;
+  /** This month's profit per player route id, for the heatmap. */
+  routeProfits: Record<string, number>;
+  /** Passengers per week per player route id, for the heatmap's line widths. */
+  routePax: Record<string, number>;
+}
+
+type PathStyle = { color: string; weight: number; opacity: number; lineCap: 'round'; lineJoin: 'round' };
+
+/** One airport pair on the heatmap: every player route between the two, summed. */
+interface HeatPair {
+  a: string;
+  b: string;
+  profit: number;
+  pax: number;
+  routes: number;
+  style: PathStyle;
+}
+
+const pairKey = (a: string, b: string) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+
+/**
+ * The heatmap's key: the colour ramp and what the line width means. Sits in
+ * the map's corner only while the heatmap is on.
+ */
+function HeatmapLegend() {
+  return (
+    <div className="absolute bottom-4 left-4 z-[800] pointer-events-none bg-aero-black/85 backdrop-blur-sm border border-white/10 px-3 py-2 shadow-2xl w-56 font-mono">
+      <div className="text-3xs font-black uppercase tracking-[0.25em] text-white/60 mb-1.5">Profit heatmap</div>
+      <div
+        className="h-2 w-full"
+        style={{ background: `linear-gradient(to right, ${HEATMAP_COLORS.loss}, ${HEATMAP_COLORS.neutral}, ${HEATMAP_COLORS.profit})` }}
+      />
+      <div className="flex justify-between text-3xs uppercase tracking-wider text-white/50 mt-1">
+        <span>Loss</span>
+        <span>Break-even</span>
+        <span>Profit</span>
+      </div>
+      <div className="flex items-center gap-2 mt-2 text-3xs uppercase tracking-wider text-white/50">
+        <span className="flex items-center gap-1">
+          <span className="block w-4 bg-white/60" style={{ height: 1 }} />
+          <span className="block w-4 bg-white/60" style={{ height: 3 }} />
+          <span className="block w-4 bg-white/60" style={{ height: 5 }} />
+        </span>
+        Line width = passengers
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -122,9 +174,65 @@ function WorldMapImpl({
   sessionKey, zoom, setZoom, setMapBounds, visibleAirports, visibleWorldOffsets,
   airports, routes, aiRouteList, aiAirlines, fleet, airportManagement, showYourRoutes,
   showRivalRoutes, showLiveTraffic, planningOriginId, planningDestId,
-  setSelectedAirport, getRoutePath
+  setSelectedAirport, getRoutePath, playerColor, heatmap, routeProfits, routePax
 }: WorldMapProps) {
+  // Style objects are memoised and handed over as pathOptions, which
+  // react-leaflet compares by identity: a line is restyled when its colour
+  // actually changes, not on every zoom step. (Plain color/weight props are
+  // read once, when the line is created.)
+  const playerStyle = useMemo<PathStyle>(
+    () => ({ color: playerColor, weight: 1.2, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }),
+    [playerColor]
+  );
+
+  /** One style per rival, in the order of aiAirlines. */
+  const rivalStyles = useMemo(() => (aiAirlines || []).map((airline): PathStyle => ({
+    color: airline.color || MAP_CONGESTION_COLORS.bad,
+    weight: 1.5,
+    // Faded while the heatmap is on, so the rivals' own greens and reds are
+    // not read as profit and loss.
+    opacity: heatmap ? 0.3 : 0.7,
+    lineCap: 'round',
+    lineJoin: 'round'
+  })), [aiAirlines, heatmap]);
+
+  // The map draws one line per airport pair, so the heatmap sums every
+  // player route flying the same pair.
+  const heatPairs = useMemo(() => {
+    if (!heatmap) return null;
+    const totals = new Map<string, Omit<HeatPair, 'style'>>();
+    for (const r of routes) {
+      if (!r?.origin || !r?.destination) continue;
+      const key = pairKey(r.origin, r.destination);
+      const entry = totals.get(key) || { a: r.origin, b: r.destination, profit: 0, pax: 0, routes: 0 };
+      entry.profit += routeProfits[r.id] || 0;
+      entry.pax += routePax[r.id] || 0;
+      entry.routes += 1;
+      totals.set(key, entry);
+    }
+    // A percentile rather than the largest result, so one big earner does not
+    // turn every other line grey.
+    const maxAbs = heatmapScale([...totals.values()].map(p => p.profit));
+    let maxPax = 0;
+    for (const p of totals.values()) maxPax = Math.max(maxPax, p.pax);
+    const pairs = new Map<string, HeatPair>();
+    for (const [key, p] of totals) {
+      pairs.set(key, {
+        ...p,
+        style: {
+          color: profitColor(p.profit, maxAbs),
+          weight: paxWeight(p.pax, maxPax),
+          opacity: 0.9,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }
+      });
+    }
+    return pairs;
+  }, [heatmap, routes, routeProfits, routePax]);
+
   return (
+    <>
           <MapContainer 
             key={`map-${sessionKey}`}
             center={[20, 0]} 
@@ -176,20 +284,41 @@ function WorldMapImpl({
                   const a1 = airportsMapAdjusted.get(r.origin);
                   const a2 = airportsMapAdjusted.get(r.destination);
                   if (!a1 || !a2) return null;
-                  const key = [a1.id, a2.id].sort().join('-');
+                  const key = pairKey(a1.id, a2.id);
                   if (pairs.has(key)) return null;
                   pairs.add(key);
                   const points = getRoutePath(a1, a2, offset);
+                  const heat = heatPairs?.get(key);
+                  if (heat) {
+                    return (
+                      <Polyline
+                        key={`heat-${key}-${offset}`}
+                        positions={points}
+                        {...heat.style}
+                        pathOptions={heat.style}
+                        smoothFactor={1}
+                      >
+                        <Tooltip sticky>
+                          <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
+                            <div className="text-xs leading-none mb-1 text-white font-sans font-bold">{heat.a} ↔ {heat.b}</div>
+                            <div className="text-2xs leading-none font-black mb-1" style={{ color: heat.style.color }}>
+                              {formatSignedCurrency(heat.profit)} / month
+                            </div>
+                            <div className="text-[8px] leading-none text-white/60">
+                              {formatNumber(heat.pax)} pax/week{heat.routes > 1 ? ` · ${heat.routes} routes` : ''}
+                            </div>
+                          </div>
+                        </Tooltip>
+                      </Polyline>
+                    );
+                  }
                   return (
                     <Polyline 
                       key={`${r.id}-${offset}`}
                       positions={points}
-                      color={MAP_YELLOW}
-                      weight={1.2}
-                      opacity={0.8}
+                      {...playerStyle}
+                      pathOptions={playerStyle}
                       smoothFactor={1} 
-                      lineCap="round"
-                      lineJoin="round"
                     />
                   );
                 }) : [];
@@ -204,21 +333,19 @@ function WorldMapImpl({
                             <Polyline 
                                 key={`planning-${offset}`}
                                 positions={points}
-                                color={MAP_YELLOW}
-                                weight={1.2}
-                                opacity={0.8} 
+                                {...playerStyle}
+                                pathOptions={playerStyle}
                                 smoothFactor={1}
-                                lineCap="round"
-                                lineJoin="round"
                             />
                         );
                     }
                 }
 
-                // Render Rival routes as red lines on the map
+                // Rival routes, each airline in its own colour
                 if (showRivalRoutes && aiAirlines && aiAirlines.length > 0) {
                   aiAirlines.forEach((airline, aiIdx) => {
-                    if (airline.routes && airline.routes.length > 0) {
+                    const style = rivalStyles[aiIdx];
+                    if (style && airline.routes && airline.routes.length > 0) {
                       airline.routes.forEach((r, routeIdx) => {
                         const a1 = airportsMapAdjusted.get(r.origin);
                         const a2 = airportsMapAdjusted.get(r.destination);
@@ -228,16 +355,16 @@ function WorldMapImpl({
                           <Polyline 
                             key={`ai-${airline.code}-${aiIdx}-${routeIdx}-${offset}`}
                             positions={points}
-                            color={MAP_CONGESTION_COLORS.bad}
-                            weight={1.5}
-                            opacity={0.7}
+                            {...style}
+                            pathOptions={style}
                             smoothFactor={1}
-                            lineCap="round"
-                            lineJoin="round"
                           >
                             <Tooltip sticky>
                               <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 text-aero-yellow/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
-                                <div className="text-xs leading-none mb-1 text-white font-sans font-bold">{airline.name}</div>
+                                <div className="text-xs leading-none mb-1 text-white font-sans font-bold flex items-center gap-1.5">
+                                  <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
+                                  {airline.name}
+                                </div>
                                 <div className="text-2xs leading-none text-aero-yellow/60 font-mono mb-1">{r.origin} ↔ {r.destination}</div>
                                 <div className="text-[8px] opacity-60 leading-none">{r.departures} departures/week</div>
                               </div>
@@ -320,9 +447,12 @@ function WorldMapImpl({
               airports={airports}
               offsets={visibleWorldOffsets}
               fleet={fleet}
+              playerColor={playerColor}
             />
           )}
         </MapContainer>
+        {heatmap && showYourRoutes && <HeatmapLegend />}
+    </>
   );
 }
 

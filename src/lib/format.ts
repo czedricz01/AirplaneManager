@@ -62,6 +62,38 @@ export function formatMoneyCompact(value: number): string {
   return `${sign}$${formatNumber(abs, 0)}`;
 }
 
+/** Compact counts for axis labels: 1.2M, 34K, 950. */
+export function formatNumberCompact(value: number): string {
+  const v = safe(value);
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  if (abs >= 1_000_000_000) return `${sign}${formatNumber(abs / 1_000_000_000, 1)}B`;
+  if (abs >= 1_000_000) return `${sign}${formatNumber(abs / 1_000_000, 1)}M`;
+  if (abs >= 10_000) return `${sign}${formatNumber(abs / 1_000, 0)}K`;
+  if (abs >= 1_000) return `${sign}${formatNumber(abs / 1_000, 1)}K`;
+  return `${sign}${formatNumber(abs, 0)}`;
+}
+
+/** The game's calendar starts in January 1960: month offset 0. */
+export const CALENDAR_START_YEAR = 1960;
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+/** "03/1965" for a month offset, as the date is shown everywhere else in the game. */
+export function formatMonthOffset(offset: number): string {
+  const o = Math.max(0, Math.floor(safe(offset)));
+  return `${String(1 + (o % 12)).padStart(2, '0')}/${CALENDAR_START_YEAR + Math.floor(o / 12)}`;
+}
+
+/** "March 1965" for a month offset, for a masthead or a headline. */
+export function formatMonthLong(offset: number): string {
+  const o = Math.max(0, Math.floor(safe(offset)));
+  return `${MONTH_NAMES[o % 12]} ${CALENDAR_START_YEAR + Math.floor(o / 12)}`;
+}
+
 /**
  * "LH1234" -- the airline's own code, not a fixed "NE". Routes created before
  * they stored `airlineCode` fall back to the current one. A route without a

@@ -31,6 +31,7 @@ import type { GameMessage } from './gameTypes';
 import { findNonFinite } from './invariants';
 import { logWarn, logError } from './debugLog';
 import { nextMessageId } from './messages';
+import { assignRivalColors, MAP_YELLOW } from './theme';
 
 /**
  * Fixed monthly income every AI airline receives on top of its route results,
@@ -607,7 +608,9 @@ export const generateAiAirlines = (
   playerHubId: string,
   startDateOffset: number = 0,
   /** The player's airline code, which no rival may carry. */
-  playerCode: string = ''
+  playerCode: string = '',
+  /** The player's brand colour, which no rival is drawn in. */
+  playerColor: string = MAP_YELLOW
 ): AiAirline[] => {
   const difficulty = (['Easy', 'Normal', 'Hard'].includes(difficultyVal) ? difficultyVal : 'Normal') as Difficulty;
   const identities = pickRivalIdentities(count, playerHubId, yearOf(startDateOffset), playerCode);
@@ -675,6 +678,10 @@ export const generateAiAirlines = (
       aggression: AGGRESSION[personality]
     });
   }
+
+  // Each rival its own colour on the map, clear of the player's.
+  const colors = assignRivalColors(result, playerColor);
+  result.forEach((ai, i) => { ai.color = colors[i]; });
   return result;
 };
 

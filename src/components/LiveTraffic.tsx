@@ -3,7 +3,7 @@ import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { getRoutePath, ROUTE_PATH_SEGMENTS as SEGMENTS } from '../lib/geoUtils';
 import { aircraftList } from "../data/aircraft";
-import { MAP_YELLOW } from '../lib/theme';
+import { MAP_YELLOW, MAP_CONGESTION_COLORS, isHexColor } from '../lib/theme';
 
 interface LiveTrafficProps {
   routes: any[];
@@ -12,10 +12,10 @@ interface LiveTrafficProps {
   /** World copies to draw on, e.g. [-360, 0, 360]. */
   offsets?: number[];
   fleet?: any[];
+  /** The player's brand colour. Rival aircraft wear their airline's (route.airlineColor). */
+  playerColor?: string;
 }
 
-// Great circle path calculator for high-fidelity routes
-const PLANE_YELLOW = MAP_YELLOW;
 const PLANE_STROKE = "#121212";
 
 // Plain SVG strings rather than react-dom/server: this used to run a full React
@@ -72,10 +72,10 @@ function getPlaneSvgPath(aircraftId: string, planeClass: string, icaoClass: stri
 // (5-degree-rounded) heading, so Leaflet gets a handful of objects, not hundreds.
 const iconCache = new Map<string, L.DivIcon>();
 
-function getPlaneIcon(aircraftId: string, planeClass: string, icaoClass: string, size: number, heading: number): L.DivIcon {
+function getPlaneIcon(aircraftId: string, planeClass: string, icaoClass: string, size: number, heading: number, fill: string): L.DivIcon {
   const shape = getPlaneSvgPath(aircraftId, planeClass, icaoClass);
   const roundedHeading = Math.round(heading / 5) * 5;
-  const key = `${shape.d.length}-${shape.stroke}-${size}-${roundedHeading}-${shape.extra ? 1 : 0}`;
+  const key = `${shape.d.length}-${shape.stroke}-${size}-${roundedHeading}-${shape.extra ? 1 : 0}-${fill}`;
 
   const cached = iconCache.get(key);
   if (cached) return cached;
@@ -83,7 +83,7 @@ function getPlaneIcon(aircraftId: string, planeClass: string, icaoClass: string,
   const html =
     `<div style="transform:rotate(${roundedHeading}deg);width:${size}px;height:${size}px">` +
     `<svg viewBox="0 0 32 32" width="${size}" height="${size}" style="filter:drop-shadow(0px 1px 2px rgba(0,0,0,0.85))">` +
-    `<path d="${shape.d}" fill="${PLANE_YELLOW}" stroke="${PLANE_STROKE}" stroke-width="${shape.stroke}" stroke-linejoin="round" />` +
+    `<path d="${shape.d}" fill="${fill}" stroke="${PLANE_STROKE}" stroke-width="${shape.stroke}" stroke-linejoin="round" />` +
     (shape.extra || '') +
     `</svg></div>`;
 
@@ -163,11 +163,13 @@ interface ActiveFlight {
   toId: string;
   isReturn: boolean;
   cruiseSpeed: number;
+  /** Fill colour: the airline's brand or rival colour. */
+  color: string;
   /** Load factor 0-100, or null when it can't be computed (rivals carry no realized pax data). */
   loadFactor: number | null;
 }
 
-export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet = [] }: LiveTrafficProps) {
+export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet = [], playerColor = MAP_YELLOW }: LiveTrafficProps) {
   /**
    * The live-traffic clock lives here, not in App.
    *
@@ -213,6 +215,9 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
         const labelName = spec ? `${spec.manufacturer} ${spec.type}` : (r.aircraft || 'Aircraft');
         const registration = ownedPlane?.registration || r.aircraftReg || 'N/A';
         const cruiseSpeed = spec?.cruiseSpeed || 800;
+        const color = isRival
+          ? (isHexColor(r.airlineColor) ? r.airlineColor : MAP_CONGESTION_COLORS.bad)
+          : playerColor;
 
         let size = 34;
         if (aircraftId.toLowerCase() === 'concorde') size = 36;
@@ -266,6 +271,7 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
             toId: reversed ? o.id : d.id,
             isReturn: reversed,
             cruiseSpeed,
+            color,
             loadFactor
           });
         };
@@ -298,7 +304,7 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
     processRoutes(aiRoutes, true);
 
     return flights;
-  }, [realTime, routes, aiRoutes, airportsMap, fleetByRegistration, aircraftById]);
+  }, [realTime, routes, aiRoutes, airportsMap, fleetByRegistration, aircraftById, playerColor]);
 
   return (
     <>
@@ -307,13 +313,14 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
           <Marker
             key={`${f.key}-${offset}`}
             position={[f.lat, f.lng + offset]}
-            icon={getPlaneIcon(f.aircraftId, f.planeClass, f.icaoCode, f.size, f.heading)}
+            icon={getPlaneIcon(f.aircraftId, f.planeClass, f.icaoCode, f.size, f.heading, f.color)}
           >
             <Popup>
               <div className="bg-aero-panel-2 border-l-2 border-aero-yellow p-3 rounded-sm text-2xs font-mono leading-relaxed text-white min-w-[260px] shadow-2xl select-none">
                 {/* Carrier & Callsign Banner */}
                 <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
                   <span className="text-aero-yellow font-black uppercase tracking-widest text-3xs flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
                     {f.carrier}
                   </span>
                   <span className="bg-aero-black border border-white/10 text-white text-4xs px-2 py-0.5 uppercase tracking-wide font-bold">

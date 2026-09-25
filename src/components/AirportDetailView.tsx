@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { Airport, getAirportStats } from '../data/airports';
-import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info } from 'lucide-react';
+import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info, ArrowRightLeft } from 'lucide-react';
 import { ManagementLevel, AirportInfrastructure } from '../App';
 
 import type { OwnedAircraft } from './MyFleetView';
@@ -10,6 +10,7 @@ import { SimulatedRoute } from '../App';
 
 import { getAirportUpkeep, getSlotPurchaseCost, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';
+import { hubQuality, MIN_CONNECTION_MIN, MAX_CONNECTION_MIN, type HubTransferStats } from '../lib/transferUtils';
 
 interface Props {
   airport: Airport;
@@ -34,6 +35,8 @@ interface Props {
   routes?: SimulatedRoute[];
   onPerformGeneralCheck: (reg: string) => void;
   aiAirlines?: any[];
+  /** Passengers changing planes here this month, from the network pricing. */
+  transferHub?: HubTransferStats;
 }
 
 export function AirportDetailView({ 
@@ -53,7 +56,8 @@ export function AirportDetailView({
   fleet,
   routes = [],
   onPerformGeneralCheck,
-  aiAirlines = []
+  aiAirlines = [],
+  transferHub
 }: Props) {
   const [showCostBreakdown, setShowCostBreakdown] = React.useState(false);
   const [selectedAircraftForCheck, setSelectedAircraftForCheck] = React.useState<string>("");
@@ -394,6 +398,7 @@ export function AirportDetailView({
 
           {/* Right Column: Strategic Expansion */}
           <div className="flex flex-col gap-3">
+            <TransferHubCard stats={transferHub} quality={hubQuality(infrastructure)} />
             {infrastructure.level >= 2 ? (
               <div className="bg-aero-carbon border border-aero-yellow p-4 flex flex-col gap-3 relative overflow-hidden">
                 <div className="absolute -top-10 -right-10 text-aero-yellow/5">
@@ -568,7 +573,7 @@ export function AirportDetailView({
       {/* Management Required Modal */}
       {showMgmtModal && (
         <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-aero-carbon p-4 border border-white/10 max-w-md w-full relative z-[101]">
+          <div role="dialog" aria-modal="true" className="bg-aero-carbon p-4 border border-white/10 max-w-md w-full relative z-[101]">
             <h3 className="text-xl font-black uppercase text-aero-yellow mb-2">Management Required</h3>
             <p className="text-white/70 mb-4 text-sm">
               Level-1 management is required to create a route. Do you want to buy it now?
@@ -609,6 +614,57 @@ function Metric({ label, value, highlight, color, info }: { label: string, value
         {info && <InfoTooltip size={11} {...GLOSSARY[info]} />}
       </span>
       <span className={`text-xs font-black ${highlight ? 'text-aero-yellow' : color || 'text-white'}`}>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Passengers changing planes here: how many, where they go, and how good the
+ * airport is as a place to connect. The quality is the factor the network
+ * pricing applies (transferUtils' hubQuality), not a separate score.
+ */
+function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality: number }) {
+  const pax = stats?.pax ?? 0;
+  return (
+    <div className="bg-aero-carbon border border-white/10 p-4 flex flex-col gap-3">
+      <div className="flex justify-between items-center border-b border-white/10 pb-3">
+        <div className="flex items-center gap-3">
+          <ArrowRightLeft className="text-aero-yellow" size={20} />
+          <span className="text-sm font-black uppercase tracking-[0.2em]">Transfer Hub</span>
+        </div>
+        <InfoTooltip
+          size={12}
+          title="Hub quality"
+          desc="How well passengers connect here: 40% base, +15% per management tier, +5% each for a VIP lounge and a catering facility, at most 100%. It scales how many connecting passengers your routes can sell."
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col">
+          <span className="text-3xs text-white/30 uppercase tracking-[0.2em] mb-0.5">Transfer pax / week</span>
+          <span className="text-xl font-black text-aero-yellow">{formatNumber(pax)}</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-3xs text-white/30 uppercase tracking-[0.2em] mb-0.5">Hub quality factor</span>
+          <span className="text-xl font-black text-white">{Math.round(quality * 100)}%</span>
+        </div>
+      </div>
+      {pax > 0 && stats ? (
+        <div className="flex flex-col gap-1 text-2xs">
+          <span className="text-3xs text-white/30 uppercase tracking-[0.2em]">Top connections</span>
+          {stats.flows.slice(0, 5).map(f => (
+            <div key={`${f.o}>${f.d}`} className="flex justify-between text-white/70">
+              <span>{f.o} → {f.hub} → {f.d}</span>
+              <span className="text-white">{formatNumber(f.pax)}/wk</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-2xs text-white/40 leading-relaxed">
+          No passengers connect here yet. Two of your routes meeting at this airport sell connections when the
+          change takes {MIN_CONNECTION_MIN} min to {MAX_CONNECTION_MIN / 60} h, the detour is under 60%,
+          both flights have empty seats, and you do not already fly the city pair direct.
+        </p>
+      )}
     </div>
   );
 }

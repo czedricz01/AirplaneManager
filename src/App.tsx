@@ -30,7 +30,11 @@ import {
   Trash2,
   Edit2,
   Check,
-  CheckCircle2
+  CheckCircle2,
+  Newspaper,
+  Lock,
+  Trophy,
+  RotateCcw
 } from "lucide-react";
 
 import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
@@ -115,24 +119,6 @@ function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: nu
  */
 
 /**
- * Coarse continent lookup from coordinates, for the "continents served"
- * milestone only. The airport dataset carries no region field, and this is
- * approximate: it uses rectangles, so a handful of airports near a boundary
- * (the Urals, Sinai, Panama) land on the wrong side. That is acceptable for
- * counting how far a network reaches; it is not used anywhere in the economy.
- */
-export function continentOf(coords: [number, number]): string {
-  const [lat, lon] = coords;
-  if (lat >= 7 && lon >= -170 && lon <= -50) return 'NA';
-  if (lat < 13 && lon >= -92 && lon <= -34) return 'SA';
-  if (lat >= 35 && lat <= 72 && lon >= -25 && lon <= 45) return 'EU';
-  if (lat >= -35 && lat <= 37 && lon >= -20 && lon <= 52) return 'AF';
-  if (lat <= 0 && lon >= 110 && lon <= 180) return 'OC';
-  if (lon >= 45 || lon <= -170) return 'AS';
-  return 'OT';
-}
-
-/**
  * Milestones. Checked at the end of each month, awarded once, announced in the
  * inbox. They are the only thing in the game that accumulates across a whole
  * career, and each one nudges reputation, which is the reward that lasts.
@@ -185,47 +171,26 @@ export function computeReputationTarget(samples: {
   return 0.5 * satScore + 0.3 * condScore + 0.2 * loadScore;
 }
 
-/**
- * What reputation does to demand: a tenth either way. Small enough that a good
- * network still beats a good reputation, large enough to be worth protecting.
- */
-export function reputationDemandFactor(reputation: number): number {
-  return 0.85 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;
-}
-
-/**
- * The correction that turns a crisis's raw demand hit into the softened one the
- * player paid for.
- *
- * calculateDemand has already applied the event's own multiplier via
- * getEventMultipliers, and that path is shared with the AI airlines. Rather
- * than fork it, the player's demand factor carries the ratio between the
- * softened multiplier and the raw one, so only the player sees the relief.
- */
-export function eventReliefFactor(
-  offset: number,
-  choicesTaken: Record<string, string>
-): number {
-  let factor = 1;
-  for (const ev of getActiveEvents(offset)) {
-    const chosenId = choicesTaken[eventKey(ev)];
-    if (!chosenId) continue;
-    const choice = ev.choices?.find(c => c.id === chosenId);
-    if (!choice?.softensDemand) continue;
-    const raw = ev.demandMultiplier;
-    if (raw >= 1) continue;
-    const softened = raw + (1 - raw) * choice.softensDemand;
-    factor *= softened / raw;
-  }
-  return factor;
-}
-
 /** Adds a one-off amount to the month's list, merging items with the same label. */
 function addCapexItem(list: { label: string; amount: number }[], label: string, amount: number) {
   return list.some(c => c.label === label)
     ? list.map(c => (c.label === label ? { ...c, amount: c.amount + amount } : c))
     : [...list, { label, amount }];
 }
+
+/** The month a saved report closed, as an offset from 01/1960. */
+const reportOffset = (r: { year: number; month: number }) => (r.year - 1960) * 12 + (r.month - 1);
+
+/** Capital at the month-ends a scenario has seen so far, oldest first, from the saved reports. */
+function scenarioCapitalHistory(reports: any[], startedOffset: number): number[] {
+  return reports
+    .filter(r => r && reportOffset(r) >= startedOffset && Number.isFinite(r.capitalAfter))
+    .map(r => r.capitalAfter);
+}
+
+/** The player's routes as a scenario's goals count them: by city pair, with their weekly departures. */
+const scenarioRoutes = (routes: SimulatedRoute[]): ScenarioContext['routes'] =>
+  routes.map(r => ({ origin: r.origin, destination: r.destination, weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 }));
 
 /** Every rival departure, as offers the finance engine can split demand by. */
 function buildRivalOffers(ais: any[] | null | undefined) {
@@ -240,7 +205,10 @@ function buildRivalOffers(ais: any[] | null | undefined) {
 }
 
 import { WorldMap } from "./components/WorldMap";
-import { getRoutePath } from "./lib/geoUtils";
+import { BrandingPicker } from "./components/BrandingPicker";
+import { IncidentList } from "./components/IncidentList";
+import { recolorClashingRivals } from "./lib/theme";
+import { getRoutePath, continentOf, regionOf } from "./lib/geoUtils";
 
 /**
  * The hub picker's option list. This used to be sorted inline in the start
@@ -262,12 +230,88 @@ const createDefaultPlanningClassConfigs = (): Record<string, any> => ({
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
-import { calculateRouteFinancials, getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
+import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
+import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
+import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
+import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
+import { NewspaperOverlay } from "./components/NewspaperOverlay";
+import {
+  CAMPAIGN_SPECS,
+  REGION_LABELS,
+  campaignBlocker,
+  campaignMonthlyCost,
+  createCampaign,
+  dropExpiredCampaigns,
+  ffpMonthlyCost,
+  marketingMonthCost,
+  marketingReputation,
+  routesByRegion,
+  startFfp,
+  stopFfp
+} from "./lib/marketing";
+import {
+  STRIKE_MORALE_THRESHOLD,
+  STRIKE_OPTION_RAISE,
+  STRIKE_PAY_RAISE,
+  STRIKE_REPUTATION_PENALTY,
+  advanceStaff,
+  buildStrikeDecision,
+  setSalary,
+  settleStrikeWithPayRise,
+  strikeCancelShare
+} from "./lib/staff";
+import {
+  DISRUPTION_OPTION_CHARTER,
+  MAJOR_DISRUPTION_SHARE,
+  buildDisruptionDecision,
+  cancelReputationPenalty,
+  charterFeesFor,
+  combineCancelShares,
+  describeDisruption,
+  describeRouteCancellations,
+  disruptionCancelShares,
+  disruptionRoutesLabel,
+  disruptionIncidents,
+  disruptionRepairCost,
+  disruptionTitle,
+  disruptionsIn,
+  disruptionsToAsk,
+  dropPastDisruptions,
+  marginalLostRevenue,
+  rollDisruptions
+} from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
+import {
+  buildPlayerModifiers,
+  createGameSystems,
+  decisionTargetExists,
+  routeCancelShare,
+  ensureFreeOption,
+  normalizeGameSettings,
+  DEFAULT_BRANDING,
+  DEFAULT_MARKETING,
+  DEFAULT_STAFF,
+  type Branding,
+  type CampaignTier,
+  type Marketing,
+  type RegionId,
+  type Staff,
+  type Disruption,
+  type GameDecision,
+  type GameDecisionKind,
+  type GameDecisionOption,
+  type GameSettings,
+  type GameSystems,
+  type PlayerModifiers,
+  type ReportIncident,
+  type RouteCancellation,
+  type ScenarioState,
+  type ChronicleEntry
+} from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
-import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
+import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
 import type { GameMessage } from "./lib/gameTypes";
 export type { GameMessage };
@@ -299,7 +343,13 @@ const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").
 
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
-import { generateUniqueRegistration } from "./utils/registration";
+import { createOwnedAircraft, startingFleet } from "./lib/fleet";
+import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
+import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
+import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
+import { ScenarioPicker } from "./components/ScenarioPicker";
+import { TutorialOverlay } from "./components/TutorialOverlay";
+import { restartTutorial, settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
@@ -464,6 +514,40 @@ export default function App() {
   const [annualGoal, setAnnualGoal] = useState<{ year: number; targetProfit: number } | null>(null);
   /** The event whose decision is waiting to be made, if any. */
   const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
+  /** The airline's colour and badge. */
+  const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
+  /** The colour and badge being picked on the new-game screen, until the game starts. */
+  const [newGameBranding, setNewGameBranding] = useState<Branding>(DEFAULT_BRANDING);
+  /** Advertising campaigns and the frequent-flyer programme. */
+  const [marketing, setMarketing] = useState<Marketing>(DEFAULT_MARKETING);
+  /** Pay, morale and any strike in progress. */
+  const [staff, setStaff] = useState<Staff>(DEFAULT_STAFF);
+  /** Cancellations rolled for the months ahead. */
+  const [disruptions, setDisruptions] = useState<Disruption[]>([]);
+  /**
+   * Questions for the player that are not world events, answered one at a
+   * time in the dialog below the event decision. See resolveDecision.
+   */
+  const [pendingDecisions, setPendingDecisions] = useState<GameDecision[]>([]);
+  /** The scenario this game was started from; null for a free game. */
+  const [scenario, setScenario] = useState<ScenarioState | null>(null);
+  /** The scenario picked on the new-game screen; null for free play. */
+  const [newGameScenarioId, setNewGameScenarioId] = useState<string | null>(null);
+  const newGameScenario = scenarioById(newGameScenarioId);
+  /** The won-or-lost dialog, shown once after the close that decided the scenario. Not saved. */
+  const [scenarioResultOpen, setScenarioResultOpen] = useState(false);
+  /** The airline's history, newest last. */
+  const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
+  /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
+  const [tutorialStep, setTutorialStep] = useState<number | null>(null);
+  /**
+   * The newspaper of the last month close. Not part of the savegame: it is
+   * written from that close's events, which a loaded game no longer has.
+   */
+  const [edition, setEdition] = useState<Edition | null>(null);
+  const [isNewspaperOpen, setIsNewspaperOpen] = useState(false);
+  /** Stable, so the overlay's key listener is not re-attached on every render. */
+  const closeNewspaper = React.useCallback(() => setIsNewspaperOpen(false), []);
   const [selectedMessage, setSelectedMessage] = useState<GameMessage | null>(null);
 
   useEffect(() => {
@@ -569,6 +653,79 @@ export default function App() {
     setCapital(prev => prev - amount);
     setMonthlyCapex(prev => addCapexItem(prev, label, amount));
   };
+
+  /**
+   * Puts a question to the player. Every system queues through here, so each
+   * decision carries an answer that costs nothing (see ensureFreeOption).
+   */
+  const queueDecision = (decision: GameDecision) => {
+    setPendingDecisions(prev => [...prev, ensureFreeOption(decision)]);
+  };
+
+  /**
+   * What answering a decision does, by kind. Each system that puts questions
+   * to the player adds its handler here. By the time one runs, the option's
+   * cost has been paid and the decision has left the queue. A handler must
+   * also accept the free option ensureFreeOption may have added, whose id
+   * starts with FREE_OPTION_ID, as "do nothing".
+   */
+  const decisionHandlers: Partial<Record<GameDecisionKind, (decision: GameDecision, option: GameDecisionOption) => void>> = {
+    // A strike: raise pay and half the flights operate, or sit it out and
+    // none do. Sitting it out is what any other answer means, the free one
+    // included. `ref` is the month the strike was called for.
+    strike: (decision, option) => {
+      const strikeOffset = Number(decision.ref);
+      if (option.id === STRIKE_OPTION_RAISE) {
+        setStaff(prev => settleStrikeWithPayRise(prev, strikeOffset));
+        setToast(`Pay raised by ${STRIKE_PAY_RAISE} points: half the flights operate during the strike`);
+      } else {
+        setReputation(prev => Math.max(0, prev - STRIKE_REPUTATION_PENALTY));
+        setToast(`Strike sat out: no flights this month, reputation -${STRIKE_REPUTATION_PENALTY}`);
+      }
+    },
+    // A disruption of 25% or more: charter a replacement and nothing is
+    // cancelled, or cancel the flights, which is what any other answer means.
+    // `ref` is the disruption's id. The charter is billed at the month's
+    // close, on what it actually saved.
+    disruption: (decision, option) => {
+      const target = disruptions.find(d => d.id === decision.ref);
+      if (!target) return;
+      if (option.id === DISRUPTION_OPTION_CHARTER) {
+        setDisruptions(prev => prev.map(d => (d.id === target.id ? { ...d, mitigated: true } : d)));
+        setToast(`Replacement aircraft chartered: ${disruptionTitle(target)}. Billed at the month's end.`);
+      } else {
+        // Flights a strike or another disruption cancels anyway strand nobody more.
+        const strikeShare = strikeCancelShare(staff, target.offset);
+        const others = disruptionCancelShares(disruptions.filter(d => d.id !== target.id), target.offset) ?? {};
+        const penalty = cancelReputationPenalty(target, id => combineCancelShares(strikeShare, others[id]));
+        if (penalty > 0) setReputation(prev => Math.max(0, prev - penalty));
+        setToast(penalty > 0
+          ? `Flights cancelled: ${disruptionTitle(target)}, reputation -${formatNumber(penalty, penalty % 1 === 0 ? 0 : 1)}`
+          : `Flights cancelled: ${disruptionTitle(target)}. They were grounded anyway: no reputation lost`);
+      }
+    }
+  };
+
+  /** Answers the decision with the given id: pays for the option, dequeues it, applies it. */
+  const resolveDecision = (decisionId: string, optionId: string) => {
+    const decision = pendingDecisions.find(d => d.id === decisionId);
+    const option = decision?.options.find(o => o.id === optionId);
+    if (!decision || !option) {
+      logWarn('decisions', `Decision ${decisionId} has no option ${optionId}; nothing was done`);
+      return;
+    }
+    // Checked before anything is paid: a question whose strike or disruption
+    // is gone by now would otherwise charge for nothing.
+    if (!decisionTargetExists(decision, { staff, disruptions })) {
+      logWarn('decisions', `Decision ${decisionId} is about ${decision.ref}, which no longer exists; dropped it`);
+      setPendingDecisions(prev => prev.filter(d => d.id !== decisionId));
+      return;
+    }
+    if (option.cost > 0) spend(option.cost, `Decision: ${decision.title}`);
+    setPendingDecisions(prev => prev.filter(d => d.id !== decisionId));
+    decisionHandlers[decision.kind]?.(decision, option);
+  };
+
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
   
@@ -631,12 +788,16 @@ export default function App() {
    * Rebuilt only when the AI airlines change, not per route.
    */
   /**
-   * Everything that shifts the player's demand away from the shared baseline:
-   * reputation, plus any crisis relief bought this month.
+   * Everything that applies to the player's routes and not to the rivals --
+   * reputation, crisis relief bought this month, and whatever the other
+   * systems add -- in the one object every player call of the finance engine
+   * receives, so the route list, the planner and the report agree.
    */
-  const playerDemandFactor = useMemo(
-    () => reputationDemandFactor(reputation) * eventReliefFactor(currentDateOffset, eventChoices),
-    [reputation, currentDateOffset, eventChoices, randomEvents]
+  const playerMods = useMemo(
+    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions }, currentDateOffset),
+    // randomEvents: eventReliefFactor reads the active events from module state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents]
   );
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
@@ -671,7 +832,7 @@ export default function App() {
   // flattening used to discard it entirely and every rival flight popup fell back
   // to the generic "Rival Carrier" label.
   const aiRouteList = useMemo(
-    () => aiAirlines.flatMap(a => (a.routes || []).map(r => ({ ...r, airlineName: a.name, airlineCode: a.code, airlineId: a.id }))),
+    () => aiAirlines.flatMap(a => (a.routes || []).map(r => ({ ...r, airlineName: a.name, airlineCode: a.code, airlineId: a.id, airlineColor: a.color }))),
     [aiAirlines]
   );
 
@@ -733,27 +894,125 @@ export default function App() {
   );
 
   /**
+   * The whole network priced once for this month, connecting passengers
+   * included: the same call the monthly report makes, so the two agree.
+   */
+  const network = useMemo(() => computeNetworkFinancials(routes, fleet, playerMods, {
+    fuelPrice: fuelData.price,
+    airportManagement,
+    year: 1960 + Math.floor(currentDateOffset / 12),
+    month: 1 + (currentDateOffset % 12),
+    difficulty,
+    airportsMap: airportsMapAdjusted,
+    rivalOffers
+  }),
+    // randomEvents: calculateDemand reads the active events from module state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerMods, rivalOffers, randomEvents]
+  );
+
+  /**
+   * The player's modifiers with this month's connecting passengers, for the
+   * screens that price one route at a time (the route list and its detail
+   * view). Reading `transfer` from here, their figures match the network's.
+   */
+  const playerModsWithTransfer = useMemo(
+    () => Object.keys(network.transfer).length > 0 ? { ...playerMods, transfer: network.transfer } : playerMods,
+    [playerMods, network]
+  );
+
+  /**
    * Every route with this month's figures, from the same engine call the
    * monthly report makes. The route list and the map read these. The copy
    * stored on each route changes only when a month closes, so a new rival, a
    * new timetable or a new route next door showed up there a month late.
    */
-  const routesWithMetrics = useMemo(() => {
-    const byRegistration = new Map(fleet.map(p => [p.registration, p]));
-    const year = 1960 + Math.floor(currentDateOffset / 12);
-    const month = 1 + (currentDateOffset % 12);
-    return routes.map(r => {
-      const ac = byRegistration.get(r.aircraft);
-      if (!ac) return r;
-      const fin = calculateRouteFinancials(
-        r, ac, fuelData.price, airportManagement, year, month, difficulty,
-        airportsMapAdjusted, routes, fleet, false, playerDemandFactor, rivalOffers
-      );
-      return { ...r, ...toStoredRouteMetrics(fin) };
+  const routesWithMetrics = useMemo(() => routes.map(r => {
+    const fin = network.finById.get(r.id);
+    return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
+  }), [routes, network]);
+
+  /**
+   * This month's profit and weekly passengers per route, for the map's profit
+   * heatmap. The forecast rather than the last closed month, so a route opened
+   * or repriced today shows its colour straight away. Profit is the weekly
+   * figure times four, as the monthly report books it.
+   */
+  const routeHeat = useMemo(() => {
+    const profit: Record<string, number> = {};
+    const pax: Record<string, number> = {};
+    network.finById.forEach((fin, id) => {
+      profit[id] = (fin.estWeeklyProfit || 0) * 4;
+      pax[id] = fin.paxPerWeek || 0;
     });
-    // randomEvents: calculateDemand reads the active events from module state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerDemandFactor, rivalOffers, randomEvents]);
+    return { profit, pax };
+  }, [network]);
+
+  /** Passengers this month at the current forecast, for the frequent-flyer programme's bill. */
+  const projectedMonthlyPax = useMemo(() => {
+    let week = 0;
+    network.finById.forEach(fin => { week += fin.paxPerWeek || 0; });
+    return week * 4;
+  }, [network]);
+
+  /** Crew and ground staff this month at the current forecast and pay, for the staff screen. */
+  const monthlyCrewCost = useMemo(() => {
+    let week = 0;
+    network.finById.forEach(fin => { week += fin.costsBreakdown?.crew || 0; });
+    return week * 4;
+  }, [network]);
+
+  /**
+   * The routes losing flights this month and why, for the route list's badge
+   * and the detail view. The shares are exactly what playerMods hands the
+   * engine, so the badge and the figures beside it agree.
+   */
+  const routeCancellations = useMemo<Record<string, RouteCancellation>>(
+    () => describeRouteCancellations(
+      routes.map(r => r.id),
+      id => routeCancelShare(playerMods, id),
+      disruptions,
+      currentDateOffset,
+      playerMods.cancelShareAll ?? 0
+    ),
+    [routes, playerMods, disruptions, currentDateOffset]
+  );
+
+  /**
+   * The running scenario's goals as they stand, for the progress panel:
+   * standing figures (cash, routes, reputation) as of now, monthly ones
+   * (connecting passengers, profit) from the last closed month, which is
+   * what the close judges them on. Null for a free game or a decided one.
+   */
+  const activeScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
+  const scenarioProgress = useMemo(() => {
+    if (!activeScenario || !scenario) return null;
+    // Until the scenario's first month has closed there is no monthly figure to judge.
+    const lastClose = latestReport && reportOffset(latestReport) >= scenario.startedOffset ? latestReport : null;
+    const ctx: ScenarioContext = {
+      offset: currentDateOffset,
+      capital,
+      routes: scenarioRoutes(routes),
+      reputation,
+      regionsServed: regionsServed(routes, airportsMapAdjusted).size,
+      transferPaxMonth: lastClose ? (Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
+      monthlyProfit: lastClose && Number.isFinite(lastClose.totalProfit) ? lastClose.totalProfit : null,
+      capitalHistory: scenarioCapitalHistory(reportHistory, scenario.startedOffset)
+    };
+    return { goals: scenarioGoals(activeScenario, ctx), monthsLeft: monthsLeft(activeScenario, currentDateOffset) };
+  }, [activeScenario, scenario, currentDateOffset, capital, routes, reputation, latestReport, reportHistory]);
+
+  /** A strike is waiting for the player's answer; no second one is called meanwhile. */
+  const strikePending = pendingDecisions.some(d => d.kind === 'strike');
+
+  /** How many of the player's routes a campaign in each region would reach. */
+  const regionRouteCounts = useMemo(() => routesByRegion(routes, airportsMapAdjusted), [routes]);
+
+  /** The hub's region: where a global campaign is booked from, for the record. */
+  const homeRegion = useMemo<RegionId>(() => {
+    const hub = airportsMapAdjusted.get(selectedHub);
+    return hub ? regionOf(hub.coords) : 'EU';
+  }, [selectedHub]);
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
@@ -958,6 +1217,15 @@ export default function App() {
     writeJson('neo_autosave_settings', { autosaveInterval, autosaveOverwrite });
   }, [autosaveInterval, autosaveOverwrite]);
 
+  /** The newspaper, tutorial and heatmap switches. Per browser, not per game. */
+  const [gameSettings, setGameSettings] = useState<GameSettings>(
+    () => normalizeGameSettings(readJson<unknown>('neo_game_settings', null))
+  );
+
+  useEffect(() => {
+    writeJson('neo_game_settings', gameSettings);
+  }, [gameSettings]);
+
 
   // Fix for Leaflet marker icons in React
   useEffect(() => {
@@ -1007,6 +1275,25 @@ export default function App() {
     });
   }, [zoom, mapBounds, airportManagement]);
 
+  /** Opens one of the sidebar's screens, closing whatever editor or panel is open. */
+  const openWindow = (win: ActiveWindow) => {
+    setIsPlanningRoute(false);
+    setIsEditingSchedule(false);
+    setEditingRouteId(null);
+    setActiveWindow(win);
+    setSelectedPurchasingAircraft(null);
+    setSelectedAirport(null);
+  };
+
+  /** Opens the route planner, as the sidebar's New Route does. */
+  const openPlanner = () => {
+    setIsPlanningRoute(true);
+    setIsEditingSchedule(false);
+    setEditingRouteId(null);
+    setSelectedPurchasingAircraft(null);
+    setSelectedAirport(null);
+  };
+
   const handleAdvanceMonth = () => {
     // Generate Report First using CURRENT date
     // airportsMapAdjusted is the same lookup, built once at module load.
@@ -1026,21 +1313,39 @@ export default function App() {
     let infraCosts = 0;
     let landingFees = 0;
     let paxFees = 0;
-    const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number, paxPerWeek: number, capacity: number }[] = [];
+    const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number, paxPerWeek: number, capacity: number, transferPax: number }[] = [];
     // Samples for the reputation update further down.
     let repPaxWeek = 0;
     let repSatTimesPax = 0;
     let repSeatsWeek = 0;
+    // Passengers flown, connecting ones on each leg, for the frequent-flyer bill.
+    let paxWeek = 0;
     const flyingRegs = new Set<string>();
 
+    // The same network pricing the route list shows, connecting passengers included.
+    const monthEnv: NetworkEnv = {
+      fuelPrice: currentFuelPrice,
+      airportManagement,
+      year: currentYearNum,
+      month: currentMonthNum,
+      difficulty,
+      airportsMap: localAirportsMap,
+      rivalOffers
+    };
+    const monthNetwork = computeNetworkFinancials(routes, fleet, playerMods, monthEnv);
+    /** Ticket revenue of a priced network in a month. */
+    const revenueOf = (net: { finById: Map<string, { estWeeklyRev?: number }> }) => {
+      let week = 0;
+      net.finById.forEach(fin => { week += fin.estWeeklyRev || 0; });
+      return week * 4;
+    };
+    /** Ticket revenue of a whole network in a month, for pricing what a disruption costs. */
+    const networkRevenue = (list: SimulatedRoute[], mods: PlayerModifiers, env: NetworkEnv) =>
+      revenueOf(computeNetworkFinancials(list, fleet, mods, env));
+
     routes.forEach(r => {
-      const ac = fleet.find(a => a.registration === r.aircraft);
-      if (ac) {
-        const fin = calculateRouteFinancials(
-          r, ac, currentFuelPrice, airportManagement, currentYearNum, currentMonthNum,
-          difficulty, localAirportsMap, routes, fleet, false,
-          playerDemandFactor, rivalOffers
-        );
+      const fin = monthNetwork.finById.get(r.id);
+      if (fin) {
         // `|| 0` below would hide a NaN as a zero; name the field instead.
         const nonFinite = findNonFinite(fin);
         if (nonFinite.length > 0) {
@@ -1075,6 +1380,7 @@ export default function App() {
           }
         });
         repSeatsWeek += fin.weightedSeatsPerWeek || 0;
+        paxWeek += fin.paxPerWeek || 0;
         flyingRegs.add(r.aircraft);
 
         const weeklySeats = Object.values(fin.paxByClass || {}).reduce((sum: number, pax: any) => sum + (pax?.max || 0), 0);
@@ -1086,7 +1392,8 @@ export default function App() {
           revenue: mRev,
           cost: mCost,
           paxPerWeek: fin.paxPerWeek || 0,
-          capacity: weeklySeats
+          capacity: weeklySeats,
+          transferPax: fin.transferPax || 0
         });
       } else {
         logWarn('month', `Route ${r.id} has no aircraft ${r.aircraft}; it earned nothing this month`);
@@ -1112,7 +1419,28 @@ export default function App() {
     });
 
     const totalAirportUpkeep = managementCosts + deskCosts;
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills;
+
+    // Campaigns running this month and the frequent-flyer programme. Their
+    // demand and loyalty are already in this month's route figures above,
+    // through playerMods; here they are paid for.
+    const marketingCost = marketingMonthCost(marketing, currentDateOffset, paxWeek * 4);
+    // Repairs after this month's disruptions (bird strikes). Their
+    // cancellations are already in the route figures above, through playerMods.
+    const incidentRepairs = disruptionRepairCost(disruptions, currentDateOffset);
+    // Replacement aircraft chartered for this month, billed as an operating
+    // cost: 90% of the tickets each one saved, with every other cause -- a
+    // strike above all -- applied. The routes' figures above already fly
+    // those flights, through playerMods.
+    // Charters sharing a route share what they save. The month as it is has
+    // been priced already, above: monthNetwork is that very network.
+    const charterFees = charterFeesFor(
+      disruptions,
+      currentDateOffset,
+      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list }, currentDateOffset), monthEnv),
+      revenueOf(monthNetwork)
+    );
+    const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total - incidentRepairs - charterCosts;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
@@ -1134,6 +1462,9 @@ export default function App() {
       });
       nextReputation = reputation + (target - reputation) * REPUTATION_INERTIA;
     }
+    // Advertising and a loyalty scheme build the brand whether or not
+    // anything flew; ahead of the milestones, which may reward the result.
+    nextReputation = Math.max(0, Math.min(100, nextReputation + marketingReputation(marketing, currentDateOffset)));
 
     // --- Milestones -------------------------------------------------------
     // A month without a single route is not a profitable month; it neither
@@ -1185,6 +1516,74 @@ export default function App() {
     }
 
 
+    // --- Staff ------------------------------------------------------------
+    // Morale takes its monthly step towards what pay and the run of results
+    // justify. At the new morale the staff may call a strike for the month
+    // about to start, which grounds every flight until the player answers.
+    const staffMonth = advanceStaff(staff, {
+      profitStreak: nextStreak,
+      nextOffset: currentDateOffset + 1,
+      strikePending: pendingDecisions.some(d => d.kind === 'strike'),
+      noRoutes: routes.length === 0
+    }, Math.random);
+    const nextStaff = staffMonth.staff;
+    setStaff(nextStaff);
+    if (staff.morale >= STRIKE_MORALE_THRESHOLD && nextStaff.morale < STRIKE_MORALE_THRESHOLD && !staffMonth.strikeCalled) {
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `STAFF UNREST: morale has fallen to ${Math.round(nextStaff.morale)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: 'Staff unrest',
+          source: 'Human resources',
+          content:
+            `Morale among crew and ground staff is down to ${Math.round(nextStaff.morale)}. Below ${STRIKE_MORALE_THRESHOLD} the unions ` +
+            `may call a strike at any month's end, and the lower it goes the likelier that becomes.\n\n` +
+            `Pay is set under My Company > Staff. Morale follows it slowly, a fifth of the way each month.`
+        }
+      });
+    }
+    if (staffMonth.strikeCalled) {
+      const strikeMonth = offsetToDateStr(currentDateOffset + 1);
+      queueDecision(buildStrikeDecision(nextStaff, currentDateOffset + 1, strikeMonth, totalRouteRevenues));
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `STRIKE: your staff walk out in ${strikeMonth}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: 'Strike called',
+          source: 'Human resources',
+          content:
+            `With morale at ${Math.round(nextStaff.morale)} and pay at ${Math.round(nextStaff.salaryPct)}% of the market wage, ` +
+            `the unions have called a strike for ${strikeMonth}.\n\n` +
+            `Raising pay by ${STRIKE_PAY_RAISE} points gets half the flights back in the air; sitting it out grounds all of them ` +
+            `and costs ${STRIKE_REPUTATION_PENALTY} reputation. The route list already shows the month without them.`
+        }
+      });
+    }
+
+    // What cost the airline flights this month, for the report.
+    const incidents: ReportIncident[] = [];
+    const strikeShare = strikeCancelShare(staff, currentDateOffset);
+    if (strikeShare > 0 && routes.length > 0) {
+      incidents.push({
+        kind: 'strike',
+        title: 'Staff strike',
+        detail: strikeShare >= 1
+          ? 'Sat out: every route grounded'
+          : `Settled with a pay rise: ${Math.round((1 - strikeShare) * 100)}% of flights operated`,
+        cancelShare: strikeShare,
+        routeCount: routes.length
+      });
+    }
+    const routeLabel = (id: string) => {
+      const r = routes.find(x => x.id === id);
+      return r ? `${r.origin}-${r.destination}` : 'a closed route';
+    };
+    incidents.push(...disruptionIncidents(disruptions, currentDateOffset, routeLabel, charterFees));
+
     const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
 
     const report = {
@@ -1213,13 +1612,18 @@ export default function App() {
         paxFees: paxFees,
         mgt: managementCosts,
         desks: deskCosts,
-        purchasedSlots: pendingSlotBills
-      }
+        purchasedSlots: pendingSlotBills,
+        marketing: marketingCost.total,
+        marketingCampaigns: marketingCost.campaigns,
+        ffp: marketingCost.ffp,
+        // Repairs and charters together, as the report lists them per incident.
+        incidents: incidentRepairs + charterCosts,
+        charters: charterCosts
+      },
+      marketingItems: marketingCost.items,
+      // Only in months that had any; older reports have none.
+      ...(incidents.length > 0 ? { incidents } : {})
     };
-
-    // Keep ten years. Long enough for any chart the game shows, short enough
-    // that the savegame does not grow without bound over a sixty-year run.
-    setReportHistory(prev => [...prev, report].slice(-120));
 
     // Apply Financials
     setCapital(prev => prev + totalMonthlyProfit);
@@ -1312,12 +1716,40 @@ export default function App() {
 
     }
 
+    // 2b. Roll next month's operational disruptions. They are known for the
+    // whole month they hit, so the forecast below and every screen in it
+    // already leave the cancelled flights out; the month's close books that.
+    const rolledDisruptions = rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap);
+    const nextDisruptions = [...dropPastDisruptions(disruptions, nextOffset), ...rolledDisruptions];
+    if (nextDisruptions.length !== disruptions.length || rolledDisruptions.length > 0) setDisruptions(nextDisruptions);
+    if (rolledDisruptions.length > 0) {
+      const monthStr = offsetToDateStr(nextOffset);
+      const lines = rolledDisruptions.map(d => describeDisruption(d, routeLabel));
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: rolledDisruptions.length === 1
+          ? `OPERATIONS: ${disruptionTitle(rolledDisruptions[0])} in ${monthStr}.`
+          : `OPERATIONS: ${rolledDisruptions.length} disruptions in ${monthStr}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `Operations outlook ${monthStr}`,
+          source: 'Operations control',
+          content:
+            `The following will cost flights in ${monthStr}:\n\n${lines.join('\n')}\n\n` +
+            `The route list marks the routes hit and its figures already leave the cancelled flights out. ` +
+            `A hangar at a route's origin halves the chance of a technical defect; worn and old aircraft break more often.`
+        }
+      });
+    }
+
     // --- Annual goal -------------------------------------------------------
     // Settled in December against the twelve months just closed, then a new one
     // is set for January. The target is 15% above what the year actually
     // delivered, with a floor so the first year is not trivially met.
     const closingYear = currentYearNum;
     const isDecember = currentMonthNum === 12;
+    let goalResult: { year: number; target: number; achieved: number; met: boolean } | null = null;
     if (isDecember) {
       const yearReports = [...reportHistory, report].filter(
         r => r && r.year === closingYear
@@ -1326,6 +1758,7 @@ export default function App() {
 
       if (annualGoal && annualGoal.year === closingYear) {
         const met = achieved >= annualGoal.targetProfit;
+        goalResult = { year: closingYear, target: annualGoal.targetProfit, achieved, met };
         if (met) nextReputation = Math.min(100, nextReputation + 4);
         additionalMessages.push({
           id: nextMessageId(),
@@ -1370,8 +1803,11 @@ export default function App() {
     const afterEvents = getActiveEvents(nextOffset);
     const activeAfter = new Set(afterEvents.map(eventKey));
 
+    const eventsStarted: HistoricalEvent[] = [];
+    const eventsEnded: HistoricalEvent[] = [];
     for (const ev of afterEvents) {
       if (!activeBefore.has(eventKey(ev))) {
+        eventsStarted.push(ev);
         additionalMessages.push(buildEventStartMessage(ev, nextMessageId()));
         // An event that offers a decision puts it to the player now, once. If
         // they close the dialog without choosing, the default is to do nothing.
@@ -1382,7 +1818,174 @@ export default function App() {
     }
     for (const ev of getActiveEvents(currentDateOffset)) {
       if (!activeAfter.has(eventKey(ev))) {
+        eventsEnded.push(ev);
         additionalMessages.push(buildEventEndMessage(ev, nextMessageId(), nextOffset));
+      }
+    }
+
+    // --- History ------------------------------------------------------------
+    // The report gains the figures the history charts plot, taken once
+    // everything above has had its say: reputation after the milestone and
+    // annual-goal bonuses, morale after this month's step.
+    const regionsNow = regionsServed(routes, localAirportsMap);
+    const hubsNow = Object.entries(monthNetwork.hubStats)
+      .filter(([, h]) => h.pax > 0)
+      .map(([id, h]) => ({ id, name: localAirportsMap.get(id)?.name || id, pax: h.pax * 4 }));
+    const fullReport = {
+      ...report,
+      reputation: nextReputation,
+      morale: nextStaff.morale,
+      paxTotal: Math.round(paxWeek * 4),
+      transferPax: Math.round(hubsNow.reduce((sum, h) => sum + h.pax, 0)),
+      fleetSize: fleet.length,
+      routeCount: routes.length,
+      marketShare: departureMarketShare(routes, rivalOffers),
+      regions: [...regionsNow.keys()],
+      transferHubs: hubsNow.map(h => h.id)
+    };
+    // Keep ten years. Long enough for any chart the game shows, short enough
+    // that the savegame does not grow without bound over a sixty-year run.
+    setReportHistory(prev => [...prev, fullReport].slice(-120));
+
+    const monthChronicle = chronicleEntriesForMonth(chronicle, {
+      offset: currentDateOffset,
+      profit: totalMonthlyProfit,
+      capitalAfter: capital + totalMonthlyProfit,
+      reputation: nextReputation,
+      reputationBefore: reputation,
+      history: reportHistory,
+      milestones: newlyEarned,
+      goal: goalResult,
+      eventsStarted,
+      eventsEnded: eventsEnded.map(ev => ({ title: ev.title, endOffset: nextOffset })),
+      strike: staffMonth.strikeCalled ? { offset: currentDateOffset + 1, morale: nextStaff.morale } : null,
+      // What hit the month just closed, now that any charter is known.
+      disruptions: disruptionsIn(disruptions, currentDateOffset).map(d => ({
+        offset: d.offset,
+        cancelShare: d.cancelShare,
+        routeCount: d.routeIds.length,
+        mitigated: d.mitigated,
+        title: disruptionTitle(d),
+        where: disruptionRoutesLabel(d, routeLabel, 3)
+      })),
+      regions: regionsNow,
+      homeRegion,
+      hubs: hubsNow
+    });
+
+    // --- The scenario -----------------------------------------------------------
+    // Judged on the month's final figures. Once won or lost it stays so and
+    // the game carries on as free play, no longer judged.
+    const runningScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
+    let scenarioDecided: { title: string; won: boolean; reason: string } | null = null;
+    if (scenario && runningScenario) {
+      const closingCapital = capital + totalMonthlyProfit;
+      const evaluation = evaluateScenario(runningScenario, {
+        offset: currentDateOffset,
+        capital: closingCapital,
+        routes: scenarioRoutes(routes),
+        reputation: nextReputation,
+        regionsServed: regionsNow.size,
+        transferPaxMonth: fullReport.transferPax,
+        monthlyProfit: totalMonthlyProfit,
+        capitalHistory: [...scenarioCapitalHistory(reportHistory, scenario.startedOffset), closingCapital]
+      });
+      if (evaluation.status !== 'running') {
+        const won = evaluation.status === 'won';
+        const reason = evaluation.reason || '';
+        scenarioDecided = { title: runningScenario.title, won, reason };
+        setScenario({ ...scenario, status: evaluation.status, result: { offset: currentDateOffset, reason } });
+        setScenarioResultOpen(true);
+        monthChronicle.push({
+          offset: currentDateOffset,
+          kind: 'scenario',
+          key: 'scenario:result',
+          text: `Scenario "${runningScenario.title}" ${won ? 'won' : 'lost'}. ${reason}`
+        });
+        additionalMessages.push({
+          id: nextMessageId(),
+          text: won ? `SCENARIO WON: ${runningScenario.title}.` : `SCENARIO LOST: ${runningScenario.title}.`,
+          isRead: false,
+          dateStr: offsetToDateStr(currentDateOffset),
+          details: {
+            title: `${runningScenario.title}: ${won ? 'scenario won' : 'scenario lost'}`,
+            source: 'Board of Directors',
+            content:
+              `${reason}\n\n` +
+              `Capital ${formatCurrency(closingCapital)}, ${routes.length} route${routes.length === 1 ? '' : 's'}, ` +
+              `${fleet.length} aircraft, reputation ${Math.round(nextReputation)}.\n\n` +
+              `The airline is yours to fly on as a free game; the scenario is no longer judged.`
+          }
+        });
+      }
+    }
+    if (monthChronicle.length > 0) setChronicle(appendChronicle(chronicle, monthChronicle));
+
+    // --- The newspaper --------------------------------------------------------
+    // Written from the same facts as the chronicle, plus what the rivals did
+    // in their turn and where the markets stand for the coming month.
+    const capitalAfterMonth = capital + totalMonthlyProfit;
+    const nextFuel = getFuelData(nextOffset);
+    const nextDemand = getBaseGlobalDemand(nextOffset);
+    setEdition(buildEdition({
+      offset: currentDateOffset,
+      airlineName,
+      report: fullReport,
+      prevReport: latestReport,
+      profitHistory: reportHistory.map(r => r.totalProfit),
+      chronicle: monthChronicle,
+      milestones: newlyEarned,
+      eventsStarted,
+      eventsEnded,
+      eventsRunning: afterEvents,
+      strike: staffMonth.strikeCalled ? { morale: nextStaff.morale } : null,
+      disruptions: rolledDisruptions.map(d => ({
+        kind: d.kind,
+        title: disruptionTitle(d),
+        text: describeDisruption(d, routeLabel).replace(/^\u2022\s*/, ''),
+        cancelShare: d.cancelShare,
+        routeCount: d.routeIds.length,
+        ref: d.ref
+      })),
+      rivalMoves: rivalMoves(aiAirlines, aisAfterTurn),
+      launches: marketing.campaigns
+        .filter(c => c.startOffset === currentDateOffset)
+        .map(c => ({ tier: CAMPAIGN_SPECS[c.tier].label, region: c.tier === 'global' ? 'global' as const : c.region })),
+      ffpStarted: marketing.ffpActive && marketing.ffpSinceOffset === currentDateOffset,
+      scenario: scenarioDecided,
+      airportName: id => localAirportsMap.get(id)?.name || id,
+      ticker: {
+        fuelPerLitre: nextFuel.price / 3.78541,
+        fuelTrend: nextFuel.trend,
+        demand: nextDemand.value,
+        demandTrend: nextDemand.trend,
+        rank: 1 + aisAfterTurn.filter(ai => (ai.capital || 0) > capitalAfterMonth).length,
+        airlines: aisAfterTurn.length + 1
+      }
+    }));
+    if (gameSettings.newspaper) setIsNewspaperOpen(true);
+
+    // Campaigns whose last month just closed come off the books. Next
+    // month's forecast below prices without them, and with any still running.
+    const nextMarketing = dropExpiredCampaigns(marketing, nextOffset);
+    if (nextMarketing !== marketing) {
+      setMarketing(nextMarketing);
+      for (const c of marketing.campaigns) {
+        if (nextMarketing.campaigns.includes(c)) continue;
+        const where = c.tier === 'global' ? 'worldwide' : `in ${REGION_LABELS[c.region]}`;
+        additionalMessages.push({
+          id: nextMessageId(),
+          text: `CAMPAIGN ENDED: ${CAMPAIGN_SPECS[c.tier].label} campaign ${where}.`,
+          isRead: false,
+          dateStr: offsetToDateStr(currentDateOffset),
+          details: {
+            title: 'Campaign ended',
+            source: 'Marketing department',
+            content:
+              `The ${CAMPAIGN_SPECS[c.tier].label.toLowerCase()} campaign ${where} has run its ${c.duration} months. ` +
+              `Its demand boost ends with this month.\n\nA new one can be booked under My Company > Marketing.`
+          }
+        });
       }
     }
 
@@ -1401,34 +2004,53 @@ export default function App() {
     // The figures stored on each route are next month's forecast. They used to
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
-    const nextDemandFactor = reputationDemandFactor(nextReputation) * eventReliefFactor(nextOffset, eventChoices);
+    const nextMods = buildPlayerModifiers({
+      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions
+    }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
-    setRoutes(prevRoutes => prevRoutes.map(r => {
+    const nextEnv = {
+      fuelPrice: getFuelData(nextOffset).price,
+      airportManagement,
+      year: 1960 + Math.floor(nextOffset / 12),
+      month: 1 + (nextOffset % 12),
+      difficulty,
+      airportsMap: localAirportsMap,
+      rivalOffers: nextRivalOffers
+    };
+    const repriceForNextMonth = (list: SimulatedRoute[]) => list.map(r => {
       const activePrices = r.ticketPrices || { economy: 100 };
-      const ac = fleet.find(a => a.registration === r.aircraft);
-      let updatedRoute = { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
-      if (ac) {
-        const nextFuelPrice = getFuelData(nextOffset).price;
-        const nextYearNum = 1960 + Math.floor(nextOffset / 12);
-        const nextMonthNum = 1 + (nextOffset % 12);
-        const fin = calculateRouteFinancials(
-          updatedRoute,
-          ac,
-          nextFuelPrice,
-          airportManagement,
-          nextYearNum,
-          nextMonthNum,
-          difficulty,
-          localAirportsMap,
-          prevRoutes,
-          fleet,
-          false,
-          nextDemandFactor,
-          nextRivalOffers
-        );
-        updatedRoute = { ...updatedRoute, ...toStoredRouteMetrics(fin) };
+      return { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
+    });
+    // Next month priced once, as it stands: the forecast stored on the
+    // routes below, and the starting point for pricing the questions.
+    const repricedNext = repriceForNextMonth(routes);
+    const nextNetwork = computeNetworkFinancials(repricedNext, fleet, nextMods, nextEnv);
+
+    // The bigger disruptions are put to the player: charter a replacement or
+    // cancel. What is at stake is the revenue each one takes from next
+    // month's forecast, every other disruption applied. A strike called at
+    // this close is left out: its answer is still to come, and the charter
+    // is billed at the month's close on what it actually saved anyway.
+    // Every candidate is still cancelling in nextDisruptions, so the month
+    // with it cancelling is the same network for all of them: priced once,
+    // and without a strike called at this close it is nextNetwork itself.
+    const majorCandidates = rolledDisruptions.filter(d => d.cancelShare >= MAJOR_DISRUPTION_SHARE);
+    if (majorCandidates.length > 0) {
+      const staffBeforeStrike: Staff = { ...nextStaff, strike: staffMonth.strikeCalled ? null : nextStaff.strike };
+      const revenueWith = (list: Disruption[]) => networkRevenue(repricedNext, buildPlayerModifiers({
+        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list
+      }, nextOffset), nextEnv);
+      const allCancelling = staffMonth.strikeCalled ? revenueWith(nextDisruptions) : revenueOf(nextNetwork);
+      const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, revenueWith, allCancelling)]));
+      const monthStr = offsetToDateStr(nextOffset);
+      for (const d of disruptionsToAsk(majorCandidates, x => lostBy.get(x.id) ?? 0)) {
+        queueDecision(buildDisruptionDecision(d, monthStr, lostBy.get(d.id) ?? 0, routeLabel));
       }
-      return updatedRoute;
+    }
+
+    setRoutes(prevRoutes => repriceForNextMonth(prevRoutes).map(r => {
+      const fin = nextNetwork.finById.get(r.id);
+      return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
     }));
 
     setView('monthly-overview');
@@ -1597,7 +2219,15 @@ export default function App() {
       airportManagement,
       routes,
       messages,
-      randomEvents
+      randomEvents,
+      branding,
+      marketing,
+      staff,
+      disruptions,
+      pendingDecisions,
+      scenario,
+      chronicle,
+      tutorialStep
     };
     
     // Writes to this browser first and then to the cloud, so a save never depends
@@ -1637,13 +2267,110 @@ export default function App() {
   }, [currentDateOffset, pendingInitialSave]);
 
   /**
+   * A new colour or badge mid-game. Rivals keep their colours, except one the
+   * new colour now sits too close to, which moves to a free one.
+   */
+  const handleBrandingChange = React.useCallback((next: Branding) => {
+    setBranding(next);
+    setAiAirlines(prev => {
+      const colors = recolorClashingRivals(prev, next.color);
+      return colors.every((c, i) => c === prev[i].color)
+        ? prev
+        : prev.map((ai, i) => ({ ...ai, color: colors[i] }));
+    });
+  }, []);
+
+  /**
+   * What the marketing handlers below read. They are handed to the memoised
+   * company view, so they keep one identity and read the current cash, month
+   * and campaigns from here rather than closing over a stale render.
+   */
+  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax });
+  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax };
+
+  /**
+   * Books a campaign from this month on. It is paid month by month at each
+   * close, so launching needs only the first month in the bank.
+   */
+  const handleLaunchCampaign = React.useCallback((tier: CampaignTier, region: RegionId, months: number) => {
+    const { capital: cash, currentDateOffset: offset, marketing: current } = marketingCtx.current;
+    const blocker = campaignBlocker(current, tier, region, offset);
+    if (blocker) {
+      setAppAlert(blocker);
+      return;
+    }
+    const firstMonth = campaignMonthlyCost(tier, offset);
+    if (cash < firstMonth) {
+      setAppAlert(`Not enough cash: the first month of this campaign costs ${formatCurrency(firstMonth)}, and you have ${formatCurrency(cash)}.`);
+      return;
+    }
+    const id = `cmp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    setMarketing(prev => ({ ...prev, campaigns: [...prev.campaigns, createCampaign(tier, region, months, offset, id)] }));
+    const where = tier === 'global' ? 'worldwide' : `in ${REGION_LABELS[region]}`;
+    setToast(`${CAMPAIGN_SPECS[tier].label} campaign launched ${where} for ${months} months`);
+  }, []);
+
+  /** Stops a campaign now. Nothing is charged for the month it is stopped in. */
+  const handleCancelCampaign = React.useCallback((id: string) => {
+    setMarketing(prev => ({ ...prev, campaigns: prev.campaigns.filter(c => c.id !== id) }));
+    setToast('Campaign cancelled');
+  }, []);
+
+  /** Starts or ends the frequent-flyer programme. Ending it throws away the loyalty built up. */
+  const handleSetFfp = React.useCallback((active: boolean) => {
+    const { capital: cash, currentDateOffset: offset, projectedMonthlyPax: pax } = marketingCtx.current;
+    if (active) {
+      const cost = ffpMonthlyCost(pax);
+      if (cash < cost) {
+        setAppAlert(`Not enough cash: the frequent flyer programme would cost about ${formatCurrency(cost)} this month, and you have ${formatCurrency(cash)}.`);
+        return;
+      }
+      setMarketing(prev => startFfp(prev, offset));
+      setToast('Frequent flyer programme launched');
+    } else {
+      setMarketing(prev => stopFfp(prev));
+      setToast('Frequent flyer programme ended');
+    }
+  }, []);
+
+  /**
+   * Sets pay. It is felt at once: the crew bill and the forecast follow the
+   * slider, while morale only starts moving towards the new target at the
+   * next month's end.
+   */
+  const handleSetSalary = React.useCallback((pct: number) => {
+    // Never below the pay agreed to settle a recent strike (salaryFloor).
+    setStaff(prev => setSalary(prev, pct, marketingCtx.current.currentDateOffset));
+  }, []);
+
+  /** Sets every system saved since version 3 at once, from a save or from defaults. */
+  const applyGameSystems = (systems: GameSystems) => {
+    setBranding(systems.branding);
+    setMarketing(systems.marketing);
+    setStaff(systems.staff);
+    setDisruptions(systems.disruptions);
+    setPendingDecisions(systems.pendingDecisions);
+    setScenario(systems.scenario);
+    setChronicle(systems.chronicle);
+    setTutorialStep(systems.tutorialStep);
+  };
+
+  /**
    * Clears everything that belongs to one game session but is not part of the
    * savegame: the planner, the editors, open dialogs, the inbox and the random
    * events. "Start Game" after a loaded game used to inherit the previous
    * game's events and messages, and a loaded game could open with the old
    * planner still half-filled.
+   *
+   * The systems added with save version 3 go back to their defaults here as
+   * well, so nothing of them survives into the next game; a load sets them
+   * again from the save right after.
    */
   const resetTransientGameState = () => {
+    applyGameSystems(createGameSystems());
+    setScenarioResultOpen(false);
+    setEdition(null);
+    setIsNewspaperOpen(false);
     const welcome = [createWelcomeMessage()];
     setMessages(welcome);
     reserveMessageIds(welcome);
@@ -1714,7 +2441,7 @@ export default function App() {
     setRoutes(saveObj.routes);
     // Saves from before rival airlines existed get a fresh set, founded as of
     // the save's current date so only carriers flying in that year appear.
-    setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode));
+    setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode, saveObj.branding.color));
     setPendingSlotBills(saveObj.pendingSlotBills);
     setMonthlyCapex(saveObj.monthlyCapex);
     setReportHistory(saveObj.reportHistory);
@@ -1727,6 +2454,7 @@ export default function App() {
     reserveMessageIds(saveObj.messages);
     setRandomEventsState(saveObj.randomEvents);
     setRuntimeRandomEvents(saveObj.randomEvents);
+    applyGameSystems(saveObj);
 
     setSessionKey(Date.now());
     setCurrentSaveId(slotId);
@@ -1735,6 +2463,112 @@ export default function App() {
     setIsGameMenuOpen(false);
     setShowLoadMenu(false);
     setToast("Game loaded");
+  };
+
+  /**
+   * Picks free play (null) or a scenario on the new-game screen. A scenario
+   * fills in the fields it sets, which stay locked while it is picked.
+   */
+  const pickNewGameScenario = (id: string | null) => {
+    setNewGameScenarioId(id);
+    const chosen = scenarioById(id);
+    if (!chosen) return;
+    setSelectedHub(chosen.hub);
+    setStartDateOffset(chosen.startOffset);
+    setDifficulty(chosen.difficulty);
+    setAiAirlinesCount(chosen.rivals.count);
+    setAiDifficulty(chosen.rivals.difficulty);
+  };
+
+  /**
+   * Starts a new game from the new-game screen's settings, or from a
+   * scenario, which overrides the hub, the date, the money, the difficulty
+   * and the rivals and brings its own aircraft. Also what "Try again" on a
+   * lost scenario runs.
+   */
+  const startNewGame = (saveName: string, chosen?: Scenario, keepBranding?: Branding) => {
+    const hub = chosen?.hub ?? selectedHub;
+    const start = chosen?.startOffset ?? startDateOffset;
+    const gameDifficulty = chosen?.difficulty ?? difficulty;
+    const rivalCount = chosen?.rivals.count ?? aiAirlinesCount;
+    const rivalDifficulty = chosen?.rivals.difficulty ?? aiDifficulty;
+    let initialCapital = 25000000; // Default for $25M
+    if (startingBudget === '$50M') initialCapital = 50000000;
+    if (startingBudget === '$100M') initialCapital = 100000000;
+    if (startingBudget === '$200M') initialCapital = 200000000;
+    if (chosen) initialCapital = chosen.capital;
+
+    // A new game starts clean: no events, messages or open
+    // editors carried over from a game played earlier.
+    resetTransientGameState();
+    // A new game offers the tutorial, unless it was switched off.
+    const systems: GameSystems = {
+      ...createGameSystems(),
+      branding: { ...(keepBranding ?? newGameBranding) },
+      tutorialStep: gameSettings.tutorial ? 0 : null,
+      ...(chosen ? {
+        scenario: { id: chosen.id, startedOffset: start, status: 'running' as const },
+        chronicle: [{
+          offset: start,
+          kind: 'scenario' as const,
+          key: 'scenario:start',
+          text: `Scenario "${chosen.title}" begins: ${chosen.win.map(g => g.label).join(', ')}, by ${offsetToDateStr(chosen.deadlineOffset)}.`
+        }]
+      } : {})
+    };
+    applyGameSystems(systems);
+    setSelectedHub(hub);
+    setStartDateOffset(start);
+    setDifficulty(gameDifficulty);
+    setAiAirlinesCount(rivalCount);
+    setAiDifficulty(rivalDifficulty);
+    setCurrentDateOffset(start);
+    setCapital(initialCapital);
+    // A scenario's aircraft come free, through the same code a purchase uses.
+    setFleet(chosen ? startingFleet(chosen) : []);
+    setAirportManagement({ 
+      [hub]: {
+        level: 2,
+        slots: { regional: 0, narrowbody: 0, widebody: 0 },
+        stands: { narrowbody: 0, widebody: 0 },
+        desks: { normal: 1, self: 0 }
+      }
+    });
+    setRoutes([]);
+    setAiAirlines(generateAiAirlines(rivalCount, rivalDifficulty, hub, start, airlineCode, systems.branding.color));
+    setPendingSlotBills(0);
+    setMonthlyCapex([]);
+    setReportHistory([]);
+    setEventChoices({});
+    // A game that starts in the middle of a world event with a decision --
+    // the Oil Shock scenario opens in the 1973 crisis -- is asked it now:
+    // the question is otherwise only put when an event begins.
+    setPendingDecision(getActiveEvents(start).find(ev => ev.choices && ev.choices.length > 0) ?? null);
+    setReputation(50);
+    setMilestones([]);
+    setProfitStreak(0);
+    setAnnualGoal(null);
+    if (chosen) {
+      const welcome = createWelcomeMessage();
+      setMessages([{
+        id: nextMessageId(),
+        text: `SCENARIO: ${chosen.title}. ${chosen.win.map(g => g.label).join(', ')} by ${offsetToDateStr(chosen.deadlineOffset)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(start),
+        details: {
+          title: `Scenario: ${chosen.title}`,
+          source: 'Board of Directors',
+          content: scenarioBriefing(chosen)
+        }
+      }, welcome]);
+    }
+    setSessionKey(Date.now());
+    const newSaveId = `save_${Date.now()}`;
+    setCurrentSaveId(newSaveId);
+    setCurrentSaveName(saveName);
+    setPendingInitialSave(true);
+    setView('game');
+    setActiveWindow('map');
   };
 
   const deleteSave = async (id: string) => {
@@ -1889,28 +2723,13 @@ export default function App() {
            return p;
          }));
       } else {
-         const newPlanes: OwnedAircraft[] = [];
-         const existingRegistrations = fleet.map(p => p.registration);
-         for (let i = 0; i < quantity; i++) {
-           const hub = selectedHub || 'FRA';
-           const reg = generateUniqueRegistration(
-             aircraft.manufacturer,
-             aircraft.type,
-             aircraft.family || '',
-             hub,
-             [...existingRegistrations, ...newPlanes.map(np => np.registration)]
-           );
-           newPlanes.push({
-             ...aircraft,
-             registration: reg,
-             purchasedAt: currentDateOffset,
-             conditionInterior: 100,
-             conditionGeneral: 100,
-             refitsDone: 0,
-             config,
-             baseInteriorPop
-           });
-         }
+         const newPlanes = createOwnedAircraft(aircraft, quantity, {
+           config,
+           baseInteriorPop,
+           hub: selectedHub || 'FRA',
+           existingRegistrations: fleet.map(p => p.registration),
+           purchasedAt: currentDateOffset
+         });
          setFleet(prev => [...prev, ...newPlanes]);
 
          if (isPurchasingForRoute) {
@@ -1968,6 +2787,59 @@ export default function App() {
     }
   }, [isEditingSchedule, editingRouteId, routes, fleet]);
 
+  // --- Tutorial -------------------------------------------------------------
+  // The step on screen is saved with the game; see lib/tutorial.ts for the
+  // steps and when each finishes by itself.
+  const tutorialState = useMemo<TutorialState>(() => ({
+    fleetSize: fleet.length,
+    routeCount: routes.length,
+    planning: isPlanningRoute,
+    reportOpen: view === 'monthly-overview'
+  }), [fleet.length, routes.length, isPlanningRoute, view]);
+  const inGame = view === 'game' || view === 'monthly-overview';
+
+  // A step whose goal is reached moves on, past any others already done.
+  useEffect(() => {
+    if (tutorialStep === null || !inGame) return;
+    const next = settleTutorialStep(tutorialStep, tutorialState);
+    if (next !== tutorialStep) {
+      setTutorialStep(next);
+      if (next === null) setToast('Tutorial complete. Settings can restart it any time.');
+    }
+  }, [tutorialStep, tutorialState, inGame]);
+
+  /** Next, Back, Finish and Skip on the tutorial card. */
+  const goToTutorialStep = React.useCallback((step: number | null, skipped?: boolean) => {
+    setTutorialStep(step);
+    if (step === null) setToast(skipped ? 'Tutorial skipped. Settings can restart it any time.' : 'Tutorial complete. Settings can restart it any time.');
+  }, []);
+
+  /** "Show me": takes the player to where a step's control is. */
+  const showTutorialTarget = (target: TutorialDestination) => {
+    if (view === 'monthly-overview') setView('game');
+    if (target === 'new-route') openPlanner();
+    else openWindow(target);
+  };
+
+  /** Where the player is, in the tutorial's terms. */
+  const tutorialView: TutorialView | null = view === 'monthly-overview' ? 'report'
+    : view !== 'game' ? null
+    : isPlanningRoute ? 'new-route'
+    : activeWindow === 'map' || activeWindow === 'buy-aircraft' || activeWindow === 'my-company' ? activeWindow
+    : null;
+
+  /**
+   * The tutorial steps aside for anything that asks for the player's
+   * attention: decisions, the newspaper, alerts, the menus and their
+   * dialogs, the scenario's verdict, and the consoles opened over the map
+   * (an airport, a route's timetable) that leave the sidebar it points at in
+   * view. It comes back once they are dealt with. Modals it is not told
+   * about here it notices itself (see TutorialOverlay).
+   */
+  const tutorialHidden = !inGame || !!pendingDecision || pendingDecisions.length > 0 || isNewspaperOpen || !!appAlert ||
+    isSettingsOpen || !!selectedMessage || showSaveMenu || showLoadMenu || showExitSavePrompt || scenarioResultOpen ||
+    !!selectedAirport || isEditingSchedule || !!reassigning || isMessagesOpen || isGameMenuOpen || isMapSettingsOpen;
+
   // What a diagnostics export says about the game it was taken from. A ref, so
   // the provider always reads the latest render without re-registering.
   const diagnosticsRef = useRef<Record<string, unknown>>({});
@@ -2012,7 +2884,11 @@ export default function App() {
         <div className="w-full h-full relative flex flex-col">
           {/* World event decision. The first point in the game where a crisis
               asks the player something instead of simply happening to them. */}
-          {pendingDecision && (
+          {/* The month's newspaper comes before any question: the paper tells
+              what happened, the dialogs below ask what to do about it. It can
+              always be closed, so no question ever waits on it for long. */}
+          <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
+          {pendingDecision && !isNewspaperOpen && !scenarioResultOpen && (
             <Modal open size="lg" accent="warn" layer="top">
               <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
                 <AlertTriangle size={22} /> {pendingDecision.title}
@@ -2063,6 +2939,135 @@ export default function App() {
               </div>
             </Modal>
           )}
+          {/* Any other question for the player, one at a time. Waits while a
+              world event decision or the newspaper is open, so none stack. */}
+          {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length > 0 && (() => {
+            const decision = pendingDecisions[0];
+            return (
+              <Modal open size="lg" accent="warn" layer="top">
+                <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+                  <AlertTriangle size={22} /> {decision.title}
+                </h3>
+                <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
+                  {decision.description}
+                </p>
+
+                <div className="space-y-2">
+                  {decision.options.map(option => {
+                    const affordable = option.cost <= 0 || capital >= option.cost;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={!affordable}
+                        onClick={() => resolveDecision(decision.id, option.id)}
+                        className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
+                      >
+                        <div className="flex items-baseline justify-between gap-3 mb-1">
+                          <span className="font-black uppercase tracking-widest text-2xs text-white">{option.label}</span>
+                          <span className={`font-mono text-2xs font-bold shrink-0 ${option.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
+                            {option.cost > 0 ? formatCurrency(option.cost) : 'No cost'}
+                          </span>
+                        </div>
+                        <p className="text-2xs font-mono text-white/50 leading-relaxed">{option.detail}</p>
+                        {!affordable && (
+                          <p className="text-2xs font-mono text-aero-warn mt-1">
+                            {formatCurrency(option.cost - capital)} short.
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Modal>
+            );
+          })()}
+          {/* The scenario's verdict, once, after the newspaper that reports it.
+              Any question the same close raised waits until it is closed. */}
+          {scenarioResultOpen && !isNewspaperOpen && scenario && scenario.status !== 'running' && (() => {
+            const decided = scenarioById(scenario.id);
+            if (!decided) return null;
+            const won = scenario.status === 'won';
+            const months = (scenario.result?.offset ?? currentDateOffset) - scenario.startedOffset + 1;
+            const stats = [
+              { label: 'Capital', value: formatMoneyCompact(capital) },
+              { label: 'Routes', value: String(routes.length) },
+              { label: 'Fleet', value: String(fleet.length) },
+              { label: 'Reputation', value: String(Math.round(reputation)) },
+              { label: 'Months played', value: String(months) }
+            ];
+            return (
+              <Modal open size="lg" accent={won ? 'yellow' : 'warn'} layer="top">
+                <div role="alertdialog" aria-labelledby="scenario-result-title" aria-describedby="scenario-result-reason">
+                  <div className={`flex items-center gap-3 mb-2 ${won ? 'text-aero-yellow' : 'text-aero-warn'}`}>
+                    {won ? <Trophy size={28} aria-hidden="true" /> : <AlertTriangle size={28} aria-hidden="true" />}
+                    <div>
+                      <div className="text-3xs font-mono uppercase tracking-[0.3em] text-white/40">Scenario {won ? 'complete' : 'failed'}</div>
+                      <h3 id="scenario-result-title" className="font-black uppercase tracking-widest text-xl leading-tight">
+                        {decided.title}: {won ? 'you did it' : 'out of reach'}
+                      </h3>
+                    </div>
+                  </div>
+                  <p id="scenario-result-reason" className="text-sm text-white/80 leading-relaxed mb-4">{scenario.result?.reason}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+                    {stats.map(st => (
+                      <div key={st.label} className="border border-white/10 bg-white/[0.03] px-2 py-2">
+                        <div className="text-4xs font-mono uppercase tracking-widest text-white/40">{st.label}</div>
+                        <div className="text-sm font-mono font-bold text-white tabular-nums truncate">{st.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-2xs font-mono text-white/40 mb-4 leading-relaxed">
+                    {won
+                      ? 'The result is written into your chronicle. Fly on as a free game, or leave for the main menu.'
+                      : 'The airline still flies: carry on as a free game, or start the scenario over.'}
+                  </p>
+                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                    {won ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setScenarioResultOpen(false); setShowExitSavePrompt(true); }}
+                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
+                        >
+                          Main menu
+                        </button>
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => setScenarioResultOpen(false)}
+                          className="px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
+                        >
+                          Continue in free play
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setScenarioResultOpen(false)}
+                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
+                        >
+                          Continue in free play
+                        </button>
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => {
+                            const base = (currentSaveName || decided.title).replace(/\s*\((Autosave.*|retry)\)$/, '');
+                            startNewGame(`${base} (retry)`, decided, branding);
+                          }}
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
+                        >
+                          <RotateCcw size={14} aria-hidden="true" /> Try again
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </Modal>
+            );
+          })()}
           {toast && (
             <div
               role="status"
@@ -2098,26 +3103,26 @@ export default function App() {
             <div className="flex flex-col w-full">
               {/* Fleet & Ops */}
               <div className="flex flex-col divide-y divide-white/5">
-                <SidebarIcon icon={<MapIcon size={28} />} label="MAP" active={activeWindow === 'map' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('map'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('buy-aircraft'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('my-fleet'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<MapIcon size={28} />} label="MAP" tour="nav-map" active={activeWindow === 'map' && !isPlanningRoute} onClick={() => openWindow('map')} />
+                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" tour="nav-buy-aircraft" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => openWindow('buy-aircraft')} />
+                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" tour="nav-my-fleet" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => openWindow('my-fleet')} />
               </div>
 
               {/* Network */}
               <div className="flex flex-col divide-y divide-white/5 border-t border-white/10">
-                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setRouteFilter(""); setActiveWindow('routes'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('airports'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" tour="nav-routes" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => { setRouteFilter(""); openWindow('routes'); }} />
+                <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" tour="nav-airports" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => openWindow('airports')} />
               </div>
 
               {/* Business */}
               <div className="flex flex-col divide-y divide-white/5 border-t border-white/10">
-                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('my-company'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
-                <SidebarIcon icon={<Users size={28} />} label="RIVALS" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => { setIsPlanningRoute(false); setIsEditingSchedule(false); setEditingRouteId(null); setActiveWindow('competitors'); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
+                <SidebarIcon icon={<Users size={28} />} label="RIVALS" tour="nav-rivals" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => openWindow('competitors')} />
               </div>
 
               {/* Actions */}
               <div className="flex flex-col border-t border-white/10 bg-aero-yellow/5">
-                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" active={isPlanningRoute} onClick={() => { setIsPlanningRoute(true); setIsEditingSchedule(false); setEditingRouteId(null); setSelectedPurchasingAircraft(null); setSelectedAirport(null); }} />
+                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" tour="nav-new-route" active={isPlanningRoute} onClick={openPlanner} />
               </div>
             </div>
             <div className="mt-4 pb-4 shrink-0 w-full mb-3">
@@ -2256,6 +3261,17 @@ export default function App() {
                   </div>
 
                   <div className="space-y-8 max-w-2xl mx-auto">
+                    <div className="space-y-4">
+                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
+                      <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} />
+                      {newGameScenario && (
+                        <p className="text-2xs text-white/40 italic">
+                          {newGameScenario.title} sets the hub, start date, budget, difficulty and rivals below, so every
+                          player faces the same challenge. Name, code, livery and debug mode are yours to choose.
+                        </p>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-4">
                         <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Name</label>
@@ -2280,12 +3296,30 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
+                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Livery</div>
+                      <div className="bg-aero-carbon border border-white/10 p-4">
+                        <BrandingPicker
+                          value={newGameBranding}
+                          onChange={setNewGameBranding}
+                          code={airlineCode}
+                          name={airlineName}
+                        />
+                      </div>
+                      <p className="text-2xs text-white/40 italic">Your routes and aircraft are drawn in this colour; rivals get colours clearly apart from it.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-end gap-2">
+                        <label htmlFor="new-game-hub" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
+                        <ScenarioLock scenario={newGameScenario} />
+                      </div>
                       <div className="relative w-full">
                         <select 
+                          id="new-game-hub"
                           value={selectedHub}
+                          disabled={!!newGameScenario}
                           onChange={(e) => setSelectedHub(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
                         >
                           {airportsByName.map(a => (
                             <option key={a.id} value={a.id}>{a.name} ({a.id}) - Level {a.level}</option>
@@ -2298,13 +3332,17 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
+                      <div className="flex justify-between items-end gap-2">
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
+                        <ScenarioLock scenario={newGameScenario} />
+                      </div>
                       <div className="flex gap-4">
                         {['Easy', 'Normal', 'Hard'].map((diff) => (
                           <button
                             key={diff}
+                            disabled={!!newGameScenario}
                             onClick={() => setDifficulty(diff)}
-                            className={`flex-1 p-4 font-mono text-sm border uppercase tracking-widest transition-colors ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
+                            className={`flex-1 p-4 font-mono text-sm border uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow disabled:opacity-40 disabled:hover:border-white/10'}`}
                           >
                             {diff}
                           </button>
@@ -2313,7 +3351,15 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
+                      <div className="flex justify-between items-end gap-2">
+                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
+                        <ScenarioLock scenario={newGameScenario} />
+                      </div>
+                      {newGameScenario ? (
+                        <div className="p-4 font-mono text-xs border uppercase tracking-widest bg-aero-yellow/10 border-aero-yellow/40 text-aero-yellow">
+                          {formatCurrency(newGameScenario.capital)} and the scenario's fleet
+                        </div>
+                      ) : (
                       <div className="flex flex-wrap gap-4">
                         {['$25M', '$50M', '$100M', '$200M'].map((budget) => (
                           <button
@@ -2325,6 +3371,7 @@ export default function App() {
                           </button>
                         ))}
                       </div>
+                      )}
                     </div>
 
                     <div className="space-y-4">
@@ -2353,16 +3400,21 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-4">
                         <div className="flex justify-between items-end">
-                          <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
-                          <span className="text-xl font-mono text-aero-yellow">{aiAirlinesCount}</span>
+                          <label htmlFor="new-game-rivals" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
+                          <span className="flex items-center gap-3">
+                            <ScenarioLock scenario={newGameScenario} />
+                            <span className="text-xl font-mono text-aero-yellow">{aiAirlinesCount}</span>
+                          </span>
                         </div>
                         <input 
+                          id="new-game-rivals"
                           type="range"
                           min="0"
                           max="12"
                           value={aiAirlinesCount}
+                          disabled={!!newGameScenario}
                           onChange={(e) => setAiAirlinesCount(parseInt(e.target.value))}
-                          className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero"
+                          className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
                         />
                         <div className="flex justify-between text-2xs font-mono text-white/40">
                           <span>0</span>
@@ -2370,11 +3422,16 @@ export default function App() {
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
+                        <div className="flex justify-between items-end gap-2">
+                          <label htmlFor="new-game-rival-difficulty" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
+                          <ScenarioLock scenario={newGameScenario} />
+                        </div>
                         <select 
+                          id="new-game-rival-difficulty"
                           value={aiDifficulty}
+                          disabled={!!newGameScenario}
                           onChange={(e) => setAiDifficulty(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-white"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option>Easy</option>
                           <option>Normal</option>
@@ -2384,17 +3441,22 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className="flex justify-between items-end">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
-                        <span className="text-xl font-mono text-aero-yellow">{formatDate(startDateOffset)}</span>
+                      <div className="flex justify-between items-end gap-2">
+                        <label htmlFor="new-game-start" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
+                        <span className="flex items-center gap-3">
+                          <ScenarioLock scenario={newGameScenario} />
+                          <span className="text-xl font-mono text-aero-yellow">{formatDate(startDateOffset)}</span>
+                        </span>
                       </div>
                       <input 
+                        id="new-game-start"
                         type="range"
                         min="0"
                         max="731"
                         value={startDateOffset}
+                        disabled={!!newGameScenario}
                         onChange={(e) => setStartDateOffset(parseInt(e.target.value))}
-                        className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero"
+                        className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
                       />
                       <div className="flex justify-between text-2xs font-mono text-white/40">
                         <span>01/1960</span>
@@ -2421,42 +3483,7 @@ export default function App() {
                             setAppAlert("You must provide a save file name to begin.");
                             return;
                           }
-                          // A new game starts clean: no events, messages or open
-                          // editors carried over from a game played earlier.
-                          resetTransientGameState();
-                          setCurrentDateOffset(startDateOffset);
-                          let initialCapital = 25000000; // Default for $25M
-                          if (startingBudget === '$50M') initialCapital = 50000000;
-                          if (startingBudget === '$100M') initialCapital = 100000000;
-                          if (startingBudget === '$200M') initialCapital = 200000000;
-                          setCapital(initialCapital);
-                          setFleet([]);
-                          setAirportManagement({ 
-                            [selectedHub]: {
-                              level: 2,
-                              slots: { regional: 0, narrowbody: 0, widebody: 0 },
-                              stands: { narrowbody: 0, widebody: 0 },
-                              desks: { normal: 1, self: 0 }
-                            }
-                          });
-                          setRoutes([]);
-                          setAiAirlines(generateAiAirlines(aiAirlinesCount, aiDifficulty, selectedHub, startDateOffset, airlineCode));
-                          setPendingSlotBills(0);
-                          setMonthlyCapex([]);
-                          setReportHistory([]);
-                          setEventChoices({});
-                          setPendingDecision(null);
-                          setReputation(50);
-                          setMilestones([]);
-                          setProfitStreak(0);
-                          setAnnualGoal(null);
-                          setSessionKey(Date.now());
-                          const newSaveId = `save_${Date.now()}`;
-                          setCurrentSaveId(newSaveId);
-                          setCurrentSaveName(initialSaveFileName.trim());
-                          setPendingInitialSave(true);
-                          setView('game');
-                          setActiveWindow('map');
+                          startNewGame(initialSaveFileName.trim(), newGameScenario);
                         }}
                         className="group flex items-center bg-aero-yellow text-black px-4 py-4 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
                       >
@@ -2476,7 +3503,7 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center bg-aero-black relative p-12"
               >
-                <div className="max-w-4xl w-full">
+                <div className="max-w-4xl w-full" data-tour="monthly-report">
                   <div className="border-b border-white/10 pb-6 mb-6">
                     <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2">Operation: Execution</span>
                     <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
@@ -2498,7 +3525,7 @@ export default function App() {
                          netProfit={latestReport.totalProfit}
                          totalRevenue={latestReport.routeRevenues}
                          revenues={(latestReport.routes || []).map((r: any) => ({
-                           label: `${r.name}${r.capacity > 0 ? ` (${Math.round((r.paxPerWeek / r.capacity) * 100)}% LF)` : ''}`,
+                           label: `${r.name}${r.capacity > 0 ? ` (${Math.round((r.paxPerWeek / r.capacity) * 100)}% LF)` : ''}${r.transferPax > 0 ? ` incl. ${formatNumber(r.transferPax)} transfer pax/wk` : ''}`,
                            amount: r.revenue
                          }))}
                          expenses={[
@@ -2522,6 +3549,26 @@ export default function App() {
                                { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
                              ]
                            },
+                           // Only in months with campaigns or the frequent-flyer
+                           // programme running; older reports have no such line.
+                           ...((latestReport.breakdown.marketing || 0) > 0 ? [{
+                             id: 'marketing',
+                             label: 'Marketing & Loyalty',
+                             total: latestReport.breakdown.marketing,
+                             items: latestReport.marketingItems || [
+                               { label: 'Advertising campaigns', amount: latestReport.breakdown.marketingCampaigns || 0 },
+                               { label: 'Frequent flyer programme', amount: latestReport.breakdown.ffp || 0 }
+                             ]
+                           }] : []),
+                           // Only in months with a repair bill, e.g. after a bird strike.
+                           ...((latestReport.breakdown.incidents || 0) > 0 ? [{
+                             id: 'incidents',
+                             label: 'Incident repairs & charters',
+                             total: latestReport.breakdown.incidents,
+                             items: (latestReport.incidents || [])
+                               .filter((i: ReportIncident) => (i.cost || 0) > 0)
+                               .map((i: ReportIncident) => ({ label: i.title, amount: i.cost || 0 }))
+                           }] : []),
                            // Slots are billed into the month's result, so they
                            // belong above the line, not in capex.
                            // Signed: selling slots back refunds money, which the
@@ -2564,6 +3611,7 @@ export default function App() {
                          ]}
                          defaultOpen={true}
                       />
+                      <IncidentList incidents={latestReport.incidents} className="mt-4" />
                       {/* Operating profit and the change in the bank balance are
                           different numbers whenever anything was bought. Stating
                           both, next to each other, is what makes the report add up. */}
@@ -2583,7 +3631,16 @@ export default function App() {
                    </ErrorBoundary>
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3">
+                    {edition && (
+                      <button
+                        type="button"
+                        onClick={() => setIsNewspaperOpen(true)}
+                        className="flex items-center justify-center gap-2 border border-white/15 text-white/70 px-4 py-4 font-bold uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all w-full md:w-auto"
+                      >
+                        <Newspaper size={18} /> Read the newspaper
+                      </button>
+                    )}
                     <button 
                       onClick={() => setView('game')}
                       className="group flex items-center bg-aero-yellow text-black px-4 py-4 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
@@ -2639,7 +3696,19 @@ export default function App() {
                          <div className="absolute top-full right-0 mt-2 w-80 bg-aero-panel border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
                            <div className="p-3 border-b border-white/10 flex justify-between items-center">
                              <span className="text-aero-yellow text-2xs uppercase tracking-widest font-bold">Communications</span>
-                             <button onClick={() => setIsMessagesOpen(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
+                             <div className="flex items-center gap-2">
+                               {edition && (
+                                 <button
+                                   type="button"
+                                   onClick={() => { setIsMessagesOpen(false); setIsNewspaperOpen(true); }}
+                                   className="flex items-center gap-1 px-2 py-0.5 border border-white/10 text-3xs uppercase tracking-widest font-bold text-white/60 hover:text-aero-yellow hover:border-aero-yellow/40 transition-colors"
+                                   title={`Read The Aviation Times, ${edition.date}`}
+                                 >
+                                   <Newspaper size={11} /> Latest newspaper
+                                 </button>
+                               )}
+                               <button onClick={() => setIsMessagesOpen(false)} className="text-white/40 hover:text-white" aria-label="Close messages"><X size={14}/></button>
+                             </div>
                            </div>
                            <div className="max-h-64 overflow-y-auto no-scrollbar">
                              {messages.length === 0 ? (
@@ -2684,6 +3753,18 @@ export default function App() {
                           <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-white/80 cursor-pointer hover:bg-white/5 p-2 transition-colors">
                             <input type="checkbox" checked={showLiveTraffic} onChange={(e) => setShowLiveTraffic(e.target.checked)} className="accent-blue-400 w-4 h-4 cursor-pointer" />
                             Live Traffic
+                          </label>
+                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-white/80 cursor-pointer hover:bg-white/5 p-2 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={gameSettings.heatmap}
+                              onChange={(e) => {
+                                const heatmap = e.target.checked;
+                                setGameSettings(prev => ({ ...prev, heatmap }));
+                              }}
+                              className="accent-emerald-500 w-4 h-4 cursor-pointer"
+                            />
+                            Profit Heatmap
                           </label>
                         </div>
                       )}
@@ -2755,7 +3836,9 @@ export default function App() {
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
                   
                   {/* Map Viewport - Leaflet Map */}
-                  <div className="absolute inset-0 z-0 bg-aero-panel">
+                  {/* The tutorial's "map" only while the map is what is on screen: under
+                      a window it is not there to point at. */}
+                  <div className="absolute inset-0 z-0 bg-aero-panel" data-tour={activeWindow === 'map' && !isPlanningRoute ? 'map' : undefined}>
                      <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
                       <WorldMap
                         sessionKey={sessionKey}
@@ -2777,10 +3860,21 @@ export default function App() {
                         planningDestId={planningDestId}
                         setSelectedAirport={setSelectedAirport}
                         getRoutePath={getRoutePath}
+                        playerColor={branding.color}
+                        heatmap={gameSettings.heatmap}
+                        routeProfits={routeHeat.profit}
+                        routePax={routeHeat.pax}
                       />
                      </ErrorBoundary>
                   </div>
                   
+                  {/* The running scenario's goals, over the map's top-left corner. */}
+                  {scenarioProgress && activeScenario && activeWindow === 'map' && !isPlanningRoute && (
+                    <div className="absolute top-3 left-3 z-[900]" data-tour="scenario-panel">
+                      <ScenarioProgressPanel scenario={activeScenario} goals={scenarioProgress.goals} monthsLeft={scenarioProgress.monthsLeft} />
+                    </div>
+                  )}
+
                   {/* Active Window Views Overlay. Keyed by the number format so the
                       memoised views re-render when the separator setting changes. */}
                   <React.Fragment key={decimalSymbol}>
@@ -2836,8 +3930,10 @@ export default function App() {
                           onEditFinancials={setEditingPricingRouteId}
                           onUpdatePricing={handleUpdatePricing}
                           fuelPrice={fuelData.price}
-                        demandFactor={playerDemandFactor}
-                        rivalOffers={rivalOffers}
+                          playerMods={playerModsWithTransfer}
+                          rivalOffers={rivalOffers}
+                          transferFlows={network.flowsByRoute}
+                          cancellations={routeCancellations}
                           airportManagement={airportManagement}
                           currentYear={1960 + Math.floor(currentDateOffset / 12)}
                           currentMonth={1 + (currentDateOffset % 12)}
@@ -2870,6 +3966,24 @@ export default function App() {
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
+                          branding={branding}
+                          airlineName={airlineName}
+                          airlineCode={airlineCode}
+                          onBrandingChange={handleBrandingChange}
+                          chronicle={chronicle}
+                          marketing={marketing}
+                          currentDateOffset={currentDateOffset}
+                          projectedMonthlyPax={projectedMonthlyPax}
+                          regionRouteCounts={regionRouteCounts}
+                          homeRegion={homeRegion}
+                          onLaunchCampaign={handleLaunchCampaign}
+                          onCancelCampaign={handleCancelCampaign}
+                          onSetFfp={handleSetFfp}
+                          staff={staff}
+                          profitStreak={profitStreak}
+                          monthlyCrewCost={monthlyCrewCost}
+                          strikePending={strikePending}
+                          onSetSalary={handleSetSalary}
                         />
                       </React.Suspense>
                     </ViewFrame>
@@ -2888,6 +4002,7 @@ export default function App() {
                           playerRoutes={routes}
                           playerProfitHistory={playerProfitHistory}
                           playerRouteProfits={routeProfits}
+                          playerColor={branding.color}
                         />
                       </React.Suspense>
                     </ViewFrame>
@@ -2993,7 +4108,8 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={playerDemandFactor}
+                        playerMods={playerMods}
+                        fuelPrice={fuelData.price}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -3026,7 +4142,8 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={playerDemandFactor}
+                        playerMods={playerMods}
+                        fuelPrice={fuelData.price}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -3051,7 +4168,7 @@ export default function App() {
                   )}
 
                   {isPlanningRoute && (
-                    <div className="absolute inset-0 z-[45] flex">
+                    <div className="absolute inset-0 z-[45] flex" data-tour="route-planner">
                      <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="CLOSE PLANNER">
                       <React.Suspense fallback={<LazyFallback label="Route Planner" />}>
                       <RoutePlannerView
@@ -3059,7 +4176,8 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        demandFactor={playerDemandFactor}
+                        playerMods={playerMods}
+                        fuelPrice={fuelData.price}
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
@@ -3141,6 +4259,7 @@ export default function App() {
                       <AirportDetailView
                         airport={selectedAirport}
                         currentDateOffset={currentDateOffset}
+                        transferHub={network.hubStats[selectedAirport.id]}
                         onNotify={setAppAlert}
                         onClose={() => setSelectedAirport(null)}
                         fleet={fleet}
@@ -3218,6 +4337,7 @@ export default function App() {
                     <div className="fixed bottom-6 right-6 z-[1000] pointer-events-auto">
                       <button
                         onClick={handleAdvanceMonth}
+                        data-tour="next-month"
                         className="flex items-center gap-3 bg-aero-yellow text-black px-3 py-3 font-bold uppercase tracking-[0.2em] text-xs shadow-2xl border-2 border-aero-yellow hover:bg-white hover:border-white transition-all transform hover:scale-105 group font-sans italic"
                         title="Advance to next month"
                       >
@@ -3304,6 +4424,56 @@ export default function App() {
                     <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={gameSettings.newspaper}
+                  onClick={() => setGameSettings(prev => ({ ...prev, newspaper: !prev.newspaper }))}
+                  className="w-full flex items-center gap-3 bg-white/5 p-4 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                >
+                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.newspaper ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                    {gameSettings.newspaper && <Check size={14} />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-white uppercase tracking-widest font-black">Monthly Newspaper</span>
+                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Show The Aviation Times after every month. When off, the latest edition is still under Messages and on the monthly report.</span>
+                  </div>
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={gameSettings.tutorial}
+                  onClick={() => setGameSettings(prev => ({ ...prev, tutorial: !prev.tutorial }))}
+                  className="w-full flex items-center gap-3 bg-white/5 p-4 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                >
+                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.tutorial ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                    {gameSettings.tutorial && <Check size={14} />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-white uppercase tracking-widest font-black">Tutorial for New Games</span>
+                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Start every new game with the guided tour of the first steps. Skipping it ends the tour for that game only.</span>
+                  </div>
+                </button>
+                {(view === 'game' || view === 'monthly-overview') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTutorialStep(restartTutorial());
+                      setIsSettingsOpen(false);
+                      if (view === 'monthly-overview') setView('game');
+                      openWindow('map');
+                    }}
+                    className="self-start flex items-center gap-2 px-3 py-2 border border-white/10 text-white/70 hover:text-aero-yellow hover:border-aero-yellow/50 font-mono text-2xs uppercase tracking-widest transition-colors"
+                  >
+                    <RotateCcw size={12} aria-hidden="true" /> Restart tutorial in this game
+                  </button>
+                )}
               </div>
             </div>
 
@@ -3430,7 +4600,28 @@ export default function App() {
       </AnimatePresence>
       </div>
     </div>
+      {/* Outside the scaled root: the tutorial measures and draws in screen pixels. */}
+      {tutorialStep !== null && !tutorialHidden && (
+        <TutorialOverlay
+          step={tutorialStep}
+          state={tutorialState}
+          currentView={tutorialView}
+          layoutKey={`${view}|${activeWindow}|${isPlanningRoute}|${selectedAirport?.id ?? ''}|${isEditingSchedule}|${finalUiScale}`}
+          onGoTo={goToTutorialStep}
+          onNavigate={showTutorialTarget}
+        />
+      )}
     </div>
+  );
+}
+
+/** Why a new-game field cannot be changed: the scenario picked above sets it. */
+function ScenarioLock({ scenario }: { scenario?: Scenario }) {
+  if (!scenario) return null;
+  return (
+    <span className="flex items-center gap-1 text-3xs font-mono uppercase tracking-widest text-aero-yellow/70 whitespace-nowrap">
+      <Lock size={10} aria-hidden="true" /> Set by {scenario.title}
+    </span>
   );
 }
 
@@ -3481,11 +4672,12 @@ function ThemeMenuButton({
  * be unreachable by keyboard, and the 7.5px label was the smallest type in the
  * interface.
  */
-function SidebarIcon({ icon, label, active = false, onClick }: { icon: ReactNode, label: string, active?: boolean, onClick?: () => void }) {
+function SidebarIcon({ icon, label, active = false, onClick, tour }: { icon: ReactNode, label: string, active?: boolean, onClick?: () => void, tour?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      data-tour={tour}
       aria-current={active ? 'page' : undefined}
       className={`
       py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all w-full select-none bg-transparent border-0

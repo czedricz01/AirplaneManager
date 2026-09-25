@@ -91,3 +91,164 @@ test('engine internals stored on routes by older versions are removed', () => {
   assert.equal(route.satisfactionDetails, undefined);
   assert.equal(route.paxPerWeek, 700, 'the figures screens read are kept');
 });
+
+// --- Version 3 ---------------------------------------------------------------
+
+import { MAP_YELLOW, RIVAL_PALETTE } from './theme';
+import { DEFAULT_STAFF, FREE_OPTION_ID } from './gameState';
+
+const v2Save = () => ({
+  ...oldSave(),
+  saveVersion: 2,
+  aiAirlines: [
+    { id: 'ai_lh', name: 'Lufthansa', code: 'LH', hub: 'FRA', capital: 1, fleet: [], routes: [], monthlyProfitsHistory: [] },
+    { id: 'ai_af', name: 'Air France', code: 'AF', hub: 'CDG', capital: 1, fleet: [], routes: [], monthlyProfitsHistory: [] },
+    { id: 'ai_ba', name: 'British Airways', code: 'BA', hub: 'LHR', capital: 1, fleet: [], routes: [], monthlyProfitsHistory: [], color: '#123456' }
+  ]
+});
+
+test('a version 2 save gets the version 3 systems at their defaults', () => {
+  const migrated = migrateSave(v2Save());
+  assert.equal(migrated.saveVersion, SAVE_VERSION);
+  assert.deepEqual(migrated.branding, { color: MAP_YELLOW, icon: 'initials' }, 'the airline keeps the yellow it always had');
+  assert.deepEqual(migrated.marketing, { campaigns: [], ffpActive: false, ffpSinceOffset: null });
+  assert.deepEqual(migrated.staff, DEFAULT_STAFF);
+  assert.deepEqual(migrated.disruptions, []);
+  assert.deepEqual(migrated.pendingDecisions, []);
+  assert.deepEqual(migrated.chronicle, []);
+  assert.equal(migrated.scenario, null);
+  assert.equal(migrated.tutorialStep, null, 'an existing player is not sent through the tutorial');
+  assert.deepEqual(findNonFinite(migrated, 6), []);
+});
+
+test('rivals from a version 2 save get distinct palette colours, the same ones every load', () => {
+  const [lh, af, ba] = migrateSave(v2Save()).aiAirlines;
+  assert.ok((RIVAL_PALETTE as readonly string[]).includes(lh.color));
+  assert.ok((RIVAL_PALETTE as readonly string[]).includes(af.color));
+  assert.notEqual(lh.color, af.color);
+  assert.equal(ba.color, '#123456', 'a colour already chosen is kept');
+  assert.equal(migrateSave(v2Save()).aiAirlines[0].color, lh.color, 'deterministic');
+});
+
+test('broken version 3 fields are repaired rather than trusted', () => {
+  const migrated = migrateSave({
+    ...v2Save(),
+    branding: { color: 'red', icon: 7 },
+    staff: { salaryPct: 500, morale: NaN, strike: { startOffset: 3, cancelShare: 4 } },
+    pendingDecisions: [
+      { id: 'd1', kind: 'strike', ref: '3', title: 'Strike', options: [{ id: 'a', label: 'Pay', cost: NaN }] },
+      { id: 'd2', kind: 'strike', title: 'Nothing to choose', options: [] },
+      { id: 'd3', kind: 'unknown', title: 'From the future', options: [{ id: 'a', label: 'OK' }] }
+    ],
+    chronicle: Array.from({ length: 400 }, (_, i) => ({ offset: i, kind: 'record', text: `r${i}` }))
+  });
+  assert.equal(migrated.branding.color, MAP_YELLOW);
+  assert.equal(migrated.branding.icon, 'initials');
+  assert.equal(migrated.staff.salaryPct, 130);
+  assert.equal(migrated.staff.morale, 70);
+  assert.equal(migrated.staff.strike.cancelShare, 1);
+  assert.deepEqual(migrated.pendingDecisions.map((d: any) => d.id), ['d1']);
+  assert.equal(migrated.pendingDecisions[0].options[0].cost, 0);
+  assert.equal(migrated.chronicle.length, 300);
+  assert.equal(migrated.chronicle[0].offset, 100, 'the oldest entries go first');
+});
+
+test('the tutorial step loads from version 4 saves on, and stays off in older ones', () => {
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: 2.4 }).tutorialStep, 2);
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: -3 }).tutorialStep, 0);
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: null }).tutorialStep, null, 'finished or skipped');
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 4, tutorialStep: NaN }).tutorialStep, null);
+  // Version 3 saves wrote a 0 that no tutorial ever showed; their players are not sent through it now.
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 3, tutorialStep: 0 }).tutorialStep, null);
+  assert.equal(migrateSave({ ...v2Save(), saveVersion: 3, tutorialStep: 2 }).tutorialStep, null);
+  assert.equal(migrateSave({ ...oldSave(), tutorialStep: 0 }).tutorialStep, null, 'no version at all is version 1');
+});
+
+test('chronicle keys and record values survive a load, and keyed firsts outlast trimming', () => {
+  const migrated = migrateSave({
+    ...v2Save(),
+    chronicle: [
+      { offset: 1, kind: 'network', text: 'First route to Asia', key: 'region:AS' },
+      { offset: 2, kind: 'record', text: 'Best month', key: 'record:profit', value: 5e5 },
+      { offset: 3, kind: 'record', text: 'Odd', key: 42, value: 'much' },
+      ...Array.from({ length: 300 }, (_, i) => ({ offset: 10 + i, kind: 'crisis', text: `c${i}` }))
+    ]
+  });
+  assert.equal(migrated.chronicle.length, 300);
+  assert.deepEqual(migrated.chronicle[0], { offset: 1, kind: 'network', text: 'First route to Asia', key: 'region:AS' });
+  assert.deepEqual(migrated.chronicle[1], { offset: 2, kind: 'record', text: 'Best month', key: 'record:profit', value: 5e5 });
+  assert.equal(migrated.chronicle.some((e: any) => e.text === 'Odd'), false, 'unkeyed, so trimmed first');
+});
+
+test('a loaded decision with only paid answers gets a free one', () => {
+  const migrated = migrateSave({
+    ...v2Save(),
+    staff: { salaryPct: 80, morale: 20, strike: { startOffset: 12, cancelShare: 1 } },
+    pendingDecisions: [
+      { id: 'd1', kind: 'strike', ref: '12', title: 'Strike', options: [{ id: 'buy-peace', label: 'Buy peace', cost: 5_000_000 }] }
+    ]
+  });
+  const options = migrated.pendingDecisions[0].options;
+  assert.equal(options.length, 2);
+  assert.equal(options[0].id, 'buy-peace');
+  assert.equal(options[1].id, FREE_OPTION_ID);
+  assert.equal(options[1].cost, 0);
+
+  // A charter is billed at the month's close: a saved up-front price would be paid twice.
+  const charter = migrateSave({
+    ...v2Save(),
+    disruptions: [{ id: 'dis1', kind: 'technical', offset: 12, routeIds: ['r1'], cancelShare: 0.25 }],
+    pendingDecisions: [{ id: 'd1', kind: 'disruption', ref: 'dis1', title: 'Charter?', options: [
+      { id: 'charter', label: 'Charter', cost: 300_000 },
+      { id: 'cancel', label: 'Cancel', cost: 0 }
+    ] }]
+  });
+  assert.deepEqual(charter.pendingDecisions[0].options.map((o: any) => o.cost), [0, 0]);
+});
+
+test('strikes and disruptions dated after the current month are dropped, and so are questions about them', () => {
+  // The save is at month 12: whatever a close rolls is for the month it moves to, never beyond.
+  const migrated = migrateSave({
+    ...v2Save(),
+    staff: { salaryPct: 90, morale: 30, strike: { startOffset: 5000, cancelShare: 1 } },
+    disruptions: [
+      { id: 'now', kind: 'technical', offset: 12, routeIds: ['r1'], cancelShare: 0.25 },
+      { id: 'future', kind: 'weather', offset: 13, routeIds: ['r1'], cancelShare: 0.15 }
+    ],
+    pendingDecisions: [
+      { id: 'q-strike', kind: 'strike', ref: '5000', title: 'Strike', options: [{ id: 'sit-out', label: 'Sit out', cost: 0 }] },
+      { id: 'q-now', kind: 'disruption', ref: 'now', title: 'Defect', options: [{ id: 'cancel', label: 'Cancel', cost: 0 }] },
+      { id: 'q-future', kind: 'disruption', ref: 'future', title: 'Weather', options: [{ id: 'cancel', label: 'Cancel', cost: 0 }] },
+      { id: 'q-gone', kind: 'disruption', ref: 'gone', title: 'Old', options: [{ id: 'cancel', label: 'Cancel', cost: 0 }] }
+    ]
+  });
+  assert.equal(migrated.staff.strike, null);
+  assert.deepEqual(migrated.disruptions.map((d: any) => d.id), ['now']);
+  assert.deepEqual(migrated.pendingDecisions.map((d: any) => d.id), ['q-now']);
+
+  const settled = migrateSave({ ...v2Save(), staff: { salaryPct: 100, morale: 40, strike: { startOffset: 12, cancelShare: 0.5, agreedPct: 400 } } });
+  assert.equal(settled.staff.strike.agreedPct, 130, 'agreed pay is kept inside the range');
+  const plain = migrateSave({ ...v2Save(), staff: { salaryPct: 100, morale: 40, strike: { startOffset: 12, cancelShare: 1, agreedPct: 'lots' } } });
+  assert.equal('agreedPct' in plain.staff.strike, false);
+});
+
+// --- Version 4 ---------------------------------------------------------------
+
+test('a scenario game keeps its scenario, repaired where it has to be', () => {
+  const running = migrateSave({ ...v2Save(), saveVersion: 3, startDateOffset: 0, scenario: { id: 'jet-age' } });
+  assert.deepEqual(running.scenario, { id: 'jet-age', startedOffset: 0, status: 'running' }, 'a version 3 placeholder becomes a running scenario');
+
+  const won = migrateSave({
+    ...v2Save(),
+    scenario: { id: 'jet-age', startedOffset: 2, status: 'won', result: { offset: 10, reason: 'Every goal met.' } }
+  });
+  assert.deepEqual(won.scenario, { id: 'jet-age', startedOffset: 2, status: 'won', result: { offset: 10, reason: 'Every goal met.' } });
+
+  const odd = migrateSave({ ...v2Save(), scenario: { id: 'jet-age', startedOffset: 999, status: 'maybe', result: { offset: 3 } } });
+  assert.equal(odd.scenario.status, 'running', 'an unknown status is still being played');
+  assert.equal(odd.scenario.startedOffset, 12, 'never after the current month');
+  assert.equal('result' in odd.scenario, false, 'a running scenario has no result');
+
+  assert.equal(migrateSave({ ...v2Save(), scenario: { id: 'moon-landing' } }).scenario, null, 'an unknown scenario is played on as a free game');
+  assert.equal(migrateSave({ ...v2Save(), scenario: 'jet-age' }).scenario, null);
+});

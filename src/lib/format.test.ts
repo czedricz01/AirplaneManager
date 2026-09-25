@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatCurrency, formatNumber, formatMoneyCompact, formatSignedCurrency, setDecimalSymbol } from './format';
+import { formatCurrency, formatNumber, formatMoneyCompact, formatMonthLong, formatMonthOffset, formatNumberCompact, formatSignedCurrency, setDecimalSymbol } from './format';
 
 test('currency follows the decimal-separator setting', () => {
   setDecimalSymbol('.');
@@ -31,4 +31,21 @@ test('non-finite input never prints NaN', () => {
   setDecimalSymbol('.');
   assert.equal(formatCurrency(NaN), '$0');
   assert.equal(formatMoneyCompact(Infinity), '$0');
+});
+
+test('month offsets read as game dates', () => {
+  assert.equal(formatMonthOffset(0), '01/1960');
+  assert.equal(formatMonthOffset(62), '03/1965');
+  assert.equal(formatMonthLong(62), 'March 1965');
+  assert.equal(formatMonthLong(11), 'December 1960');
+  assert.equal(formatMonthOffset(Number.NaN), '01/1960', 'never NaN');
+});
+
+test('compact counts', () => {
+  setDecimalSymbol('.');
+  assert.equal(formatNumberCompact(950), '950');
+  assert.equal(formatNumberCompact(1_250), '1.3K');
+  assert.equal(formatNumberCompact(34_000), '34K');
+  assert.equal(formatNumberCompact(1_200_000), '1.2M');
+  assert.equal(formatNumberCompact(-2_000), '-2.0K');
 });

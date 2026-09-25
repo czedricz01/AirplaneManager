@@ -3,6 +3,8 @@ import { formatMoneyCompact, routeFlightNumber } from '../lib/format';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
 import { getFlightTimeClass, calculateRouteFinancials, type RouteOffer } from '../lib/financeUtils';
+import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers, type RouteCancellation } from '../lib/gameState';
+import type { RouteTransfer } from '../lib/transferUtils';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { AnimatePresence } from 'motion/react';
@@ -52,9 +54,13 @@ interface Props {
   onEditFinancials?: (routeId: string) => void;
   onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
   fuelPrice?: number;
-  /** Reputation effect on demand, so the list matches the monthly report. */
-  demandFactor?: number;
+  /** The player-only effects on the economy, so the list matches the monthly report. */
+  playerMods?: PlayerModifiers;
   rivalOffers?: RouteOffer[];
+  /** Connecting passengers per route id, for the detail view's breakdown. */
+  transferFlows?: Record<string, RouteTransfer>;
+  /** Routes losing flights this month and why, by route id. */
+  cancellations?: Record<string, RouteCancellation>;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
@@ -83,8 +89,23 @@ interface RouteRowProps {
   currentYear: number;
   currentMonth: number;
   difficulty: string;
-  demandFactor: number;
+  playerMods: PlayerModifiers;
   rivalOffers: RouteOffer[];
+  cancellation?: RouteCancellation;
+}
+
+/** "X% cancelled" next to a route's flights, with the causes on hover. */
+export function CancellationBadge({ cancellation }: { cancellation?: RouteCancellation }) {
+  if (!cancellation || cancellation.share <= 0) return null;
+  const pct = Math.round(cancellation.share * 100);
+  return (
+    <span
+      title={`${pct}% of this month's flights cancelled: ${cancellation.reasons.join(', ')}`}
+      className="inline-block ml-2 px-1 py-px border border-aero-warn/40 bg-aero-warn/10 text-aero-warn text-3xs font-bold uppercase tracking-wider whitespace-nowrap"
+    >
+      −{pct}%
+    </span>
+  );
 }
 
 /** One "Economy/Premium/Business/First" line: dashes for classes the aircraft doesn't carry. */
@@ -108,7 +129,7 @@ function ClassLine({ items }: { items: { cls: string; text: string; color?: stri
  */
 const RouteRow = React.memo(function RouteRow({
   route, airlineCode, fleetByRegistration, fleet, routes, routeProfit, onSelect, onUpdatePricing,
-  fuelPrice, airportManagement, currentYear, currentMonth, difficulty, demandFactor, rivalOffers
+  fuelPrice, airportManagement, currentYear, currentMonth, difficulty, playerMods, rivalOffers, cancellation
 }: RouteRowProps) {
   const aircraft = fleetByRegistration.get(route.aircraft);
 
@@ -117,9 +138,9 @@ const RouteRow = React.memo(function RouteRow({
     return calculateRouteFinancials(
       route, aircraft, fuelPrice ?? 1.05, airportManagement || {},
       currentYear, currentMonth, difficulty, routesAirportsMap, routes, fleet,
-      false, demandFactor, rivalOffers
+      false, playerMods.demandFactor, rivalOffers, playerMods
     );
-  }, [route, aircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, routes, fleet, demandFactor, rivalOffers]);
+  }, [route, aircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, routes, fleet, playerMods, rivalOffers]);
 
   const loadLine = CABIN_CLASSES.map(cls => {
     const cd = financials?.paxByClass?.[cls];
@@ -160,7 +181,7 @@ const RouteRow = React.memo(function RouteRow({
         <div>{route.aircraft}</div>
         {aircraft && <div className="text-2xs text-white/40">{aircraft.manufacturer} {aircraft.type}</div>}
       </Td>
-      <Td className="text-xs font-mono">{route.weeklyFlights}</Td>
+      <Td className="text-xs font-mono">{route.weeklyFlights}<CancellationBadge cancellation={cancellation} /></Td>
       <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
       <Td className="text-xs font-mono"><ClassLine items={loadLine} /></Td>
       <Td className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
@@ -201,7 +222,7 @@ function RoutesViewImpl({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onReassignAircraft,
   onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
-  currentYear, currentMonth, difficulty, demandFactor = 1, rivalOffers = [], airlineCode = ''
+  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = [], transferFlows, cancellations, airlineCode = ''
 }: Props) {
   const [search, setSearch] = useState("");
   const [airportFilter, setAirportFilter] = useState(initialAirportFilter);
@@ -363,8 +384,9 @@ function RoutesViewImpl({
                   currentYear={currentYear}
                   currentMonth={currentMonth}
                   difficulty={difficulty}
-                  demandFactor={demandFactor}
+                  playerMods={playerMods}
                   rivalOffers={rivalOffers}
+                  cancellation={cancellations?.[route.id]}
                 />
               ))
             )}
@@ -379,8 +401,10 @@ function RoutesViewImpl({
              route={activeRoute} 
              fleet={fleet}
             fuelPrice={fuelPrice}
-            demandFactor={demandFactor}
+            playerMods={playerMods}
             rivalOffers={rivalOffers}
+            transfer={transferFlows?.[activeRoute.id]}
+            cancellation={cancellations?.[activeRoute.id]}
             airportManagement={airportManagement}
             currentYear={currentYear}
             currentMonth={currentMonth}
