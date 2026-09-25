@@ -19,11 +19,12 @@ import {
   STRIKE_MORALE_THRESHOLD,
   isStrikeActive,
   moraleSatDelta,
+  salaryFloor,
   staffOutlook,
   strikeCancelShare,
   strikeIsRecent
 } from '../lib/staff';
-import { formatCurrency, formatNumber } from '../lib/format';
+import { formatCurrency, formatMonthOffset, formatNumber } from '../lib/format';
 
 export interface StaffPanelProps {
   staff: Staff;
@@ -34,6 +35,8 @@ export interface StaffPanelProps {
   monthlyCrewCost: number;
   /** A strike question is waiting for an answer. */
   strikePending: boolean;
+  /** The airline flies no routes: nothing to strike against. */
+  noRoutes?: boolean;
   onSetSalary: (pct: number) => void;
 }
 
@@ -70,8 +73,10 @@ function MoraleBar({ morale, target }: { morale: number; target: number }) {
  * it carries. Pay takes effect at once in every forecast; morale only moves
  * at month end.
  */
-export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, monthlyCrewCost, strikePending, onSetSalary }: StaffPanelProps) {
-  const outlook = staffOutlook(staff, profitStreak, offset, strikePending);
+export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, monthlyCrewCost, strikePending, noRoutes = false, onSetSalary }: StaffPanelProps) {
+  const outlook = staffOutlook(staff, profitStreak, offset, strikePending, noRoutes);
+  /** Pay agreed to settle a recent strike, below which the slider will not go. */
+  const floor = salaryFloor(staff, offset);
   const satNow = moraleSatDelta(staff.morale);
   const striking = isStrikeActive(staff, offset);
   const strikeShare = strikeCancelShare(staff, offset);
@@ -127,7 +132,9 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           <span className="block text-3xs font-mono text-white/40 mt-1">
             {strikePending
               ? 'none while a strike awaits your answer'
-              : striking
+              : noRoutes
+                ? 'none without routes to fly'
+                : striking
                 ? 'no new strike straight after this one'
                 : outlook.strikeChance > 0
                   ? 'chance of a strike at this month end'
@@ -175,6 +182,12 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           <span>100% market</span>
           <span>{SALARY_PCT_MAX}%</span>
         </div>
+        {floor > SALARY_PCT_MIN && staff.strike && (
+          <p className="text-2xs font-mono text-aero-yellow/80 leading-relaxed mt-2">
+            Agreed with the unions to end the strike: pay cannot drop below {Math.round(floor)}% through{' '}
+            {formatMonthOffset(staff.strike.startOffset + STRIKE_MEMORY_MONTHS)}.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/10 text-2xs font-mono">
           <div>

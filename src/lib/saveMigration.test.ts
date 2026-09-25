@@ -136,7 +136,7 @@ test('broken version 3 fields are repaired rather than trusted', () => {
     branding: { color: 'red', icon: 7 },
     staff: { salaryPct: 500, morale: NaN, strike: { startOffset: 3, cancelShare: 4 } },
     pendingDecisions: [
-      { id: 'd1', kind: 'strike', title: 'Strike', options: [{ id: 'a', label: 'Pay', cost: NaN }] },
+      { id: 'd1', kind: 'strike', ref: '3', title: 'Strike', options: [{ id: 'a', label: 'Pay', cost: NaN }] },
       { id: 'd2', kind: 'strike', title: 'Nothing to choose', options: [] },
       { id: 'd3', kind: 'unknown', title: 'From the future', options: [{ id: 'a', label: 'OK' }] }
     ],
@@ -174,13 +174,51 @@ test('chronicle keys and record values survive a load, and keyed firsts outlast 
 test('a loaded decision with only paid answers gets a free one', () => {
   const migrated = migrateSave({
     ...v2Save(),
+    staff: { salaryPct: 80, morale: 20, strike: { startOffset: 12, cancelShare: 1 } },
     pendingDecisions: [
-      { id: 'd1', kind: 'disruption', title: 'Charter?', options: [{ id: 'charter', label: 'Charter', cost: 5_000_000 }] }
+      { id: 'd1', kind: 'strike', ref: '12', title: 'Strike', options: [{ id: 'buy-peace', label: 'Buy peace', cost: 5_000_000 }] }
     ]
   });
   const options = migrated.pendingDecisions[0].options;
   assert.equal(options.length, 2);
-  assert.equal(options[0].id, 'charter');
+  assert.equal(options[0].id, 'buy-peace');
   assert.equal(options[1].id, FREE_OPTION_ID);
   assert.equal(options[1].cost, 0);
+
+  // A charter is billed at the month's close: a saved up-front price would be paid twice.
+  const charter = migrateSave({
+    ...v2Save(),
+    disruptions: [{ id: 'dis1', kind: 'technical', offset: 12, routeIds: ['r1'], cancelShare: 0.25 }],
+    pendingDecisions: [{ id: 'd1', kind: 'disruption', ref: 'dis1', title: 'Charter?', options: [
+      { id: 'charter', label: 'Charter', cost: 300_000 },
+      { id: 'cancel', label: 'Cancel', cost: 0 }
+    ] }]
+  });
+  assert.deepEqual(charter.pendingDecisions[0].options.map((o: any) => o.cost), [0, 0]);
+});
+
+test('strikes and disruptions dated after the current month are dropped, and so are questions about them', () => {
+  // The save is at month 12: whatever a close rolls is for the month it moves to, never beyond.
+  const migrated = migrateSave({
+    ...v2Save(),
+    staff: { salaryPct: 90, morale: 30, strike: { startOffset: 5000, cancelShare: 1 } },
+    disruptions: [
+      { id: 'now', kind: 'technical', offset: 12, routeIds: ['r1'], cancelShare: 0.25 },
+      { id: 'future', kind: 'weather', offset: 13, routeIds: ['r1'], cancelShare: 0.15 }
+    ],
+    pendingDecisions: [
+      { id: 'q-strike', kind: 'strike', ref: '5000', title: 'Strike', options: [{ id: 'sit-out', label: 'Sit out', cost: 0 }] },
+      { id: 'q-now', kind: 'disruption', ref: 'now', title: 'Defect', options: [{ id: 'cancel', label: 'Cancel', cost: 0 }] },
+      { id: 'q-future', kind: 'disruption', ref: 'future', title: 'Weather', options: [{ id: 'cancel', label: 'Cancel', cost: 0 }] },
+      { id: 'q-gone', kind: 'disruption', ref: 'gone', title: 'Old', options: [{ id: 'cancel', label: 'Cancel', cost: 0 }] }
+    ]
+  });
+  assert.equal(migrated.staff.strike, null);
+  assert.deepEqual(migrated.disruptions.map((d: any) => d.id), ['now']);
+  assert.deepEqual(migrated.pendingDecisions.map((d: any) => d.id), ['q-now']);
+
+  const settled = migrateSave({ ...v2Save(), staff: { salaryPct: 100, morale: 40, strike: { startOffset: 12, cancelShare: 0.5, agreedPct: 400 } } });
+  assert.equal(settled.staff.strike.agreedPct, 130, 'agreed pay is kept inside the range');
+  const plain = migrateSave({ ...v2Save(), staff: { salaryPct: 100, morale: 40, strike: { startOffset: 12, cancelShare: 1, agreedPct: 'lots' } } });
+  assert.equal('agreedPct' in plain.staff.strike, false);
 });

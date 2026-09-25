@@ -214,7 +214,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
-import { computeNetworkFinancials } from "./lib/transferUtils";
+import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
 import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
 import { NewspaperOverlay } from "./components/NewspaperOverlay";
@@ -239,7 +239,7 @@ import {
   STRIKE_REPUTATION_PENALTY,
   advanceStaff,
   buildStrikeDecision,
-  clampSalaryPct,
+  setSalary,
   settleStrikeWithPayRise,
   strikeCancelShare
 } from "./lib/staff";
@@ -248,19 +248,25 @@ import {
   MAJOR_DISRUPTION_SHARE,
   buildDisruptionDecision,
   cancelReputationPenalty,
+  charterFee,
+  combineCancelShares,
   describeDisruption,
   describeRouteCancellations,
+  disruptionCancelShares,
   disruptionIncidents,
   disruptionRepairCost,
   disruptionTitle,
+  disruptionsIn,
   disruptionsToAsk,
   dropPastDisruptions,
+  marginalLostRevenue,
   rollDisruptions
 } from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
   buildPlayerModifiers,
   createGameSystems,
+  decisionTargetExists,
   routeCancelShare,
   ensureFreeOption,
   normalizeGameSettings,
@@ -278,6 +284,7 @@ import {
   type GameDecisionOption,
   type GameSettings,
   type GameSystems,
+  type PlayerModifiers,
   type ReportIncident,
   type RouteCancellation,
   type ScenarioState,
@@ -649,17 +656,23 @@ export default function App() {
     },
     // A disruption of 25% or more: charter a replacement and nothing is
     // cancelled, or cancel the flights, which is what any other answer means.
-    // `ref` is the disruption's id; one that is gone by now changes nothing.
+    // `ref` is the disruption's id. The charter is billed at the month's
+    // close, on what it actually saved.
     disruption: (decision, option) => {
       const target = disruptions.find(d => d.id === decision.ref);
       if (!target) return;
       if (option.id === DISRUPTION_OPTION_CHARTER) {
         setDisruptions(prev => prev.map(d => (d.id === target.id ? { ...d, mitigated: true } : d)));
-        setToast(`Replacement aircraft chartered: ${disruptionTitle(target)}`);
+        setToast(`Replacement aircraft chartered: ${disruptionTitle(target)}. Billed at the month's end.`);
       } else {
-        const penalty = cancelReputationPenalty(target);
-        setReputation(prev => Math.max(0, prev - penalty));
-        setToast(`Flights cancelled: ${disruptionTitle(target)}, reputation -${penalty}`);
+        // Flights a strike or another disruption cancels anyway strand nobody more.
+        const strikeShare = strikeCancelShare(staff, target.offset);
+        const others = disruptionCancelShares(disruptions.filter(d => d.id !== target.id), target.offset) ?? {};
+        const penalty = cancelReputationPenalty(target, id => combineCancelShares(strikeShare, others[id]));
+        if (penalty > 0) setReputation(prev => Math.max(0, prev - penalty));
+        setToast(penalty > 0
+          ? `Flights cancelled: ${disruptionTitle(target)}, reputation -${formatNumber(penalty, penalty % 1 === 0 ? 0 : 1)}`
+          : `Flights cancelled: ${disruptionTitle(target)}. They were grounded anyway: no reputation lost`);
       }
     }
   };
@@ -670,6 +683,13 @@ export default function App() {
     const option = decision?.options.find(o => o.id === optionId);
     if (!decision || !option) {
       logWarn('decisions', `Decision ${decisionId} has no option ${optionId}; nothing was done`);
+      return;
+    }
+    // Checked before anything is paid: a question whose strike or disruption
+    // is gone by now would otherwise charge for nothing.
+    if (!decisionTargetExists(decision, { staff, disruptions })) {
+      logWarn('decisions', `Decision ${decisionId} is about ${decision.ref}, which no longer exists; dropped it`);
+      setPendingDecisions(prev => prev.filter(d => d.id !== decisionId));
       return;
     }
     if (option.cost > 0) spend(option.cost, `Decision: ${decision.title}`);
@@ -1231,7 +1251,7 @@ export default function App() {
     const flyingRegs = new Set<string>();
 
     // The same network pricing the route list shows, connecting passengers included.
-    const monthNetwork = computeNetworkFinancials(routes, fleet, playerMods, {
+    const monthEnv: NetworkEnv = {
       fuelPrice: currentFuelPrice,
       airportManagement,
       year: currentYearNum,
@@ -1239,7 +1259,14 @@ export default function App() {
       difficulty,
       airportsMap: localAirportsMap,
       rivalOffers
-    });
+    };
+    const monthNetwork = computeNetworkFinancials(routes, fleet, playerMods, monthEnv);
+    /** Ticket revenue of a whole network in a month, for pricing what a disruption costs. */
+    const networkRevenue = (list: SimulatedRoute[], mods: PlayerModifiers, env: NetworkEnv) => {
+      let week = 0;
+      computeNetworkFinancials(list, fleet, mods, env).finById.forEach(fin => { week += fin.estWeeklyRev || 0; });
+      return week * 4;
+    };
 
     routes.forEach(r => {
       const fin = monthNetwork.finById.get(r.id);
@@ -1325,7 +1352,20 @@ export default function App() {
     // Repairs after this month's disruptions (bird strikes). Their
     // cancellations are already in the route figures above, through playerMods.
     const incidentRepairs = disruptionRepairCost(disruptions, currentDateOffset);
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total - incidentRepairs;
+    // Replacement aircraft chartered for this month, billed as an operating
+    // cost: 90% of the tickets each one saved, with every other cause -- a
+    // strike above all -- applied. The routes' figures above already fly
+    // those flights, through playerMods.
+    const charterFees: Record<string, number> = {};
+    for (const d of disruptionsIn(disruptions, currentDateOffset)) {
+      if (!d.mitigated) continue;
+      const lost = marginalLostRevenue(d, disruptions, list =>
+        networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list }, currentDateOffset), monthEnv));
+      const fee = charterFee(lost);
+      if (fee > 0) charterFees[d.id] = fee;
+    }
+    const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total - incidentRepairs - charterCosts;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
@@ -1467,7 +1507,7 @@ export default function App() {
       const r = routes.find(x => x.id === id);
       return r ? `${r.origin}-${r.destination}` : 'a closed route';
     };
-    incidents.push(...disruptionIncidents(disruptions, currentDateOffset, routeLabel));
+    incidents.push(...disruptionIncidents(disruptions, currentDateOffset, routeLabel, charterFees));
 
     const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
 
@@ -1501,7 +1541,9 @@ export default function App() {
         marketing: marketingCost.total,
         marketingCampaigns: marketingCost.campaigns,
         ffp: marketingCost.ffp,
-        incidents: incidentRepairs
+        // Repairs and charters together, as the report lists them per incident.
+        incidents: incidentRepairs + charterCosts,
+        charters: charterCosts
       },
       marketingItems: marketingCost.items,
       // Only in months that had any; older reports have none.
@@ -1853,17 +1895,21 @@ export default function App() {
     });
 
     // The bigger disruptions are put to the player: charter a replacement or
-    // cancel. What is at stake is each route's revenue in next month's
-    // forecast before anything is cancelled.
+    // cancel. What is at stake is the revenue each one takes from next
+    // month's forecast, every other disruption applied. A strike called at
+    // this close is left out: its answer is still to come, and the charter
+    // is billed at the month's close on what it actually saved anyway.
     const majorCandidates = rolledDisruptions.filter(d => d.cancelShare >= MAJOR_DISRUPTION_SHARE);
     if (majorCandidates.length > 0) {
-      const { cancelShare: _c, cancelShareAll: _a, ...uncancelled } = nextMods;
-      const baseNetwork = computeNetworkFinancials(repriceForNextMonth(routes), fleet, uncancelled, nextEnv);
-      const revenueByRoute: Record<string, number> = {};
-      baseNetwork.finById.forEach((fin, id) => { revenueByRoute[id] = (fin.estWeeklyRev || 0) * 4; });
+      const repriced = repriceForNextMonth(routes);
+      const staffBeforeStrike: Staff = { ...nextStaff, strike: staffMonth.strikeCalled ? null : nextStaff.strike };
+      const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, list =>
+        networkRevenue(repriced, buildPlayerModifiers({
+          reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list
+        }, nextOffset), nextEnv))]));
       const monthStr = offsetToDateStr(nextOffset);
-      for (const d of disruptionsToAsk(majorCandidates, revenueByRoute)) {
-        queueDecision(buildDisruptionDecision(d, monthStr, revenueByRoute, routeLabel));
+      for (const d of disruptionsToAsk(majorCandidates, x => lostBy.get(x.id) ?? 0)) {
+        queueDecision(buildDisruptionDecision(d, monthStr, lostBy.get(d.id) ?? 0, routeLabel));
       }
     }
 
@@ -2162,8 +2208,8 @@ export default function App() {
    * next month's end.
    */
   const handleSetSalary = React.useCallback((pct: number) => {
-    const next = clampSalaryPct(pct);
-    setStaff(prev => (prev.salaryPct === next ? prev : { ...prev, salaryPct: next }));
+    // Never below the pay agreed to settle a recent strike (salaryFloor).
+    setStaff(prev => setSalary(prev, pct, marketingCtx.current.currentDateOffset));
   }, []);
 
   /** Sets every system saved since version 3 at once, from a save or from defaults. */
@@ -3153,7 +3199,7 @@ export default function App() {
                            // Only in months with a repair bill, e.g. after a bird strike.
                            ...((latestReport.breakdown.incidents || 0) > 0 ? [{
                              id: 'incidents',
-                             label: 'Incident repairs',
+                             label: 'Incident repairs & charters',
                              total: latestReport.breakdown.incidents,
                              items: (latestReport.incidents || [])
                                .filter((i: ReportIncident) => (i.cost || 0) > 0)

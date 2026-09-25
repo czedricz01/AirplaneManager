@@ -17,10 +17,15 @@
  *
  * A route hit twice loses flights to each cause independently (see
  * combineCancelShares). Disruptions of 25% and more are put to the player:
- * charter a replacement aircraft for 90% of the revenue at stake and nothing
- * is cancelled, or cancel the flights for free and lose a reputation point
- * per route hit, four at most. At most three such questions a month; the
- * rest, and the minor ones, are reported in the inbox and simply happen.
+ * charter a replacement aircraft and nothing is cancelled, or cancel the
+ * flights for free and lose a reputation point per route hit, four at most.
+ * At most three such questions a month; the rest, and the minor ones, are
+ * reported in the inbox and simply happen.
+ *
+ * A charter is billed at the close of the month it flies, as an operating
+ * cost: 90% of the ticket revenue it saved, with every other cause applied
+ * (marginalLostRevenue). A route a strike grounds anyway saves nothing and
+ * costs nothing to charter, and cancelling there costs no reputation either.
  *
  * Everything here is pure; the random generator is a parameter. Nothing here
  * reaches the AI airlines.
@@ -312,15 +317,21 @@ export function describeRouteCancellations(
   return out;
 }
 
-/** The disruptions of the month at `offset`, as the monthly report lists them. */
+/**
+ * The disruptions of the month at `offset`, as the monthly report lists them.
+ * `charterFees` holds what each chartered one was billed, by id; it is part
+ * of the incident's cost with any repairs.
+ */
 export function disruptionIncidents(
   disruptions: Disruption[] | undefined,
   offset: number,
-  routeName: (routeId: string) => string
+  routeName: (routeId: string) => string,
+  charterFees: Record<string, number> = {}
 ): ReportIncident[] {
   return disruptionsIn(disruptions, offset).map(d => {
     const names = d.routeIds.map(routeName);
     const where = names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
+    const cost = Math.max(0, Number(d.cost) || 0) + (d.mitigated ? Math.max(0, charterFees[d.id] || 0) : 0);
     return {
       kind: d.kind,
       title: disruptionTitle(d),
@@ -328,36 +339,59 @@ export function disruptionIncidents(
       cancelShare: d.mitigated ? 0 : d.cancelShare,
       routeCount: d.routeIds.length,
       ...(d.mitigated ? { mitigated: true } : {}),
-      ...((d.cost ?? 0) > 0 ? { cost: d.cost } : {})
+      ...(cost > 0 ? { cost } : {})
     };
   });
 }
 
 // --- Asking the player -------------------------------------------------------------
 
-/** Ticket revenue a disruption would cost, from each hit route's monthly revenue before any cancellation. */
-export function disruptionLostRevenue(d: Disruption, monthlyRevenueByRoute: Record<string, number>): number {
-  return d.routeIds.reduce((sum, id) => sum + Math.max(0, monthlyRevenueByRoute[id] || 0) * d.cancelShare, 0);
+/**
+ * The ticket revenue one disruption takes from the month, with every other
+ * cause applied: the month priced with it chartered away, minus priced with
+ * it cancelling. `revenueWith` prices the month's whole network for a list
+ * of disruptions; the strike, if any, is in whatever it prices with. What
+ * other causes cancel anyway is not counted twice, and a route a strike
+ * grounds entirely loses nothing more to it.
+ */
+export function marginalLostRevenue(
+  d: Disruption,
+  disruptions: Disruption[],
+  revenueWith: (disruptions: Disruption[]) => number
+): number {
+  const withIt = (mitigated: boolean) => {
+    const list = disruptions.map(x => (x.id === d.id ? { ...x, mitigated } : x));
+    return list.some(x => x.id === d.id) ? list : [...list, { ...d, mitigated }];
+  };
+  return Math.max(0, revenueWith(withIt(true)) - revenueWith(withIt(false)));
 }
 
-/** What chartering a replacement for a disruption costs, in whole dollars. */
-export function charterCost(d: Disruption, monthlyRevenueByRoute: Record<string, number>): number {
-  return Math.round(CHARTER_COST_SHARE * disruptionLostRevenue(d, monthlyRevenueByRoute));
-}
-
-/** Reputation lost by cancelling a disruption's flights instead of chartering. */
-export function cancelReputationPenalty(d: Disruption): number {
-  return Math.min(CANCEL_REPUTATION_MAX, d.routeIds.length * CANCEL_REPUTATION_PER_ROUTE);
+/** What a charter costs for the revenue it saves, in whole dollars. */
+export function charterFee(lostRevenue: number): number {
+  return Math.round(CHARTER_COST_SHARE * Math.max(0, Number(lostRevenue) || 0));
 }
 
 /**
- * The disruptions worth a question: 25% and more, with revenue at stake,
- * largest loss first, three at most. The rest are only reported.
+ * Reputation lost by cancelling a disruption's flights instead of chartering:
+ * a point per route hit, four at most, each route counted by the share of
+ * its flights that would otherwise have flown. `otherShare` gives what other
+ * causes, a strike above all, already cancel on a route; a route grounded
+ * entirely strands nobody more. Rounded to a tenth.
  */
-export function disruptionsToAsk(disruptions: Disruption[], monthlyRevenueByRoute: Record<string, number>): Disruption[] {
+export function cancelReputationPenalty(d: Disruption, otherShare: (routeId: string) => number = () => 0): number {
+  const raw = d.routeIds.reduce((sum, id) => sum + CANCEL_REPUTATION_PER_ROUTE * (1 - clamp01(otherShare(id) || 0)), 0);
+  return Math.round(Math.min(CANCEL_REPUTATION_MAX, raw) * 10) / 10;
+}
+
+/**
+ * The disruptions worth a question: 25% and more, with revenue at stake
+ * (`lostOf`, see marginalLostRevenue), largest loss first, three at most.
+ * The rest are only reported.
+ */
+export function disruptionsToAsk(disruptions: Disruption[], lostOf: (d: Disruption) => number): Disruption[] {
   return disruptions
     .filter(d => !d.mitigated && d.cancelShare >= MAJOR_DISRUPTION_SHARE)
-    .map(d => ({ d, lost: disruptionLostRevenue(d, monthlyRevenueByRoute) }))
+    .map(d => ({ d, lost: lostOf(d) }))
     .filter(x => x.lost > 0)
     .sort((a, b) => b.lost - a.lost || (a.d.id < b.d.id ? -1 : a.d.id > b.d.id ? 1 : 0))
     .slice(0, MAX_DISRUPTION_DECISIONS)
@@ -366,16 +400,18 @@ export function disruptionsToAsk(disruptions: Disruption[], monthlyRevenueByRout
 
 /**
  * The question for one disruption: charter a replacement or cancel. `ref` is
- * the disruption's id.
+ * the disruption's id. `lost` is the revenue at stake as the forecast sees
+ * it now. Neither answer costs anything up front: the charter is billed at
+ * the month's close on what it actually saved, so a strike settled or sat
+ * out in the meantime is priced in.
  */
 export function buildDisruptionDecision(
   d: Disruption,
   monthLabel: string,
-  monthlyRevenueByRoute: Record<string, number>,
+  lost: number,
   routeName: (routeId: string) => string
 ): GameDecision {
-  const lost = disruptionLostRevenue(d, monthlyRevenueByRoute);
-  const cost = charterCost(d, monthlyRevenueByRoute);
+  const fee = charterFee(lost);
   const penalty = cancelReputationPenalty(d);
   const pct = Math.round(d.cancelShare * 100);
   const routes = d.routeIds.length === 1
@@ -398,13 +434,15 @@ export function buildDisruptionDecision(
       {
         id: DISRUPTION_OPTION_CHARTER,
         label: 'Charter a replacement aircraft',
-        detail: `A leased aircraft flies every cancelled flight; passengers notice nothing. Costs ${Math.round(CHARTER_COST_SHARE * 100)}% of the revenue at stake.`,
-        cost
+        detail:
+          `A leased aircraft flies every cancelled flight; passengers notice nothing. Billed with the month's costs at ` +
+          `${Math.round(CHARTER_COST_SHARE * 100)}% of the ticket revenue it saves: about ${formatCurrency(fee)} at today's forecast.`,
+        cost: 0
       },
       {
         id: DISRUPTION_OPTION_CANCEL,
         label: 'Cancel the flights',
-        detail: `Nothing to pay, but stranded passengers cost ${penalty} reputation.`,
+        detail: `Nothing to pay, but stranded passengers cost up to ${penalty} reputation.`,
         cost: 0
       }
     ]

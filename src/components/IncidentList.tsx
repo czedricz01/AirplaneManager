@@ -30,7 +30,9 @@ export function IncidentList({ incidents, className = '' }: { incidents?: Report
                   {Math.round(inc.cancelShare * 100)}% cancelled · {inc.routeCount} route{inc.routeCount === 1 ? '' : 's'}
                 </span>
               )}
-              {(inc.cost ?? 0) > 0 && <span className="block text-white/50">repairs {formatCurrency(inc.cost!)}</span>}
+              {(inc.cost ?? 0) > 0 && (
+                <span className="block text-white/50">{inc.mitigated ? 'charter' : 'repairs'} {formatCurrency(inc.cost!)}</span>
+              )}
             </div>
           </li>
         ))}

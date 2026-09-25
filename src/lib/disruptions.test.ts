@@ -12,7 +12,7 @@ import {
   WEATHER_CHANCE,
   buildDisruptionDecision,
   cancelReputationPenalty,
-  charterCost,
+  charterFee,
   combineCancelShares,
   describeRouteCancellations,
   disruptionCancelShares,
@@ -21,6 +21,7 @@ import {
   disruptionsToAsk,
   dropPastDisruptions,
   isWinterIn,
+  marginalLostRevenue,
   rollDisruptions,
   technicalDefectChance,
   type DisruptionRoute
@@ -171,25 +172,50 @@ test('a chartered replacement cancels nothing', () => {
   const incidents = disruptionIncidents(list, 200, id => id.toUpperCase());
   assert.equal(incidents[0].mitigated, true);
   assert.equal(incidents[0].cancelShare, 0);
+  assert.equal(incidents[0].cost, undefined, 'no fee known, none listed');
   assert.equal(incidents[1].cost, BIRDSTRIKE_REPAIR_COST);
+  const billed = disruptionIncidents(list, 200, id => id, { a: 90_000, b: 5 });
+  assert.equal(billed[0].cost, 90_000, 'the charter billed at the close');
+  assert.equal(billed[1].cost, BIRDSTRIKE_REPAIR_COST, 'a fee only counts for a chartered one');
   assert.equal(disruptionRepairCost(list, 200), BIRDSTRIKE_REPAIR_COST);
   assert.equal(disruptionRepairCost(list, 201), 0);
 });
 
-test('the charter costs 90% of the revenue at stake, cancelling costs reputation', () => {
-  const revenue = { r1: 1_000_000, r2: 400_000 };
-  const tech = disruption({ routeIds: ['r1'] });
-  assert.equal(charterCost(tech, revenue), 225_000);
-  const strike = disruption({ kind: 'airport-strike', routeIds: ['r1', 'r2'], cancelShare: 0.3 });
-  assert.equal(charterCost(strike, revenue), Math.round(0.9 * 0.3 * 1_400_000));
+test('a charter is priced on what it saves with every other cause applied, cancelling on what it strands', () => {
+  // A stand-in network: each route earns its revenue less whatever share of its flights is cancelled.
+  const revenue: Record<string, number> = { r1: 1_000_000, r2: 400_000 };
+  const priceWith = (strikeShare: number) => (list: Disruption[]) => {
+    const shares = disruptionCancelShares(list, 200) ?? {};
+    return Object.entries(revenue).reduce((sum, [id, rev]) => sum + rev * (1 - combineCancelShares(strikeShare, shares[id])), 0);
+  };
+  const tech = disruption({ id: 'tech', routeIds: ['r1'] });
+  assert.equal(marginalLostRevenue(tech, [tech], priceWith(0)), 250_000);
+  assert.equal(charterFee(250_000), 225_000);
+  assert.equal(marginalLostRevenue(tech, [], priceWith(0)), 250_000, 'one not yet on the books is priced as if it were');
+
+  // A strike sat out grounds everything: nothing to save, nothing to pay. Settled, half as much.
+  assert.equal(marginalLostRevenue(tech, [tech], priceWith(1)), 0);
+  assert.equal(marginalLostRevenue(tech, [tech], priceWith(0.5)), 125_000);
+
+  // Two causes on one route: this one only takes its 25% of what the 30% airport strike leaves.
+  const airport = disruption({ id: 'ap', kind: 'airport-strike', routeIds: ['r1', 'r2'], cancelShare: 0.3 });
+  assert.ok(Math.abs(marginalLostRevenue(tech, [tech, airport], priceWith(0)) - 1_000_000 * 0.25 * 0.7) < 1e-6);
+  assert.ok(Math.abs(marginalLostRevenue(airport, [tech, airport], priceWith(0)) - (1_000_000 * 0.3 * 0.75 + 400_000 * 0.3)) < 1e-6);
+  // A chartered neighbour is no other cause: the airport strike is priced whole.
+  assert.ok(Math.abs(marginalLostRevenue(airport, [{ ...tech, mitigated: true }, airport], priceWith(0)) - 1_400_000 * 0.3) < 1e-6);
 
   assert.equal(cancelReputationPenalty(tech), 1);
+  assert.equal(cancelReputationPenalty(tech, () => 1), 0, 'grounded by a strike anyway: nobody more is stranded');
+  assert.equal(cancelReputationPenalty(tech, () => 0.5), 0.5);
+  assert.equal(cancelReputationPenalty(airport, id => (id === 'r1' ? 0.25 : 0)), 1.8);
   assert.equal(cancelReputationPenalty(disruption({ routeIds: ['a', 'b', 'c', 'd', 'e', 'f'] })), 4, 'capped');
 
-  const decision = buildDisruptionDecision(tech, '01/1975', revenue, id => id);
+  const decision = buildDisruptionDecision(tech, '01/1975', 250_000, id => id);
   assert.equal(decision.kind, 'disruption');
   assert.equal(decision.ref, tech.id);
-  assert.deepEqual(decision.options.map(o => [o.id, o.cost]), [[DISRUPTION_OPTION_CHARTER, 225_000], [DISRUPTION_OPTION_CANCEL, 0]]);
+  assert.deepEqual(decision.options.map(o => [o.id, o.cost]), [[DISRUPTION_OPTION_CHARTER, 0], [DISRUPTION_OPTION_CANCEL, 0]], 'nothing up front');
+  assert.match(decision.options[0].detail, /about \$225,000 at today's forecast/);
+  assert.match(decision.description, /about \$250,000 of ticket revenue/);
 });
 
 test('only the big ones are asked about, largest first, three a month', () => {
@@ -202,11 +228,12 @@ test('only the big ones are asked about, largest first, three a month', () => {
     disruption({ id: 'e', kind: 'weather', routeIds: ['r5', 'r4'], cancelShare: DISRUPTION_SPECS.weather.cancelShare }),
     disruption({ id: 'f', routeIds: ['closed'] })
   ];
-  const asked = disruptionsToAsk(list, revenue);
+  const lostOf = (d: Disruption) => d.routeIds.reduce((sum, id) => sum + (revenue[id] || 0) * d.cancelShare, 0);
+  const asked = disruptionsToAsk(list, lostOf);
   assert.deepEqual(asked.map(d => d.id), ['d', 'b', 'c']);
   assert.equal(asked.length, MAX_DISRUPTION_DECISIONS);
   assert.ok(!asked.some(d => d.id === 'e'), 'weather is minor');
-  assert.deepEqual(disruptionsToAsk([list[5]], revenue), [], 'nothing at stake, nothing to ask');
+  assert.deepEqual(disruptionsToAsk([list[5]], lostOf), [], 'nothing at stake, nothing to ask');
 });
 
 test('the route screens name every cause, with the share the engine applies', () => {

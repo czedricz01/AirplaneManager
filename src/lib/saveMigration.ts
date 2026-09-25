@@ -4,6 +4,7 @@ import { finiteOr } from './invariants';
 import { capMessages, createWelcomeMessage } from './messages';
 import { logWarn } from './debugLog';
 import { trimChronicle } from './chronicle';
+import { DISRUPTION_OPTION_CHARTER } from './disruptions';
 import { assignRivalColors, isHexColor } from './theme';
 import {
   CAMPAIGN_TIERS,
@@ -16,6 +17,7 @@ import {
   REGION_IDS,
   SALARY_PCT_MAX,
   SALARY_PCT_MIN,
+  decisionTargetExists,
   ensureFreeOption,
   type Branding,
   type ChronicleEntry,
@@ -232,15 +234,24 @@ function migrateMarketing(m: unknown, currentDateOffset: number): Marketing {
   };
 }
 
-function migrateStaff(s: unknown): Staff {
+/**
+ * Strikes and disruptions are rolled at a month's close for the month about
+ * to start, and the date moves on in the same step: a saved game never holds
+ * one dated after its current month. One that is would block every strike
+ * until then, or cancel flights in a month nobody has seen yet; it is dropped.
+ */
+function migrateStaff(s: unknown, currentDateOffset: number): Staff {
   const src = asObject<any>(s, {});
-  const strike = src.strike && typeof src.strike === 'object' && Number.isFinite(src.strike.startOffset)
+  const raw = src.strike;
+  const strike = raw && typeof raw === 'object' && Number.isFinite(raw.startOffset) && Math.round(raw.startOffset) <= currentDateOffset
     ? {
-        ...src.strike,
-        startOffset: Math.max(0, Math.round(src.strike.startOffset)),
-        cancelShare: clamp(finiteOr(src.strike.cancelShare, 0), 0, 1)
+        ...raw,
+        startOffset: Math.max(0, Math.round(raw.startOffset)),
+        cancelShare: clamp(finiteOr(raw.cancelShare, 0), 0, 1),
+        agreedPct: Number.isFinite(raw.agreedPct) ? clamp(raw.agreedPct, SALARY_PCT_MIN, SALARY_PCT_MAX) : undefined
       }
     : null;
+  if (strike && strike.agreedPct === undefined) delete strike.agreedPct;
   return {
     salaryPct: clamp(finiteOr(src.salaryPct, DEFAULT_STAFF.salaryPct), SALARY_PCT_MIN, SALARY_PCT_MAX),
     morale: clamp(finiteOr(src.morale, DEFAULT_STAFF.morale), 0, 100),
@@ -248,9 +259,10 @@ function migrateStaff(s: unknown): Staff {
   };
 }
 
-function migrateDisruptions(list: unknown): Disruption[] {
+function migrateDisruptions(list: unknown, currentDateOffset: number): Disruption[] {
   return asArray<any>(list)
     .filter(d => d && isString(d.id) && DISRUPTION_KINDS.includes(d.kind) && Number.isFinite(d.offset))
+    .filter(d => Math.round(d.offset) <= currentDateOffset)
     .map(d => {
       const { cost, mitigated, ...rest } = d;
       return {
@@ -272,7 +284,13 @@ function migrateDecisions(list: unknown): GameDecision[] {
       description: isString(d.description) ? d.description : '',
       options: asArray<any>(d.options)
         .filter(o => o && isString(o.id) && isString(o.label))
-        .map(o => ({ ...o, detail: isString(o.detail) ? o.detail : '', cost: Math.max(0, finiteOr(o.cost, 0)) }))
+        .map(o => ({
+          ...o,
+          detail: isString(o.detail) ? o.detail : '',
+          // A charter is billed at the month's close now; one saved with its
+          // old up-front price would be paid twice.
+          cost: d.kind === 'disruption' && o.id === DISRUPTION_OPTION_CHARTER ? 0 : Math.max(0, finiteOr(o.cost, 0))
+        }))
     }))
     // A question with nothing to answer would block the game, and so would
     // one whose every answer costs more than the player has.
@@ -332,6 +350,11 @@ export function migrateSave(raw: any): any {
   const startDateOffset = Math.max(0, Math.round(finiteOr(raw.startDateOffset, 0)));
   const currentDateOffset = Math.max(startDateOffset, Math.round(finiteOr(raw.currentDateOffset, startDateOffset)));
   const branding = migrateBranding(raw.branding);
+  const staff = migrateStaff(raw.staff, currentDateOffset);
+  const disruptions = migrateDisruptions(raw.disruptions, currentDateOffset);
+  // A question about a strike or disruption the save no longer holds would
+  // charge for nothing; see decisionTargetExists.
+  const pendingDecisions = migrateDecisions(raw.pendingDecisions).filter(d => decisionTargetExists(d, { staff, disruptions }));
   const migrated = {
     ...raw,
     saveVersion: SAVE_VERSION,
@@ -365,9 +388,9 @@ export function migrateSave(raw: any): any {
     ),
     branding,
     marketing: migrateMarketing(raw.marketing, currentDateOffset),
-    staff: migrateStaff(raw.staff),
-    disruptions: migrateDisruptions(raw.disruptions),
-    pendingDecisions: migrateDecisions(raw.pendingDecisions),
+    staff,
+    disruptions,
+    pendingDecisions,
     scenario: migrateScenario(raw.scenario),
     chronicle: migrateChronicle(raw.chronicle),
     // Older saves were started before the tutorial existed; their players do

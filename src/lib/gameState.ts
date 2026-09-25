@@ -70,6 +70,11 @@ export interface Strike {
   startOffset: number;
   /** Share of every one of the player's flights it cancels, 0-1. */
   cancelShare: number;
+  /**
+   * The pay agreed to settle it, when the player raised pay. Pay may not
+   * drop below it while the strike still weighs on morale (salaryFloor).
+   */
+  agreedPct?: number;
 }
 
 export interface Staff {
@@ -123,7 +128,7 @@ export interface ReportIncident {
   routeCount: number;
   /** A chartered replacement aircraft flew the cancelled flights. */
   mitigated?: boolean;
-  /** Repair bill charged in the month, in dollars. */
+  /** Repair bill, or for a chartered one the charter, charged in the month, in dollars. */
   cost?: number;
 }
 
@@ -163,6 +168,25 @@ export interface GameDecision {
   options: GameDecisionOption[];
   /** What the decision is about -- a route, a disruption -- for its handler. */
   ref?: string;
+}
+
+/**
+ * Whether what a decision asks about still exists: a strike question needs
+ * that strike to be the current one, a disruption question its disruption
+ * still on the books. Answering one that no longer does would charge for
+ * nothing; a load drops them.
+ */
+export function decisionTargetExists(
+  decision: Pick<GameDecision, 'kind' | 'ref'>,
+  state: { staff: Pick<Staff, 'strike'>; disruptions: Pick<Disruption, 'id'>[] }
+): boolean {
+  switch (decision.kind) {
+    case 'strike':
+      return !!state.staff.strike && String(state.staff.strike.startOffset) === decision.ref;
+    case 'disruption':
+      return state.disruptions.some(d => d.id === decision.ref);
+  }
+  return true;
 }
 
 /**

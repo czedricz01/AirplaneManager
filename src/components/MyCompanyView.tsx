@@ -36,7 +36,7 @@ interface MonthlyReport extends ReportMetrics {
   incidents?: ReportIncident[];
 }
 
-interface Props extends Omit<MarketingPanelProps, 'capital'>, Omit<StaffPanelProps, 'currentDateOffset'> {
+interface Props extends Omit<MarketingPanelProps, 'capital'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'> {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
@@ -204,6 +204,7 @@ function MyCompanyViewImpl({
               currentDateOffset={marketingProps.currentDateOffset}
               monthlyCrewCost={monthlyCrewCost}
               strikePending={strikePending}
+              noRoutes={routeCount === 0}
               onSetSalary={onSetSalary}
             />
           </div>
@@ -338,7 +339,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-white/80">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
                   <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
                   <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
-                  <p><strong className="text-white/80">Incident repairs</strong> — repair bills after operational disruptions such as bird strikes.</p>
+                  <p><strong className="text-white/80">Incident repairs &amp; charters</strong> — repair bills after operational disruptions such as bird strikes, and replacement aircraft chartered to fly cancelled flights.</p>
                   <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers. Deducted from cash but not from operating profit, which is why the two differ.</p>
                 </div>
               </div>
@@ -388,7 +389,7 @@ function MyCompanyViewImpl({
                   ...((latest!.breakdown.incidents || 0) > 0
                     ? [{
                         id: 'incidents',
-                        label: 'Incident repairs',
+                        label: 'Incident repairs & charters',
                         total: latest!.breakdown.incidents,
                         items: (latest!.incidents ?? []).filter(i => (i.cost ?? 0) > 0).map(i => ({ label: i.title, amount: i.cost ?? 0 }))
                       }]

@@ -11,6 +11,8 @@ import {
   crewCostFactor,
   isStrikeActive,
   moraleSatDelta,
+  salaryFloor,
+  setSalary,
   settleStrikeWithPayRise,
   staffOutlook,
   stepMorale,
@@ -19,7 +21,7 @@ import {
   strikeIsRecent,
   targetMorale
 } from './staff';
-import { buildPlayerModifiers, combineCancelShares, routeCancelShare, DEFAULT_STAFF, type Staff } from './gameState';
+import { buildPlayerModifiers, combineCancelShares, decisionTargetExists, routeCancelShare, DEFAULT_STAFF, type Staff } from './gameState';
 import { calculateRouteFinancials, getFlightDurationMinutes } from './financeUtils';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { calculateDistance } from '../data/airports';
@@ -214,4 +216,38 @@ test('the outlook shows what the coming close will do at today\'s pay', () => {
   assert.equal(worse.nextMorale, 28);
   assert.ok(Math.abs(worse.strikeChance - 0.042) < 1e-12);
   assert.equal(staffOutlook(staffAt(30, 80), 0, 100, true).strikeChance, 0, 'none while one waits for an answer');
+});
+
+test('a pay rise agreed to end a strike cannot be taken back while the strike is recent', () => {
+  const striking = staffAt(20, 80, { startOffset: 12, cancelShare: 1 });
+  const settled = settleStrikeWithPayRise(striking, 12);
+  assert.equal(settled.salaryPct, 90);
+  assert.equal(settled.strike?.agreedPct, 90);
+
+  assert.equal(salaryFloor(settled, 12), 90);
+  assert.equal(setSalary(settled, 80, 12).salaryPct, 90, 'dragged back down in the strike month: held at the agreed pay');
+  assert.equal(setSalary(settled, 110, 12).salaryPct, 110, 'raising it further is fine');
+  assert.equal(setSalary(settled, 80, 18).salaryPct, 90, 'still held six months on');
+  assert.equal(salaryFloor(settled, 19), SALARY_PCT_MIN, 'the agreement runs out with the strike\'s memory');
+  assert.equal(setSalary(settled, 80, 19).salaryPct, 80);
+
+  // Sitting a strike out agrees nothing; nor does a staff without strikes.
+  assert.equal(salaryFloor(striking, 12), SALARY_PCT_MIN);
+  assert.equal(setSalary(DEFAULT_STAFF, 50, 0).salaryPct, SALARY_PCT_MIN);
+  assert.equal(setSalary(DEFAULT_STAFF, 100, 0), DEFAULT_STAFF, 'unchanged pay, same object');
+});
+
+test('the outlook shows no strike risk for an airline without routes, as the close does', () => {
+  assert.ok(staffOutlook(staffAt(20, 80), 0, 100).strikeChance > 0);
+  assert.equal(staffOutlook(staffAt(20, 80), 0, 100, false, true).strikeChance, 0);
+});
+
+test('a question is only answered while what it asks about still exists', () => {
+  const staff = staffAt(20, 80, { startOffset: 12, cancelShare: 1 });
+  const disruptions = [{ id: 'dis_a' }];
+  assert.equal(decisionTargetExists({ kind: 'strike', ref: '12' }, { staff, disruptions }), true);
+  assert.equal(decisionTargetExists({ kind: 'strike', ref: '11' }, { staff, disruptions }), false, 'an older strike');
+  assert.equal(decisionTargetExists({ kind: 'strike', ref: '12' }, { staff: DEFAULT_STAFF, disruptions }), false);
+  assert.equal(decisionTargetExists({ kind: 'disruption', ref: 'dis_a' }, { staff, disruptions }), true);
+  assert.equal(decisionTargetExists({ kind: 'disruption', ref: 'dis_b' }, { staff, disruptions }), false);
 });

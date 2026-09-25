@@ -12,7 +12,8 @@
  * Below morale 35 the staff may strike, (35 - morale) x 0.6% a month. A
  * strike is called for the coming month and grounds all of it until the
  * player answers: a 10% pay rise halves the cancellations, sitting it out
- * grounds everything and costs reputation. Market pay settles morale at 50,
+ * grounds everything and costs reputation. A raise agreed with the unions
+ * holds: pay cannot drop below it while the strike weighs on morale. Market pay settles morale at 50,
  * which is also where satisfaction is neither helped nor hurt, and well clear
  * of the threshold; only an airline that underpays for months ever sees a
  * strike.
@@ -35,6 +36,25 @@ export const SALARY_PCT_STEP = 5;
 export function clampSalaryPct(pct: number): number {
   if (!Number.isFinite(pct)) return 100;
   return Math.max(SALARY_PCT_MIN, Math.min(SALARY_PCT_MAX, pct));
+}
+
+/**
+ * The lowest pay the player may set in the month at `offset`: the pay agreed
+ * to settle a strike, for as long as that strike weighs on morale, and the
+ * bottom of the range otherwise. Without it the raise could be taken back in
+ * the same month and the strike stay half-settled for nothing.
+ */
+export function salaryFloor(staff: Pick<Staff, 'strike'>, offset: number): number {
+  const agreed = staff.strike?.agreedPct;
+  return typeof agreed === 'number' && Number.isFinite(agreed) && strikeIsRecent(staff.strike, offset)
+    ? clampSalaryPct(agreed)
+    : SALARY_PCT_MIN;
+}
+
+/** Pay as the player sets it in the month at `offset`: inside the range and not below the floor. */
+export function setSalary(staff: Staff, pct: number, offset: number): Staff {
+  const next = Math.max(salaryFloor(staff, offset), clampSalaryPct(pct));
+  return next === staff.salaryPct ? staff : { ...staff, salaryPct: next };
 }
 
 /** What pay does to crew and ground staff cost: 110% pay, 110% cost. */
@@ -184,14 +204,16 @@ export function advanceStaff(staff: Staff, ctx: StaffMonthContext, rng: () => nu
 /**
  * The "raise pay" answer to the strike called for `strikeOffset`: pay up by
  * STRIKE_PAY_RAISE points, capped at the top of the range, and half the
- * flights operate. Unchanged when that strike is no longer the current one.
+ * flights operate. The new pay is recorded as agreed (see salaryFloor).
+ * Unchanged when that strike is no longer the current one.
  */
 export function settleStrikeWithPayRise(staff: Staff, strikeOffset: number): Staff {
   if (!staff.strike || staff.strike.startOffset !== strikeOffset) return staff;
+  const salaryPct = clampSalaryPct(staff.salaryPct + STRIKE_PAY_RAISE);
   return {
     ...staff,
-    salaryPct: clampSalaryPct(staff.salaryPct + STRIKE_PAY_RAISE),
-    strike: { ...staff.strike, cancelShare: STRIKE_SETTLED_CANCEL_SHARE }
+    salaryPct,
+    strike: { ...staff.strike, cancelShare: STRIKE_SETTLED_CANCEL_SHARE, agreedPct: salaryPct }
   };
 }
 
@@ -249,9 +271,10 @@ export interface StaffOutlook {
 /**
  * What the coming month close will do to morale at today's pay, for the staff
  * screen. It assumes the profit streak carries on; the close itself uses the
- * month's actual result.
+ * month's actual result. An airline without routes has nothing to strike
+ * against, as at the close.
  */
-export function staffOutlook(staff: Staff, profitStreak: number, currentOffset: number, strikePending = false): StaffOutlook {
-  const r = advanceStaff(staff, { profitStreak: profitStreak + 1, nextOffset: currentOffset + 1, strikePending }, () => 1);
+export function staffOutlook(staff: Staff, profitStreak: number, currentOffset: number, strikePending = false, noRoutes = false): StaffOutlook {
+  const r = advanceStaff(staff, { profitStreak: profitStreak + 1, nextOffset: currentOffset + 1, strikePending, noRoutes }, () => 1);
   return { target: r.target, nextMorale: r.staff.morale, strikeChance: r.chance };
 }
