@@ -12,7 +12,8 @@ import {
   Info,
   Save,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  ArrowLeftRight
 } from 'lucide-react';
 import { Airport } from '../data/airports';
 import {
@@ -25,6 +26,7 @@ import {
   tripInterval,
   tripStartMinute
 } from '../lib/scheduleUtils';
+import { formatWeekMinute, openShiftWindows, shiftTrips, timetablePeriod } from '../lib/aircraftAssignment';
 import type { OwnedAircraft } from './MyFleetView';
 import { SimulatedRoute, AirportInfrastructure } from '../App';
 
@@ -49,6 +51,12 @@ interface RouteScheduleEditViewProps {
   allRoutes: SimulatedRoute[];
   airportManagement: Record<string, AirportInfrastructure>;
   airlineCode: string;
+  /**
+   * The route is moving to `aircraft` from this registration (the route
+   * page's "Change"). The editor then offers the aircraft's free time slots
+   * and saves only a timetable that fits.
+   */
+  reassignFrom?: string;
   onSave: (updatedRoute: SimulatedRoute) => void;
   onClose: () => void;
 }
@@ -63,9 +71,11 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   allRoutes,
   airportManagement,
   airlineCode,
+  reassignFrom,
   onSave,
   onClose
 }) => {
+  const isReassign = !!reassignFrom;
   const airportsMap = React.useMemo(() => {
     const m = new Map<string, Airport>();
     allAirports.forEach(a => m.set(a.id, a));
@@ -128,6 +138,34 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       const own = tripInterval(trip);
       return occupied.some(occ => checkOverlap(own.start, own.end, occ.start, occ.end));
     });
+
+  // Where the whole timetable could move to on this aircraft. Only offered
+  // when the route is changing aircraft: there the player has to find a gap
+  // in someone else's week.
+  const freeWindows = useMemo(
+    () => (isReassign && schedule.length > 0 ? openShiftWindows(schedule, occupied) : []),
+    [isReassign, schedule, occupied]
+  );
+  const hasConflict = useMemo(() => conflictsWithOtherRoutes(schedule), [schedule, occupied]);
+  const leadStart = schedule.length > 0 ? tripStartMinute(referenceTrip(schedule)!) : 0;
+  const moveBy = (delta: number) => {
+    const next = shiftTrips(schedule, delta);
+    if (conflictsWithOtherRoutes(next)) return;
+    setSchedule(next);
+    const lead = referenceTrip(next);
+    if (lead) {
+      setFlightHour(lead.startHour);
+      setFlightMinute(lead.startMin);
+    }
+    setValidationMsg(null);
+  };
+  // A timetable that repeats every day is offered one day's slots, so the
+  // weekday would only confuse.
+  const isDaily = useMemo(() => timetablePeriod(schedule) === DAY_MIN, [schedule]);
+  const windowLabel = (delta: number) => {
+    const text = formatWeekMinute(leadStart + delta);
+    return isDaily ? text.slice(4) : text;
+  };
 
   // Shift schedule when flightHour/Minute changes
   useEffect(() => {
@@ -335,13 +373,19 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       {/* Header */}
       <div className="relative z-10 px-4 py-3 border-b border-white/10 flex justify-between items-center bg-black/40 backdrop-blur-md">
         <div className="flex flex-col">
-          <h2 className="text-3xl font-black uppercase tracking-widest text-aero-yellow italic">Edit Timetable</h2>
+          <h2 className="text-3xl font-black uppercase tracking-widest text-aero-yellow italic">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{selectedOrigin?.id}</span>
             <span className="text-aero-yellow/50">→</span>
             <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{selectedDest?.id}</span>
             <span className="mx-2 text-white/20">|</span>
-            <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{aircraft.registration}</span>
+            {isReassign ? (
+              <span className="text-xs font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5">
+                {reassignFrom} <ArrowLeftRight size={12} className="text-aero-yellow/60" /> <span className="text-aero-yellow">{aircraft.registration}</span>
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{aircraft.registration}</span>
+            )}
           </div>
         </div>
         <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-full transition-colors text-white/40 hover:text-white">
@@ -419,6 +463,36 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
             <div className="mt-2 text-3xs text-center text-white/20 uppercase tracking-[0.2em] font-bold">Block start (boarding) · takeoff {BOARDING_MIN} min later</div>
           </div>
 
+          {isReassign && (
+            <div className="flex flex-col gap-2">
+              <label className="block text-2xs uppercase tracking-widest text-white/40 font-black">Free Time Slots on {aircraft.registration}</label>
+              <p className="text-3xs text-white/30 leading-relaxed normal-case">
+                Block start of the first flight. Pick a slot, then fine-tune with the clock or by dragging. Grey blocks are flights {aircraft.registration} already flies.
+              </p>
+              {freeWindows.length === 0 ? (
+                <div className="text-2xs text-aero-warn font-bold">No free slot for all flights. Remove days to make room.</div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                  {freeWindows.map(w => {
+                    const isCurrent = w.from <= 0 && 0 <= w.to;
+                    return (
+                      <button
+                        key={w.from}
+                        onClick={() => { if (!isCurrent) moveBy(w.from); }}
+                        className={`px-2 py-1 text-3xs font-mono font-bold border rounded-sm transition-colors ${
+                          isCurrent ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-black/40 text-white/70 border-white/15 hover:border-aero-yellow hover:text-aero-yellow'
+                        }`}
+                        title={isCurrent ? 'The timetable is in this slot' : 'Move the timetable to the start of this slot'}
+                      >
+                        {w.from === w.to ? windowLabel(w.from) : `${windowLabel(w.from)} - ${windowLabel(w.to)}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {validationMsg && (
             <div className="bg-aero-panel border border-white/20 p-3 flex gap-2 items-start">
                <AlertCircle size={14} className="text-aero-warn shrink-0 mt-0.5" />
@@ -438,12 +512,17 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                 </div>
              </div>
 
+             {isReassign && hasConflict && (
+               <div className="text-2xs text-aero-warn font-bold normal-case">
+                 The timetable overlaps flights {aircraft.registration} already flies. Pick a free slot.
+               </div>
+             )}
              <button 
                 onClick={handleSave}
-                disabled={schedule.length === 0}
+                disabled={schedule.length === 0 || (isReassign && hasConflict)}
                 className="w-full py-4 px-6 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl disabled:opacity-50 flex items-center justify-center gap-2 rounded-none"
              >
-                <Save size={18} /> Update Schedule
+                {isReassign ? <><ArrowLeftRight size={18} /> Assign to {aircraft.registration}</> : <><Save size={18} /> Update Schedule</>}
              </button>
           </div>
         </div>
@@ -535,7 +614,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                    </motion.div>
                 </div>
                 <div>
-                   <h3 className="text-4xl font-black uppercase italic tracking-tighter">Schedule Updated</h3>
+                   <h3 className="text-4xl font-black uppercase italic tracking-tighter">{isReassign ? 'Aircraft Changed' : 'Schedule Updated'}</h3>
                    <div className="h-1 w-12 bg-black mx-auto my-3"></div>
                    <p className="text-xs uppercase tracking-[0.3em] font-bold opacity-80">Synchronizing fleet data...</p>
                 </div>

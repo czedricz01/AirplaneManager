@@ -300,6 +300,7 @@ const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
 import { generateUniqueRegistration } from "./utils/registration";
+import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
@@ -876,6 +877,8 @@ export default function App() {
   const [editingPricingRouteId, setEditingPricingRouteId] = useState<string | null>(null);
   const [isPurchasingForRoute, setIsPurchasingForRoute] = useState(false);
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
+  /** A route moving to another aircraft whose new time slot is being picked. */
+  const [reassigning, setReassigning] = useState<{ routeId: string; registration: string } | null>(null);
   const [routeFilter, setRouteFilter] = useState<string>("");
   const [appAlert, setAppAlert] = useState<string | null>(null);
   // Confirmations that need no decision; a blocking dialog for these interrupted every save.
@@ -1791,13 +1794,54 @@ export default function App() {
   const handleDeleteRoute = React.useCallback((id: string) => setRoutes(prev => prev.filter(r => r.id !== id)), []);
   const handleClearExternalRoute = React.useCallback(() => setExternalSelectedRoute(null), []);
 
-  const handleChangeRouteAircraft = React.useCallback((route: SimulatedRoute) => {
-    setPlanningOriginId(route.origin);
-    setPlanningDestId(route.destination);
-    setPlanningReg(route.aircraft);
-    setPlanningStep(1);
-    setEditingRouteId(route.id);
-    setIsPlanningRoute(true);
+  /**
+   * Hands routes to other aircraft (aircraft swap, route "Change"). Each patch
+   * replaces only the fields the move changes, so figures the month end wrote
+   * onto the route in the meantime are kept.
+   */
+  const handleReassignRoutes = React.useCallback((patches: RoutePatch[], note: string) => {
+    if (patches.length === 0) return;
+    const byId = new Map(patches.map(p => [p.id, p]));
+    setRoutes(prev => prev.map(r => {
+      const p = byId.get(r.id);
+      return p ? ({ ...r, ...p } as SimulatedRoute) : r;
+    }));
+    // The same rule as a route saved in the planner: an aircraft without a hub
+    // is based where its route starts.
+    setFleet(prev => prev.map(plane => {
+      if (plane.hubId) return plane;
+      const first = patches.find(p => p.aircraft === plane.registration);
+      return first ? { ...plane, hubId: first.origin } : plane;
+    }));
+    setToast(note);
+  }, []);
+
+  /**
+   * The route as it would be on the picked aircraft: re-timed for it and
+   * moved to the free time closest to its current times, as the starting
+   * point of the timetable. Worked out once, when the aircraft is picked;
+   * the editor keeps its own copy from then on.
+   */
+  const reassignDraft = useMemo(() => {
+    if (!reassigning) return null;
+    const route = routes.find(r => r.id === reassigning.routeId);
+    const plane = fleet.find(p => p.registration === reassigning.registration);
+    if (!route || !plane) return null;
+    const check = checkReassignment(
+      [route],
+      plane,
+      { routes, fleet, airports: airportsMapAdjusted, airportManagement, airlineCode },
+      { allowShift: true }
+    );
+    return { route: { ...route, ...check.patches[0] } as SimulatedRoute, plane, from: route.aircraft };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reassigning]);
+
+  /** Route page "Change": the aircraft is picked, its timetable opens to pick the time. */
+  const handleReassignAircraft = React.useCallback((routeId: string, registration: string) => {
+    setReassigning({ routeId, registration });
+    setIsEditingSchedule(false);
+    setIsPlanningRoute(false);
   }, []);
 
   const handleEditSchedule = React.useCallback((id: string) => {
@@ -2769,6 +2813,8 @@ export default function App() {
                            onStartRoute={handleStartRouteWithAircraft}
                            onSell={handleSellAircraft}
                            airlineCode={airlineCode}
+                           airportManagement={airportManagement}
+                           onReassignRoutes={handleReassignRoutes}
                         />
                       </React.Suspense>
                     </ViewFrame>
@@ -2784,7 +2830,7 @@ export default function App() {
                           onDeleteRoute={handleDeleteRoute}
                           externalSelectedRoute={externalSelectedRoute}
                           onClearExternalSelectedRoute={handleClearExternalRoute}
-                          onChangeAircraftRoute={handleChangeRouteAircraft}
+                          onReassignAircraft={handleReassignAircraft}
                           onEditSchedule={handleEditSchedule}
                           onEditCabinServices={setEditingCabinRouteId}
                           onEditFinancials={setEditingPricingRouteId}
@@ -2891,6 +2937,51 @@ export default function App() {
                     );
                   })()}
                   
+                  {reassignDraft && (() => {
+                    const { route: draftRoute, plane, from } = reassignDraft;
+                    const closeReassign = () => {
+                      setReassigning(null);
+                      const route = routes.find(r => r.id === draftRoute.id);
+                      if (route) {
+                        setExternalSelectedRoute(route);
+                        setActiveWindow('routes');
+                      }
+                    };
+                    // Sold while the timetable was open: nothing left to move to.
+                    if (!fleet.some(p => p.registration === plane.registration)) return null;
+                    return (
+                     <ErrorBoundary label="Change Aircraft" onReset={() => setReassigning(null)} resetLabel="CLOSE EDITOR">
+                      <React.Suspense fallback={<LazyFallback label="Change Aircraft" />}>
+                      <RouteScheduleEditView
+                        route={draftRoute}
+                        aircraft={plane}
+                        reassignFrom={from}
+                        allAirports={airports}
+                        allRoutes={routes}
+                        airportManagement={airportManagement}
+                        airlineCode={airlineCode}
+                        onSave={(updatedRoute) => {
+                          handleReassignRoutes(
+                            [{
+                              id: draftRoute.id,
+                              origin: draftRoute.origin,
+                              aircraft: plane.registration,
+                              schedule: updatedRoute.schedule || [],
+                              weeklyFlights: updatedRoute.schedule?.length || 0,
+                              durMin: draftRoute.durMin || 0,
+                              turnoverMin: draftRoute.turnoverMin || 0,
+                              ...(draftRoute.classConfigs ? { classConfigs: draftRoute.classConfigs } : {})
+                            }],
+                            `${draftRoute.origin}-${draftRoute.destination} is now flown by ${plane.registration}`
+                          );
+                        }}
+                        onClose={closeReassign}
+                      />
+                      </React.Suspense>
+                     </ErrorBoundary>
+                    );
+                  })()}
+
                   {editingCabinRouteId && (
                     <div className="absolute inset-0 z-[60] flex">
                      <ErrorBoundary label="Cabin Editor" onReset={() => setEditingCabinRouteId(null)} resetLabel="CLOSE EDITOR">
