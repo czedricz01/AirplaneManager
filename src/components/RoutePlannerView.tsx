@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen, AlertTriangle } from 'lucide-react';
+import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
@@ -16,7 +16,9 @@ import { loadAircraftImagesMap } from '../lib/imageUtils';
 // this one, differing only in groupId being required. One type now.
 import type { ConfigOutput } from './ConfigurePurchaseView';
 import type { ScheduledTrip } from './RouteScheduleEditView';
-import { readString } from '../lib/safeStorage';
+import { readJson, readString, writeJson } from '../lib/safeStorage';
+
+const HIDDEN_AIRCRAFT_KEY = 'planner_hidden_aircraft';
 import { findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import {
@@ -655,6 +657,87 @@ function RoutePlannerInner({
       return ac.maxRange >= dist;
     });
   }, [fleet, selectedOrigin, selectedDest, aircraftSearch, routes, routesByAircraft, airportsMap]);
+
+  // Aircraft the player hid from the selection list. They stay available in
+  // the collapsed "Hidden Aircraft" list below it. Kept in the browser like
+  // the other planner preferences, by registration.
+  const [hiddenRegs, setHiddenRegs] = useState<string[]>(() => {
+    const stored = readJson<unknown>(HIDDEN_AIRCRAFT_KEY, []);
+    return Array.isArray(stored) ? stored.filter((r): r is string => typeof r === 'string') : [];
+  });
+  const [showHiddenAircraft, setShowHiddenAircraft] = useState(false);
+  const setAircraftHidden = (registration: string, hidden: boolean) => {
+    setHiddenRegs(prev => {
+      const next = hidden ? Array.from(new Set([...prev, registration])) : prev.filter(r => r !== registration);
+      writeJson(HIDDEN_AIRCRAFT_KEY, next);
+      return next;
+    });
+  };
+  const hiddenSet = useMemo(() => new Set(hiddenRegs), [hiddenRegs]);
+  const shownAircraft = useMemo(() => validAircraft.filter(ac => !hiddenSet.has(ac.registration)), [validAircraft, hiddenSet]);
+  const hiddenAircraft = useMemo(() => validAircraft.filter(ac => hiddenSet.has(ac.registration)), [validAircraft, hiddenSet]);
+
+  // One aircraft card of the step-1 selection list; a hidden one offers "show" instead of "hide".
+  const renderAircraftCard = (ac: OwnedAircraft, isHidden: boolean) => {
+    let usedMins = 0;
+    // Grouped once above; this used to filter every route per card.
+    (routesByAircraft.get(ac.registration) || []).forEach(r => {
+       if (r.schedule) {
+          r.schedule.forEach((s: any) => {
+             const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+             usedMins += cycleMin;
+          });
+       }
+    });
+    const utilPercent = Math.round((usedMins / 10080) * 100);
+
+    return (
+      <div 
+        key={ac.registration}
+        onClick={() => setSelectedReg(ac.registration)}
+        className={`p-3 border border-white/10 bg-black/40 hover:bg-aero-yellow/20 hover:border-aero-yellow/50 cursor-pointer flex gap-4 ${isHidden ? 'opacity-60 hover:opacity-100' : ''}`}
+      >
+        <div className="w-20 h-14 bg-black/50 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+           <AircraftImage
+             safeName={aircraftImageName(ac)}
+             manufacturer={ac.manufacturer}
+             type={ac.type}
+             imagesMap={imagesMap}
+             fallback={<Plane size={24} className="text-white/20" />}
+           />
+        </div>
+        <div className="flex-1 flex flex-col justify-center">
+          <div className="flex justify-between items-center mb-1">
+            <div className="font-black text-sm flex gap-2 items-center">
+              {ac.registration}
+              {ac.hubId && (
+                <span className="text-4xs bg-white/10 px-1 border border-white/20 uppercase tracking-widest">{ac.hubId} HUB</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="text-2xs bg-white/10 px-1 py-0.5">{ac.class}</div>
+              <button
+                onClick={e => { e.stopPropagation(); setAircraftHidden(ac.registration, !isHidden); }}
+                className="p-1 text-white/30 hover:text-aero-yellow border border-transparent hover:border-aero-yellow/40 transition-colors"
+                title={isHidden ? 'Show in the list again' : 'Hide from the list'}
+                aria-label={isHidden ? `Show ${ac.registration}` : `Hide ${ac.registration}`}
+              >
+                {isHidden ? <Eye size={12} /> : <EyeOff size={12} />}
+              </button>
+            </div>
+          </div>
+          <div className="text-2xs flex justify-between text-white/50 font-mono">
+            <span>{ac.type} • {ac.maxRange.toLocaleString()} km</span>
+            <span>{ac.capacity} pax</span>
+          </div>
+          <div className="mt-2 w-full bg-black h-1 rounded-sm overflow-hidden relative">
+             <div className={`h-full ${utilPercent > 80 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
+          </div>
+          <div className="text-4xs text-white/40 mt-0.5 uppercase text-right tracking-widest leading-none">{utilPercent}% utilized</div>
+        </div>
+      </div>
+    );
+  };
 
   const mgt = airportManagement || {};
   const originAvail = getInfraAvailability(selectedOrigin, currentYear);
@@ -1759,56 +1842,28 @@ function RoutePlannerInner({
                          )}
                        </div>
                      )}
-                     {validAircraft.map(ac => {
-                       let usedMins = 0;
-                       // Grouped once above; this used to filter every route per card.
-                       (routesByAircraft.get(ac.registration) || []).forEach(r => {
-                          if (r.schedule) {
-                             r.schedule.forEach((s: any) => {
-                                const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
-                                usedMins += cycleMin;
-                             });
-                          }
-                       });
-                       const utilPercent = Math.round((usedMins / 10080) * 100);
-
-                       return (
-                         <div 
-                           key={ac.registration}
-                           onClick={() => setSelectedReg(ac.registration)}
-                           className="p-3 border border-white/10 bg-black/40 hover:bg-aero-yellow/20 hover:border-aero-yellow/50 cursor-pointer flex gap-4"
+                     {shownAircraft.length === 0 && hiddenAircraft.length > 0 && (
+                       <div className="border border-white/10 bg-white/[0.02] p-3 text-2xs font-mono text-white/40 leading-relaxed">
+                         All fitting aircraft are hidden. Open Hidden Aircraft below to show them again.
+                       </div>
+                     )}
+                     {shownAircraft.map(ac => renderAircraftCard(ac, false))}
+                     {hiddenAircraft.length > 0 && (
+                       <div className="border border-white/10 bg-black/30 mt-3">
+                         <button
+                           onClick={() => setShowHiddenAircraft(v => !v)}
+                           className="w-full flex items-center justify-between px-3 py-2 text-3xs uppercase font-black tracking-widest text-white/50 hover:text-white hover:bg-white/5 transition-colors"
                          >
-                           <div className="w-20 h-14 bg-black/50 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-                              <AircraftImage
-                                safeName={aircraftImageName(ac)}
-                                manufacturer={ac.manufacturer}
-                                type={ac.type}
-                                imagesMap={imagesMap}
-                                fallback={<Plane size={24} className="text-white/20" />}
-                              />
+                           <span className="flex items-center gap-2"><EyeOff size={12} /> Hidden Aircraft ({hiddenAircraft.length})</span>
+                           {showHiddenAircraft ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                         </button>
+                         {showHiddenAircraft && (
+                           <div className="p-2 space-y-2 border-t border-white/10">
+                             {hiddenAircraft.map(ac => renderAircraftCard(ac, true))}
                            </div>
-                           <div className="flex-1 flex flex-col justify-center">
-                             <div className="flex justify-between items-center mb-1">
-                               <div className="font-black text-sm flex gap-2 items-center">
-                                 {ac.registration}
-                                 {ac.hubId && (
-                                   <span className="text-4xs bg-white/10 px-1 border border-white/20 uppercase tracking-widest">{ac.hubId} HUB</span>
-                                 )}
-                               </div>
-                               <div className="text-2xs bg-white/10 px-1 py-0.5">{ac.class}</div>
-                             </div>
-                             <div className="text-2xs flex justify-between text-white/50 font-mono">
-                               <span>{ac.type} • {ac.maxRange.toLocaleString()} km</span>
-                               <span>{ac.capacity} pax</span>
-                             </div>
-                             <div className="mt-2 w-full bg-black h-1 rounded-sm overflow-hidden relative">
-                                <div className={`h-full ${utilPercent > 80 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
-                             </div>
-                             <div className="text-4xs text-white/40 mt-0.5 uppercase text-right tracking-widest leading-none">{utilPercent}% utilized</div>
-                           </div>
-                         </div>
-                       );
-                     })}
+                         )}
+                       </div>
+                     )}
                   </div>
                 </div>
               ) : (
