@@ -10,6 +10,8 @@ import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerContext';
 import type { PlannerSelection } from './routePlanner/plannerState';
 import { CabinConfigDialogs } from './routePlanner/CabinConfigDialogs';
+import { AircraftImage } from './AircraftImage';
+import { loadAircraftImagesMap } from '../lib/imageUtils';
 // The component used to declare a near-identical ScheduledTrip that shadowed
 // this one, differing only in groupId being required. One type now.
 import type { ConfigOutput } from './ConfigurePurchaseView';
@@ -190,6 +192,10 @@ const DEFAULT_CLASS_CONFIGS = {
   first: { catering: [['none']], extras: ['none'], service: ['none'] }
 };
 
+/** Same picture name the fleet view uses: "Airbus A320", slashes made safe. */
+const aircraftImageName = (ac: OwnedAircraft) =>
+  `${ac.manufacturer} ${ac.type}`.split('/').join('-').split('\\').join('-');
+
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
   onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, demandFactor = 1, rivalOffers = NO_RIVAL_OFFERS, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
@@ -210,6 +216,15 @@ function RoutePlannerInner({
     fleet.forEach(f => m.set(f.registration, f));
     return m;
   }, [fleet]);
+
+  // Uploaded aircraft pictures for the step 1 cards. Fetched once per session
+  // and shared with the fleet and market views.
+  const [imagesMap, setImagesMap] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let active = true;
+    loadAircraftImagesMap().then(map => { if (active) setImagesMap(map); });
+    return () => { active = false; };
+  }, []);
 
   // Checks for room for the draft timetable pass the route being edited as
   // `excludeRouteId`: its saved flights are being replaced by the draft, and
@@ -1763,8 +1778,14 @@ function RoutePlannerInner({
                            onClick={() => setSelectedReg(ac.registration)}
                            className="p-3 border border-white/10 bg-black/40 hover:bg-aero-yellow/20 hover:border-aero-yellow/50 cursor-pointer flex gap-4"
                          >
-                           <div className="w-16 h-16 bg-black/50 border border-white/10 flex items-center justify-center shrink-0">
-                              <Plane size={24} className="text-white/20" />
+                           <div className="w-20 h-14 bg-black/50 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                              <AircraftImage
+                                safeName={aircraftImageName(ac)}
+                                manufacturer={ac.manufacturer}
+                                type={ac.type}
+                                imagesMap={imagesMap}
+                                fallback={<Plane size={24} className="text-white/20" />}
+                              />
                            </div>
                            <div className="flex-1 flex flex-col justify-center">
                              <div className="flex justify-between items-center mb-1">
@@ -1794,9 +1815,6 @@ function RoutePlannerInner({
                   <div className="flex flex-col flex-1 overflow-hidden min-h-0 bg-black/40">
                     <div className="flex justify-between items-center bg-aero-yellow/10 p-2 border-b border-aero-yellow/20 shrink-0">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-black/50 border border-white/10 flex items-center justify-center shrink-0">
-                           <Plane size={14} className="text-white/20" />
-                        </div>
                         <div className="flex flex-col">
                            <div className="text-base font-black text-white leading-tight">{selectedAircraft.registration}</div>
                            <div className="flex gap-2 text-4xs uppercase tracking-widest font-mono text-white/40">
@@ -1810,6 +1828,15 @@ function RoutePlannerInner({
                     </div>
                     
                     <div className="p-4 space-y-4 font-mono text-2xs flex-1 overflow-y-auto custom-scrollbar pb-32">
+                       {/* Picture */}
+                       <div className="relative w-full aspect-[16/9] max-h-[180px] bg-black/60 border border-white/10 rounded-sm overflow-hidden">
+                          <AircraftImage
+                            safeName={aircraftImageName(selectedAircraft)}
+                            manufacturer={selectedAircraft.manufacturer}
+                            type={selectedAircraft.type}
+                            imagesMap={imagesMap}
+                          />
+                       </div>
                        {/* Config */}
                        <div className="grid grid-cols-4 gap-2 text-center text-3xs">
                           <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-white/30 uppercase mb-1">ECO</div><div className="font-bold">{selectedAircraft.config?.economy || 0}</div></div>

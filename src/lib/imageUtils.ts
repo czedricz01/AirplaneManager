@@ -76,7 +76,15 @@ export const getAircraftImageCandidates = (
   }
   const cacheKey = `${safeName}|${manufacturer || ''}|${type || ''}|${keyLookup || ''}`;
   const cached = candidateCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    // Drop URLs another card found dead since the list was built, so a card
+    // that mounts later (the route planner swaps list and detail view) does not
+    // retry them. The same array comes back while nothing has failed.
+    if (!cached.some(url => failedImageUrls.has(url))) return cached;
+    const live = cached.filter(url => !failedImageUrls.has(url));
+    candidateCache.set(cacheKey, live);
+    return live;
+  }
 
   const localCandidates: string[] = [];
   const remoteCandidates: string[] = [];
