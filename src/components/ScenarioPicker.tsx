@@ -32,12 +32,12 @@ export interface ScenarioPickerProps {
  */
 export function ScenarioPicker({ selectedId, onSelect }: ScenarioPickerProps) {
   const card = (selected: boolean) =>
-    `relative w-full h-full flex flex-col items-stretch justify-start text-left p-4 border rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
+    `relative w-full h-full flex flex-col items-stretch justify-start text-left p-4 short:p-3 border rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
       selected ? 'bg-aero-yellow/10 border-aero-yellow' : 'bg-aero-carbon border-white/10 hover:border-aero-yellow/50'
     }`;
 
   return (
-    <div role="radiogroup" aria-label="Game mode" className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div role="radiogroup" aria-label="Game mode" className="grid grid-cols-1 md:grid-cols-2 short:grid-cols-3 gap-3 short:gap-2">
       <button type="button" role="radio" aria-checked={selectedId === null} onClick={() => onSelect(null)} className={card(selectedId === null)}>
         <div className="flex items-center gap-2 mb-2">
           <Compass size={16} className={selectedId === null ? 'text-aero-yellow' : 'text-white/50'} aria-hidden="true" />

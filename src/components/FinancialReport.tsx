@@ -84,7 +84,7 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                       className="w-full flex justify-between items-center p-2 hover:bg-white/5 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-white/60 uppercase tracking-widest font-bold">Revenue</span>
+                        <span className="text-white/60 uppercase tracking-wider md:tracking-widest font-bold text-left">Revenue</span>
                         <ChevronDown size={12} className={`text-white/40 transition-transform ${openCategories.includes('rev') ? 'rotate-180' : ''}`} />
                       </div>
                       <span className="text-aero-yellow font-bold">
@@ -119,7 +119,7 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                       className="w-full flex justify-between items-center p-2 hover:bg-white/5 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-white/60 uppercase tracking-widest font-bold">{cat.label}</span>
+                        <span className="text-white/60 uppercase tracking-wider md:tracking-widest font-bold text-left">{cat.label}</span>
                         <ChevronDown size={12} className={`text-white/40 transition-transform ${openCategories.includes(cat.id) ? 'rotate-180' : ''}`} />
                       </div>
                       <span className={`font-bold ${signedClass(cat.variant, cat.total)}`}>
@@ -151,7 +151,7 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                {/* Total Costs Row if needed */}
                {totalCosts !== undefined && expenses.length === 0 && (
                  <div className="flex justify-between items-center p-2 bg-white/5 rounded-sm border border-white/5">
-                   <span className="text-white/60 uppercase tracking-widest font-bold">Total Costs</span>
+                   <span className="text-white/60 uppercase tracking-wider md:tracking-widest font-bold text-left">Total Costs</span>
                    <span className="text-aero-yellow/60 font-bold">-{formatCurrency(totalCosts)}</span>
                  </div>
                )}
