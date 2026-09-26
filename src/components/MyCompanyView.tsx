@@ -177,7 +177,7 @@ function MyCompanyViewImpl({
             role="tab"
             aria-selected={section === id}
             onClick={() => setSection(id)}
-            className={`px-2 md:px-4 py-2 -mb-px text-2xs uppercase tracking-widest font-black border-b-2 transition-colors ${
+            className={`px-2 md:px-4 py-2 -mb-px text-2xs uppercase tracking-wider md:tracking-widest font-black border-b-2 transition-colors ${
               section === id ? 'border-aero-yellow text-aero-yellow' : 'border-transparent text-white/40 hover:text-white'
             }`}
           >

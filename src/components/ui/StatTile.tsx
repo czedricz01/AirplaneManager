@@ -44,10 +44,11 @@ export function StatTile({
   return (
     <div className="bg-aero-panel border border-white/10 rounded-sm p-4">
       <span className="text-2xs uppercase tracking-widest text-white/40 font-black mb-2 block">{label}</span>
-      {/* Phones: one step smaller, and a long figure wraps inside the tile
-          instead of running over its border. */}
+      {/* Phones: smaller (an eight-figure sum fits a half-width tile at 360px),
+          and a longer figure wraps inside the tile instead of running over its
+          border. */}
       <div className="flex flex-wrap items-baseline gap-x-2">
-        <span className={`text-xl md:text-2xl font-mono font-bold text-white/80 min-w-0 [overflow-wrap:anywhere] ${valueClassName}`}>{value}</span>
+        <span className={`text-lg sm:text-xl md:text-2xl font-mono font-bold text-white/80 min-w-0 [overflow-wrap:anywhere] ${valueClassName}`}>{value}</span>
         {trend && <span className={`${trendColor} font-mono text-2xs`}>{trend}</span>}
       </div>
       {children}

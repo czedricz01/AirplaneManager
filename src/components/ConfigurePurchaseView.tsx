@@ -1341,7 +1341,9 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         <div className="md:h-24 short:h-auto px-3 md:px-4 py-3 md:py-0 short:py-2 bg-black/80 border-t border-white/5 flex flex-wrap items-center justify-between shrink-0 gap-3 md:gap-4 relative z-20">
           
           <button onClick={onCancel} className="border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-3 md:py-4 px-4 md:px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all mr-auto short:py-2">Cancel</button>
-          <div className="flex items-center gap-3">
+          {/* The unit price steps aside on a phone held sideways, so the rest of
+              the footer fits one row; the total next to the quantity says it. */}
+          <div className="flex items-center gap-3 short:hidden">
              <div className="flex flex-col">
                <span className="text-2xs uppercase font-mono tracking-[0.2em] text-white/40">
                  {isRenovating ? 'Renovation Unit Cost' : 'Unit Price'}
@@ -1354,18 +1356,18 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
           <div className="flex flex-wrap items-center justify-between md:justify-start gap-3 w-full md:w-auto short:w-auto">
             {!isRenovating && (
-              <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-sm p-1">
+              <div className="flex items-center gap-4 short:gap-2 bg-white/5 border border-white/10 rounded-sm p-1">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   disabled={quantity <= 1}
-                  className="w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-black/40"
+                  className="w-10 h-10 short:w-8 short:h-8 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-black/40"
                 >
                   <Minus size={16} />
                 </button>
                 <div className="font-mono text-xl font-bold w-12 text-center text-aero-yellow">{quantity}</div>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors"
+                  className="w-10 h-10 short:w-8 short:h-8 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors"
                 >
                   <Plus size={16} />
                 </button>

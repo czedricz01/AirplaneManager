@@ -16,6 +16,8 @@ import {
   Navigation,
   Wind,
   Bird,
+  Maximize2,
+  Minimize2,
   Target,
   X,
   ShoppingCart,
@@ -352,6 +354,7 @@ import { TutorialOverlay } from "./components/TutorialOverlay";
 import { restartTutorial, settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { autoScaleFor } from "./lib/layout";
+import { useFullscreen } from "./components/ui/useFullscreen";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
@@ -739,6 +742,7 @@ export default function App() {
     writeString('aero_ui_scale', String(value));
   };
   const [autoScale, setAutoScale] = useState(1.0);
+  const fullscreen = useFullscreen();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -3160,6 +3164,20 @@ export default function App() {
                   <div className="hidden sm:block h-4 w-px bg-white/10"></div>
                   <span className="hidden sm:inline text-white/25 font-mono text-2xs uppercase tracking-widest">{cloudStatusLabel}</span>
                   <div className="h-4 w-px bg-white/10"></div>
+                  {fullscreen.supported && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={fullscreen.toggle}
+                        aria-label={fullscreen.active ? 'Exit full screen' : 'Full screen'}
+                        className="text-white/40 hover:text-white font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
+                      >
+                        {fullscreen.active ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                        <span className="hidden sm:inline">{fullscreen.active ? 'Exit full screen' : 'Full screen'}</span>
+                      </button>
+                      <div className="h-4 w-px bg-white/10"></div>
+                    </>
+                  )}
                   <button 
                     onClick={handleDisconnect}
                     className="text-white/40 hover:text-white font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
@@ -3750,7 +3768,7 @@ export default function App() {
                     <div className="rail:relative">
                       <button
                          onClick={() => setIsMapSettingsOpen(!isMapSettingsOpen)}
-                         className="px-3 py-2 border border-white/10 text-white/40 text-2xs font-black uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-2"
+                         className="px-2 rail:px-3 py-2 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-1 rail:mr-2"
                       >
                         [ Map ]
                       </button>
@@ -3786,7 +3804,7 @@ export default function App() {
 
                     <button 
                        onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
-                       className="px-3 py-2 border border-white/10 text-white/40 text-2xs font-black uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all"
+                       className="px-2 rail:px-3 py-2 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all"
                     >
                       [ Menu ]
                     </button>
@@ -3795,6 +3813,9 @@ export default function App() {
                         <GameMenuOption label="Continue" onClick={() => setIsGameMenuOpen(false)} />
                         <GameMenuOption label="Save Game" onClick={() => { setShowSaveMenu(true); setIsGameMenuOpen(false); }} />
                         <GameMenuOption label="Settings" onClick={() => { setIsSettingsOpen(true); setIsGameMenuOpen(false); }} />
+                        {fullscreen.supported && (
+                          <GameMenuOption label={fullscreen.active ? 'Exit Full Screen' : 'Full Screen'} onClick={() => { fullscreen.toggle(); setIsGameMenuOpen(false); }} />
+                        )}
                         <div className="h-px bg-white/10 my-2"></div>
                         <GameMenuOption label="Return to Main Menu" onClick={() => { setIsGameMenuOpen(false); setShowExitSavePrompt(true); }} />
                       </div>
@@ -4678,7 +4699,8 @@ function ThemeMenuButton({
       `}>
         {index}
       </span>
-      <span className="flex-1 text-left px-3 font-black uppercase tracking-widest text-lg italic">
+      {/* Tighter letter spacing on narrow phones, so "Resume Game" stays on one line. */}
+      <span className="flex-1 text-left px-3 font-black uppercase tracking-wider sm:tracking-widest text-lg italic whitespace-nowrap">
         {label}
       </span>
       <span className={`pr-6 opacity-0 group-hover:opacity-100 transition-all ${primary ? 'text-black' : 'text-aero-yellow'}`}>

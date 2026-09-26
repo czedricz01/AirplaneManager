@@ -1679,7 +1679,7 @@ function RoutePlannerInner({
                      disabled={!isAllowed}
                      aria-current={isActive ? 'step' : undefined}
                      onClick={() => isAllowed && setStep(s.id)}
-                     className={`flex flex-1 md:flex-none justify-center items-center px-2 md:px-3 py-1.5 text-2xs uppercase font-bold tracking-wider md:tracking-widest whitespace-nowrap border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
+                     className={`flex flex-1 md:flex-none justify-center items-center px-1.5 md:px-3 py-1.5 text-2xs uppercase font-bold tracking-wide md:tracking-widest whitespace-nowrap border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
                        isActive ? 'bg-aero-yellow/10 text-aero-yellow cursor-default' : 
                        isAllowed ? 'text-white/60 hover:text-white hover:bg-white/5 cursor-pointer' : 'text-white/20 cursor-not-allowed'
                      }`}
@@ -2222,14 +2222,15 @@ function RoutePlannerInner({
             </div>
           </div>
 
-          {/* Step 1 Snug Footer Action Bar */}
-          <div className="p-4 mt-3 border border-white/10 bg-white/[0.01] flex shrink-0 rounded-sm w-full">
+          {/* Step 1 Snug Footer Action Bar. The step buttons are flatter on a
+              phone held sideways (short:py-2), where height is scarce. */}
+          <div className="p-4 short:p-2 mt-3 short:mt-2 border border-white/10 bg-white/[0.01] flex shrink-0 rounded-sm w-full">
              <div className="flex gap-4 w-full">
-                <button onClick={onClose} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Cancel</button>
+                <button onClick={onClose} className="flex-1 py-4 short:py-2 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Cancel</button>
                 <button 
                   disabled={!selectedOrigin || !selectedAircraft || !selectedDest || (destMgtLvl < 1)}
                   onClick={() => setStep(2)} 
-                  className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
+                  className="flex-[2] py-4 short:py-2 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
                 >
                   Next Step: Timetable <ChevronRight size={16} />
                 </button>
@@ -3222,8 +3223,8 @@ function RoutePlannerInner({
                       so the same cabin scores lower on a long haul.
                    </p>
                    <div className="flex gap-4 mt-auto">
-                      {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
-                      {!isEditingCabinOnly && <button onClick={() => setStep(4)} className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:bg-white transition-all shadow-2xl disabled:opacity-50">Next: Pricing</button>}
+                      {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 short:py-2 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
+                      {!isEditingCabinOnly && <button onClick={() => setStep(4)} className="flex-[2] py-4 short:py-2 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:bg-white transition-all shadow-2xl disabled:opacity-50">Next: Pricing</button>}
                       {isEditingCabinOnly && (
                         <button 
                           disabled={isFinalizing}
@@ -3272,7 +3273,7 @@ function RoutePlannerInner({
                                onClose();
                              }, 1500);
                           }}
-                          className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl font-sans">
+                          className="flex-[2] py-4 short:py-2 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl font-sans">
                           {isFinalizing ? 'Saving Cabin Configuration...' : 'Save Cabin Services'}
                         </button>
                       )}
@@ -3678,7 +3679,7 @@ function RoutePlannerInner({
 </div>
                      </div>
                      <div className="flex gap-4">
-                        {!isEditingPricingOnly && <button onClick={() => setStep(3)} className="flex-1 py-4 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
+                        {!isEditingPricingOnly && <button onClick={() => setStep(3)} className="flex-1 py-4 short:py-2 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
                         {!isEditingPricingOnly && (
                         <button
                           disabled={isFinalizing || schedule.length === 0}
@@ -3718,7 +3719,7 @@ function RoutePlannerInner({
                               setFlightNumberInbound((nextBase + 1).toString());
                             }, 2000);
                           }}
-                          className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans"
+                          className="flex-[2] py-4 short:py-2 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans"
                         >
                           {isFinalizing ? 'Finalizing...' : 'Finalize Route'}
                         </button>
@@ -3747,7 +3748,7 @@ function RoutePlannerInner({
                               onClose();
                             }, 1500);
                           }}
-                          className="flex-[2] py-4 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl font-sans"
+                          className="flex-[2] py-4 short:py-2 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl font-sans"
                         >
                           {isFinalizing ? 'Saving Pricing...' : 'Save Pricing'}
                         </button>
