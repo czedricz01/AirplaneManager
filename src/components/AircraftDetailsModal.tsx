@@ -95,8 +95,9 @@ export function AircraftDetailsModal({
     <Modal open onClose={onClose} size="xl" title={plane.registration} icon={<Plane size={20} />}>
       <div className="flex flex-col gap-4">
 
-            {/* Aircraft Blueprint Graphic */}
-            <div className="w-full aspect-[3/2] h-auto max-h-[300px] rounded-sm border border-white/10 overflow-hidden relative group shrink-0 bg-black/40">
+            {/* Aircraft Blueprint Graphic. Shorter on phones, where at full
+                size it filled the screen before any figure. */}
+            <div className="w-full aspect-[3/2] h-auto max-h-[300px] bar:max-h-[150px] short:max-h-[110px] rounded-sm border border-white/10 overflow-hidden relative group shrink-0 bg-black/40">
               <AircraftImage
                 safeName={safeName}
                 manufacturer={plane.manufacturer}

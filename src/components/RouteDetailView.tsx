@@ -122,16 +122,16 @@ export function RouteDetailView({
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
-      className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col font-sans p-4 overflow-y-auto custom-scrollbar"
+      className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col font-sans p-4 bar:p-3 short:p-2.5 overflow-y-auto custom-scrollbar"
     >
-      {/* Upright phones: smaller title, buttons below it. */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 shrink-0">
-        <h2 className="text-2xl md:text-4xl short:text-2xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg flex flex-wrap items-center gap-x-4">
+      {/* Upright phones: smaller title, buttons below it. Sideways: one slim row. */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bar:gap-2 mb-4 bar:mb-3 short:mb-2 shrink-0">
+        <h2 className="text-2xl md:text-4xl bar:text-xl short:text-lg font-mono text-aero-yellow uppercase tracking-[0.3em] bar:tracking-[0.15em] short:tracking-[0.15em] font-black drop-shadow-lg flex flex-wrap items-center gap-x-4 bar:gap-x-3">
           Route Detail
-          <span className="text-white/30 text-2xl">|</span>
+          <span className="text-white/30 text-2xl bar:text-xl short:text-lg">|</span>
           <span className="text-white">{flightNo}</span>
         </h2>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 bar:gap-2 short:gap-2">
           {confirmDelete && (
             <button
               onClick={() => setConfirmDelete(false)}
@@ -157,7 +157,7 @@ export function RouteDetailView({
           </button>
           <button
             onClick={onClose}
-            className="w-12 h-12 bg-black border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors text-white"
+            className="w-12 h-12 bar:w-9 bar:h-9 short:w-8 short:h-8 bg-black border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors text-white"
           >
             <X size={24} />
           </button>
@@ -178,19 +178,21 @@ export function RouteDetailView({
           </div>
         )}
         {/* Top Third: Hub - Aircraft - Destination */}
-        {/* Origin, route and destination side by side; stacked on upright phones,
-            where each block takes its own height (flex-none), or the middle one
-            gets clipped. */}
-        <div className="min-h-[280px] shrink-0 md:shrink flex flex-col md:flex-row border border-white/10 bg-black/40 relative overflow-hidden">
+        {/* Origin, route and destination side by side, as on the desktop but
+            without its 280px minimum on a phone held sideways. Upright phones
+            put origin and destination next to each other on top and the route
+            below (flex-wrap plus order); each block takes its own height
+            (flex-none), or the middle one gets clipped. */}
+        <div className="min-h-[280px] bar:min-h-0 short:min-h-0 shrink-0 md:shrink flex flex-row flex-wrap md:flex-nowrap border border-white/10 bg-black/40 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-aero-yellow/5 to-transparent pointer-events-none"></div>
-          <div className="flex-none md:flex-1 flex flex-col items-center justify-center py-4 md:py-0 border-b md:border-b-0 md:border-r border-white/10 relative z-10">
-            <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4">Origin Hub</span>
-            <span className="text-6xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.origin}</span>
-            <span className="text-white/50 text-xs mt-2 uppercase tracking-widest font-bold">{airportsMap.get(route.origin)?.name || "Unknown Airport"}</span>
+          <div className="order-1 md:order-none w-1/2 md:w-auto flex-none md:flex-1 flex flex-col items-center justify-center py-3 md:py-0 short:py-2 border-r border-white/10 relative z-10">
+            <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4 bar:mb-1 short:mb-1">Origin Hub</span>
+            <span className="text-6xl bar:text-4xl short:text-4xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.origin}</span>
+            <span className="text-white/50 text-xs mt-2 bar:mt-1 short:mt-1 uppercase tracking-widest font-bold text-center">{airportsMap.get(route.origin)?.name || "Unknown Airport"}</span>
           </div>
 
-          <div className="flex-none md:flex-1 flex flex-col justify-center px-4 md:px-12 py-4 md:py-0 relative overflow-hidden group border-b md:border-b-0 md:border-r border-white/10 z-10">
-            <div className="flex items-center justify-between mb-4">
+          <div className="order-3 md:order-none w-full md:w-auto flex-none md:flex-1 flex flex-col justify-center px-4 md:px-12 short:px-3 py-4 md:py-0 bar:py-3 short:py-2 relative overflow-hidden group border-t md:border-t-0 md:border-r border-white/10 z-10">
+            <div className="flex items-center justify-between mb-4 bar:mb-3 short:mb-2">
               <div className="flex flex-col">
                 <span className="text-white/30 text-2xs uppercase tracking-widest font-bold block mb-1">Assigned Aircraft</span>
                 <span className="text-white/80 font-mono text-xl">{route.aircraft}</span>
@@ -228,7 +230,7 @@ export function RouteDetailView({
               </div>
             )}
 
-            <div className="flex gap-4 items-center bg-white/5 p-4 border border-white/10 rounded-sm">
+            <div className="flex gap-4 items-center bg-white/5 p-4 bar:p-3 short:p-2 border border-white/10 rounded-sm">
               <div className="flex flex-col">
                 <span className="text-white/30 text-3xs uppercase tracking-widest font-bold mb-1">Weekly Pax</span>
                 <span className="text-2xl font-black text-aero-yellow">{formatNumber(financials?.paxPerWeek ?? route.paxPerWeek ?? 0)}</span>
@@ -263,7 +265,7 @@ export function RouteDetailView({
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between">
+            <div className="mt-4 bar:mt-3 short:mt-2 flex items-center justify-between">
               {route.durMin && (
                 <div className="flex items-center gap-3">
                   <span className="text-aero-yellow font-mono border border-aero-yellow/30 px-2 py-0.5 bg-aero-yellow/10 rounded-sm text-2xs">TIME-CLASS: {getFlightTimeClass(route.durMin)}</span>
@@ -275,17 +277,17 @@ export function RouteDetailView({
             </div>
           </div>
 
-          <div className="flex-none md:flex-1 flex flex-col items-center justify-center py-4 md:py-0 relative z-10">
-            <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4">Destination</span>
-            <span className="text-6xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.destination}</span>
-            <span className="text-white/50 text-xs mt-2 uppercase tracking-widest font-bold">{airportsMap.get(route.destination)?.name || "Unknown Airport"}</span>
+          <div className="order-2 md:order-none w-1/2 md:w-auto flex-none md:flex-1 flex flex-col items-center justify-center py-3 md:py-0 short:py-2 relative z-10">
+            <span className="text-white/30 text-2xs uppercase tracking-widest font-bold mb-4 bar:mb-1 short:mb-1">Destination</span>
+            <span className="text-6xl bar:text-4xl short:text-4xl font-black text-aero-yellow tracking-tighter drop-shadow-lg">{route.destination}</span>
+            <span className="text-white/50 text-xs mt-2 bar:mt-1 short:mt-1 uppercase tracking-widest font-bold text-center">{airportsMap.get(route.destination)?.name || "Unknown Airport"}</span>
           </div>
         </div>
 
         {/* Bottom Two Thirds: 3 Boxes */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           {/* Timetable Box */}
-          <div onClick={() => onEditSchedule && onEditSchedule(route.id)} className="border border-white/10 bg-black/40 flex flex-col hover:border-aero-yellow/50 hover:bg-aero-yellow/5 transition-colors cursor-pointer group relative overflow-hidden min-h-[400px] h-full">
+          <div onClick={() => onEditSchedule && onEditSchedule(route.id)} className="border border-white/10 bg-black/40 flex flex-col hover:border-aero-yellow/50 hover:bg-aero-yellow/5 transition-colors cursor-pointer group relative overflow-hidden min-h-[400px] bar:min-h-[240px] short:min-h-[200px] h-full">
             <div className="p-4 pb-4 border-b border-white/10 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <Clock className="text-aero-yellow" size={20} />

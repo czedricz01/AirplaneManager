@@ -148,7 +148,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
   const padBottom = Math.max(0, (totalRows - lastVisible) * ROW_HEIGHT);
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         title="AIRPORTS"
         right={

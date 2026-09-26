@@ -9,6 +9,7 @@
  *          on any phone held sideways, where height is what runs short.
  *   bar:   navigation as a bar along the bottom -- phones held upright.
  *   short: phones held sideways; compacts the frame to leave room for content.
+ *   tiny:  the same with the browser's address bar showing (see below).
  * Tailwind emits these after its own breakpoints, so they win over md: and lg:.
  */
 @custom-variant rail {
@@ -20,6 +21,11 @@
   @media (max-width: 767.98px) and (min-height: 500.02px) { @slot; }
 }
 @custom-variant short (@media (orientation: landscape) and (max-height: 500px));
+/*
+ * tiny: a phone held sideways with the browser's address bar showing, which
+ * leaves about 300px. Declared after short, so it wins over it.
+ */
+@custom-variant tiny (@media (orientation: landscape) and (max-height: 340px));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;

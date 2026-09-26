@@ -396,7 +396,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
   };
 
   return (
-    <div className="w-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans h-full overflow-hidden">
+    <div className="w-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans h-full overflow-hidden">
       <ViewHeader
         title="BUY AIRCRAFT"
         right={
@@ -791,15 +791,15 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             <div key={mfg} className="flex flex-col bg-black/40 border border-white/5 rounded-sm overflow-hidden shrink-0">
               <button 
                 onClick={() => toggleMfg(mfg)} 
-                className={`flex items-center gap-3 p-4 px-3 w-full text-left transition-colors ${isExpanded ? 'bg-white/5 border-b border-white/10 text-aero-yellow' : 'hover:bg-white/5 hover:text-white text-white/80'}`}
+                className={`flex items-center gap-3 p-4 bar:py-3 short:py-2 px-3 w-full text-left transition-colors ${isExpanded ? 'bg-white/5 border-b border-white/10 text-aero-yellow' : 'hover:bg-white/5 hover:text-white text-white/80'}`}
               >
                 {isExpanded ? <ChevronDown size={24} /> : <ChevronRight size={24} className="opacity-50" />}
-                <span className="text-2xl font-black uppercase tracking-widest leading-none">{mfg}</span>
+                <span className="text-2xl bar:text-xl short:text-lg font-black uppercase tracking-widest leading-none">{mfg}</span>
                 <span className="ml-auto text-xs font-mono opacity-50 tracking-widest">{familiesMap.size} Families</span>
               </button>
               
               {isExpanded && (
-                <div className="flex flex-col gap-10 p-4 bg-gradient-to-b from-white/[0.02] to-transparent">
+                <div className="flex flex-col gap-10 bar:gap-6 short:gap-4 p-4 bar:p-3 short:p-2.5 bg-gradient-to-b from-white/[0.02] to-transparent">
                   {families.map(fam => {
                     const planes = familiesMap.get(fam)!;
                     return (
@@ -809,9 +809,11 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                           {planes.map(plane => {
                             const imageName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
                             return (
-                              <div key={plane.id} className="bg-aero-panel border border-white/10 rounded-sm p-4 flex flex-col sm:flex-row gap-3 hover:border-aero-yellow/50 transition-colors group relative overflow-hidden">
-                                {/* Aircraft Tech Drawing Blueprint Graphic */}
-                                <div className={`shrink-0 bg-black/40 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center relative transition-all duration-300 ${expandedPlaneId === plane.id ? 'w-full sm:w-64 aspect-square' : 'w-full sm:w-48 aspect-square'}`}>
+                              <div key={plane.id} className="bg-aero-panel border border-white/10 rounded-sm p-4 bar:p-3 short:p-2.5 flex flex-row gap-3 hover:border-aero-yellow/50 transition-colors group relative overflow-hidden">
+                                {/* Aircraft Tech Drawing Blueprint Graphic. On phones a
+                                    thumbnail beside the figures; full width it filled
+                                    the screen with one aircraft at a time. */}
+                                <div className={`shrink-0 bg-black/40 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center relative transition-all duration-300 self-start ${expandedPlaneId === plane.id ? 'w-24 sm:w-64 short:w-28 aspect-square' : 'w-24 sm:w-48 short:w-28 aspect-square'}`}>
                                   <AircraftImage
                                     safeName={imageName}
                                     manufacturer={plane.manufacturer}

@@ -101,16 +101,16 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
   return (
     <div className="absolute inset-0 bg-black z-[2000] flex flex-col animate-in slide-in-from-bottom duration-500 shadow-2xl overflow-hidden">
       {/* Upright phones: the Confirm button drops below the title. */}
-      <div className="p-4 short:py-2 border-b border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/[0.02]">
-        <div className="flex items-center gap-4">
-          <div onClick={() => setActiveConfigClass(null)} className="w-12 h-12 flex items-center justify-center border border-white/10 rounded-sm cursor-pointer hover:bg-white hover:text-black hover:border-white transition-all shadow-inner group">
+      <div className="p-4 bar:p-3 short:py-1.5 short:px-3 border-b border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 short:gap-2 bg-white/[0.02]">
+        <div className="flex items-center gap-4 bar:gap-3 short:gap-3">
+          <div onClick={() => setActiveConfigClass(null)} className="w-12 h-12 bar:w-10 bar:h-10 short:w-9 short:h-9 shrink-0 flex items-center justify-center border border-white/10 rounded-sm cursor-pointer hover:bg-white hover:text-black hover:border-white transition-all shadow-inner group">
             <ChevronRight className="rotate-180 group-hover:scale-125 transition-transform" />
           </div>
           <div className="flex flex-col">
-            <h4 className="text-2xl md:text-4xl short:text-2xl font-black uppercase tracking-tighter text-white leading-none">
+            <h4 className="text-2xl md:text-4xl bar:text-xl short:text-lg font-black uppercase tracking-tighter text-white leading-none">
               Configure <span className="text-aero-yellow">{activeConfigClass === 'general' ? 'Global Standards' : activeConfigClass.toUpperCase()}</span>
             </h4>
-            <div className="text-2xs text-white/40 uppercase font-bold tracking-[0.3em] mt-3 flex flex-wrap gap-x-6 items-baseline">
+            <div className="text-2xs text-white/40 uppercase font-bold tracking-[0.3em] short:tracking-[0.15em] mt-3 bar:mt-2 short:mt-1 flex flex-wrap gap-x-6 short:gap-x-4 items-baseline">
               {activeConfigClass === 'general' ? (
                 <>
                   <div className="flex items-center gap-2 border-r border-white/10 pr-6">

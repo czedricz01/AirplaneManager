@@ -537,9 +537,9 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
       
       {/* Header */}
-      <div className="relative z-10 px-4 py-3 border-b border-white/10 flex justify-between items-center bg-black/40 backdrop-blur-md">
-        <div className="flex flex-col">
-          <h2 className="text-xl md:text-3xl font-black uppercase tracking-widest text-aero-yellow italic">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
+      <div className="relative z-10 px-4 py-3 short:py-1.5 border-b border-white/10 flex justify-between items-center bg-black/40 backdrop-blur-md">
+        <div className="flex flex-col short:flex-row short:items-baseline short:gap-4">
+          <h2 className="text-xl md:text-3xl short:text-lg font-black uppercase tracking-widest text-aero-yellow italic">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{selectedOrigin?.id}</span>
             <span className="text-aero-yellow/50">→</span>
@@ -554,7 +554,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
             )}
           </div>
         </div>
-        <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-full transition-colors text-white/40 hover:text-white">
+        <button onClick={onClose} className="p-3 short:p-1.5 hover:bg-white/10 rounded-full transition-colors text-white/40 hover:text-white">
           <X size={24} />
         </button>
       </div>
