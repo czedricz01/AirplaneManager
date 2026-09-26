@@ -53,6 +53,9 @@ interface Props {
   onReassignRoutes?: (patches: RoutePatch[], note: string) => void;
 }
 
+/** KPI labels on phones: one line, cut short if need be, instead of wrapping onto two. */
+const KPI_LABEL = 'bar:truncate short:truncate bar:max-w-full short:max-w-full bar:tracking-normal short:tracking-normal short:mb-0.5';
+
 function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, airlineCode = '', airportManagement, onReassignRoutes }: Props) {
   const [search, setSearch] = useState("");
   const [filterAlertsOnly, setFilterAlertsOnly] = useState(false);
@@ -242,14 +245,14 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
   }, [fleet, routesByAircraft, modelSummaries]);
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         icon={<Plane className="text-aero-yellow" size={28} />}
         title="MY FLEET"
         right={
-          <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+          <div className="flex flex-wrap short:flex-nowrap short:min-w-0 items-center gap-2 lg:gap-3">
             {/* Search Input */}
-            <div className="relative flex-1 min-w-40 sm:w-64">
+            <div className="relative flex-1 min-w-40 short:min-w-24 sm:w-64">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={15} className="text-white/40" />
               </div>
@@ -274,7 +277,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
               }`}
             >
               <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-aero-warn animate-pulse' : ''} />
-              <span>Alerts (&lt;40%)</span>
+              <span className="short:hidden">Alerts (&lt;40%)</span>
               {summaryStats.alertsCount > 0 && (
                 <span className="bg-aero-warn text-black text-2xs px-1.5 py-0.2 rounded-full font-black">
                   {summaryStats.alertsCount}
@@ -285,14 +288,14 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             {/* Grouping Selector (only relevant for grid/table) */}
             {viewMode !== 'models' && (
               <div className="flex items-center bg-black/60 border border-white/10 rounded-sm p-0.5 font-mono text-xs">
-                <span className="px-2 text-2xs text-white/40 uppercase tracking-wider font-bold hidden sm:inline flex items-center gap-1">
+                <span className="px-2 text-2xs text-white/40 uppercase tracking-wider font-bold hidden sm:inline short:hidden flex items-center gap-1">
                   <Layers size={12} /> Group:
                 </span>
                 {(['family', 'category', 'manufacturer', 'none'] as GroupBy[]).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setGroupBy(mode)}
-                    className={`px-2.5 py-1 text-2xs font-bold uppercase tracking-wider rounded-sm transition-all ${
+                    className={`px-2.5 short:px-1.5 py-1 text-2xs font-bold uppercase tracking-wider rounded-sm transition-all ${
                       groupBy === mode
                         ? 'bg-aero-yellow text-black shadow-md'
                         : 'text-white/60 hover:text-white hover:bg-white/5'
@@ -316,7 +319,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                 }`}
               >
                 <Boxes size={15} />
-                <span>Models</span>
+                <span className="short:hidden">Models</span>
               </button>
               <button
                 onClick={() => setViewMode('grid')}
@@ -345,17 +348,19 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         }
       />
 
-      {/* Summary KPI Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-4 shrink-0 font-mono">
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 rounded-sm">
-          <StatTile size="sm" label="Aircraft Types" value={summaryStats.modelCount} valueClassName="text-aero-yellow" />
+      {/* Summary KPI Bar. On phones a slim strip (three a row upright, all six
+          sideways) with one-line labels, so the aircraft below get the room. */}
+      <div className="grid grid-cols-2 sm:grid-cols-6 bar:grid-cols-3 gap-2 bar:gap-1.5 short:gap-1.5 mb-4 bar:mb-2 short:mb-2 shrink-0 font-mono">
+        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
+          <StatTile size="sm" labelClassName={KPI_LABEL} label="Aircraft Types" value={summaryStats.modelCount} valueClassName="text-aero-yellow" />
         </div>
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 rounded-sm">
-          <StatTile size="sm" label="Total Fleet" value={summaryStats.total} />
+        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
+          <StatTile size="sm" labelClassName={KPI_LABEL} label="Total Fleet" value={summaryStats.total} />
         </div>
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 rounded-sm">
+        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile
             size="sm"
+            labelClassName={KPI_LABEL}
             label="Active Aircraft"
             value={<>{summaryStats.activeCount} <span className="text-3xs text-white/40">({summaryStats.idleCount} Idle)</span></>}
             valueClassName="text-white/80"
@@ -365,7 +370,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         {/* Condition Alert KPI Card */}
         <div
           onClick={() => setFilterAlertsOnly(!filterAlertsOnly)}
-          className={`px-3 py-2 rounded-sm cursor-pointer transition-all ${
+          className={`px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm cursor-pointer transition-all ${
             summaryStats.alertsCount > 0
               ? filterAlertsOnly
                 ? 'bg-aero-panel border border-white/10 ring-1 ring-red-500'
@@ -375,23 +380,26 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         >
           <StatTile
             size="sm"
+            labelClassName={KPI_LABEL}
             label="Alerts (<40%)"
             value={summaryStats.alertsCount}
             valueClassName={summaryStats.alertsCount > 0 ? 'text-aero-warn' : 'text-white/50'}
           />
         </div>
 
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 rounded-sm">
+        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile
             size="sm"
+            labelClassName={KPI_LABEL}
             label="Avg Int. Cond"
             value={`${summaryStats.avgIntCond}%`}
             valueClassName={CONDITION_TEXT_CLASS[conditionTone(summaryStats.avgIntCond)]}
           />
         </div>
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 rounded-sm">
+        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile
             size="sm"
+            labelClassName={KPI_LABEL}
             label="Avg Gen. Cond"
             value={`${summaryStats.avgGenCond}%`}
             valueClassName={CONDITION_TEXT_CLASS[conditionTone(summaryStats.avgGenCond)]}

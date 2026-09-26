@@ -3104,7 +3104,7 @@ export default function App() {
                 screens. Sideways phones get a slightly wider, compact rail with
                 no spacer, since height is what they lack. */}
         {view === 'game' && (
-          <div className="order-last rail:order-none w-full rail:w-14 lg:rail:w-16 short:w-16 bg-aero-panel border-t rail:border-t-0 rail:border-r border-white/10 flex flex-row rail:flex-col items-stretch rail:items-center rail:pb-4 short:pb-0 shrink-0 z-50 rail:h-full overflow-auto no-scrollbar bar:scrollbar-hidden short:scrollbar-hidden">
+          <div className="order-last rail:order-none w-full rail:w-14 lg:rail:w-16 short:w-16 tiny:w-12 bg-aero-panel border-t rail:border-t-0 rail:border-r border-white/10 flex flex-row rail:flex-col items-stretch rail:items-center rail:pb-4 short:pb-0 shrink-0 z-50 rail:h-full overflow-auto no-scrollbar bar:scrollbar-hidden short:scrollbar-hidden">
             {/* Spacer corresponding to the h-14 height of the Game Stats Bar */}
             <div className="hidden rail:block short:hidden h-14 shrink-0 w-full" />
             <div className="flex flex-row rail:flex-col w-full">
@@ -3192,10 +3192,12 @@ export default function App() {
                   <circle cx="700" cy="80" r="3" fill="#FACC15" />
                 </svg>
 
-                <div className="w-full max-w-2xl z-10 flex flex-col gap-8 sm:gap-12 short:gap-6 border border-white/5 bg-aero-panel/30 rounded-sm p-5 sm:p-8 lg:p-14 short:p-6 my-auto">
-                  <div className="space-y-4">
-                    <Bird className="text-aero-yellow" size={64} strokeWidth={2.5} />
-                    <h1 className="text-6xl sm:text-8xl short:text-6xl font-black italic tracking-tighter leading-none">
+                {/* On a phone held sideways the logo and the menu sit side by side,
+                    so the whole card fits the short screen without scrolling. */}
+                <div className="w-full max-w-2xl short:max-w-3xl z-10 flex flex-col short:flex-row short:items-center gap-8 sm:gap-12 short:gap-8 border border-white/5 bg-aero-panel/30 rounded-sm p-5 sm:p-8 lg:p-14 short:p-5 my-auto">
+                  <div className="space-y-4 short:space-y-2 short:shrink-0">
+                    <Bird className="text-aero-yellow short:w-12 short:h-12" size={64} strokeWidth={2.5} />
+                    <h1 className="text-6xl sm:text-8xl short:text-6xl tiny:text-5xl font-black italic tracking-tighter leading-none">
                       <span className="text-aero-yellow">AM</span><br/>
                       <span className="text-white">NEO</span>
                     </h1>
@@ -3229,7 +3231,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 short:gap-2 short:flex-1 short:min-w-0">
                     <ThemeMenuButton
                       index="01"
                       label="Resume Game"
@@ -3269,13 +3271,13 @@ export default function App() {
                 key="start-menu"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex-1 min-h-0 p-4 lg:p-12 overflow-y-auto custom-scrollbar"
+                className="flex-1 min-h-0 p-4 lg:p-12 short:pt-2 bar:pb-0 short:pb-0 overflow-y-auto custom-scrollbar"
               >
-                <div className="max-w-4xl mx-auto space-y-12 pb-20">
-                  <div className="flex items-end justify-between gap-4 border-b border-white/10 pb-6">
+                <div className="max-w-4xl mx-auto space-y-12 bar:space-y-5 short:space-y-3 pb-20 bar:pb-0 short:pb-0">
+                  <div className="flex items-end short:items-center justify-between gap-4 border-b border-white/10 pb-6 bar:pb-3 short:pb-2">
                     <div>
-                      <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2">Operation: Initialize</span>
-                      <h2 className="text-4xl sm:text-5xl font-black italic uppercase tracking-tighter leading-none">Pre-Flight <span className="text-aero-yellow">Config</span></h2>
+                      <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2 bar:hidden short:hidden">Operation: Initialize</span>
+                      <h2 className="text-4xl sm:text-5xl bar:text-3xl short:text-3xl tiny:text-2xl font-black italic uppercase tracking-tighter leading-none">Pre-Flight <span className="text-aero-yellow">Config</span></h2>
                     </div>
                     <button 
                       onClick={() => setView('main-menu')}
@@ -3285,8 +3287,9 @@ export default function App() {
                     </button>
                   </div>
 
-                  <div className="space-y-8 max-w-2xl mx-auto">
-                    <div className="space-y-4">
+                  {/* On a phone held sideways the settings go into two columns. */}
+                  <div className="space-y-8 bar:space-y-5 max-w-2xl mx-auto short:max-w-none short:space-y-0 short:grid short:grid-cols-2 short:gap-x-6 short:gap-y-3">
+                    <div className="space-y-4 short:space-y-2 short:col-span-2">
                       <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
                       <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} />
                       {newGameScenario && (
@@ -3298,31 +3301,31 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-4">
+                      <div className="space-y-4 short:space-y-2">
                         <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Name</label>
                         <input 
                           type="text" 
                           value={airlineName}
                           onChange={(e) => setAirlineName(e.target.value)}
                           placeholder="Neo Airlines"
-                          className="w-full bg-aero-carbon border border-white/10 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
                         />
                       </div>
-                      <div className="space-y-4">
+                      <div className="space-y-4 short:space-y-2">
                         <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Code</label>
                         <input 
                           type="text" 
                           value={airlineCode}
                           onChange={handleAirlineCodeChange}
                           placeholder="NX"
-                          className="w-full bg-aero-carbon border border-white/10 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow uppercase placeholder:text-white/20"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow uppercase placeholder:text-white/20"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 short:space-y-2">
                       <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Livery</div>
-                      <div className="bg-aero-carbon border border-white/10 p-4">
+                      <div className="bg-aero-carbon border border-white/10 p-4 short:p-2.5">
                         <BrandingPicker
                           value={newGameBranding}
                           onChange={setNewGameBranding}
@@ -3333,7 +3336,7 @@ export default function App() {
                       <p className="text-2xs text-white/40 italic">Your routes and aircraft are drawn in this colour; rivals get colours clearly apart from it.</p>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 short:space-y-2">
                       <div className="flex justify-between items-end gap-2">
                         <label htmlFor="new-game-hub" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
                         <ScenarioLock scenario={newGameScenario} />
@@ -3344,7 +3347,7 @@ export default function App() {
                           value={selectedHub}
                           disabled={!!newGameScenario}
                           onChange={(e) => setSelectedHub(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 short:py-2.5 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
                         >
                           {airportsByName.map(a => (
                             <option key={a.id} value={a.id}>{a.name} ({a.id}) - Level {a.level}</option>
@@ -3356,7 +3359,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 short:space-y-2">
                       <div className="flex justify-between items-end gap-2">
                         <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
                         <ScenarioLock scenario={newGameScenario} />
@@ -3367,7 +3370,7 @@ export default function App() {
                             key={diff}
                             disabled={!!newGameScenario}
                             onClick={() => setDifficulty(diff)}
-                            className={`flex-1 p-4 font-mono text-sm border uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow disabled:opacity-40 disabled:hover:border-white/10'}`}
+                            className={`flex-1 p-4 short:p-2.5 font-mono text-sm border uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow disabled:opacity-40 disabled:hover:border-white/10'}`}
                           >
                             {diff}
                           </button>
@@ -3375,13 +3378,13 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 short:space-y-2">
                       <div className="flex justify-between items-end gap-2">
                         <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
                         <ScenarioLock scenario={newGameScenario} />
                       </div>
                       {newGameScenario ? (
-                        <div className="p-4 font-mono text-xs border uppercase tracking-widest bg-aero-yellow/10 border-aero-yellow/40 text-aero-yellow">
+                        <div className="p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest bg-aero-yellow/10 border-aero-yellow/40 text-aero-yellow">
                           {formatCurrency(newGameScenario.capital)} and the scenario's fleet
                         </div>
                       ) : (
@@ -3390,7 +3393,7 @@ export default function App() {
                           <button
                             key={budget}
                             onClick={() => setStartingBudget(budget)}
-                            className={`flex-1 min-w-[100px] p-4 font-mono text-xs border uppercase tracking-widest transition-colors ${startingBudget === budget ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
+                            className={`flex-1 min-w-[100px] p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest transition-colors ${startingBudget === budget ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
                           >
                             {budget}
                           </button>
@@ -3399,7 +3402,7 @@ export default function App() {
                       )}
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 short:space-y-2">
                       <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Debug Mode</label>
                       <div className="flex gap-4">
                         {[
@@ -3413,7 +3416,7 @@ export default function App() {
                               setDebugMode(opt.value);
                               writeString('airline_debug_mode', String(opt.value));
                             }}
-                            className={`flex-1 p-4 font-mono text-xs border uppercase tracking-widest transition-all ${debugMode === opt.value ? 'bg-aero-yellow text-black border-aero-yellow font-black shadow-2xl' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow/50'}`}
+                            className={`flex-1 p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest transition-all ${debugMode === opt.value ? 'bg-aero-yellow text-black border-aero-yellow font-black shadow-2xl' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow/50'}`}
                           >
                             {opt.label}
                           </button>
@@ -3423,7 +3426,7 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-4">
+                      <div className="space-y-4 short:space-y-2">
                         <div className="flex justify-between items-end">
                           <label htmlFor="new-game-rivals" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
                           <span className="flex items-center gap-3">
@@ -3446,7 +3449,7 @@ export default function App() {
                           <span>12</span>
                         </div>
                       </div>
-                      <div className="space-y-4">
+                      <div className="space-y-4 short:space-y-2">
                         <div className="flex justify-between items-end gap-2">
                           <label htmlFor="new-game-rival-difficulty" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
                           <ScenarioLock scenario={newGameScenario} />
@@ -3456,7 +3459,7 @@ export default function App() {
                           value={aiDifficulty}
                           disabled={!!newGameScenario}
                           onChange={(e) => setAiDifficulty(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option>Easy</option>
                           <option>Normal</option>
@@ -3465,7 +3468,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 short:space-y-2">
                       <div className="flex justify-between items-end gap-2">
                         <label htmlFor="new-game-start" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
                         <span className="flex items-center gap-3">
@@ -3489,19 +3492,21 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 short:space-y-2">
                       <label className="block text-2xs font-black uppercase tracking-[0.3em] text-aero-yellow">Initial Save File Name</label>
                       <input 
                         type="text" 
                         value={initialSaveFileName}
                         onChange={(e) => setInitialSaveFileName(e.target.value)}
                         placeholder="My Airline Save 1"
-                        className="w-full bg-aero-carbon border border-aero-yellow/30 p-4 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
+                        className="w-full bg-aero-carbon border border-aero-yellow/30 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
                       />
                       <p className="text-2xs text-white/40 italic mt-2">A save file name must be provided to initialize the system.</p>
                     </div>
                     
-                    <div className="pt-8 flex justify-end">
+                    {/* Kept in reach at the foot of the screen on phones, rather than
+                        at the end of the whole form. */}
+                    <div className="pt-8 flex justify-end short:col-span-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:z-10 short:z-10 bar:pt-2 short:pt-2 bar:pb-1 short:pb-1 bar:bg-aero-black short:bg-aero-black">
                       <button 
                         onClick={() => {
                           if (!initialSaveFileName.trim()) {
@@ -3510,7 +3515,7 @@ export default function App() {
                           }
                           startNewGame(initialSaveFileName.trim(), newGameScenario);
                         }}
-                        className="group flex items-center bg-aero-yellow text-black px-4 py-4 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
+                        className="group flex items-center bg-aero-yellow text-black px-4 py-4 short:py-2.5 tiny:py-2 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
                       >
                         Start Game
                         <ChevronRight size={20} className="ml-4 group-hover:translate-x-1 transition-transform" />
@@ -3526,22 +3531,26 @@ export default function App() {
                 key="monthly-overview"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center bg-aero-black relative p-12"
+                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start bg-aero-black relative p-12 bar:p-3 short:p-3"
               >
-                <div className="max-w-4xl w-full" data-tour="monthly-report">
-                  <div className="border-b border-white/10 pb-6 mb-6">
-                    <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2">Operation: Execution</span>
-                    <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
+                {/* Centred with auto margins, not justify-center, which cut the top
+                    off whenever the report was taller than the screen. On phones
+                    the whole page scrolls as one, rather than the report scrolling
+                    inside it, and the buttons stay pinned to the bottom. */}
+                <div className="max-w-4xl w-full my-auto" data-tour="monthly-report">
+                  <div className="border-b border-white/10 pb-6 mb-6 bar:pb-3 bar:mb-3 short:pb-2 short:mb-2">
+                    <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2 short:hidden">Operation: Execution</span>
+                    <h2 className="text-5xl bar:text-3xl short:text-2xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
                     {/* The report covers the month that just ended, not the one the clock
                         has already advanced to, so label it from the report itself. */}
-                    <p className="text-white/60 font-mono mt-4 font-bold text-xl">
+                    <p className="text-white/60 font-mono mt-4 bar:mt-2 short:mt-1 font-bold text-xl bar:text-sm short:text-sm">
                       {latestReport
                         ? `${latestReport.month.toString().padStart(2, '0')}/${latestReport.year}`
                         : formatDate(currentDateOffset)} - {airlineName || 'Neo Airlines'} ({airlineCode || 'NX'})
                     </p>
                   </div>
                   
-                  <div className="mb-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-4">
+                  <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible custom-scrollbar pr-4 bar:pr-0 short:pr-0">
                    <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="CONTINUE">
                     {latestReport ? (
                       <>
@@ -3656,19 +3665,19 @@ export default function App() {
                    </ErrorBoundary>
                   </div>
 
-                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3">
+                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3 bar:flex-row bar:gap-2 short:gap-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:bg-aero-black short:bg-aero-black bar:py-2 short:py-2 bar:border-t short:border-t border-white/10">
                     {edition && (
                       <button
                         type="button"
                         onClick={() => setIsNewspaperOpen(true)}
-                        className="flex items-center justify-center gap-2 border border-white/15 text-white/70 px-4 py-4 font-bold uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all w-full md:w-auto"
+                        className="flex items-center justify-center gap-2 border border-white/15 text-white/70 px-4 py-4 bar:py-2.5 short:py-2 bar:px-3 bar:text-xs short:text-xs font-bold uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all w-full md:w-auto"
                       >
                         <Newspaper size={18} /> Read the newspaper
                       </button>
                     )}
                     <button 
                       onClick={() => setView('game')}
-                      className="group flex items-center bg-aero-yellow text-black px-4 py-4 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
+                      className="group flex items-center justify-center md:justify-start bg-aero-yellow text-black px-4 py-4 bar:py-2.5 short:py-2 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto bar:flex-1 short:w-auto"
                     >
                       Continue
                       <ChevronRight size={20} className="ml-4 group-hover:translate-x-1 transition-transform" />
@@ -3692,8 +3701,8 @@ export default function App() {
                     open below it at the right edge instead of running off the left
                     of the screen. Sideways phones keep one lower row, and the stats
                     scroll sideways when they do not all fit. */}
-                <div className="rail:h-14 short:h-11 bg-aero-carbon border-b border-white/5 flex flex-col rail:flex-row rail:items-center rail:justify-between gap-2 rail:gap-0 short:gap-3 px-3 rail:px-4 short:px-3 py-2 rail:py-0 shrink-0 relative z-50">
-                  <div className="order-last rail:order-none grid grid-cols-3 gap-x-2 gap-y-2 rail:flex rail:gap-5 rail:items-center short:gap-4 short:min-w-0 short:overflow-x-auto short:scrollbar-hidden">
+                <div className="rail:h-14 short:h-8 bg-aero-carbon border-b border-white/5 flex flex-col rail:flex-row rail:items-center rail:justify-between gap-1.5 rail:gap-0 short:gap-3 px-3 rail:px-4 short:px-2 py-1.5 rail:py-0 shrink-0 relative z-50">
+                  <div className="order-last rail:order-none grid grid-cols-3 gap-x-2 gap-y-1.5 rail:flex rail:gap-5 rail:items-center short:gap-3 short:min-w-0 short:overflow-x-auto short:scrollbar-hidden">
                     <GameStat label="Capital" value={formatCurrency(capital)} />
                     <GameStat label="Fleet" value={fleet.length.toString()} />
                     <GameStat label="Routes" value={routes.length.toString()} />
@@ -3703,7 +3712,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-3 short:gap-2 short:shrink-0 rail:relative">
                     <div className="flex items-center gap-4 mr-auto rail:mr-0">
-                      <div className="text-aero-yellow font-mono text-sm font-bold tracking-widest">{formatDate(currentDateOffset)}</div>
+                      <div className="text-aero-yellow font-mono text-sm short:text-xs font-bold tracking-widest short:tracking-wider">{formatDate(currentDateOffset)}</div>
                     </div>
 
                     <div className="rail:relative">
@@ -3768,7 +3777,7 @@ export default function App() {
                     <div className="rail:relative">
                       <button
                          onClick={() => setIsMapSettingsOpen(!isMapSettingsOpen)}
-                         className="px-2 rail:px-3 py-2 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-1 rail:mr-2"
+                         className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-1 rail:mr-2"
                       >
                         [ Map ]
                       </button>
@@ -3804,7 +3813,7 @@ export default function App() {
 
                     <button 
                        onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
-                       className="px-2 rail:px-3 py-2 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all"
+                       className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all"
                     >
                       [ Menu ]
                     </button>
@@ -4397,21 +4406,23 @@ export default function App() {
       
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        // Above the floating Next Month button (z-[1000]), which otherwise sat on top of the dialog.
+        <div className="fixed inset-0 z-[1001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 short:p-2">
           {/* Scrolls when taller than the screen, as on a phone held sideways;
-              otherwise its top was cut off with no way to reach it. */}
-          <div className="bg-aero-carbon border border-white/10 shadow-2xl p-4 max-w-lg w-full max-h-full overflow-y-auto custom-scrollbar">
-            <h2 className="text-2xl font-mono text-aero-yellow uppercase tracking-[0.2em] font-black drop-shadow-md mb-3">System Settings</h2>
+              otherwise its top was cut off with no way to reach it. There the
+              settings also go into two columns, so most of them fit at once. */}
+          <div className="bg-aero-carbon border border-white/10 shadow-2xl p-4 short:p-3 max-w-lg short:max-w-3xl w-full max-h-full overflow-y-auto custom-scrollbar short:relative">
+            <h2 className="text-2xl short:text-lg font-mono text-aero-yellow uppercase tracking-[0.2em] font-black drop-shadow-md mb-3 short:mb-2">System Settings</h2>
             
-            <div className="flex flex-col gap-4">
-              <div className="space-y-4">
+            <div className="flex flex-col gap-4 short:grid short:grid-cols-2 short:grid-rows-[repeat(3,auto)] short:grid-flow-col short:gap-x-5 short:gap-y-2">
+              <div className="space-y-4 short:space-y-2">
                 <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Number Format (Decimal Separator)</label>
-                <div className="flex gap-4">
+                <div className="flex gap-4 short:gap-2">
                   {[".", ","].map((symbol) => (
                     <button
                       key={symbol}
                       onClick={() => setDecimalSymbol(symbol as DecimalSymbol)}
-                      className={`flex-1 p-4 font-mono text-xl border uppercase tracking-widest transition-colors ${decimalSymbol === symbol ? 'bg-aero-yellow text-black border-aero-yellow font-black' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
+                      className={`flex-1 p-4 short:p-2 font-mono text-xl short:text-base border uppercase tracking-widest transition-colors ${decimalSymbol === symbol ? 'bg-aero-yellow text-black border-aero-yellow font-black' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
                     >
                       {symbol === "." ? "1.234" : "1,234"}
                     </button>
@@ -4436,7 +4447,7 @@ export default function App() {
                 <span className="text-2xs text-white/30 font-mono">Adjusts the scale of the user interface. Auto-scaling is also active for small screens.</span>
               </div>
 
-              <div className="flex flex-col gap-4 pt-4 border-t border-white/10">
+              <div className="flex flex-col gap-4 pt-4 border-t border-white/10 short:contents">
                 <div className="flex flex-col gap-2">
                   <label className="text-xs uppercase tracking-widest text-white/50 font-bold flex justify-between">
                     <span>Autosave Interval (Months)</span>
@@ -4457,7 +4468,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white/5 p-4 select-none cursor-pointer border border-transparent hover:border-white/10 transition-colors" onClick={() => setAutosaveOverwrite(!autosaveOverwrite)}>
+                <div className="flex items-center gap-3 bg-white/5 p-4 short:p-2.5 select-none cursor-pointer border border-transparent hover:border-white/10 transition-colors" onClick={() => setAutosaveOverwrite(!autosaveOverwrite)}>
                   <div className={`w-5 h-5 flex items-center justify-center border ${autosaveOverwrite ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
                     {autosaveOverwrite && <Check size={14} />}
                   </div>
@@ -4468,13 +4479,13 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/10">
+              <div className="pt-4 border-t border-white/10 short:pt-0 short:border-t-0">
                 <button
                   type="button"
                   role="switch"
                   aria-checked={gameSettings.newspaper}
                   onClick={() => setGameSettings(prev => ({ ...prev, newspaper: !prev.newspaper }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
                 >
                   <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.newspaper ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
                     {gameSettings.newspaper && <Check size={14} />}
@@ -4492,7 +4503,7 @@ export default function App() {
                   role="switch"
                   aria-checked={gameSettings.tutorial}
                   onClick={() => setGameSettings(prev => ({ ...prev, tutorial: !prev.tutorial }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
                 >
                   <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.tutorial ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
                     {gameSettings.tutorial && <Check size={14} />}
@@ -4519,10 +4530,11 @@ export default function App() {
               </div>
             </div>
 
-            <div className="mt-8 flex justify-end">
+            {/* Sideways: beside the title rather than below everything. */}
+            <div className="mt-8 flex justify-end short:mt-0 short:absolute short:top-3 short:right-3">
               <button 
                 onClick={() => setIsSettingsOpen(false)}
-                className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-2 font-mono text-sm tracking-widest uppercase transition-all"
+                className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-2 short:py-1 font-mono text-sm tracking-widest uppercase transition-all"
               >
                 Close
               </button>
@@ -4535,7 +4547,7 @@ export default function App() {
         const target = manualSaveTarget();
         const existing = target ? saves.find(s => s.id === target.id) : undefined;
         return (
-          <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[1001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div role="dialog" aria-modal="true" aria-labelledby="exit-save-title" className="bg-aero-carbon border border-white/10 shadow-2xl p-4 max-w-md w-full">
               <h2 id="exit-save-title" className="text-lg font-mono text-aero-yellow uppercase tracking-[0.2em] font-black mb-3">Save before leaving?</h2>
               <p className="text-sm text-white/80 mb-4">
@@ -4692,7 +4704,7 @@ function ThemeMenuButton({
       `}
     >
       <span className={`
-        px-4 py-3 font-mono text-sm transition-all
+        px-4 py-3 short:py-2 font-mono text-sm transition-all
         ${primary 
           ? 'bg-black text-white group-hover:bg-white group-hover:text-black' 
           : 'bg-white/10 text-white/40 group-hover:bg-aero-yellow/20 group-hover:text-aero-yellow'}
@@ -4717,7 +4729,9 @@ function ThemeMenuButton({
  *
  * On upright phones all eight buttons share one row of the bottom bar, and on
  * sideways phones one short column, so both use `shortLabel` (when given),
- * smaller icons and tighter letter spacing.
+ * smaller icons and tighter letter spacing. With the browser's address bar
+ * also showing (tiny) even that column is too tall, so the labels move to
+ * the tooltip and screen readers and only the icons remain.
  */
 function SidebarIcon({ icon, label, shortLabel, active = false, onClick, tour }: { icon: ReactNode, label: string, shortLabel?: string, active?: boolean, onClick?: () => void, tour?: string }) {
   return (
@@ -4725,16 +4739,17 @@ function SidebarIcon({ icon, label, shortLabel, active = false, onClick, tour }:
       type="button"
       onClick={onClick}
       data-tour={tour}
+      title={label}
       aria-current={active ? 'page' : undefined}
       className={`
-      py-1.5 short:py-1 flex flex-col items-center gap-0.5 cursor-pointer transition-all flex-auto rail:flex-none rail:w-full select-none bg-transparent border-0
+      py-1.5 short:py-1 tiny:py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all flex-auto rail:flex-none rail:w-full select-none bg-transparent border-0
       focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow
       ${active ? 'text-aero-yellow opacity-100' : 'text-white opacity-40 hover:opacity-100 hover:text-white'}
     `}>
       <div className={`p-1 rail:p-1.5 short:p-0.5 rounded-sm border border-transparent [&_svg]:size-6 rail:[&_svg]:size-7 short:[&_svg]:size-5 ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
         {icon}
       </div>
-      <span className="text-3xs font-black tracking-tight rail:tracking-widest short:tracking-tight text-center px-0.5 rail:px-1 short:px-0.5 leading-[1.2]">
+      <span className="text-3xs font-black tracking-tight rail:tracking-widest short:tracking-tight text-center px-0.5 rail:px-1 short:px-0.5 leading-[1.2] tiny:sr-only">
         <span className="rail:hidden short:inline">{shortLabel ?? label}</span>
         <span className="hidden rail:inline short:hidden">{label}</span>
       </span>
@@ -4752,7 +4767,7 @@ function GameStat(
   { label, value, trend, goodDirection = 'up' }:
   { label: string, value: string, trend?: string, goodDirection?: 'up' | 'down' }
 ) {
-  return <StatTile size="sm" label={label} value={value} trend={trend} goodDirection={goodDirection} />;
+  return <StatTile size="sm" compact label={label} value={value} trend={trend} goodDirection={goodDirection} />;
 }
 
 function GameMenuOption({ label, onClick }: { label: string, onClick: () => void }) {

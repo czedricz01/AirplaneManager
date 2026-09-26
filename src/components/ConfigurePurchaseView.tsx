@@ -980,7 +980,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         <div className="md:h-16 short:h-auto px-3 md:px-4 py-2 md:py-0 short:py-1.5 bg-black/40 border-b border-white/5 flex flex-wrap md:flex-nowrap items-center shrink-0 justify-between gap-x-4 gap-y-1">
           <div className="flex items-center gap-4">
             
-            <h2 className="text-base md:text-xl short:text-base font-black uppercase tracking-widest text-aero-yellow">
+            <h2 className="text-base md:text-xl short:text-sm font-black uppercase tracking-widest text-aero-yellow short:whitespace-nowrap">
               {isRenovating ? `Reconfigure / Renovate: ${initialPlane.registration}` : `Configure: ${aircraft.manufacturer} ${aircraft.type}`}
             </h2>
           </div>
@@ -990,21 +990,22 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
           </div>
         </div>
 
-        {/* Content. Phones, upright or sideways, stack the work area above the
-            cabin panel and scroll the two together; from md up they sit side
-            by side and scroll separately. */}
-        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden short:overflow-y-auto flex flex-col md:flex-row short:flex-col relative bg-gradient-to-br from-[#0a0a0a] to-[#111111]">
+        {/* Content. Upright phones stack the work area above the cabin panel
+            and scroll the two together; from md up, which includes most phones
+            held sideways, they sit side by side as on the desktop and scroll
+            separately, so the diagram stays in view while the sliders move. */}
+        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row relative bg-gradient-to-br from-[#0a0a0a] to-[#111111]">
           
           {/* Main Work Area */}
-          <div className="flex-none md:flex-1 short:flex-none md:min-h-0 min-w-0 flex flex-col items-center justify-start p-3 md:p-4 relative md:overflow-y-auto short:overflow-visible custom-scrollbar border-b md:border-b-0 short:border-b md:border-r short:border-r-0 border-white/5">
+          <div className="flex-none md:flex-1 md:min-h-0 min-w-0 flex flex-col items-center justify-start p-3 md:p-4 short:p-2 relative md:overflow-y-auto custom-scrollbar border-b md:border-b-0 md:border-r border-white/5">
              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center opacity-5 pointer-events-none mix-blend-screen" />
             
              {/* Plane Schematic Container */}
              {/* Raised above the mode switcher (z-10) only while the zone details
                  show, since they overlap it; otherwise the switcher stays on top
                  of the fuselage's drop shadow, as before. */}
-             <div className={`w-full relative ${shownZone ? 'z-20' : 'z-10'} mb-4 shrink-0`} style={{ maxWidth: Math.max(800, Math.min(2048, 400 + CAPACITY * 5)) + 'px' }}>
-               <div className="text-2xs uppercase font-mono tracking-widest text-white/40 mb-4 text-center flex items-center justify-center gap-4">
+             <div className={`w-full relative ${shownZone ? 'z-20' : 'z-10'} mb-4 short:mb-2 shrink-0`} style={{ maxWidth: Math.max(800, Math.min(2048, 400 + CAPACITY * 5)) + 'px' }}>
+               <div className="text-2xs uppercase font-mono tracking-widest text-white/40 mb-4 short:mb-1.5 text-center flex items-center justify-center gap-4">
                  <span>Cabin Layout ({aircraft.class})</span>
                  <span className={`flex items-center gap-1 ${isOverbooked ? 'text-aero-yellow/60 font-bold' : ''}`}>
                    <Info size={12}/> {(((usedSpaceWithoutEcoRaw + ecoSeats * ecoPitch * ecoMultiplier) / TOTAL_SPACE) * 100).toFixed(0)}% Space Used
@@ -1094,7 +1095,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              </div>
 
              {/* Configuration Mode Switcher */}
-             <div className="flex gap-2 md:gap-4 w-full max-w-4xl relative z-10 mb-3 shrink-0 justify-center">
+             <div className="flex gap-2 md:gap-4 w-full max-w-4xl relative z-10 mb-3 short:mb-2 shrink-0 justify-center">
                 <div 
                   id="general-settings-btn"
                   onClick={() => setActiveConfigTab('general')} 
@@ -1114,25 +1115,25 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              {activeConfigTab === 'classes' ? (
                <>
                  {/* Clickable Stats Grid */}
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 w-full max-w-4xl relative z-10 mb-4 shrink-0">
-                <div onClick={() => setSelectedClass('first')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'first' ? 'border-amber-500 bg-aero-yellow/10' : 'border-amber-500/20 hover:border-amber-500/50'}`}>
-                  <div className="text-aero-yellow text-2xl font-black">{firstSeats}</div>
-                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">First Class</div>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 short:gap-1.5 w-full max-w-4xl relative z-10 mb-4 short:mb-2 shrink-0">
+                <div onClick={() => setSelectedClass('first')} className={`bg-black/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'first' ? 'border-amber-500 bg-aero-yellow/10' : 'border-amber-500/20 hover:border-amber-500/50'}`}>
+                  <div className="text-aero-yellow text-2xl short:text-lg font-black">{firstSeats}</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest short:tracking-wider text-white/50 mt-1 mb-2 short:mb-1 whitespace-nowrap">First Class</div>
                   <div className="text-2xs bg-aero-yellow/20 text-aero-yellow px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getFirstPop())}%</div>
                 </div>
-                <div onClick={() => setSelectedClass('business')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'business' ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/10'}`}>
-                  <div className="text-white/80 text-2xl font-black">{bizSeats}</div>
-                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Business</div>
+                <div onClick={() => setSelectedClass('business')} className={`bg-black/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'business' ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/10'}`}>
+                  <div className="text-white/80 text-2xl short:text-lg font-black">{bizSeats}</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest short:tracking-wider text-white/50 mt-1 mb-2 short:mb-1 whitespace-nowrap">Business</div>
                   <div className="text-2xs bg-white/5 text-white/80 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getBizPop())}%</div>
                 </div>
-                <div onClick={() => setSelectedClass('premium')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'premium' ? 'border-aero-yellow bg-aero-yellow/10' : 'border-aero-yellow/20 hover:border-aero-yellow/50'}`}>
-                  <div className="text-aero-yellow text-2xl font-black">{premSeats}</div>
-                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Premium Eco</div>
+                <div onClick={() => setSelectedClass('premium')} className={`bg-black/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'premium' ? 'border-aero-yellow bg-aero-yellow/10' : 'border-aero-yellow/20 hover:border-aero-yellow/50'}`}>
+                  <div className="text-aero-yellow text-2xl short:text-lg font-black">{premSeats}</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest short:tracking-wider text-white/50 mt-1 mb-2 short:mb-1 whitespace-nowrap">Premium Eco</div>
                   <div className="text-2xs bg-aero-yellow/20 text-aero-yellow px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getPremPop())}%</div>
                 </div>
-                <div onClick={() => setSelectedClass('economy')} className={`bg-black/40 border p-4 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-slate-500 bg-aero-carbon/10' : 'border-slate-500/20 hover:border-slate-500/50'}`}>
-                  <div className="text-slate-400 text-2xl font-black">{ecoSeats}</div>
-                  <div className="text-2xs uppercase font-mono tracking-widest text-white/50 mt-1 mb-2">Economy</div>
+                <div onClick={() => setSelectedClass('economy')} className={`bg-black/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-slate-500 bg-aero-carbon/10' : 'border-slate-500/20 hover:border-slate-500/50'}`}>
+                  <div className="text-slate-400 text-2xl short:text-lg font-black">{ecoSeats}</div>
+                  <div className="text-2xs uppercase font-mono tracking-widest short:tracking-wider text-white/50 mt-1 mb-2 short:mb-1 whitespace-nowrap">Economy</div>
                   <div className="text-2xs bg-aero-carbon/20 text-slate-400 px-2 py-0.5 rounded-sm font-bold">SAT: {Math.round(getEcoPop())}%</div>
                 </div>
              </div>
@@ -1192,7 +1193,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
           </div>
 
           {/* Right Side: Narrow Regulators & Extras */}
-          <div className="w-full md:w-[350px] short:w-full md:min-h-0 shrink-0 bg-black/20 p-4 flex flex-col md:overflow-y-auto short:overflow-visible custom-scrollbar">
+          <div className="w-full md:w-[350px] short:w-[280px] md:min-h-0 shrink-0 bg-black/20 p-4 short:p-2.5 flex flex-col md:overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
               <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white/80 flex items-center gap-2">
                 <Settings size={16} className="text-aero-yellow" />
@@ -1336,14 +1337,16 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         </div>
 
         {/* Footer */}
-        {/* Footer. On phones the quantity, total and confirm button wrap
-            below Cancel and the unit price. */}
-        <div className="md:h-24 short:h-auto px-3 md:px-4 py-3 md:py-0 short:py-2 bg-black/80 border-t border-white/5 flex flex-wrap items-center justify-between shrink-0 gap-3 md:gap-4 relative z-20">
+        {/* Footer. Upright phones use two rows: quantity and total, then Cancel
+            beside Confirm (the button group is display: contents there so its
+            parts can be ordered in with Cancel; the unit price steps aside, the
+            total says it). Sideways it fits one row where the width allows. */}
+        <div className="md:h-24 short:h-auto px-3 md:px-4 py-3 md:py-0 bar:py-2 short:py-2 bg-black/80 border-t border-white/5 flex flex-wrap items-center justify-between shrink-0 gap-3 md:gap-4 relative z-20">
           
-          <button onClick={onCancel} className="border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-3 md:py-4 px-4 md:px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all mr-auto short:py-2">Cancel</button>
+          <button onClick={onCancel} className="bar:order-3 border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-3 md:py-4 bar:py-2.5 px-4 md:px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all mr-auto bar:mr-0 short:py-2">Cancel</button>
           {/* The unit price steps aside on a phone held sideways, so the rest of
               the footer fits one row; the total next to the quantity says it. */}
-          <div className="flex items-center gap-3 short:hidden">
+          <div className="flex items-center gap-3 bar:hidden short:hidden">
              <div className="flex flex-col">
                <span className="text-2xs uppercase font-mono tracking-[0.2em] text-white/40">
                  {isRenovating ? 'Renovation Unit Cost' : 'Unit Price'}
@@ -1354,27 +1357,27 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between md:justify-start gap-3 w-full md:w-auto short:w-auto">
+          <div className="flex flex-wrap items-center justify-between md:justify-start gap-3 w-full md:w-auto short:w-auto bar:contents">
             {!isRenovating && (
-              <div className="flex items-center gap-4 short:gap-2 bg-white/5 border border-white/10 rounded-sm p-1">
+              <div className="bar:order-1 flex items-center gap-4 bar:gap-2 short:gap-2 bg-white/5 border border-white/10 rounded-sm p-1">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   disabled={quantity <= 1}
-                  className="w-10 h-10 short:w-8 short:h-8 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-black/40"
+                  className="w-10 h-10 bar:w-9 bar:h-9 short:w-8 short:h-8 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-black/40"
                 >
                   <Minus size={16} />
                 </button>
                 <div className="font-mono text-xl font-bold w-12 text-center text-aero-yellow">{quantity}</div>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-10 short:w-8 short:h-8 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors"
+                  className="w-10 h-10 bar:w-9 bar:h-9 short:w-8 short:h-8 flex items-center justify-center bg-black/40 hover:bg-white/10 transition-colors"
                 >
                   <Plus size={16} />
                 </button>
               </div>
             )}
 
-            <div className="flex flex-col items-end pr-4 border-r border-white/10">
+            <div className="bar:order-2 bar:flex-1 flex flex-col items-end pr-4 bar:pr-0 border-r bar:border-r-0 border-white/10">
               <span className="text-2xs uppercase font-mono tracking-widest text-white/50">Total Cost</span>
               <span className={`text-sm font-black tracking-widest ${!canAfford ? 'text-aero-warn' : 'text-aero-yellow'}`}>
                 {formatCurrency(totalPrice)}
@@ -1396,7 +1399,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <button 
               onClick={handleConfirm}
               disabled={!canAfford || isOverbooked}
-              className="w-full md:w-auto short:w-auto bg-aero-yellow text-black font-black uppercase tracking-widest text-sm px-4 py-4 short:py-2.5 rounded-sm hover:bg-white transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-aero-yellow disabled:transform-none"
+              className="bar:order-4 bar:flex-1 w-full md:w-auto short:w-auto bar:w-auto bg-aero-yellow text-black font-black uppercase tracking-widest text-sm px-4 py-4 bar:py-2.5 short:py-2.5 rounded-sm hover:bg-white transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-aero-yellow disabled:transform-none"
             >
               {isRenovating ? 'CONFIRM RENOVATION' : 'CONFIRM PURCHASE'}
             </button>

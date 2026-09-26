@@ -298,13 +298,15 @@ function CompetitorsViewImpl({
 
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       {selectedAirline ? (
         /* Immersive Individual Airline Detail Overview Dashboard */
         <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn">
           {/* Header Action bar */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-5 mb-3 shrink-0">
-            <div className="flex items-center gap-4">
+          {/* Phones: the subtitle and the alliance badge step aside, the name
+              gets the width. */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-5 bar:pb-3 short:pb-2 mb-3 short:mb-2 shrink-0 gap-3">
+            <div className="flex items-center gap-4 bar:gap-3 min-w-0">
               <button 
                 onClick={() => setSelectedAirlineId(null)}
                 className="p-2.5 rounded-sm border border-white/10 bg-white/5 text-white/70 hover:text-aero-yellow hover:border-aero-yellow/50 transition-all flex items-center justify-center cursor-pointer"
@@ -322,21 +324,21 @@ function CompetitorsViewImpl({
                       title="Map colour"
                     />
                   )}
-                  <h3 className="text-2xl font-mono uppercase font-black text-white leading-none tracking-wider">
+                  <h3 className="text-2xl bar:text-lg short:text-lg font-mono uppercase font-black text-white leading-none tracking-wider">
                     {selectedAirline.name}
                   </h3>
                   <span className="text-xs font-mono font-bold text-aero-yellow border border-aero-yellow/30 bg-aero-yellow/5 px-2 py-0.5 rounded-sm uppercase">
                     IATA: {selectedAirline.code}
                   </span>
                 </div>
-                <p className="text-xs text-white/40 font-mono uppercase tracking-[0.15em] mt-1">
+                <p className="text-xs text-white/40 font-mono uppercase tracking-[0.15em] mt-1 bar:hidden short:hidden">
                   Corporate Overview & Strategic Air Intelligence
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 font-mono text-xs">
-              <span className="text-white/30 lowercase">alliance status:</span>
+            <div className="flex items-center gap-3 font-mono text-xs bar:hidden short:shrink-0">
+              <span className="text-white/30 lowercase short:hidden">alliance status:</span>
               <span className={`px-2.5 py-1 text-2xs font-black uppercase tracking-widest rounded-sm ${
                 selectedAirline.isPlayer 
                   ? 'bg-aero-yellow text-black' 
@@ -348,18 +350,19 @@ function CompetitorsViewImpl({
           </div>
 
           {/* Core Dashboard Workspace */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-6">
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-6 bar:space-y-3 short:space-y-3">
             
-            {/* Top Quick-Glance Bento Grid cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Top Quick-Glance Bento Grid cards. Phones: two a row upright, all
+                four in one row sideways, each only as tall as its content. */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 bar:grid-cols-2 short:grid-cols-4 gap-4 bar:gap-2 short:gap-2">
               {/* Card 1: Capital valuation */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
                   <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Capital Reserves</span>
                   <Coins size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl font-mono font-black text-white">{formatCurrency(selectedAirline.capital)}</div>
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-white">{formatCurrency(selectedAirline.capital)}</div>
                   <div className="text-2xs text-aero-yellow font-mono flex items-center gap-1 mt-1">
                     <TrendingUp size={10} /> Active Liquidity Index
                   </div>
@@ -368,13 +371,13 @@ function CompetitorsViewImpl({
               </div>
 
               {/* Card 2: Fleet capacity */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
                   <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Appraised Fleet</span>
                   <Plane size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl font-mono font-black text-white">
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-white">
                     {selectedAirline.fleet.length} <span className="text-xs text-white/30 font-sans font-normal">Aircraft</span>
                   </div>
                   <div className="text-2xs text-white/50 font-mono mt-1">
@@ -384,13 +387,13 @@ function CompetitorsViewImpl({
               </div>
 
               {/* Card 3: Route network */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
                   <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Active Connections</span>
                   <Waypoints size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl font-mono font-black text-white">
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-white">
                     {selectedAirline.routes.length} <span className="text-xs text-white/30 font-sans font-normal">Routes</span>
                   </div>
                   <div className="text-2xs text-white/50 font-mono mt-1">
@@ -400,13 +403,13 @@ function CompetitorsViewImpl({
               </div>
 
               {/* Card 4: Operating Hub & Level */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 rounded-sm relative overflow-hidden flex flex-col justify-between h-[115px]">
+              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
                   <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Strategic Hub Base</span>
                   <MapPin size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl font-mono font-black text-aero-yellow">{selectedAirline.hub}</div>
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-aero-yellow">{selectedAirline.hub}</div>
                   <div className="text-2xs text-white/50 font-mono mt-1 flex items-center gap-1.5">
                     <Shield size={10} className="text-white/40" /> Operating Tier: {selectedAirline.isPlayer ? 'Player' : selectedAirline.aiDifficulty}
                   </div>

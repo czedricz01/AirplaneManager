@@ -292,7 +292,7 @@ function RoutesViewImpl({
   const fleetByRegistration = useMemo(() => new Map(fleet.map(f => [f.registration, f])), [fleet]);
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         title={
           <>

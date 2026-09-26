@@ -197,30 +197,31 @@ export function AirportDetailView({
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
-        {/* Phones: title above the buttons, and a smaller title. */}
-        <div className="p-4 pb-4 flex flex-col md:flex-row justify-between items-start gap-3 border-b border-white/5 bg-aero-carbon/80 backdrop-blur-sm">
+        {/* Phones: title above the buttons, and a smaller title. Sideways: one
+            slim row without the eyebrow line. */}
+        <div className="p-4 pb-4 bar:p-3 short:px-3 short:py-1.5 flex flex-col md:flex-row justify-between items-start short:items-center gap-3 short:gap-2 border-b border-white/5 bg-aero-carbon/80 backdrop-blur-sm">
           <div className="flex flex-col min-w-0">
-            <div className="text-aero-yellow text-2xs uppercase tracking-[0.4em] mb-2 font-black">Strategic Operations Console</div>
-            <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-white flex flex-wrap items-center gap-x-4 gap-y-1">
-              {airport.name} <span className="text-aero-yellow font-normal not-italic opacity-50">[{airport.id}] <span className="text-[24px] ml-4 italic font-black uppercase text-aero-yellow tracking-widest">L{airport.level}</span></span>
+            <div className="text-aero-yellow text-2xs uppercase tracking-[0.4em] mb-2 bar:mb-1 font-black short:hidden">Strategic Operations Console</div>
+            <h1 className="text-3xl md:text-5xl bar:text-2xl short:text-2xl font-black italic uppercase tracking-tighter text-white flex flex-wrap items-center gap-x-4 short:gap-x-3 gap-y-1">
+              {airport.name} <span className="text-aero-yellow font-normal not-italic opacity-50">[{airport.id}] <span className="text-[24px] bar:text-lg short:text-lg ml-4 bar:ml-2 short:ml-2 italic font-black uppercase text-aero-yellow tracking-widest">L{airport.level}</span></span>
             </h1>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-4 short:gap-2 short:shrink-0">
             <button
               onClick={handleStartRouteClick}
-              className="px-3 py-3 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-xs border border-white/10"
+              className="px-3 py-3 bar:py-2 short:py-1.5 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-xs border border-white/10"
             >
               New Route +
             </button>
             <button
               onClick={onManageRoutes}
-              className="px-3 py-3 bg-aero-yellow text-black font-black italic uppercase tracking-widest hover:bg-white transition-all text-xs border border-transparent"
+              className="px-3 py-3 bar:py-2 short:py-1.5 bg-aero-yellow text-black font-black italic uppercase tracking-widest hover:bg-white transition-all text-xs border border-transparent"
             >
               My Routes
             </button>
             <button 
               onClick={onClose}
-              className="p-3 bg-white/5 hover:bg-aero-yellow hover:text-black transition-all border border-white/10"
+              className="p-3 bar:p-2 short:p-1.5 bg-white/5 hover:bg-aero-yellow hover:text-black transition-all border border-white/10"
             >
               <X size={24} />
             </button>
@@ -229,7 +230,7 @@ export function AirportDetailView({
 
         {/* Infobar */}
         {/* Wraps onto several lines on phones instead of running off the right edge. */}
-        <div className="bg-aero-panel border-b border-white/10 py-2 px-4 flex flex-wrap md:flex-nowrap justify-between items-center gap-x-4 gap-y-2 md:gap-2 uppercase tracking-widest text-3xs">
+        <div className="bg-aero-panel border-b border-white/10 py-2 short:py-1.5 px-4 bar:px-3 short:px-3 flex flex-wrap md:flex-nowrap short:flex-wrap justify-between short:justify-start items-center gap-x-4 gap-y-2 md:gap-2 short:gap-x-5 short:gap-y-1 uppercase tracking-widest text-3xs">
           <Metric label="Level" value={`L${airport.level}`} highlight />
           <Metric label="Mgmt" value={
             infrastructure.level === 0 ? 'None' : 

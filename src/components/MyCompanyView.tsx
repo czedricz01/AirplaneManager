@@ -160,7 +160,7 @@ function MyCompanyViewImpl({
   const netWorth = capital + fleetValue;
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         eyebrow={[airlineName, airlineCode].filter(Boolean).join(' · ') || undefined}
         title="MY COMPANY"
@@ -212,7 +212,7 @@ function MyCompanyViewImpl({
         <div className="grid grid-cols-1 gap-3 max-w-4xl mx-auto pb-6">
 
           {/* Balance sheet */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 short:grid-cols-4 gap-3 short:gap-2">
             <StatTile size="md" label="Cash" value={formatCurrency(capital)} valueClassName="text-aero-yellow" />
             <StatTile size="md" label="Fleet value" value={formatCurrency(fleetValue)}>
               <span className="block text-3xs font-mono text-white/30 mt-1">{fleetCount} aircraft, at resale</span>
