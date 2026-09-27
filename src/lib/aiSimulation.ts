@@ -615,9 +615,6 @@ export const generateAiAirlines = (
   const difficulty = (['Easy', 'Normal', 'Hard'].includes(difficultyVal) ? difficultyVal : 'Normal') as Difficulty;
   const identities = pickRivalIdentities(count, playerHubId, yearOf(startDateOffset), playerCode);
 
-  // Routes of the rivals generated so far, so later ones plan around them
-  // instead of all opening the same obvious route.
-  const offers: RouteOffer[] = [];
   const result: AiAirline[] = [];
 
   for (const who of identities) {
@@ -641,25 +638,10 @@ export const generateAiAirlines = (
       fleet.push(toFleetEntry(spec, `${who.code}-A${100 + i}`, startDateOffset, cabinConfigFor(personality, spec.capacity || 131)));
     }
 
-    // Every starting aircraft gets the best route it can find. The old code
-    // gave the first two a route and parked the rest.
+    // No starting routes: rivals begin exactly like the player, with a fleet
+    // but nothing scheduled. simulateAiAirlinesTurn's "idle aircraft" step
+    // gives them their first routes during the next monthly turn.
     const routes: AiRoute[] = [];
-    const hubAirport = airportsMapAdjusted.get(who.hub);
-    if (hubAirport) {
-      const market: Market = {
-        offset: startDateOffset,
-        fuelPrice: getJetFuelPrice(yearOf(startDateOffset), monthOf(startDateOffset), difficulty),
-        rivalOffers: offers
-      };
-      const served = new Set<string>();
-      for (const plane of fleet) {
-        const plan = planRoute(personality, difficulty, plane, hubAirport, served, market);
-        if (!plan) continue;
-        served.add(plan.dest.id);
-        routes.push(newRoute(who.hub, plane, plan, startDateOffset));
-      }
-    }
-    for (const r of routes) offers.push({ origin: r.origin, destination: r.destination, departures: r.departures });
 
     result.push({
       id: `ai_${who.code.toLowerCase()}`,

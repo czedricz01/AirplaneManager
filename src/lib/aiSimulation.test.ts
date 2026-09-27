@@ -84,8 +84,13 @@ test('no rival ever starts at the player hub, and the carrier based there is lef
 
 test('the generated airlines obey the same hub rule', () => {
   for (const hub of ['FRA', 'LHR', 'JFK']) {
-    const ais = generateAiAirlines(12, 'Normal', hub, offsetFor(1980));
+    let ais = generateAiAirlines(12, 'Normal', hub, offsetFor(1980));
     for (const ai of ais) assert.notEqual(ai.hub, hub);
+    // Rivals start route-less, like the player; simulate a few months so
+    // there are routes to check the origin of.
+    for (let m = 0; m < 6; m++) {
+      ais = simulateAiAirlinesTurn(ais, airports, offsetFor(1980) + m, hub, []).updatedAis;
+    }
     for (const ai of ais) for (const r of ai.routes) assert.equal(r.origin, ai.hub);
   }
 });
@@ -163,13 +168,22 @@ test('rivals do not hoard idle aircraft', () => {
 });
 
 test('a rival thins out or drops a route that keeps losing money', () => {
-  const [ai] = generateAiAirlines(1, 'Hard', 'MUC', offsetFor(1990));
+  // Rivals start route-less, just like the player, so fly a few months
+  // first to get this one flying before making it a loser.
+  let [ai] = generateAiAirlines(1, 'Hard', 'MUC', offsetFor(1990));
+  let offset = offsetFor(1990);
+  for (let m = 0; m < 12 && ai.routes.length === 0; m++) {
+    [ai] = simulateAiAirlinesTurn([ai], airports, offset, 'MUC', []).updatedAis;
+    offset++;
+  }
+  assert.ok(ai.routes.length > 0, 'the rival should be flying a route by now');
+
   const plane = ai.fleet.find(p => p.reg === ai.routes[0].aircraftReg)!;
   // Established long ago, and losing heavily on average.
   const loser = { ...ai.routes[0], openedAt: 0, avgProfit: -5_000_000 };
   loser.departures = maxWeeklyRotations(loser.durMin!, plane.class);
-  const others = ai.routes.slice(1).map(r => ({ ...r, openedAt: offsetFor(1990) }));
-  const out = simulateAiAirlinesTurn([{ ...ai, routes: [loser, ...others] }], airports, offsetFor(1990), 'MUC', []).updatedAis[0];
+  const others = ai.routes.slice(1).map(r => ({ ...r, openedAt: offset }));
+  const out = simulateAiAirlinesTurn([{ ...ai, routes: [loser, ...others] }], airports, offset, 'MUC', []).updatedAis[0];
   const after = out.routes.find(r => r.destination === loser.destination);
   assert.ok(!after || after.departures < loser.departures, 'the losing route is thinned out or closed');
 });
