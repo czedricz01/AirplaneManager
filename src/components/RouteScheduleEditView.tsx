@@ -640,7 +640,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               </div>
             </div>
 
-            <div className={`grid grid-cols-4 gap-2 transition-opacity ${maximizeFlights ? 'opacity-30 pointer-events-none' : ''}`}>
+            <div className={`grid grid-cols-7 gap-1 transition-opacity ${maximizeFlights ? 'opacity-30 pointer-events-none' : ''}`}>
                 {daysOfWeek.map(day => {
                   const count = schedule.filter(s => Number(s.dayId) === day.id).length;
                   const isSelected = count > 0;
@@ -650,9 +650,9 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                       disabled={maximizeFlights}
                       onClick={() => handleToggleDay(day.id)}
                       title={isSelected ? `Remove the ${day.label} flights` : `Add ${ops} flight${ops > 1 ? 's' : ''} on ${day.label}`}
-                      className={`h-12 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl hover:bg-aero-yellow/80' : 'bg-black/40 text-white/30 border-white/10 hover:border-white/40 hover:text-white'}`}
+                      className={`h-9 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl hover:bg-aero-yellow/80' : 'bg-black/40 text-white/30 border-white/10 hover:border-white/40 hover:text-white'}`}
                     >
-                      <span className="text-2xs leading-none">{day.label}</span>
+                      <span className="text-[8px] leading-none">{day.label}</span>
                       <span className={`text-4xs font-mono leading-none ${isSelected ? 'text-black/60' : 'text-white/20'}`}>{isSelected ? `${count}x` : '+'}</span>
                     </button>
                   )
@@ -669,18 +669,18 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                 Takeoff: {fmtClock(takeoffMin)}
               </div>
             </div>
-            <div className="flex items-center justify-center gap-4 bg-black/80 border border-white/5 p-4 font-mono rounded-sm shadow-inner relative overflow-hidden group">
+            <div className="flex items-center justify-center gap-2 bg-black/80 border border-white/5 p-2 font-mono rounded-sm shadow-inner relative overflow-hidden group">
                <div className="absolute inset-0 bg-aero-yellow/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                <div className="flex flex-col items-center">
-                 <button onClick={() => updateFromDisplay((displayH + 1) % 24, displayM)} className="p-2 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft className="rotate-90" /></button>
-                 <div className="text-5xl font-black text-white tracking-widest">{displayH.toString().padStart(2, '0')}</div>
-                 <button onClick={() => updateFromDisplay((displayH + 23) % 24, displayM)} className="p-2 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft className="rotate-270" /></button>
+                 <button onClick={() => updateFromDisplay((displayH + 1) % 24, displayM)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-90" /></button>
+                 <div className="text-2xl font-black text-white tracking-widest">{displayH.toString().padStart(2, '0')}</div>
+                 <button onClick={() => updateFromDisplay((displayH + 23) % 24, displayM)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-270" /></button>
                </div>
-               <div className="text-4xl text-white/10 font-thin mb-2 shrink-0">:</div>
+               <div className="text-xl text-white/10 font-thin mb-1 shrink-0">:</div>
                <div className="flex flex-col items-center">
-                 <button onClick={() => updateFromDisplay(displayH, (displayM + 5) % 60)} className="p-2 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft className="rotate-90" /></button>
-                 <div className="text-5xl font-black text-white tracking-widest">{displayM.toString().padStart(2, '0')}</div>
-                 <button onClick={() => updateFromDisplay(displayH, (displayM + 55) % 60)} className="p-2 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft className="rotate-270" /></button>
+                 <button onClick={() => updateFromDisplay(displayH, (displayM + 5) % 60)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-90" /></button>
+                 <div className="text-2xl font-black text-white tracking-widest">{displayM.toString().padStart(2, '0')}</div>
+                 <button onClick={() => updateFromDisplay(displayH, (displayM + 55) % 60)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-270" /></button>
                </div>
             </div>
             <div className="mt-2 text-3xs text-center text-white/20 uppercase tracking-[0.2em] font-bold">Block start (boarding) · takeoff {BOARDING_MIN} min later</div>
