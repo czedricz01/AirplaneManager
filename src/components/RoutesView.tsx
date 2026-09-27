@@ -145,7 +145,7 @@ const RouteRow = React.memo(function RouteRow({
   const loadLine = CABIN_CLASSES.map(cls => {
     const cd = financials?.paxByClass?.[cls];
     if (!cd || cd.max <= 0) return { cls, text: '-' };
-    // Connecting passengers sit in economy and count towards its load.
+    // Connecting passengers sit in their own cabin and count towards its load.
     const lf = Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100);
     return { cls, text: `${lf}%`, color: lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn' };
   });

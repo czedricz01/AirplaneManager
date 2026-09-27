@@ -73,8 +73,10 @@ const seatsOf = (fin: { paxByClass: Record<string, { max: number }> }) =>
   Object.values(fin.paxByClass).reduce((a, c) => a + c.max, 0);
 const localPaxOf = (fin: { paxByClass: Record<string, { actual: number }> }) =>
   Object.values(fin.paxByClass).reduce((a, c) => a + c.actual, 0);
-const freeEconomyOf = (fin: { paxByClass: Record<string, { actual: number; max: number }> }) =>
-  (fin.paxByClass.economy?.max ?? 0) - (fin.paxByClass.economy?.actual ?? 0);
+const freeOf = (fin: { paxByClass: Record<string, { actual: number; max: number }> }, cls: string) =>
+  (fin.paxByClass[cls]?.max ?? 0) - (fin.paxByClass[cls]?.actual ?? 0);
+const freeEconomyOf = (fin: { paxByClass: Record<string, { actual: number; max: number }> }) => freeOf(fin, 'economy');
+const CABINS = ['economy', 'premium', 'business', 'first'] as const;
 
 // --- Timetable -------------------------------------------------------------------
 
@@ -196,42 +198,78 @@ test('connecting passengers never take more seats than the local traffic left em
     const net = computeNetworkFinancials(routes, fleet, { demandFactor: 1 }, env);
     for (const r of routes) {
       const fin = local.get(r.id)!;
-      const free = freeEconomyOf(fin);
-      const taken = flows.transfer[r.id]?.pax || 0;
-      assert.ok(taken <= free, `${r.destination}: ${taken} transfer pax on ${free} free seats`);
+      const t = flows.transfer[r.id];
+      const taken = t?.pax || 0;
+      // Per cabin: connecting passengers only take their own cabin's empty seats.
+      let halfFree = 0;
+      for (const cls of CABINS) {
+        const free = freeOf(fin, cls);
+        const inCabin = t?.byClass[cls]?.pax || 0;
+        assert.ok(inCabin <= free, `${r.destination} ${cls}: ${inCabin} transfer pax on ${free} free seats`);
+        halfFree += Math.floor(free / 2);
+      }
+      assert.equal(CABINS.reduce((a, cls) => a + (t?.byClass[cls]?.pax || 0), 0), taken, 'the cabins add up to the total');
       // Per direction too: on round trips half the empty seats fly each way.
       const routeFlows = flows.flowsByRoute[r.id]?.flows || [];
       const sum = (fs: typeof routeFlows) => fs.reduce((a, f) => a + f.pax, 0);
       const outbound = sum(routeFlows.filter(f => f.d === r.destination));
       const inbound = sum(routeFlows.filter(f => f.o === r.destination));
       assert.equal(outbound + inbound, taken);
-      assert.ok(outbound <= Math.floor(free / 2), `${r.destination}: ${outbound} outbound on ${free / 2} free seats`);
-      assert.ok(inbound <= Math.floor(free / 2), `${r.destination}: ${inbound} inbound on ${free / 2} free seats`);
+      assert.ok(outbound <= halfFree, `${r.destination}: ${outbound} outbound on ${halfFree} free seats`);
+      assert.ok(inbound <= halfFree, `${r.destination}: ${inbound} inbound on ${halfFree} free seats`);
       const priced = net.finById.get(r.id)!;
       assert.ok(priced.paxPerWeek <= seatsOf(priced), 'the aircraft is never over-full');
     }
   }
 });
 
-test('connecting passengers sit in economy only, never in an empty premium cabin', () => {
+test('each cabin sells connections on its own empty seats only', () => {
   // Economy sold out on every route, business nearly empty: the connecting
-  // passengers pay an economy fare, so there is no seat for them. They used
-  // to fill the empty business seats unseen, so the route read as fully
-  // booked while business showed a low load factor.
+  // passengers still find seats, but only business ones, at business fares.
+  // Economy connections used to be seated in empty business seats unseen,
+  // so the route read as fully booked while business showed a low load.
   const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE', 'ATH']);
   const local = new Map(routes.map(r => [r.id, {
     paxByClass: { economy: { actual: 1000, max: 1000 }, business: { actual: 10, max: 500 } }
   }]));
   const flows = computeTransferFlows(routes, local, { ...env, mods: { demandFactor: 1 }, fleet });
-  assert.deepEqual(flows.transfer, {});
+  assert.ok(Object.keys(flows.transfer).length > 0, 'business connections are sold');
+  for (const t of Object.values(flows.transfer)) {
+    assert.equal(t.byClass.economy, undefined, 'no economy seat is left');
+    assert.ok(t.byClass.business!.pax > 0 && t.byClass.business!.pax <= 490);
+    assert.equal(t.pax, t.byClass.business!.pax);
+    assert.equal(t.revenue, t.byClass.business!.revenue);
+  }
 
-  // With economy seats to spare, the same network does sell connections.
+  // Economy with room: both cabins sell, and a business seat earns more.
   const roomy = new Map(routes.map(r => [r.id, {
     paxByClass: { economy: { actual: 500, max: 1000 }, business: { actual: 10, max: 500 } }
   }]));
-  const sold = computeTransferFlows(routes, roomy, { ...env, mods: { demandFactor: 1 }, fleet });
-  assert.ok(Object.keys(sold.transfer).length > 0);
-  for (const t of Object.values(sold.transfer)) assert.ok(t.pax <= 500, `${t.pax} transfer pax on 500 free economy seats`);
+  const both = computeTransferFlows(routes, roomy, { ...env, mods: { demandFactor: 1 }, fleet });
+  for (const t of Object.values(both.transfer)) {
+    const eco = t.byClass.economy!;
+    const bus = t.byClass.business!;
+    assert.ok(eco.pax > 0 && bus.pax > 0);
+    assert.ok(eco.pax > bus.pax, 'economy is the larger market');
+    assert.ok(bus.revenue / bus.pax > eco.revenue / eco.pax, 'business fares are dearer');
+  }
+});
+
+test('a cabin missing on one leg sells no connections in that cabin', () => {
+  // First class only on the feeders into FRA from MAD, not on the one to VIE:
+  // nobody books first on a trip whose second leg has no first cabin.
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE']);
+  const local = new Map(routes.map(r => [r.id, {
+    paxByClass: r.destination === 'MAD'
+      ? { economy: { actual: 500, max: 1000 }, first: { actual: 0, max: 100 } }
+      : { economy: { actual: 500, max: 1000 } }
+  }]));
+  const flows = computeTransferFlows(routes, local, { ...env, mods: { demandFactor: 1 }, fleet });
+  assert.ok(Object.keys(flows.transfer).length > 0);
+  for (const t of Object.values(flows.transfer)) {
+    assert.equal(t.byClass.first, undefined);
+    assert.ok(t.byClass.economy!.pax > 0);
+  }
 });
 
 test('a stale transfer figure never seats more than the empty economy seats', () => {
@@ -350,8 +388,9 @@ test('the network result adds exactly the transfer revenue to what a route earns
       assert.equal(withTransfer.paxByClass[cls].actual, pax.actual, 'local passengers are untouched');
       assert.equal(withTransfer.paxByClass[cls].max, pax.max);
     }
-    assert.equal(withTransfer.paxByClass.economy.transfer, t.pax, 'connecting passengers are counted in economy');
-    assert.equal(withTransfer.paxByClass.business?.transfer, undefined, 'and in no other cabin');
+    for (const cls of CABINS) {
+      assert.equal(withTransfer.paxByClass[cls]?.transfer, t.byClass[cls]?.pax, `connecting passengers are counted in ${cls}`);
+    }
     assert.ok(withTransfer.costsBreakdown.catering > alone.costsBreakdown.catering, 'connecting passengers are fed');
     assert.ok(withTransfer.costsBreakdown.paxFees > alone.costsBreakdown.paxFees, 'and pay passenger fees');
   }

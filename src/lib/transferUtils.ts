@@ -16,6 +16,7 @@
  */
 import { calculateDistance, getAirportStats, type Airport } from '../data/airports';
 import {
+  CABIN_CLASSES,
   calculateBasePrices,
   calculateDemand,
   calculateRouteFinancials,
@@ -38,10 +39,27 @@ export const MAX_CONNECTION_MIN = 360;
 export const MAX_DETOUR = 1.6;
 /** Share of an O-D market a perfect one-stop connection can win at best. */
 export const TRANSFER_DEMAND_SHARE = 0.25;
-/** Connecting fares sell below the direct economy fare. */
+/** Connecting fares sell below the direct fare of the same cabin. */
 export const TRANSFER_FARE_FACTOR = 0.9;
-/** The cabin connecting passengers book, pay for and sit in. */
-export const TRANSFER_CLASS = 'economy';
+
+/** A cabin class; connecting passengers book one and sit in it on both legs. */
+export type Cabin = typeof CABIN_CLASSES[number];
+
+/** Connecting passengers and their share of the fare in one cabin, per week. */
+export interface CabinTransfer {
+  pax: number;
+  revenue: number;
+}
+
+/**
+ * What one route carries in connecting passengers per week, as the engine
+ * reads it from `mods.transfer`: totals, and the same split by cabin.
+ */
+export interface RouteTransferLoad {
+  pax: number;
+  revenue: number;
+  byClass: Partial<Record<Cabin, CabinTransfer>>;
+}
 /**
  * Cruise speed assumed when classing an O-D market by flight time. The market
  * is the same whichever aircraft happens to serve its legs, and the route
@@ -151,10 +169,8 @@ export interface TransferFlow {
 }
 
 /** What one route carries in connecting passengers per week. */
-export interface RouteTransfer {
-  pax: number;
-  revenue: number;
-  /** Largest first. */
+export interface RouteTransfer extends RouteTransferLoad {
+  /** Largest first, all cabins together. */
   flows: TransferFlow[];
 }
 
@@ -167,7 +183,7 @@ export interface HubTransferStats {
 
 export interface TransferResult {
   /** Exactly what calculateRouteFinancials reads from `mods.transfer`. */
-  transfer: Record<string, { pax: number; revenue: number }>;
+  transfer: Record<string, RouteTransferLoad>;
   flowsByRoute: Record<string, RouteTransfer>;
   hubStats: Record<string, HubTransferStats>;
 }
@@ -193,6 +209,8 @@ interface Candidate {
   o: string;
   hub: string;
   d: string;
+  cls: Cabin;
+  /** O>D and cabin: the market this candidate sells. */
   odKey: string;
   routeA: ScheduledRoute;
   routeB: ScheduledRoute;
@@ -204,6 +222,7 @@ interface Candidate {
 }
 
 const directionKey = (routeId: string, from: string, to: string) => `${routeId}|${from}>${to}`;
+const seatKey = (direction: string, cls: Cabin) => `${direction}|${cls}`;
 
 /** Plain code-unit order: fixed across locales, and far cheaper than localeCompare. */
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -231,17 +250,20 @@ function mergeFlows(flows: TransferFlow[]): TransferFlow[] {
  * Connecting passengers on the player's network.
  *
  * For every airport H and every ordered pair of routes meeting there -- a
- * feeder A from O into H and a different route B from H on to D -- the O-D
- * market's weekly demand in that direction is scaled by
+ * feeder A from O into H and a different route B from H on to D -- each
+ * cabin's share of the O-D market's weekly demand in that direction is
+ * scaled by
  *   TRANSFER_DEMAND_SHARE x detour factor x hub quality x connection factor x
  *   market share against rivals flying O-D direct,
- * and the result is sold on seats left empty by `localFin`, on both legs.
+ * and the result is sold on seats of that cabin left empty by `localFin`, on
+ * both legs. A cabin missing on either leg sells no connections: a business
+ * passenger does not book a trip with an economy leg in it.
  * O-D pairs the player already flies direct are left out: those passengers
  * take the direct flight.
  *
  * `localFin` must be the routes' results WITHOUT transfer passengers; its
- * paxByClass gives economy seats and local economy passengers per week,
- * both directions.
+ * paxByClass gives seats and local passengers per cabin per week, both
+ * directions.
  */
 export function computeTransferFlows(
   routes: ScheduledRoute[],
@@ -261,11 +283,10 @@ export function computeTransferFlows(
 
   const directPairs = new Set(active.map(r => marketKey(r.origin, r.destination)));
 
-  // Legs and empty economy seats per route and direction. Connecting
-  // passengers pay an economy fare and sit in economy, so only that cabin's
-  // empty seats are theirs: counting empty business and first seats too let
-  // a half-empty premium cabin fill with connecting passengers that no class
-  // ever showed, so a route read as fully booked at a 50% load factor.
+  // Legs and empty seats per route, direction and cabin. Connecting
+  // passengers book a cabin and sit in it, so each cabin's empty seats are
+  // sold only to its own connecting passengers: pooling them once let a
+  // half-empty business cabin fill with economy fares no cabin ever showed.
   // paxByClass counts both directions together, so its free seats are split
   // between them in proportion to the legs each way (equal for round trips).
   const arrivalsBy = new Map<string, number[]>();
@@ -279,12 +300,16 @@ export function computeTransferFlows(
       arrivalsBy.get(key)!.push(leg.arr);
       departuresBy.get(key)!.push(leg.dep);
     }
-    const economy = localFin.get(r.id)!.paxByClass?.[TRANSFER_CLASS];
-    const free = Math.max(0, (Number(economy?.max) || 0) - (Number(economy?.actual) || 0));
     const out = legs.filter(l => l.from === r.origin).length;
     const back = legs.length - out;
-    freeSeats.set(directionKey(r.id, r.origin, r.destination), legs.length > 0 ? Math.floor(free * out / legs.length) : 0);
-    freeSeats.set(directionKey(r.id, r.destination, r.origin), legs.length > 0 ? Math.floor(free * back / legs.length) : 0);
+    const paxByClass = localFin.get(r.id)!.paxByClass || {};
+    for (const cls of CABIN_CLASSES) {
+      const load = paxByClass[cls];
+      const free = Math.max(0, (Number(load?.max) || 0) - (Number(load?.actual) || 0));
+      if (free <= 0 || legs.length === 0) continue;
+      freeSeats.set(seatKey(directionKey(r.id, r.origin, r.destination), cls), Math.floor(free * out / legs.length));
+      freeSeats.set(seatKey(directionKey(r.id, r.destination, r.origin), cls), Math.floor(free * back / legs.length));
+    }
   }
 
   const routeDistance = (r: ScheduledRoute) => {
@@ -316,7 +341,7 @@ export function computeTransferFlows(
   };
 
   // Per call only: calculateDemand reads the month's events from module state.
-  const marketCache = new Map<string, { demand: number; fare: number; rivals: number }>();
+  const marketCache = new Map<string, { demand: Record<Cabin, number>; fare: Record<Cabin, number>; rivals: number }>();
   const market = (o: string, d: string) => {
     const key = marketKey(o, d);
     const hit = marketCache.get(key);
@@ -326,11 +351,17 @@ export function computeTransferFlows(
     const timeClass = getFlightTimeClass(getFlightDurationMinutes(ao, ad, MARKET_CRUISE_SPEED));
     const so = getAirportStats(ao, year);
     const sd = getAirportStats(ad, year);
-    const demand = calculateDemand(
+    const demandByClass = calculateDemand(
       so.business, so.tourism, sd.business, sd.tourism, timeClass, month, difficulty, year,
       mods ? routeDemandFactor(mods, ao, ad) : 1
-    ).total;
-    const fare = Math.round(calculateBasePrices(Math.round(directDistance(o, d)), timeClass).economy * TRANSFER_FARE_FACTOR);
+    );
+    const bases = calculateBasePrices(Math.round(directDistance(o, d)), timeClass);
+    const demand = {} as Record<Cabin, number>;
+    const fare = {} as Record<Cabin, number>;
+    for (const cls of CABIN_CLASSES) {
+      demand[cls] = demandByClass[cls];
+      fare[cls] = Math.round(bases[cls] * TRANSFER_FARE_FACTOR);
+    }
     const entry = { demand, fare, rivals: rivalsByPair.get(key) || 0 };
     marketCache.set(key, entry);
     return entry;
@@ -378,14 +409,19 @@ export function computeTransferFlows(
         const m = market(o, d);
         // Frequent flyers stay loyal on a connection just as on a direct flight.
         const share = marketShare(offerAttractiveness(conn) * (1 + (mods?.loyaltyBonus ?? 0)), m.rivals);
-        // calculateDemand is both directions of the market; this is one.
-        const pot = Math.floor((m.demand / 2) * TRANSFER_DEMAND_SHARE * detourF * quality * connF * share);
-        if (pot <= 0) continue;
-
-        candidates.push({
-          o, hub, d, odKey: `${o}>${d}`, routeA, routeB, dA, dB,
-          fare: m.fare, pot, quality: detourF * quality * connF
-        });
+        const keyA = directionKey(routeA.id, o, hub);
+        const keyB = directionKey(routeB.id, hub, d);
+        for (const cls of CABIN_CLASSES) {
+          // The cabin must be there, with room, on both legs.
+          if (!freeSeats.get(seatKey(keyA, cls)) || !freeSeats.get(seatKey(keyB, cls))) continue;
+          // calculateDemand is both directions of the market; this is one.
+          const pot = Math.floor((m.demand[cls] / 2) * TRANSFER_DEMAND_SHARE * detourF * quality * connF * share);
+          if (pot <= 0) continue;
+          candidates.push({
+            o, hub, d, cls, odKey: `${o}>${d}|${cls}`, routeA, routeB, dA, dB,
+            fare: m.fare[cls], pot, quality: detourF * quality * connF
+          });
+        }
       }
     }
   }
@@ -393,11 +429,13 @@ export function computeTransferFlows(
 
   // Two ways to connect the same O-D (two hubs, or two parallel feeders)
   // share one market rather than each selling the whole of it: the best
-  // path's potential is the budget, and better paths fill it first.
+  // path's potential is the budget, and better paths fill it first. Each
+  // cabin is a market of its own.
   const budget = new Map<string, number>();
   for (const c of candidates) budget.set(c.odKey, Math.max(budget.get(c.odKey) || 0, c.pot));
 
   // Scarce seats go to the dearest tickets first; ties in a fixed order.
+  // Cabins never compete for a seat, so this only orders markets within one.
   candidates.sort((a, b) =>
     b.fare - a.fare
     || cmp(a.odKey, b.odKey)
@@ -407,16 +445,17 @@ export function computeTransferFlows(
     || cmp(a.routeB.id, b.routeB.id)
   );
 
-  const addToRoute = (routeId: string, flow: TransferFlow, revenue: number) => {
-    const entry = result.flowsByRoute[routeId] || (result.flowsByRoute[routeId] = { pax: 0, revenue: 0, flows: [] });
-    entry.pax += flow.pax;
-    entry.revenue += revenue;
+  const addToRoute = (routeId: string, cls: Cabin, flow: TransferFlow, revenue: number) => {
+    const entry = result.flowsByRoute[routeId] || (result.flowsByRoute[routeId] = { pax: 0, revenue: 0, byClass: {}, flows: [] });
+    const cabin = entry.byClass[cls] || (entry.byClass[cls] = { pax: 0, revenue: 0 });
+    cabin.pax += flow.pax;
+    cabin.revenue += revenue;
     entry.flows.push(flow);
   };
 
   for (const c of candidates) {
-    const keyA = directionKey(c.routeA.id, c.o, c.hub);
-    const keyB = directionKey(c.routeB.id, c.hub, c.d);
+    const keyA = seatKey(directionKey(c.routeA.id, c.o, c.hub), c.cls);
+    const keyB = seatKey(directionKey(c.routeB.id, c.hub, c.d), c.cls);
     const take = Math.min(c.pot, budget.get(c.odKey) || 0, freeSeats.get(keyA) || 0, freeSeats.get(keyB) || 0);
     if (take <= 0) continue;
     budget.set(c.odKey, budget.get(c.odKey)! - take);
@@ -427,8 +466,8 @@ export function computeTransferFlows(
     // The fare is shared between the two legs by distance flown.
     const revenue = take * c.fare;
     const splitA = c.dA / (c.dA + c.dB);
-    addToRoute(c.routeA.id, flow, revenue * splitA);
-    addToRoute(c.routeB.id, flow, revenue * (1 - splitA));
+    addToRoute(c.routeA.id, c.cls, flow, revenue * splitA);
+    addToRoute(c.routeB.id, c.cls, flow, revenue * (1 - splitA));
 
     const hubEntry = result.hubStats[c.hub] || (result.hubStats[c.hub] = { pax: 0, flows: [] });
     hubEntry.pax += take;
@@ -436,10 +475,19 @@ export function computeTransferFlows(
   }
 
   for (const [id, entry] of Object.entries(result.flowsByRoute)) {
-    // Whole dollars, so adding it to a route's revenue is exact.
-    entry.revenue = Math.round(entry.revenue);
+    // Whole dollars per cabin, so adding them to a route's revenue is exact;
+    // the totals are the sums of the cabins.
+    const byClass: RouteTransferLoad['byClass'] = {};
+    for (const cls of CABIN_CLASSES) {
+      const cabin = entry.byClass[cls];
+      if (!cabin) continue;
+      cabin.revenue = Math.round(cabin.revenue);
+      entry.pax += cabin.pax;
+      entry.revenue += cabin.revenue;
+      byClass[cls] = { ...cabin };
+    }
     entry.flows = mergeFlows(entry.flows);
-    result.transfer[id] = { pax: entry.pax, revenue: entry.revenue };
+    result.transfer[id] = { pax: entry.pax, revenue: entry.revenue, byClass };
   }
   for (const entry of Object.values(result.hubStats)) entry.flows = mergeFlows(entry.flows);
   return result;
@@ -535,7 +583,7 @@ export interface DraftPricing {
   /** The draft's result, connecting passengers included. */
   fin: RouteFinancials;
   /** Its connecting passengers, as computeNetworkFinancials hands them to the engine. */
-  transfer: { pax: number; revenue: number } | undefined;
+  transfer: RouteTransferLoad | undefined;
 }
 
 /**

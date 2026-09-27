@@ -488,7 +488,7 @@ export function RouteDetailView({
                        .map(cls => {
                          const cd = financials.paxByClass[cls];
                          const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
-                         // Connecting passengers sit in economy: they count in its load
+                         // Connecting passengers sit in their own cabin: they count in its load
                          // factor, but earn their own fare on the line below.
                          const lf = cd.max > 0 ? Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100) : 0;
                          return {
@@ -497,7 +497,10 @@ export function RouteDetailView({
                          };
                        })
                        .concat(financials.transferPax > 0 ? [{
-                         label: `Connecting — ${formatNumber(financials.transferPax)} transfer pax (share of fare by distance)`,
+                         label: `Connecting — ${formatNumber(financials.transferPax)} transfer pax (${(['economy', 'premium', 'business', 'first'] as const)
+                           .filter(cls => (financials.paxByClass?.[cls]?.transfer ?? 0) > 0)
+                           .map(cls => `${formatNumber(financials.paxByClass[cls].transfer!)} ${cls}`)
+                           .join(', ')}; share of fare by distance)`,
                          amount: financials.transferRev
                        }] : [])}
                      expenses={[

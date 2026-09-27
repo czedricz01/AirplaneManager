@@ -340,8 +340,15 @@ export interface PlayerModifiers {
    * independent cause, see routeCancelShare.
    */
   cancelShareAll?: number;
-  /** Connecting passengers and their revenue per week, by route id. */
-  transfer?: Record<string, { pax: number; revenue: number }>;
+  /**
+   * Connecting passengers and their revenue per week, by route id: totals,
+   * and the same split by cabin. Without `byClass` it is all economy.
+   */
+  transfer?: Record<string, {
+    pax: number;
+    revenue: number;
+    byClass?: Partial<Record<'economy' | 'premium' | 'business' | 'first', { pax: number; revenue: number }>>;
+  }>;
 }
 
 /** A stable neutral default, so a missing prop does not invalidate memos on every render. */
