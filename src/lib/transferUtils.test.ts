@@ -13,7 +13,7 @@ import {
   withDraftRoute,
   type NetworkEnv
 } from './transferUtils';
-import { calculateRouteFinancials, getFlightDurationMinutes } from './financeUtils';
+import { calculateBasePrices, calculateRouteFinancials, getFlightDurationMinutes, getFlightTimeClass } from './financeUtils';
 import { WEEK_MIN } from './scheduleUtils';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { calculateDistance } from '../data/airports';
@@ -25,8 +25,10 @@ import { aircraftList } from '../data/aircraft';
  * A hub with a spoke to each of `spokes`, one aircraft per route. Two round
  * trips a day, starting 06:00 and 13:00: the morning return lands at the hub
  * in time for the afternoon departures, which is what makes connections.
+ * Economy sells 30% above the base fare, so it keeps empty seats for
+ * connecting passengers, who travel in economy only.
  */
-function hubNetwork(hub: string, spokes: string[], opts: { aircraftId?: string; perDay?: number; hubLevel?: number } = {}) {
+function hubNetwork(hub: string, spokes: string[], opts: { aircraftId?: string; perDay?: number; hubLevel?: number; economyMarkup?: number } = {}) {
   const spec = aircraftList.find(a => a.id === (opts.aircraftId || '727-200'))!;
   const perDay = opts.perDay ?? 2;
   const fleet: any[] = [];
@@ -45,9 +47,14 @@ function hubNetwork(hub: string, spokes: string[], opts: { aircraftId?: string; 
     for (let day = 1; day <= 7; day++) {
       for (let k = 0; k < perDay; k++) schedule.push({ dayId: day, startHour: 6 + k * 7, startMin: 0, durMin, turnoverMin: 60 });
     }
+    const distance = Math.round(calculateDistance(o.coords[0], o.coords[1], d.coords[0], d.coords[1]));
+    const bases = calculateBasePrices(distance, getFlightTimeClass(durMin));
+    const ticketPrices = {
+      economy: Math.round(bases.economy * (opts.economyMarkup ?? 1.3)), premium: bases.premium, business: bases.business, first: bases.first
+    };
     routes.push({
       id: `r${i}-${spoke}`, airline: 'My Airline', origin: hub, destination: spoke, aircraft: aircraft.registration,
-      distance: Math.round(calculateDistance(o.coords[0], o.coords[1], d.coords[0], d.coords[1])), durMin, schedule,
+      distance, durMin, schedule, ticketPrices, activeTicketPrices: ticketPrices,
       classConfigs: { economy: { catering: [['b5']], extras: ['none'], service: ['none'] } }
     });
   });
@@ -66,6 +73,8 @@ const seatsOf = (fin: { paxByClass: Record<string, { max: number }> }) =>
   Object.values(fin.paxByClass).reduce((a, c) => a + c.max, 0);
 const localPaxOf = (fin: { paxByClass: Record<string, { actual: number }> }) =>
   Object.values(fin.paxByClass).reduce((a, c) => a + c.actual, 0);
+const freeEconomyOf = (fin: { paxByClass: Record<string, { actual: number; max: number }> }) =>
+  (fin.paxByClass.economy?.max ?? 0) - (fin.paxByClass.economy?.actual ?? 0);
 
 // --- Timetable -------------------------------------------------------------------
 
@@ -187,7 +196,7 @@ test('connecting passengers never take more seats than the local traffic left em
     const net = computeNetworkFinancials(routes, fleet, { demandFactor: 1 }, env);
     for (const r of routes) {
       const fin = local.get(r.id)!;
-      const free = seatsOf(fin) - localPaxOf(fin);
+      const free = freeEconomyOf(fin);
       const taken = flows.transfer[r.id]?.pax || 0;
       assert.ok(taken <= free, `${r.destination}: ${taken} transfer pax on ${free} free seats`);
       // Per direction too: on round trips half the empty seats fly each way.
@@ -202,6 +211,42 @@ test('connecting passengers never take more seats than the local traffic left em
       assert.ok(priced.paxPerWeek <= seatsOf(priced), 'the aircraft is never over-full');
     }
   }
+});
+
+test('connecting passengers sit in economy only, never in an empty premium cabin', () => {
+  // Economy sold out on every route, business nearly empty: the connecting
+  // passengers pay an economy fare, so there is no seat for them. They used
+  // to fill the empty business seats unseen, so the route read as fully
+  // booked while business showed a low load factor.
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE', 'ATH']);
+  const local = new Map(routes.map(r => [r.id, {
+    paxByClass: { economy: { actual: 1000, max: 1000 }, business: { actual: 10, max: 500 } }
+  }]));
+  const flows = computeTransferFlows(routes, local, { ...env, mods: { demandFactor: 1 }, fleet });
+  assert.deepEqual(flows.transfer, {});
+
+  // With economy seats to spare, the same network does sell connections.
+  const roomy = new Map(routes.map(r => [r.id, {
+    paxByClass: { economy: { actual: 500, max: 1000 }, business: { actual: 10, max: 500 } }
+  }]));
+  const sold = computeTransferFlows(routes, roomy, { ...env, mods: { demandFactor: 1 }, fleet });
+  assert.ok(Object.keys(sold.transfer).length > 0);
+  for (const t of Object.values(sold.transfer)) assert.ok(t.pax <= 500, `${t.pax} transfer pax on 500 free economy seats`);
+});
+
+test('a stale transfer figure never seats more than the empty economy seats', () => {
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE']);
+  const r = routes[0];
+  const price = (mods: any) => calculateRouteFinancials(
+    r, fleet[0], env.fuelPrice, env.airportManagement, env.year, env.month,
+    env.difficulty, env.airportsMap, routes, fleet, false, 1, [], mods
+  );
+  const alone = price({ demandFactor: 1 });
+  const free = freeEconomyOf(alone);
+  const over = price({ demandFactor: 1, transfer: { [r.id]: { pax: free * 3, revenue: free * 300 } } });
+  assert.equal(over.transferPax, free);
+  assert.equal(over.transferRev, free * 100, 'revenue shrinks with the passengers');
+  assert.equal(over.paxByClass.economy.actual + over.paxByClass.economy.transfer!, over.paxByClass.economy.max);
 });
 
 test('the result is deterministic, whatever order the routes come in', () => {
@@ -301,7 +346,12 @@ test('the network result adds exactly the transfer revenue to what a route earns
     assert.equal(withTransfer.transferRev, t.revenue);
     assert.equal(withTransfer.estWeeklyRev - alone.estWeeklyRev, t.revenue);
     assert.equal(withTransfer.paxPerWeek - alone.paxPerWeek, t.pax);
-    assert.deepStrictEqual(withTransfer.paxByClass, alone.paxByClass, 'local passengers are untouched');
+    for (const [cls, pax] of Object.entries(alone.paxByClass)) {
+      assert.equal(withTransfer.paxByClass[cls].actual, pax.actual, 'local passengers are untouched');
+      assert.equal(withTransfer.paxByClass[cls].max, pax.max);
+    }
+    assert.equal(withTransfer.paxByClass.economy.transfer, t.pax, 'connecting passengers are counted in economy');
+    assert.equal(withTransfer.paxByClass.business?.transfer, undefined, 'and in no other cabin');
     assert.ok(withTransfer.costsBreakdown.catering > alone.costsBreakdown.catering, 'connecting passengers are fed');
     assert.ok(withTransfer.costsBreakdown.paxFees > alone.costsBreakdown.paxFees, 'and pay passenger fees');
   }

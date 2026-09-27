@@ -402,7 +402,7 @@ export interface SimulatedRoute {
   aircraft: string;
   weeklyFlights: number;
   paxPerWeek: number;
-  paxByClass?: Record<string, { actual: number, max: number }>;
+  paxByClass?: Record<string, { actual: number, max: number, transfer?: number }>;
   schedule?: any[];
   classConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
   ticketPrices?: Record<string, number>;

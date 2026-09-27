@@ -3519,7 +3519,7 @@ function RoutePlannerInner({
                                          </div>
                                          <div className="flex justify-between pl-4 text-3xs text-aero-yellow">
                                            <span>Market demand {formatNumber(maxDemand)} / wk, before competitors and seat cap</span>
-                                           <span>Expected pax: {formatNumber(pax?.actual ?? 0)} / {formatNumber(pax?.max ?? 0)}</span>
+                                           <span>Expected pax: {formatNumber(pax?.actual ?? 0)}{pax?.transfer ? ` + ${formatNumber(pax.transfer)} transfer` : ''} / {formatNumber(pax?.max ?? 0)}</span>
                                          </div>
                                          <div className="flex justify-between pl-4 text-3xs text-white/40">
                                             <span>Seats on aircraft:</span>

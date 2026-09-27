@@ -488,9 +488,11 @@ export function RouteDetailView({
                        .map(cls => {
                          const cd = financials.paxByClass[cls];
                          const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
-                         const lf = cd.max > 0 ? Math.round((cd.actual / cd.max) * 100) : 0;
+                         // Connecting passengers sit in economy: they count in its load
+                         // factor, but earn their own fare on the line below.
+                         const lf = cd.max > 0 ? Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100) : 0;
                          return {
-                           label: `${cls[0].toUpperCase()}${cls.slice(1)} — ${cd.actual}/${cd.max} pax @ $${price} (${lf}% LF)`,
+                           label: `${cls[0].toUpperCase()}${cls.slice(1)} — ${cd.actual}/${cd.max} pax${cd.transfer ? ` + ${cd.transfer} transfer` : ''} @ $${price} (${lf}% LF)`,
                            amount: cd.actual * price
                          };
                        })
@@ -518,13 +520,13 @@ export function RouteDetailView({
                        .filter(cls => (financials.paxByClass?.[cls]?.max ?? 0) > 0)
                        .map(cls => {
                          const cd = financials.paxByClass[cls];
-                         const lf = cd.max > 0 ? Math.round((cd.actual / cd.max) * 100) : 0;
+                         const lf = cd.max > 0 ? Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100) : 0;
                          const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
                          return (
                            <div key={cls} className="flex flex-col items-center bg-white/5 border border-white/10 rounded-sm p-2">
                              <span className="text-3xs text-white/30 uppercase tracking-widest font-black">{cls}</span>
                              <span className={`text-lg font-mono font-bold ${lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn'}`}>{lf}%</span>
-                             <span className="text-3xs text-white/30 font-mono">{cd.actual}/{cd.max} pax @ ${price}</span>
+                             <span className="text-3xs text-white/30 font-mono">{cd.actual}{cd.transfer ? `+${cd.transfer}` : ''}/{cd.max} pax @ ${price}</span>
                            </div>
                          );
                        })}
