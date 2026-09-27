@@ -40,6 +40,8 @@ export const MAX_DETOUR = 1.6;
 export const TRANSFER_DEMAND_SHARE = 0.25;
 /** Connecting fares sell below the direct economy fare. */
 export const TRANSFER_FARE_FACTOR = 0.9;
+/** The cabin connecting passengers book, pay for and sit in. */
+export const TRANSFER_CLASS = 'economy';
 /**
  * Cruise speed assumed when classing an O-D market by flight time. The market
  * is the same whichever aircraft happens to serve its legs, and the route
@@ -238,7 +240,8 @@ function mergeFlows(flows: TransferFlow[]): TransferFlow[] {
  * take the direct flight.
  *
  * `localFin` must be the routes' results WITHOUT transfer passengers; its
- * paxByClass gives seats and local passengers per week, both directions.
+ * paxByClass gives economy seats and local economy passengers per week,
+ * both directions.
  */
 export function computeTransferFlows(
   routes: ScheduledRoute[],
@@ -258,9 +261,13 @@ export function computeTransferFlows(
 
   const directPairs = new Set(active.map(r => marketKey(r.origin, r.destination)));
 
-  // Legs and empty seats per route and direction. paxByClass counts both
-  // directions together, so its free seats are split between them in
-  // proportion to the legs each way (equal for round trips).
+  // Legs and empty economy seats per route and direction. Connecting
+  // passengers pay an economy fare and sit in economy, so only that cabin's
+  // empty seats are theirs: counting empty business and first seats too let
+  // a half-empty premium cabin fill with connecting passengers that no class
+  // ever showed, so a route read as fully booked at a 50% load factor.
+  // paxByClass counts both directions together, so its free seats are split
+  // between them in proportion to the legs each way (equal for round trips).
   const arrivalsBy = new Map<string, number[]>();
   const departuresBy = new Map<string, number[]>();
   const freeSeats = new Map<string, number>();
@@ -272,10 +279,8 @@ export function computeTransferFlows(
       arrivalsBy.get(key)!.push(leg.arr);
       departuresBy.get(key)!.push(leg.dep);
     }
-    let free = 0;
-    for (const cls of Object.values(localFin.get(r.id)!.paxByClass || {})) {
-      free += Math.max(0, (Number(cls?.max) || 0) - (Number(cls?.actual) || 0));
-    }
+    const economy = localFin.get(r.id)!.paxByClass?.[TRANSFER_CLASS];
+    const free = Math.max(0, (Number(economy?.max) || 0) - (Number(economy?.actual) || 0));
     const out = legs.filter(l => l.from === r.origin).length;
     const back = legs.length - out;
     freeSeats.set(directionKey(r.id, r.origin, r.destination), legs.length > 0 ? Math.floor(free * out / legs.length) : 0);

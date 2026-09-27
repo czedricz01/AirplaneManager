@@ -944,7 +944,12 @@ export function calculateRouteFinancials(
   const bases = calculateBasePrices(dist, timeClass);
   let totalPax = 0;
   let totalRev = 0;
-  const paxByClass: Record<string, { actual: number, max: number }> = {};
+  /**
+   * Seats and passengers per cabin per week. `actual` is local passengers
+   * only; economy's `transfer` is the connecting passengers sitting in it
+   * too, so a cabin's load factor is (actual + transfer) / max.
+   */
+  const paxByClass: Record<string, { actual: number, max: number, transfer?: number }> = {};
   // A route mid-creation carries `ticketPrices: {}` (and copies that into
   // `activeTicketPrices` too, see RoutePlannerView's routeDraft) until the
   // player's first price edit. `{}` is truthy, so `a || b || c` never reached
@@ -1038,14 +1043,23 @@ export function calculateRouteFinancials(
   });
 
   // Connecting passengers, worked out across the whole network by
-  // computeNetworkFinancials (transferUtils.ts). They only ever take seats the
-  // local passengers above left empty, travel in economy, and pay the fees and
-  // catering every other passenger does. A full-load preview has no empty
-  // seat to give them.
+  // computeNetworkFinancials (transferUtils.ts). They only ever take economy
+  // seats the local passengers above left empty, and pay the fees and
+  // catering every other passenger does. They are counted in economy's load,
+  // so no cabin reads half empty while the route reads full. A full-load
+  // preview has no empty seat to give them.
   const transfer = forceFullLoad ? undefined : mods?.transfer?.[route.id];
-  const transferPax = Math.max(0, Math.floor(Number(transfer?.pax) || 0));
-  const transferRev = transferPax > 0 ? Math.max(0, Number(transfer?.revenue) || 0) : 0;
+  const economyLoad = paxByClass.economy;
+  const freeEconomy = economyLoad ? Math.max(0, economyLoad.max - economyLoad.actual) : 0;
+  const requestedTransfer = Math.max(0, Math.floor(Number(transfer?.pax) || 0));
+  // Capped at the empty economy seats; transferUtils never asks for more, but a
+  // stale figure must not seat anyone twice. Revenue shrinks with the cap.
+  const transferPax = Math.min(requestedTransfer, freeEconomy);
+  const transferRev = transferPax > 0
+    ? Math.round(Math.max(0, Number(transfer?.revenue) || 0) * transferPax / requestedTransfer)
+    : 0;
   if (transferPax > 0) {
+    economyLoad.transfer = transferPax;
     totalPax += transferPax;
     totalRev += transferRev;
     totalWeeklyCateringCost += cateringPerPax('economy') * transferPax;
