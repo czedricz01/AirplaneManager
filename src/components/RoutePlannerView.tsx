@@ -19,7 +19,7 @@ import type { ScheduledTrip } from './RouteScheduleEditView';
 import { readJson, readString, writeJson } from '../lib/safeStorage';
 
 const HIDDEN_AIRCRAFT_KEY = 'planner_hidden_aircraft';
-import { findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
+import { dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import {
   getSlotPurchaseCost,
@@ -507,49 +507,12 @@ function RoutePlannerInner({
     return maxGap;
   }
 
+  // Longest run of back-to-back round trips the aircraft's other routes leave
+  // room for on each day. Only the other routes count: the trips of this
+  // route are rebuilt from Multiple Ops whenever a day is toggled, so they
+  // must not lower the limit (it would also shrink Multiple Ops under them).
   function getOpsCapacityForDays(aircraftRegistration: string, days: number[]) {
-    const aircraftRoutes = routes.filter(r => r.aircraft === aircraftRegistration && r.id !== initialRouteId);
-    const existingOccupied = aircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
-      const start = ((s.dayId - 1) * 1440) + (s.startHour * 60 + s.startMin);
-      return { start, end: start + Math.ceil(cycleMin / 5) * 5 };
-    }) || []);
-
-    const currentOccupied = schedule.map(s => {
-      const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
-      const start = ((s.dayId - 1) * 1440) + (s.startHour * 60 + s.startMin);
-      return { start, end: start + Math.ceil(cycleMin / 5) * 5 };
-    });
-
-    const occupied = [...existingOccupied, ...currentOccupied];
-    const testDays = days.length > 0 ? days : [1,2,3,4,5,6,7];
-    
-    let minMaxDayFree = 1440;
-    for (const d of testDays) {
-      const dayStart = (d - 1) * 1440;
-      const dayEnd = d * 1440;
-      const dayOcc = occupied.filter(o => o.start < dayEnd && o.end > dayStart)
-        .map(o => ({ 
-          start: Math.max(dayStart, o.start), 
-          end: Math.min(dayEnd, o.end) 
-        }))
-        .sort((a,b) => a.start - b.start);
-      
-      if (dayOcc.length === 0) {
-        minMaxDayFree = Math.min(minMaxDayFree, 1440);
-        continue;
-      }
-
-      let currentMax = 0;
-      let last = dayStart;
-      for (const occ of dayOcc) {
-        currentMax = Math.max(currentMax, occ.start - last);
-        last = Math.max(last, occ.end);
-      }
-      currentMax = Math.max(currentMax, dayEnd - last);
-      minMaxDayFree = Math.min(minMaxDayFree, currentMax);
-    }
-    return minMaxDayFree;
+    return dailyRunCapacity(occupiedIntervals(routes, aircraftRegistration, initialRouteId), days);
   }
 
   function getFlightDurationMinutes(dest?: Airport) {
@@ -1567,7 +1530,7 @@ function RoutePlannerInner({
     if (cycleMin <= 0) return 1;
     const maxDayFree = getOpsCapacityForDays(selectedAircraft.registration, []);
     return Math.max(1, Math.floor(maxDayFree / cycleMin));
-  }, [selectedAircraft, selectedOrigin, selectedDest, routes, schedule, initialRouteId]);
+  }, [selectedAircraft, selectedOrigin, selectedDest, routes, initialRouteId]);
 
   useEffect(() => {
     if (multipleOps > maxMultipleOps) setMultipleOps(maxMultipleOps);

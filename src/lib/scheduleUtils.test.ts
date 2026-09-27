@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   blockMinutes,
   checkOverlap,
+  dailyRunCapacity,
   findCommonRunStart,
   findDayRunStart,
   findMaxFlightStarts,
@@ -168,3 +169,40 @@ test('findCommonRunStart finds one time of day that fits every day', () => {
   assert.equal(findCommonRunStart([1, 2], 2, 800, [], 0), null);
 });
 
+
+test('dailyRunCapacity is a full day on an empty aircraft', () => {
+  assert.equal(dailyRunCapacity([]), 1440);
+});
+
+test('dailyRunCapacity counts the free time after midnight', () => {
+  // Busy 08:00-14:00 every day: free from 14:00 until 08:00 the next day (18 h).
+  const occ = [1, 2, 3, 4, 5, 6, 7].map(d => ({ start: (d - 1) * 1440 + 480, end: (d - 1) * 1440 + 840 }));
+  assert.equal(dailyRunCapacity(occ), 18 * 60);
+  assert.equal(dailyRunCapacity(occ, [3]), 18 * 60);
+});
+
+test('dailyRunCapacity carries a free stretch across Sunday midnight', () => {
+  // Busy 20:00-22:00 every day but Sunday; Sunday 20:00 until Monday 20:00 is free.
+  const occ = [1, 2, 3, 4, 5, 6].map(d => ({ start: (d - 1) * 1440 + 1200, end: (d - 1) * 1440 + 1320 }));
+  assert.equal(dailyRunCapacity(occ, [7]), 1440);
+  // Monday: from 00:00 to 20:00, or from 22:00 to Tuesday 20:00 (22 h).
+  assert.equal(dailyRunCapacity(occ, [1]), 22 * 60);
+});
+
+test('dailyRunCapacity is capped at one day and takes the tightest day', () => {
+  // Only Wednesday 10:00-11:00 is busy: every other day has more than a day free.
+  const occ = [{ start: 2 * 1440 + 600, end: 2 * 1440 + 660 }];
+  assert.equal(dailyRunCapacity(occ, [1]), 1440);
+  // Wednesday: from 11:00 on the rest of the week is free.
+  assert.equal(dailyRunCapacity(occ, [3]), 1440);
+  // Tuesday from 00:00 until Wednesday 10:00 is 34 h, capped at a day.
+  assert.equal(dailyRunCapacity(occ, [2]), 1440);
+});
+
+test('dailyRunCapacity is zero when a day has no free minute', () => {
+  const occ = [{ start: 0, end: 2 * 1440 }];
+  assert.equal(dailyRunCapacity(occ, [1]), 0);
+  assert.equal(dailyRunCapacity(occ), 0);
+  // Tuesday 00:00 is busy until Wednesday: nothing may start on Tuesday.
+  assert.equal(dailyRunCapacity(occ, [3]), 1440);
+});
