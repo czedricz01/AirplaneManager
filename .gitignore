@@ -12,3 +12,6 @@ uploads/
 public/PlanePics/
 src/PlanePics/*/
 dist-static/
+
+# Temporary git worktrees created for isolated background agents
+.claude/worktrees/
