@@ -2248,7 +2248,7 @@ function RoutePlannerInner({
              timetable keeps its own scroll area at most of the screen height. */
           <div className="w-full flex flex-col md:flex-row gap-4 h-full overflow-y-auto md:overflow-visible">
             {/* Left Column: Form */}
-            <div className="w-full md:w-1/3 shrink-0 border border-white/10 bg-black/40 flex flex-col md:overflow-y-auto">
+            <div className="w-full md:w-80 shrink-0 border border-white/10 bg-black/40 flex flex-col md:overflow-y-auto">
               <div className="p-4 bg-aero-yellow/10 border-b border-aero-yellow/20 text-center uppercase tracking-[0.2em] font-black text-aero-yellow text-sm">Timetable Configuration</div>
               
               <div className="p-4 space-y-8">
@@ -2273,17 +2273,17 @@ function RoutePlannerInner({
                 </div>
 
                 {/* Flight Number */}
-                <div className="flex gap-4">
+                <div className="flex gap-2">
                   <div className="flex flex-col flex-[0.8] min-w-0">
-                    <label className="block text-2xs uppercase tracking-widest text-white/50 mb-2 font-bold">
+                    <label className="block text-3xs uppercase tracking-widest text-white/50 mb-2 font-bold">
                        Code
                     </label>
                     <div className="h-10 bg-white/5 border border-white/10 font-black text-aero-yellow text-center select-none uppercase tracking-widest flex items-center justify-center truncate px-1">{airlineCode}</div>
                   </div>
                   <div className="flex flex-col flex-1">
-                    <label className="block text-2xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight Out</label>
-                    <input 
-                      type="text" 
+                    <label className="block text-3xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight Out</label>
+                    <input
+                      type="text"
                       value={flightNumberOutbound}
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -2291,25 +2291,25 @@ function RoutePlannerInner({
                         // An empty field used to produce "NaN" here and on every flight.
                         setFlightNumberInbound(val ? (parseInt(val, 10) + 1).toString() : "");
                       }}
-                      className="h-10 w-full bg-white/5 border border-white/10 px-2 outline-none focus:border-aero-yellow font-mono text-sm text-center"
+                      className="h-10 w-full bg-white/5 border border-white/10 px-1 outline-none focus:border-aero-yellow font-mono text-sm text-center"
                       placeholder="Out"
                     />
                   </div>
                   <div className="flex flex-col flex-1">
-                    <label className="block text-2xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight In</label>
-                    <input 
-                      type="text" 
+                    <label className="block text-3xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight In</label>
+                    <input
+                      type="text"
                       value={flightNumberInbound}
                       onChange={e => setFlightNumberInbound(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="h-10 w-full bg-white/5 border border-white/10 px-2 outline-none focus:border-aero-yellow font-mono text-sm text-center"
+                      className="h-10 w-full bg-white/5 border border-white/10 px-1 outline-none focus:border-aero-yellow font-mono text-sm text-center"
                       placeholder="In"
                     />
                   </div>
                   <div className="flex flex-col flex-[0.8]">
-                    <label className="block text-2xs uppercase tracking-widest text-transparent mb-2 font-bold select-none">Action</label>
-                    <button 
+                    <label className="block text-3xs uppercase tracking-widest text-transparent mb-2 font-bold select-none">Action</label>
+                    <button
                       onClick={generateFlightNumber}
-                      className="h-10 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors uppercase tracking-widest text-3xs font-black italic text-center text-white/50 hover:text-white leading-tight flex items-center justify-center"
+                      className="h-10 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors uppercase tracking-widest text-4xs font-black italic text-center text-white/50 hover:text-white leading-tight flex items-center justify-center"
                     >
                       RANDOM
                     </button>
@@ -2634,7 +2634,7 @@ function RoutePlannerInner({
                     </button>
                   </div>
 
-                  <div className={`flex flex-wrap gap-2 mt-4 justify-center transition-opacity ${maximizeFlights ? 'opacity-30 pointer-events-none' : ''}`}>
+                  <div className={`grid grid-cols-7 gap-1 mt-4 transition-opacity ${maximizeFlights ? 'opacity-30 pointer-events-none' : ''}`}>
                     {daysOfWeek.map(day => {
                       const isSelected = schedule.some(s => s.dayId === day.id);
                       return (
@@ -2642,9 +2642,9 @@ function RoutePlannerInner({
                           key={day.id}
                           disabled={maximizeFlights}
                           onClick={() => handleToggleDay(day.id)}
-                          className={`w-12 h-12 flex items-center justify-center border font-black text-xs transition-all ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/40 text-white/30 border-white/10 hover:border-white/40 hover:text-white'}`}
+                          className={`h-9 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/40 text-white/30 border-white/10 hover:border-white/40 hover:text-white'}`}
                         >
-                          {day.label}
+                          <span className="text-[8px] leading-none">{day.label}</span>
                         </button>
                       )
                     })}
@@ -2654,17 +2654,17 @@ function RoutePlannerInner({
                 {/* Time Selection */}
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-white/50 mb-2 font-bold">Starting Time</label>
-                  <div className={`flex items-center justify-center gap-4 bg-black/60 border border-white/10 p-4 font-mono shadow-2xl transition-all ${maximizeFlights ? 'opacity-30 pointer-events-none grayscale' : ''}`}>
+                  <div className={`flex items-center justify-center gap-2 bg-black/60 border border-white/10 p-2 font-mono rounded-sm shadow-inner transition-all ${maximizeFlights ? 'opacity-30 pointer-events-none grayscale' : ''}`}>
                     <div className="flex flex-col items-center">
-                      <button onClick={() => handleClockChange(60)} className="p-2 text-white/50 hover:text-aero-yellow transition-colors">▲</button>
-                      <div className="text-4xl font-black">{maximizeFlights ? '--' : flightHour.toString().padStart(2, '0')}</div>
-                      <button onClick={() => handleClockChange(-60)} className="p-2 text-white/50 hover:text-aero-yellow transition-colors">▼</button>
+                      <button onClick={() => handleClockChange(60)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▲</button>
+                      <div className="text-2xl font-black tracking-widest">{maximizeFlights ? '--' : flightHour.toString().padStart(2, '0')}</div>
+                      <button onClick={() => handleClockChange(-60)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▼</button>
                     </div>
-                    <div className="text-4xl text-white/30 pb-2">:</div>
+                    <div className="text-xl text-white/30 mb-1 shrink-0">:</div>
                     <div className="flex flex-col items-center">
-                      <button onClick={() => handleClockChange(5)} className="p-2 text-white/50 hover:text-aero-yellow transition-colors">▲</button>
-                      <div className="text-4xl font-black">{maximizeFlights ? '--' : flightMinute.toString().padStart(2, '0')}</div>
-                      <button onClick={() => handleClockChange(-5)} className="p-2 text-white/50 hover:text-aero-yellow transition-colors">▼</button>
+                      <button onClick={() => handleClockChange(5)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▲</button>
+                      <div className="text-2xl font-black tracking-widest">{maximizeFlights ? '--' : flightMinute.toString().padStart(2, '0')}</div>
+                      <button onClick={() => handleClockChange(-5)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▼</button>
                     </div>
                   </div>
                 </div>
