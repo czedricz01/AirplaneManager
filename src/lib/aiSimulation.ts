@@ -868,7 +868,9 @@ export const simulateAiAirlinesTurn = (
     const openRoute = (plane: AiPlane, plan: RoutePlan) => {
       newCapital -= ROUTE_OPENING_COST;
       newRoutes.push(newRoute(ai.hub, plane, plan, currentDateOffset));
-      say(`NETWORK EXPANSION: ${ai.name} connects ${ai.hub} to ${plan.dest.name} (${plan.dest.id}) with the newly scheduled ${plane.type}.`);
+      // Route openings are Newspaper material only (rivalMoves diffs routes
+      // independently); a Messages entry for every rival's new route would
+      // flood the inbox.
     };
     const minForecast = difficulty === 'Easy' ? -Infinity : 0;
     const maxOpenings = difficulty === 'Hard' ? 2 : 1;
