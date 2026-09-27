@@ -312,3 +312,53 @@ export function findCommonRunStart(
   }
   return null;
 }
+
+/**
+ * The longest time an aircraft has for a "Multiple Ops" run that starts on
+ * any of `days` (all seven when empty), in minutes: for each day, the longest
+ * stretch from a free minute of that day to the next busy block, and the
+ * smallest of those over the days.
+ *
+ * A run may carry on past midnight into the next day, so a free stretch is
+ * not cut off at midnight. It is capped at one day, so the same run on the
+ * next day cannot overlap it.
+ */
+export function dailyRunCapacity(occupied: Interval[], days: number[] = []): number {
+  const testDays = days.length > 0 ? days : [1, 2, 3, 4, 5, 6, 7];
+  const blocks = occupied.filter(o => o.end > o.start);
+  if (blocks.length === 0) return DAY_MIN;
+
+  // The week before and after as well, so a free stretch across Sunday
+  // midnight is one plain range.
+  const spread: Interval[] = [];
+  for (const o of blocks) {
+    if (o.end - o.start >= WEEK_MIN) return 0;
+    const s = ((o.start % WEEK_MIN) + WEEK_MIN) % WEEK_MIN;
+    const len = o.end - o.start;
+    for (const shift of [-WEEK_MIN, 0, WEEK_MIN]) spread.push({ start: s + shift, end: s + shift + len });
+  }
+  spread.sort((a, b) => a.start - b.start);
+  const merged: Interval[] = [];
+  for (const o of spread) {
+    const last = merged[merged.length - 1];
+    if (last && o.start <= last.end) last.end = Math.max(last.end, o.end);
+    else merged.push({ ...o });
+  }
+
+  let smallest = DAY_MIN;
+  for (const d of testDays) {
+    const dayStart = (d - 1) * DAY_MIN;
+    const dayEnd = dayStart + DAY_MIN;
+    let longest = 0;
+    for (let i = 0; i + 1 < merged.length; i++) {
+      const freeStart = merged[i].end;
+      const freeEnd = merged[i + 1].start;
+      // Earliest start of the run inside this day and this free stretch.
+      const runStart = Math.max(freeStart, dayStart);
+      if (runStart >= dayEnd || runStart >= freeEnd) continue;
+      longest = Math.max(longest, freeEnd - runStart);
+    }
+    smallest = Math.min(smallest, longest);
+  }
+  return Math.min(DAY_MIN, smallest);
+}
