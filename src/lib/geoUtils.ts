@@ -11,6 +11,32 @@ import type { RegionId } from './gameState';
  */
 export const ROUTE_PATH_SEGMENTS = 100;
 
+/**
+ * Longest a drawn segment of a route may be, in km. The longest routes used to
+ * get 100 km segments anyway (10,000 km in 100 steps), and nobody sees the
+ * corners; shorter routes now get fewer points to match.
+ */
+const ROUTE_SEGMENT_KM = 75;
+const MIN_ROUTE_SEGMENTS = 8;
+const EARTH_RADIUS_KM = 6371;
+
+/**
+ * How many segments a route between two points is drawn with.
+ *
+ * Every route used to get 100, whatever its length. Leaflet re-projects every
+ * point of every line on each zoom step, so a 300 km hop cost as much as a
+ * flight to Sydney. By length, a short route needs far fewer points to look
+ * the same.
+ */
+export function routeSegmentCount(start: [number, number], end: [number, number]): number {
+  const lat1 = start[0] * Math.PI / 180;
+  const lat2 = end[0] * Math.PI / 180;
+  const dLon = (end[1] - start[1]) * Math.PI / 180;
+  const angle = Math.acos(Math.min(1, Math.max(-1, Math.sin(lat1) * Math.sin(lat2) + Math.cos(lat1) * Math.cos(lat2) * Math.cos(dLon))));
+  const km = (Number.isFinite(angle) ? angle : 0) * EARTH_RADIUS_KM;
+  return Math.min(ROUTE_PATH_SEGMENTS, Math.max(MIN_ROUTE_SEGMENTS, Math.ceil(km / ROUTE_SEGMENT_KM)));
+}
+
 export function getGreatCirclePoints(start: [number, number], end: [number, number], segments = 150): [number, number][] {
   const points: [number, number][] = [];
   
@@ -64,7 +90,7 @@ export function getRoutePath(a1: Airport, a2: Airport, offset: number): [number,
   const cached = routePathCache.get(key);
   if (cached) return cached;
 
-  const points = getGreatCirclePoints(a1.coords, a2.coords, ROUTE_PATH_SEGMENTS)
+  const points = getGreatCirclePoints(a1.coords, a2.coords, routeSegmentCount(a1.coords, a2.coords))
     .map(p => [p[0], p[1] + offset] as [number, number]);
   routePathCache.set(key, points);
   return points;

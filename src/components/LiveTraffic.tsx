@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { getRoutePath, ROUTE_PATH_SEGMENTS as SEGMENTS } from '../lib/geoUtils';
+import { getRoutePath } from '../lib/geoUtils';
 import { aircraftList } from "../data/aircraft";
 import { MAP_YELLOW, MAP_CONGESTION_COLORS, isHexColor } from '../lib/theme';
 
@@ -169,7 +169,7 @@ interface ActiveFlight {
   loadFactor: number | null;
 }
 
-export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet = [], playerColor = MAP_YELLOW }: LiveTrafficProps) {
+function LiveTrafficImpl({ routes, aiRoutes, airports, offsets = [0], fleet = [], playerColor = MAP_YELLOW }: LiveTrafficProps) {
   /**
    * The live-traffic clock lives here, not in App.
    *
@@ -243,15 +243,18 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
         const points = getRoutePath(o, d, 0);
 
         const pushFlight = (progress: number, reversed: boolean, legKey: string) => {
-          const rawIndex = Math.floor(progress * SEGMENTS);
-          const index = reversed
-            ? Math.max(0, SEGMENTS - Math.min(SEGMENTS, rawIndex))
-            : Math.min(SEGMENTS, rawIndex);
-          const point = points[index];
-          if (!point) return;
-
-          const nextIndex = reversed ? Math.max(0, index - 1) : Math.min(SEGMENTS, index + 1);
-          const heading = bearingBetween(point, points[nextIndex] || point);
+          // Routes are drawn with a point count that depends on their length,
+          // so the aircraft is placed between the two points it is flying
+          // between rather than snapped to a fixed 1/100 of the path.
+          const last = points.length - 1;
+          if (last < 1) return;
+          const along = Math.min(1, Math.max(0, reversed ? 1 - progress : progress)) * last;
+          const i = Math.min(last - 1, Math.floor(along));
+          const f = along - i;
+          const p0 = points[i];
+          const p1 = points[i + 1];
+          const point: [number, number] = [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f];
+          const heading = reversed ? bearingBetween(p1, p0) : bearingBetween(p0, p1);
 
           flights.push({
             key: legKey,
@@ -383,3 +386,10 @@ export function LiveTraffic({ routes, aiRoutes, airports, offsets = [0], fleet =
     </>
   );
 }
+
+/**
+ * Memoised: the map re-renders on every pan and zoom step, none of which
+ * moves an aircraft. Only the clock tick above, or a change to the network,
+ * redraws the traffic.
+ */
+export const LiveTraffic = React.memo(LiveTrafficImpl);
