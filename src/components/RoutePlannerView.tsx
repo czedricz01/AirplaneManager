@@ -3339,7 +3339,7 @@ function RoutePlannerInner({
                 <div className="flex-1 w-full max-w-[1800px] mx-auto p-4 flex flex-col lg:flex-row gap-4">
                   {/* Left Area: Financial Summary */}
                   <div className="flex-[1] flex flex-col gap-3">
-                     <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm shrink-0 sticky top-[100px] w-full lg:w-[350px]">
+                     <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm shrink-0 sticky top-4 w-full lg:w-[350px]">
                         <div className="mb-4 flex flex-col gap-1.5 pointer-events-none">
                            <h3 className="text-xl font-black uppercase tracking-widest text-white leading-tight">
                               Financial Summary
