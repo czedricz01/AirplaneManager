@@ -14,9 +14,27 @@ import { formatNumber, formatSignedCurrency } from '../lib/format';
  */
 const iconCache: Record<string, L.DivIcon> = {};
 
-// Zoom range the map allows (see MapContainer minZoom / TileLayer maxZoom below).
+// Zoom range the map allows (see MapContainer minZoom / maxZoom below).
 const MIN_MAP_ZOOM = 2;
-const MAX_MAP_ZOOM = 20;
+/**
+ * Deepest zoom the map allows. Esri's World Imagery only has tiles down to
+ * about this level everywhere; deeper, many areas return the grey "Map data
+ * not yet available" placeholder instead of imagery. The map used to allow 20.
+ */
+const MAX_MAP_ZOOM = 16;
+/**
+ * Zoom at which markers reach their largest size. Kept at the old maximum
+ * zoom, so the markers keep the sizes they had at every level still allowed.
+ */
+const ICON_CURVE_MAX_ZOOM = 20;
+/**
+ * Deepest tile level the detail layer requests. With detectRetina, Leaflet
+ * asks for one level deeper than the map shows and lowers the layer's
+ * maxZoom by one, so on high-density screens the native level is one lower
+ * and maxZoom one higher (see MAX_MAP_ZOOM + 1 below): the requested tiles
+ * stop at MAX_MAP_ZOOM and the layer stays visible at the deepest zoom.
+ */
+const DETAIL_MAX_NATIVE_ZOOM = L.Browser.retina ? MAX_MAP_ZOOM - 1 : MAX_MAP_ZOOM;
 const MIN_ICON_PX = 5;
 const MAX_ICON_PX = 30;
 
@@ -28,7 +46,7 @@ const MAX_ICON_PX = 30;
  * at the tier boundaries instead of scaling smoothly with the zoom level.
  */
 function iconDiameter(zoomLevel: number): number {
-  const t = Math.min(1, Math.max(0, (zoomLevel - MIN_MAP_ZOOM) / (MAX_MAP_ZOOM - MIN_MAP_ZOOM)));
+  const t = Math.min(1, Math.max(0, (zoomLevel - MIN_MAP_ZOOM) / (ICON_CURVE_MAX_ZOOM - MIN_MAP_ZOOM)));
   return MIN_ICON_PX + t * (MAX_ICON_PX - MIN_ICON_PX);
 }
 
@@ -156,6 +174,185 @@ function HeatmapLegend() {
   );
 }
 
+interface RouteLayerProps {
+  offset: number;
+  routes: any[];
+  aiAirlines: any[];
+  showYourRoutes: boolean;
+  showRivalRoutes: boolean;
+  planningOriginId: string | null;
+  planningDestId: string | null;
+  getRoutePath: (a1: Airport, a2: Airport, offset: number) => [number, number][];
+  playerStyle: PathStyle;
+  rivalStyles: PathStyle[];
+  heatPairs: Map<string, HeatPair> | null;
+}
+
+/**
+ * Every route line on one world copy.
+ *
+ * This was an inline block in the map, so every pan and every zoom step
+ * rebuilt all lines and their tooltips -- several hundred elements per world
+ * copy late in a game -- although neither changes a line. Memoised on the
+ * props below, none of which a pan or zoom touches.
+ */
+const RouteLayer = React.memo(function RouteLayer({
+  offset, routes, aiAirlines, showYourRoutes, showRivalRoutes, planningOriginId,
+  planningDestId, getRoutePath, playerStyle, rivalStyles, heatPairs
+}: RouteLayerProps) {
+  const pairs = new Set<string>();
+  const lines = showYourRoutes ? routes.map(r => {
+    const a1 = airportsMapAdjusted.get(r.origin);
+    const a2 = airportsMapAdjusted.get(r.destination);
+    if (!a1 || !a2) return null;
+    const key = pairKey(a1.id, a2.id);
+    if (pairs.has(key)) return null;
+    pairs.add(key);
+    const points = getRoutePath(a1, a2, offset);
+    const heat = heatPairs?.get(key);
+    if (heat) {
+      return (
+        <Polyline
+          key={`heat-${key}-${offset}`}
+          positions={points}
+          {...heat.style}
+          pathOptions={heat.style}
+          smoothFactor={1}
+        >
+          <Tooltip sticky>
+            <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
+              <div className="text-xs leading-none mb-1 text-white font-sans font-bold">{heat.a} ↔ {heat.b}</div>
+              <div className="text-2xs leading-none font-black mb-1" style={{ color: heat.style.color }}>
+                {formatSignedCurrency(heat.profit)} / month
+              </div>
+              <div className="text-[8px] leading-none text-white/60">
+                {formatNumber(heat.pax)} pax/week{heat.routes > 1 ? ` · ${heat.routes} routes` : ''}
+              </div>
+            </div>
+          </Tooltip>
+        </Polyline>
+      );
+    }
+    return (
+      <Polyline 
+        key={`${r.id}-${offset}`}
+        positions={points}
+        {...playerStyle}
+        pathOptions={playerStyle}
+        smoothFactor={1} 
+      />
+    );
+  }) : [];
+
+  // Add planning line if both ends are selected
+  if (showYourRoutes && planningOriginId && planningDestId) {
+      const a1 = airportsMapAdjusted.get(planningOriginId);
+      const a2 = airportsMapAdjusted.get(planningDestId);
+      if (a1 && a2) {
+          const points = getRoutePath(a1, a2, offset);
+          lines.push(
+              <Polyline 
+                  key={`planning-${offset}`}
+                  positions={points}
+                  {...playerStyle}
+                  pathOptions={playerStyle}
+                  smoothFactor={1}
+              />
+          );
+      }
+  }
+
+  // Rival routes, each airline in its own colour
+  if (showRivalRoutes && aiAirlines && aiAirlines.length > 0) {
+    aiAirlines.forEach((airline, aiIdx) => {
+      const style = rivalStyles[aiIdx];
+      if (style && airline.routes && airline.routes.length > 0) {
+        airline.routes.forEach((r, routeIdx) => {
+          const a1 = airportsMapAdjusted.get(r.origin);
+          const a2 = airportsMapAdjusted.get(r.destination);
+          if (!a1 || !a2) return;
+          const points = getRoutePath(a1, a2, offset);
+          lines.push(
+            <Polyline 
+              key={`ai-${airline.code}-${aiIdx}-${routeIdx}-${offset}`}
+              positions={points}
+              {...style}
+              pathOptions={style}
+              smoothFactor={1}
+            >
+              <Tooltip sticky>
+                <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 text-aero-yellow/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
+                  <div className="text-xs leading-none mb-1 text-white font-sans font-bold flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
+                    {airline.name}
+                  </div>
+                  <div className="text-2xs leading-none text-aero-yellow/60 font-mono mb-1">{r.origin} ↔ {r.destination}</div>
+                  <div className="text-[8px] opacity-60 leading-none">{r.departures} departures/week</div>
+                </div>
+              </Tooltip>
+            </Polyline>
+          );
+        });
+      }
+    });
+  }
+  return <>{lines}</>;
+});
+
+/** Circle marker styles, shared by every airport instead of rebuilt per render. */
+const CIRCLE_STYLE_MANAGED = { color: 'black', weight: 1, fillColor: MAP_CONGESTION_COLORS.good, fillOpacity: 1 };
+const CIRCLE_STYLE_DEFAULT = { color: 'black', weight: 1, fillColor: MAP_YELLOW, fillOpacity: 1 };
+
+interface AirportMarkerProps {
+  airport: Airport;
+  offset: number;
+  zoom: number;
+  mgtLvl: number;
+  onSelect: (a: Airport | null) => void;
+}
+
+/**
+ * One airport on one world copy.
+ *
+ * Its own memoised component, because inline every marker got a fresh style
+ * object and a fresh click handler on each render. react-leaflet compares
+ * both by identity, so on every pan each circle was restyled and every
+ * marker's click listener unbound and bound again.
+ */
+const AirportMarker = React.memo(function AirportMarker({ airport, offset, zoom, mgtLvl, onSelect }: AirportMarkerProps) {
+  const pos = useMemo<[number, number]>(() => [airport.coords[0], airport.coords[1] + offset], [airport, offset]);
+  const eventHandlers = useMemo(() => ({ click: () => onSelect(airport) }), [onSelect, airport]);
+
+  if (zoom >= 6) {
+    return (
+      <Marker position={pos} icon={getAirportIcon(zoom, mgtLvl)} eventHandlers={eventHandlers}>
+        <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
+          <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-3 py-1.5 font-mono text-[11px] uppercase font-black tracking-widest shadow-2xl flex flex-col items-center">
+            <div className="text-[14px] leading-none mb-1 text-white">{airport.id}</div>
+            <div className="text-[8px] opacity-60 leading-none">{airport.name}</div>
+          </div>
+        </Tooltip>
+      </Marker>
+    );
+  }
+  // Same size curve as getAirportIcon, so the marker doesn't jump in size
+  // when it switches from CircleMarker to Marker at the zoom >= 6 threshold.
+  return (
+    <CircleMarker
+      center={pos}
+      radius={iconDiameter(zoom) / 2}
+      pathOptions={mgtLvl > 0 ? CIRCLE_STYLE_MANAGED : CIRCLE_STYLE_DEFAULT}
+      eventHandlers={eventHandlers}
+    >
+      <Tooltip direction="top" opacity={1} sticky>
+        <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-2 py-1 font-mono text-[10px] uppercase font-black tracking-widest shadow-2xl">
+          {airport.id}
+        </div>
+      </Tooltip>
+    </CircleMarker>
+  );
+});
+
 /**
  * The world map, lifted out of App and memoised.
  *
@@ -176,6 +373,13 @@ function WorldMapImpl({
   showRivalRoutes, showLiveTraffic, planningOriginId, planningDestId,
   setSelectedAirport, getRoutePath, playerColor, heatmap, routeProfits, routePax
 }: WorldMapProps) {
+  // App builds a new offsets array on every pan, usually with the same
+  // copies in it. Keyed by content, so the route layers and the traffic below
+  // see a new array only when the set of visible world copies changes.
+  const offsetsKey = visibleWorldOffsets.join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const offsets = useMemo(() => visibleWorldOffsets, [offsetsKey]);
+
   // Style objects are memoised and handed over as pathOptions, which
   // react-leaflet compares by identity: a line is restyled when its colour
   // actually changes, not on every zoom step. (Plain color/weight props are
@@ -237,7 +441,8 @@ function WorldMapImpl({
             key={`map-${sessionKey}`}
             center={[20, 0]} 
             zoom={3} 
-            minZoom={2}
+            minZoom={MIN_MAP_ZOOM}
+            maxZoom={MAX_MAP_ZOOM}
             preferCanvas={true}
             worldCopyJump={true}
             maxBounds={[[-85, -5000], [85, 5000]]}
@@ -256,7 +461,7 @@ function WorldMapImpl({
               noWrap={false}
               minNativeZoom={2}
               maxNativeZoom={3}
-              maxZoom={20}
+              maxZoom={MAX_MAP_ZOOM}
               zIndex={0}
               opacity={0.9}
               keepBuffer={8}
@@ -265,8 +470,8 @@ function WorldMapImpl({
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               attribution='&copy; Esri'
               noWrap={false}
-              maxNativeZoom={19}
-              maxZoom={20}
+              maxNativeZoom={DETAIL_MAX_NATIVE_ZOOM}
+              maxZoom={MAX_MAP_ZOOM + 1}
               detectRetina={true}
               updateInterval={150}
               keepBuffer={6}
@@ -275,166 +480,39 @@ function WorldMapImpl({
               zIndex={2}
             />
           <MapEvents setZoom={setZoom} setBounds={setMapBounds} />
-                  {/* Route Lines - Rendered on 3 worlds for continuity */}
-          {visibleWorldOffsets.map(offset => (
-            <React.Fragment key={`world-${offset}-routes`}>
-              {(() => {
-                const pairs = new Set<string>();
-                const lines = showYourRoutes ? routes.map(r => {
-                  const a1 = airportsMapAdjusted.get(r.origin);
-                  const a2 = airportsMapAdjusted.get(r.destination);
-                  if (!a1 || !a2) return null;
-                  const key = pairKey(a1.id, a2.id);
-                  if (pairs.has(key)) return null;
-                  pairs.add(key);
-                  const points = getRoutePath(a1, a2, offset);
-                  const heat = heatPairs?.get(key);
-                  if (heat) {
-                    return (
-                      <Polyline
-                        key={`heat-${key}-${offset}`}
-                        positions={points}
-                        {...heat.style}
-                        pathOptions={heat.style}
-                        smoothFactor={1}
-                      >
-                        <Tooltip sticky>
-                          <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
-                            <div className="text-xs leading-none mb-1 text-white font-sans font-bold">{heat.a} ↔ {heat.b}</div>
-                            <div className="text-2xs leading-none font-black mb-1" style={{ color: heat.style.color }}>
-                              {formatSignedCurrency(heat.profit)} / month
-                            </div>
-                            <div className="text-[8px] leading-none text-white/60">
-                              {formatNumber(heat.pax)} pax/week{heat.routes > 1 ? ` · ${heat.routes} routes` : ''}
-                            </div>
-                          </div>
-                        </Tooltip>
-                      </Polyline>
-                    );
-                  }
-                  return (
-                    <Polyline 
-                      key={`${r.id}-${offset}`}
-                      positions={points}
-                      {...playerStyle}
-                      pathOptions={playerStyle}
-                      smoothFactor={1} 
-                    />
-                  );
-                }) : [];
-
-                // Add planning line if both ends are selected
-                if (showYourRoutes && planningOriginId && planningDestId) {
-                    const a1 = airportsMapAdjusted.get(planningOriginId);
-                    const a2 = airportsMapAdjusted.get(planningDestId);
-                    if (a1 && a2) {
-                        const points = getRoutePath(a1, a2, offset);
-                        lines.push(
-                            <Polyline 
-                                key={`planning-${offset}`}
-                                positions={points}
-                                {...playerStyle}
-                                pathOptions={playerStyle}
-                                smoothFactor={1}
-                            />
-                        );
-                    }
-                }
-
-                // Rival routes, each airline in its own colour
-                if (showRivalRoutes && aiAirlines && aiAirlines.length > 0) {
-                  aiAirlines.forEach((airline, aiIdx) => {
-                    const style = rivalStyles[aiIdx];
-                    if (style && airline.routes && airline.routes.length > 0) {
-                      airline.routes.forEach((r, routeIdx) => {
-                        const a1 = airportsMapAdjusted.get(r.origin);
-                        const a2 = airportsMapAdjusted.get(r.destination);
-                        if (!a1 || !a2) return;
-                        const points = getRoutePath(a1, a2, offset);
-                        lines.push(
-                          <Polyline 
-                            key={`ai-${airline.code}-${aiIdx}-${routeIdx}-${offset}`}
-                            positions={points}
-                            {...style}
-                            pathOptions={style}
-                            smoothFactor={1}
-                          >
-                            <Tooltip sticky>
-                              <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 text-aero-yellow/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
-                                <div className="text-xs leading-none mb-1 text-white font-sans font-bold flex items-center gap-1.5">
-                                  <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
-                                  {airline.name}
-                                </div>
-                                <div className="text-2xs leading-none text-aero-yellow/60 font-mono mb-1">{r.origin} ↔ {r.destination}</div>
-                                <div className="text-[8px] opacity-60 leading-none">{r.departures} departures/week</div>
-                              </div>
-                            </Tooltip>
-                          </Polyline>
-                        );
-                      });
-                    }
-                  });
-                }
-                return lines;
-              })()}
-            </React.Fragment>
+          {/* Route lines, drawn on every visible world copy. A layer per
+              copy, memoised: panning and zooming change neither, so they no
+              longer rebuild every line. */}
+          {offsets.map(offset => (
+            <RouteLayer
+              key={`world-${offset}-routes`}
+              offset={offset}
+              routes={routes}
+              aiAirlines={aiAirlines}
+              showYourRoutes={showYourRoutes}
+              showRivalRoutes={showRivalRoutes}
+              planningOriginId={planningOriginId}
+              planningDestId={planningDestId}
+              getRoutePath={getRoutePath}
+              playerStyle={playerStyle}
+              rivalStyles={rivalStyles}
+              heatPairs={heatPairs}
+            />
           ))}
-      
-          {/* Airport Markers - Rendered on 3 worlds */}
-          {visibleWorldOffsets.map(offset => (
+
+          {/* Airport markers, on every visible world copy */}
+          {offsets.map(offset => (
             <React.Fragment key={`world-${offset}-airports`}>
-              {visibleAirports.map((airport) => {
-                const mgtLvl = airportManagement[airport.id]?.level || 0;
-                const pos: [number, number] = [airport.coords[0], airport.coords[1] + offset];
-            
-                if (zoom >= 6) {
-                  return (
-                    <Marker 
-                      key={`${airport.id}-${offset}`} 
-                      position={pos}
-                      icon={getAirportIcon(zoom, mgtLvl)}
-                      eventHandlers={{
-                        click: () => setSelectedAirport(airport)
-                      }}
-                    >
-                      <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
-                        <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-3 py-1.5 font-mono text-[11px] uppercase font-black tracking-widest shadow-2xl flex flex-col items-center">
-                          <div className="text-[14px] leading-none mb-1 text-white">{airport.id}</div>
-                          <div className="text-[8px] opacity-60 leading-none">{airport.name}</div>
-                        </div>
-                      </Tooltip>
-                    </Marker>
-                  );
-                } else {
-                  // Same size curve as getAirportIcon, so the marker doesn't
-                  // jump in size when it switches from CircleMarker to Marker
-                  // at the zoom >= 6 threshold.
-                  const radius = iconDiameter(zoom) / 2;
-                  const isGreen = mgtLvl > 0;
-                  return (
-                    <CircleMarker
-                      key={`${airport.id}-${offset}`}
-                      center={pos}
-                      radius={radius}
-                      pathOptions={{
-                        color: 'black',
-                        weight: 1,
-                        fillColor: isGreen ? MAP_CONGESTION_COLORS.good : MAP_YELLOW,
-                        fillOpacity: 1
-                      }}
-                      eventHandlers={{
-                        click: () => setSelectedAirport(airport)
-                      }}
-                    >
-                      <Tooltip direction="top" opacity={1} sticky>
-                        <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-2 py-1 font-mono text-[10px] uppercase font-black tracking-widest shadow-2xl">
-                          {airport.id}
-                        </div>
-                      </Tooltip>
-                    </CircleMarker>
-                  );
-                }
-              })}
+              {visibleAirports.map(airport => (
+                <AirportMarker
+                  key={`${airport.id}-${offset}`}
+                  airport={airport}
+                  offset={offset}
+                  zoom={zoom}
+                  mgtLvl={airportManagement[airport.id]?.level || 0}
+                  onSelect={setSelectedAirport}
+                />
+              ))}
             </React.Fragment>
           ))}
 
@@ -445,7 +523,7 @@ function WorldMapImpl({
               routes={routes}
               aiRoutes={aiRouteList}
               airports={airports}
-              offsets={visibleWorldOffsets}
+              offsets={offsets}
               fleet={fleet}
               playerColor={playerColor}
             />

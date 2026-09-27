@@ -99,6 +99,138 @@ const SEAT_TYPE_POP_FACTOR = 2;
 
 const signedPts = (v: number) => `${v > 0 ? '+' : ''}${v} interior SAT pts`;
 
+type SeatColors = { seat: string; back: string; body: string };
+
+/** Seat colours per cabin in the diagram. */
+const SEAT_COLORS: Record<ClassType, SeatColors> = {
+  first: { seat: 'bg-aero-yellow', back: 'bg-aero-yellow', body: 'bg-aero-yellow/80' },
+  business: { seat: 'bg-white/10', back: 'bg-white/10', body: 'bg-white/5' },
+  premium: { seat: 'bg-aero-yellow', back: 'bg-aero-yellow', body: 'bg-aero-yellow/80' },
+  economy: { seat: 'bg-aero-carbon', back: 'bg-aero-carbon', body: 'bg-aero-carbon/80' },
+};
+
+/** Whether an aisle follows seat column `c` in a row `abreast` seats wide. */
+function isAisleAfter(abreast: number, c: number, acClass: string): boolean {
+  if (abreast === 10) return c === 2 || c === 6;
+  if (abreast === 9) return c === 2 || c === 5;
+  if (abreast === 8) return c === 1 || c === 5;
+  if (abreast === 7) return c === 1 || c === 4;
+  if (abreast === 6) return acClass === 'Widebody' ? (c === 1 || c === 3) : c === 2;
+  if (abreast === 5) return c === 1;
+  if (abreast === 4) return acClass === 'Widebody' ? (c === 0 || c === 2) : c === 1;
+  if (abreast === 3 || abreast === 2) return c === 0;
+  return false;
+}
+
+interface SeatRowProps {
+  seatsInRow: number;
+  abreast: number;
+  cls: ClassType;
+  acClass: string;
+  isSuite: boolean;
+  isFlatBed: boolean;
+}
+
+/**
+ * One row of seats in the cabin diagram.
+ *
+ * Memoised on a handful of plain values: moving a slider by one seat changes
+ * the last row of a cabin, and every other row -- several hundred elements on
+ * a widebody -- is skipped instead of rebuilt.
+ */
+const SeatRow = React.memo(function SeatRow({ seatsInRow, abreast, cls, acClass, isSuite, isFlatBed }: SeatRowProps) {
+  const { seat: seatColor, back: backColor, body: bodyColor } = SEAT_COLORS[cls];
+  const armrest = cls === 'economy' ? 'bg-white/10' : 'bg-white/20';
+  return (
+    <div className="flex-1 flex flex-col items-stretch justify-between h-full gap-0">
+      {Array.from({ length: abreast }).map((_, c) => {
+        const isAisle = isAisleAfter(abreast, c, acClass);
+        const isVisible = c < seatsInRow;
+
+        return (
+          <div key={c}
+               className={`relative flex-1 flex flex-col justify-between overflow-hidden shadow-sm rounded-[1.5px] ${
+                 isSuite ? 'border border-white/40 bg-aero-carbon' : `${bodyColor} border border-white/10`
+               }`}
+               style={{
+                  marginBottom: isAisle ? (cls === 'first' && !isSuite ? (acClass === 'Regional' ? '24px' : '44px') : (acClass === 'Regional' ? '8px' : '14px')) : '1px',
+                  visibility: isVisible ? 'visible' : 'hidden',
+                  marginRight: '45%'
+               }}>
+              {isSuite ? (
+                <div className="absolute inset-[1px] flex items-center justify-center">
+                   <div className={`w-full h-full ${backColor} rounded-[1px]`} />
+                   <div className={`absolute left-0 w-[40%] h-full ${seatColor} rounded-l-[1px]`} />
+                </div>
+              ) : isFlatBed ? (
+                <div className="w-full h-full flex flex-row">
+                   <div className={`w-[70%] h-full ${seatColor} rounded-l-[1px]`} />
+                   <div className={`w-[30%] h-full ${backColor} rounded-r-[1px]`} />
+                </div>
+              ) : (
+                <>
+                  {/* Seat Cushion: rounded at the front (nose-facing) edge, shaded towards the back */}
+                  <div className={`absolute inset-y-0 left-[6%] right-[26%] rounded-l-[1px] ${seatColor} shadow-inner bg-gradient-to-r from-transparent to-black/25`} />
+                  {/* Seat Back */}
+                  <div className={`absolute inset-y-0 right-0 w-[26%] ${backColor} shadow-md border-l border-white/5 rounded-r-[1.5px]`} />
+                  {/* Headrest, narrower than the backrest so its curve reads as a headrest bump */}
+                  <div className="absolute right-[3%] top-[18%] bottom-[18%] w-[14%] bg-white/15 rounded-full" />
+                  {/* Armrests separating neighbouring seats */}
+                  <div className={`absolute top-0 left-[4%] right-[24%] h-[1px] ${armrest}`} />
+                  <div className={`absolute bottom-0 left-[4%] right-[24%] h-[1px] ${armrest}`} />
+                </>
+              )}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+interface SeatBlockProps {
+  count: number;
+  cls: ClassType;
+  type: string;
+  acClass: string;
+}
+
+/**
+ * All seats of one cabin in the diagram.
+ *
+ * This was a render function inside the view, so every change anywhere on the
+ * page -- a slider step, a ticked extra, the pointer entering a cabin zone --
+ * rebuilt every seat of every cabin: over 5,000 elements for an A380. As a
+ * memoised component a cabin redraws only when its own seat count or seat
+ * type changes.
+ */
+const SeatBlock = React.memo(function SeatBlock({ count, cls, type, acClass }: SeatBlockProps) {
+  let abreast = 6;
+  if (acClass === 'Widebody') abreast = cls === 'first' ? 4 : (cls === 'business' ? 6 : (cls === 'premium' ? 8 : 10));
+  else if (acClass === 'Narrowbody') abreast = cls === 'first' ? 2 : (cls === 'business' ? 4 : (cls === 'premium' ? 5 : 6));
+  else abreast = cls === 'first' ? 2 : (cls === 'business' ? 3 : (cls === 'premium' ? 4 : 4));
+
+  const isSuite = type.includes('Suite') || type === 'Residence';
+  const isFlatBed = type.includes('Flat') || type === 'Sleeper';
+
+  const rows = Math.ceil(count / abreast);
+
+  return (
+     <div className="absolute inset-0 flex flex-row items-stretch justify-start overflow-hidden pointer-events-none gap-[1px]">
+        {Array.from({ length: rows }).map((_, r) => (
+          <SeatRow
+            key={r}
+            seatsInRow={Math.min(abreast, count - (r * abreast))}
+            abreast={abreast}
+            cls={cls}
+            acClass={acClass}
+            isSuite={isSuite}
+            isFlatBed={isFlatBed}
+          />
+        ))}
+     </div>
+  );
+});
+
 export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, initialPlane, fleet = [], onCancel, onConfirmPurchase }: Props) {
   const isRenovating = !!initialPlane;
 
@@ -530,126 +662,6 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
     onConfirmPurchase(initialPlane || aircraft, quantity, output, baseInteriorPop, totalPrice);
   };
 
-  const renderSeatDots = (count: number, cls: string, type: string, cap: number, acClass: string) => {
-    let abreast = 6;
-    if (acClass === 'Widebody') abreast = cls === 'first' ? 4 : (cls === 'business' ? 6 : (cls === 'premium' ? 8 : 10));
-    else if (acClass === 'Narrowbody') abreast = cls === 'first' ? 2 : (cls === 'business' ? 4 : (cls === 'premium' ? 5 : 6));
-    else abreast = cls === 'first' ? 2 : (cls === 'business' ? 3 : (cls === 'premium' ? 4 : 4));
-
-    const innerHeight = acClass === 'Widebody' ? 150 : (acClass === 'Narrowbody' ? 110 : 80);
-
-    let numAisles = 0;
-    for(let c=0; c<abreast; c++) {
-       if (abreast === 10 && (c === 2 || c === 6)) numAisles++;
-       else if (abreast === 9 && (c === 2 || c === 5)) numAisles++;
-       else if (abreast === 8 && (c === 1 || c === 5)) numAisles++;
-       else if (abreast === 7 && (c === 1 || c === 4)) numAisles++;
-       else if (abreast === 6 && acClass === 'Widebody' && (c === 1 || c === 3)) numAisles++;
-       else if (abreast === 6 && acClass !== 'Widebody' && acClass !== 'Narrowbody' && c === 2) numAisles++;
-       else if (abreast === 6 && acClass === 'Narrowbody' && c === 2) numAisles++;
-       else if (abreast === 5 && c === 1) numAisles++;
-       else if (abreast === 4 && acClass === 'Widebody' && (c === 0 || c === 2)) numAisles++;
-       else if (abreast === 4 && acClass !== 'Widebody' && c === 1) numAisles++;
-       else if (abreast === 3 && c === 0) numAisles++;
-       else if (abreast === 2 && c === 0) numAisles++;
-    }
-
-    const aislePx = acClass === 'Widebody' ? 16 : (acClass === 'Narrowbody' ? 14 : 12);
-    const aisleWidth = `${aislePx}px`;
-    const nonSeatSpace = numAisles * aislePx;
-    // Calculate size perfectly to fill 100% of height. Subtracted nonSeatSpace for aisles.
-    const calculatedSize = Math.max(8, Math.floor((innerHeight - nonSeatSpace) / abreast));
-    
-    let sizeStyle = { width: `${calculatedSize}px`, height: `${calculatedSize}px` };
-
-    let seatColor = "bg-aero-yellow";
-    let backColor = "bg-aero-yellow";
-    let bodyColor = "bg-aero-yellow/80";
-
-    if (cls === 'first') {
-      sizeStyle = { width: `${calculatedSize + 4}px`, height: `${calculatedSize}px` };
-    }
-    else if (cls === 'business') {
-      seatColor = "bg-white/10"; backColor = "bg-white/10"; bodyColor = "bg-white/5";
-      sizeStyle = { width: `${calculatedSize + 2}px`, height: `${calculatedSize}px` };
-    }
-    else if (cls === 'premium') {
-      seatColor = "bg-aero-yellow"; backColor = "bg-aero-yellow"; bodyColor = "bg-aero-yellow/80";
-    }
-    else if (cls === 'economy') {
-      seatColor = "bg-aero-carbon"; backColor = "bg-aero-carbon"; bodyColor = "bg-aero-carbon/80";
-    }
-
-    const isSuite = type.includes('Suite') || type === 'Residence';
-    const isFlatBed = type.includes('Flat') || type === 'Sleeper';
-
-    const rows = Math.ceil(count / abreast);
-
-    return (
-       <div className="absolute inset-0 flex flex-row items-stretch justify-start overflow-hidden pointer-events-none gap-[1px]">
-          {Array.from({length: rows}).map((_, r) => {
-             const seatsInRow = Math.min(abreast, count - (r * abreast));
-             return (
-               <div key={r} className="flex-1 flex flex-col items-stretch justify-between h-full gap-0">
-                   {Array.from({length: abreast}).map((_, c) => {
-                       let isAisle = false;
-                       if (abreast === 10 && (c === 2 || c === 6)) isAisle = true;
-                       else if (abreast === 9 && (c === 2 || c === 5)) isAisle = true;
-                       else if (abreast === 8 && (c === 1 || c === 5)) isAisle = true;
-                       else if (abreast === 7 && (c === 1 || c === 4)) isAisle = true;
-                       else if (abreast === 6 && acClass === 'Widebody' && (c === 1 || c === 3)) isAisle = true;
-                       else if (abreast === 6 && acClass !== 'Widebody' && c === 2) isAisle = true;
-                       else if (abreast === 5 && c === 1) isAisle = true;
-                       else if (abreast === 4 && acClass === 'Widebody' && (c === 0 || c === 2)) isAisle = true;
-                       else if (abreast === 4 && acClass !== 'Widebody' && c === 1) isAisle = true;
-                       else if (abreast === 3 && c === 0) isAisle = true;
-                       else if (abreast === 2 && c === 0) isAisle = true;
-
-                       const isVisible = c < seatsInRow;
-
-                       return (
-                           <div key={c}
-                                className={`relative flex-1 flex flex-col justify-between overflow-hidden shadow-sm rounded-[1.5px] ${
-                                  isSuite ? 'border border-white/40 bg-aero-carbon' : `${bodyColor} border border-white/10`
-                                }`}
-                                style={{
-                                   marginBottom: isAisle ? (cls === 'first' && !isSuite ? (acClass === 'Regional' ? '24px' : '44px') : (acClass === 'Regional' ? '8px' : '14px')) : '1px',
-                                   visibility: isVisible ? 'visible' : 'hidden',
-                                   marginRight: '45%'
-                                }}>
-                               {isSuite ? (
-                                 <div className="absolute inset-[1px] flex items-center justify-center">
-                                    <div className={`w-full h-full ${backColor} rounded-[1px]`} />
-                                    <div className={`absolute left-0 w-[40%] h-full ${seatColor} rounded-l-[1px]`} />
-                                 </div>
-                               ) : isFlatBed ? (
-                                 <div className="w-full h-full flex flex-row">
-                                    <div className={`w-[70%] h-full ${seatColor} rounded-l-[1px]`} />
-                                    <div className={`w-[30%] h-full ${backColor} rounded-r-[1px]`} />
-                                 </div>
-                               ) : (
-                                 <>
-                                   {/* Seat Cushion: rounded at the front (nose-facing) edge, shaded towards the back */}
-                                   <div className={`absolute inset-y-0 left-[6%] right-[26%] rounded-l-[1px] ${seatColor} shadow-inner bg-gradient-to-r from-transparent to-black/25`} />
-                                   {/* Seat Back */}
-                                   <div className={`absolute inset-y-0 right-0 w-[26%] ${backColor} shadow-md border-l border-white/5 rounded-r-[1.5px]`} />
-                                   {/* Headrest, narrower than the backrest so its curve reads as a headrest bump */}
-                                   <div className="absolute right-[3%] top-[18%] bottom-[18%] w-[14%] bg-white/15 rounded-full" />
-                                   {/* Armrests separating neighbouring seats */}
-                                   <div className={`absolute top-0 left-[4%] right-[24%] h-[1px] ${cls === 'economy' ? 'bg-white/10' : 'bg-white/20'}`} />
-                                   <div className={`absolute bottom-0 left-[4%] right-[24%] h-[1px] ${cls === 'economy' ? 'bg-white/10' : 'bg-white/20'}`} />
-                                 </>
-                               )}
-                           </div>
-                       )
-                   })}
-               </div>
-             )
-          })}
-       </div>
-    );
-  };
-
   // Each class's details: seat type and pitch beside the soft product, or one
   // above the other on phones, where two half-width columns are too narrow.
   const renderClassDetails = () => {
@@ -1046,25 +1058,25 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <div className="relative flex-1 flex ml-[12%] sm:ml-[13%] mr-[12%] sm:mr-[15%] my-0 rounded-none overflow-hidden bg-black/5 border border-black/10">
                          {pFirst > 0 && (
                            <motion.div initial={false} animate={{ width: `${pFirst}%` }} className="group bg-aero-yellow/20 relative overflow-visible flex items-center justify-center border-r border-amber-500/50 cursor-pointer hover:bg-aero-yellow/40 transition-colors" onClick={() => setSelectedClass('first')} {...zonePointer('first')}>
-                              {renderSeatDots(firstSeats, 'first', firstType, CAPACITY, aircraft.class)}
+                              <SeatBlock count={firstSeats} cls="first" type={firstType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'first' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>FIRST</span>
                            </motion.div>
                          )}
                          {pBiz > 0 && (
                            <motion.div initial={false} animate={{ width: `${pBiz}%` }} className={`group bg-white/5 relative overflow-visible flex items-center justify-center border-r border-white/10 cursor-pointer hover:bg-white/5 transition-colors`} onClick={() => setSelectedClass('business')} {...zonePointer('business')}>
-                              {renderSeatDots(bizSeats, 'business', bizType, CAPACITY, aircraft.class)}
+                              <SeatBlock count={bizSeats} cls="business" type={bizType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'business' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>BUSINESS</span>
                            </motion.div>
                          )}
                          {pPrem > 0 && (
                            <motion.div initial={false} animate={{ width: `${pPrem}%` }} className={`group bg-aero-yellow/20 relative overflow-visible flex items-center justify-center border-r border-aero-yellow/50 cursor-pointer hover:bg-aero-yellow/40 transition-colors`} onClick={() => setSelectedClass('premium')} {...zonePointer('premium')}>
-                              {renderSeatDots(premSeats, 'premium', premType, CAPACITY, aircraft.class)}
+                              <SeatBlock count={premSeats} cls="premium" type={premType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'premium' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>PREMIUM</span>
                            </motion.div>
                          )}
                          {pEco > 0 && (
                            <motion.div initial={false} animate={{ width: `${pEco}%` }} className={`group bg-aero-carbon/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-aero-carbon/40 transition-colors`} onClick={() => setSelectedClass('economy')} {...zonePointer('economy')}>
-                              {renderSeatDots(ecoSeats, 'economy', ecoType, CAPACITY, aircraft.class)}
+                              <SeatBlock count={ecoSeats} cls="economy" type={ecoType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-bold text-white absolute ${shownZone === 'economy' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none drop-shadow-md`}>ECONOMY</span>
                            </motion.div>
                          )}
