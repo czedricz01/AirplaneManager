@@ -345,6 +345,7 @@ const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").
 
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
+import { isMalusEvent, malusMonthOpen } from "./lib/malus";
 import { createOwnedAircraft, startingFleet } from "./lib/fleet";
 import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
 import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
@@ -1515,6 +1516,11 @@ export default function App() {
     }
 
 
+    // Bad luck is capped at half the months (see malus.ts). Whether the coming
+    // month may take on a new malus event is settled once, here, for the strike,
+    // the random event and the disruptions below alike.
+    const malusOpen = malusMonthOpen(randomEvents, disruptions, staff, currentDateOffset + 1);
+
     // --- Staff ------------------------------------------------------------
     // Morale takes its monthly step towards what pay and the run of results
     // justify. At the new morale the staff may call a strike for the month
@@ -1523,7 +1529,8 @@ export default function App() {
       profitStreak: nextStreak,
       nextOffset: currentDateOffset + 1,
       strikePending: pendingDecisions.some(d => d.kind === 'strike'),
-      noRoutes: routes.length === 0
+      noRoutes: routes.length === 0,
+      malusBlocked: !malusOpen
     }, Math.random);
     const nextStaff = staffMonth.staff;
     setStaff(nextStaff);
@@ -1693,7 +1700,8 @@ export default function App() {
       }
     }
 
-    // 2. Roll for a random event: average 0.6 per year -> 0.05 probability per month (1 / 20)
+    // 2. Roll for a random event: average 0.6 per year -> 0.05 probability per month (1 / 20).
+    // One that only hurts is dropped when the malus ceiling holds the month clear.
     if (Math.random() < 0.05) {
       const template = randomEventTemplates[Math.floor(Math.random() * randomEventTemplates.length)];
       const duration = Math.floor(Math.random() * (template.durationMax - template.durationMin + 1)) + template.durationMin;
@@ -1709,16 +1717,20 @@ export default function App() {
         fuelMultiplier
       };
 
-      const updatedRandomEvents = [...randomEvents, newEv];
-      setRandomEventsState(updatedRandomEvents);
-      setRuntimeRandomEvents(updatedRandomEvents);
-
+      if (malusOpen || !isMalusEvent(newEv)) {
+        const updatedRandomEvents = [...randomEvents, newEv];
+        setRandomEventsState(updatedRandomEvents);
+        setRuntimeRandomEvents(updatedRandomEvents);
+      }
     }
 
     // 2b. Roll next month's operational disruptions. They are known for the
     // whole month they hit, so the forecast below and every screen in it
     // already leave the cancelled flights out; the month's close books that.
-    const rolledDisruptions = rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap);
+    // A month the malus ceiling holds clear is not rolled for at all.
+    const rolledDisruptions = malusOpen
+      ? rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap)
+      : [];
     const nextDisruptions = [...dropPastDisruptions(disruptions, nextOffset), ...rolledDisruptions];
     if (nextDisruptions.length !== disruptions.length || rolledDisruptions.length > 0) setDisruptions(nextDisruptions);
     if (rolledDisruptions.length > 0) {

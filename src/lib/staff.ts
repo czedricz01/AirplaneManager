@@ -158,6 +158,11 @@ export interface StaffMonthContext {
   strikePending?: boolean;
   /** The airline flies no routes: there is nothing to strike against. */
   noRoutes?: boolean;
+  /**
+   * The coming month may not take on another malus event (see malus.ts). The
+   * strike is put off, not cancelled: it is rolled for again at the next close.
+   */
+  malusBlocked?: boolean;
 }
 
 export interface StaffMonthResult {
@@ -175,7 +180,8 @@ export interface StaffMonthResult {
  * the target, and at that new morale a strike may be called for the month
  * about to start. None is called while one is running or waiting for an
  * answer, nor at an airline without routes; the one just ended counts as
- * running, so two never follow back to back.
+ * running, so two never follow back to back. Nor while the malus ceiling
+ * (`malusBlocked`) holds the coming month clear.
  *
  * A strike is called at full strength: until the player answers, and if they
  * sit it out, it grounds every flight. `staff.strike` keeps the latest strike
@@ -186,7 +192,8 @@ export interface StaffMonthResult {
 export function advanceStaff(staff: Staff, ctx: StaffMonthContext, rng: () => number): StaffMonthResult {
   const target = targetMorale(staff.salaryPct, ctx.profitStreak, strikeIsRecent(staff.strike, ctx.nextOffset));
   const morale = stepMorale(staff.morale, target);
-  const blocked = !!ctx.strikePending || !!ctx.noRoutes || (!!staff.strike && staff.strike.startOffset >= ctx.nextOffset - 1);
+  const blocked = !!ctx.strikePending || !!ctx.noRoutes || !!ctx.malusBlocked
+    || (!!staff.strike && staff.strike.startOffset >= ctx.nextOffset - 1);
   const chance = blocked ? 0 : strikeChance(morale);
   const strikeCalled = chance > 0 && rng() < chance;
   return {
