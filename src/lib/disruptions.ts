@@ -5,12 +5,11 @@
  * At each month's end the coming month is rolled for, and whatever comes up
  * is known for the whole month it hits: the route list, the planner and the
  * forecast show the cancellations from the start, and the month's close then
- * books exactly that. Four kinds:
+ * books exactly that. Three kinds:
  *
  *   technical defect  per route, 1% + (100 - airframe condition) x 0.08%
  *                     + age in years x 0.1%, halved by a hangar at the
  *                     route's origin; cancels 25% of its flights
- *   bird strike       per route, 0.4%; 10% of its flights and $200k repairs
  *   airport strike    per airport served, 1%; 30% of every route there
  *   winter weather    per region, 3% in December to February, Europe, North
  *                     America and Asia only; 15% of every route touching it
@@ -29,11 +28,16 @@
  * grounds anyway saves nothing and costs nothing to charter, and cancelling
  * there costs no reputation either.
  *
+ * A bird strike is not one of these: it cancels nothing and asks nothing. It
+ * is rolled per route with the same generator (rollBirdStrikes), and the repair
+ * bill, by aircraft class, is paid on the spot with a pop-up to say so.
+ *
  * Everything here is pure; the random generator is a parameter. Nothing here
  * reaches the AI airlines.
  *
  * Which months are rolled for at all is not decided here: malus.ts holds
  * disruptions, strikes and random malus events to at most half of all months.
+ * Bird strikes are outside that rule.
  */
 import type { Disruption, DisruptionKind, GameDecision, RegionId, ReportIncident, RouteCancellation } from './gameState';
 import { regionOf } from './geoUtils';
@@ -50,7 +54,6 @@ export interface DisruptionSpec {
 
 export const DISRUPTION_SPECS: Record<DisruptionKind, DisruptionSpec> = {
   technical: { label: 'Technical defect', cancelShare: 0.25 },
-  birdstrike: { label: 'Bird strike', cancelShare: 0.10 },
   'airport-strike': { label: 'Airport strike', cancelShare: 0.30 },
   weather: { label: 'Winter weather', cancelShare: 0.15 }
 };
@@ -64,9 +67,14 @@ export const TECH_CHANCE_PER_YEAR = 0.001;
 /** A hangar at the route's origin catches faults early: the chance is multiplied by this. */
 export const HANGAR_TECH_FACTOR = 0.5;
 
-export const BIRDSTRIKE_CHANCE = 0.004;
-/** The repair bill for a bird strike, charged in the month it happens. */
-export const BIRDSTRIKE_REPAIR_COST = 200_000;
+/** Per flying route, per month. */
+export const BIRDSTRIKE_CHANCE = 0.002;
+/** The repair bill for a bird strike, by aircraft class, paid the moment it happens. */
+export const BIRDSTRIKE_COSTS: Record<'regional' | 'narrowbody' | 'widebody', number> = {
+  regional: 100_000,
+  narrowbody: 200_000,
+  widebody: 400_000
+};
 
 /** Per airport served, per month. */
 export const AIRPORT_STRIKE_CHANCE = 0.01;
@@ -156,6 +164,8 @@ export interface DisruptionRoute {
 
 export interface DisruptionAircraft {
   registration: string;
+  /** 'Regional', 'Narrowbody' or 'Widebody'; decides what a bird strike costs. */
+  class?: string;
   conditionGeneral?: number;
   purchasedAt?: number;
 }
@@ -167,7 +177,7 @@ function flyingRoutes<R extends DisruptionRoute>(routes: R[], fleet: Map<string,
 
 /**
  * What goes wrong in the month at `offset`, rolled once, in a fixed order:
- * each route (technical defect, then bird strike) in the order given, each
+ * each route (technical defect) in the order given, each
  * airport served in alphabetical order, then each winter region. The same
  * inputs and generator always give the same list. Ids are unique within a
  * month and repeatable: `dis_<offset>_<kind>_<what>`.
@@ -192,13 +202,6 @@ export function rollDisruptions(
       out.push({
         id: `dis_${offset}_technical_${r.id}`, kind: 'technical', offset,
         routeIds: [r.id], cancelShare: DISRUPTION_SPECS.technical.cancelShare, ref: r.aircraft
-      });
-    }
-    if (rng() < BIRDSTRIKE_CHANCE) {
-      out.push({
-        id: `dis_${offset}_birdstrike_${r.id}`, kind: 'birdstrike', offset,
-        routeIds: [r.id], cancelShare: DISRUPTION_SPECS.birdstrike.cancelShare, ref: r.aircraft,
-        cost: BIRDSTRIKE_REPAIR_COST
       });
     }
   }
@@ -238,6 +241,52 @@ export function rollDisruptions(
   return out;
 }
 
+/** A bird strike: paid for at once, nothing cancelled, nothing left open. */
+export interface BirdStrike {
+  /** Unique within a month and repeatable: `bird_<offset>_<route id>`. */
+  id: string;
+  /** The month it happens in. */
+  offset: number;
+  routeId: string;
+  /** The aircraft that was hit. */
+  registration: string;
+  /** The repair bill in dollars, see birdStrikeCost. */
+  cost: number;
+}
+
+/** What a bird strike costs for an aircraft of this class ('Widebody', 'narrowbody'...). Unknown: regional. */
+export function birdStrikeCost(aircraftClass: string | undefined): number {
+  const key = String(aircraftClass || 'regional').toLowerCase();
+  return Object.prototype.hasOwnProperty.call(BIRDSTRIKE_COSTS, key)
+    ? BIRDSTRIKE_COSTS[key as keyof typeof BIRDSTRIKE_COSTS]
+    : BIRDSTRIKE_COSTS.regional;
+}
+
+/**
+ * The bird strikes of the month at `offset`: each route that flies is hit with
+ * BIRDSTRIKE_CHANCE, and its aircraft's class sets the bill. The same inputs
+ * and generator always give the same list.
+ */
+export function rollBirdStrikes(
+  routes: DisruptionRoute[],
+  fleet: DisruptionAircraft[],
+  offset: number,
+  rng: () => number
+): BirdStrike[] {
+  const byReg = new Map<string, DisruptionAircraft>();
+  for (const f of fleet || []) if (f && !byReg.has(f.registration)) byReg.set(f.registration, f);
+  const out: BirdStrike[] = [];
+  for (const r of flyingRoutes(routes || [], byReg)) {
+    if (rng() < BIRDSTRIKE_CHANCE) {
+      out.push({
+        id: `bird_${offset}_${r.id}`, offset, routeId: r.id, registration: r.aircraft,
+        cost: birdStrikeCost(byReg.get(r.aircraft)?.class)
+      });
+    }
+  }
+  return out;
+}
+
 /** The disruptions still to come or running, from the month at `offset` on. Older ones are done with. */
 export function dropPastDisruptions(disruptions: Disruption[], offset: number): Disruption[] {
   return disruptions.filter(d => d.offset >= offset);
@@ -271,17 +320,11 @@ export function disruptionCancelShares(disruptions: Disruption[] | undefined, of
   return out;
 }
 
-/** The repair bills of the disruptions in the month at `offset`, in dollars. */
-export function disruptionRepairCost(disruptions: Disruption[] | undefined, offset: number): number {
-  return disruptionsIn(disruptions, offset).reduce((sum, d) => sum + Math.max(0, Number(d.cost) || 0), 0);
-}
-
 /** A disruption's heading: what and where. */
 export function disruptionTitle(d: Disruption): string {
   const label = DISRUPTION_SPECS[d.kind]?.label ?? 'Disruption';
   switch (d.kind) {
     case 'technical':
-    case 'birdstrike':
       return d.ref ? `${label}: ${d.ref}` : label;
     case 'airport-strike':
       return d.ref ? `${label} at ${d.ref}` : label;
@@ -324,8 +367,8 @@ export function describeRouteCancellations(
 
 /**
  * The disruptions of the month at `offset`, as the monthly report lists them.
- * `charterFees` holds what each chartered one was billed, by id; it is part
- * of the incident's cost with any repairs.
+ * `charterFees` holds what each chartered one was billed, by id; it is the
+ * incident's cost.
  */
 export function disruptionIncidents(
   disruptions: Disruption[] | undefined,
@@ -336,7 +379,7 @@ export function disruptionIncidents(
   return disruptionsIn(disruptions, offset).map(d => {
     const names = d.routeIds.map(routeName);
     const where = names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
-    const cost = Math.max(0, Number(d.cost) || 0) + (d.mitigated ? Math.max(0, charterFees[d.id] || 0) : 0);
+    const cost = d.mitigated ? Math.max(0, charterFees[d.id] || 0) : 0;
     return {
       kind: d.kind,
       title: disruptionTitle(d),
@@ -551,6 +594,5 @@ export function disruptionRoutesLabel(d: Pick<Disruption, 'routeIds'>, routeName
 export function describeDisruption(d: Disruption, routeName: (routeId: string) => string): string {
   const pct = Math.round(d.cancelShare * 100);
   const where = disruptionRoutesLabel(d, routeName);
-  const repair = (d.cost ?? 0) > 0 ? ` Repairs: ${formatCurrency(d.cost!)}.` : '';
-  return `• ${disruptionTitle(d)}: ${pct}% of flights cancelled on ${where}.${repair}`;
+  return `• ${disruptionTitle(d)}: ${pct}% of flights cancelled on ${where}.`;
 }

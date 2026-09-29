@@ -278,7 +278,6 @@ const isWideDisruption = (d: EditionDisruption) => d.kind === 'airport-strike' |
 
 const DISRUPTION_HEADLINES: Record<DisruptionKind, (name: string, ref: string) => string> = {
   technical: name => `Technical Fault Grounds ${name} Jet`,
-  birdstrike: name => `Bird Strike Damages ${name} Aircraft`,
   'airport-strike': (name, ref) => `Airport Strike${ref ? ` at ${ref}` : ''} Snarls ${name} Schedule`,
   weather: (_name, ref) => `Winter Storms Batter Flights${ref && ref in REGION_LABELS ? ` Across ${REGION_LABELS[ref as RegionId]}` : ''}`
 };

@@ -339,7 +339,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-white/80">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
                   <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
                   <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
-                  <p><strong className="text-white/80">Incident repairs &amp; charters</strong> — repair bills after operational disruptions such as bird strikes, and replacement aircraft chartered to fly cancelled flights.</p>
+                  <p><strong className="text-white/80">Incident repairs &amp; charters</strong> — replacement aircraft chartered to fly cancelled flights (older reports also list repair bills). A bird strike is paid on the spot and shows as capex.</p>
                   <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers, airport slots. Deducted from cash at once, but not from operating profit, which is why the two differ.</p>
                 </div>
               </div>

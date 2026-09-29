@@ -91,9 +91,9 @@ export interface Staff {
 
 export const DEFAULT_STAFF: Staff = { salaryPct: 100, morale: 70, strike: null };
 
-export type DisruptionKind = 'technical' | 'birdstrike' | 'airport-strike' | 'weather';
+export type DisruptionKind = 'technical' | 'airport-strike' | 'weather';
 
-export const DISRUPTION_KINDS: readonly DisruptionKind[] = ['technical', 'birdstrike', 'airport-strike', 'weather'];
+export const DISRUPTION_KINDS: readonly DisruptionKind[] = ['technical', 'airport-strike', 'weather'];
 
 /** Something that cancels part of the player's flights for one month. See disruptions.ts. */
 export interface Disruption {
@@ -107,8 +107,6 @@ export interface Disruption {
   cancelShare: number;
   /** What it is attached to, for messages: an aircraft registration, an airport id or a region. */
   ref?: string;
-  /** A repair bill, charged in the month it hits. */
-  cost?: number;
   /** A chartered replacement aircraft flies the cancelled flights: nothing is cancelled. */
   mitigated?: boolean;
 }
@@ -128,7 +126,7 @@ export interface ReportIncident {
   routeCount: number;
   /** A chartered replacement aircraft flew the cancelled flights. */
   mitigated?: boolean;
-  /** Repair bill, or for a chartered one the charter, charged in the month, in dollars. */
+  /** For a chartered one the charter, charged in the month, in dollars. Older reports also list repair bills here. */
   cost?: number;
 }
 
