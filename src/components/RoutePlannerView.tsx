@@ -3599,6 +3599,14 @@ function RoutePlannerInner({
                              // by this class's price multiplier.
                              const minPossiblePrice = Math.round(sliderMin * multiplier);
                              const maxPossiblePrice = Math.round(sliderMax * multiplier);
+                             // Expected load of this cabin at today's demand: local
+                             // passengers plus the connecting ones the network sells
+                             // in it (the same figures as the expected-profit box).
+                             const cabinLoad = saveFinancials?.paxByClass?.[c];
+                             const cabinTransfer = cabinLoad?.transfer ?? 0;
+                             const cabinLf = cabinLoad && cabinLoad.max > 0
+                               ? Math.round(((cabinLoad.actual + cabinTransfer) / cabinLoad.max) * 100)
+                               : 0;
 
                              return (
                                <div key={c} className="flex flex-col gap-4 bg-black/40 p-4 border border-white/5 group hover:border-white/20 transition-all">
@@ -3606,6 +3614,13 @@ function RoutePlannerInner({
                                      <div className="flex flex-col">
                                         <span className="text-sm uppercase font-black tracking-widest text-aero-yellow">{c} Class</span>
                                         <span className="text-2xs text-white/40 uppercase tracking-widest mt-1">{classSeatCount[c]} Seats</span>
+                                        {cabinLoad && (
+                                          <span className="text-2xs text-white/40 font-mono mt-1">
+                                            Expected {formatNumber(cabinLoad.actual)} local
+                                            {cabinTransfer > 0 && ` + ${formatNumber(cabinTransfer)} transfer`}
+                                            {' '}/ {formatNumber(cabinLoad.max)} pax per week ({cabinLf}% LF)
+                                          </span>
+                                        )}
                                      </div>
                                      <div className="flex flex-col items-end">
                                         <span className="text-2xl font-mono text-white font-bold">${currentPrice}</span>

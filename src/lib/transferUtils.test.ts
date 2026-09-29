@@ -363,6 +363,37 @@ test('a route edited in the planner replaces itself in the network', () => {
   assert.ok(edited.fin.transferPax >= bases.transferPax);
 });
 
+test('a four-cabin network sells connections in every cabin, in the planner too', () => {
+  // A jumbo with all four cabins, fares 30% above the base fare in each so
+  // every cabin keeps empty seats: nothing here is stubbed, the engine seats
+  // the connecting passengers of each cabin itself.
+  const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE', 'ATH'], { aircraftId: '747-100' });
+  const config = { economy: 323, premium: 81, business: 81, first: 54, details: {} };
+  for (const ac of fleet) ac.config = config;
+  for (const r of routes) {
+    const b = calculateBasePrices(r.distance, getFlightTimeClass(r.durMin));
+    r.ticketPrices = r.activeTicketPrices = Object.fromEntries(CABINS.map(c => [c, Math.round(b[c] * 1.3)]));
+  }
+
+  const check = (fin: any, load: any) => {
+    for (const c of CABINS) {
+      assert.ok(load.byClass[c]?.pax > 0, `${c} sells connections`);
+      assert.equal(fin.paxByClass[c].transfer, load.byClass[c].pax, `${c} seats them in its own cabin`);
+      assert.ok(fin.paxByClass[c].actual + fin.paxByClass[c].transfer <= fin.paxByClass[c].max);
+    }
+    assert.equal(fin.transferPax, CABINS.reduce((a, c) => a + fin.paxByClass[c].transfer, 0));
+  };
+
+  const net = computeNetworkFinancials(routes, fleet, { demandFactor: 1 }, env);
+  for (const r of routes) check(net.finById.get(r.id), net.transfer[r.id]);
+
+  // The planner prices its draft the same way, so the Pricing step can show
+  // connecting passengers per cabin.
+  const draft = priceDraftInNetwork(routes[2], routes.slice(0, 2), fleet, { demandFactor: 1 }, env)!;
+  check(draft.fin, draft.transfer!);
+  assert.deepStrictEqual(draft.fin, net.finById.get(routes[2].id));
+});
+
 // --- The engine ------------------------------------------------------------------
 
 test('the network result adds exactly the transfer revenue to what a route earns', () => {
