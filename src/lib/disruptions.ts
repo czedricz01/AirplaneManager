@@ -31,6 +31,9 @@
  *
  * Everything here is pure; the random generator is a parameter. Nothing here
  * reaches the AI airlines.
+ *
+ * Which months are rolled for at all is not decided here: malus.ts holds
+ * disruptions, strikes and random malus events to at most half of all months.
  */
 import type { Disruption, DisruptionKind, GameDecision, RegionId, ReportIncident, RouteCancellation } from './gameState';
 import { regionOf } from './geoUtils';

@@ -137,6 +137,23 @@ test('no strike is called while one is running or waiting for an answer', () => 
   assert.equal(draws, 0);
 });
 
+test('a month the malus ceiling holds clear puts a strike off, and it is rolled for again the month after', () => {
+  const always = () => 0;
+  const miserable = staffAt(0, 80);
+  const held = advanceStaff(miserable, { profitStreak: 0, nextOffset: 5, malusBlocked: true }, always);
+  assert.equal(held.strikeCalled, false);
+  assert.equal(held.chance, 0);
+  assert.equal(held.staff.strike, null);
+  assert.ok(held.staff.morale > miserable.morale, 'morale still takes its step towards the target');
+
+  const later = advanceStaff(held.staff, { profitStreak: 0, nextOffset: 6, malusBlocked: false }, always);
+  assert.equal(later.strikeCalled, true, 'nothing was lost, only delayed');
+
+  let draws = 0;
+  advanceStaff(miserable, { profitStreak: 0, nextOffset: 5, malusBlocked: true }, () => { draws++; return 0; });
+  assert.equal(draws, 0, 'no draw is spent on a held month');
+});
+
 test('raising pay halves the strike and lifts pay by ten points, capped', () => {
   const striking = staffAt(20, 85, { startOffset: 12, cancelShare: 1 });
   const settled = settleStrikeWithPayRise(striking, 12);
