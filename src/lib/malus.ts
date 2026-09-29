@@ -7,11 +7,12 @@
  *   long-term   a random world event that hurts (isMalusEvent), which lasts
  *               several months
  *   one-time    a month with an operational disruption (technical defect,
- *               bird strike, airport strike, winter weather) or a staff strike
+ *               airport strike, winter weather) or a staff strike
  *
  * Not counted: the scripted historical events (oil crises, the pandemic...).
  * They are history, they always happen, and they never use up or wait for
- * this budget.
+ * this budget. Nor are bird strikes: a one-off bill paid on the spot, with
+ * nothing cancelled and nothing left running.
  *
  * The rule is one sentence: a run of malus months is followed by at least as
  * many clean months. In practice:

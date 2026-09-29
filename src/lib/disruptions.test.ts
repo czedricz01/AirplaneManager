@@ -4,12 +4,13 @@ import assert from 'node:assert/strict';
 import {
   AIRPORT_STRIKE_CHANCE,
   BIRDSTRIKE_CHANCE,
-  BIRDSTRIKE_REPAIR_COST,
+  BIRDSTRIKE_COSTS,
   DISRUPTION_OPTION_CANCEL,
   DISRUPTION_OPTION_CHARTER,
   DISRUPTION_SPECS,
   MAX_DISRUPTION_DECISIONS,
   WEATHER_CHANCE,
+  birdStrikeCost,
   buildDisruptionDecision,
   cancelReputationPenalty,
   charterFee,
@@ -19,11 +20,11 @@ import {
   describeRouteCancellations,
   disruptionCancelShares,
   disruptionIncidents,
-  disruptionRepairCost,
   disruptionsToAsk,
   dropPastDisruptions,
   isWinterIn,
   marginalLostRevenue,
+  rollBirdStrikes,
   rollDisruptions,
   technicalDefectChance,
   type DisruptionRoute
@@ -105,7 +106,7 @@ test('every kind comes up when every draw hits, each with its own share and scop
   const all = roll(JANUARY_1975, () => 0);
   const byKind = (k: string) => all.filter(d => d.kind === k);
   assert.equal(byKind('technical').length, 3, 'one per route');
-  assert.equal(byKind('birdstrike').length, 3);
+  assert.equal(byKind('birdstrike').length, 0, 'a bird strike is no disruption: it cancels nothing');
   assert.equal(byKind('airport-strike').length, 4, 'FRA, LHR, CDG, JFK');
   assert.deepEqual(byKind('weather').map(d => d.ref), ['EU', 'NA'], 'the winter regions the network touches');
 
@@ -113,7 +114,6 @@ test('every kind comes up when every draw hits, each with its own share and scop
   assert.deepEqual(fra.routeIds, ['r1', 'r2', 'r3'], 'an airport strike hits every route there');
   assert.equal(fra.cancelShare, 0.3);
   assert.deepEqual(byKind('weather').find(d => d.ref === 'NA')!.routeIds, ['r3']);
-  assert.ok(byKind('birdstrike').every(d => d.cost === BIRDSTRIKE_REPAIR_COST && d.cancelShare === 0.1));
   assert.ok(byKind('technical').every(d => d.cancelShare === 0.25 && d.offset === JANUARY_1975));
   assert.equal(new Set(all.map(d => d.id)).size, all.length, 'ids are unique');
 
@@ -164,9 +164,9 @@ test('causes combine as independent shares', () => {
 });
 
 test('a chartered replacement cancels nothing', () => {
-  const list = [disruption({ id: 'a', mitigated: true }), disruption({ id: 'b', kind: 'birdstrike', cancelShare: 0.1, cost: BIRDSTRIKE_REPAIR_COST })];
+  const list = [disruption({ id: 'a', mitigated: true }), disruption({ id: 'b', kind: 'weather', cancelShare: 0.1 })];
   const mods = buildPlayerModifiers({ reputation: 50, eventChoices: {}, disruptions: list }, 200);
-  assert.equal(routeCancelShare(mods, 'r1'), 0.1, 'only the bird strike is left');
+  assert.equal(routeCancelShare(mods, 'r1'), 0.1, 'only the weather is left');
   const allChartered = buildPlayerModifiers({ reputation: 50, eventChoices: {}, disruptions: [list[0]] }, 200);
   assert.equal(allChartered.cancelShare, undefined);
   assert.deepEqual(allChartered, buildPlayerModifiers({ reputation: 50, eventChoices: {} }, 200), 'as if nothing had happened');
@@ -175,12 +175,10 @@ test('a chartered replacement cancels nothing', () => {
   assert.equal(incidents[0].mitigated, true);
   assert.equal(incidents[0].cancelShare, 0);
   assert.equal(incidents[0].cost, undefined, 'no fee known, none listed');
-  assert.equal(incidents[1].cost, BIRDSTRIKE_REPAIR_COST);
+  assert.equal(incidents[1].cost, undefined, 'nothing to pay for one that is not chartered');
   const billed = disruptionIncidents(list, 200, id => id, { a: 90_000, b: 5 });
   assert.equal(billed[0].cost, 90_000, 'the charter billed at the close');
-  assert.equal(billed[1].cost, BIRDSTRIKE_REPAIR_COST, 'a fee only counts for a chartered one');
-  assert.equal(disruptionRepairCost(list, 200), BIRDSTRIKE_REPAIR_COST);
-  assert.equal(disruptionRepairCost(list, 201), 0);
+  assert.equal(billed[1].cost, undefined, 'a fee only counts for a chartered one');
 });
 
 test('a charter is priced on what it saves with every other cause applied, cancelling on what it strands', () => {
@@ -262,15 +260,15 @@ test('past disruptions are dropped, saved ones survive a load', () => {
   const loaded = migrateSave({
     currentDateOffset: 200,
     disruptions: [
-      { ...disruption({ id: 'x', kind: 'birdstrike', cost: BIRDSTRIKE_REPAIR_COST }), mitigated: true },
-      { ...disruption({ id: 'y' }), cost: -5, mitigated: 'yes' },
+      { ...disruption({ id: 'x', kind: 'weather' }), cost: 200_000, mitigated: true },
+      { ...disruption({ id: 'y' }), mitigated: 'yes' },
+      { ...disruption({ id: 'old-bird', kind: 'birdstrike' as never }), cost: 200_000 },
       { id: 'z', kind: 'volcano', offset: 200, routeIds: [], cancelShare: 1 }
     ]
   });
-  assert.deepEqual(loaded.disruptions.map((d: Disruption) => d.id), ['x', 'y']);
+  assert.deepEqual(loaded.disruptions.map((d: Disruption) => d.id), ['x', 'y'], 'a saved bird strike is dropped, it is paid on the spot now');
   assert.equal(loaded.disruptions[0].mitigated, true);
-  assert.equal(loaded.disruptions[0].cost, BIRDSTRIKE_REPAIR_COST);
-  assert.equal(loaded.disruptions[1].cost, undefined, 'a negative bill is dropped');
+  assert.equal('cost' in loaded.disruptions[0], false, 'no repair bill is kept');
   assert.equal(loaded.disruptions[1].mitigated, undefined);
 });
 
@@ -310,7 +308,7 @@ test('a disrupted route flies what is left, in whole seats and passengers', () =
 });
 
 test('the chances are the documented ones', () => {
-  assert.equal(BIRDSTRIKE_CHANCE, 0.004);
+  assert.equal(BIRDSTRIKE_CHANCE, 0.002, 'half of the former 0.4%');
   assert.equal(AIRPORT_STRIKE_CHANCE, 0.01);
   assert.equal(WEATHER_CHANCE, 0.03);
 });
@@ -395,4 +393,50 @@ test('charters that save nothing alone but something together still split the bi
   // Nothing saved together either: nothing billed.
   const light = disruption({ id: 'light', kind: 'weather', routeIds: ['r1'], cancelShare: 0.1, mitigated: true });
   assert.deepEqual(charterFeesFor([tech, light], 200, priceWith), {}, '32.5% cancelled still flies everyone booked');
+});
+
+test('a bird strike costs by aircraft class: widebody $400k, narrowbody $200k, regional $100k', () => {
+  assert.deepEqual(BIRDSTRIKE_COSTS, { regional: 100_000, narrowbody: 200_000, widebody: 400_000 });
+  assert.equal(birdStrikeCost('Widebody'), 400_000);
+  assert.equal(birdStrikeCost('Narrowbody'), 200_000);
+  assert.equal(birdStrikeCost('Regional'), 100_000);
+  assert.equal(birdStrikeCost('widebody'), 400_000, 'case does not matter');
+  assert.equal(birdStrikeCost(undefined), 100_000, 'unknown: the cheapest');
+  assert.equal(birdStrikeCost('constructor'), 100_000, 'no inherited keys');
+
+  const fleet = [
+    { registration: 'W1', class: 'Widebody' },
+    { registration: 'N1', class: 'Narrowbody' },
+    { registration: 'R1', class: 'Regional' }
+  ];
+  const routes: DisruptionRoute[] = [
+    { id: 'rw', origin: 'FRA', destination: 'JFK', aircraft: 'W1', schedule: daily },
+    { id: 'rn', origin: 'FRA', destination: 'LHR', aircraft: 'N1', schedule: daily },
+    { id: 'rr', origin: 'FRA', destination: 'CDG', aircraft: 'R1', schedule: daily },
+    { id: 'idle', origin: 'FRA', destination: 'MAD', aircraft: 'W1', schedule: [] },
+    { id: 'gone', origin: 'FRA', destination: 'MAD', aircraft: 'X9', schedule: daily }
+  ];
+  const all = rollBirdStrikes(routes, fleet, JANUARY_1975, () => 0);
+  assert.deepEqual(all.map(b => [b.routeId, b.registration, b.cost]), [
+    ['rw', 'W1', 400_000], ['rn', 'N1', 200_000], ['rr', 'R1', 100_000]
+  ], 'only routes that fly, each billed by its aircraft');
+  assert.ok(all.every(b => b.offset === JANUARY_1975));
+  assert.equal(new Set(all.map(b => b.id)).size, all.length, 'ids are unique');
+
+  assert.deepEqual(rollBirdStrikes(routes, fleet, JANUARY_1975, () => 0.999999), []);
+  assert.deepEqual(rollBirdStrikes(routes, fleet, JANUARY_1975, () => BIRDSTRIKE_CHANCE), [], 'the chance itself misses');
+  for (const seed of [1, 7, 42]) {
+    assert.deepEqual(rollBirdStrikes(routes, fleet, JANUARY_1975, seeded(seed)), rollBirdStrikes(routes, fleet, JANUARY_1975, seeded(seed)));
+  }
+});
+
+test('bird strikes come up at about the chance per route and month', () => {
+  const routes: DisruptionRoute[] = [{ id: 'r1', origin: 'FRA', destination: 'LHR', aircraft: 'N1', schedule: daily }];
+  const fleet = [{ registration: 'N1', class: 'Narrowbody' }];
+  const runs = 50_000;
+  let hits = 0;
+  const rng = seeded(2024);
+  for (let i = 0; i < runs; i++) hits += rollBirdStrikes(routes, fleet, JANUARY_1975, rng).length;
+  const rate = hits / runs;
+  assert.ok(rate > BIRDSTRIKE_CHANCE * 0.7 && rate < BIRDSTRIKE_CHANCE * 1.3, `${hits} in ${runs} is ${rate}`);
 });

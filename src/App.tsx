@@ -267,6 +267,7 @@ import {
 import {
   DISRUPTION_OPTION_CHARTER,
   MAJOR_DISRUPTION_SHARE,
+  type BirdStrike,
   buildDisruptionDecision,
   cancelReputationPenalty,
   charterFeesFor,
@@ -276,12 +277,12 @@ import {
   disruptionCancelShares,
   disruptionRoutesLabel,
   disruptionIncidents,
-  disruptionRepairCost,
   disruptionTitle,
   disruptionsIn,
   disruptionsToAsk,
   dropPastDisruptions,
   marginalLostRevenue,
+  rollBirdStrikes,
   rollDisruptions
 } from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
@@ -531,6 +532,12 @@ export default function App() {
   const [staff, setStaff] = useState<Staff>(DEFAULT_STAFF);
   /** Cancellations rolled for the months ahead. */
   const [disruptions, setDisruptions] = useState<Disruption[]>([]);
+  /**
+   * Bird strikes waiting to be acknowledged, one pop-up each. The bill was
+   * paid the moment they were rolled; this is only the message, so it is not
+   * saved.
+   */
+  const [birdStrikeAlerts, setBirdStrikeAlerts] = useState<BirdStrike[]>([]);
   /**
    * Questions for the player that are not world events, answered one at a
    * time in the dialog below the event decision. See resolveDecision.
@@ -1427,9 +1434,6 @@ export default function App() {
     // demand and loyalty are already in this month's route figures above,
     // through playerMods; here they are paid for.
     const marketingCost = marketingMonthCost(marketing, currentDateOffset, paxWeek * 4);
-    // Repairs after this month's disruptions (bird strikes). Their
-    // cancellations are already in the route figures above, through playerMods.
-    const incidentRepairs = disruptionRepairCost(disruptions, currentDateOffset);
     // Replacement aircraft chartered for this month, billed as an operating
     // cost: 90% of the tickets each one saved, with every other cause -- a
     // strike above all -- applied. The routes' figures above already fly
@@ -1443,7 +1447,7 @@ export default function App() {
       revenueOf(monthNetwork)
     );
     const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - incidentRepairs - charterCosts;
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - charterCosts;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
@@ -1623,8 +1627,8 @@ export default function App() {
         marketing: marketingCost.total,
         marketingCampaigns: marketingCost.campaigns,
         ffp: marketingCost.ffp,
-        // Repairs and charters together, as the report lists them per incident.
-        incidents: incidentRepairs + charterCosts,
+        // Charters, as the report lists them per incident (older reports add repair bills).
+        incidents: charterCosts,
         charters: charterCosts
       },
       marketingItems: marketingCost.items,
@@ -1752,6 +1756,30 @@ export default function App() {
             `A hangar at a route's origin halves the chance of a technical defect; worn and old aircraft break more often.`
         }
       });
+    }
+
+    // 2c. Bird strikes hit next month's flights at once and are done with:
+    // the repair bill comes off the bank balance now (and shows as capex in
+    // next month's report), a pop-up says so, and nothing is cancelled.
+    const birdStrikes = rollBirdStrikes(routes, fleet, nextOffset, Math.random);
+    if (birdStrikes.length > 0) {
+      setBirdStrikeAlerts(prev => [...prev, ...birdStrikes]);
+      for (const b of birdStrikes) {
+        spend(b.cost, `Bird strike: ${b.registration}`);
+        additionalMessages.push({
+          id: nextMessageId(),
+          text: `BIRD STRIKE: ${b.registration}, ${formatCurrency(-b.cost)}.`,
+          isRead: false,
+          dateStr: offsetToDateStr(currentDateOffset),
+          details: {
+            title: `Bird strike: ${b.registration}`,
+            source: 'Operations control',
+            content:
+              `${b.registration} flew into a flock of birds on ${routeLabel(b.routeId)} in ${offsetToDateStr(nextOffset)}. ` +
+              `The repair bill of ${formatCurrency(b.cost)} was paid on the spot; no flights were cancelled.`
+          }
+        });
+      }
     }
 
     // --- Annual goal -------------------------------------------------------
@@ -2378,6 +2406,7 @@ export default function App() {
    */
   const resetTransientGameState = () => {
     applyGameSystems(createGameSystems());
+    setBirdStrikeAlerts([]);
     setScenarioResultOpen(false);
     setEdition(null);
     setIsNewspaperOpen(false);
@@ -2844,7 +2873,7 @@ export default function App() {
    * view. It comes back once they are dealt with. Modals it is not told
    * about here it notices itself (see TutorialOverlay).
    */
-  const tutorialHidden = !inGame || !!pendingDecision || pendingDecisions.length > 0 || isNewspaperOpen || !!appAlert ||
+  const tutorialHidden = !inGame || !!pendingDecision || pendingDecisions.length > 0 || birdStrikeAlerts.length > 0 || isNewspaperOpen || !!appAlert ||
     isSettingsOpen || !!selectedMessage || showSaveMenu || showLoadMenu || showExitSavePrompt || scenarioResultOpen ||
     !!selectedAirport || isEditingSchedule || !!reassigning || isMessagesOpen || isGameMenuOpen || isMapSettingsOpen;
 
@@ -2987,6 +3016,38 @@ export default function App() {
                       </button>
                     );
                   })}
+                </div>
+              </Modal>
+            );
+          })()}
+          {/* A bird strike: the bill is paid already, this only says so. Waits
+              for the newspaper and any question, like they wait for each other. */}
+          {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0 && birdStrikeAlerts.length > 0 && (() => {
+            const strike = birdStrikeAlerts[0];
+            const plane = fleet.find(f => f.registration === strike.registration);
+            const route = routes.find(r => r.id === strike.routeId);
+            const dismiss = () => setBirdStrikeAlerts(prev => prev.slice(1));
+            return (
+              <Modal open size="sm" accent="warn" layer="top" onClose={dismiss}>
+                <div role="alertdialog" aria-labelledby="bird-strike-title" aria-describedby="bird-strike-detail">
+                  <h3 id="bird-strike-title" className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+                    <Bird size={22} aria-hidden="true" /> Bird strike
+                  </h3>
+                  <p className="text-3xl font-mono font-black text-aero-warn tabular-nums my-3">{formatCurrency(-strike.cost)}</p>
+                  <p id="bird-strike-detail" className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
+                    {strike.registration}{plane ? ` (${plane.manufacturer} ${plane.type})` : ''} hit a flock of birds{route ? ` on ${route.origin}-${route.destination}` : ''}.
+                    The repair bill was deducted from your balance.
+                  </p>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={dismiss}
+                      className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
+                    >
+                      OK
+                    </button>
+                  </div>
                 </div>
               </Modal>
             );
@@ -3604,7 +3665,7 @@ export default function App() {
                                { label: 'Frequent flyer programme', amount: latestReport.breakdown.ffp || 0 }
                              ]
                            }] : []),
-                           // Only in months with a repair bill, e.g. after a bird strike.
+                           // Only in months with a charter (older reports: also repair bills).
                            ...((latestReport.breakdown.incidents || 0) > 0 ? [{
                              id: 'incidents',
                              label: 'Incident repairs & charters',

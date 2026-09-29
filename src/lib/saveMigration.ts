@@ -264,18 +264,19 @@ function migrateStaff(s: unknown, currentDateOffset: number): Staff {
   };
 }
 
+// Bird strikes used to be disruptions with a repair bill; they are paid on the
+// spot now, so an old one (kind no longer known) is dropped and no bill is kept.
 function migrateDisruptions(list: unknown, currentDateOffset: number): Disruption[] {
   return asArray<any>(list)
     .filter(d => d && isString(d.id) && DISRUPTION_KINDS.includes(d.kind) && Number.isFinite(d.offset))
     .filter(d => Math.round(d.offset) <= currentDateOffset)
     .map(d => {
-      const { cost, mitigated, ...rest } = d;
+      const { cost: _repairBill, mitigated, ...rest } = d;
       return {
         ...rest,
         offset: Math.round(d.offset),
         routeIds: asArray<unknown>(d.routeIds).filter(isString),
         cancelShare: clamp(finiteOr(d.cancelShare, 0), 0, 1),
-        ...(Number.isFinite(cost) && cost > 0 ? { cost } : {}),
         ...(mitigated === true ? { mitigated: true } : {})
       };
     });
