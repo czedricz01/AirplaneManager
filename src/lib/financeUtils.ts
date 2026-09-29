@@ -92,18 +92,12 @@ export function getAirportUpkeep(
           + b.desks.normal + b.desks.self
           + b.facilities.hangar + b.facilities.vip + b.facilities.catering;
 
-  const totalDeskCapacity = ((desks.normal || 0) * deskCapacities.normal) + ((desks.self || 0) * deskCapacities.self);
-  const deskLoad = totalDeskCapacity > 0 ? (passengerData.departing / totalDeskCapacity) * 100 : 0;
-  let satDeduction = 0;
-  if (deskLoad > 100) satDeduction = -((deskLoad - 100) / 10);
-  if (totalDeskCapacity === 0 && passengerData.departing > 0) satDeduction = -25;
-
-  
+  // The check-in load and its satisfaction cost are worked out by getDeskSim,
+  // the one place that counts passengers per desk. An older copy here counted
+  // them a second way and nothing read it.
   return {
     ...b,
     passengerData,
-    deskLoad,
-    satDeduction,
     slotCosts,
     standUpgradeCosts,
     deskCosts,
@@ -347,9 +341,6 @@ export function getMultiOptionSum(ids: string[], options: Record<string, { label
 
 export function adjustSatForDifficulty(baseSat: number, difficulty: string): number {
   if (difficulty === 'Easy') {
-    if (baseSat <= -10) {
-      return baseSat;
-    }
     return baseSat * 1.15;
   }
   if (difficulty === 'Hard') {
@@ -368,6 +359,12 @@ export const getLoungeBonus = (airportId: string | null, cabinClass: string, air
   return 0;
 };
 
+/**
+ * How much of the interior's appeal a worn cabin keeps: 40% when it is
+ * completely worn out, 100% when it is as good as new.
+ */
+const interiorWearFactor = (condition: number) => 0.4 + 0.6 * (condition / 100);
+
 export const getPlaneSat = (aircraft?: any) => {
   if (!aircraft) return 0;
   // Any missing field used to make this NaN, and NaN then poisoned every figure
@@ -375,10 +372,38 @@ export const getPlaneSat = (aircraft?: any) => {
   const popularity = Number.isFinite(aircraft.popularity) ? aircraft.popularity : 50;
   const interiorPop = Number.isFinite(aircraft.baseInteriorPop) ? aircraft.baseInteriorPop : 50;
   const interiorCondition = Number.isFinite(aircraft.conditionInterior) ? aircraft.conditionInterior : 100;
-  const generalPlaneSat = Math.round((popularity * 0.33) + (interiorPop * 0.67));
-  const combinedPlaneSat = Math.round(generalPlaneSat * (0.4 + 0.6 * (interiorCondition / 100)));
-  return combinedPlaneSat;
+  // Wear belongs to the cabin. The model's popularity is a fact about the type
+  // and used to be scaled down by it as well, so a tired cabin also made the
+  // aircraft type itself less popular.
+  return Math.round(popularity * 0.33 + interiorPop * 0.67 * interiorWearFactor(interiorCondition));
 };
+
+/**
+ * Satisfaction lost to the check-in desks a cabin class has to use.
+ *
+ * Adding a desk never makes this worse: no desk at all is the harshest case,
+ * self-service alone is better than nothing, and a staffed desk is better
+ * still. (Premium classes with self-service only used to lose 25, more than
+ * with no desk at all, so building the cheaper desk hurt.) Economy passengers
+ * do not mind self-service.
+ */
+export function getDeskPenalty(hasSelf: boolean, hasNormal: boolean, premiumClass: boolean): number {
+  if (!hasSelf && !hasNormal) return -15;
+  if (premiumClass && !hasNormal) return -10;
+  return 0;
+}
+
+/**
+ * Satisfaction lost because the check-in desks are too busy, for a desk load
+ * in percent of capacity. Nothing up to 80%, then a steady slope: -4 at 100%
+ * and -20 at 110%. It used to jump from -4 to -20 the moment the load passed
+ * 100%, so one more departure could cost sixteen points.
+ */
+export function getDeskOverloadSat(loadPercent: number): number {
+  if (!(loadPercent > 80)) return 0;
+  if (loadPercent <= 100) return -((loadPercent - 80) * 0.2);
+  return -Math.min(20, 4 + (loadPercent - 100) * 1.6);
+}
 
 export const getDeskSim = (airportId: string | null, airportManagement?: any, routes?: any[], fleet?: any[], selectedOrigin?: any, selectedDest?: any, selectedAircraft?: any, scheduleLength?: number, excludeRouteId?: string) => {
   const mgt = airportManagement || {};
@@ -415,31 +440,32 @@ export const getDeskSim = (airportId: string | null, airportManagement?: any, ro
   if (totalDesks > 0) {
     sat -= (infra.self / totalDesks) * 1;
   }
-  if (load > 100) sat -= 20;
-  else if (load > 90) sat -= 4;
-  else if (load > 80) sat -= 2;
+  sat += getDeskOverloadSat(load);
 
   return { load, sat, myPax, cap: totalCap };
 };
 
-export const getStandBonus = (selectedOrigin?: any, selectedDest?: any, selectedAircraft?: any, airportManagement?: any) => {
+/** Satisfaction points for a stand at every slot, at both ends of the route. */
+const FULL_STAND_BONUS = 2;
+
+/**
+ * The stand bonus of a route: up to +2, in proportion to how many of the slots
+ * at each end have a stand, averaged over the two ends. `slotType` is the
+ * lower-case infrastructure class of the aircraft ("regional", "narrowbody",
+ * "widebody").
+ *
+ * The bonus used to be all or nothing and looked at the origin only, while this
+ * function sat unused next to it: an airport at 9 stands for 10 slots earned
+ * nothing, and a route to a destination without stands earned the full bonus.
+ */
+export const getStandBonus = (originId: string, destId: string, slotType: string, airportManagement?: any) => {
   const mgt = airportManagement || {};
-  if (!selectedOrigin || !selectedDest || !selectedAircraft || !mgt) return 0;
-  
-  let infraClass = "regional";
-  const acClass = (selectedAircraft.class || "").toLowerCase();
-  if (acClass === "narrowbody") infraClass = "narrowbody";
-  if (acClass === "widebody") infraClass = "widebody";
-  
-  const oSlots = mgt[selectedOrigin.id]?.slots?.[infraClass] || 0;
-  const oStands = mgt[selectedOrigin.id]?.stands?.[infraClass] || 0;
-  const oRatio = oSlots > 0 ? Math.min(1, oStands / oSlots) : 0;
-  
-  const dSlots = mgt[selectedDest.id]?.slots?.[infraClass] || 0;
-  const dStands = mgt[selectedDest.id]?.stands?.[infraClass] || 0;
-  const dRatio = dSlots > 0 ? Math.min(1, dStands / dSlots) : 0;
-  
-  return ((oRatio + dRatio) / 2) * 2;
+  const coverage = (id: string) => {
+    const slots = mgt[id]?.slots?.[slotType] || 0;
+    const stands = mgt[id]?.stands?.[slotType] || 0;
+    return slots > 0 ? Math.min(1, stands / slots) : 0;
+  };
+  return ((coverage(originId) + coverage(destId)) / 2) * FULL_STAND_BONUS;
 };
 
 
@@ -555,13 +581,18 @@ export function getSatMultiplier(sat: number): number {
  * a moderate, realistic selection is unaffected; above it, each additional
  * raw point buys progressively less, taming what would otherwise be an
  * unbounded linear stack of every available option.
+ *
+ * The first 20 points above the threshold still count in full. The square root
+ * alone paid MORE than it was given there (65 became 70), because it grows
+ * faster than the input until the excess reaches SCALE; taking the smaller of
+ * the two keeps the curve rising and never above the input.
  */
 export function applyDiminishingReturns(rawSat: number): number {
   const THRESHOLD = 60;
   const SCALE = 20;
   if (rawSat <= THRESHOLD) return rawSat;
   const excess = rawSat - THRESHOLD;
-  return Math.round(THRESHOLD + Math.sqrt(excess * SCALE));
+  return Math.round(THRESHOLD + Math.min(excess, Math.sqrt(excess * SCALE)));
 }
 
 export function calculateClassSatisfaction(c: string, aircraft: any, config: any, dur: number, airportManagement: any, routeOrigin: string, routeDest: string, difficulty: string, slotType: string = 'regional') {
@@ -578,24 +609,16 @@ export function calculateClassSatisfaction(c: string, aircraft: any, config: any
       
       const loungeBonus = getLoungeBonus(routeOrigin, c, airportManagement) + getLoungeBonus(routeDest, c, airportManagement);
       
-      const originMgt = airportManagement[routeOrigin];
-      const originStandLimit = originMgt?.slots?.[slotType] || 0;
-      const originStands = originMgt?.stands?.[slotType] || 0;
-      let standBonus = 0;
-      if (originStandLimit > 0 && originStands >= originStandLimit) {
-         standBonus = 2; // +2 sat for having stands
-      }
-      
+      const standBonus = getStandBonus(routeOrigin, routeDest, slotType, airportManagement);
 
-      const oAirport = airportManagement[routeOrigin] || {};
-      const hasSelfDesks = (oAirport?.desks?.self || 0) > 0;
-      const hasNormalDesks = (oAirport?.desks?.normal || 0) > 0;
+      // Passengers check in at both ends of a round trip, so both airports
+      // count, as they already do for the overload penalty.
       const isPremium = c === 'business' || c === 'first' || c === 'premium';
-      
-      let deskPenalty = 0;
-      if (!hasSelfDesks && !hasNormalDesks) deskPenalty = -15;
-      else if (isPremium && !hasNormalDesks) deskPenalty = -25;
-      else if (!isPremium && hasSelfDesks && !hasNormalDesks) deskPenalty = 5;
+      const deskPenaltyAt = (airportId: string) => {
+         const desks = airportManagement[airportId]?.desks;
+         return getDeskPenalty((desks?.self || 0) > 0, (desks?.normal || 0) > 0, isPremium);
+      };
+      const deskPenalty = (deskPenaltyAt(routeOrigin) + deskPenaltyAt(routeDest)) / 2;
 
       const planeSat = getPlaneSat(aircraft);
 
@@ -735,6 +758,10 @@ export function seatWeightedSatisfaction(routeSat: Record<string, number>, confi
 const OVERPRICE_ELASTICITY_FACTOR = 3;
 
 export function getPriceDemandMultiplier(price: number, satBasePrice: number, sat: number) {
+    // Nothing is worth zero, and a free ticket draws the most demand there is.
+    // Without these two lines 0/0 and x/0 turned the whole route result into NaN.
+    if (!(satBasePrice > 0)) return 0;
+    if (!(price > 0)) return 1.5;
     const baseElasticity = 1.5;
     const elasticity = Math.max(0.5, baseElasticity - (sat / 200));
     const overpriced = price > satBasePrice;
@@ -1009,7 +1036,10 @@ export function calculateRouteFinancials(
       const sat = routeSat[c];
       const satMultiplier = getSatMultiplier(sat);
       const satBase = Math.round(bases[c as keyof typeof bases] * satMultiplier);
-      const price = ticketPrices[c];
+      // A saved fare list that lacks this cabin (say, business added by a
+      // refit) is priced at the going rate rather than at `undefined`, which
+      // made every figure of the route NaN.
+      const price = Number.isFinite(ticketPrices[c]) ? ticketPrices[c] : satBase;
       const demMult = getPriceDemandMultiplier(price, satBase, sat);
 
       // The share of this class's demand won against the rivals above. With

@@ -995,29 +995,17 @@ function RoutePlannerInner({
   }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, plannerMods, rivalOffers]);
 
   // Break-even prices at 99%/75%/35% load, shared by the pricing step's sliders
-  // and the auto-seed effect below. `financials` (the calculateRouteFinancials
-  // result) has no basePriceBE* fields of its own -- those are derived here from
-  // its costs and the aircraft's weighted seat count. The effect used to read
-  // `financials.basePriceBE75` directly, which was always `undefined`, so every
-  // route whose price was never manually dragged saved NaN ticket prices --
-  // shown as $NaN on the sliders and, once run back through the safe formatter
-  // that clamps non-finite numbers to 0, as a stuck "$0" everywhere else,
-  // including reopening that route's pricing later.
+  // and the auto-seed effect below. They come straight from the engine result,
+  // which weights the cabins and divides the weekly cost, so the sliders and the
+  // saved route cannot drift apart. (A copy of that formula used to live here.)
   const basePricePoints = useMemo(() => {
-    if (!financials || !selectedAircraft) return null;
-    const config = (selectedAircraft.config || {}) as Partial<ConfigOutput>;
-    const totalEstPaxWeightedMax = (
-      (config.economy || 0) * 1 +
-      (config.premium || 0) * 1.6 +
-      (config.business || 0) * 3.0 +
-      (config.first || 0) * 5.0
-    ) * financials.flightLegs;
+    if (!financials) return null;
     return {
-      be75: totalEstPaxWeightedMax > 0 ? financials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.75) : 100,
-      be99: totalEstPaxWeightedMax > 0 ? financials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.99) : 80,
-      be35: totalEstPaxWeightedMax > 0 ? financials.estWeeklyCosts / (totalEstPaxWeightedMax * 0.35) : 300
+      be75: financials.basePriceBE75,
+      be99: financials.basePriceBE99,
+      be35: financials.basePriceBE35
     };
-  }, [financials, selectedAircraft]);
+  }, [financials]);
 
   useEffect(() => {
     if (step === 4 && basePricePoints && Object.keys(ticketPrices).length === 0) {
@@ -2899,7 +2887,7 @@ function RoutePlannerInner({
             Object.fromEntries(Object.entries(details).map(([c, d]) => [c, pick(d)])),
             selectedAircraft.config
           );
-          // The stand bonus depends on the origin and the aircraft, not the class.
+          // The stand bonus depends on the two airports and the aircraft, not the class.
           const standBonus = (Object.values(details)[0] as any)?.standBonus ?? 0;
           const signed = (v: number, digits = 0) => `${v > 0 ? '+' : ''}${formatNumber(v, digits)}`;
 
@@ -3005,7 +2993,7 @@ function RoutePlannerInner({
                    <div className="flex justify-between items-end mb-3">
                       <div>
                          <h3 className="text-2xl font-black uppercase tracking-tighter text-white mb-1">Route Satisfaction</h3>
-                         <div className="text-2xs text-white/40 uppercase tracking-widest font-bold">Yield Performance Index</div>
+                         <div className="text-2xs text-white/40 uppercase tracking-widest font-bold">Average over all seats</div>
                       </div>
                       <div className="text-5xl font-black italic text-aero-yellow tracking-tighter leading-none">
                          {Math.round(weighted(d => d.satisfactionPercentage))}%
@@ -3147,8 +3135,8 @@ function RoutePlannerInner({
                                      <span className={destDeskSim.sat < 0 ? 'text-aero-warn' : 'text-aero-yellow'}>{signed(destDeskSim.sat, 1)}%</span>
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
-                                     <span className="italic">Stand Priority (origin)</span>
-                                     <span className="text-aero-yellow">{signed(standBonus)} quality pts</span>
+                                     <span className="italic">Stand Priority (both ends)</span>
+                                     <span className="text-aero-yellow">{signed(standBonus, 1)} quality pts</span>
                                   </div>
                                   
                                   <div className="border-t border-white/5 pt-4 mt-4">
@@ -3164,7 +3152,7 @@ function RoutePlannerInner({
                                            <div key={c} className="flex justify-between items-center p-3 border border-white/5 bg-white/[0.02] mb-1">
                                               <div className="flex flex-col">
                                                  <span className="text-2xs text-white/70 font-black">{c}</span>
-                                                 <span className="text-4xs text-white/30">Target: {sceData.expectationTarget} | Quality: {sceData.providedQuality} | Lounge: {signed(sceData.loungeBonus)} | Desks: {signed(sceData.deskPenalty)}{overloadPenalty < 0 ? ` | Check-in load: ${formatNumber(overloadPenalty, 1)}%` : ''}</span>
+                                                 <span className="text-4xs text-white/30">Target: {sceData.expectationTarget} | Quality: {sceData.providedQuality} | Lounge: {signed(sceData.loungeBonus)} | Desks: {signed(sceData.deskPenalty, 1)}{overloadPenalty < 0 ? ` | Check-in load: ${formatNumber(overloadPenalty, 1)}%` : ''}</span>
                                               </div>
                                               <span className="text-aero-yellow font-black italic text-xs">{Math.round(Math.max(0, classRouteSat))}%</span>
                                            </div>

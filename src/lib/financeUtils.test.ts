@@ -324,3 +324,101 @@ test('loyalty does not take passengers from the airline\'s own parallel route', 
   const rival: RouteOffer[] = [{ origin: 'CDG', destination: 'FRA', departures: 14, airline: 'Rival' }];
   assert.ok(total({ demandFactor: 0.2, loyaltyBonus: 0.2 }, rival) > total({ demandFactor: 0.2 }, rival));
 });
+
+// --- Satisfaction rules -----------------------------------------------------
+
+import {
+  getDeskPenalty,
+  getDeskOverloadSat,
+  getStandBonus,
+  getPlaneSat
+} from './financeUtils';
+
+test('diminishing returns never add points and never fall as the input grows', () => {
+  // Below the threshold it passes through; just above it, it used to pay MORE
+  // than it was given (65 became 70), which is the opposite of "diminishing".
+  assert.equal(applyDiminishingReturns(65), 65);
+  assert.equal(applyDiminishingReturns(80), 80);
+  let previous = -Infinity;
+  for (let raw = 0; raw <= 300; raw++) {
+    const out = applyDiminishingReturns(raw);
+    assert.ok(out <= raw, `${raw} became ${out}`);
+    assert.ok(out >= previous, `${raw} fell to ${out} from ${previous}`);
+    previous = out;
+  }
+});
+
+test('adding a check-in desk never lowers satisfaction', () => {
+  for (const premium of [false, true]) {
+    const none = getDeskPenalty(false, false, premium);
+    const selfOnly = getDeskPenalty(true, false, premium);
+    const normal = getDeskPenalty(false, true, premium);
+    const both = getDeskPenalty(true, true, premium);
+    assert.ok(selfOnly >= none, `premium=${premium}: self-service only (${selfOnly}) must not be worse than no desk (${none})`);
+    assert.ok(normal >= selfOnly, `premium=${premium}: a staffed desk must not be worse than self-service only`);
+    assert.ok(both >= normal, `premium=${premium}: adding self-service to a staffed desk must not hurt`);
+  }
+  assert.equal(getDeskPenalty(false, false, false), -15);
+  assert.equal(getDeskPenalty(true, false, true), -10);
+  assert.equal(getDeskPenalty(true, true, true), 0);
+});
+
+test('check-in overload grows steadily with no cliff at 100%', () => {
+  assert.equal(getDeskOverloadSat(0), 0);
+  assert.equal(getDeskOverloadSat(80), 0);
+  assert.equal(getDeskOverloadSat(90), -2);
+  assert.equal(getDeskOverloadSat(100), -4);
+  assert.equal(getDeskOverloadSat(110), -20);
+  assert.equal(getDeskOverloadSat(300), -20);
+  assert.ok(getDeskOverloadSat(100.5) > -5, 'half a percent over must cost about half a percent more, not 16 points');
+  let previous = 0;
+  for (let load = 0; load <= 200; load += 0.5) {
+    const sat = getDeskOverloadSat(load);
+    assert.ok(sat <= previous, `overload penalty rose at ${load}%`);
+    previous = sat;
+  }
+});
+
+test('the check-in desks at the destination count as much as those at the origin', () => {
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const both = getRouteClassSatisfaction(route, aircraft, mgt, [route], [aircraft], 'Normal');
+  const noDesk = { level: 2, slots: mgt.CDG.slots, stands: mgt.CDG.stands, desks: { normal: 0, self: 0 } };
+  const noDestDesk = getRouteClassSatisfaction(route, aircraft, { ...mgt, CDG: noDesk }, [route], [aircraft], 'Normal');
+  const noOriginDesk = getRouteClassSatisfaction(route, aircraft, { ...mgt, FRA: noDesk }, [route], [aircraft], 'Normal');
+  assert.ok(noDestDesk.routeSat.economy < both.routeSat.economy, 'a destination without desks costs satisfaction');
+  assert.equal(noDestDesk.routeSat.economy, noOriginDesk.routeSat.economy, 'the two ends are weighted the same');
+});
+
+test('interior wear lowers only the interior part of the plane satisfaction', () => {
+  const plane = (conditionInterior: number) => ({ popularity: 80, baseInteriorPop: 50, conditionInterior });
+  assert.equal(getPlaneSat(plane(100)), Math.round(80 * 0.33 + 50 * 0.67));
+  // The 80-point model popularity is a fact about the type, not about the cabin.
+  assert.equal(getPlaneSat(plane(0)), Math.round(80 * 0.33 + 50 * 0.67 * 0.4));
+  assert.ok(getPlaneSat(plane(50)) < getPlaneSat(plane(100)));
+  assert.ok(getPlaneSat(plane(50)) > getPlaneSat(plane(0)));
+});
+
+test('the stand bonus scales with the share of slots that have a stand, at both ends', () => {
+  const ends = (o: number, d: number) => ({
+    A: { slots: { narrowbody: 10 }, stands: { narrowbody: o } },
+    B: { slots: { narrowbody: 10 }, stands: { narrowbody: d } }
+  });
+  assert.equal(getStandBonus('A', 'B', 'narrowbody', ends(10, 10)), 2);
+  assert.equal(getStandBonus('A', 'B', 'narrowbody', ends(20, 10)), 2, 'stands beyond the slots add nothing');
+  assert.equal(getStandBonus('A', 'B', 'narrowbody', ends(5, 5)), 1);
+  assert.equal(getStandBonus('A', 'B', 'narrowbody', ends(10, 0)), 1);
+  assert.equal(getStandBonus('A', 'B', 'narrowbody', ends(0, 0)), 0);
+  assert.equal(getStandBonus('A', 'B', 'narrowbody', {}), 0);
+});
+
+test('a fare that is missing or zero never turns the route result into NaN', () => {
+  assert.equal(getPriceDemandMultiplier(0, 100, 100), 1.5);
+  assert.equal(getPriceDemandMultiplier(100, 0, 0), 0);
+
+  // The aircraft has business seats but the saved fares only cover economy.
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const partial = { ...route, ticketPrices: { economy: 120 } };
+  const fin = calculateRouteFinancials(partial, aircraft, 1, mgt, 1970, 6, 'Normal', airportsMapAdjusted, [partial], [aircraft]);
+  assert.ok(Number.isFinite(fin.estWeeklyRev), `revenue ${fin.estWeeklyRev}`);
+  assert.ok(Number.isFinite(fin.paxPerWeek), `passengers ${fin.paxPerWeek}`);
+});
