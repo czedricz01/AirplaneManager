@@ -53,6 +53,7 @@ src/
     imageUtils.ts      Auflösung von Flugzeugbild-URLs
     supabase.ts        Supabase-Client (null, wenn nicht konfiguriert)
     cloudSaves.ts      Spielstände: Cloud mit lokalem Rückfall und Abgleich
+    configStore.ts     Gespeicherte Flugzeug- und Kabinen-Configs: pro Konto, gleiches Prinzip
   data/                Flughäfen, Flugzeuge, Treibstoffpreise, Catering
 supabase/schema.sql    Tabellen und Zugriffsregeln
 server.ts              Express-Server: Vite im Dev-Modus, Bild-Upload-API

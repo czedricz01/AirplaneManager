@@ -8,7 +8,16 @@ import { motion } from 'motion/react';
 // the interface needs the same affordance, so it now lives in its own module.
 import { InfoTooltip as SeatInfoTooltip } from './InfoTooltip';
 import { useTapReveal } from './ui/useTapReveal';
-import { readJson, writeJson } from '../lib/safeStorage';
+import { useCloudConfigs } from '../lib/useCloudConfigs';
+import type { ConfigItem } from '../lib/configStore';
+
+/** A cabin layout saved for one aircraft type, kept with the account. */
+type SavedPreset = ConfigItem & {
+  aircraftId: string;
+  baseInteriorPop: number;
+  config: any;
+  createdAt: number;
+};
 
 export type ClassSetup = {
   seats: number;
@@ -238,7 +247,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const [showLoadConfig, setShowLoadConfig] = useState(false);
   const [showSaveConfig, setShowSaveConfig] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
-  const [savedPresets, setSavedPresets] = useState<any[]>(() => readJson<any[]>('aero_saved_presets', []));
+  // 'aero_saved_presets' is where versions before accounts kept them.
+  const { items: savedPresets, save: savePreset, remove: removePreset } = useCloudConfigs<SavedPreset>('aircraft_preset', 'aero_saved_presets');
   const [activeConfigTab, setActiveConfigTab] = useState<'general' | 'classes'>('classes');
   const [selectedClass, setSelectedClass] = useState<ClassType | null>(null);
   // Which cabin zone's details show under the diagram: the hovered one with a
@@ -548,18 +558,14 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       },
       createdAt: Date.now()
     };
-    const newPresets = [...savedPresets, preset];
-    setSavedPresets(newPresets);
-    writeJson('aero_saved_presets', newPresets);
+    savePreset(preset);
     setSavePresetName("");
     setShowSaveConfig(false);
   };
 
   const handleDeletePreset = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const newPresets = savedPresets.filter(p => p.id !== id);
-    setSavedPresets(newPresets);
-    writeJson('aero_saved_presets', newPresets);
+    removePreset(id);
   };
 
   const handleLoadConfig = (plane: any) => {

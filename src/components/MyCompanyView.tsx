@@ -340,7 +340,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
                   <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
                   <p><strong className="text-white/80">Incident repairs &amp; charters</strong> — repair bills after operational disruptions such as bird strikes, and replacement aircraft chartered to fly cancelled flights.</p>
-                  <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers. Deducted from cash but not from operating profit, which is why the two differ.</p>
+                  <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers, airport slots. Deducted from cash at once, but not from operating profit, which is why the two differ.</p>
                 </div>
               </div>
 
@@ -394,8 +394,9 @@ function MyCompanyViewImpl({
                         items: (latest!.incidents ?? []).filter(i => (i.cost ?? 0) > 0).map(i => ({ label: i.title, amount: i.cost ?? 0 }))
                       }]
                     : []),
-                  // Slots are billed into the month's result; the rest is not,
-                  // which is exactly why cash and profit differ.
+                  // Only in reports closed before slots were paid for on the
+                  // spot; they were billed into that month's result then.
+                  // Slots bought since are a capex item, below the line.
                   // Signed: slot refunds and aircraft sales are money coming in.
                   ...((latest!.breakdown.purchasedSlots || 0) !== 0
                     ? [{

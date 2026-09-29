@@ -24,6 +24,7 @@ import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/forma
 import {
   getSlotPurchaseCost,
   applyInfrastructureChange,
+  SLOT_CAPEX_LABEL,
   calculateRouteFinancials,
   getJetFuelPrice,
   getPlaneSat,
@@ -75,8 +76,11 @@ interface Props {
   initialRouteId?: string;
   onUnlockManagement?: (airportId: string, level: ManagementLevel) => void;
   onUpdateInfrastructure?: (airportId: string, infra: AirportInfrastructure) => void;
-  onSubtractCapital?: (amount: number) => void;
-  onAddPendingSlotBills?: (amount: number) => void;
+  /**
+   * Takes a one-off cost out of the capital at once; a negative amount pays
+   * money in. `label` names the line in the month's report.
+   */
+  onSubtractCapital?: (amount: number, label?: string) => void;
   /** Reports a refused or trimmed infrastructure purchase; these all used to fail silently. */
   onNotify?: (message: string) => void;
   /** The player-only effects on the economy, so the preview matches the monthly report. */
@@ -89,7 +93,6 @@ interface Props {
   fuelPrice?: number;
   /** Rival departures per city pair, for the market-share split. */
   rivalOffers?: RouteOffer[];
-  pendingSlotBills?: number;
   onGoToAirport?: (airport: Airport) => void;
   onClose: () => void;
   onOpenCatalog?: (currentStep?: number) => void;
@@ -208,7 +211,7 @@ const aircraftImageName = (ac: OwnedAircraft) =>
 
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onAddPendingSlotBills, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, fuelPrice: playerFuelPrice, rivalOffers = NO_RIVAL_OFFERS, pendingSlotBills, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, fuelPrice: playerFuelPrice, rivalOffers = NO_RIVAL_OFFERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -1334,8 +1337,6 @@ function RoutePlannerInner({
         }
      }
 
-     const currentPending = pendingSlotBills || 0;
-
      const result = applyInfrastructureChange({
         infra,
         type, subType,
@@ -1361,21 +1362,16 @@ function RoutePlannerInner({
      if (type === 'slots' && requestedAmount > 0 && result.actualAmount < requestedAmount) {
        onNotify?.(`Only ${result.actualAmount} of the ${requestedAmount} ${subType} slots you asked for are free at ${airportId}.`);
      }
-     if (result.cost > 0 && (capital - currentPending) < result.cost) {
+     if (result.cost > 0 && capital < result.cost) {
        onNotify?.(
          `${result.actualAmount} ${subType} slot${result.actualAmount === 1 ? '' : 's'} at ${airportId} cost $${Math.round(result.cost).toLocaleString('en-US')}, ` +
-         `but only $${Math.round(capital - currentPending).toLocaleString('en-US')} is uncommitted. Nothing was bought.`
+         `but you only have $${Math.round(capital).toLocaleString('en-US')}. Nothing was bought.`
        );
        return;
      }
 
-     if (result.cost !== 0) {
-        if (onAddPendingSlotBills) {
-           onAddPendingSlotBills(result.cost);
-        } else {
-           onSubtractCapital?.(result.cost);
-        }
-     }
+     // Paid for on the spot, like every other one-off cost; a sale refunds at once.
+     if (result.cost !== 0) onSubtractCapital?.(result.cost, SLOT_CAPEX_LABEL);
      onUpdateInfrastructure(airportId, result.infra);
   };
 

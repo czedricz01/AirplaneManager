@@ -232,6 +232,8 @@ const createDefaultPlanningClassConfigs = (): Record<string, any> => ({
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
+import { AccountScopeContext } from "./lib/accountScope";
+import { syncAllPendingConfigs } from "./lib/configStore";
 import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
@@ -619,7 +621,6 @@ export default function App() {
   const [aiAirlinesCount, setAiAirlinesCount] = useState(6);
   const [aiDifficulty, setAiDifficulty] = useState("Normal");
   const [aiAirlines, setAiAirlines] = useState<AiAirline[]>([]);
-  const [pendingSlotBills, setPendingSlotBills] = useState<number>(0);
 
   /** Last closed month's profit per route id, for the route list's money column. */
   const routeProfits = useMemo(() => {
@@ -1173,6 +1174,8 @@ export default function App() {
       if (cloudOk) {
         // Anything written while the server was unreachable goes up now.
         const { pushed, conflicts } = await syncPending(userId);
+        // Saved configurations that were waiting to upload go up as well.
+        await syncAllPendingConfigs(supabase, userId);
         if ((pushed > 0 || conflicts > 0) && !cancelled) {
           await refreshSaves();
           const parts: string[] = [];
@@ -1439,7 +1442,7 @@ export default function App() {
       revenueOf(monthNetwork)
     );
     const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - pendingSlotBills - marketingCost.total - incidentRepairs - charterCosts;
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - incidentRepairs - charterCosts;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
@@ -1592,7 +1595,6 @@ export default function App() {
       routeCosts: totalRouteCosts,
       airportUpkeep: totalAirportUpkeep,
       totalProfit: totalMonthlyProfit,
-      pendingSlotBills: pendingSlotBills,
       // Operating result minus the one-off spending, i.e. what actually moved
       // the bank balance this month.
       capex: capexTotal,
@@ -1611,7 +1613,6 @@ export default function App() {
         paxFees: paxFees,
         mgt: managementCosts,
         desks: deskCosts,
-        purchasedSlots: pendingSlotBills,
         marketing: marketingCost.total,
         marketingCampaigns: marketingCost.campaigns,
         ffp: marketingCost.ffp,
@@ -1626,7 +1627,6 @@ export default function App() {
 
     // Apply Financials
     setCapital(prev => prev + totalMonthlyProfit);
-    setPendingSlotBills(0);
     setMonthlyCapex([]);
 
     // Simulate AI Controlled Airlines
@@ -2205,7 +2205,6 @@ export default function App() {
       aiAirlinesCount,
       aiDifficulty,
       aiAirlines,
-      pendingSlotBills,
       monthlyCapex,
       reportHistory,
       eventChoices,
@@ -2441,7 +2440,6 @@ export default function App() {
     // Saves from before rival airlines existed get a fresh set, founded as of
     // the save's current date so only carriers flying in that year appear.
     setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode, saveObj.branding.color));
-    setPendingSlotBills(saveObj.pendingSlotBills);
     setMonthlyCapex(saveObj.monthlyCapex);
     setReportHistory(saveObj.reportHistory);
     setEventChoices(saveObj.eventChoices);
@@ -2535,7 +2533,6 @@ export default function App() {
     });
     setRoutes([]);
     setAiAirlines(generateAiAirlines(rivalCount, rivalDifficulty, hub, start, airlineCode, systems.branding.color));
-    setPendingSlotBills(0);
     setMonthlyCapex([]);
     setReportHistory([]);
     setEventChoices({});
@@ -2870,6 +2867,7 @@ export default function App() {
   }, [debugMode]);
 
   return (
+    <AccountScopeContext.Provider value={userId}>
     <div className="absolute inset-0 overflow-hidden bg-aero-black">
       <div 
         className="bg-aero-black text-white font-sans selection:bg-aero-yellow selection:text-black overflow-hidden flex flex-col absolute top-0 left-0"
@@ -3603,10 +3601,10 @@ export default function App() {
                                .filter((i: ReportIncident) => (i.cost || 0) > 0)
                                .map((i: ReportIncident) => ({ label: i.title, amount: i.cost || 0 }))
                            }] : []),
-                           // Slots are billed into the month's result, so they
-                           // belong above the line, not in capex.
-                           // Signed: selling slots back refunds money, which the
-                           // report used to drop because only purchases were shown.
+                           // Only in reports closed before slots were paid for on the
+                           // spot: they were billed into that month's result then.
+                           // Slots bought since are a capex item ('Airport Slots').
+                           // Signed: selling slots back refunds money.
                            ...((latestReport.breakdown.purchasedSlots || 0) !== 0 ? [{
                              id: 'slots',
                              label: 'Slot purchases & refunds',
@@ -4160,8 +4158,7 @@ export default function App() {
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
-                        onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
-                        pendingSlotBills={pendingSlotBills}
+                        onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
                         currentYear={1960 + Math.floor(currentDateOffset / 12)}
                         currentMonth={1 + (currentDateOffset % 12)}
                         difficulty={difficulty}
@@ -4194,8 +4191,7 @@ export default function App() {
                         rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
-                        onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
-                        pendingSlotBills={pendingSlotBills}
+                        onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
                         currentYear={1960 + Math.floor(currentDateOffset / 12)}
                         currentMonth={1 + (currentDateOffset % 12)}
                         difficulty={difficulty}
@@ -4289,9 +4285,7 @@ export default function App() {
                         onUpdateInfrastructure={(airportId, infra) => {
                           setAirportManagement(prev => ({ ...prev, [airportId]: infra }));
                         }}
-                        onSubtractCapital={(amount) => spend(amount, 'Airport Infrastructure')}
-                        onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
-                        pendingSlotBills={pendingSlotBills}
+                        onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
                       />
                       </React.Suspense>
                      </ErrorBoundary>
@@ -4345,16 +4339,14 @@ export default function App() {
                         }}
                         onBuyManagement={(tier) => handleUnlockManagement(selectedAirport.id, tier as ManagementLevel)}
                         onUpdateInfrastructure={(infra) => {
-                          // Costs are settled by onSubtractCapital / onAddPendingSlotBills
-                          // before this runs; here we only store the new layout.
+                          // Costs are settled by onSubtractCapital before this
+                          // runs; here we only store the new layout.
                           setAirportManagement(prev => ({
                             ...prev,
                             [selectedAirport.id]: infra
                           }));
                         }}
-                        onSubtractCapital={(amount) => spend(amount, 'Airport Infrastructure')}
-                        onAddPendingSlotBills={(amt) => setPendingSlotBills(prev => prev + amt)}
-                        pendingSlotBills={pendingSlotBills}
+                        onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
                         capital={capital}
                         onManageRoutes={() => {
                           if (selectedAirport) {
@@ -4666,6 +4658,7 @@ export default function App() {
         />
       )}
     </div>
+    </AccountScopeContext.Provider>
   );
 }
 

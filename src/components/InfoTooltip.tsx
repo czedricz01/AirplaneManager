@@ -189,7 +189,7 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
   capex: {
     title: 'CAPEX vs. weekly rent',
     desc:
-      'CAPEX is a one-off purchase price, charged once and settled with the next monthly report.\n\n' +
+      'CAPEX is a one-off purchase price. It comes out of your capital the moment you buy, and the monthly report lists it below the line.\n\n' +
       'A weekly rate is recurring upkeep that appears in every month from now on. Slots cost both; desks and stands are rent only.',
   },
   utilization: {
