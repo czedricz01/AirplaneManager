@@ -101,6 +101,8 @@ export function AirportDetailView({
   );
   const deskLoad = deskSim.load;
   const satDeduction = deskSim.sat;
+  const hasNoDesks = !infrastructure.desks.normal && !infrastructure.desks.self;
+  const selfServiceOnly = !infrastructure.desks.normal && !!infrastructure.desks.self;
 
   const costBreakdown = upkeepData;
   const weeklyExpenses = costBreakdown.total;
@@ -317,7 +319,7 @@ export function AirportDetailView({
                   {avail.stands && (
                     <div className="space-y-4 pt-4 border-t border-white/5">
                       <div className="flex justify-between items-center">
-                        <SectionLabel icon={<Anchor size={12} className="text-white/80"/>} label="Gate/Stand Upgrades (+2 SAT)" />
+                        <SectionLabel icon={<Anchor size={12} className="text-white/80"/>} label="Gate/Stand Upgrades (up to +2 quality pts)" />
                         {hubAutoUpgrade ? (
                           <span className="text-3xs text-white/80 font-black animate-pulse uppercase tracking-widest">Automatic Hub Upgrade Enabled</span>
                         ) : (
@@ -362,7 +364,7 @@ export function AirportDetailView({
                     <div className="flex justify-between items-center">
                       <SectionLabel icon={<Info size={12} className="text-aero-yellow"/>} label="Passenger Processing" />
                       <div className={`text-2xs font-bold px-2 py-0.5 rounded-sm ${satDeduction < 0 || (!infrastructure.desks.normal && !infrastructure.desks.self) ? 'bg-aero-warn/10 text-aero-warn' : 'bg-aero-yellow/10 text-aero-yellow'}`}>
-                         SAT Impact: {(!infrastructure.desks.normal && !infrastructure.desks.self) ? '-15 to -25 quality pts (No Desks)' : (satDeduction === 0 ? '0.0' : `${formatNumber(satDeduction, 1)}%${deskLoad > 80 ? ' (Load)' : ' (Self-check share)'}`)}
+                         SAT Impact: {hasNoDesks ? '-15 quality pts (No Desks)' : (satDeduction === 0 ? '0.0' : `${formatNumber(satDeduction, 1)}%${deskLoad > 80 ? ' (Load)' : ' (Self-check share)'}`)}{selfServiceOnly ? ' | Premium cabins -10 quality pts (no staffed desk)' : ''}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
@@ -483,7 +485,7 @@ export function AirportDetailView({
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="text-white font-black uppercase tracking-widest text-sm">VIP Lounge</div>
-                        <div className="text-2xs text-white/50 mt-1 uppercase tracking-widest">+4 SAT (Bus/First), +1 SAT (PE)</div>
+                        <div className="text-2xs text-white/50 mt-1 uppercase tracking-widest">+4 quality pts (Bus/First), +1 (PE)</div>
                       </div>
                       {infrastructure.hubFacilities?.vipLounge ? (
                         <div className="text-2xs bg-aero-yellow/20 text-black px-2 py-1 font-bold rounded-sm animate-pulse">ACTIVE</div>

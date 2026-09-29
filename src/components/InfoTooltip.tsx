@@ -148,19 +148,19 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
     title: 'Stands',
     desc:
       'Parking positions for your aircraft, rented weekly rather than bought.\n\n' +
-      'Holding at least as many stands as slots adds a small satisfaction bonus. From management tier T2 upwards the rent is waived.',
+      'A stand for every slot, at both ends of a route, adds up to 2 quality points to the cabin. With fewer stands the bonus shrinks in proportion. From management tier T2 upwards the rent is waived.',
   },
   desks: {
     title: 'Check-in Desks',
     desc:
       'Where your passengers are processed, rented weekly.\n\n' +
-      'This is the harshest penalty in the game: with no desks at all every class loses 15 satisfaction points, and premium classes lose 25 if you offer only self-service. Desks also have a capacity — overloading them costs satisfaction again.',
+      'This is the harshest penalty in the game: with no desks at all every class loses 15 quality points, and premium classes lose 10 if you offer only self-service. A desk never makes things worse. The penalty is worked out at both ends of a route and averaged. Desks also have a capacity — overloading them costs satisfaction again.',
   },
   deskLoad: {
     title: 'Desk Load',
     desc:
       'How much of your check-in capacity at this airport your schedule already uses, across every route.\n\n' +
-      'Above 90% the queue starts costing satisfaction on all of them, not just this route.',
+      'Above 80% the queue starts costing satisfaction on all of them, not just this route: about 2 points at 90%, 4 at 100% and up to 20 from 110%.',
   },
   efficiency: {
     title: 'Efficiency',
@@ -172,7 +172,7 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
     title: 'Interior Condition',
     desc:
       'Wear on the cabin, falling with every block hour flown.\n\n' +
-      'It scales the interior part of the aircraft satisfaction directly, so a tired cabin quietly lowers the fare passengers will pay. A refit restores it, but each successive refit restores less.',
+      'It scales the interior part of the aircraft satisfaction (a fully worn cabin keeps 40% of its appeal; the type\'s own popularity is not affected), so a tired cabin quietly lowers the fare passengers will pay. A refit restores it, but each successive refit restores less.',
   },
   conditionGeneral: {
     title: 'Airframe Condition',

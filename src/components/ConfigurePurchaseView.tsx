@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { formatCurrency } from '../lib/format';
+import { getPlaneSat } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
 import type { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, ChevronLeft, Info, Settings, Wifi, Tv, X, Download, Trash2 } from 'lucide-react';
@@ -469,7 +470,9 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   }, [interiorPopRaw, hasWifi, isWifiAvailable, hasAmbientLighting, isAmbientAvailable, hasPremiumCatering, hasOnboardBar, isBarAvailable, hasShower, isShowerAvailable, hasReducedGalley, hasMinimalServices]);
 
   // Overall Plane Pop
-  const totalPopularity = Math.round((aircraft.popularity * 0.33) + (baseInteriorPop * 0.67));
+  // The formula the route economy uses, at the condition a new or refitted cabin
+  // starts from, so this preview cannot drift from the figure routes are priced with.
+  const totalPopularity = getPlaneSat({ popularity: aircraft.popularity, baseInteriorPop, conditionInterior: 100 });
 
   // Cost Calc
   const getClassCost = () => {
@@ -1345,7 +1348,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                   </div>
                 </div>
                 <div className="text-4xs font-mono text-white/40 text-right uppercase mt-1 tracking-widest">
-                  (Type Sat {aircraft.popularity}% × 1/3) + (Interior Sat {baseInteriorPop}% × 2/3)
+                  (Type Sat {aircraft.popularity}% × 0.33) + (Interior Sat {baseInteriorPop}% × 0.67)
                 </div>
               </div>
             </div>
