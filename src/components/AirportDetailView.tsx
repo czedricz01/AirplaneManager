@@ -8,7 +8,7 @@ import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { SimulatedRoute } from '../App';
 
-import { getAirportUpkeep, getSlotPurchaseCost, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
+import { getAirportUpkeep, getSlotPurchaseCost, SLOT_CAPEX_LABEL, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';
 import { hubQuality, MIN_CONNECTION_MIN, MAX_CONNECTION_MIN, type HubTransferStats } from '../lib/transferUtils';
 
@@ -19,15 +19,17 @@ interface Props {
   infrastructure: AirportInfrastructure;
   onBuyManagement: (level: number) => void;
   onUpdateInfrastructure: (infra: AirportInfrastructure) => void;
-  onSubtractCapital: (amount: number) => void;
-  onAddPendingSlotBills?: (amount: number) => void;
+  /**
+   * Takes a one-off cost out of the capital at once; a negative amount pays
+   * money in. `label` names the line in the month's report.
+   */
+  onSubtractCapital: (amount: number, label?: string) => void;
   /**
    * Surfaces a refused or trimmed purchase. Every guard below used to `return`
    * without a word, so a click that bought nothing looked identical to a click
    * that worked.
    */
   onNotify?: (message: string) => void;
-  pendingSlotBills?: number;
   capital: number;
   onManageRoutes: () => void;
   onStartRoute: (airportId: string, role: 'origin'|'destination') => void;
@@ -47,9 +49,7 @@ export function AirportDetailView({
   onBuyManagement,
   onUpdateInfrastructure,
   onSubtractCapital,
-  onAddPendingSlotBills,
   onNotify,
-  pendingSlotBills = 0,
   capital,
   onManageRoutes,
   onStartRoute,
@@ -168,17 +168,16 @@ export function AirportDetailView({
     }
 
     if (type === 'slots') {
-      // Slot purchases are settled with the monthly report, the same way the route
-      // planner books them, so the "Purchased Slots" line stays complete.
-      if (result.cost > 0 && (capital - pendingSlotBills) < result.cost) {
+      // Slots are paid for on the spot, like every other one-off cost. Selling
+      // some back is a negative cost, which pays the refund in at once.
+      if (result.cost > 0 && capital < result.cost) {
         onNotify?.(
           `${plural(result.actualAmount)} at ${airport.id} cost ${formatCurrency(result.cost)}, ` +
-          `but only ${formatCurrency(capital - pendingSlotBills)} is uncommitted. Nothing was bought.`
+          `but you only have ${formatCurrency(capital)}. Nothing was bought.`
         );
         return;
       }
-      if (onAddPendingSlotBills) onAddPendingSlotBills(result.cost);
-      else onSubtractCapital(result.cost);
+      onSubtractCapital(result.cost, SLOT_CAPEX_LABEL);
     }
 
     onUpdateInfrastructure(result.infra);

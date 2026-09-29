@@ -252,3 +252,30 @@ test('a scenario game keeps its scenario, repaired where it has to be', () => {
   assert.equal(migrateSave({ ...v2Save(), scenario: { id: 'moon-landing' } }).scenario, null, 'an unknown scenario is played on as a free game');
   assert.equal(migrateSave({ ...v2Save(), scenario: 'jet-age' }).scenario, null);
 });
+
+test('a slot bill still open in an old save is charged on load, not lost or taken twice', () => {
+  const migrated = migrateSave({ ...oldSave(), capital: 1_000_000, pendingSlotBills: 150_000, monthlyCapex: [{ label: 'General Checks', amount: 200_000 }] });
+  assert.equal(migrated.capital, 850_000);
+  assert.equal('pendingSlotBills' in migrated, false);
+  assert.deepEqual(migrated.monthlyCapex, [
+    { label: 'General Checks', amount: 200_000 },
+    { label: 'Airport Slots', amount: 150_000 }
+  ]);
+});
+
+test('an old slot bill joins the slot line the month already has', () => {
+  const migrated = migrateSave({ ...oldSave(), pendingSlotBills: 50_000, monthlyCapex: [{ label: 'Airport Slots', amount: 25_000 }] });
+  assert.deepEqual(migrated.monthlyCapex, [{ label: 'Airport Slots', amount: 75_000 }]);
+});
+
+test('old slot refunds are paid in on load', () => {
+  const migrated = migrateSave({ ...oldSave(), capital: 1_000_000, pendingSlotBills: -25_000 });
+  assert.equal(migrated.capital, 1_025_000);
+  assert.deepEqual(migrated.monthlyCapex, [{ label: 'Airport Slots', amount: -25_000 }]);
+});
+
+test('a save with no open slot bill keeps its capital and capex as they are', () => {
+  const migrated = migrateSave({ ...oldSave(), pendingSlotBills: 0, monthlyCapex: [] });
+  assert.equal(migrated.capital, 1_000_000);
+  assert.deepEqual(migrated.monthlyCapex, []);
+});

@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Save, Download, ChevronRight } from 'lucide-react';
 import { usePlanner } from './RoutePlannerContext';
-import { readJson, writeJson } from '../../lib/safeStorage';
+import { useCloudConfigs } from '../../lib/useCloudConfigs';
+import type { ConfigItem } from '../../lib/configStore';
 
-interface SavedCabinConfig {
-  id: string;
-  name: string;
+interface SavedCabinConfig extends ConfigItem {
   configs: Record<string, any>;
 }
 
-const STORAGE_KEY = 'aero_cabin_configs';
+/** Where versions before accounts kept the list; taken over into the account once. */
+const LEGACY_STORAGE_KEY = 'aero_cabin_configs';
 
 /**
  * Save and load named cabin configurations.
@@ -20,46 +20,34 @@ const STORAGE_KEY = 'aero_cabin_configs';
  * needed forty bindings from the component body -- the cabin configuration, the
  * two modal flags, the name field and every setter for them.
  *
- * Everything it reads now comes from usePlanner(); the list of saved presets is
- * local because nothing else in the wizard uses it.
+ * Everything it reads now comes from usePlanner(). The list of saved presets is
+ * kept with the account, so they follow the player to another device; nothing
+ * else in the wizard uses it.
  */
 export function CabinConfigDialogs() {
   const { selection, dispatch, ui, setUi } = usePlanner();
   const { classConfigs } = selection;
   const { showConfigSaveModal, showConfigLoadModal, newConfigName } = ui;
 
-  const [savedCabinConfigs, setSavedCabinConfigs] = useState<SavedCabinConfig[]>([]);
+  const { items: savedCabinConfigs, save, remove } = useCloudConfigs<SavedCabinConfig>('cabin_config', LEGACY_STORAGE_KEY);
 
   const setShowConfigSaveModal = (v: boolean) => setUi('showConfigSaveModal', v);
   const setShowConfigLoadModal = (v: boolean) => setUi('showConfigLoadModal', v);
   const setNewConfigName = (v: string) => setUi('newConfigName', v);
 
-  useEffect(() => {
-    const saved = readJson<SavedCabinConfig[]>(STORAGE_KEY, []);
-    if (saved.length) setSavedCabinConfigs(saved);
-  }, []);
-
-  const persist = (next: SavedCabinConfig[]) => {
-    setSavedCabinConfigs(next);
-    writeJson(STORAGE_KEY, next);
-  };
-
   const saveCabinConfig = () => {
     if (!newConfigName.trim()) return;
-    persist([
-      ...savedCabinConfigs,
-      {
-        id: Math.random().toString(36).substring(2, 11),
-        name: newConfigName.trim(),
-        configs: { ...classConfigs }
-      }
-    ]);
+    save({
+      id: Math.random().toString(36).substring(2, 11),
+      name: newConfigName.trim(),
+      configs: { ...classConfigs }
+    });
     setNewConfigName('');
     setShowConfigSaveModal(false);
   };
 
   const deleteSavedConfig = (id: string) => {
-    persist(savedCabinConfigs.filter(c => c.id !== id));
+    remove(id);
   };
 
   const loadCabinConfig = (config: SavedCabinConfig) => {

@@ -1,5 +1,5 @@
 import { airportsMapAdjusted } from '../data/airportRegistry';
-import { getFlightDurationMinutes, TRANSIENT_ROUTE_FIELDS } from './financeUtils';
+import { getFlightDurationMinutes, SLOT_CAPEX_LABEL, TRANSIENT_ROUTE_FIELDS } from './financeUtils';
 import { finiteOr } from './invariants';
 import { capMessages, createWelcomeMessage } from './messages';
 import { logWarn } from './debugLog';
@@ -42,7 +42,7 @@ import {
  */
 
 /** Written into every new save. Bump it whenever the shape changes. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** The first save version whose tutorial step means anything; older saves load with the tutorial off. */
 const TUTORIAL_SAVE_VERSION = 4;
@@ -377,21 +377,31 @@ export function migrateSave(raw: any): any {
   // A question about a strike or disruption the save no longer holds would
   // charge for nothing; see decisionTargetExists.
   const pendingDecisions = migrateDecisions(raw.pendingDecisions).filter(d => decisionTargetExists(d, { staff, disruptions }));
+  // Slots used to be billed with the month's report, so a save from then can
+  // hold a bill that was never charged. It is charged now, as the one-off item
+  // a slot purchase is today: the money is neither lost nor taken twice.
+  const { pendingSlotBills: rawSlotBills, ...rest } = raw;
+  const unbilledSlots = finiteOr(rawSlotBills, 0);
+  const capex = asArray<any>(raw.monthlyCapex).filter(c => c && Number.isFinite(c.amount));
+  const monthlyCapex = unbilledSlots === 0
+    ? capex
+    : capex.some(c => c.label === SLOT_CAPEX_LABEL)
+      ? capex.map(c => (c.label === SLOT_CAPEX_LABEL ? { ...c, amount: c.amount + unbilledSlots } : c))
+      : [...capex, { label: SLOT_CAPEX_LABEL, amount: unbilledSlots }];
   const migrated = {
-    ...raw,
+    ...rest,
     saveVersion: SAVE_VERSION,
     airlineName: typeof raw.airlineName === 'string' ? raw.airlineName : '',
     airlineCode: typeof raw.airlineCode === 'string' ? raw.airlineCode : '',
     selectedHub: typeof raw.selectedHub === 'string' && raw.selectedHub ? raw.selectedHub : 'FRA',
     difficulty: ['Easy', 'Normal', 'Hard'].includes(raw.difficulty) ? raw.difficulty : 'Normal',
     aiDifficulty: ['Easy', 'Normal', 'Hard'].includes(raw.aiDifficulty) ? raw.aiDifficulty : 'Normal',
-    capital: finiteOr(raw.capital, 0),
+    capital: finiteOr(raw.capital, 0) - unbilledSlots,
     fleet,
     routes,
     aiAirlinesCount: finiteOr(raw.aiAirlinesCount, 6),
     aiAirlines: migrateAiAirlines(raw.aiAirlines, branding.color),
-    pendingSlotBills: finiteOr(raw.pendingSlotBills, 0),
-    monthlyCapex: asArray<any>(raw.monthlyCapex).filter(c => c && Number.isFinite(c.amount)),
+    monthlyCapex,
     reportHistory: asArray<any>(raw.reportHistory).filter(r => r && typeof r === 'object'),
     eventChoices: asObject<Record<string, string>>(raw.eventChoices, {}),
     reputation: clamp(finiteOr(raw.reputation, 50), 0, 100),

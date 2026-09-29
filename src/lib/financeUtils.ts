@@ -1264,6 +1264,9 @@ export function getInfraAvailability(airport: { level?: number } | null | undefi
   };
 }
 
+/** How buying and selling slots is listed among the month's one-off spending. */
+export const SLOT_CAPEX_LABEL = 'Airport Slots';
+
 export function getSlotPurchaseCost(type: string) {
   switch (type) {
     case 'regional': return 25000;
