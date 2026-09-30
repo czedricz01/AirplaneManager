@@ -7,10 +7,12 @@
  * forecast show the cancellations from the start, and the month's close then
  * books exactly that. Three kinds:
  *
- *   technical defect  per route, 1% + (100 - airframe condition) x 0.08%
- *                     + age in years x 0.1%, halved by a hangar at the
- *                     route's origin; cancels 25% of its flights
- *   airport strike    per airport served, 1%; 30% of every route there
+ *   technical defect  per route, 0.33% + (100 - airframe condition) x 0.027%
+ *                     + age in years x 0.033% (a third of the former 1%,
+ *                     0.08% and 0.1%), halved by a hangar at the route's
+ *                     origin; cancels 50% of its flights
+ *   airport strike    per airport served, 0.33% (a third of the former 1%);
+ *                     60% of every route there
  *   winter weather    per region, 3% in December to February, Europe, North
  *                     America and Asia only; 15% of every route touching it
  *
@@ -53,17 +55,17 @@ export interface DisruptionSpec {
 }
 
 export const DISRUPTION_SPECS: Record<DisruptionKind, DisruptionSpec> = {
-  technical: { label: 'Technical defect', cancelShare: 0.25 },
-  'airport-strike': { label: 'Airport strike', cancelShare: 0.30 },
+  technical: { label: 'Technical defect', cancelShare: 0.50 },
+  'airport-strike': { label: 'Airport strike', cancelShare: 0.60 },
   weather: { label: 'Winter weather', cancelShare: 0.15 }
 };
 
 /** Chance of a technical defect on a route in a month, before wear and age. */
-export const TECH_BASE_CHANCE = 0.01;
+export const TECH_BASE_CHANCE = 0.01 / 3;
 /** Added per point of airframe condition below 100. */
-export const TECH_CHANCE_PER_WEAR_POINT = 0.0008;
+export const TECH_CHANCE_PER_WEAR_POINT = 0.0008 / 3;
 /** Added per year since the aircraft was bought. */
-export const TECH_CHANCE_PER_YEAR = 0.001;
+export const TECH_CHANCE_PER_YEAR = 0.001 / 3;
 /** A hangar at the route's origin catches faults early: the chance is multiplied by this. */
 export const HANGAR_TECH_FACTOR = 0.5;
 
@@ -77,7 +79,7 @@ export const BIRDSTRIKE_COSTS: Record<'regional' | 'narrowbody' | 'widebody', nu
 };
 
 /** Per airport served, per month. */
-export const AIRPORT_STRIKE_CHANCE = 0.01;
+export const AIRPORT_STRIKE_CHANCE = 0.01 / 3;
 
 /** Per region, per winter month. */
 export const WEATHER_CHANCE = 0.03;
@@ -452,16 +454,16 @@ function groupsSharingRoutes(list: Disruption[]): Disruption[][] {
  * charters save. Only fees above zero are listed.
  *
  * Charters on the same route save less together than each would alone: a
- * defect (25%) and an airport strike (30%) on one route cancel 47.5% of its
- * flights between them, not 55%. Pricing each against the other's charter
+ * defect (50%) and an airport strike (60%) on one route cancel 80% of its
+ * flights between them, not 110%. Pricing each against the other's charter
  * counted that overlap twice. So the chartered disruptions are grouped by
  * the routes they share; each group's saving is priced once -- the month as
  * it is, against the month with the whole group cancelling -- and split
  * across the group in proportion to what each would save on its own. A
  * disruption alone on its routes is billed exactly its marginalLostRevenue.
  *
- * Together they may save what none saves alone: with seats to spare, a 25%
- * defect or a 30% airport strike each leaves enough flights for everyone
+ * Together they may save what none saves alone: with seats to spare, a 50%
+ * defect or a 60% airport strike each leaves enough flights for everyone
  * booked, both at once do not. Such a saving is split by the flights each
  * cancels, its share times the routes it hits. Either way the group's fees
  * add up to CHARTER_COST_SHARE of the group's saving, give or take a dollar

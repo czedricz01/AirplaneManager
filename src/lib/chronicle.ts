@@ -12,9 +12,9 @@
  *   strike      a strike called by the staff
  *   disruption  at most one a month, written at the close of the month it
  *               hit: one cancelling more than MAJOR_DISRUPTION_SHARE, or
- *               hitting CHRONICLE_DISRUPTION_ROUTES routes or more. A single
- *               technical defect is routine, not history; a chartered one is
- *               written as such
+ *               hitting CHRONICLE_DISRUPTION_ROUTES routes or more. A
+ *               technical defect (50%) qualifies; a chartered one is written
+ *               as such
  *   record      the first month in profit, then a best month only once it
  *               beats the last record written by RECORD_PROFIT_MARGIN, at
  *               least RECORD_MIN_GAP_MONTHS later; a reputation high only
@@ -232,7 +232,8 @@ export const CHRONICLE_DISRUPTION_ROUTES = 3;
 /**
  * The one disruption of a month worth the history books, if any: more than
  * MAJOR_DISRUPTION_SHARE cancelled, or CHRONICLE_DISRUPTION_ROUTES routes
- * hit. A technical defect -- exactly 25%, one route -- is routine. Those
+ * hit. A technical defect (50% of one route) now exceeds the threshold and
+ * is recorded, as it is rarer than it was. Those
  * that cancelled flights come before chartered ones; then the widest.
  */
 export function chronicleDisruption(list: ChronicleDisruption[] | undefined): ChronicleEntry | null {
