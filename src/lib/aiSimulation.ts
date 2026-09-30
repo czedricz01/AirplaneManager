@@ -9,7 +9,9 @@
  * Rivals decide the way an airline planner would: a new route or a new
  * aircraft is only taken on when the same finance engine that books the
  * month says it will pay, frequencies follow what the aircraft can actually
- * fly in a week, and routes that keep losing money are dropped.
+ * fly in a week, and routes that keep losing money are dropped. In a world
+ * crisis they also cut empty flights, stop buying aircraft and rebuild
+ * afterwards (see rivalCrisis.ts).
  */
 import { calculateDistance, getAirportStats } from '../data/airports';
 import { airports as eraAirports, airportsMapAdjusted } from '../data/airportRegistry';
@@ -32,6 +34,7 @@ import { findNonFinite } from './invariants';
 import { logWarn, logError } from './debugLog';
 import { nextMessageId } from './messages';
 import { assignRivalColors, MAP_YELLOW } from './theme';
+import { crisisSeverity, crisisDepartures, growthFrozen, CRISIS_FROM } from './rivalCrisis';
 
 /**
  * Fixed monthly income every AI airline receives on top of its route results,
@@ -317,12 +320,19 @@ interface Market {
   rivalOffers: RouteOffer[];
 }
 
+/** What one route earns in a month, and how full its aircraft are. */
+interface RouteOutlook {
+  profit: number;
+  /** Share of seats sold, 0 to 1. */
+  loadFactor: number;
+}
+
 /**
  * Monthly result of one route, from the same finance engine the player's
  * routes use. Used both to book a month and to forecast a route, so a rival's
- * plan and its books cannot disagree. NaN when the engine fails.
+ * plan and its books cannot disagree. Profit is NaN when the engine fails.
  */
-function routeMonthlyProfit(
+function routeOutlook(
   personality: Personality,
   difficulty: Difficulty,
   plane: AiPlane,
@@ -333,7 +343,7 @@ function routeMonthlyProfit(
   durMin: number,
   market: Market,
   label: string
-): number {
+): RouteOutlook {
   const aircraftSimObj = buildAiSimAircraft(plane, personality);
   const routeSimObj = {
     origin: origin.id,
@@ -380,12 +390,17 @@ function routeMonthlyProfit(
     // A non-finite result is a bug in the inputs, not a result: report it
     // rather than inventing a profit as the old fallback did.
     if (!Number.isFinite(monthly)) logWarn('ai', `Non-finite result for ${label}`, findNonFinite(finObj));
-    return monthly;
+    const seats = Object.values(finObj.paxByClass).reduce((sum, c) => sum + (c?.max || 0), 0);
+    const loadFactor = seats > 0 ? Math.min(1, finObj.paxPerWeek / seats) : 1;
+    return { profit: monthly, loadFactor: Number.isFinite(loadFactor) ? loadFactor : 1 };
   } catch (err) {
     logError('ai', `Route calculation failed for ${label}`, err);
-    return NaN;
+    return { profit: NaN, loadFactor: 1 };
   }
 }
+
+/** Only the profit of {@link routeOutlook}, for forecasts that do not care about load. */
+const routeMonthlyProfit = (...args: Parameters<typeof routeOutlook>): number => routeOutlook(...args).profit;
 
 export interface RoutePlan {
   dest: Airport;
@@ -730,6 +745,7 @@ export const simulateAiAirlinesTurn = (
       const destAir = airportsMapAdjusted.get(r.destination);
       if (!plane) {
         r.monthlyProfit = 0;
+        r.loadFactor = undefined;
         continue;
       }
 
@@ -746,11 +762,15 @@ export const simulateAiAirlinesTurn = (
       // frequencies from before this limit existed.
       r.departures = Math.max(1, Math.min(r.departures || 1, maxWeeklyRotations(r.durMin, plane.class)));
 
+      // Cleared first, so a route that does not fly this month is not judged
+      // by last month's load.
+      r.loadFactor = undefined;
       if (plane.maxRange && plane.maxRange < distance) {
         r.monthlyProfit = -150000;
       } else if (originAir && destAir) {
-        const p = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, r.departures, distance, r.durMin, market, `${ai.code} ${r.origin}-${r.destination}`);
-        r.monthlyProfit = Number.isFinite(p) ? p : 0;
+        const out = routeOutlook(personality, difficulty, plane, originAir, destAir, r.departures, distance, r.durMin, market, `${ai.code} ${r.origin}-${r.destination}`);
+        r.monthlyProfit = Number.isFinite(out.profit) ? out.profit : 0;
+        if (Number.isFinite(out.profit)) r.loadFactor = out.loadFactor;
       } else {
         r.monthlyProfit = 0;
       }
@@ -766,6 +786,45 @@ export const simulateAiAirlinesTurn = (
 
     const ageOf = (r: AiRoute) => currentDateOffset - (r.openedAt ?? -Infinity);
     const slotsLeft = () => (hub ? hub.level * HUB_SLOTS_PER_LEVEL : 0) - newRoutes.reduce((s, r) => s + (r.departures || 0), 0);
+
+    // 1b. Crisis. In a world crisis a rival flies fewer empty seats and stops
+    // growing; afterwards it rebuilds the schedule. The load each route sold
+    // this month decides, and the new schedule flies from next month, so the
+    // month that was just booked is the month the crisis hit unprepared.
+    const severity = crisisSeverity(currentDateOffset);
+    const inCrisis = severity >= CRISIS_FROM;
+    const frozen = growthFrozen(personality, severity);
+    for (const r of newRoutes) {
+      if (!inCrisis && r.fullDepartures === undefined) continue;
+      const plane = planeFor(r);
+      if (!plane || !r.durMin) continue;
+      // Fine-tuning below may have taken a route past its old level.
+      const full = Math.max(r.fullDepartures ?? 0, r.departures);
+      const wanted = Math.min(
+        crisisDepartures({ current: r.departures, full, loadFactor: r.loadFactor, inCrisis }),
+        maxWeeklyRotations(r.durMin, plane.class)
+      );
+      let next = wanted;
+      if (wanted > r.departures) {
+        // Flights only come back where the route pays and the hub has the slots.
+        next = r.monthlyProfit >= 0 ? Math.min(wanted, r.departures + Math.max(0, slotsLeft())) : r.departures;
+        // The crisis is over and the schedule still cannot grow: the old one is
+        // gone (new routes took the slots, or the route loses money), so the
+        // route is judged like any other from here on.
+        if (next === r.departures && !inCrisis) {
+          delete r.fullDepartures;
+          continue;
+        }
+      }
+      if (next < r.departures) {
+        r.fullDepartures = full;
+        if (r.origin === playerHubId || r.destination === playerHubId) {
+          say(`CAPACITY CUT: ${ai.name} (${ai.code}) cuts ${r.origin}–${r.destination} from ${r.departures} to ${next} weekly flights as seats go unsold.`);
+        }
+      }
+      r.departures = next;
+      if (r.departures >= full) delete r.fullDepartures;
+    }
 
     // 2. Routes that keep losing money, once they had time to prove
     // themselves: first try a much thinner schedule, and drop the route only
@@ -784,6 +843,8 @@ export const simulateAiAirlinesTurn = (
       if (plane && originAir && destAir && r.distance && r.durMin && thin < r.departures) {
         const p = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, thin, r.distance, r.durMin, market, `${ai.code} ${r.origin}-${r.destination}`);
         if (Number.isFinite(p) && p > 0) {
+          // Thinned out because of a crisis: remember the schedule to rebuild.
+          if (inCrisis) r.fullDepartures = Math.max(r.fullDepartures ?? 0, r.departures);
           r.departures = thin;
           r.avgProfit = p;
           continue;
@@ -799,9 +860,11 @@ export const simulateAiAirlinesTurn = (
 
     // 3. Fine-tune frequencies: one step up where a route earns well, one
     // step down where it loses, kept only if the forecast improves. Easy
-    // rivals never revisit a schedule; normal ones do so now and then.
+    // rivals never revisit a schedule; normal ones do so now and then. A route
+    // still cut back by a crisis is rebuilt by step 1b, not by a forecast.
     if (difficulty !== 'Easy') {
       for (const r of newRoutes) {
+        if (r.fullDepartures !== undefined) continue;
         if (ageOf(r) < 2 || (difficulty === 'Normal' && Math.random() < 0.5)) continue;
         const plane = planeFor(r);
         const originAir = airportsMapAdjusted.get(r.origin);
@@ -830,7 +893,8 @@ export const simulateAiAirlinesTurn = (
       const isPastProduction = spec.lastDeliveryOffset !== null && currentDateOffset > (spec.lastDeliveryOffset + 144);
       return isPastProduction || age > 240;
     });
-    if (obsoleteIndex !== -1) {
+    // A carrier in a growth freeze keeps its old aircraft for now.
+    if (obsoleteIndex !== -1 && !frozen) {
       const oldPlane = newFleet[obsoleteIndex];
       const route = newRoutes.find(r => r.aircraftReg === oldPlane.reg);
       const salvageValue = Math.floor((oldPlane.basePrice || 1000000) * 0.20);
@@ -894,10 +958,13 @@ export const simulateAiAirlinesTurn = (
     }
 
     // Aircraft that found no work: note since when, and sell one that has
-    // stood around too long, as long as the airline keeps one aircraft.
+    // stood around too long, as long as the airline keeps one aircraft. In a
+    // growth freeze nothing can be placed, so the clock does not run: a parked
+    // aircraft waits for the crisis to end instead of being sold.
     newFleet = newFleet.map(p => {
       const flying = newRoutes.some(r => r.aircraftReg === p.reg);
       if (flying) return p.idleSince === undefined ? p : { ...p, idleSince: undefined };
+      if (frozen) return { ...p, idleSince: currentDateOffset };
       return p.idleSince === undefined ? { ...p, idleSince: currentDateOffset } : p;
     });
     const parked = newFleet.find(p => p.idleSince !== undefined && currentDateOffset - p.idleSince >= MAX_IDLE_MONTHS);
@@ -921,7 +988,7 @@ export const simulateAiAirlinesTurn = (
     const earning = recent.reduce((s, v) => s + v, 0) / recent.length > 0;
     const reserve = CASH_RESERVE[personality];
 
-    if (hub && allFlying && slotsLeft() > 0 && Math.random() < buyProb) {
+    if (hub && !frozen && allFlying && slotsLeft() > 0 && Math.random() < buyProb) {
       const spendRatio = (personality === 'expansionist' || personality === 'lcc') ? 0.65 : 0.45;
       const affordable = aircraftOnMarket(currentDateOffset).filter(a =>
         a.basePrice <= newCapital * spendRatio &&

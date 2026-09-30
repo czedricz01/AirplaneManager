@@ -593,6 +593,19 @@ Spieler erlebt März 2020 als unerklärlichen Umsatzeinbruch auf ein Fünftel.
    80 %"*. Damit ist zum ersten Mal eine Entscheidung im Spiel, die man später
    bereut oder feiert — das, was der Simulation heute vollständig fehlt.
 
+4. **Die Rivalen in der Krise** *(umgesetzt, `rivalCrisis.ts`)*. Die Ereignisse
+   trafen die KI-Airlines schon immer über dieselbe Engine (`calculateDemand`,
+   `getJetFuelPrice`); es fehlte, dass sie darauf reagieren. Ab Schweregrad 0,25
+   (größerer Wert aus Nachfrageverlust und halbem Spritaufschlag: Pandemie 0,8,
+   Ölschock 1973 0,5, 2001 0,35, Finanzkrise und Golfkrieg 0,25; die
+   Zufallsereignisse bleiben darunter) kürzt eine Rivalin Routen mit weniger als
+   80 % Auslastung auf das, was sie füllen kann, und baut den Flugplan danach um
+   ein Viertel pro Monat zurück (`fullDepartures` auf der Route). Kaufen und Ersetzen von
+   Flugzeugen stoppt je nach Typ: Optimierer, Staatsairline und Boutique ab 0,25,
+   Billigflieger ab 0,35, Expansionisten erst ab 0,5. Geparkte Flugzeuge werden
+   im Stopp nicht verkauft. Die gekürzten Abflüge sehen auch die Spielerrouten als
+   weniger Konkurrenz.
+
 **Zusatz mit wenig Aufwand:** regionale statt nur globaler Ereignisse. Ein
 `regions?: string[]`-Feld auf `HistoricalEvent` und ein Regionsfeld je Flughafen
 würden „Streik in Frankreich" oder „Tourismusboom in Südostasien" möglich machen.
