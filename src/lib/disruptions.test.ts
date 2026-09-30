@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 
 import {
   AIRPORT_STRIKE_CHANCE,
+  TECH_BASE_CHANCE,
+  TECH_CHANCE_PER_WEAR_POINT,
+  TECH_CHANCE_PER_YEAR,
   BIRDSTRIKE_CHANCE,
   BIRDSTRIKE_COSTS,
   DISRUPTION_OPTION_CANCEL,
@@ -67,26 +70,26 @@ const disruption = (over: Partial<Disruption>): Disruption => ({
 
 test('worn and old aircraft break down more often, a hangar at the origin halves it', () => {
   const fresh = technicalDefectChance({ conditionGeneral: 100, purchasedAt: 200 }, 200, false);
-  assert.equal(fresh, 0.01, 'a new aircraft: the base chance');
+  assert.equal(fresh, TECH_BASE_CHANCE, 'a new aircraft: the base chance');
   const worn = technicalDefectChance({ conditionGeneral: 50, purchasedAt: 200 }, 200, false);
-  assert.ok(Math.abs(worn - (0.01 + 50 * 0.0008)) < 1e-12);
+  assert.ok(Math.abs(worn - (TECH_BASE_CHANCE + 50 * TECH_CHANCE_PER_WEAR_POINT)) < 1e-12);
   const old = technicalDefectChance({ conditionGeneral: 100, purchasedAt: 80 }, 200, false);
-  assert.ok(Math.abs(old - (0.01 + 10 * 0.001)) < 1e-12, 'ten years old');
+  assert.ok(Math.abs(old - (TECH_BASE_CHANCE + 10 * TECH_CHANCE_PER_YEAR)) < 1e-12, 'ten years old');
   assert.ok(worn > fresh && old > fresh);
 
   const hangared = technicalDefectChance({ conditionGeneral: 50, purchasedAt: 80 }, 200, true);
   const open = technicalDefectChance({ conditionGeneral: 50, purchasedAt: 80 }, 200, false);
   assert.ok(Math.abs(hangared - open / 2) < 1e-12);
 
-  assert.equal(technicalDefectChance(undefined, 200, false), 0.01, 'unknown aircraft: treated as new');
-  assert.equal(technicalDefectChance({ conditionGeneral: 100, purchasedAt: 300 }, 200, false), 0.01, 'no negative age');
+  assert.equal(technicalDefectChance(undefined, 200, false), TECH_BASE_CHANCE, 'unknown aircraft: treated as new');
+  assert.equal(technicalDefectChance({ conditionGeneral: 100, purchasedAt: 300 }, 200, false), TECH_BASE_CHANCE, 'no negative age');
 });
 
 test('a hangar at the origin halves the defects actually rolled', () => {
   // Many seeds: count defects with and without a hangar at FRA.
   let open = 0;
   let hangared = 0;
-  for (let seed = 1; seed <= 4000; seed++) {
+  for (let seed = 1; seed <= 20_000; seed++) {
     open += roll(JULY_1975, seeded(seed)).filter(d => d.kind === 'technical').length;
     hangared += roll(JULY_1975, seeded(seed), { FRA: { hubFacilities: { hangar: true } } }).filter(d => d.kind === 'technical').length;
   }
@@ -112,9 +115,9 @@ test('every kind comes up when every draw hits, each with its own share and scop
 
   const fra = byKind('airport-strike').find(d => d.ref === 'FRA')!;
   assert.deepEqual(fra.routeIds, ['r1', 'r2', 'r3'], 'an airport strike hits every route there');
-  assert.equal(fra.cancelShare, 0.3);
+  assert.equal(fra.cancelShare, 0.6);
   assert.deepEqual(byKind('weather').find(d => d.ref === 'NA')!.routeIds, ['r3']);
-  assert.ok(byKind('technical').every(d => d.cancelShare === 0.25 && d.offset === JANUARY_1975));
+  assert.ok(byKind('technical').every(d => d.cancelShare === 0.5 && d.offset === JANUARY_1975));
   assert.equal(new Set(all.map(d => d.id)).size, all.length, 'ids are unique');
 
   // A route without departures or without its aircraft does not fly, so nothing hits it.
@@ -309,8 +312,13 @@ test('a disrupted route flies what is left, in whole seats and passengers', () =
 
 test('the chances are the documented ones', () => {
   assert.equal(BIRDSTRIKE_CHANCE, 0.002, 'half of the former 0.4%');
-  assert.equal(AIRPORT_STRIKE_CHANCE, 0.01);
+  assert.equal(AIRPORT_STRIKE_CHANCE, 0.01 / 3, 'a third of the former 1%');
+  assert.equal(TECH_BASE_CHANCE, 0.01 / 3, 'a third of the former 1%');
+  assert.equal(TECH_CHANCE_PER_WEAR_POINT, 0.0008 / 3);
+  assert.equal(TECH_CHANCE_PER_YEAR, 0.001 / 3);
   assert.equal(WEATHER_CHANCE, 0.03);
+  assert.equal(DISRUPTION_SPECS.technical.cancelShare, 0.5, 'twice the former 25%');
+  assert.equal(DISRUPTION_SPECS['airport-strike'].cancelShare, 0.6, 'twice the former 30%');
 });
 
 test('charters on one route share what they save instead of each claiming it whole', () => {
