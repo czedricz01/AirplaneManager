@@ -422,3 +422,80 @@ test('a fare that is missing or zero never turns the route result into NaN', () 
   assert.ok(Number.isFinite(fin.estWeeklyRev), `revenue ${fin.estWeeklyRev}`);
   assert.ok(Number.isFinite(fin.paxPerWeek), `passengers ${fin.paxPerWeek}`);
 });
+
+// --- Demand level -------------------------------------------------------------
+
+import { calculateDemand, eraDemandFactor, getSatMultiplier, calculateBasePrices } from './financeUtils';
+
+test('the era factor keeps all of 1960, falls in a straight line, and holds after 2020', () => {
+  assert.equal(eraDemandFactor(1960), 1);
+  assert.equal(eraDemandFactor(1990), 0.65);
+  assert.equal(eraDemandFactor(2020), 0.4);
+  assert.ok(Math.abs(eraDemandFactor(1975) - 0.825) < 1e-9, 'halfway between the first two anchors');
+
+  assert.equal(eraDemandFactor(1900), 1, 'before the first anchor');
+  assert.equal(eraDemandFactor(2100), 0.4, 'after the last anchor');
+  assert.equal(eraDemandFactor(NaN), 1, 'an unusable year is neutral, not the late-game value');
+
+  let previous = eraDemandFactor(1960);
+  for (let year = 1961; year <= 2030; year++) {
+    const factor = eraDemandFactor(year);
+    assert.ok(factor <= previous, `${year}: the factor never rises`);
+    previous = factor;
+  }
+});
+
+test('demand is the formula it reports, with the difficulty and era factors in it', () => {
+  // 1965 and 1990 in June carry no historical event, so eventMult is 1 for both.
+  const at = (year: number, difficulty: string) => calculateDemand(8000, 12000, 7000, 9000, 3, 6, difficulty, year);
+
+  const normal = at(1965, 'Normal');
+  const v = normal.formulaVars;
+  assert.equal(v.eraFactor, eraDemandFactor(1965));
+  assert.equal(
+    normal.total,
+    Math.round(29.0 * Math.pow(v.totalInteraction, 0.448351) * v.S * v.E * v.eraFactor * v.tcDemandMultiplier * v.eventMult * v.extraDemandFactor)
+  );
+
+  // Same pair, same month: only the era differs.
+  const later = at(1990, 'Normal');
+  assert.equal(later.formulaVars.eventMult, normal.formulaVars.eventMult);
+  assert.ok(Math.abs(later.total / normal.total - eraDemandFactor(1990) / eraDemandFactor(1965)) < 0.002);
+});
+
+test('the three difficulty levels are told apart by 0.9 : 1.1 : 0.75', () => {
+  const at = (difficulty: string) => calculateDemand(8000, 12000, 7000, 9000, 3, 6, difficulty, 1965);
+  const easy = at('Easy');
+  const normal = at('Normal');
+  const hard = at('Hard');
+
+  assert.ok(easy.total > normal.total && normal.total > hard.total, 'easier means more demand');
+  assert.equal(easy.formulaVars.S, 1.1);
+  assert.equal(normal.formulaVars.S, 0.9);
+  assert.equal(hard.formulaVars.S, 0.75);
+  assert.ok(Math.abs(normal.total / easy.total - 0.9 / 1.1) < 0.001);
+  assert.ok(Math.abs(hard.total / normal.total - 0.75 / 0.9) < 0.001);
+});
+
+test('a full aircraft sells out at the base fare and loses passengers above it, however large the demand', () => {
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const run = (economy: number) => {
+    const priced = { ...route, ticketPrices: { economy, business: 400 } };
+    return calculateRouteFinancials(priced, aircraft, 1, mgt, 1990, 6, 'Normal', airportsMapAdjusted, [priced], [aircraft]);
+  };
+
+  // The satisfaction-adjusted base fare, derived the way the engine derives it.
+  const probe = run(120);
+  const bases = calculateBasePrices(probe.distance, probe.timeClass);
+  const satBase = Math.round(bases.economy * getSatMultiplier(probe.routeSat.economy));
+
+  const atBase = run(satBase);
+  const seats = atBase.paxByClass.economy.max;
+  assert.ok(atBase.demandData.economy > 2 * seats, 'the market is several times the seats, so only the cap can matter');
+  assert.equal(atBase.paxByClass.economy.actual, seats, 'the base fare fills the cabin');
+
+  // Above it, the passengers the cap used to hold back are gone. 3% is inside
+  // the 5% premium the old margin of 1.2 allowed, so this fails on the old cap.
+  const above = run(Math.round(satBase * 1.03));
+  assert.ok(above.paxByClass.economy.actual < seats, 'a fare 3% over the base does not fill the cabin');
+});

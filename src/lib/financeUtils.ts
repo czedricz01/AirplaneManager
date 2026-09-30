@@ -472,6 +472,37 @@ export const getStandBonus = (originId: string, destId: string, slotType: string
 
 import { getEventMultipliers } from "./eventSystem";
 
+/**
+ * How much of the raw demand a year keeps: [year, factor] anchors, linear in
+ * between, constant before the first and after the last.
+ *
+ * A city pair's demand grows about sevenfold from 1960 to 2018 (the airports'
+ * own tables), while the seats a player puts on a route do not. Left alone, the
+ * median pair asks for the seats of 73 weekly round trips of a 124-seat
+ * aircraft in 2018, so demand never limits anything and only aircraft and slots
+ * do. Pulling the late game back brings that to about 30, which makes a route
+ * saturate and a network grow wider instead of denser.
+ */
+const ERA_DEMAND_POINTS: [number, number][] = [[1960, 1], [1990, 0.65], [2020, 0.40]];
+
+export function eraDemandFactor(year: number): number {
+    // NaN fails every comparison below and would fall through to the last
+    // anchor; an unusable year is neutral instead.
+    if (!Number.isFinite(year)) return 1;
+    const first = ERA_DEMAND_POINTS[0];
+    const last = ERA_DEMAND_POINTS[ERA_DEMAND_POINTS.length - 1];
+    if (year <= first[0]) return first[1];
+    if (year >= last[0]) return last[1];
+    for (let i = 1; i < ERA_DEMAND_POINTS.length; i++) {
+        const [y1, f1] = ERA_DEMAND_POINTS[i];
+        if (year <= y1) {
+            const [y0, f0] = ERA_DEMAND_POINTS[i - 1];
+            return f0 + (f1 - f0) * ((year - y0) / (y1 - y0));
+        }
+    }
+    return last[1];
+}
+
 export function calculateDemand(
     b1: number, t1: number, 
     b2: number, t2: number, 
@@ -487,8 +518,10 @@ export function calculateDemand(
 ) {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
     const Mv = mvValues[currentMonth - 1] || 1.0;
-    const S = difficulty === 'Easy' ? 1.2 : difficulty === 'Normal' ? 1.1 : 1.0;
+    // Was 1.2 / 1.1 / 1.0, which told the three levels apart by only 9%.
+    const S = difficulty === 'Easy' ? 1.1 : difficulty === 'Normal' ? 0.9 : 0.75;
     const E = 1;
+    const eraFactor = eraDemandFactor(currentYear);
 
     const offset = (currentYear - 1960) * 12 + (currentMonth - 1);
     const { demandMult: eventMult } = getEventMultipliers(offset);
@@ -509,7 +542,7 @@ export function calculateDemand(
     // Adjusted to be lower on long-haul routes (higher timeClass)
     const tcDemandMultiplier = Math.max(0.4, 3.1 - (timeClass * 0.35));
 
-    const baseDemand = 29.0 * Math.pow(totalInteraction, 0.448351) * S * E * tcDemandMultiplier * eventMult * extraDemandFactor;
+    const baseDemand = 29.0 * Math.pow(totalInteraction, 0.448351) * S * E * eraFactor * tcDemandMultiplier * eventMult * extraDemandFactor;
     const businessRatio = totalInteraction > 0 ? businessInteraction / totalInteraction : 0.5;
     const premiumMultiplier = Math.pow(timeClass / 8, 0.7);
 
@@ -534,7 +567,7 @@ export function calculateDemand(
        business: busDemand,
        premium: preDemand,
        economy: ecoDemand,
-       formulaVars: { b1, t1, b2, t2, businessRatio, premiumMultiplier, Mv, S, E, totalInteraction, eventMult, tcDemandMultiplier, extraDemandFactor }
+       formulaVars: { b1, t1, b2, t2, businessRatio, premiumMultiplier, Mv, S, E, eraFactor, totalInteraction, eventMult, tcDemandMultiplier, extraDemandFactor }
     };
 }
 
@@ -783,11 +816,13 @@ export function getPriceDemandMultiplier(price: number, satBasePrice: number, sa
  *
  * Passengers you have no seat for do not queue at any price -- they fly at
  * another time, on another carrier, or not at all. So demand counts only up to
- * a margin above what the route can actually carry. The margin is what keeps
- * a full aircraft worth a modest premium; beyond it, raising the fare costs
- * passengers in every era, which is what makes pricing a decision again.
+ * what the route can actually carry. The margin used to be 1.2, which kept a
+ * full aircraft worth a premium of about 5% (the fare that earns most per seat
+ * was 1.05 times the base). At exactly 1.0 that premium ends: a full aircraft
+ * sells out at the satisfaction-adjusted base fare, and every fare above it
+ * costs passengers in every era. Flying at the base fare is unaffected.
  */
-export const MAX_DEMAND_SURPLUS = 1.2;
+export const MAX_DEMAND_SURPLUS = 1.0;
 
 /**
  * One airline's offer on a city pair, for the market-share split below.

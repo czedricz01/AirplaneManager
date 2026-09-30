@@ -169,12 +169,20 @@ test('rivals do not hoard idle aircraft', () => {
 
 test('a rival thins out or drops a route that keeps losing money', () => {
   // Rivals start route-less, just like the player, so fly a few months
-  // first to get this one flying before making it a loser.
+  // first to get this one flying before making it a loser. A rival is drawn
+  // at random, and one whose only aircraft has no profitable route from its
+  // hub stays route-less for years (about 1 draw in 200), which says nothing
+  // about thinning out a route. So draw again instead of letting luck decide.
   let [ai] = generateAiAirlines(1, 'Hard', 'MUC', offsetFor(1990));
   let offset = offsetFor(1990);
-  for (let m = 0; m < 12 && ai.routes.length === 0; m++) {
-    [ai] = simulateAiAirlinesTurn([ai], airports, offset, 'MUC', []).updatedAis;
-    offset++;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    for (let m = 0; m < 12 && ai.routes.length === 0; m++) {
+      [ai] = simulateAiAirlinesTurn([ai], airports, offset, 'MUC', []).updatedAis;
+      offset++;
+    }
+    if (ai.routes.length > 0) break;
+    [ai] = generateAiAirlines(1, 'Hard', 'MUC', offsetFor(1990));
+    offset = offsetFor(1990);
   }
   assert.ok(ai.routes.length > 0, 'the rival should be flying a route by now');
 

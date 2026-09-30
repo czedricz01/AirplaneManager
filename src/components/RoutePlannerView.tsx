@@ -2073,7 +2073,7 @@ function RoutePlannerInner({
                                    <div><span className="text-white/30">S (Diff {difficulty}):</span> <span className="text-aero-yellow">{d.formulaVars.S}</span></div>
                                  </div>
                                  <div className="text-white/40 mb-2 pb-2 border-b border-white/5">
-                                   Demand = 29.00 &times; Interaction^0.448 &times; S {d.formulaVars.S} &times; time class {formatNumber(d.formulaVars.tcDemandMultiplier, 2)} &times; events {formatNumber(d.formulaVars.eventMult, 2)} &times; your factor {formatNumber(d.formulaVars.extraDemandFactor, 2)}
+                                   Demand = 29.00 &times; Interaction^0.448 &times; S {d.formulaVars.S} &times; era {formatNumber(d.formulaVars.eraFactor, 2)} &times; time class {formatNumber(d.formulaVars.tcDemandMultiplier, 2)} &times; events {formatNumber(d.formulaVars.eventMult, 2)} &times; your factor {formatNumber(d.formulaVars.extraDemandFactor, 2)}
                                    <br />
                                    Interaction: {formatNumber(d.formulaVars.totalInteraction)}
                                  </div>
