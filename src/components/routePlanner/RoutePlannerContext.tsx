@@ -5,6 +5,7 @@ import {
   initialPlannerSelection,
   plannerReducer
 } from './plannerState';
+import { NO_DESTINATION_FILTERS, type DestinationFilters } from '../../lib/destinationFilter';
 
 /**
  * The route planner's state, in one place.
@@ -27,6 +28,9 @@ export interface PlannerUiState {
   destSearch: string;
   aircraftSearch: string;
   destSortBy: string;
+  destFilters: DestinationFilters;
+  /** Whether the filter panel above the destination list is unfolded. */
+  destFiltersOpen: boolean;
   activeConfigClass: string | null;
   expandedSections: Record<string, boolean>;
   expandedMealCats: Record<string, boolean>;
@@ -46,6 +50,8 @@ const defaultUi: PlannerUiState = {
   aircraftSearch: '',
   // Must be one of the sort buttons' ids, or none of them shows as active.
   destSortBy: 'combined',
+  destFilters: NO_DESTINATION_FILTERS,
+  destFiltersOpen: false,
   activeConfigClass: null,
   expandedSections: { plane: false, sce: false, airport: false },
   expandedMealCats: { Basic: false, Standard: false, Premium: false, Luxury: false },

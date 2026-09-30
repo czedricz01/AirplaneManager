@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
-import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen, AlertTriangle, Eye, EyeOff, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
@@ -17,6 +17,13 @@ import { loadAircraftImagesMap } from '../lib/imageUtils';
 import type { ConfigOutput } from './ConfigurePurchaseView';
 import type { ScheduledTrip } from './RouteScheduleEditView';
 import { readJson, readString, writeJson } from '../lib/safeStorage';
+import {
+  NO_DESTINATION_FILTERS,
+  activeDestinationFilterCount,
+  passesDestinationFilters,
+  type DestinationFilters,
+  type RangeFilter
+} from '../lib/destinationFilter';
 
 const HIDDEN_AIRCRAFT_KEY = 'planner_hidden_aircraft';
 import { dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
@@ -442,6 +449,12 @@ function RoutePlannerInner({
   const setShowPricingDebug = (v: any) => setUi('showPricingDebug', typeof v === 'function' ? v(ui.showPricingDebug) : v);
   const destSortBy = ui.destSortBy;
   const setDestSortBy = (v: any) => setUi('destSortBy', typeof v === 'function' ? v(ui.destSortBy) : v);
+  const destFilters = ui.destFilters;
+  const setDestFilters = (v: DestinationFilters) => setUi('destFilters', v);
+  const destFiltersOpen = ui.destFiltersOpen;
+  const setDestFiltersOpen = (v: boolean) => setUi('destFiltersOpen', v);
+  const setDestRange = (key: 'distance' | 'business' | 'tourism', bound: keyof RangeFilter, value: string) =>
+    setDestFilters({ ...destFilters, [key]: { ...destFilters[key], [bound]: value } });
   const aircraftSearch = ui.aircraftSearch;
   const setAircraftSearch = (v: any) => setUi('aircraftSearch', typeof v === 'function' ? v(ui.aircraftSearch) : v);
   const setTicketPrices = (
@@ -536,12 +549,28 @@ function RoutePlannerInner({
     const turnMin = getTurnoverMinutes();
     const longestFree = selectedAircraft ? getLongestFreeBlock(selectedAircraft.registration) : 0;
 
+    // Airports one of the player's routes starts or ends at, for the "not yet served" filter.
+    const servedIds = new Set<string>();
+    routes.forEach(r => { servedIds.add(r.origin); servedIds.add(r.destination); });
+
     const list = airports.filter(a => {
       if (a.id === originId) return false;
       const matchesSearch = a.id.toLowerCase().includes(search) || a.name.toLowerCase().includes(search);
-      if (!selectedOrigin || !selectedAircraft || !matchesSearch) return matchesSearch;
+      if (!matchesSearch) return false;
 
-      const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]));
+      const dist = selectedOrigin
+        ? Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]))
+        : null;
+      const stats = getAirportStats(a, currentYear);
+      const passesFilters = passesDestinationFilters(destFilters, {
+        distanceKm: dist,
+        business: stats.business,
+        tourism: stats.tourism,
+        served: servedIds.has(a.id)
+      });
+      if (!passesFilters) return false;
+
+      if (dist === null || !selectedAircraft) return true;
       if (dist > selectedAircraft.maxRange) return false;
 
       // ICAO Code Restrictions
@@ -570,7 +599,9 @@ function RoutePlannerInner({
       // Default: combined
       return (statsB.tourism + statsB.business) - (statsA.tourism + statsA.business);
     });
-  }, [airports, destSearch, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear]);
+  }, [airports, destSearch, destFilters, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear]);
+
+  const activeDestFilterCount = activeDestinationFilterCount(destFilters, !!selectedOrigin);
 
   // Routes grouped by aircraft, so the utilisation check below is a lookup instead of
   // a full scan of the network for every aircraft in the fleet.
@@ -1936,7 +1967,7 @@ function RoutePlannerInner({
                   </div>
 
                   {/* Sorting Buttons */}
-                  <div className="flex gap-1 mb-4">
+                  <div className="flex gap-1 mb-2">
                     {[
                       { id: 'combined', label: 'T+B' },
                       { id: 'tourism', label: 'Tour' },
@@ -1957,7 +1988,86 @@ function RoutePlannerInner({
                     ))}
                   </div>
 
+                  {/* Filters: airports not flown to yet, distance from the origin,
+                      and business / tourism demand. Folded by default, since the
+                      column is short on a phone held sideways. */}
+                  <div className="mb-3 short:mb-2 min-h-0 flex flex-col border border-white/10 bg-white/[0.02]">
+                    <button
+                      onClick={() => setDestFiltersOpen(!destFiltersOpen)}
+                      aria-expanded={destFiltersOpen}
+                      className="w-full shrink-0 flex items-center justify-between px-2 py-1.5 text-4xs font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <SlidersHorizontal size={11} /> Filter
+                        {activeDestFilterCount > 0 && (
+                          <span className="bg-aero-yellow text-black px-1 rounded-sm">{activeDestFilterCount}</span>
+                        )}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="font-mono normal-case tracking-normal text-white/30">{validDestinations.length} {validDestinations.length === 1 ? 'airport' : 'airports'}</span>
+                        {destFiltersOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      </span>
+                    </button>
+                    {destFiltersOpen && (
+                      <div className="min-h-0 overflow-y-auto custom-scrollbar p-2 border-t border-white/10 space-y-2">
+                        <button
+                          onClick={() => setDestFilters({ ...destFilters, unservedOnly: !destFilters.unservedOnly })}
+                          aria-pressed={destFilters.unservedOnly}
+                          title="Hide airports that one of your routes already starts or ends at"
+                          className={`w-full py-1 text-4xs font-black uppercase tracking-widest border transition-all ${
+                            destFilters.unservedOnly
+                              ? 'bg-aero-yellow border-aero-yellow text-black'
+                              : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30 hover:text-white'
+                          }`}
+                        >
+                          Not yet served
+                        </button>
+                        {([
+                          { key: 'distance', label: 'Distance km', disabled: !selectedOrigin },
+                          { key: 'business', label: 'Business', disabled: false },
+                          { key: 'tourism', label: 'Tourism', disabled: false }
+                        ] as const).map(row => (
+                          <div
+                            key={row.key}
+                            className={`flex items-center gap-1.5 ${row.disabled ? 'opacity-40' : ''}`}
+                            title={row.disabled ? 'Choose an origin hub first' : undefined}
+                          >
+                            <span className="w-20 short:w-14 shrink-0 text-4xs font-black uppercase tracking-widest text-white/40">{row.label}</span>
+                            {(['min', 'max'] as const).map((bound, i) => (
+                              <React.Fragment key={bound}>
+                                {i === 1 && <span className="text-white/30">–</span>}
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={0}
+                                  placeholder={bound}
+                                  aria-label={`${row.label} ${bound}`}
+                                  disabled={row.disabled}
+                                  value={destFilters[row.key][bound]}
+                                  onChange={e => setDestRange(row.key, bound, e.target.value)}
+                                  className="w-full min-w-0 bg-white/5 border border-white/10 p-1 text-3xs font-mono outline-none focus:border-aero-yellow disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                />
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => setDestFilters(NO_DESTINATION_FILTERS)}
+                          disabled={activeDestFilterCount === 0}
+                          className="w-full py-1 flex items-center justify-center gap-1.5 text-4xs font-black uppercase tracking-widest border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <RotateCcw size={10} /> Reset filters
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-1 bg-black/20 p-2 border border-white/5 pb-32 bar:pb-3 short:pb-3">
+                    {validDestinations.length === 0 && (
+                      <div className="p-3 text-2xs font-mono text-white/40 leading-relaxed">
+                        No airport matches the search and filters.
+                      </div>
+                    )}
                     {validDestinations.map(a => {
                       const mgtLvl = airportManagement[a.id]?.level || 0;
                       const totalSlots = a.level * 300;
