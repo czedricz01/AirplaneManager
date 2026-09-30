@@ -359,6 +359,7 @@ import { restartTutorial, settleTutorialStep, type TutorialDestination, type Tut
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { autoScaleFor } from "./lib/layout";
 import { useFullscreen } from "./components/ui/useFullscreen";
+import { useHoverAutoClose } from "./components/ui/useHoverAutoClose";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
@@ -1131,6 +1132,11 @@ export default function App() {
   };
 
   const [isGameMenuOpen, setIsGameMenuOpen] = useState(false);
+  // The three dropdowns in the top bar close by themselves once the mouse has
+  // been off them for two seconds.
+  const messagesHover = useHoverAutoClose(isMessagesOpen, () => setIsMessagesOpen(false));
+  const mapSettingsHover = useHoverAutoClose(isMapSettingsOpen, () => setIsMapSettingsOpen(false));
+  const gameMenuHover = useHoverAutoClose(isGameMenuOpen, () => setIsGameMenuOpen(false));
   const [selectedAirport, setSelectedAirport] = useState<Airport | null>(null);
   const [isPlanningRoute, setIsPlanningRoute] = useState(false);
   const [planningOriginId, setPlanningOriginId] = useState<string | null>(null);
@@ -1285,23 +1291,48 @@ export default function App() {
     });
   }, [zoom, mapBounds, airportManagement]);
 
-  /** Opens one of the sidebar's screens, closing whatever editor or panel is open. */
-  const openWindow = (win: ActiveWindow) => {
-    setIsPlanningRoute(false);
+  // The map is always the layer underneath. On top of it at most one of the
+  // sidebar's windows is open: a screen (activeWindow) or the route planner
+  // (isPlanningRoute). Opening one closes the other, and closing one leaves the
+  // map. Only the planner is remembered: its draft lives in the planning*
+  // states below and is still there when it is opened again. Every other screen
+  // starts on its main view each time it is opened.
+
+  /** Closes what opens on top of a window: its editors, dialogs and selections. */
+  const closeWindowOverlays = () => {
     setIsEditingSchedule(false);
     setEditingRouteId(null);
-    setActiveWindow(win);
+    setEditingCabinRouteId(null);
+    setEditingPricingRouteId(null);
+    setReassigning(null);
     setSelectedPurchasingAircraft(null);
     setSelectedAirport(null);
   };
 
+  /** Opens one of the sidebar's screens, closing whatever window is open. */
+  const openWindow = (win: ActiveWindow) => {
+    setIsPlanningRoute(false);
+    closeWindowOverlays();
+    // A screen opened from the sidebar starts on its list, not on a route or
+    // filter left over from the last time it was used.
+    setExternalSelectedRoute(null);
+    setRouteFilter("");
+    setActiveWindow(win);
+  };
+
+  /**
+   * Opens the route planner over the map, closing any other window. Every way
+   * into the planner goes through here, so it is never open above a screen.
+   */
+  const showPlanner = React.useCallback(() => {
+    setActiveWindow('map');
+    setIsPlanningRoute(true);
+  }, []);
+
   /** Opens the route planner, as the sidebar's New Route does. */
   const openPlanner = () => {
-    setIsPlanningRoute(true);
-    setIsEditingSchedule(false);
-    setEditingRouteId(null);
-    setSelectedPurchasingAircraft(null);
-    setSelectedAirport(null);
+    closeWindowOverlays();
+    showPlanner();
   };
 
   const handleAdvanceMonth = () => {
@@ -2640,13 +2671,13 @@ export default function App() {
   }, []);
 
   const handleStartRouteWithAircraft = React.useCallback((reg: string) => {
-    setIsPlanningRoute(true);
+    showPlanner();
     setPlanningReg(reg);
     setPlanningOriginId(null);
     setPlanningDestId(null);
-  }, []);
+  }, [showPlanner]);
 
-  const handleOpenPlanner = React.useCallback(() => setIsPlanningRoute(true), []);
+  const handleOpenPlanner = showPlanner;
   /**
    * Unlocks a management tier at an airport. The route planner and the airport
    * console each had their own copy of this with different prices, and only
@@ -3188,7 +3219,7 @@ export default function App() {
 
               {/* Network */}
               <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
-                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" tour="nav-routes" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => { setRouteFilter(""); openWindow('routes'); }} />
+                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" tour="nav-routes" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => openWindow('routes')} />
                 <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" tour="nav-airports" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => openWindow('airports')} />
               </div>
 
@@ -3786,7 +3817,7 @@ export default function App() {
                       <div className="text-aero-yellow font-mono text-sm short:text-xs font-bold tracking-widest short:tracking-wider">{formatDate(currentDateOffset)}</div>
                     </div>
 
-                    <div className="rail:relative">
+                    <div className="rail:relative" {...messagesHover}>
                        <button
                          onClick={() => {
                            setIsMessagesOpen(!isMessagesOpen);
@@ -3845,7 +3876,7 @@ export default function App() {
                        )}
                     </div>
                     
-                    <div className="rail:relative">
+                    <div className="rail:relative" {...mapSettingsHover}>
                       <button
                          onClick={() => setIsMapSettingsOpen(!isMapSettingsOpen)}
                          className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-1 rail:mr-2"
@@ -3882,24 +3913,26 @@ export default function App() {
                       )}
                     </div>
 
-                    <button 
-                       onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
-                       className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all"
-                    >
-                      [ Menu ]
-                    </button>
-                    {isGameMenuOpen && (
-                      <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-56 bg-aero-carbon border border-white/10 shadow-2xl flex flex-col z-[100] py-2">
-                        <GameMenuOption label="Continue" onClick={() => setIsGameMenuOpen(false)} />
-                        <GameMenuOption label="Save Game" onClick={() => { setShowSaveMenu(true); setIsGameMenuOpen(false); }} />
-                        <GameMenuOption label="Settings" onClick={() => { setIsSettingsOpen(true); setIsGameMenuOpen(false); }} />
-                        {fullscreen.supported && (
-                          <GameMenuOption label={fullscreen.active ? 'Exit Full Screen' : 'Full Screen'} onClick={() => { fullscreen.toggle(); setIsGameMenuOpen(false); }} />
-                        )}
-                        <div className="h-px bg-white/10 my-2"></div>
-                        <GameMenuOption label="Return to Main Menu" onClick={() => { setIsGameMenuOpen(false); setShowExitSavePrompt(true); }} />
-                      </div>
-                    )}
+                    <div className="rail:relative" {...gameMenuHover}>
+                      <button
+                         onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
+                         className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all"
+                      >
+                        [ Menu ]
+                      </button>
+                      {isGameMenuOpen && (
+                        <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-56 bg-aero-carbon border border-white/10 shadow-2xl flex flex-col z-[100] py-2">
+                          <GameMenuOption label="Continue" onClick={() => setIsGameMenuOpen(false)} />
+                          <GameMenuOption label="Save Game" onClick={() => { setShowSaveMenu(true); setIsGameMenuOpen(false); }} />
+                          <GameMenuOption label="Settings" onClick={() => { setIsSettingsOpen(true); setIsGameMenuOpen(false); }} />
+                          {fullscreen.supported && (
+                            <GameMenuOption label={fullscreen.active ? 'Exit Full Screen' : 'Full Screen'} onClick={() => { fullscreen.toggle(); setIsGameMenuOpen(false); }} />
+                          )}
+                          <div className="h-px bg-white/10 my-2"></div>
+                          <GameMenuOption label="Return to Main Menu" onClick={() => { setIsGameMenuOpen(false); setShowExitSavePrompt(true); }} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -4429,7 +4462,7 @@ export default function App() {
                           }
                         }}
                         onStartRoute={(airportId, role) => {
-                          setIsPlanningRoute(true);
+                          showPlanner();
                           if (role === 'origin') {
                             setPlanningOriginId(airportId);
                             setPlanningDestId(null);
