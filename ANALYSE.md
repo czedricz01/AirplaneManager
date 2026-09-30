@@ -514,6 +514,15 @@ Ausgearbeitet, aber nicht Teil von Paket 1. Reihenfolge nach Wirkung pro Aufwand
 > Aufschlag jetzt in **jeder** Epoche +28 % statt +54/+216/+500 %. Routen, die
 > vernünftig bepreist sind, ändern sich nicht: der eingeschobene Testspielstand
 > liefert vor und nach der Änderung identisch 390.010 $ Monatsgewinn.
+>
+> **Später nachgezogen (Demand gesenkt).** Der Deckel steht im Code auf 1,2, nicht
+> auf 1,3, und liegt jetzt bei **1,0**: Der umsatzstärkste Preis lag bei 1,2 bei
+> ×1,05 des Basispreises, bei 1,0 liegt er genau beim Basispreis (Umsatz je Sitz
+> am Optimum −4,8 %). Wer zum Basispreis fliegt, merkt nichts. Dazu kommen zwei
+> Hebel in `calculateDemand`: die Schwierigkeitsstufe `S` (Easy 1,1 / Normal 0,9 /
+> Hard 0,75, vorher 1,2 / 1,1 / 1,0) und `eraDemandFactor` (×1,00 in 1960, ×0,65
+> in 1990, ×0,40 ab 2020, dazwischen linear). Beim Median-Paar sättigt ein
+> Flugzeug mit 124 Sitzen damit 2018 ab etwa 30 statt 73 Rundflügen pro Woche.
 
 
 **Das Problem:** `calculateDemand` kennt keinen Wettbewerb. Zwei identische
