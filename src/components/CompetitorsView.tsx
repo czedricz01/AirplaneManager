@@ -68,6 +68,13 @@ export interface AiAirline {
     openedAt?: number;
     /** Smoothed monthly profit the airline judges the route by. */
     avgProfit?: number;
+    /** Share of seats sold last month, 0 to 1. Absent until the route has flown. */
+    loadFactor?: number;
+    /**
+     * Weekly departures before a crisis cut the schedule; the level the route
+     * is rebuilt to when the crisis is over. Absent when nothing was cut.
+     */
+    fullDepartures?: number;
   }[];
   monthlyProfitsHistory: number[];
   personality?: 'flag' | 'lcc' | 'expansionist' | 'optimizer' | 'boutique';
