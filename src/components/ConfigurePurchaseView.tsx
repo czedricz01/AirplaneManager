@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { formatCurrency } from '../lib/format';
 import { getPlaneSat } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
@@ -11,6 +11,7 @@ import { InfoTooltip as SeatInfoTooltip } from './InfoTooltip';
 import { useTapReveal } from './ui/useTapReveal';
 import { useCloudConfigs } from '../lib/useCloudConfigs';
 import type { ConfigItem } from '../lib/configStore';
+import { OverwritePicker } from './ui/OverwritePicker';
 
 /** A cabin layout saved for one aircraft type, kept with the account. */
 type SavedPreset = ConfigItem & {
@@ -250,6 +251,9 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const [savePresetName, setSavePresetName] = useState("");
   // 'aero_saved_presets' is where versions before accounts kept them.
   const { items: savedPresets, save: savePreset, remove: removePreset } = useCloudConfigs<SavedPreset>('aircraft_preset', 'aero_saved_presets');
+  // The preset the next save replaces; null stores a new one.
+  const [overwritePresetId, setOverwritePresetId] = useState<string | null>(null);
+  useEffect(() => { if (!showSaveConfig) setOverwritePresetId(null); }, [showSaveConfig]);
   const [activeConfigTab, setActiveConfigTab] = useState<'general' | 'classes'>('classes');
   const [selectedClass, setSelectedClass] = useState<ClassType | null>(null);
   // Which cabin zone's details show under the diagram: the hovered one with a
@@ -543,7 +547,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
     if (!savePresetName.trim()) return;
     
     const preset = {
-      id: Math.random().toString(36).substring(7),
+      // Saving under an existing id replaces that preset (see saveConfig).
+      id: overwritePresetId ?? Math.random().toString(36).substring(7),
       aircraftId: aircraft.id,
       name: savePresetName.trim(),
       // The score the purchase itself uses. Presets used to store a different
@@ -1439,6 +1444,15 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <p className="text-2xs text-white/50 font-mono mb-3 uppercase tracking-[0.2em]">{aircraft.manufacturer} {aircraft.type}</p>
             
             <div className="flex flex-col gap-4">
+              {/* Only presets of this aircraft type: a preset is tied to one type. */}
+              <OverwritePicker
+                items={savedPresets.filter(p => p.aircraftId === aircraft.id)}
+                value={overwritePresetId}
+                onChange={item => {
+                  setOverwritePresetId(item?.id ?? null);
+                  if (item) setSavePresetName(item.name);
+                }}
+              />
               <div>
                 <label className="text-2xs uppercase tracking-widest text-white/70 mb-2 block font-bold">Preset Name</label>
                 <input 
@@ -1455,7 +1469,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 disabled={!savePresetName.trim()}
                 className="w-full bg-aero-yellow text-black font-black uppercase tracking-widest py-3 mt-2 hover:bg-aero-yellow transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
-                Save Configuration
+                {overwritePresetId ? 'Overwrite Configuration' : 'Save Configuration'}
               </button>
             </div>
           </div>

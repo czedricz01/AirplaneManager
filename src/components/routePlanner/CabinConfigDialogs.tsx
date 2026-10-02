@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Save, Download, ChevronRight } from 'lucide-react';
 import { usePlanner } from './RoutePlannerContext';
 import { useCloudConfigs } from '../../lib/useCloudConfigs';
 import type { ConfigItem } from '../../lib/configStore';
+import { OverwritePicker } from '../ui/OverwritePicker';
 
 interface SavedCabinConfig extends ConfigItem {
   configs: Record<string, any>;
@@ -31,6 +32,10 @@ export function CabinConfigDialogs() {
 
   const { items: savedCabinConfigs, save, remove } = useCloudConfigs<SavedCabinConfig>('cabin_config', LEGACY_STORAGE_KEY);
 
+  // The save the next save replaces; null stores a new one. Reset whenever the dialog closes.
+  const [overwriteId, setOverwriteId] = useState<string | null>(null);
+  useEffect(() => { if (!showConfigSaveModal) setOverwriteId(null); }, [showConfigSaveModal]);
+
   const setShowConfigSaveModal = (v: boolean) => setUi('showConfigSaveModal', v);
   const setShowConfigLoadModal = (v: boolean) => setUi('showConfigLoadModal', v);
   const setNewConfigName = (v: string) => setUi('newConfigName', v);
@@ -38,7 +43,8 @@ export function CabinConfigDialogs() {
   const saveCabinConfig = () => {
     if (!newConfigName.trim()) return;
     save({
-      id: Math.random().toString(36).substring(2, 11),
+      // Saving under an existing id replaces that configuration (see saveConfig).
+      id: overwriteId ?? Math.random().toString(36).substring(2, 11),
       name: newConfigName.trim(),
       configs: { ...classConfigs }
     });
@@ -79,6 +85,14 @@ export function CabinConfigDialogs() {
             >
               <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow mb-3">Save Configuration</h3>
               <div className="space-y-6">
+                <OverwritePicker
+                  items={savedCabinConfigs}
+                  value={overwriteId}
+                  onChange={item => {
+                    setOverwriteId(item?.id ?? null);
+                    if (item) setNewConfigName(item.name);
+                  }}
+                />
                 <div>
                   <label className="text-2xs uppercase font-bold text-white/40 tracking-widest block mb-2">Configuration Name</label>
                   <input 
@@ -101,7 +115,7 @@ export function CabinConfigDialogs() {
                     onClick={saveCabinConfig}
                     className="flex-1 py-4 bg-aero-yellow text-black uppercase text-2xs font-black tracking-widest hover:bg-white transition-all"
                   >
-                    Save
+                    {overwriteId ? 'Overwrite' : 'Save'}
                   </button>
                 </div>
               </div>
