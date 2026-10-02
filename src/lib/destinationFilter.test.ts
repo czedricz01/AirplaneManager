@@ -1,12 +1,37 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DESTINATION_FILTERS_KEY,
   NO_DESTINATION_FILTERS,
   activeDestinationFilterCount,
+  loadDestinationFilters,
   passesDestinationFilters,
+  sanitizeDestinationFilters,
+  saveDestinationFilters,
   type DestinationCandidate,
   type DestinationFilters
 } from './destinationFilter';
+
+/**
+ * A stand-in for the browser's localStorage. "blocked" throws on every access,
+ * the way a browser with site data blocked does.
+ */
+function installStorage(mode: 'ok' | 'blocked' = 'ok') {
+  const data = new Map<string, string>();
+  const store = {
+    getItem: (k: string) => (data.has(k) ? data.get(k)! : null),
+    setItem: (k: string, v: string) => { data.set(k, v); },
+    removeItem: (k: string) => { data.delete(k); }
+  };
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    get() {
+      if (mode === 'blocked') throw new Error('access denied');
+      return store;
+    }
+  });
+  return data;
+}
 
 const airport = (over: Partial<DestinationCandidate> = {}): DestinationCandidate => ({
   distanceKm: 1000,
@@ -93,4 +118,66 @@ test('the filter count follows what actually narrows the list', () => {
   assert.equal(activeDestinationFilterCount(filters, true), 3);
   // No origin: the distance filter does nothing, so it is not counted.
   assert.equal(activeDestinationFilterCount(filters, false), 2);
+});
+
+test('with nothing stored the planner starts without filters', () => {
+  installStorage();
+  assert.deepEqual(loadDestinationFilters(), NO_DESTINATION_FILTERS);
+});
+
+test('saved filters come back as they were set, text bounds included', () => {
+  installStorage();
+  const filters = withFilters({
+    unservedOnly: true,
+    distance: { min: '500', max: '' },
+    business: { min: '', max: '80' },
+    tourism: { min: '1', max: '9.5' }
+  });
+  saveDestinationFilters(filters);
+  assert.deepEqual(loadDestinationFilters(), filters);
+});
+
+test('resetting the filters is saved too, so they do not come back', () => {
+  installStorage();
+  saveDestinationFilters(withFilters({ unservedOnly: true, distance: { min: '500', max: '1500' } }));
+  saveDestinationFilters(NO_DESTINATION_FILTERS);
+  assert.deepEqual(loadDestinationFilters(), NO_DESTINATION_FILTERS);
+});
+
+test('the filters live under their own key', () => {
+  const data = installStorage();
+  saveDestinationFilters(withFilters({ unservedOnly: true }));
+  assert.deepEqual([...data.keys()], [DESTINATION_FILTERS_KEY]);
+});
+
+test('an unreadable stored value means no filters instead of an error', () => {
+  const data = installStorage();
+  data.set(DESTINATION_FILTERS_KEY, '{not json');
+  assert.deepEqual(loadDestinationFilters(), NO_DESTINATION_FILTERS);
+});
+
+test('stored values of the wrong shape are discarded field by field', () => {
+  for (const raw of [null, undefined, 42, 'text', true, [], [1, 2]]) {
+    assert.deepEqual(sanitizeDestinationFilters(raw), NO_DESTINATION_FILTERS, JSON.stringify(raw));
+  }
+
+  const mixed = sanitizeDestinationFilters({
+    unservedOnly: 'yes',
+    distance: 5,
+    business: { min: 3, max: '80' },
+    tourism: { min: '10', max: null },
+    extra: 'ignored'
+  });
+  assert.deepEqual(mixed, {
+    unservedOnly: false,
+    distance: { min: '', max: '' },
+    business: { min: '', max: '80' },
+    tourism: { min: '10', max: '' }
+  });
+});
+
+test('blocked site data neither loads nor throws', () => {
+  installStorage('blocked');
+  assert.deepEqual(loadDestinationFilters(), NO_DESTINATION_FILTERS);
+  assert.doesNotThrow(() => saveDestinationFilters(withFilters({ unservedOnly: true })));
 });

@@ -1,11 +1,16 @@
-import React, { createContext, useContext, useMemo, useReducer, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   PlannerAction,
   PlannerSelection,
   initialPlannerSelection,
   plannerReducer
 } from './plannerState';
-import { NO_DESTINATION_FILTERS, type DestinationFilters } from '../../lib/destinationFilter';
+import {
+  NO_DESTINATION_FILTERS,
+  loadDestinationFilters,
+  saveDestinationFilters,
+  type DestinationFilters
+} from '../../lib/destinationFilter';
 
 /**
  * The route planner's state, in one place.
@@ -50,6 +55,7 @@ const defaultUi: PlannerUiState = {
   aircraftSearch: '',
   // Must be one of the sort buttons' ids, or none of them shows as active.
   destSortBy: 'combined',
+  // Replaced by the saved filters when the planner opens; see RoutePlannerProvider.
   destFilters: NO_DESTINATION_FILTERS,
   destFiltersOpen: false,
   activeConfigClass: null,
@@ -88,7 +94,23 @@ export function RoutePlannerProvider({
     initialSelection,
     initialPlannerSelection
   );
-  const [ui, setUiState] = useState<PlannerUiState>(defaultUi);
+  const [ui, setUiState] = useState<PlannerUiState>(() => ({
+    ...defaultUi,
+    // Unlike the rest of the interface state, the filters outlive the planner:
+    // it closes when a route is finished, and the next route should start from
+    // the filters the player had set.
+    destFilters: loadDestinationFilters()
+  }));
+
+  // Saves the filters whenever the player changes them. The last saved value is
+  // remembered, so that opening the planner (which only loads) does not write
+  // the same filters straight back.
+  const savedFilters = useRef(ui.destFilters);
+  useEffect(() => {
+    if (ui.destFilters === savedFilters.current) return;
+    savedFilters.current = ui.destFilters;
+    saveDestinationFilters(ui.destFilters);
+  }, [ui.destFilters]);
 
   const setUi = React.useCallback(
     <K extends keyof PlannerUiState>(key: K, value: PlannerUiState[K]) => {

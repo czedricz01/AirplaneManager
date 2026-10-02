@@ -5,7 +5,13 @@
  * The bounds are held as the text typed into the inputs: an empty field means
  * "no limit", and the field can be cleared or half-typed without the value
  * snapping back to a number.
+ *
+ * The filters are also kept in the browser. The planner closes whenever a route
+ * is finished, and the next route should start from the filters the player had
+ * set instead of from an empty panel.
  */
+
+import { readJson, writeJson } from './safeStorage';
 
 export interface RangeFilter {
   min: string;
@@ -27,6 +33,47 @@ export const NO_DESTINATION_FILTERS: DestinationFilters = {
   business: { min: '', max: '' },
   tourism: { min: '', max: '' }
 };
+
+/** Where the filters are kept in the browser, like the other planner preferences. */
+export const DESTINATION_FILTERS_KEY = 'planner_destination_filters';
+
+/** A stored bound is the text that was typed; anything else is an empty field. */
+function storedBound(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function storedRange(value: unknown): RangeFilter {
+  const range = (value ?? {}) as Record<string, unknown>;
+  return { min: storedBound(range.min), max: storedBound(range.max) };
+}
+
+/**
+ * Brings whatever was stored back into the shape of DestinationFilters.
+ *
+ * The browser's storage can hold anything: an older version, another tab or the
+ * player may have left something else under the key. A field that is missing or
+ * has the wrong type counts as "no filter", so one bad field does not discard
+ * the others and the planner never starts from a broken value.
+ */
+export function sanitizeDestinationFilters(raw: unknown): DestinationFilters {
+  const stored = (raw ?? {}) as Record<string, unknown>;
+  return {
+    unservedOnly: stored.unservedOnly === true,
+    distance: storedRange(stored.distance),
+    business: storedRange(stored.business),
+    tourism: storedRange(stored.tourism)
+  };
+}
+
+/** The filters the player left behind; none if nothing is stored or it is unreadable. */
+export function loadDestinationFilters(): DestinationFilters {
+  return sanitizeDestinationFilters(readJson<unknown>(DESTINATION_FILTERS_KEY, null));
+}
+
+/** Remembers the filters for the next time the planner opens. */
+export function saveDestinationFilters(filters: DestinationFilters): void {
+  writeJson(DESTINATION_FILTERS_KEY, filters);
+}
 
 /** What the filters look at for one candidate airport. */
 export interface DestinationCandidate {
