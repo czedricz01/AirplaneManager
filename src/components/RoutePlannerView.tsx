@@ -28,6 +28,7 @@ import {
 const HIDDEN_AIRCRAFT_KEY = 'planner_hidden_aircraft';
 import { dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
+import { createTimerBag } from '../lib/timerBag';
 import {
   getSlotPurchaseCost,
   applyInfrastructureChange,
@@ -245,6 +246,15 @@ function RoutePlannerInner({
     loadAircraftImagesMap().then(map => { if (active) setImagesMap(map); });
     return () => { active = false; };
   }, []);
+
+  // The short pause after a save, before the screen closes itself. The host
+  // already closes the planner when the route is saved, so by the time a pause
+  // ends the planner is usually gone; its timer must go with it, or it closes
+  // whatever the player opened in the meantime (a new planner, another screen).
+  const timers = React.useRef<ReturnType<typeof createTimerBag> | null>(null);
+  if (timers.current === null) timers.current = createTimerBag();
+  const later = timers.current.after;
+  useEffect(() => () => timers.current?.cancelAll(), []);
 
   // Checks for room for the draft timetable pass the route being edited as
   // `excludeRouteId`: its saved flights are being replaced by the draft, and
@@ -2964,7 +2974,7 @@ function RoutePlannerInner({
                         const stored = priceInNetwork(routeData) ?? saveFinancials;
                         onSaveRoute({ ...routeData, ...(stored ? toStoredRouteMetrics(stored) : {}) });
                         setShowSuccess(true);
-                        setTimeout(() => {
+                        later(() => {
                           setShowSuccess(false);
                           setIsFinalizing(false);
                           onClose();
@@ -3328,7 +3338,7 @@ function RoutePlannerInner({
                                });
                              }
                              setShowSuccess(true);
-                             setTimeout(() => {
+                             later(() => {
                                setShowSuccess(false);
                                setIsFinalizing(false);
                                onClose();
@@ -3780,7 +3790,7 @@ function RoutePlannerInner({
                             const stored = priceInNetwork(newRoute) ?? saveFinancials;
                             onSaveRoute({ ...newRoute, ...(stored ? toStoredRouteMetrics(stored) : {}) });
                             setShowSuccessMsg(true);
-                            setTimeout(() => {
+                            later(() => {
                               onClose();
                               setShowSuccessMsg(false);
                               setIsFinalizing(false);
@@ -3818,7 +3828,7 @@ function RoutePlannerInner({
                               });
                             }
                             setShowSuccessMsg(true);
-                            setTimeout(() => {
+                            later(() => {
                               setShowSuccessMsg(false);
                               setIsFinalizing(false);
                               onClose();
