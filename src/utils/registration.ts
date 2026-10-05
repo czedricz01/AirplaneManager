@@ -22,6 +22,8 @@ export function getCountryPrefix(hubId: string): string {
     MAD: 'EC', BCN: 'EC', PMI: 'EC', AGP: 'EC', ALC: 'EC', VLC: 'EC', LPA: 'EC', TFS: 'EC', IBZ: 'EC',
     // USA
     JFK: 'N', ATL: 'N', ORD: 'N', LAX: 'N', SFO: 'N', MIA: 'N', DFW: 'N', DEN: 'N', SEA: 'N', EWR: 'N', BOS: 'N', MSP: 'N', DTW: 'N', PHX: 'N', IAH: 'N', LAS: 'N', CLT: 'N', SAN: 'N', LGA: 'N', HNL: 'N', ANC: 'N',
+    // Mexico: the northern airports would otherwise fall into the US box below
+    LAP: 'XA', CUL: 'XA', TRC: 'XA', CJS: 'XA', MXL: 'XA',
     // Switzerland
     ZRH: 'HB', GVA: 'HB', BSL: 'HB',
     // Singapore
