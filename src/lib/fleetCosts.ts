@@ -40,29 +40,99 @@ export function maintenanceRate(age: number): number {
   return MAINTENANCE_RATE_NEW + (MAINTENANCE_RATE_OLD - MAINTENANCE_RATE_NEW) * t;
 }
 
-/** What one aircraft costs for one month. */
+/**
+ * What one aircraft costs for one month. `maintenanceFactor` is what the
+ * fleet's make-up does to the maintenance programme, see fleetCommonality.
+ */
 export function monthlyOwnershipCost(
   plane: { basePrice?: number; purchasedAt?: number },
   offset: number,
-  flying: boolean
+  flying: boolean,
+  maintenanceFactor: number = 1
 ): number {
   const price = plane.basePrice || 10_000_000;
-  const yearly = price * (INSURANCE_RATE + maintenanceRate(ageYears(plane, offset)));
+  const yearly = price * (INSURANCE_RATE + maintenanceRate(ageYears(plane, offset)) * maintenanceFactor);
   return Math.round((yearly / 12) * (flying ? 1 : PARKED_SHARE));
+}
+
+// --- Commonality ---------------------------------------------------------------
+
+/**
+ * One family of aircraft shares crews, spare parts and mechanics; every
+ * family beyond a few needs its own. The more aircraft of a family the fleet
+ * has, the cheaper each one's maintenance programme; the more families, the
+ * dearer all of them. A fleet of ten Boeing 737s is cheaper to keep than ten
+ * aircraft of ten kinds.
+ */
+export const COMMONALITY_DISCOUNTS: ReadonlyArray<{ from: number; discount: number }> = [
+  { from: 25, discount: 0.15 },
+  { from: 12, discount: 0.12 },
+  { from: 6, discount: 0.08 },
+  { from: 3, discount: 0.04 }
+];
+/** Families a fleet can run without penalty, and the penalty for each one more, to a ceiling. */
+export const FREE_FAMILIES = 3;
+export const VARIETY_PENALTY_PER_FAMILY = 0.03;
+export const VARIETY_PENALTY_MAX = 0.3;
+
+/** The maintenance discount for an aircraft whose family has `count` aircraft in the fleet. */
+export function familyDiscount(count: number): number {
+  return COMMONALITY_DISCOUNTS.find(d => count >= d.from)?.discount ?? 0;
+}
+
+/** The surcharge on every aircraft's maintenance for running this many families. */
+export function varietyPenalty(families: number): number {
+  return Math.min(VARIETY_PENALTY_MAX, Math.max(0, families - FREE_FAMILIES) * VARIETY_PENALTY_PER_FAMILY);
+}
+
+export interface Commonality {
+  /** Families in the fleet, the biggest first. */
+  families: { family: string; count: number; discount: number }[];
+  penalty: number;
+  /** The factor on one aircraft's maintenance by registration. */
+  factorByRegistration: Map<string, number>;
+  /** The mean factor over the fleet; 1 when it is empty. */
+  meanFactor: number;
+}
+
+/** What the make-up of the fleet does to its maintenance. */
+export function fleetCommonality(
+  fleet: ReadonlyArray<{ registration: string; family?: string; type?: string }>
+): Commonality {
+  const familyOf = (p: { family?: string; type?: string }) => p.family || p.type || 'unknown';
+  const counts = new Map<string, number>();
+  for (const p of fleet) counts.set(familyOf(p), (counts.get(familyOf(p)) ?? 0) + 1);
+  const penalty = varietyPenalty(counts.size);
+  const factorByRegistration = new Map<string, number>();
+  let sum = 0;
+  for (const p of fleet) {
+    const factor = 1 + penalty - familyDiscount(counts.get(familyOf(p)) ?? 0);
+    factorByRegistration.set(p.registration, factor);
+    sum += factor;
+  }
+  return {
+    families: [...counts.entries()]
+      .map(([family, count]) => ({ family, count, discount: familyDiscount(count) }))
+      .sort((a, b) => b.count - a.count),
+    penalty,
+    factorByRegistration,
+    meanFactor: fleet.length > 0 ? sum / fleet.length : 1
+  };
 }
 
 /** The fleet's bill for a month and the share of it that went on aircraft with no route. */
 export function fleetOwnershipCost(
-  fleet: ReadonlyArray<{ registration: string; basePrice?: number; purchasedAt?: number }>,
+  fleet: ReadonlyArray<{ registration: string; basePrice?: number; purchasedAt?: number; family?: string; type?: string }>,
   flyingRegistrations: ReadonlySet<string>,
   offset: number
 ): { total: number; parked: number; parkedCount: number } {
   let total = 0;
   let parked = 0;
   let parkedCount = 0;
+  const commonality = fleetCommonality(fleet);
   for (const plane of fleet) {
     const flying = flyingRegistrations.has(plane.registration);
-    const cost = monthlyOwnershipCost(plane, offset, flying);
+    const cost = monthlyOwnershipCost(plane, offset, flying, commonality.factorByRegistration.get(plane.registration) ?? 1);
     total += cost;
     if (!flying) {
       parked += cost;

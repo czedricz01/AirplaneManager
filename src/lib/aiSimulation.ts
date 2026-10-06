@@ -853,7 +853,7 @@ export const simulateAiAirlinesTurn = (
     // fleet, or one standing idle, costs them too.
     const flyingRegs = new Set(newRoutes.map(r => r.aircraftReg));
     const upkeep = fleetOwnershipCost(
-      newFleet.map(p => ({ registration: p.reg, basePrice: p.basePrice, purchasedAt: p.purchasedAt })),
+      newFleet.map(p => ({ registration: p.reg, basePrice: p.basePrice, purchasedAt: p.purchasedAt, family: p.family, type: p.type })),
       flyingRegs,
       currentDateOffset
     ).total;

@@ -477,7 +477,8 @@ export const getStandBonus = (originId: string, destId: string, slotType: string
 
 
 
-import { getEventMultipliers } from "./eventSystem";
+import { getEventMultipliers, regionalDemandFactor } from "./eventSystem";
+import { regionOf } from "./geoUtils";
 
 /**
  * How much of the raw demand a year keeps: [year, factor] anchors, linear in
@@ -900,6 +901,21 @@ export function offerAttractiveness(
 }
 
 /**
+ * What the regional events of a month do to the demand between two airports;
+ * 1 when none is running. Shared by the monthly figures and the planner's
+ * demand preview, which calls calculateDemand directly.
+ */
+export function eventRegionalFactor(
+  year: number,
+  month: number,
+  origin: { coords: [number, number] } | undefined | null,
+  dest: { coords: [number, number] } | undefined | null
+): number {
+  if (!origin || !dest) return 1;
+  return regionalDemandFactor((year - 1960) * 12 + (month - 1), regionOf(origin.coords), regionOf(dest.coords));
+}
+
+/**
  * The share of a city pair's demand this route wins.
  *
  * Returns 1 when nobody else flies the pair, which is what every route used to
@@ -1016,7 +1032,8 @@ export function calculateRouteFinancials(
     originStats.business, originStats.tourism,
     destStats.business, destStats.tourism,
     timeClass, currentMonth, difficulty, currentYear,
-    mods ? routeDemandFactor(mods, originAirport, destAirport) * (mods.maturity?.[route.id] ?? 1) : extraDemandFactor
+    (mods ? routeDemandFactor(mods, originAirport, destAirport) * (mods.maturity?.[route.id] ?? 1) : extraDemandFactor) *
+      eventRegionalFactor(currentYear, currentMonth, originAirport, destAirport)
   );
 
   const bases = calculateBasePrices(dist, timeClass);

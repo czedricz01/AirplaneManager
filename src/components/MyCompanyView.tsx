@@ -12,6 +12,7 @@ import { IncidentList } from './IncidentList';
 import { ChronicleView } from './ChronicleView';
 import { LineChart } from './charts/LineChart';
 import { CareerPanel, type CareerPanelProps } from './CareerPanel';
+import type { Commonality } from '../lib/fleetCosts';
 import { rankDef } from '../lib/airlineRank';
 import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
 import type { Branding, ChronicleEntry, ReportIncident } from '../lib/gameState';
@@ -48,6 +49,8 @@ interface Props extends Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<Staf
   /** Resale value of every owned aircraft, already summed. */
   fleetValue: number;
   fleetCount: number;
+  /** What the make-up of the fleet does to its maintenance, from fleetCommonality. */
+  commonality: Commonality;
   routeCount: number;
   /** Airline reputation, 0-100. */
   reputation: number;
@@ -141,7 +144,7 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
 }
 
 function MyCompanyViewImpl({
-  capital, reportHistory, fleetValue, fleetCount, routeCount, reputation,
+  capital, reportHistory, fleetValue, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
   staff, profitStreak, monthlyCrewCost, strikePending, onSetSalary,
   rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal,
@@ -289,6 +292,30 @@ function MyCompanyViewImpl({
               <span className="block text-3xs font-mono text-white/30 mt-1">active routes</span>
             </StatTile>
           </div>
+
+          {fleetCount > 0 && (
+            <Panel>
+              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+                <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Fleet commonality</span>
+                <span className={`text-2xs font-mono ${commonality.meanFactor < 1 ? 'text-aero-good' : commonality.meanFactor > 1 ? 'text-aero-warn' : 'text-white/50'}`}>
+                  maintenance {commonality.meanFactor === 1 ? 'at the standard rate' : `${commonality.meanFactor < 1 ? '' : '+'}${Math.round((commonality.meanFactor - 1) * 100)}% on average`}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {commonality.families.slice(0, 8).map(f => (
+                  <span key={f.family} className="text-2xs font-mono border border-white/10 bg-white/[0.03] px-2 py-1 rounded-sm">
+                    {f.family} &times;{f.count}{f.discount > 0 && <span className="text-aero-good"> &minus;{Math.round(f.discount * 100)}%</span>}
+                  </span>
+                ))}
+                {commonality.families.length > 8 && <span className="text-2xs font-mono text-white/40 py-1">+{commonality.families.length - 8} more</span>}
+              </div>
+              <p className="text-3xs font-mono text-white/40 leading-relaxed">
+                Aircraft of one family share crews and spare parts: three of a kind save 4% on their maintenance, six 8%, twelve 12%.
+                Running more than three families costs 3% on every aircraft for each one beyond.
+                {commonality.penalty > 0 && <span className="text-aero-warn"> Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</span>}
+              </p>
+            </Panel>
+          )}
 
           {reportHistory.length === 0 ? (
             <div className="h-48 border border-white/5 bg-black/20 rounded-sm flex flex-col items-center justify-center gap-2 text-white/40 uppercase tracking-widest text-xs font-bold">

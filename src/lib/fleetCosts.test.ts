@@ -62,3 +62,45 @@ test('a type loses popularity after eight years, by at most 15 points, and never
   assert.equal(agedPopularity(80, 13), 75);
   assert.equal(agedPopularity(10, 80), 1);
 });
+
+// --- Commonality ---------------------------------------------------------------
+
+import { fleetCommonality, familyDiscount, varietyPenalty, VARIETY_PENALTY_MAX } from './fleetCosts';
+
+const planes = (family: string, n: number, prefix = family) =>
+  Array.from({ length: n }, (_, i) => ({ registration: `${prefix}-${i}`, family, basePrice: 20_000_000, purchasedAt: 0 }));
+
+test('a family of aircraft earns a bigger maintenance discount the larger it is', () => {
+  assert.equal(familyDiscount(1), 0);
+  assert.equal(familyDiscount(3), 0.04);
+  assert.equal(familyDiscount(6), 0.08);
+  assert.equal(familyDiscount(12), 0.12);
+  assert.equal(familyDiscount(40), 0.15);
+});
+
+test('three families are free, each one beyond costs 3% on everything, to a ceiling', () => {
+  assert.equal(varietyPenalty(1), 0);
+  assert.equal(varietyPenalty(3), 0);
+  assert.ok(Math.abs(varietyPenalty(5) - 0.06) < 1e-12);
+  assert.equal(varietyPenalty(40), VARIETY_PENALTY_MAX);
+});
+
+test('ten aircraft of one family are cheaper to keep than ten of ten families', () => {
+  const same = planes('A320', 10);
+  const mixed = Array.from({ length: 10 }, (_, i) => ({ registration: `M-${i}`, family: `Type${i}`, basePrice: 20_000_000, purchasedAt: 0 }));
+  const flying = (list: { registration: string }[]) => new Set(list.map(p => p.registration));
+  const a = fleetOwnershipCost(same, flying(same), 0).total;
+  const b = fleetOwnershipCost(mixed, flying(mixed), 0).total;
+  assert.ok(a < b, `${a} vs ${b}`);
+  assert.ok(b / a > 1.1, 'a difference worth planning for');
+  assert.ok(fleetCommonality(same).meanFactor < 1);
+  assert.ok(fleetCommonality(mixed).meanFactor > 1);
+});
+
+test('the commonality report lists the biggest family first and an empty fleet is neutral', () => {
+  const fleet = [...planes('737', 5), ...planes('A320', 2, 'B')];
+  const c = fleetCommonality(fleet);
+  assert.deepEqual(c.families.map(f => [f.family, f.count]), [['737', 5], ['A320', 2]]);
+  assert.equal(c.penalty, 0);
+  assert.equal(fleetCommonality([]).meanFactor, 1);
+});

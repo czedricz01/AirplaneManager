@@ -34,8 +34,8 @@ test('an event is a malus when demand falls, or fuel rises by more than demand d
   assert.equal(isMalusEvent({ demandMultiplier: 1.1, fuelMultiplier: 1.05 }), false, 'wanderlust');
 });
 
-test('every scripted historical event would be a malus, which is why none of them is counted', () => {
-  for (const ev of historicalEvents) assert.equal(isMalusEvent(ev), true, ev.title);
+test('every scripted world event would be a malus, which is why none of them is counted', () => {
+  for (const ev of historicalEvents.filter(e => !e.regions)) assert.equal(isMalusEvent(ev), true, ev.title);
 });
 
 test('a random malus event claims its own months and as many again to recover', () => {

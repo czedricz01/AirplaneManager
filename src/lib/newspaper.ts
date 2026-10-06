@@ -19,6 +19,7 @@
  */
 import type { ChronicleEntry, DisruptionKind, RegionId } from './gameState';
 import { REGION_LABELS } from './marketing';
+import { eventScope, type EventRegion } from './eventSystem';
 import { CALENDAR_START_YEAR, formatCurrency, formatMonthLong, formatNumber } from './format';
 
 // --- Rivals ------------------------------------------------------------------------
@@ -85,6 +86,8 @@ export interface EditionEvent {
   demandMultiplier: number;
   fuelMultiplier: number;
   duration: number;
+  /** Set for a regional event; see HistoricalEvent.regions. */
+  regions?: EventRegion[];
 }
 
 /** A disruption rolled for the coming month. */
@@ -308,8 +311,8 @@ function pickStory(input: EditionInput, nextMonth: string, closedMonth: string):
   if (crisis) {
     return {
       kind: 'crisis',
-      headline: `${crisis.title} Rocks the Airline Industry`,
-      subhead: `Demand ${pct(crisis.demandMultiplier)}, fuel ${pct(crisis.fuelMultiplier)}, and experts expect it to last ${plural(crisis.duration, 'month')}`,
+      headline: crisis.regions?.length ? `${crisis.title} Hits Airlines${eventScope(crisis)}` : `${crisis.title} Rocks the Airline Industry`,
+      subhead: `Demand ${pct(crisis.demandMultiplier)}${eventScope(crisis)}${crisis.regions?.length ? '' : `, fuel ${pct(crisis.fuelMultiplier)}`}, and experts expect it to last ${plural(crisis.duration, 'month')}`,
       lead: `${crisis.description ? `${crisis.description} ` : ''}Carriers everywhere are rewriting their plans for ${nextMonth}, and ${name} is no exception.`
     };
   }
@@ -397,7 +400,7 @@ function pickStory(input: EditionInput, nextMonth: string, closedMonth: string):
     return {
       kind: 'event',
       headline: `${boom.title} Lifts the Industry`,
-      subhead: `Demand ${pct(boom.demandMultiplier)}, fuel ${pct(boom.fuelMultiplier)} for ${plural(boom.duration, 'month')}`,
+      subhead: `Demand ${pct(boom.demandMultiplier)}${eventScope(boom)}${boom.regions?.length ? '' : `, fuel ${pct(boom.fuelMultiplier)}`} for ${plural(boom.duration, 'month')}`,
       lead: `${boom.description ? `${boom.description} ` : ''}Booking offices report their busiest mornings in years.`
     };
   }
@@ -449,7 +452,7 @@ function resultsColumn(input: EditionInput, closedMonth: string): { title: strin
 function marketsColumn(input: EditionInput, nextMonth: string): { title: string; body: string } {
   const parts: string[] = [];
   for (const ev of input.eventsStarted || []) {
-    parts.push(`${ev.title} begins: demand ${pct(ev.demandMultiplier)}, fuel ${pct(ev.fuelMultiplier)} for ${plural(ev.duration, 'month')}.`);
+    parts.push(`${ev.title} begins${eventScope(ev)}: demand ${pct(ev.demandMultiplier)}${ev.regions?.length ? '' : `, fuel ${pct(ev.fuelMultiplier)}`} for ${plural(ev.duration, 'month')}.`);
   }
   for (const ev of input.eventsEnded || []) parts.push(`${ev.title} is over.`);
   const started = new Set((input.eventsStarted || []).map(e => e.title));

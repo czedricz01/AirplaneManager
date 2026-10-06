@@ -67,7 +67,9 @@ function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessag
   const fuel = signedPercent(ev.fuelMultiplier);
   return {
     id: idSeed,
-    text: `GLOBAL EVENT: "${ev.title}" begins. Demand ${demand}, fuel ${fuel}, for ${ev.duration} months.`,
+    text: ev.regions?.length
+      ? `${ev.demandMultiplier < 1 ? 'REGIONAL CRISIS' : 'REGIONAL EVENT'}: "${ev.title}" begins${eventScope(ev)}. Demand ${demand} there, for ${ev.duration} months.`
+      : `GLOBAL EVENT: "${ev.title}" begins. Demand ${demand}, fuel ${fuel}, for ${ev.duration} months.`,
     isRead: false,
     dateStr,
     details: {
@@ -77,8 +79,11 @@ function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessag
         `${ev.description}\n\nActive from ${dateStr} for ${ev.duration} months, ` +
         `through ${offsetToDateStr(ev.startOffset + ev.duration - 1)}.\n\n` +
         `Projected impact:\n` +
-        `\u2022 Global passenger demand: ${demand}\n` +
-        `\u2022 Jet fuel market index: ${fuel}\n\n` +
+        (ev.regions?.length
+          ? `\u2022 Passenger demand${eventScope(ev)}: ${demand}, on routes inside the region; a route with one end there feels half of it\n` +
+            `\u2022 Everywhere else: no change\n\n`
+          : `\u2022 Global passenger demand: ${demand}\n` +
+            `\u2022 Jet fuel market index: ${fuel}\n\n`) +
         `These multiply with any other event running at the same time.`
     }
   };
@@ -87,7 +92,7 @@ function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessag
 function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: number): GameMessage {
   return {
     id: idSeed,
-    text: `"${ev.title}" has ended. Demand and fuel return to normal.`,
+    text: ev.regions?.length ? `"${ev.title}" has ended${eventScope(ev)}. Demand there returns to normal.` : `"${ev.title}" has ended. Demand and fuel return to normal.`,
     isRead: false,
     dateStr: offsetToDateStr(endOffset),
     details: {
@@ -280,7 +285,7 @@ import {
   type GoalOffer
 } from "./lib/annualGoals";
 import { setSlotPriceFactor } from "./lib/economyContext";
-import { ageYears, agedPopularity, fleetOwnershipCost } from "./lib/fleetCosts";
+import { ageYears, agedPopularity, fleetCommonality, fleetOwnershipCost } from "./lib/fleetCosts";
 import { ownerIncome, ownedAirports } from "./lib/hubOwnership";
 import { buildTakeover, takeoverQuote, withTakenSlots } from "./lib/takeover";
 import {
@@ -345,7 +350,7 @@ const MyCompanyView = React.lazy(() => import("./components/MyCompanyView").then
 const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").then(m => ({ default: m.CompetitorsView })));
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
+import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey, eventScope, eventRegionLabel, type EventRegion } from "./lib/eventSystem";
 import { isMalusEvent, malusMonthOpen } from "./lib/malus";
 import { createOwnedAircraft, startingFleet } from "./lib/fleet";
 import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
@@ -469,6 +474,30 @@ export const randomEventTemplates = [
     demandMin: 1.10, demandMax: 1.15,
     fuelMin: 1.01, fuelMax: 1.05,
     durationMin: 3, durationMax: 4
+  },
+  {
+    title: "Regional Airspace Closure",
+    description: "A conflict and the airspace restrictions that follow cut the routes into and out of one part of the world.",
+    demandMin: 0.70, demandMax: 0.82,
+    fuelMin: 1.0, fuelMax: 1.0,
+    durationMin: 2, durationMax: 4,
+    regional: true
+  },
+  {
+    title: "Regional Tourism Boom",
+    description: "A destination goes viral and a whole region fills with visitors.",
+    demandMin: 1.12, demandMax: 1.20,
+    fuelMin: 1.0, fuelMax: 1.0,
+    durationMin: 3, durationMax: 6,
+    regional: true
+  },
+  {
+    title: "Regional Aviation Strike Wave",
+    description: "Airport and airline staff across one region take turns to strike; bookings go elsewhere.",
+    demandMin: 0.82, demandMax: 0.90,
+    fuelMin: 1.0, fuelMax: 1.0,
+    durationMin: 2, durationMax: 3,
+    regional: true
   },
   {
     title: "Geopolitical Energy Friction",
@@ -1027,6 +1056,9 @@ export default function App() {
 
   /** How many of the player's routes a campaign in each region would reach. */
   const regionRouteCounts = useMemo(() => routesByRegion(routes, airportsMapAdjusted), [routes]);
+
+  /** What the fleet's make-up does to maintenance, for My Company. */
+  const commonality = useMemo(() => fleetCommonality(fleet), [fleet]);
 
   /** The figures the rank is judged on, as they stand now, for the Career tab. */
   const rankStats = useMemo<RankStats>(() => ({
@@ -1852,13 +1884,16 @@ export default function App() {
       const demandMultiplier = Math.round((template.demandMin + Math.random() * (template.demandMax - template.demandMin)) * 100) / 100;
       const fuelMultiplier = Math.round((template.fuelMin + Math.random() * (template.fuelMax - template.fuelMin)) * 100) / 100;
 
-      const newEv = {
+      const regionPool: EventRegion[] = ['EU', 'NA', 'SA', 'AF', 'AS', 'OC'];
+      const newEv: HistoricalEvent = {
         startOffset: nextOffset,
         duration,
         title: template.title,
         description: template.description,
         demandMultiplier,
-        fuelMultiplier
+        fuelMultiplier,
+        // A regional template picks where it happens; the other templates are worldwide.
+        ...((template as { regional?: boolean }).regional ? { regions: [regionPool[Math.floor(Math.random() * regionPool.length)]] } : {})
       };
 
       if (malusOpen || !isMalusEvent(newEv)) {
@@ -4224,7 +4259,7 @@ export default function App() {
                                 ? ev.demandMultiplier + (1 - ev.demandMultiplier) * softens
                                 : ev.demandMultiplier;
                               const pct = (m: number) => `${m >= 1 ? '+' : ''}${((m - 1) * 100).toFixed(0)}%`;
-                              return `PAX: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''} | FUEL: ${pct(ev.fuelMultiplier)}`;
+                              return `PAX${eventRegionLabel(ev) ? ` (${eventRegionLabel(ev)})` : ''}: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''}${ev.regions?.length ? '' : ` | FUEL: ${pct(ev.fuelMultiplier)}`}`;
                             })()}
                          </span>
                       </div>
@@ -4373,6 +4408,7 @@ export default function App() {
                           annualGoal={annualGoal}
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}
+                          commonality={commonality}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
                           branding={branding}
                           airlineName={airlineName}
