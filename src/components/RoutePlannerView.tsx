@@ -614,6 +614,18 @@ function RoutePlannerInner({
     });
   }, [airports, destSearch, destFilters, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear]);
 
+  // How many round trips the selected aircraft can still fly on this city pair:
+  // per week (best packing of the free time) and per day (the tightest day).
+  const tripCapacity = useMemo(() => {
+    if (!selectedAircraft || !selectedOrigin || !selectedDest) return null;
+    const dur = sharedFlightDurationMinutes(selectedOrigin, selectedDest, selectedAircraft);
+    const cycleMin = Math.ceil((30 + dur + turnoverForClass(selectedAircraft.class) + dur + 30) / 5) * 5;
+    const occupied = occupiedIntervals(routes, selectedAircraft.registration, initialRouteId);
+    const perWeek = Math.max(0, findMaxFlightStarts(occupied, cycleMin, 2100).bestCount);
+    const perDay = Math.floor(dailyRunCapacity(occupied, []) / cycleMin);
+    return { cycleMin, perWeek, perDay };
+  }, [selectedAircraft, selectedOrigin, selectedDest, routes, initialRouteId]);
+
   const activeDestFilterCount = activeDestinationFilterCount(destFilters, !!selectedOrigin);
 
   // Routes grouped by aircraft, so the utilisation check below is a lookup instead of
@@ -1957,6 +1969,12 @@ function RoutePlannerInner({
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Gen. Cond</span><span className={`font-bold ${selectedAircraft.conditionGeneral < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionGeneral)}%</span></div>
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Int. Cond</span><span className={`font-bold ${selectedAircraft.conditionInterior < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionInterior)}%</span></div>
                        </div>
+                       {tripCapacity && (
+                         <div className="grid grid-cols-2 gap-2 text-3xs">
+                            <div className="bg-aero-yellow/5 p-2 border border-aero-yellow/20 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Trips / week</span><span className="font-bold text-aero-yellow">{tripCapacity.perWeek}</span></div>
+                            <div className="bg-aero-yellow/5 p-2 border border-aero-yellow/20 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Trips / day</span><span className="font-bold text-aero-yellow">{tripCapacity.perDay}</span></div>
+                         </div>
+                       )}
                     </div>
                   </div>
               )}
