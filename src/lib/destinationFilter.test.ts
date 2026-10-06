@@ -57,6 +57,16 @@ test('"not yet served" hides airports the player already flies to', () => {
   assert.equal(passesDestinationFilters(filters, airport({ served: false })), true);
 });
 
+test('"rank reachable only" hides airports the rank does not allow yet', () => {
+  const filters = withFilters({ reachableOnly: true });
+  assert.equal(passesDestinationFilters(filters, airport({ rankLocked: true })), false);
+  assert.equal(passesDestinationFilters(filters, airport({ rankLocked: false })), true);
+  assert.equal(passesDestinationFilters(filters, airport()), true);
+  // Switched off, locked airports stay in the list.
+  assert.equal(passesDestinationFilters(NO_DESTINATION_FILTERS, airport({ rankLocked: true })), true);
+  assert.equal(activeDestinationFilterCount(filters, false), 1);
+});
+
 test('distance bounds are inclusive and each one is optional', () => {
   const band = withFilters({ distance: { min: '500', max: '1500' } });
   assert.equal(passesDestinationFilters(band, airport({ distanceKm: 500 })), true);
@@ -163,6 +173,7 @@ test('stored values of the wrong shape are discarded field by field', () => {
 
   const mixed = sanitizeDestinationFilters({
     unservedOnly: 'yes',
+    reachableOnly: 1,
     distance: 5,
     business: { min: 3, max: '80' },
     tourism: { min: '10', max: null },
@@ -170,6 +181,7 @@ test('stored values of the wrong shape are discarded field by field', () => {
   });
   assert.deepEqual(mixed, {
     unservedOnly: false,
+    reachableOnly: false,
     distance: { min: '', max: '' },
     business: { min: '', max: '80' },
     tourism: { min: '10', max: '' }

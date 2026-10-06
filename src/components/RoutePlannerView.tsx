@@ -579,7 +579,9 @@ function RoutePlannerInner({
         distanceKm: dist,
         business: stats.business,
         tourism: stats.tourism,
-        served: servedIds.has(a.id)
+        served: servedIds.has(a.id),
+        // Built-up airports stay open whatever the rank, like the RANK badge in the list.
+        rankLocked: (airportManagement?.[a.id]?.level || 0) < 1 && !!airportLock?.(a)
       });
       if (!passesFilters) return false;
 
@@ -612,7 +614,7 @@ function RoutePlannerInner({
       // Default: combined
       return (statsB.tourism + statsB.business) - (statsA.tourism + statsA.business);
     });
-  }, [airports, destSearch, destFilters, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear]);
+  }, [airports, destSearch, destFilters, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear, airportLock, airportManagement]);
 
   // How many round trips the selected aircraft can still fly on this city pair:
   // per week (best packing of the free time) and per day (the tightest day).
@@ -2052,6 +2054,18 @@ function RoutePlannerInner({
                           }`}
                         >
                           Not yet served
+                        </button>
+                        <button
+                          onClick={() => setDestFilters({ ...destFilters, reachableOnly: !destFilters.reachableOnly })}
+                          aria-pressed={destFilters.reachableOnly}
+                          title="Hide airports your airline's rank does not allow yet"
+                          className={`w-full py-1 text-4xs font-black uppercase tracking-widest border transition-all ${
+                            destFilters.reachableOnly
+                              ? 'bg-aero-yellow border-aero-yellow text-black'
+                              : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30 hover:text-white'
+                          }`}
+                        >
+                          Rank reachable only
                         </button>
                         {([
                           { key: 'distance', label: 'Distance km', disabled: !selectedOrigin },
