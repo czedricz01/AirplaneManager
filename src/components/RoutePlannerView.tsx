@@ -48,6 +48,7 @@ import {
   TIME_CLASS_SAT_MULTIPLIERS,
   calculateDemand,
   calculateBasePrices,
+  eventRegionalFactor,
   getSatMultiplier,
   getPriceDemandMultiplier,
   validateClassConfigs,
@@ -970,7 +971,7 @@ function RoutePlannerInner({
     const tc = getFlightTimeClass(dur);
     const o = getAirportStats(selectedOrigin, currentYear);
     const t = getAirportStats(selectedDest, currentYear);
-    const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, tc, currentMonth, difficulty, currentYear, routeDemandFactor(playerMods, selectedOrigin, selectedDest));
+    const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, tc, currentMonth, difficulty, currentYear, routeDemandFactor(playerMods, selectedOrigin, selectedDest) * eventRegionalFactor(currentYear, currentMonth, selectedOrigin, selectedDest));
     return { d, tc, basePrices: calculateBasePrices(dist, tc), assumedAircraft: !selectedAircraft };
   }, [selectedOrigin, selectedDest, selectedAircraft, currentYear, currentMonth, difficulty, playerMods]);
 

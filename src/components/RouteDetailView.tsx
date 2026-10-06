@@ -1,3 +1,4 @@
+import { maturityNote } from '../lib/routeMaturity';
 import { FinancialReport } from "./FinancialReport";
 import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
 import React, { useState, useMemo } from 'react';
@@ -234,6 +235,9 @@ export function RouteDetailView({
               <div className="flex flex-col">
                 <span className="text-white/30 text-3xs uppercase tracking-widest font-bold mb-1">Weekly Pax</span>
                 <span className="text-2xl font-black text-aero-yellow">{formatNumber(financials?.paxPerWeek ?? route.paxPerWeek ?? 0)}</span>
+                {maturityNote(playerMods.maturity?.[route.id]) && (
+                  <span className="text-3xs font-mono text-aero-yellow/80 mt-1">{maturityNote(playerMods.maturity?.[route.id])}</span>
+                )}
                 {(financials?.transferPax ?? 0) > 0 && (
                   <span className="text-3xs font-mono text-white/50 mt-1">
                     incl. {formatNumber(financials!.transferPax)} transfer pax/wk ({formatCurrency(financials!.transferRev)})

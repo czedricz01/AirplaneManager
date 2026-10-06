@@ -1,8 +1,9 @@
-import { Compass, Flag, Plane, Wallet, Users } from 'lucide-react';
+import { Compass, Flag, Lock, Plane, Star, Wallet, Users } from 'lucide-react';
 import { SCENARIOS, type Scenario, type ScenarioRating } from '../data/scenarios';
 import { aircraftList } from '../data/aircraft';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { formatMoneyCompact, formatMonthOffset } from '../lib/format';
+import { SCENARIO_ORDER, scenarioUnlocked, type ScenarioStars } from '../lib/careerScore';
 
 const RATING_TONE: Record<ScenarioRating, string> = {
   Moderate: 'text-aero-good border-aero-good/40',
@@ -24,13 +25,15 @@ export interface ScenarioPickerProps {
   /** The picked scenario's id; null for free play. */
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** Best stars earned per scenario; a scenario opens once the one before it has a star. */
+  stars?: ScenarioStars;
 }
 
 /**
  * The new-game screen's mode picker: free play, or one of the scenarios, each
  * card saying where and when it starts, what it asks and with what.
  */
-export function ScenarioPicker({ selectedId, onSelect }: ScenarioPickerProps) {
+export function ScenarioPicker({ selectedId, onSelect, stars }: ScenarioPickerProps) {
   const card = (selected: boolean) =>
     `relative w-full h-full flex flex-col items-stretch justify-start text-left p-4 short:p-3 border rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
       selected ? 'bg-aero-yellow/10 border-aero-yellow' : 'bg-aero-carbon border-white/10 hover:border-aero-yellow/50'
@@ -51,15 +54,32 @@ export function ScenarioPicker({ selectedId, onSelect }: ScenarioPickerProps) {
       {SCENARIOS.map(sc => {
         const selected = selectedId === sc.id;
         const hub = airportsMapAdjusted.get(sc.hub);
+        const earned = stars?.[sc.id] ?? 0;
+        // Without stars given (an older caller) every scenario is open.
+        const open = !stars || scenarioUnlocked(sc.id, stars);
+        const previous = SCENARIOS.find(x => x.id === SCENARIO_ORDER[(SCENARIO_ORDER as readonly string[]).indexOf(sc.id) - 1]);
         return (
           <button
             key={sc.id}
             type="button"
             role="radio"
             aria-checked={selected}
-            onClick={() => onSelect(sc.id)}
-            className={card(selected)}
+            aria-disabled={!open}
+            onClick={() => { if (open) onSelect(sc.id); }}
+            className={`${card(selected)} ${open ? '' : 'opacity-50 cursor-not-allowed'}`}
           >
+            {!open && (
+              <div className="flex items-center gap-1.5 text-2xs font-mono text-aero-warn mb-2">
+                <Lock size={12} aria-hidden="true" /> Win {previous?.title ?? 'the scenario before'} first
+              </div>
+            )}
+            {open && stars && (
+              <div className="flex items-center gap-0.5 mb-1" aria-label={`${earned} of 3 stars`}>
+                {[1, 2, 3].map(n => (
+                  <Star key={n} size={13} aria-hidden="true" className={n <= earned ? 'text-aero-yellow fill-aero-yellow' : 'text-white/25'} />
+                ))}
+              </div>
+            )}
             <div className="flex items-start justify-between gap-2 mb-1">
               <div className="flex items-center gap-2 min-w-0">
                 <Flag size={16} className={selected ? 'text-aero-yellow shrink-0' : 'text-white/50 shrink-0'} aria-hidden="true" />

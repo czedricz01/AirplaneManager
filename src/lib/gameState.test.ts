@@ -84,3 +84,40 @@ test('a decision always has an answer that costs nothing', () => {
   assert.equal(new Set(ids).size, 2);
   assert.ok(ids[1].startsWith(FREE_OPTION_ID));
 });
+
+import { researchEffects } from './research';
+import { rollDisruptions } from './disruptions';
+
+test('finished projects change the player modifiers, and nothing finished leaves them as before', () => {
+  const base = buildPlayerModifiers({ reputation: 60, eventChoices: {} }, 100);
+  const same = buildPlayerModifiers({ reputation: 60, eventChoices: {}, research: researchEffects([]) }, 100);
+  assert.deepEqual(same, base);
+  const done = buildPlayerModifiers({ reputation: 60, eventChoices: {}, research: researchEffects(['yield-1', 'yield-2', 'cabin', 'alliance']) }, 100);
+  assert.ok(Math.abs(done.demandFactor - base.demandFactor * 1.04) < 1e-12);
+  assert.equal(done.satDelta, 2);
+  assert.equal(done.transferBoost, 0.1);
+});
+
+test('the planning suite lifts where a new route\'s demand starts', () => {
+  const routes = [{ id: 'new', openedOffset: 100 }];
+  const slow = buildPlayerModifiers({ reputation: 50, eventChoices: {}, routes }, 100);
+  const fast = buildPlayerModifiers({ reputation: 50, eventChoices: {}, routes, research: researchEffects(['planning']) }, 100);
+  assert.equal(slow.maturity!.new, 0.6);
+  assert.equal(fast.maturity!.new, 0.75);
+});
+
+test('predictive maintenance makes technical defects rarer', () => {
+  const plane = { registration: 'D-OLD', conditionGeneral: 10, purchasedAt: 0 };
+  const routes = Array.from({ length: 200 }, (_, i) => ({ id: `r${i}`, origin: 'FRA', destination: 'CDG', aircraft: 'D-OLD', schedule: [{}] }));
+  const airportsMap = new Map<string, { coords: [number, number] }>([['FRA', { coords: [50, 8] }], ['CDG', { coords: [49, 2] }]]);
+  const count = (factor: number) => {
+    let n = 0;
+    let state = 12345;
+    const rng = () => ((state = (state * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+    for (let m = 0; m < 30; m++) {
+      n += rollDisruptions(routes as any, [plane] as any, {}, 400 + m, rng, airportsMap, factor).filter(d => d.kind === 'technical').length;
+    }
+    return n;
+  };
+  assert.ok(count(0.7) < count(1), `${count(0.7)} vs ${count(1)}`);
+});

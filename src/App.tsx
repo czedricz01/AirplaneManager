@@ -67,7 +67,9 @@ function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessag
   const fuel = signedPercent(ev.fuelMultiplier);
   return {
     id: idSeed,
-    text: `GLOBAL EVENT: "${ev.title}" begins. Demand ${demand}, fuel ${fuel}, for ${ev.duration} months.`,
+    text: ev.regions?.length
+      ? `${ev.demandMultiplier < 1 ? 'REGIONAL CRISIS' : 'REGIONAL EVENT'}: "${ev.title}" begins${eventScope(ev)}. Demand ${demand} there, for ${ev.duration} months.`
+      : `GLOBAL EVENT: "${ev.title}" begins. Demand ${demand}, fuel ${fuel}, for ${ev.duration} months.`,
     isRead: false,
     dateStr,
     details: {
@@ -77,8 +79,11 @@ function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessag
         `${ev.description}\n\nActive from ${dateStr} for ${ev.duration} months, ` +
         `through ${offsetToDateStr(ev.startOffset + ev.duration - 1)}.\n\n` +
         `Projected impact:\n` +
-        `\u2022 Global passenger demand: ${demand}\n` +
-        `\u2022 Jet fuel market index: ${fuel}\n\n` +
+        (ev.regions?.length
+          ? `\u2022 Passenger demand${eventScope(ev)}: ${demand}, on routes inside the region; a route with one end there feels half of it\n` +
+            `\u2022 Everywhere else: no change\n\n`
+          : `\u2022 Global passenger demand: ${demand}\n` +
+            `\u2022 Jet fuel market index: ${fuel}\n\n`) +
         `These multiply with any other event running at the same time.`
     }
   };
@@ -87,7 +92,7 @@ function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessag
 function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: number): GameMessage {
   return {
     id: idSeed,
-    text: `"${ev.title}" has ended. Demand and fuel return to normal.`,
+    text: ev.regions?.length ? `"${ev.title}" has ended${eventScope(ev)}. Demand there returns to normal.` : `"${ev.title}" has ended. Demand and fuel return to normal.`,
     isRead: false,
     dateStr: offsetToDateStr(endOffset),
     details: {
@@ -119,44 +124,6 @@ function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: nu
  * until now airframe condition affected nothing but resale value, which made
  * the $200k general check a pure sink.
  */
-
-/**
- * Milestones. Checked at the end of each month, awarded once, announced in the
- * inbox. They are the only thing in the game that accumulates across a whole
- * career, and each one nudges reputation, which is the reward that lasts.
- */
-export interface MilestoneContext {
-  routeCount: number;
-  fleetSize: number;
-  capital: number;
-  longestRouteKm: number;
-  continents: number;
-  profitableMonthStreak: number;
-  reputation: number;
-}
-
-export const MILESTONES: {
-  id: string;
-  title: string;
-  detail: string;
-  reputationBonus: number;
-  met: (c: MilestoneContext) => boolean;
-}[] = [
-  { id: 'first-route', title: 'First route opened', detail: 'Your airline is flying.', reputationBonus: 2,
-    met: c => c.routeCount >= 1 },
-  { id: 'fleet-10', title: 'Ten aircraft', detail: 'A fleet rather than a handful of aeroplanes.', reputationBonus: 3,
-    met: c => c.fleetSize >= 10 },
-  { id: 'longhaul', title: 'First intercontinental route', detail: 'A route beyond 5,000 km.', reputationBonus: 4,
-    met: c => c.longestRouteKm >= 5000 },
-  { id: 'continents-4', title: 'Four continents served', detail: 'Your network spans four continents.', reputationBonus: 5,
-    met: c => c.continents >= 4 },
-  { id: 'capital-100m', title: '$100 million in the bank', detail: 'Enough to buy almost anything on the market.', reputationBonus: 3,
-    met: c => c.capital >= 100_000_000 },
-  { id: 'profit-12', title: 'A full year in profit', detail: 'Twelve consecutive months without a loss.', reputationBonus: 6,
-    met: c => c.profitableMonthStreak >= 12 },
-  { id: 'reputation-80', title: 'A reputation worth having', detail: 'Reputation above 80.', reputationBonus: 0,
-    met: c => c.reputation >= 80 }
-];
 
 export const REPUTATION_INERTIA = 0.15;
 
@@ -201,7 +168,9 @@ function buildRivalOffers(ais: any[] | null | undefined) {
       origin: r.origin,
       destination: r.destination,
       departures: r.departures || 0,
-      airline: ai.name
+      airline: ai.name,
+      // A rival cutting fares in a price war is that much more attractive.
+      ...(r.priceCut > 0 ? { priceAppeal: 1 / (1 - Math.min(0.5, r.priceCut)) } : {})
     }))
   );
 }
@@ -239,11 +208,13 @@ import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
 import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
 import { NewspaperOverlay } from "./components/NewspaperOverlay";
+import { GoalOfferDialog } from "./components/GoalOfferDialog";
 import {
   CAMPAIGN_SPECS,
   REGION_LABELS,
   campaignBlocker,
   campaignMonthlyCost,
+  ffpRankGate,
   createCampaign,
   dropExpiredCampaigns,
   ffpMonthlyCost,
@@ -287,6 +258,68 @@ import {
 } from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
+  MILESTONES,
+  describeReward,
+  milestonePerks,
+  newlyEarned as newlyEarnedMilestones,
+  totalReward as totalMilestoneReward,
+  type MilestoneContext
+} from "./lib/milestones";
+import {
+  RANKS,
+  RANK_NEEDED,
+  aircraftRankNeeded,
+  managementGate,
+  nextRank,
+  rankDef,
+  rankGateMessage,
+  startingRank,
+  type RankStats
+} from "./lib/airlineRank";
+import {
+  buildYearSnapshot,
+  describeGoal,
+  generateGoalOffers,
+  settleGoal,
+  type AnnualGoal,
+  type GoalOffer
+} from "./lib/annualGoals";
+import { setSlotPriceFactor } from "./lib/economyContext";
+import { ageYears, agedPopularity, fleetCommonality, fleetOwnershipCost } from "./lib/fleetCosts";
+import { ownerIncome, ownedAirports } from "./lib/hubOwnership";
+import { buildTakeover, takeoverQuote, withTakenSlots } from "./lib/takeover";
+import {
+  LAUNCH_BONUS,
+  LAUNCH_BONUS_MONTHS,
+  cancelRefund,
+  createOrder,
+  isLaunchDelivery,
+  quoteOrder,
+  settleDeliveries
+} from "./lib/preorders";
+import { type UsedListing } from "./lib/usedMarket";
+import {
+  bestStars,
+  careerScore,
+  fileCareer,
+  hallPosition,
+  normalizeHall,
+  normalizeStars,
+  scenarioUnlocked,
+  starsFor,
+  type HallOfFameEntry,
+  type ScenarioStars
+} from "./lib/careerScore";
+import { RetirementDialog } from "./components/RetirementDialog";
+import {
+  advanceResearch,
+  projectById,
+  projectCost,
+  researchEffects,
+  startBlocker as researchBlocker,
+  startProject
+} from "./lib/research";
+import {
   buildPlayerModifiers,
   createGameSystems,
   decisionTargetExists,
@@ -297,6 +330,7 @@ import {
   DEFAULT_MARKETING,
   DEFAULT_STAFF,
   type Branding,
+  type Career,
   type CampaignTier,
   type Marketing,
   type RegionId,
@@ -347,9 +381,9 @@ const MyCompanyView = React.lazy(() => import("./components/MyCompanyView").then
 const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").then(m => ({ default: m.CompetitorsView })));
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey } from "./lib/eventSystem";
+import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey, eventScope, eventRegionLabel, type EventRegion } from "./lib/eventSystem";
 import { isMalusEvent, malusMonthOpen } from "./lib/malus";
-import { createOwnedAircraft, startingFleet } from "./lib/fleet";
+import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
 import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
 import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
@@ -418,6 +452,8 @@ export interface SimulatedRoute {
   monthlyProfit?: number;
   weeklyRevenue?: number;
   weeklyCost?: number;
+  /** The month offset the route was opened; absent on routes from before ramp-up existed, which count as mature. */
+  openedOffset?: number;
 }
 
 export const randomEventTemplates = [
@@ -471,6 +507,30 @@ export const randomEventTemplates = [
     durationMin: 3, durationMax: 4
   },
   {
+    title: "Regional Airspace Closure",
+    description: "A conflict and the airspace restrictions that follow cut the routes into and out of one part of the world.",
+    demandMin: 0.70, demandMax: 0.82,
+    fuelMin: 1.0, fuelMax: 1.0,
+    durationMin: 2, durationMax: 4,
+    regional: true
+  },
+  {
+    title: "Regional Tourism Boom",
+    description: "A destination goes viral and a whole region fills with visitors.",
+    demandMin: 1.12, demandMax: 1.20,
+    fuelMin: 1.0, fuelMax: 1.0,
+    durationMin: 3, durationMax: 6,
+    regional: true
+  },
+  {
+    title: "Regional Aviation Strike Wave",
+    description: "Airport and airline staff across one region take turns to strike; bookings go elsewhere.",
+    demandMin: 0.82, demandMax: 0.90,
+    fuelMin: 1.0, fuelMax: 1.0,
+    durationMin: 2, durationMax: 3,
+    regional: true
+  },
+  {
     title: "Geopolitical Energy Friction",
     description: "Temporary political standoffs in major energy regions cause speculators to bid up fuel and hydrocarbon costs.",
     demandMin: 0.95, demandMax: 0.99,
@@ -512,15 +572,25 @@ export default function App() {
   const [eventChoices, setEventChoices] = useState<Record<string, string>>({});
   /** Airline reputation, 0-100. Starts neutral: nobody has heard of you yet. */
   const [reputation, setReputation] = useState(50);
+  /** Rank, career passengers and the annual goals on offer. */
+  const [career, setCareer] = useState<Career>(() => createGameSystems().career);
   /** Milestone ids already awarded, so each is announced once. */
   const [milestones, setMilestones] = useState<string[]>([]);
+  /** What the milestones earned so far give: cheaper slots, room for hubs. */
+  const perks = useMemo(() => milestonePerks(milestones), [milestones]);
+  // Published for the pricing code that has no access to the game state; see
+  // economyContext.ts. Set while rendering, from a pure value, so a screen
+  // never shows a price the next purchase would not charge.
+  /** What the finished development projects do; see research.ts. */
+  const researchFx = useMemo(() => researchEffects(career.research.done), [career.research.done]);
+  setSlotPriceFactor(perks.slotPriceFactor * researchFx.slotFactor);
   /** Consecutive months closed without a loss, for the profit milestone. */
   const [profitStreak, setProfitStreak] = useState(0);
   /**
    * The target set each January and settled each December. Gives the calendar a
    * rhythm: before this, which month you acted in never mattered.
    */
-  const [annualGoal, setAnnualGoal] = useState<{ year: number; targetProfit: number } | null>(null);
+  const [annualGoal, setAnnualGoal] = useState<AnnualGoal | null>(null);
   /** The event whose decision is waiting to be made, if any. */
   const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
   /** The airline's colour and badge. */
@@ -551,6 +621,14 @@ export default function App() {
   const newGameScenario = scenarioById(newGameScenarioId);
   /** The won-or-lost dialog, shown once after the close that decided the scenario. Not saved. */
   const [scenarioResultOpen, setScenarioResultOpen] = useState(false);
+  /** The annual-goal choice dialog; opens after the December close, not saved. */
+  const [goalOfferOpen, setGoalOfferOpen] = useState(false);
+  /** The ten best careers filed in this browser; see careerScore.ts. */
+  const [hall, setHall] = useState<HallOfFameEntry[]>(() => normalizeHall(readJson('neo_hall_of_fame', [])));
+  /** Best stars per scenario, kept per account in this browser. */
+  const [scenarioStars, setScenarioStars] = useState<ScenarioStars>({});
+  /** The final report of a retired career, shown until closed. Not saved. */
+  const [retirement, setRetirement] = useState<{ entry: HallOfFameEntry; position: number | null } | null>(null);
   /** The airline's history, newest last. */
   const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
   /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
@@ -644,11 +722,6 @@ export default function App() {
     [reportHistory]
   );
 
-  /** Resale value of the whole fleet, for the balance sheet. */
-  const fleetValue = useMemo(
-    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue(p), 0),
-    [fleet]
-  );
   /**
    * One-off spending since the last month rolled over.
    *
@@ -742,6 +815,12 @@ export default function App() {
 
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
+
+  /** Resale value of the whole fleet, for the balance sheet. */
+  const fleetValue = useMemo(
+    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue({ ...p, ageYears: ageYears(p, currentDateOffset) }), 0),
+    [fleet, currentDateOffset]
+  );
   
   const [uiScaleSetting, setUiScaleSettingState] = useState(() => {
     const stored = parseFloat(readString('aero_ui_scale') || '');
@@ -803,10 +882,10 @@ export default function App() {
    * receives, so the route list, the planner and the report agree.
    */
   const playerMods = useMemo(
-    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions }, currentDateOffset),
+    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions, routes, research: researchFx }, currentDateOffset),
     // randomEvents: eventReliefFactor reads the active events from module state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents]
+    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents, routes, researchFx]
   );
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
@@ -881,11 +960,12 @@ export default function App() {
   };
 
   const getFuelData = (offset: number) => {
-    const price = priceAtOffset(offset);
+    // The fuel programmes cut what the airline burns, so what it pays.
+    const price = priceAtOffset(offset) * researchFx.fuelFactor;
 
     let trend = "0%";
     if (offset > 0) {
-      const prevPrice = priceAtOffset(offset - 1);
+      const prevPrice = priceAtOffset(offset - 1) * researchFx.fuelFactor;
       if (prevPrice > 0) {
         const diff = ((price - prevPrice) / prevPrice) * 100;
         trend = diff > 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
@@ -899,7 +979,7 @@ export default function App() {
   const fuelData = useMemo(
     () => getFuelData(currentDateOffset),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentDateOffset, difficulty, eventChoices, randomEvents]
+    [currentDateOffset, difficulty, eventChoices, randomEvents, researchFx]
   );
 
   /**
@@ -1016,6 +1096,63 @@ export default function App() {
 
   /** How many of the player's routes a campaign in each region would reach. */
   const regionRouteCounts = useMemo(() => routesByRegion(routes, airportsMapAdjusted), [routes]);
+
+  /** What the fleet's make-up does to maintenance, for My Company. */
+  const commonality = useMemo(() => fleetCommonality(fleet), [fleet]);
+
+  /** The figures the rank is judged on, as they stand now, for the Career tab. */
+  const rankStats = useMemo<RankStats>(() => ({
+    routes: routes.length,
+    monthlyPax: reportHistory.length > 0 ? Math.max(0, reportHistory[reportHistory.length - 1].paxTotal ?? 0) : 0,
+    reputation,
+    regions: Object.values(regionRouteCounts).filter(n => n > 0).length
+  }), [routes.length, reportHistory, reputation, regionRouteCounts]);
+
+  /** The year of the chosen annual goal as it stands, for its progress bar. */
+  const goalSnapshot = useMemo(
+    () => annualGoal
+      ? buildYearSnapshot(reportHistory, annualGoal.year, { routes: rankStats.routes, regions: rankStats.regions, reputation })
+      : null,
+    [annualGoal, reportHistory, rankStats.routes, rankStats.regions, reputation]
+  );
+
+  /** Takes one of the board's offered goals for the coming year. */
+  const handleChooseGoal = React.useCallback((goal: AnnualGoal) => {
+    setAnnualGoal(goal);
+    setCareer(prev => ({ ...prev, goalOffer: null }));
+    setGoalOfferOpen(false);
+    setToast(`Goal for ${goal.year}: ${describeGoal(goal, formatCurrency, formatNumber)}`);
+  }, []);
+
+  /** The career so far, as a score; see careerScore.ts. */
+  const score = useMemo(() => careerScore({
+    netWorth: capital + fleetValue,
+    rank: career.rank,
+    milestones: milestones.length,
+    reputation,
+    takeovers: career.takeovers,
+    projectsDone: career.research.done.length,
+    years: Math.floor((currentDateOffset - startDateOffset) / 12)
+  }), [capital, fleetValue, career.rank, milestones.length, reputation, career.takeovers, career.research.done.length, currentDateOffset, startDateOffset]);
+
+  /** Files the career in the hall of fame and shows the final report; the game can carry on. */
+  const handleRetire = () => {
+    const entry: HallOfFameEntry = {
+      id: (currentSaveId || `career_${Date.now()}`).split('_auto_')[0],
+      airline: airlineName || 'Neo Airlines',
+      code: airlineCode,
+      score: score.total,
+      rank: career.rank,
+      years: Math.floor((currentDateOffset - startDateOffset) / 12),
+      netWorth: capital + fleetValue,
+      filed: new Date().toISOString()
+    };
+    const position = hallPosition(hall, entry);
+    const next = fileCareer(hall, entry);
+    setHall(next);
+    writeJson('neo_hall_of_fame', next);
+    setRetirement({ entry, position });
+  };
 
   /** The hub's region: where a global campaign is booked from, for the record. */
   const homeRegion = useMemo<RegionId>(() => {
@@ -1447,7 +1584,7 @@ export default function App() {
     Object.entries(airportManagement).forEach(([airportId, mgt]) => {
       const airport = localAirportsMap.get(airportId);
       if (airport) {
-         const monthlyUpkeepObj = getAirportUpkeep(airport, mgt, routes, fleet);
+         const monthlyUpkeepObj = getAirportUpkeep(airport, mgt, routes, fleet, currentYearNum);
          
          const monthSlots = monthlyUpkeepObj.slots.regional + monthlyUpkeepObj.slots.narrowbody + monthlyUpkeepObj.slots.widebody;
          const monthStands = monthlyUpkeepObj.stands.regional + monthlyUpkeepObj.stands.narrowbody + monthlyUpkeepObj.stands.widebody;
@@ -1460,6 +1597,13 @@ export default function App() {
     });
 
     const totalAirportUpkeep = managementCosts + deskCosts;
+
+    // Every aircraft is insured and kept airworthy whether it flies or not, and
+    // more so as it ages; see fleetCosts.ts.
+    const ownership = fleetOwnershipCost(fleet, flyingRegs, currentDateOffset);
+    // The airports owned outright (management tier 3) collect from the rivals
+    // that land there; see hubOwnership.ts.
+    const hubIncome = ownerIncome(airportManagement, id => localAirportsMap.get(id)?.level ?? 1, aiAirlines);
 
     // Campaigns running this month and the frequent-flyer programme. Their
     // demand and loyalty are already in this month's route figures above,
@@ -1474,15 +1618,17 @@ export default function App() {
     const charterFees = charterFeesFor(
       disruptions,
       currentDateOffset,
-      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list }, currentDateOffset), monthEnv),
+      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list, routes, research: researchFx }, currentDateOffset), monthEnv),
       revenueOf(monthNetwork)
     );
     const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - charterCosts;
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - charterCosts - ownership.total + hubIncome.total;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
     const additionalMessages: GameMessage[] = [];
+    /** Aircraft delivered this close; they join the fleet after the month's wear. */
+    let deliveredPlanes: OwnedAircraft[] = [];
 
     // --- Reputation -------------------------------------------------------
     // Only updated when something actually flew. An airline with no routes is
@@ -1520,6 +1666,18 @@ export default function App() {
       });
     });
 
+    // Passengers flown this month, every leg counted, and what the career
+    // has added up to. The rank and the passenger milestones read these.
+    const monthlyPax = Math.round(paxWeek * 4);
+    const careerPaxNow = career.careerPax + monthlyPax;
+    const regionCountNow = regionsServed(routes, localAirportsMap).size;
+    const transferPaxMonth = Math.round(
+      Object.values(monthNetwork.hubStats).reduce((sum, h) => sum + (h.pax > 0 ? h.pax * 4 : 0), 0)
+    );
+    // Money the board and the sponsors pay out this close; settled once, below.
+    let awardsCash = 0;
+    const awardLines: string[] = [];
+
     const mctx: MilestoneContext = {
       routeCount: routes.length,
       fleetSize: fleet.length,
@@ -1527,14 +1685,21 @@ export default function App() {
       longestRouteKm: longestKm,
       continents: servedContinents.size,
       profitableMonthStreak: nextStreak,
-      reputation: nextReputation
+      reputation: nextReputation,
+      careerPax: careerPaxNow,
+      transferPaxMonth,
+      hasWidebody: fleet.some(p => p.class === 'Widebody'),
+      hasSupersonic: fleet.some(p => (p.cruiseSpeed ?? 0) > 1000),
+      takeovers: career.takeovers
     };
 
-    const newlyEarned = MILESTONES.filter(m => !milestones.includes(m.id) && m.met(mctx));
+    const newlyEarned = newlyEarnedMilestones(milestones, mctx);
     if (newlyEarned.length > 0) {
       setMilestones(prev => [...prev, ...newlyEarned.map(m => m.id)]);
-      nextReputation = Math.min(100, nextReputation + newlyEarned.reduce((a, m) => a + m.reputationBonus, 0));
-      newlyEarned.forEach((m, i) => {
+      const reward = totalMilestoneReward(newlyEarned);
+      nextReputation = Math.min(100, nextReputation + reward.reputation);
+      awardsCash += reward.cash;
+      newlyEarned.forEach(m => {
         additionalMessages.push({
           id: nextMessageId(),
           text: `MILESTONE: ${m.title}`,
@@ -1543,15 +1708,37 @@ export default function App() {
           details: {
             title: m.title,
             source: 'Board of Directors',
-            content:
-              `${m.detail}\n\n` +
-              (m.reputationBonus > 0
-                ? `Reputation +${m.reputationBonus}.`
-                : `No bonus attached -- this one is the reward.`)
+            content: `${m.detail}\n\nReward: ${describeReward(m.reward, formatCurrency)}.`
           }
         });
       });
     }
+
+    // --- Rank -------------------------------------------------------------------
+    // Judged on the month's final reputation, after the milestone bonuses. A
+    // rank is never lost, so this only ever moves up.
+    const rankStats: RankStats = { routes: routes.length, monthlyPax, reputation: nextReputation, regions: regionCountNow };
+    const newRank = nextRank(career.rank, rankStats);
+    const rankUps: { title: string; detail: string }[] = [];
+    for (let r = career.rank + 1; r <= newRank; r++) {
+      const def = rankDef(r);
+      rankUps.push({ title: `Promoted to ${def.title}`, detail: `Now open: ${def.unlocks.join(', ')}.` });
+      nextReputation = Math.min(100, nextReputation + 3);
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `RANK: your airline is now a ${def.title}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `Promoted to ${def.title}`,
+          source: 'Aviation Authority',
+          content:
+            `Your network, your passengers and your reputation have earned the rank ${def.title}.\n\n` +
+            `Now open to you:\n${def.unlocks.map(u => `• ${u}`).join('\n')}\n\nReputation +3.`
+        }
+      });
+    }
+    const nextCareer: Career = { ...career, rank: newRank, careerPax: careerPaxNow };
 
 
     // Bad luck is capped at half the months (see malus.ts). Whether the coming
@@ -1568,7 +1755,8 @@ export default function App() {
       nextOffset: currentDateOffset + 1,
       strikePending: pendingDecisions.some(d => d.kind === 'strike'),
       noRoutes: routes.length === 0,
-      malusBlocked: !malusOpen
+      malusBlocked: !malusOpen,
+      moraleBonus: researchFx.moraleBonus
     }, Math.random);
     const nextStaff = staffMonth.staff;
     setStaff(nextStaff);
@@ -1660,8 +1848,17 @@ export default function App() {
         ffp: marketingCost.ffp,
         // Charters, as the report lists them per incident (older reports add repair bills).
         incidents: charterCosts,
-        charters: charterCosts
+        charters: charterCosts,
+        // Insurance and maintenance of the whole fleet, and what of it was
+        // spent on aircraft with no route; income from rivals at owned airports.
+        fleetOwnership: ownership.total,
+        fleetParked: ownership.parked,
+        fleetParkedCount: ownership.parkedCount,
+        hubIncome: hubIncome.total
       },
+      ...(hubIncome.items.length > 0
+        ? { hubIncomeItems: hubIncome.items.map(i => ({ label: `${localAirportsMap.get(i.airportId)?.name || i.airportId}: ${formatNumber(i.landings)} rival landings a week`, amount: i.amount })) }
+        : {}),
       marketingItems: marketingCost.items,
       // Only in months that had any; older reports have none.
       ...(incidents.length > 0 ? { incidents } : {})
@@ -1672,6 +1869,7 @@ export default function App() {
     setMonthlyCapex([]);
 
     // Simulate AI Controlled Airlines
+    const nextOffsetForRivals = currentDateOffset + 1;
     let aiMessages: GameMessage[] = [];
     let aisAfterTurn = aiAirlines;
     if (aiAirlines.length > 0) {
@@ -1680,11 +1878,27 @@ export default function App() {
         airports,
         currentDateOffset,
         selectedHub,
-        routes
+        routes,
+        { blocked: ownedAirports(airportManagement) }
       );
-      setAiAirlines(updatedAis);
+      // A rival wound up is eventually replaced by a new one, so the market
+      // does not empty over the decades; the game's rival count is the target.
+      let afterTurn = updatedAis;
+      if (updatedAis.length < aiAirlinesCount && Math.random() < 0.15) {
+        const fresh = generateAiAirlines(1, aiDifficulty, selectedHub, nextOffsetForRivals, airlineCode, branding.color, updatedAis);
+        if (fresh.length > 0) {
+          afterTurn = [...updatedAis, ...fresh];
+          newMessages.push({
+            id: nextMessageId(),
+            text: `NEW RIVAL: ${fresh[0].name} (${fresh[0].code}) starts flying from ${fresh[0].hub}.`,
+            isRead: false,
+            dateStr: offsetToDateStr(currentDateOffset)
+          });
+        }
+      }
+      setAiAirlines(afterTurn);
       aiMessages = newMessages;
-      aisAfterTurn = updatedAis;
+      aisAfterTurn = afterTurn;
     }
 
     const nextOffset = currentDateOffset + 1;
@@ -1743,13 +1957,16 @@ export default function App() {
       const demandMultiplier = Math.round((template.demandMin + Math.random() * (template.demandMax - template.demandMin)) * 100) / 100;
       const fuelMultiplier = Math.round((template.fuelMin + Math.random() * (template.fuelMax - template.fuelMin)) * 100) / 100;
 
-      const newEv = {
+      const regionPool: EventRegion[] = ['EU', 'NA', 'SA', 'AF', 'AS', 'OC'];
+      const newEv: HistoricalEvent = {
         startOffset: nextOffset,
         duration,
         title: template.title,
         description: template.description,
         demandMultiplier,
-        fuelMultiplier
+        fuelMultiplier,
+        // A regional template picks where it happens; the other templates are worldwide.
+        ...((template as { regional?: boolean }).regional ? { regions: [regionPool[Math.floor(Math.random() * regionPool.length)]] } : {})
       };
 
       if (malusOpen || !isMalusEvent(newEv)) {
@@ -1764,7 +1981,7 @@ export default function App() {
     // already leave the cancelled flights out; the month's close books that.
     // A month the malus ceiling holds clear is not rolled for at all.
     const rolledDisruptions = malusOpen
-      ? rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap)
+      ? rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap, researchFx.defectFactor)
       : [];
     const nextDisruptions = [...dropPastDisruptions(disruptions, nextOffset), ...rolledDisruptions];
     if (nextDisruptions.length !== disruptions.length || rolledDisruptions.length > 0) setDisruptions(nextDisruptions);
@@ -1814,60 +2031,205 @@ export default function App() {
     }
 
     // --- Annual goal -------------------------------------------------------
-    // Settled in December against the twelve months just closed, then a new one
-    // is set for January. The target is 15% above what the year actually
-    // delivered, with a floor so the first year is not trivially met.
+    // Each December the board settles the goal the player picked for the year
+    // and puts three goals for the next one. An offer still unanswered when the
+    // next year's first month closes is settled by taking the steady goal.
     const closingYear = currentYearNum;
     const isDecember = currentMonthNum === 12;
-    let goalResult: { year: number; target: number; achieved: number; met: boolean } | null = null;
+    const nowFigures = { routes: routes.length, regions: regionCountNow, reputation: nextReputation };
+    let goalResult: { year: number; target: number; achieved: number; met: boolean; text?: string } | null = null;
+    let activeGoal = annualGoal;
+    if (nextCareer.goalOffer && nextCareer.goalOffer.year <= closingYear && (!activeGoal || activeGoal.year < nextCareer.goalOffer.year)) {
+      const fallback = nextCareer.goalOffer.options[0];
+      activeGoal = fallback;
+      setAnnualGoal(fallback);
+      nextCareer.goalOffer = null;
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `TARGET FOR ${fallback.year}: the board set the standard goal, ${describeGoal(fallback, formatCurrency, formatNumber)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `${fallback.year} target`,
+          source: 'Board of Directors',
+          content:
+            `The board waited for your choice and, having none, set the standard goal for ${fallback.year}: ` +
+            `${describeGoal(fallback, formatCurrency, formatNumber)}.\n\nMeeting it is worth ${fallback.reward.reputation} reputation.`
+        }
+      });
+    }
     if (isDecember) {
-      const yearReports = [...reportHistory, report].filter(
-        r => r && r.year === closingYear
+      const yearSnap = buildYearSnapshot(
+        [...reportHistory, { ...report, paxTotal: monthlyPax }],
+        closingYear,
+        nowFigures
       );
-      const achieved = yearReports.reduce((a, r) => a + (r.totalProfit || 0), 0);
 
-      if (annualGoal && annualGoal.year === closingYear) {
-        const met = achieved >= annualGoal.targetProfit;
-        goalResult = { year: closingYear, target: annualGoal.targetProfit, achieved, met };
-        if (met) nextReputation = Math.min(100, nextReputation + 4);
+      if (activeGoal && activeGoal.year === closingYear) {
+        const settled = settleGoal(activeGoal, yearSnap);
+        const summary = describeGoal(activeGoal, formatCurrency, formatNumber);
+        goalResult = {
+          year: closingYear,
+          target: activeGoal.target,
+          achieved: settled.achieved,
+          met: settled.met,
+          text: settled.met
+            ? `${closingYear} goal met: ${summary}.`
+            : `${closingYear} goal missed: ${summary}.`
+        };
+        nextReputation = Math.max(0, Math.min(100, nextReputation + settled.reputation));
+        awardsCash += settled.cash;
         additionalMessages.push({
           id: nextMessageId(),
-          text: met
-            ? `TARGET MET: ${closingYear} closed at ${formatCurrency(achieved)}.`
-            : `TARGET MISSED: ${closingYear} closed at ${formatCurrency(achieved)}.`,
+          text: settled.met ? `GOAL MET: ${summary}.` : `GOAL MISSED: ${summary}.`,
           isRead: false,
           dateStr: offsetToDateStr(currentDateOffset),
           details: {
             title: `${closingYear} annual result`,
             source: 'Board of Directors',
             content:
-              `Target for ${closingYear}: ${formatCurrency(annualGoal.targetProfit)}\n` +
-              `Achieved: ${formatCurrency(achieved)}\n\n` +
-              (met ? 'The board is satisfied. Reputation +4.' : 'The board expected more.')
+              `Goal for ${closingYear}: ${summary}\n\n` +
+              (settled.met
+                ? `The board is satisfied. Reputation +${settled.reputation}` +
+                  (settled.cash > 0 ? ` and a bonus of ${formatCurrency(settled.cash)}.` : '.')
+                : `The board expected more. Reputation ${settled.reputation}.`)
           }
         });
       }
 
-      const nextTarget = Math.max(2_000_000, Math.round(achieved * 1.15));
-      setAnnualGoal({ year: closingYear + 1, targetProfit: nextTarget });
+      const options = generateGoalOffers(closingYear + 1, {
+        lastYearProfit: yearSnap.profit,
+        lastYearPax: yearSnap.pax,
+        routes: routes.length,
+        regions: regionCountNow,
+        reputation: nextReputation
+      });
+      nextCareer.goalOffer = { year: closingYear + 1, options };
+      setAnnualGoal(null);
+      setGoalOfferOpen(true);
       additionalMessages.push({
         id: nextMessageId(),
-        text: `TARGET FOR ${closingYear + 1}: ${formatCurrency(nextTarget)} operating profit.`,
+        text: `GOALS FOR ${closingYear + 1}: the board asks you to choose one.`,
         isRead: false,
         dateStr: offsetToDateStr(currentDateOffset),
         details: {
-          title: `${closingYear + 1} target`,
+          title: `${closingYear + 1} goals`,
           source: 'Board of Directors',
           content:
-            `The board expects ${formatCurrency(nextTarget)} of operating profit across ${closingYear + 1}, ` +
-            `15% above what ${closingYear} delivered.\n\nMeeting it is worth 4 reputation.`
+            `The board offers three goals for ${closingYear + 1}:\n\n` +
+            options.map(o => `• ${describeGoal(o, formatCurrency, formatNumber)} -- reputation +${o.reward.reputation}` +
+              (o.reward.cash > 0 ? `, bonus ${formatCurrency(o.reward.cash)}` : '') +
+              `; missing it costs ${o.penalty} reputation`).join('\n') +
+            `\n\nChoose one under My Company > Overview. Without a choice the first is taken when ${closingYear + 1} begins.`
         }
       });
     }
 
-    // Written once, after both the milestone and the annual-goal bonuses have
+    // --- Anniversaries ------------------------------------------------------------
+    // Every ten years the board takes stock and points out that the airline may
+    // retire at any time.
+    if (currentDateOffset + 1 > startDateOffset && (currentDateOffset + 1 - startDateOffset) % 120 === 0) {
+      const years = (currentDateOffset + 1 - startDateOffset) / 12;
+      const snapshot = careerScore({
+        netWorth: capital + totalMonthlyProfit + fleetValue,
+        rank: nextCareer.rank,
+        milestones: milestones.length + newlyEarned.length,
+        reputation: nextReputation,
+        takeovers: nextCareer.takeovers,
+        projectsDone: nextCareer.research.done.length,
+        years
+      });
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `ANNIVERSARY: ${years} years of ${airlineName || 'Neo Airlines'}. Career score ${formatNumber(snapshot.total)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `${years} years`,
+          source: 'Board of Directors',
+          content:
+            `The board looks back on ${years} years: career score ${formatNumber(snapshot.total)}.\n\n` +
+            `You may retire at any time under My Company > Career: the career is filed in the hall of fame, and you can play on.`
+        }
+      });
+    }
+
+    // --- Development --------------------------------------------------------------
+    const research = advanceResearch(nextCareer.research, currentDateOffset + 1);
+    nextCareer.research = research.state;
+    for (const project of research.completed) {
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `DEVELOPMENT: "${project.title}" is complete.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: { title: project.title, source: 'Development department', content: `${project.detail}\n\nThe effect is in place from next month.` }
+      });
+    }
+
+    // --- Deliveries ---------------------------------------------------------------
+    // Ordered aircraft arrive when their month comes, paid for from the cash
+    // the month leaves; see preorders.ts. They join the fleet after the month's
+    // wear is applied, so a new aircraft is not worn on arrival.
+    const deliveryMonth = currentDateOffset + 1;
+    const book = settleDeliveries(nextCareer.orders, deliveryMonth, capital + totalMonthlyProfit);
+    nextCareer.orders = book.remaining;
+    deliveredPlanes = [];
+    for (const o of book.delivered) {
+      const spec = aircraftList.find(a => a.id === o.aircraftId);
+      if (!spec) continue;
+      const { config, baseInteriorPop } = defaultCabin(spec);
+      const made = createOwnedAircraft(spec, o.quantity, {
+        config,
+        baseInteriorPop,
+        hub: selectedHub || 'FRA',
+        existingRegistrations: [...fleet.map(p => p.registration), ...deliveredPlanes.map(p => p.registration)],
+        purchasedAt: deliveryMonth
+      });
+      const launch = isLaunchDelivery(spec, deliveryMonth);
+      deliveredPlanes.push(...made.map(p => launch ? { ...p, popularity: p.popularity + LAUNCH_BONUS, launchBonusUntil: deliveryMonth + LAUNCH_BONUS_MONTHS } : p));
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `DELIVERY: ${o.quantity} \u00d7 ${spec.manufacturer} ${spec.type} have arrived.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: 'Aircraft delivered',
+          source: 'Manufacturer',
+          content:
+            `${o.quantity} \u00d7 ${spec.manufacturer} ${spec.type} joined your fleet at ${selectedHub || 'FRA'}, with the standard economy cabin. ` +
+            `The balance of ${formatCurrency(o.unitPrice * o.quantity - o.deposit)} was paid on delivery.` +
+            (launch ? ` As a launch customer you get +${LAUNCH_BONUS} popularity on them for ${LAUNCH_BONUS_MONTHS} months.` : '')
+        }
+      });
+    }
+    for (const o of book.postponed) {
+      const spec = aircraftList.find(a => a.id === o.aircraftId);
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `DELIVERY DELAYED: ${spec ? `${spec.manufacturer} ${spec.type}` : 'an order'} slips a month; the balance could not be paid.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset)
+      });
+    }
+    for (const o of book.cancelled) {
+      const spec = aircraftList.find(a => a.id === o.aircraftId);
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `ORDER CANCELLED: the manufacturer gave up on your order of ${spec ? `${spec.manufacturer} ${spec.type}` : 'aircraft'}; the deposit of ${formatCurrency(o.deposit)} is lost.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset)
+      });
+    }
+    if (book.charged > 0) {
+      setCapital(prev => prev - book.charged);
+      setMonthlyCapex(prev => addCapexItem(prev, 'Aircraft Deliveries', book.charged));
+    }
+
+    // Written once, after the milestone, rank and annual-goal bonuses have all
     // had their say. Setting it earlier silently dropped the December bonus.
     setReputation(nextReputation);
+    setCareer(nextCareer);
 
     // 3. Announce every event that starts or ends with this tick.
     const afterEvents = getActiveEvents(nextOffset);
@@ -1901,8 +2263,17 @@ export default function App() {
     const hubsNow = Object.entries(monthNetwork.hubStats)
       .filter(([, h]) => h.pax > 0)
       .map(([id, h]) => ({ id, name: localAirportsMap.get(id)?.name || id, pax: h.pax * 4 }));
+    // Prizes and bonuses paid at this close enter the report as negative
+    // one-off spending, so cash change and capital still reconcile.
+    const awardedCash = awardsCash;
+    const awardedItems = awardedCash > 0 ? [{ label: 'Board prizes & bonuses', amount: -awardedCash }] : [];
+    if (awardedCash > 0) setCapital(prev => prev + awardedCash);
     const fullReport = {
       ...report,
+      capex: report.capex - awardedCash,
+      capexItems: [...report.capexItems, ...awardedItems],
+      cashChange: report.cashChange + awardedCash,
+      capitalAfter: report.capitalAfter + awardedCash,
       reputation: nextReputation,
       morale: nextStaff.morale,
       paxTotal: Math.round(paxWeek * 4),
@@ -1920,11 +2291,11 @@ export default function App() {
     const monthChronicle = chronicleEntriesForMonth(chronicle, {
       offset: currentDateOffset,
       profit: totalMonthlyProfit,
-      capitalAfter: capital + totalMonthlyProfit,
+      capitalAfter: capital + totalMonthlyProfit + awardedCash,
       reputation: nextReputation,
       reputationBefore: reputation,
       history: reportHistory,
-      milestones: newlyEarned,
+      milestones: [...newlyEarned, ...rankUps],
       goal: goalResult,
       eventsStarted,
       eventsEnded: eventsEnded.map(ev => ({ title: ev.title, endOffset: nextOffset })),
@@ -1948,6 +2319,7 @@ export default function App() {
     // the game carries on as free play, no longer judged.
     const runningScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
     let scenarioDecided: { title: string; won: boolean; reason: string } | null = null;
+    let earnedStars = 0;
     if (scenario && runningScenario) {
       const closingCapital = capital + totalMonthlyProfit;
       const evaluation = evaluateScenario(runningScenario, {
@@ -1964,17 +2336,30 @@ export default function App() {
         const won = evaluation.status === 'won';
         const reason = evaluation.reason || '';
         scenarioDecided = { title: runningScenario.title, won, reason };
+        // Stars for how fast it was won; the best of every try is kept.
+        earnedStars = starsFor(
+          won,
+          currentDateOffset - scenario.startedOffset + 1,
+          runningScenario.deadlineOffset - scenario.startedOffset + 1
+        );
+        if (earnedStars > 0) {
+          const nextStars = bestStars(scenarioStars, runningScenario.id, earnedStars);
+          if (nextStars !== scenarioStars) {
+            setScenarioStars(nextStars);
+            writeJson(`neo_scenario_stars:${userId || 'local'}`, nextStars);
+          }
+        }
         setScenario({ ...scenario, status: evaluation.status, result: { offset: currentDateOffset, reason } });
         setScenarioResultOpen(true);
         monthChronicle.push({
           offset: currentDateOffset,
           kind: 'scenario',
           key: 'scenario:result',
-          text: `Scenario "${runningScenario.title}" ${won ? 'won' : 'lost'}. ${reason}`
+          text: `Scenario "${runningScenario.title}" ${won ? `won with ${earnedStars} star${earnedStars === 1 ? '' : 's'}` : 'lost'}. ${reason}`
         });
         additionalMessages.push({
           id: nextMessageId(),
-          text: won ? `SCENARIO WON: ${runningScenario.title}.` : `SCENARIO LOST: ${runningScenario.title}.`,
+          text: won ? `SCENARIO WON: ${runningScenario.title} (${'\u2605'.repeat(earnedStars)}${'\u2606'.repeat(3 - earnedStars)}).` : `SCENARIO LOST: ${runningScenario.title}.`,
           isRead: false,
           dateStr: offsetToDateStr(currentDateOffset),
           details: {
@@ -1982,6 +2367,7 @@ export default function App() {
             source: 'Board of Directors',
             content:
               `${reason}\n\n` +
+              (won ? `Stars: ${earnedStars} of 3. Two for winning within three quarters of the time, three within half.\n\n` : '') +
               `Capital ${formatCurrency(closingCapital)}, ${routes.length} route${routes.length === 1 ? '' : 's'}, ` +
               `${fleet.length} aircraft, reputation ${Math.round(nextReputation)}.\n\n` +
               `The airline is yours to fly on as a free game; the scenario is no longer judged.`
@@ -2004,7 +2390,7 @@ export default function App() {
       prevReport: latestReport,
       profitHistory: reportHistory.map(r => r.totalProfit),
       chronicle: monthChronicle,
-      milestones: newlyEarned,
+      milestones: [...newlyEarned, ...rankUps],
       eventsStarted,
       eventsEnded,
       eventsRunning: afterEvents,
@@ -2075,7 +2461,7 @@ export default function App() {
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
     const nextMods = buildPlayerModifiers({
-      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions
+      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions, routes, research: researchFx
     }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
     const nextEnv = {
@@ -2108,7 +2494,7 @@ export default function App() {
     if (majorCandidates.length > 0) {
       const staffBeforeStrike: Staff = { ...nextStaff, strike: staffMonth.strikeCalled ? null : nextStaff.strike };
       const revenueWith = (list: Disruption[]) => networkRevenue(repricedNext, buildPlayerModifiers({
-        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list
+        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list, routes, research: researchFx
       }, nextOffset), nextEnv);
       const allCancelling = staffMonth.strikeCalled ? revenueWith(nextDisruptions) : revenueOf(nextNetwork);
       const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, revenueWith, allCancelling)]));
@@ -2167,12 +2553,20 @@ export default function App() {
         GC_MONTHLY_CAP
       );
 
+      // Passengers like an old aircraft less, whatever its condition: the
+      // type's popularity from the catalogue, less what its age takes.
+      const catalog = aircraftList.find(a => a.id === plane.id)?.popularity;
+      const launchBonus = plane.launchBonusUntil !== undefined && nextOffset < plane.launchBonusUntil ? LAUNCH_BONUS : 0;
+      const popularity = catalog === undefined ? plane.popularity : agedPopularity(catalog, ageYears(plane, nextOffset)) + launchBonus;
+
       return {
         ...plane,
+        popularity,
         conditionInterior: Math.max(0, plane.conditionInterior - interiorDecay),
         conditionGeneral: Math.max(0, plane.conditionGeneral - airframeDecay)
       };
     }));
+    if (deliveredPlanes.length > 0) setFleet(prev => [...prev, ...deliveredPlanes]);
   };
 
   const [sessionKey, setSessionKey] = useState(Date.now());
@@ -2296,6 +2690,7 @@ export default function App() {
       pendingDecisions,
       scenario,
       chronicle,
+      career,
       tutorialStep
     };
     
@@ -2318,6 +2713,11 @@ export default function App() {
     }
     setShowSaveMenu(false);
   };
+
+  // Stars earned in scenarios, kept per account in this browser.
+  useEffect(() => {
+    setScenarioStars(normalizeStars(readJson(`neo_scenario_stars:${userId || 'local'}`, {})));
+  }, [userId]);
 
   useEffect(() => {
     if (pendingAutosave) {
@@ -2354,16 +2754,16 @@ export default function App() {
    * company view, so they keep one identity and read the current cash, month
    * and campaigns from here rather than closing over a stale render.
    */
-  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax });
-  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax };
+  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank });
+  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank };
 
   /**
    * Books a campaign from this month on. It is paid month by month at each
    * close, so launching needs only the first month in the bank.
    */
   const handleLaunchCampaign = React.useCallback((tier: CampaignTier, region: RegionId, months: number) => {
-    const { capital: cash, currentDateOffset: offset, marketing: current } = marketingCtx.current;
-    const blocker = campaignBlocker(current, tier, region, offset);
+    const { capital: cash, currentDateOffset: offset, marketing: current, rank } = marketingCtx.current;
+    const blocker = campaignBlocker(current, tier, region, offset, rank);
     if (blocker) {
       setAppAlert(blocker);
       return;
@@ -2387,8 +2787,13 @@ export default function App() {
 
   /** Starts or ends the frequent-flyer programme. Ending it throws away the loyalty built up. */
   const handleSetFfp = React.useCallback((active: boolean) => {
-    const { capital: cash, currentDateOffset: offset, projectedMonthlyPax: pax } = marketingCtx.current;
+    const { capital: cash, currentDateOffset: offset, projectedMonthlyPax: pax, rank } = marketingCtx.current;
     if (active) {
+      const gate = ffpRankGate(rank);
+      if (gate) {
+        setAppAlert(gate);
+        return;
+      }
       const cost = ffpMonthlyCost(pax);
       if (cash < cost) {
         setAppAlert(`Not enough cash: the frequent flyer programme would cost about ${formatCurrency(cost)} this month, and you have ${formatCurrency(cash)}.`);
@@ -2421,6 +2826,7 @@ export default function App() {
     setPendingDecisions(systems.pendingDecisions);
     setScenario(systems.scenario);
     setChronicle(systems.chronicle);
+    setCareer(systems.career);
     setTutorialStep(systems.tutorialStep);
   };
 
@@ -2439,6 +2845,7 @@ export default function App() {
     applyGameSystems(createGameSystems());
     setBirdStrikeAlerts([]);
     setScenarioResultOpen(false);
+    setGoalOfferOpen(false);
     setEdition(null);
     setIsNewspaperOpen(false);
     const welcome = [createWelcomeMessage()];
@@ -2524,6 +2931,7 @@ export default function App() {
     setRandomEventsState(saveObj.randomEvents);
     setRuntimeRandomEvents(saveObj.randomEvents);
     applyGameSystems(saveObj);
+    if (saveObj.career?.goalOffer) setGoalOfferOpen(true);
 
     setSessionKey(Date.now());
     setCurrentSaveId(slotId);
@@ -2539,6 +2947,7 @@ export default function App() {
    * fills in the fields it sets, which stay locked while it is picked.
    */
   const pickNewGameScenario = (id: string | null) => {
+    if (id !== null && !scenarioUnlocked(id, scenarioStars)) return;
     setNewGameScenarioId(id);
     const chosen = scenarioById(id);
     if (!chosen) return;
@@ -2571,8 +2980,13 @@ export default function App() {
     // editors carried over from a game played earlier.
     resetTransientGameState();
     // A new game offers the tutorial, unless it was switched off.
+    const startFleet = chosen ? startingFleet(chosen) : [];
     const systems: GameSystems = {
       ...createGameSystems(),
+      career: {
+        ...createGameSystems().career,
+        rank: startingRank({ routes: 0, monthlyPax: 0, reputation: 50, regions: 0 }, startFleet, chosen?.startRank ?? 0)
+      },
       branding: { ...(keepBranding ?? newGameBranding) },
       tutorialStep: gameSettings.tutorial ? 0 : null,
       ...(chosen ? {
@@ -2594,7 +3008,7 @@ export default function App() {
     setCurrentDateOffset(start);
     setCapital(initialCapital);
     // A scenario's aircraft come free, through the same code a purchase uses.
-    setFleet(chosen ? startingFleet(chosen) : []);
+    setFleet(startFleet);
     setAirportManagement({ 
       [hub]: {
         level: 2,
@@ -2648,7 +3062,7 @@ export default function App() {
   // can keep one identity for the life of the app; inline arrows here used to
   // defeat React.memo on every render of App.
   const handleSellAircraft = React.useCallback((plane: OwnedAircraft) => {
-    const value = getAircraftResaleValue(plane);
+    const value = getAircraftResaleValue({ ...plane, ageYears: ageYears(plane, marketingCtx.current.currentDateOffset) });
 
     // Recorded like any other one-off amount, so the month's report explains
     // the jump in capital instead of leaving it unaccounted for.
@@ -2684,6 +3098,11 @@ export default function App() {
    * the console's applied the tier's effects.
    */
   const handleUnlockManagement = (airportId: string, tier: ManagementLevel) => {
+    const gate = managementGate(tier, career.rank, perks.extraHubs, airportManagement, airportId);
+    if (gate) {
+      setAppAlert(gate);
+      return;
+    }
     const cost = getManagementUnlockCost(airportsMapAdjusted.get(airportId)?.level || 1, tier);
     if (capital < cost) {
       setAppAlert(`Unlocking T${tier} management at ${airportId} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
@@ -2691,6 +3110,118 @@ export default function App() {
     }
     spend(cost, `Airport Management T${tier}`);
     setAirportManagement(prev => ({ ...prev, [airportId]: applyManagementUnlock(prev[airportId], tier) }));
+  };
+
+  /** Starts a development project; the cost is paid at once. */
+  const handleStartResearch = (projectId: string) => {
+    const project = projectById(projectId);
+    if (!project) return;
+    const year = 1960 + Math.floor(currentDateOffset / 12);
+    const blocker = researchBlocker(career.research, project, career.rank, capital, year);
+    if (blocker) {
+      setAppAlert(blocker);
+      return;
+    }
+    const cost = projectCost(project, year);
+    spend(cost, 'Development Projects');
+    setCareer(prev => ({ ...prev, research: startProject(prev.research, projectId, currentDateOffset) }));
+    setToast(`Development started: ${project.title} (${project.months} months)`);
+  };
+
+  /** The standard cabin a delivered or second-hand aircraft arrives with. */
+  const plainCabin = (spec: Aircraft) => defaultCabin(spec);
+
+  /** Places an order for aircraft not yet delivered. Pays the deposit now. */
+  const handlePlaceOrder = (spec: Aircraft, quantity: number) => {
+    const gate = rankGateMessage(career.rank, aircraftRankNeeded(spec), `The ${spec.manufacturer} ${spec.type}`);
+    if (gate) {
+      setAppAlert(`${gate} Nothing was ordered.`);
+      return;
+    }
+    const quote = quoteOrder(spec, quantity);
+    if (capital < quote.deposit) {
+      setAppAlert(`The deposit is ${formatCurrency(quote.deposit)}, but you only have ${formatCurrency(capital)}. Nothing was ordered.`);
+      return;
+    }
+    const order = createOrder(spec, quantity, currentDateOffset, `ord_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`);
+    spend(order.deposit, 'Aircraft Deposits');
+    setCareer(prev => ({ ...prev, orders: [...prev.orders, order] }));
+    setToast(`Ordered ${order.quantity} \u00d7 ${spec.manufacturer} ${spec.type}: delivery ${offsetToDateStr(order.deliveryOffset)}`);
+  };
+
+  /** Cancels an order; half the deposit comes back. */
+  const handleCancelOrder = (orderId: string) => {
+    const order = career.orders.find(o => o.id === orderId);
+    if (!order) return;
+    const refund = cancelRefund(order);
+    spend(-refund, 'Aircraft Deposits');
+    setCareer(prev => ({ ...prev, orders: prev.orders.filter(o => o.id !== orderId) }));
+    setToast(`Order cancelled: ${formatCurrency(refund)} of the deposit returned`);
+  };
+
+  /** Buys a second-hand aircraft from this month's listings. */
+  const handleBuyUsed = (listing: UsedListing) => {
+    const spec = aircraftList.find(a => a.id === listing.aircraftId);
+    if (!spec) return;
+    const gate = rankGateMessage(career.rank, aircraftRankNeeded(spec), `The ${spec.manufacturer} ${spec.type}`);
+    if (gate) {
+      setAppAlert(`${gate} Nothing was bought.`);
+      return;
+    }
+    if (career.usedSold.offset === currentDateOffset && career.usedSold.ids.includes(listing.id)) return;
+    if (capital < listing.price) {
+      setAppAlert(`This aircraft costs ${formatCurrency(listing.price)}, but you only have ${formatCurrency(capital)}. Nothing was bought.`);
+      return;
+    }
+    const { config, baseInteriorPop } = plainCabin(spec);
+    const [plane] = createOwnedAircraft(spec, 1, {
+      config,
+      baseInteriorPop,
+      hub: selectedHub || 'FRA',
+      existingRegistrations: fleet.map(p => p.registration),
+      purchasedAt: currentDateOffset - listing.ageMonths
+    });
+    spend(listing.price, 'Used Aircraft');
+    setFleet(prev => [...prev, { ...plane, conditionGeneral: listing.conditionGeneral, conditionInterior: listing.conditionInterior }]);
+    setCareer(prev => ({
+      ...prev,
+      usedSold: {
+        offset: currentDateOffset,
+        ids: [...(prev.usedSold.offset === currentDateOffset ? prev.usedSold.ids : []), listing.id]
+      }
+    }));
+    setToast(`Bought a ${(listing.ageMonths / 12).toFixed(1)}-year-old ${spec.manufacturer} ${spec.type} for ${formatCurrency(listing.price)}`);
+  };
+
+  /**
+   * Buys a rival airline: its aircraft join the fleet, its slots at its home
+   * airport become the player's, and it leaves the game. The price and the
+   * rank needed come from takeoverQuote.
+   */
+  const handleTakeover = (aiId: string) => {
+    const target = aiAirlines.find(a => a.id === aiId);
+    if (!target) return;
+    const quote = takeoverQuote(target, career.rank);
+    if (quote.blocked) {
+      setAppAlert(quote.blocked);
+      return;
+    }
+    if (capital < quote.price) {
+      setAppAlert(`Buying ${target.name} costs ${formatCurrency(quote.price)}, but you only have ${formatCurrency(capital)}.`);
+      return;
+    }
+    const deal = buildTakeover(target, fleet.map(p => p.registration));
+    spend(quote.price, 'Airline Takeover');
+    setFleet(prev => [...prev, ...deal.aircraft]);
+    setAirportManagement(prev => ({ ...prev, [deal.hub]: withTakenSlots(prev[deal.hub], deal.slots) }));
+    setAiAirlines(prev => prev.filter(a => a.id !== aiId));
+    setCareer(prev => ({ ...prev, takeovers: prev.takeovers + 1 }));
+    setReputation(prev => Math.min(100, prev + 2));
+    setAppAlert(
+      `SUCCESS: ${target.name} is yours for ${formatCurrency(quote.price)}. ${deal.aircraft.length} aircraft joined your fleet` +
+      `${deal.slots.narrowbody + deal.slots.regional + deal.slots.widebody > 0 ? ` and you took over its slots at ${deal.hub}` : ''}. ` +
+      `The airline's routes are gone; plan new ones with your new aircraft.`
+    );
   };
 
   const handleDeleteRoute = React.useCallback((id: string) => setRoutes(prev => prev.filter(r => r.id !== id)), []);
@@ -2764,6 +3295,13 @@ export default function App() {
     totalCost: number
   ) => {
     let isRenovating = 'registration' in aircraft;
+    if (!isRenovating) {
+      const gate = rankGateMessage(career.rank, aircraftRankNeeded(aircraft), `The ${aircraft.manufacturer} ${aircraft.type}`);
+      if (gate) {
+        setAppAlert(`${gate} Nothing was bought.`);
+        return;
+      }
+    }
     if (capital < totalCost) {
       setAppAlert(
         `${isRenovating ? 'This refit' : 'This purchase'} costs ${formatCurrency(totalCost)}, ` +
@@ -3051,6 +3589,23 @@ export default function App() {
               </Modal>
             );
           })()}
+          <RetirementDialog
+            open={!!retirement}
+            airline={airlineName}
+            score={score}
+            entry={retirement?.entry ?? null}
+            position={retirement?.position ?? null}
+            hall={hall}
+            onKeepPlaying={() => setRetirement(null)}
+            onMainMenu={() => { setRetirement(null); returnToMainMenu(); }}
+          />
+          {/* The board's goals for the coming year, after the December close. */}
+          <GoalOfferDialog
+            offer={career.goalOffer}
+            open={goalOfferOpen && !pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0}
+            onChoose={handleChooseGoal}
+            onLater={() => setGoalOfferOpen(false)}
+          />
           {/* A bird strike: the bill is paid already, this only says so. Waits
               for the newspaper and any question, like they wait for each other. */}
           {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0 && birdStrikeAlerts.length > 0 && (() => {
@@ -3393,7 +3948,7 @@ export default function App() {
                   <div className="space-y-8 bar:space-y-5 max-w-2xl mx-auto short:max-w-none short:space-y-0 short:grid short:grid-cols-2 short:gap-x-6 short:gap-y-3">
                     <div className="space-y-4 short:space-y-2 short:col-span-2">
                       <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
-                      <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} />
+                      <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} stars={scenarioStars} />
                       {newGameScenario && (
                         <p className="text-2xs text-white/40 italic">
                           {newGameScenario.title} sets the hub, start date, budget, difficulty and rivals below, so every
@@ -3685,6 +4240,26 @@ export default function App() {
                                { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
                              ]
                            },
+                           // Insurance and maintenance of every aircraft, flying or parked.
+                           ...((latestReport.breakdown.fleetOwnership || 0) > 0 ? [{
+                             id: 'fleetOwnership',
+                             label: 'Aircraft Ownership',
+                             total: latestReport.breakdown.fleetOwnership,
+                             items: [
+                               { label: 'Insurance & maintenance programme', amount: latestReport.breakdown.fleetOwnership - (latestReport.breakdown.fleetParked || 0) },
+                               ...((latestReport.breakdown.fleetParked || 0) > 0
+                                 ? [{ label: `Parked aircraft (${latestReport.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latestReport.breakdown.fleetParked }]
+                                 : [])
+                             ]
+                           }] : []),
+                           // What the rivals landing at an airport owned outright pay the airline.
+                           ...((latestReport.breakdown.hubIncome || 0) > 0 ? [{
+                             id: 'hubIncome',
+                             label: 'Airport Ownership Income',
+                             variant: 'net' as const,
+                             total: latestReport.breakdown.hubIncome,
+                             items: latestReport.hubIncomeItems || []
+                           }] : []),
                            // Only in months with campaigns or the frequent-flyer
                            // programme running; older reports have no such line.
                            ...((latestReport.breakdown.marketing || 0) > 0 ? [{
@@ -3972,7 +4547,7 @@ export default function App() {
                                 ? ev.demandMultiplier + (1 - ev.demandMultiplier) * softens
                                 : ev.demandMultiplier;
                               const pct = (m: number) => `${m >= 1 ? '+' : ''}${((m - 1) * 100).toFixed(0)}%`;
-                              return `PAX: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''} | FUEL: ${pct(ev.fuelMultiplier)}`;
+                              return `PAX${eventRegionLabel(ev) ? ` (${eventRegionLabel(ev)})` : ''}: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''}${ev.regions?.length ? '' : ` | FUEL: ${pct(ev.fuelMultiplier)}`}`;
                             })()}
                          </span>
                       </div>
@@ -4032,7 +4607,23 @@ export default function App() {
                   {activeWindow === 'buy-aircraft' ? (
                     <ViewFrame label="Buy Aircraft" onReset={backToMap}>
                       <React.Suspense fallback={<LazyFallback label="Buy Aircraft" />}>
-                        <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} />
+                        <BuyAircraftView
+                          currentDateOffset={currentDateOffset}
+                          onSelectAircraft={setSelectedPurchasingAircraft}
+                          debugMode={debugMode}
+                          rank={career.rank}
+                          market={{
+                            currentDateOffset,
+                            capital,
+                            rank: career.rank,
+                            orders: career.orders,
+                            soldUsedIds: career.usedSold.offset === currentDateOffset ? career.usedSold.ids : [],
+                            rivalNames: aiAirlines.map(a => a.name),
+                            onOrder: handlePlaceOrder,
+                            onCancelOrder: handleCancelOrder,
+                            onBuyUsed: handleBuyUsed
+                          }}
+                        />
                         {selectedPurchasingAircraft && (
                           <ConfigurePurchaseView
                             aircraft={selectedPurchasingAircraft}
@@ -4112,10 +4703,22 @@ export default function App() {
                           reportHistory={reportHistory}
                           reputation={reputation}
                           milestones={milestones}
-                          milestoneCatalogue={MILESTONES}
+                          rank={career.rank}
+                          rankStats={rankStats}
+                          perks={perks}
+                          goalOffer={career.goalOffer}
+                          goalSnapshot={goalSnapshot}
+                          onChooseGoal={handleChooseGoal}
+                          research={career.research}
+                          onStartResearch={handleStartResearch}
+                          score={score}
+                          hall={hall}
+                          onRetire={handleRetire}
+                          moraleBonus={researchFx.moraleBonus}
                           annualGoal={annualGoal}
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}
+                          commonality={commonality}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}
                           branding={branding}
                           airlineName={airlineName}
@@ -4154,6 +4757,9 @@ export default function App() {
                           playerProfitHistory={playerProfitHistory}
                           playerRouteProfits={routeProfits}
                           playerColor={branding.color}
+                          currentDateOffset={currentDateOffset}
+                          rank={career.rank}
+                          onTakeover={handleTakeover}
                         />
                       </React.Suspense>
                     </ViewFrame>
@@ -4271,7 +4877,7 @@ export default function App() {
                         initialRouteId={editingCabinRouteId}
                         isEditingCabinOnly={true}
                         onSaveRoute={(route) => {
-                          setRoutes(prev => prev.map(r => r.id === route.id ? route : r));
+                          setRoutes(prev => prev.map(r => r.id === route.id ? { ...route, openedOffset: r.openedOffset ?? route.openedOffset } : r));
                           setEditingCabinRouteId(null);
                         }}
                         onClose={() => setEditingCabinRouteId(null)}
@@ -4304,7 +4910,7 @@ export default function App() {
                         initialRouteId={editingPricingRouteId}
                         isEditingPricingOnly={true}
                         onSaveRoute={(route) => {
-                          setRoutes(prev => prev.map(r => r.id === route.id ? route : r));
+                          setRoutes(prev => prev.map(r => r.id === route.id ? { ...route, openedOffset: r.openedOffset ?? route.openedOffset } : r));
                           setEditingPricingRouteId(null);
                         }}
                         onClose={() => setEditingPricingRouteId(null)}
@@ -4362,9 +4968,10 @@ export default function App() {
                           setRoutes(prev => {
                             const existing = prev.find(r => r.id === route.id);
                             if (existing) {
-                              return prev.map(r => r.id === route.id ? route : r);
+                              return prev.map(r => r.id === route.id ? { ...route, openedOffset: existing.openedOffset ?? route.openedOffset } : r);
                             }
-                            return [...prev, route];
+                            // A new route starts its ramp-up now; see routeMaturity.ts.
+                            return [...prev, { ...route, openedOffset: currentDateOffset }];
                           });
                           // Reset planning state after save
                           setPlanningOriginId(null);
@@ -4408,6 +5015,11 @@ export default function App() {
                         currentDateOffset={currentDateOffset}
                         transferHub={network.hubStats[selectedAirport.id]}
                         onNotify={setAppAlert}
+                        gates={{
+                          tier2: managementGate(2, career.rank, perks.extraHubs, airportManagement, selectedAirport.id),
+                          tier3: managementGate(3, career.rank, perks.extraHubs, airportManagement, selectedAirport.id),
+                          vipLounge: rankGateMessage(career.rank, RANK_NEEDED.vipLounge, 'The VIP lounge')
+                        }}
                         onClose={() => setSelectedAirport(null)}
                         fleet={fleet}
                         routes={routes}

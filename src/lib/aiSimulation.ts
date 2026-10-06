@@ -25,6 +25,7 @@ import {
   getJetFuelPrice,
   getFlightDurationMinutes,
   getAircraftResaleValue,
+  marketKey,
   RouteOffer
 } from './financeUtils';
 import { blockMinutes, getTurnoverMinutes } from './scheduleUtils';
@@ -34,6 +35,8 @@ import { findNonFinite } from './invariants';
 import { logWarn, logError } from './debugLog';
 import { nextMessageId } from './messages';
 import { assignRivalColors, MAP_YELLOW } from './theme';
+import { fleetOwnershipCost } from './fleetCosts';
+import { formatCurrency } from './format';
 import { crisisSeverity, crisisDepartures, growthFrozen, CRISIS_FROM } from './rivalCrisis';
 
 /**
@@ -42,6 +45,44 @@ import { crisisSeverity, crisisDepartures, growthFrozen, CRISIS_FROM } from './r
  * because it is part of every AI profit figure there.
  */
 export const AI_MONTHLY_SUBSIDY = 450_000;
+
+/** What the subsidy has faded to by 2005, and the years over which it fades. */
+export const AI_SUBSIDY_FLOOR = 150_000;
+const SUBSIDY_FADE_FROM = (1985 - 1960) * 12;
+const SUBSIDY_FADE_TO = (2005 - 1960) * 12;
+
+/**
+ * The subsidy in the month at `offset`. It carries the young airlines through
+ * the early decades in full; from 1985 it fades to a third by 2005, after
+ * which a rival that cannot pay its way can fail, be put up for sale and be
+ * taken over by the player.
+ */
+export function aiMonthlySubsidy(offset: number): number {
+  if (offset <= SUBSIDY_FADE_FROM) return AI_MONTHLY_SUBSIDY;
+  if (offset >= SUBSIDY_FADE_TO) return AI_SUBSIDY_FLOOR;
+  const t = (offset - SUBSIDY_FADE_FROM) / (SUBSIDY_FADE_TO - SUBSIDY_FADE_FROM);
+  return Math.round(AI_MONTHLY_SUBSIDY + (AI_SUBSIDY_FLOOR - AI_MONTHLY_SUBSIDY) * t);
+}
+
+/** Months of negative capital before an airline is put up for sale, and months it stays on offer. */
+export const DISTRESS_TO_SALE_MONTHS = 6;
+export const SALE_TO_LIQUIDATION_MONTHS = 12;
+
+/** Fares a rival cuts on a pair it shares with the player, and the aggression it takes to do so. */
+export const PRICE_WAR_CUT = 0.12;
+export const PRICE_WAR_MIN_AGGRESSION = 7;
+
+/** Chance a month that a rival suffers a one-off loss, and how large it is. */
+const SETBACK_CHANCE = 0.005;
+const SETBACK_MIN = 20_000_000;
+const SETBACK_MAX = 70_000_000;
+const SETBACK_CAUSES = ['a lawsuit', 'an accident and the grounding that followed', 'a failed fleet order', 'a pension scandal'];
+
+/** A rival with this many aircraft and this much cash may open a second hub. */
+const SECOND_HUB_MIN_FLEET = 8;
+const SECOND_HUB_MIN_CAPITAL = 100_000_000;
+const SECOND_HUB_COST = 5_000_000;
+const SECOND_HUB_CHANCE = 0.04;
 
 type Personality = RivalPersonality;
 type Difficulty = 'Easy' | 'Normal' | 'Hard';
@@ -312,6 +353,17 @@ function ticketPricesFor(personality: Personality, difficulty: Difficulty, dista
   };
 }
 
+function cutPrices(prices: { economy: number; premium: number; business: number; first: number }, cut: number) {
+  if (!(cut > 0)) return prices;
+  const f = 1 - Math.min(0.5, cut);
+  return {
+    economy: Math.round(prices.economy * f),
+    premium: Math.round(prices.premium * f),
+    business: Math.round(prices.business * f),
+    first: Math.round(prices.first * f)
+  };
+}
+
 /** Everything about the month that is the same for all of one airline's routes. */
 interface Market {
   offset: number;
@@ -342,7 +394,9 @@ function routeOutlook(
   distance: number,
   durMin: number,
   market: Market,
-  label: string
+  label: string,
+  /** Share the fares are cut by; a price war. */
+  priceCut: number = 0
 ): RouteOutlook {
   const aircraftSimObj = buildAiSimAircraft(plane, personality);
   const routeSimObj = {
@@ -352,7 +406,7 @@ function routeOutlook(
     durMin,
     schedule: Array(departures).fill({ isOneWay: false }),
     classConfigs: serviceFor(personality),
-    ticketPrices: ticketPricesFor(personality, difficulty, distance, durMin)
+    ticketPrices: cutPrices(ticketPricesFor(personality, difficulty, distance, durMin), priceCut)
   };
 
   const aiAirportManagement: Record<string, any> = {
@@ -552,10 +606,17 @@ interface RivalIdentity {
  * somewhere it never was. No two rivals share a hub, and none starts at the
  * player's hub. Fictional airlines take the busiest free airports.
  */
-export function pickRivalIdentities(count: number, playerHubId: string, year: number, playerCode = ''): RivalIdentity[] {
+export function pickRivalIdentities(
+  count: number,
+  playerHubId: string,
+  year: number,
+  playerCode = '',
+  /** Rivals already in the game: their hubs and codes are taken. */
+  existing: ReadonlyArray<{ code: string; hub: string; secondHub?: string }> = []
+): RivalIdentity[] {
   if (count <= 0) return [];
-  const usedHubs = new Set<string>([playerHubId]);
-  const usedCodes = new Set<string>(playerCode ? [playerCode.toUpperCase()] : []);
+  const usedHubs = new Set<string>([playerHubId, ...existing.flatMap(e => [e.hub, e.secondHub]).filter((h): h is string => !!h)]);
+  const usedCodes = new Set<string>([...(playerCode ? [playerCode.toUpperCase()] : []), ...existing.map(e => e.code.toUpperCase())]);
   const out: RivalIdentity[] = [];
 
   let fictionalWanted = count === 1
@@ -625,10 +686,12 @@ export const generateAiAirlines = (
   /** The player's airline code, which no rival may carry. */
   playerCode: string = '',
   /** The player's brand colour, which no rival is drawn in. */
-  playerColor: string = MAP_YELLOW
+  playerColor: string = MAP_YELLOW,
+  /** Rivals already flying, when a new one is founded in a running game: their hubs, codes and colours are taken. */
+  existing: AiAirline[] = []
 ): AiAirline[] => {
   const difficulty = (['Easy', 'Normal', 'Hard'].includes(difficultyVal) ? difficultyVal : 'Normal') as Difficulty;
-  const identities = pickRivalIdentities(count, playerHubId, yearOf(startDateOffset), playerCode);
+  const identities = pickRivalIdentities(count, playerHubId, yearOf(startDateOffset), playerCode, existing);
 
   const result: AiAirline[] = [];
 
@@ -677,7 +740,7 @@ export const generateAiAirlines = (
   }
 
   // Each rival its own colour on the map, clear of the player's.
-  const colors = assignRivalColors(result, playerColor);
+  const colors = assignRivalColors([...existing, ...result], playerColor).slice(existing.length);
   result.forEach((ai, i) => { ai.color = colors[i]; });
   return result;
 };
@@ -688,8 +751,15 @@ export const simulateAiAirlinesTurn = (
   currentDateOffset: number,
   playerHubId: string,
   /** The player's routes, so rivals face the same competition the player does. */
-  playerRoutes: { origin: string; destination: string; schedule?: any[] }[] = []
+  playerRoutes: { origin: string; destination: string; schedule?: any[] }[] = [],
+  options: {
+    /** Airports no rival may open a route into: the player's own (management tier 3). */
+    blocked?: ReadonlySet<string>;
+  } = {}
 ): { updatedAis: AiAirline[], newMessages: GameMessage[] } => {
+  const blocked = options.blocked ?? new Set<string>();
+  /** Airlines wound up this month; dropped from the result. */
+  const liquidated = new Set<string>();
   const newMessages: GameMessage[] = [];
   const dateStr = `${monthOf(currentDateOffset).toString().padStart(2, '0')}/${yearOf(currentDateOffset)}`;
   const say = (text: string) => newMessages.push({ id: nextMessageId(), text, isRead: false, dateStr });
@@ -768,7 +838,7 @@ export const simulateAiAirlinesTurn = (
       if (plane.maxRange && plane.maxRange < distance) {
         r.monthlyProfit = -150000;
       } else if (originAir && destAir) {
-        const out = routeOutlook(personality, difficulty, plane, originAir, destAir, r.departures, distance, r.durMin, market, `${ai.code} ${r.origin}-${r.destination}`);
+        const out = routeOutlook(personality, difficulty, plane, originAir, destAir, r.departures, distance, r.durMin, market, `${ai.code} ${r.origin}-${r.destination}`, r.priceCut ?? 0);
         r.monthlyProfit = Number.isFinite(out.profit) ? out.profit : 0;
         if (Number.isFinite(out.profit)) r.loadFactor = out.loadFactor;
       } else {
@@ -779,13 +849,56 @@ export const simulateAiAirlinesTurn = (
       totalMonthlyProfit += r.monthlyProfit;
     }
 
-    const finalCalculatedTurnover = totalMonthlyProfit + AI_MONTHLY_SUBSIDY;
+    // Rivals insure and maintain their aircraft like the player does; an old
+    // fleet, or one standing idle, costs them too.
+    const flyingRegs = new Set(newRoutes.map(r => r.aircraftReg));
+    const upkeep = fleetOwnershipCost(
+      newFleet.map(p => ({ registration: p.reg, basePrice: p.basePrice, purchasedAt: p.purchasedAt, family: p.family, type: p.type })),
+      flyingRegs,
+      currentDateOffset
+    ).total;
+    const finalCalculatedTurnover = totalMonthlyProfit - upkeep + aiMonthlySubsidy(currentDateOffset);
     let newCapital = ai.capital + finalCalculatedTurnover;
+    // Bad luck: a lawsuit, an accident and the grounding after it, a failed
+    // order. A rich carrier shrugs it off; one with thin reserves can go under,
+    // which is how a rival ends up for sale.
+    if (Math.random() < SETBACK_CHANCE) {
+      const loss = Math.round((SETBACK_MIN + Math.random() * (SETBACK_MAX - SETBACK_MIN)) / 1_000_000) * 1_000_000;
+      newCapital -= loss;
+      if (newCapital < 0) say(`SETBACK: ${ai.name} (${ai.code}) takes a ${formatCurrency(loss)} blow from ${SETBACK_CAUSES[Math.floor(Math.random() * SETBACK_CAUSES.length)]} and is in the red.`);
+    }
     const nextProfitsHistory = [...(ai.monthlyProfitsHistory || []), finalCalculatedTurnover];
     if (nextProfitsHistory.length > 12) nextProfitsHistory.shift();
 
     const ageOf = (r: AiRoute) => currentDateOffset - (r.openedAt ?? -Infinity);
-    const slotsLeft = () => (hub ? hub.level * HUB_SLOTS_PER_LEVEL : 0) - newRoutes.reduce((s, r) => s + (r.departures || 0), 0);
+    /** Departures an airport can still give this airline: its slots, less what the routes from it use. */
+    const slotsAt = (airportId: string) => {
+      const airport = airportsMapAdjusted.get(airportId);
+      return (airport ? airport.level * HUB_SLOTS_PER_LEVEL : 0)
+        - newRoutes.filter(r => r.origin === airportId).reduce((s, r) => s + (r.departures || 0), 0);
+    };
+    /** The hubs routes start from: the home base and, once opened, a second. */
+    const hubIds = () => [ai.hub, ai.secondHub].filter((h): h is string => !!h);
+
+    // 1a. Price war. A rival with fight in it cuts its fares on a city pair it
+    // shares with the player, once the route has proved it can afford to, and
+    // goes back to normal fares when the player leaves the pair or the route
+    // starts losing money. The cut costs the rival what it costs the player:
+    // revenue per seat. The month just booked was flown at the old fares.
+    if (aggression >= PRICE_WAR_MIN_AGGRESSION) {
+      const playerPairs = new Set(playerOffers.map(o => marketKey(o.origin, o.destination)));
+      for (const r of newRoutes) {
+        const contested = playerPairs.has(marketKey(r.origin, r.destination));
+        if (r.priceCut && (!contested || (r.avgProfit ?? 0) < 0)) {
+          delete r.priceCut;
+        } else if (!r.priceCut && contested && ageOf(r) >= 2 && r.monthlyProfit > 0 && r.fullDepartures === undefined) {
+          r.priceCut = PRICE_WAR_CUT;
+          if (r.origin === playerHubId || r.destination === playerHubId) {
+            say(`PRICE WAR: ${ai.name} (${ai.code}) cuts fares on ${r.origin}–${r.destination} by ${Math.round(PRICE_WAR_CUT * 100)}% to win passengers from you.`);
+          }
+        }
+      }
+    }
 
     // 1b. Crisis. In a world crisis a rival flies fewer empty seats and stops
     // growing; afterwards it rebuilds the schedule. The load each route sold
@@ -807,7 +920,7 @@ export const simulateAiAirlinesTurn = (
       let next = wanted;
       if (wanted > r.departures) {
         // Flights only come back where the route pays and the hub has the slots.
-        next = r.monthlyProfit >= 0 ? Math.min(wanted, r.departures + Math.max(0, slotsLeft())) : r.departures;
+        next = r.monthlyProfit >= 0 ? Math.min(wanted, r.departures + Math.max(0, slotsAt(r.origin))) : r.departures;
         // The crisis is over and the schedule still cannot grow: the old one is
         // gone (new routes took the slots, or the route loses money), so the
         // route is judged like any other from here on.
@@ -841,7 +954,7 @@ export const simulateAiAirlinesTurn = (
       const destAir = airportsMapAdjusted.get(r.destination);
       const thin = Math.max(1, Math.round(r.departures * 0.4));
       if (plane && originAir && destAir && r.distance && r.durMin && thin < r.departures) {
-        const p = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, thin, r.distance, r.durMin, market, `${ai.code} ${r.origin}-${r.destination}`);
+        const p = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, thin, r.distance, r.durMin, market, `${ai.code} ${r.origin}-${r.destination}`, r.priceCut ?? 0);
         if (Number.isFinite(p) && p > 0) {
           // Thinned out because of a crisis: remember the schedule to rebuild.
           if (inCrisis) r.fullDepartures = Math.max(r.fullDepartures ?? 0, r.departures);
@@ -873,12 +986,12 @@ export const simulateAiAirlinesTurn = (
         const max = maxWeeklyRotations(r.durMin, plane.class);
         const step = Math.max(1, Math.round(r.departures * 0.25));
         const alt = (r.avgProfit ?? 0) >= 0
-          ? Math.min(max, r.departures + Math.min(step, Math.max(0, slotsLeft())))
+          ? Math.min(max, r.departures + Math.min(step, Math.max(0, slotsAt(r.origin))))
           : Math.max(1, r.departures - step);
         if (alt === r.departures) continue;
         const label = `${ai.code} ${r.origin}-${r.destination}`;
-        const now = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, r.departures, r.distance, r.durMin, market, label);
-        const then = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, alt, r.distance, r.durMin, market, label);
+        const now = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, r.departures, r.distance, r.durMin, market, label, r.priceCut ?? 0);
+        const then = routeMonthlyProfit(personality, difficulty, plane, originAir, destAir, alt, r.distance, r.durMin, market, label, r.priceCut ?? 0);
         if (Number.isFinite(now) && Number.isFinite(then) && then > now + Math.abs(now) * 0.02) r.departures = alt;
       }
     }
@@ -928,13 +1041,27 @@ export const simulateAiAirlinesTurn = (
 
     // 6. Put idle aircraft to work, on the best route the market offers, and
     // only if that route is forecast to make money. Easy rivals take any.
-    const served = () => new Set(newRoutes.filter(r => r.origin === ai.hub).map(r => r.destination));
-    const openRoute = (plane: AiPlane, plan: RoutePlan) => {
+    // Destinations already served from a hub, and any airport closed to rivals
+    // (the player's own tier-3 airports), which nobody plans a route into.
+    const servedFrom = (hubId: string) =>
+      new Set([...newRoutes.filter(r => r.origin === hubId).map(r => r.destination), ...blocked]);
+    const openRoute = (plane: AiPlane, plan: RoutePlan, hubId: string) => {
       newCapital -= ROUTE_OPENING_COST;
-      newRoutes.push(newRoute(ai.hub, plane, plan, currentDateOffset));
+      newRoutes.push(newRoute(hubId, plane, plan, currentDateOffset));
       // Route openings are Newspaper material only (rivalMoves diffs routes
       // independently); a Messages entry for every rival's new route would
       // flood the inbox.
+    };
+    /** The best route this aircraft could fly from any of the airline's hubs. */
+    const bestPlan = (plane: AiPlane): { plan: RoutePlan; hubId: string } | null => {
+      let best: { plan: RoutePlan; hubId: string } | null = null;
+      for (const hubId of hubIds()) {
+        const hubAirport = airportsMapAdjusted.get(hubId);
+        if (!hubAirport || blocked.has(hubId)) continue;
+        const plan = planRoute(personality, difficulty, plane, hubAirport, servedFrom(hubId), market, allAirports, slotsAt(hubId));
+        if (plan && (!best || plan.profit > best.plan.profit)) best = { plan, hubId };
+      }
+      return best;
     };
     const minForecast = difficulty === 'Easy' ? -Infinity : 0;
     const maxOpenings = difficulty === 'Hard' ? 2 : 1;
@@ -947,9 +1074,9 @@ export const simulateAiAirlinesTurn = (
         if (openings >= maxOpenings || newCapital < ROUTE_OPENING_COST) break;
         if (newRoutes.some(r => r.aircraftReg === plane.reg)) continue;
         if (difficulty === 'Easy' && Math.random() < 0.5) continue;
-        const plan = planRoute(personality, difficulty, plane, hub, served(), market, allAirports, slotsLeft());
-        if (plan && plan.profit > minForecast) {
-          openRoute(plane, plan);
+        const found = bestPlan(plane);
+        if (found && found.plan.profit > minForecast) {
+          openRoute(plane, found.plan, found.hubId);
           openings++;
         } else {
           unplaceable.add(plane.reg);
@@ -988,7 +1115,7 @@ export const simulateAiAirlinesTurn = (
     const earning = recent.reduce((s, v) => s + v, 0) / recent.length > 0;
     const reserve = CASH_RESERVE[personality];
 
-    if (hub && !frozen && allFlying && slotsLeft() > 0 && Math.random() < buyProb) {
+    if (hub && !frozen && allFlying && hubIds().some(h => slotsAt(h) > 0) && Math.random() < buyProb) {
       const spendRatio = (personality === 'expansionist' || personality === 'lcc') ? 0.65 : 0.45;
       const affordable = aircraftOnMarket(currentDateOffset).filter(a =>
         a.basePrice <= newCapital * spendRatio &&
@@ -1008,7 +1135,7 @@ export const simulateAiAirlinesTurn = (
 
       // Of the preferred types, the one whose best route pays back the
       // purchase fastest.
-      let pick: { spec: Aircraft; plane: AiPlane; plan: RoutePlan } | null = null;
+      let pick: { spec: Aircraft; plane: AiPlane; plan: RoutePlan; hubId: string } | null = null;
       let pickReturn = -Infinity;
       // Next free registration. Counting the fleet is not enough once
       // aircraft have been sold: it would hand out a registration still in use.
@@ -1019,12 +1146,12 @@ export const simulateAiAirlinesTurn = (
           ? easyCabinConfig(spec.capacity || 131, idxOfAiZone)
           : cabinConfigFor(personality, spec.capacity || 131);
         const plane = toFleetEntry(spec, reg, currentDateOffset, config);
-        const plan = planRoute(personality, difficulty, plane, hub, served(), market, allAirports, slotsLeft());
-        if (!plan || plan.profit <= minForecast) continue;
-        const payback = plan.profit / spec.basePrice;
+        const found = bestPlan(plane);
+        if (!found || found.plan.profit <= minForecast) continue;
+        const payback = found.plan.profit / spec.basePrice;
         if (payback > pickReturn) {
           pickReturn = payback;
-          pick = { spec, plane, plan };
+          pick = { spec, plane, plan: found.plan, hubId: found.hubId };
         }
       }
       if (pick) {
@@ -1032,8 +1159,50 @@ export const simulateAiAirlinesTurn = (
         newFleet = [...newFleet, pick.plane];
         // Rival Industry News has been removed per user request: the purchase
         // itself is silent, the new route is announced like any other.
-        openRoute(pick.plane, pick.plan);
+        openRoute(pick.plane, pick.plan, pick.hubId);
       }
+    }
+
+    // 8. A second hub. A big, rich, combative carrier opens a base of its own
+    // at a major airport, and goes for the player's hub first when it can.
+    // The player's tier-3 airports are closed to it.
+    let secondHub = ai.secondHub;
+    if (
+      hub && !secondHub && !frozen && aggression >= 5 &&
+      newFleet.length >= SECOND_HUB_MIN_FLEET && newCapital >= SECOND_HUB_MIN_CAPITAL &&
+      Math.random() < SECOND_HUB_CHANCE
+    ) {
+      const year = yearOf(currentDateOffset);
+      const takenHubs = new Set(currentAiAirlines.flatMap(o => [o.hub, o.secondHub]).filter(Boolean) as string[]);
+      const options = allAirports.filter(a => a.level >= 3 && !takenHubs.has(a.id) && !blocked.has(a.id));
+      const i = weightedIndex(options.map(a => airportDemand(a, year) * (a.id === playerHubId ? 3 : 1) * (aggression / 6)));
+      if (i >= 0) {
+        secondHub = options[i].id;
+        newCapital -= SECOND_HUB_COST;
+        if (secondHub === playerHubId) {
+          say(`HUB CHALLENGE: ${ai.name} (${ai.code}) opens a second hub at your home airport, ${options[i].name}.`);
+        }
+      }
+    }
+
+    // 9. Distress. Capital below zero for DISTRESS_TO_SALE_MONTHS in a row puts
+    // the airline up for sale; unsold after SALE_TO_LIQUIDATION_MONTHS it is
+    // wound up. A rival that gets back into the black is taken off the market.
+    const distressMonths = newCapital < 0 ? (ai.distressMonths ?? 0) + 1 : Math.max(0, (ai.distressMonths ?? 0) - 1);
+    let forSale = !!ai.forSale;
+    let forSaleSince = ai.forSaleSince;
+    if (!forSale && distressMonths >= DISTRESS_TO_SALE_MONTHS) {
+      forSale = true;
+      forSaleSince = currentDateOffset;
+      say(`FOR SALE: ${ai.name} (${ai.code}) is insolvent and looking for a buyer. See Rivals.`);
+    } else if (forSale && distressMonths === 0 && newCapital > 0) {
+      forSale = false;
+      forSaleSince = undefined;
+      say(`RECOVERY: ${ai.name} (${ai.code}) has pulled back from the brink and is no longer for sale.`);
+    }
+    if (forSale && forSaleSince !== undefined && currentDateOffset - forSaleSince >= SALE_TO_LIQUIDATION_MONTHS) {
+      liquidated.add(ai.id);
+      say(`BANKRUPTCY: ${ai.name} (${ai.code}) has ceased operations. Its slots and aircraft go back to the market.`);
     }
 
     return {
@@ -1043,9 +1212,13 @@ export const simulateAiAirlinesTurn = (
       routes: newRoutes,
       monthlyProfitsHistory: nextProfitsHistory,
       personality,
-      aggression
+      aggression,
+      ...(secondHub ? { secondHub } : {}),
+      distressMonths,
+      forSale,
+      forSaleSince
     };
   });
 
-  return { updatedAis, newMessages };
+  return { updatedAis: updatedAis.filter(a => !liquidated.has(a.id)), newMessages };
 };

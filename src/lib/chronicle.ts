@@ -31,6 +31,7 @@
  *
  * Everything here is pure.
  */
+import { eventScope, type EventRegion } from './eventSystem';
 import { CHRONICLE_LIMIT, type ChronicleEntry, type ChronicleKind, type RegionId } from './gameState';
 import { marketKey, type RouteOffer } from './financeUtils';
 import { MAJOR_DISRUPTION_SHARE } from './disruptions';
@@ -193,9 +194,13 @@ export interface ChronicleMonth {
   /** Milestones earned at this close. */
   milestones?: { title: string; detail?: string }[];
   /** The annual target settled at this close, in December. */
-  goal?: { year: number; target: number; achieved: number; met: boolean } | null;
+  /**
+   * The annual goal settled this month. `text` replaces the profit wording
+   * for goals of another kind (routes, regions, reputation, passengers).
+   */
+  goal?: { year: number; target: number; achieved: number; met: boolean; text?: string } | null;
   /** World events that start with the coming month. */
-  eventsStarted?: { title: string; startOffset: number; duration: number; demandMultiplier: number; fuelMultiplier: number }[];
+  eventsStarted?: { title: string; startOffset: number; duration: number; demandMultiplier: number; fuelMultiplier: number; regions?: EventRegion[] }[];
   /** World events whose last month this was; `endOffset` is the first month without them. */
   eventsEnded?: { title: string; endOffset: number }[];
   /** A strike called at this close for the month at `offset`. */
@@ -258,9 +263,9 @@ const signedPct = (multiplier: number) => {
 };
 
 /** What an event does, in a few words: "demand −20%, fuel +80%". */
-function eventEffects(ev: { demandMultiplier: number; fuelMultiplier: number }): string {
+function eventEffects(ev: { demandMultiplier: number; fuelMultiplier: number; regions?: EventRegion[] }): string {
   const parts: string[] = [];
-  if (Math.round((ev.demandMultiplier - 1) * 100) !== 0) parts.push(`demand ${signedPct(ev.demandMultiplier)}`);
+  if (Math.round((ev.demandMultiplier - 1) * 100) !== 0) parts.push(`demand ${signedPct(ev.demandMultiplier)}${eventScope(ev)}`);
   if (Math.round((ev.fuelMultiplier - 1) * 100) !== 0) parts.push(`fuel ${signedPct(ev.fuelMultiplier)}`);
   return parts.join(', ');
 }
@@ -295,9 +300,9 @@ export function chronicleEntriesForMonth(chronicle: ChronicleEntry[], m: Chronic
     out.push({
       offset: at,
       kind: 'goal',
-      text: g.met
+      text: g.text ?? (g.met
         ? `${g.year} target met: ${formatCurrency(g.achieved)} operating profit against ${formatCurrency(g.target)}.`
-        : `${g.year} target missed: ${formatCurrency(g.achieved)} of the ${formatCurrency(g.target)} the board expected.`
+        : `${g.year} target missed: ${formatCurrency(g.achieved)} of the ${formatCurrency(g.target)} the board expected.`)
     });
   }
 

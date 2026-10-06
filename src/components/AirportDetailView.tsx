@@ -39,6 +39,11 @@ interface Props {
   aiAirlines?: any[];
   /** Passengers changing planes here this month, from the network pricing. */
   transferHub?: HubTransferStats;
+  /**
+   * Why something cannot be built at the airline's current rank, or null when
+   * it can: the second hub, management tier 3, the VIP lounge.
+   */
+  gates?: { tier2?: string | null; tier3?: string | null; vipLounge?: string | null };
 }
 
 export function AirportDetailView({ 
@@ -57,7 +62,8 @@ export function AirportDetailView({
   routes = [],
   onPerformGeneralCheck,
   aiAirlines = [],
-  transferHub
+  transferHub,
+  gates
 }: Props) {
   const [showCostBreakdown, setShowCostBreakdown] = React.useState(false);
   const [selectedAircraftForCheck, setSelectedAircraftForCheck] = React.useState<string>("");
@@ -82,10 +88,11 @@ export function AirportDetailView({
   };
 
   const upkeepData = useMemo(() => {
-    return getAirportUpkeep(airport, infrastructure, routes, fleet);
-  }, [airport, infrastructure, routes, fleet]);
+    return getAirportUpkeep(airport, infrastructure, routes, fleet, currentYear);
+  }, [airport, infrastructure, routes, fleet, currentYear]);
 
   const {
+    slotCosts,
     standUpgradeCosts,
     deskCosts,
     deskCapacities,
@@ -307,10 +314,10 @@ export function AirportDetailView({
                   <div className="space-y-4">
                     <SectionLabel icon={<Plus size={12}/>} label="Flight Slots" />
                     <div className="grid grid-cols-1 gap-2">
-                        <InfaRow label="Regional" count={infrastructure.slots.regional} used={utilizedSlots.regional} showUtilBar={true} purchaseCost={getSlotPurchaseCost('regional')} cost={250} onBuy={(n, isShift) => buyItem('slots', 'regional', n, isShift)} />
-                        <InfaRow label="Narrowbody" count={infrastructure.slots.narrowbody} used={utilizedSlots.narrowbody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('narrowbody')} cost={250} onBuy={(n, isShift) => buyItem('slots', 'narrowbody', n, isShift)} />
+                        <InfaRow label="Regional" count={infrastructure.slots.regional} used={utilizedSlots.regional} showUtilBar={true} purchaseCost={getSlotPurchaseCost('regional')} cost={slotCosts.regional} onBuy={(n, isShift) => buyItem('slots', 'regional', n, isShift)} />
+                        <InfaRow label="Narrowbody" count={infrastructure.slots.narrowbody} used={utilizedSlots.narrowbody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('narrowbody')} cost={slotCosts.narrowbody} onBuy={(n, isShift) => buyItem('slots', 'narrowbody', n, isShift)} />
                        {avail.widebodySlots && (
-                         <InfaRow label="Widebody" count={infrastructure.slots.widebody} used={utilizedSlots.widebody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('widebody')} cost={250} onBuy={(n, isShift) => buyItem('slots', 'widebody', n, isShift)} />
+                         <InfaRow label="Widebody" count={infrastructure.slots.widebody} used={utilizedSlots.widebody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('widebody')} cost={slotCosts.widebody} onBuy={(n, isShift) => buyItem('slots', 'widebody', n, isShift)} />
                        )}
                     </div>
                   </div>
@@ -486,12 +493,19 @@ export function AirportDetailView({
                       <div>
                         <div className="text-white font-black uppercase tracking-widest text-sm">VIP Lounge</div>
                         <div className="text-2xs text-white/50 mt-1 uppercase tracking-widest">+4 quality pts (Bus/First), +1 (PE)</div>
+                        {gates?.vipLounge && !infrastructure.hubFacilities?.vipLounge && (
+                          <div className="text-2xs text-aero-warn mt-2 font-mono normal-case tracking-normal max-w-xs">{gates.vipLounge}</div>
+                        )}
                       </div>
                       {infrastructure.hubFacilities?.vipLounge ? (
                         <div className="text-2xs bg-aero-yellow/20 text-black px-2 py-1 font-bold rounded-sm animate-pulse">ACTIVE</div>
                       ) : (
                         <button 
                           onClick={() => {
+                            if (gates?.vipLounge) {
+                              onNotify?.(gates.vipLounge);
+                              return;
+                            }
                             if (capital >= 1000000) {
                               onSubtractCapital(1000000);
                               onUpdateInfrastructure({
@@ -500,10 +514,10 @@ export function AirportDetailView({
                               });
                             }
                           }}
-                          disabled={capital < 1000000}
+                          disabled={capital < 1000000 || !!gates?.vipLounge}
                           className="px-4 py-2 bg-white text-black font-black uppercase tracking-widest text-2xs hover:bg-aero-yellow transition-all disabled:opacity-50"
                         >
-                          Construct - {formatCurrency(1000000)}
+                          {gates?.vipLounge ? 'Locked' : `Construct - ${formatCurrency(1000000)}`}
                         </button>
                       )}
                     </div>
@@ -547,6 +561,7 @@ export function AirportDetailView({
                 label="Hub Operations" 
                 cost={unlockCost(2)}
                 onUpgrade={() => onBuyManagement(2)}
+                gate={gates?.tier2}
                 icon={<Anchor size={24} />}
                 features={[
                   "Advanced Slot Scheduling",
@@ -562,12 +577,13 @@ export function AirportDetailView({
               label="Corporate Ownership" 
               cost={unlockCost(3)}
               onUpgrade={() => onBuyManagement(3)}
+              gate={gates?.tier3}
               icon={<Crown size={24} />}
               features={[
-                "Full Revenue Collection",
-                "Terminal Branding Rights",
-                "Infrastructure Resale",
-                "Strategic Control"
+                "Landing & desk fees 15% below standard",
+                "Better connections (hub quality +0.05)",
+                "Rivals cannot open new routes here",
+                "Half of the rivals' landing fees paid to you"
               ]}
             />
           </div>
@@ -744,7 +760,7 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
   );
 }
 
-function ManagementTierCard({ tier, activeTier, label, cost, onUpgrade, icon, features }: { tier: number, activeTier: number, label: string, cost: number, onUpgrade: () => void, icon: React.ReactNode, features: string[] }) {
+function ManagementTierCard({ tier, activeTier, label, cost, onUpgrade, icon, features, gate }: { tier: number, activeTier: number, label: string, cost: number, onUpgrade: () => void, icon: React.ReactNode, features: string[], gate?: string | null }) {
   const isAcquired = activeTier >= tier;
   const isLocked = activeTier < tier - 1;
 
@@ -767,13 +783,16 @@ function ManagementTierCard({ tier, activeTier, label, cost, onUpgrade, icon, fe
          ))}
       </div>
 
+      {!isAcquired && !isLocked && gate && (
+        <div className="text-2xs font-mono text-aero-warn leading-relaxed">{gate}</div>
+      )}
       {!isAcquired && (
         <button 
           onClick={onUpgrade}
-          disabled={isLocked}
-          className={`w-full py-4 font-black transition-all text-xs uppercase tracking-[0.3em] ${isLocked ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-aero-yellow'}`}
+          disabled={isLocked || !!gate}
+          className={`w-full py-4 font-black transition-all text-xs uppercase tracking-[0.3em] ${isLocked || gate ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-aero-yellow'}`}
         >
-          {isLocked ? 'LOCKED: PRE-REQUISITE REQ.' : `ACQUIRE ACCESS - ${formatCurrency(cost)}`}
+          {isLocked ? 'LOCKED: PRE-REQUISITE REQ.' : gate ? 'LOCKED: RANK' : `ACQUIRE ACCESS - ${formatCurrency(cost)}`}
         </button>
       )}
 

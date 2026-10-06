@@ -2,31 +2,38 @@ import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
 import { routeCancelShare, routeDemandFactor, type PlayerModifiers } from './gameState';
+import { getSlotPriceFactor } from './economyContext';
+import { resaleAgeFactor } from './fleetCosts';
+import { hubFeeFactor } from './hubOwnership';
+import { realCostIndex } from './realCosts';
 
 export function getAirportUpkeep(
   airport: Airport,
   infrastructure: any,
   routes: any[],
-  fleet: any[]
+  fleet: any[],
+  /** The calendar year, for the real growth of airport charges; leave out for 1960 prices. */
+  year?: number
 ) {
   const level = airport.level;
   const hubAutoUpgrade = infrastructure.level >= 2;
+  const idx = year === undefined ? 1 : realCostIndex(year);
 
   const slotCosts = {
-    regional: 250,
-    narrowbody: 250,
-    widebody: 250
+    regional: Math.round(250 * idx),
+    narrowbody: Math.round(250 * idx),
+    widebody: Math.round(250 * idx)
   };
   
   const standUpgradeCosts = {
-    regional: 150,
-    narrowbody: 300,
-    widebody: 600
+    regional: Math.round(150 * idx),
+    narrowbody: Math.round(300 * idx),
+    widebody: Math.round(600 * idx)
   };
   
   const deskCosts = {
-    normal: Math.floor(2500 * (hubAutoUpgrade ? 0.95 : 1)),
-    self: Math.floor(1500 * (hubAutoUpgrade ? 0.95 : 1))
+    normal: Math.floor(2500 * hubFeeFactor(infrastructure.level) * idx),
+    self: Math.floor(1500 * hubFeeFactor(infrastructure.level) * idx)
   };
 
   const deskCapacities = {
@@ -83,9 +90,9 @@ export function getAirportUpkeep(
   b.desks.normal = (desks.normal || 0) * deskCosts.normal;
   b.desks.self = (desks.self || 0) * deskCosts.self;
 
-  if (hubFacilities?.hangar) b.facilities.hangar = 10000; 
-  if (hubFacilities?.vipLounge) b.facilities.vip = 12500; 
-  if (hubFacilities?.catering) b.facilities.catering = 10000; 
+  if (hubFacilities?.hangar) b.facilities.hangar = Math.round(10000 * idx);
+  if (hubFacilities?.vipLounge) b.facilities.vip = Math.round(12500 * idx);
+  if (hubFacilities?.catering) b.facilities.catering = Math.round(10000 * idx);
 
   b.total = b.slots.regional + b.slots.narrowbody + b.slots.widebody 
           + b.stands.regional + b.stands.narrowbody + b.stands.widebody 
@@ -470,7 +477,8 @@ export const getStandBonus = (originId: string, destId: string, slotType: string
 
 
 
-import { getEventMultipliers } from "./eventSystem";
+import { getEventMultipliers, regionalDemandFactor } from "./eventSystem";
+import { regionOf } from "./geoUtils";
 
 /**
  * How much of the raw demand a year keeps: [year, factor] anchors, linear in
@@ -834,6 +842,12 @@ export interface RouteOffer {
   departures: number;
   /** Who flies it, for display only. Never used in the share calculation. */
   airline?: string;
+  /**
+   * How much better than the going fare this offer is priced, 1 when it is
+   * neither dearer nor cheaper: a rival that cuts fares by 12% has 1 / 0.88.
+   * Feeds the share split like the player's own price does.
+   */
+  priceAppeal?: number;
 }
 
 /** City pair, direction-insensitive: FRA-CDG and CDG-FRA are the same market. */
@@ -884,6 +898,21 @@ export function offerAttractiveness(
   return Math.pow(departuresPerWeek, 0.5)
     * Math.pow(price, 1.2)
     * Math.pow(sat, 0.8);
+}
+
+/**
+ * What the regional events of a month do to the demand between two airports;
+ * 1 when none is running. Shared by the monthly figures and the planner's
+ * demand preview, which calls calculateDemand directly.
+ */
+export function eventRegionalFactor(
+  year: number,
+  month: number,
+  origin: { coords: [number, number] } | undefined | null,
+  dest: { coords: [number, number] } | undefined | null
+): number {
+  if (!origin || !dest) return 1;
+  return regionalDemandFactor((year - 1960) * 12 + (month - 1), regionOf(origin.coords), regionOf(dest.coords));
 }
 
 /**
@@ -945,7 +974,8 @@ export function calculateRouteFinancials(
   const faCount = Math.ceil(aircraft.capacity / 50);
   const hourlyCrewRate = (2 * 100) + (faCount * 40);
   // Pay above or below the market rate; ground staff below follow the crew.
-  const weeklyCrewCost = hourlyCrewRate * flightHoursWeekly * (mods?.crewCostFactor ?? 1);
+  const costIndex = realCostIndex(currentYear);
+  const weeklyCrewCost = hourlyCrewRate * flightHoursWeekly * (mods?.crewCostFactor ?? 1) * costIndex;
   
   // Assuming staff cost is same as crew or similar if handled differently
   const weeklyStaffCost = weeklyCrewCost * 0.3; // Just a flat ground staff assumption
@@ -957,13 +987,15 @@ export function calculateRouteFinancials(
   
   const originHub = airportManagement[route.origin]?.level >= 2;
   const destHub = airportManagement[route.destination]?.level >= 2;
+  const originFeeFactor = hubFeeFactor(airportManagement[route.origin]?.level);
+  const destFeeFactor = hubFeeFactor(airportManagement[route.destination]?.level);
 
-  const getLandingFee = (level: number, hub: boolean, type: string) => {
+  const getLandingFee = (level: number, feeFactor: number, type: string) => {
     switch (type.toLowerCase()) {
-      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * (hub ? 0.95 : 1));
-      case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * (hub ? 0.95 : 1));
-      case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * (hub ? 0.95 : 1));
-      default: return 2200;
+      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * feeFactor * costIndex);
+      case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * feeFactor * costIndex);
+      case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * feeFactor * costIndex);
+      default: return Math.floor(2200 * costIndex);
     }
   };
 
@@ -971,12 +1003,12 @@ export function calculateRouteFinancials(
   // "widebody") while aircraft data capitalises them, so normalise once here.
   // Passing the capitalised form made every slots/stands lookup miss silently.
   const slotType = String(aircraft.class || 'regional').toLowerCase();
-  const originLandingFees = getLandingFee(originLevel, originHub, slotType) * weeklyFlights * flownShare;
-  const destLandingFees = getLandingFee(destLevel, destHub, slotType) * weeklyFlights * flownShare;
+  const originLandingFees = getLandingFee(originLevel, originFeeFactor, slotType) * weeklyFlights * flownShare;
+  const destLandingFees = getLandingFee(destLevel, destFeeFactor, slotType) * weeklyFlights * flownShare;
 
-  const originCheckInUnit = originHub ? 0.475 : 0.5;
-  const destCheckInUnit = destHub ? 0.475 : 0.5;
-  const getPaxHandlingUnit = (level: number) => level >= 5 ? 5 : level >= 3 ? 4 : 3;
+  const originCheckInUnit = (originHub ? 0.475 : 0.5) * costIndex;
+  const destCheckInUnit = (destHub ? 0.475 : 0.5) * costIndex;
+  const getPaxHandlingUnit = (level: number) => (level >= 5 ? 5 : level >= 3 ? 4 : 3) * costIndex;
 
   const timeClass = getFlightTimeClass(durMin);
 
@@ -1000,7 +1032,8 @@ export function calculateRouteFinancials(
     originStats.business, originStats.tourism,
     destStats.business, destStats.tourism,
     timeClass, currentMonth, difficulty, currentYear,
-    mods ? routeDemandFactor(mods, originAirport, destAirport) : extraDemandFactor
+    (mods ? routeDemandFactor(mods, originAirport, destAirport) * (mods.maturity?.[route.id] ?? 1) : extraDemandFactor) *
+      eventRegionalFactor(currentYear, currentMonth, originAirport, destAirport)
   );
 
   const bases = calculateBasePrices(dist, timeClass);
@@ -1036,7 +1069,7 @@ export function calculateRouteFinancials(
   let otherAirlinesAttractiveness = 0;
   for (const offer of rivalOffers) {
     if (marketKey(offer.origin, offer.destination) !== ownKey) continue;
-    otherAirlinesAttractiveness += offerAttractiveness(offer.departures);
+    otherAirlinesAttractiveness += offerAttractiveness(offer.departures, offer.priceAppeal ?? 1);
   }
   let ownParallelAttractiveness = 0;
   for (const other of allRoutes) {
@@ -1259,11 +1292,14 @@ export function getAircraftResaleValue(plane: {
   basePrice?: number;
   conditionGeneral?: number;
   conditionInterior?: number;
+  /** Years since it was bought; leave out for a figure that ignores age. */
+  ageYears?: number;
 }): number {
   const baseValue = plane.basePrice || 10000000;
   const condGenFactor = ((plane.conditionGeneral ?? 100) / 100) * 0.45;
   const condIntFactor = ((plane.conditionInterior ?? 100) / 100) * 0.15;
-  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor));
+  const ageFactor = plane.ageYears === undefined ? 1 : resaleAgeFactor(plane.ageYears);
+  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor) * ageFactor);
 }
 
 /**
@@ -1273,7 +1309,7 @@ export function getAircraftResaleValue(plane: {
  * airport console charged these per-level prices, and only the console also
  * applied the tier's effects (hub auto-upgrade, stands). Both now use this.
  */
-const MANAGEMENT_COST_PER_AIRPORT_LEVEL: Record<number, number> = { 1: 30_000, 2: 750_000, 3: 500_000_000 };
+const MANAGEMENT_COST_PER_AIRPORT_LEVEL: Record<number, number> = { 1: 30_000, 2: 750_000, 3: 25_000_000 };
 
 export function getManagementUnlockCost(airportLevel: number, tier: number): number {
   return Math.max(1, Number(airportLevel) || 1) * (MANAGEMENT_COST_PER_AIRPORT_LEVEL[tier] ?? 0);
@@ -1333,12 +1369,9 @@ export function getInfraAvailability(airport: { level?: number } | null | undefi
 export const SLOT_CAPEX_LABEL = 'Airport Slots';
 
 export function getSlotPurchaseCost(type: string) {
-  switch (type) {
-    case 'regional': return 25000;
-    case 'narrowbody': return 50000;
-    case 'widebody': return 100000;
-    default: return 25000;
-  }
+  const base = type === 'narrowbody' ? 50000 : type === 'widebody' ? 100000 : 25000;
+  // Milestones make slots cheaper; see economyContext.ts.
+  return Math.round((base * getSlotPriceFactor()) / 50) * 50;
 }
 
 export interface InfraChangeParams {

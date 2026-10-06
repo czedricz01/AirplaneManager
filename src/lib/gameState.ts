@@ -16,6 +16,10 @@ import { regionOf } from './geoUtils';
 import { ffpLoyaltyBonus, regionDemandFactors } from './marketing';
 import { crewCostFactor, moraleSatDelta, strikeCancelShare } from './staff';
 import { combineCancelShares, disruptionCancelShares } from './disruptions';
+import { maturityFactors } from './routeMaturity';
+import type { GoalOffer } from './annualGoals';
+import type { PreOrder } from './preorders';
+import type { ResearchEffects, ResearchState } from './research';
 
 export { SALARY_PCT_MIN, SALARY_PCT_MAX } from './staff';
 export { combineCancelShares } from './disruptions';
@@ -262,6 +266,31 @@ export const CHRONICLE_KINDS: readonly ChronicleKind[] = ['milestone', 'goal', '
 /** Oldest entries go first; sixty years of history fit comfortably. */
 export const CHRONICLE_LIMIT = 300;
 
+/**
+ * How the airline has grown: its rank (which never falls), the passengers it
+ * has carried over its whole career, and the annual goals the board has put
+ * to it but the player has not yet answered. See airlineRank.ts and
+ * annualGoals.ts.
+ */
+export interface Career {
+  /** Index into RANKS. */
+  rank: number;
+  /** Passengers carried since the first month, every leg counted. */
+  careerPax: number;
+  /** The goals on offer for the coming year, until one is chosen. */
+  goalOffer: GoalOffer | null;
+  /** Rival airlines bought so far. */
+  takeovers: number;
+  /** Aircraft ordered ahead of delivery; see preorders.ts. */
+  orders: PreOrder[];
+  /** Development projects finished and under way; see research.ts. */
+  research: ResearchState;
+  /** The used-market listings bought in the month `offset`, so a reload does not list them again. */
+  usedSold: { offset: number; ids: string[] };
+}
+
+export const DEFAULT_CAREER: Career = { rank: 0, careerPax: 0, goalOffer: null, takeovers: 0, orders: [], research: { done: [], active: [] }, usedSold: { offset: -1, ids: [] } };
+
 /** Everything above, as it is saved, loaded and reset together. */
 export interface GameSystems {
   branding: Branding;
@@ -271,6 +300,7 @@ export interface GameSystems {
   pendingDecisions: GameDecision[];
   scenario: ScenarioState | null;
   chronicle: ChronicleEntry[];
+  career: Career;
   /** Index of the tutorial step on screen, null once it is finished or skipped. */
   tutorialStep: number | null;
 }
@@ -285,6 +315,7 @@ export function createGameSystems(): GameSystems {
     pendingDecisions: [],
     scenario: null,
     chronicle: [],
+    career: { ...DEFAULT_CAREER, orders: [], research: { done: [], active: [] }, usedSold: { offset: -1, ids: [] } },
     tutorialStep: null
   };
 }
@@ -323,6 +354,13 @@ export interface PlayerModifiers {
   demandFactor: number;
   /** Extra demand per region, 1 = neutral. A route gets the mean of its two ends. */
   regionDemand?: Partial<Record<RegionId, number>>;
+  /**
+   * Demand multiplier per route id for how long it has been open: new routes
+   * ramp up, old ones build loyalty. See routeMaturity.ts. A route not listed is mature.
+   */
+  maturity?: Record<string, number>;
+  /** Connecting passengers: 0.1 = 10% more. From the alliance project; see research.ts. */
+  transferBoost?: number;
   /** Raises the player's appeal against rivals on a shared city pair: 0.1 = 10% more. */
   loyaltyBonus?: number;
   /** Satisfaction points added to every cabin class. */
@@ -366,6 +404,10 @@ export interface PlayerModifierState {
   staff?: Staff;
   /** Rolled disruptions; only those for the month priced, and not chartered away, cancel anything. */
   disruptions?: Disruption[];
+  /** The player's routes, for how long each has been open; none when absent. */
+  routes?: ReadonlyArray<{ id: string; openedOffset?: number }>;
+  /** What the finished development projects do; neutral when absent. */
+  research?: ResearchEffects;
 }
 
 /**
@@ -429,6 +471,16 @@ export function buildPlayerModifiers(state: PlayerModifierState, offset: number)
   }
   const cancelShare = disruptionCancelShares(state.disruptions, offset);
   if (cancelShare) mods.cancelShare = cancelShare;
+  if (state.routes) {
+    const maturity = maturityFactors(state.routes, offset, state.research?.rampStart);
+    if (maturity) mods.maturity = maturity;
+  }
+  if (state.research) {
+    const r = state.research;
+    if (r.demandBonus) mods.demandFactor *= 1 + r.demandBonus;
+    if (r.satBonus) mods.satDelta = (mods.satDelta ?? 0) + r.satBonus;
+    if (r.transferBoost) mods.transferBoost = r.transferBoost;
+  }
   return mods;
 }
 

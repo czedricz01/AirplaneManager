@@ -23,6 +23,8 @@ export interface OwnedAircraft extends Aircraft {
   generalChecksDone?: number;
   refitsDone?: number;
   hubId?: string; // Appointed hub for this aircraft
+  /** Launch customer: the month the popularity bonus runs out; see preorders.ts. */
+  launchBonusUntil?: number;
 }
 
 export interface RouteRef {

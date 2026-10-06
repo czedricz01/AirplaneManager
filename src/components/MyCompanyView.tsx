@@ -11,6 +11,10 @@ import { StaffPanel, type StaffPanelProps } from './StaffPanel';
 import { IncidentList } from './IncidentList';
 import { ChronicleView } from './ChronicleView';
 import { LineChart } from './charts/LineChart';
+import { CareerPanel, type CareerPanelProps } from './CareerPanel';
+import type { Commonality } from '../lib/fleetCosts';
+import { rankDef } from '../lib/airlineRank';
+import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
 import type { Branding, ChronicleEntry, ReportIncident } from '../lib/gameState';
 import type { ReportMetrics } from '../lib/chronicle';
 import { CHART_COLORS } from '../lib/theme';
@@ -34,23 +38,22 @@ interface MonthlyReport extends ReportMetrics {
   marketingItems?: { label: string; amount: number }[];
   /** Strikes and disruptions in the month; absent when there were none. */
   incidents?: ReportIncident[];
+  /** Rival landings at the airports the airline owns (tier 3), one line per airport. */
+  hubIncomeItems?: { label: string; amount: number }[];
 }
 
-interface Props extends Omit<MarketingPanelProps, 'capital'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'> {
+interface Props extends Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, Omit<CareerPanelProps, 'capital' | 'currentDateOffset'> {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
   /** Resale value of every owned aircraft, already summed. */
   fleetValue: number;
   fleetCount: number;
+  /** What the make-up of the fleet does to its maintenance, from fleetCommonality. */
+  commonality: Commonality;
   routeCount: number;
   /** Airline reputation, 0-100. */
   reputation: number;
-  /** Milestones earned so far, with the full catalogue to show what is left. */
-  milestones: string[];
-  milestoneCatalogue: { id: string; title: string; detail: string }[];
-  /** The board's target for the current year, and what has been earned so far. */
-  annualGoal: { year: number; targetProfit: number } | null;
   branding: Branding;
   airlineName: string;
   airlineCode: string;
@@ -141,11 +144,13 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
 }
 
 function MyCompanyViewImpl({
-  capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal,
+  capital, reportHistory, fleetValue, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
-  staff, profitStreak, monthlyCrewCost, strikePending, onSetSalary, ...marketingProps
+  staff, profitStreak, monthlyCrewCost, strikePending, moraleBonus, onSetSalary,
+  rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
+  ...marketingProps
 }: Props) {
-  const [section, setSection] = useState<'overview' | 'marketing' | 'staff' | 'history'>('overview');
+  const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
 
   // The last two years of profit at a glance; the History tab has the rest.
   const recent = useMemo(() => reportHistory.slice(-24), [reportHistory]);
@@ -170,7 +175,7 @@ function MyCompanyViewImpl({
 
       <div className="pr-4 mb-3">
        <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
-        {([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
+        {([['overview', 'Overview'], ['career', goalOffer ? 'Career \u25CF' : 'Career'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
           <button
             key={id}
             type="button"
@@ -192,9 +197,29 @@ function MyCompanyViewImpl({
           <div className="max-w-4xl mx-auto pb-6">
             <ChronicleView reportHistory={reportHistory} chronicle={chronicle} />
           </div>
+        ) : section === 'career' ? (
+          <div className="max-w-4xl mx-auto pb-6">
+            <CareerPanel
+              rank={rank}
+              rankStats={rankStats}
+              perks={perks}
+              milestones={milestones}
+              annualGoal={annualGoal}
+              goalOffer={goalOffer}
+              goalSnapshot={goalSnapshot}
+              onChooseGoal={onChooseGoal}
+              research={research}
+              capital={capital}
+              currentDateOffset={marketingProps.currentDateOffset}
+              onStartResearch={onStartResearch}
+              score={score}
+              hall={hall}
+              onRetire={onRetire}
+            />
+          </div>
         ) : section === 'marketing' ? (
           <div className="max-w-4xl mx-auto pb-6">
-            <MarketingPanel capital={capital} {...marketingProps} />
+            <MarketingPanel capital={capital} rank={rank} {...marketingProps} />
           </div>
         ) : section === 'staff' ? (
           <div className="max-w-4xl mx-auto pb-6">
@@ -204,6 +229,7 @@ function MyCompanyViewImpl({
               currentDateOffset={marketingProps.currentDateOffset}
               monthlyCrewCost={monthlyCrewCost}
               strikePending={strikePending}
+              moraleBonus={moraleBonus}
               noRoutes={routeCount === 0}
               onSetSalary={onSetSalary}
             />
@@ -236,25 +262,36 @@ function MyCompanyViewImpl({
                 />
               </div>
             </StatTile>
-            {annualGoal && (() => {
-              const earned = reportHistory
-                .filter(r => r.year === annualGoal.year)
-                .reduce((a, r) => a + r.totalProfit, 0);
-              const pct = annualGoal.targetProfit > 0
-                ? Math.max(0, Math.min(100, (earned / annualGoal.targetProfit) * 100))
-                : 0;
+            <StatTile size="md" label="Rank" value={rankDef(rank).title.replace(' Airline', '')}>
+              <span className="block text-3xs font-mono text-white/30 mt-1">
+                <button type="button" onClick={() => setSection('career')} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+                  Career &rarr;
+                </button>
+              </span>
+            </StatTile>
+            {goalOffer ? (
+              <StatTile size="md" label={`${goalOffer.year} goal`} value="Choose">
+                <span className="block text-3xs font-mono text-white/30 mt-1">
+                  <button type="button" onClick={() => setSection('career')} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+                    The board waits &rarr;
+                  </button>
+                </span>
+              </StatTile>
+            ) : annualGoal && goalSnapshot && (() => {
+              const fraction = goalFraction(annualGoal, goalSnapshot);
+              const value = goalValue(annualGoal, goalSnapshot);
               return (
                 <StatTile
                   size="md"
-                  label={`${annualGoal.year} target`}
-                  value={compact(earned)}
-                  valueClassName={pct >= 100 ? 'text-aero-good' : ''}
+                  label={`${annualGoal.year} goal`}
+                  value={annualGoal.kind === 'profit' ? compact(value) : annualGoal.kind === 'noLoss' ? (value === 0 ? 'Clean' : `${value} loss`) : Math.round(value)}
+                  valueClassName={fraction >= 1 ? 'text-aero-good' : ''}
                 >
                   <span className="block text-3xs font-mono text-white/30 mt-1">
-                    of {compact(annualGoal.targetProfit)} operating profit
+                    {describeGoal(annualGoal, compact, n => String(Math.round(n)))}
                   </span>
                   <div className="w-full h-1 bg-white/10 mt-2 overflow-hidden">
-                    <div className={`h-full ${pct >= 100 ? 'bg-aero-good' : 'bg-aero-yellow'}`} style={{ width: `${pct}%` }} />
+                    <div className={`h-full ${fraction >= 1 ? 'bg-aero-good' : 'bg-aero-yellow'}`} style={{ width: `${fraction * 100}%` }} />
                   </div>
                 </StatTile>
               );
@@ -263,6 +300,30 @@ function MyCompanyViewImpl({
               <span className="block text-3xs font-mono text-white/30 mt-1">active routes</span>
             </StatTile>
           </div>
+
+          {fleetCount > 0 && (
+            <Panel>
+              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+                <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Fleet commonality</span>
+                <span className={`text-2xs font-mono ${commonality.meanFactor < 1 ? 'text-aero-good' : commonality.meanFactor > 1 ? 'text-aero-warn' : 'text-white/50'}`}>
+                  maintenance {commonality.meanFactor === 1 ? 'at the standard rate' : `${commonality.meanFactor < 1 ? '' : '+'}${Math.round((commonality.meanFactor - 1) * 100)}% on average`}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {commonality.families.slice(0, 8).map(f => (
+                  <span key={f.family} className="text-2xs font-mono border border-white/10 bg-white/[0.03] px-2 py-1 rounded-sm">
+                    {f.family} &times;{f.count}{f.discount > 0 && <span className="text-aero-good"> &minus;{Math.round(f.discount * 100)}%</span>}
+                  </span>
+                ))}
+                {commonality.families.length > 8 && <span className="text-2xs font-mono text-white/40 py-1">+{commonality.families.length - 8} more</span>}
+              </div>
+              <p className="text-3xs font-mono text-white/40 leading-relaxed">
+                Aircraft of one family share crews and spare parts: three of a kind save 4% on their maintenance, six 8%, twelve 12%.
+                Running more than three families costs 3% on every aircraft for each one beyond.
+                {commonality.penalty > 0 && <span className="text-aero-warn"> Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</span>}
+              </p>
+            </Panel>
+          )}
 
           {reportHistory.length === 0 ? (
             <div className="h-48 border border-white/5 bg-black/20 rounded-sm flex flex-col items-center justify-center gap-2 text-white/40 uppercase tracking-widest text-xs font-bold">
@@ -338,6 +399,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-white/80">Flight revenue</strong> — ticket sales on your active routes.</p>
                   <p><strong className="text-white/80">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
                   <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
+                  <p><strong className="text-white/80">Aircraft ownership</strong> — insurance and the maintenance programme for every aircraft in the fleet, flying or parked. A parked aircraft costs half, and the older an aircraft gets the more its upkeep takes.</p>
                   <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
                   <p><strong className="text-white/80">Incident repairs &amp; charters</strong> — replacement aircraft chartered to fly cancelled flights (older reports also list repair bills). A bird strike is paid on the spot and shows as capex.</p>
                   <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers, airport slots. Deducted from cash at once, but not from operating profit, which is why the two differ.</p>
@@ -375,6 +437,28 @@ function MyCompanyViewImpl({
                       { label: 'Service desk operations', amount: latest!.breakdown.desks }
                     ]
                   },
+                  ...((latest!.breakdown.fleetOwnership || 0) > 0
+                    ? [{
+                        id: 'fleetOwnership',
+                        label: 'Aircraft ownership',
+                        total: latest!.breakdown.fleetOwnership,
+                        items: [
+                          { label: 'Insurance & maintenance programme', amount: latest!.breakdown.fleetOwnership - (latest!.breakdown.fleetParked || 0) },
+                          ...((latest!.breakdown.fleetParked || 0) > 0
+                            ? [{ label: `Parked aircraft (${latest!.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latest!.breakdown.fleetParked }]
+                            : [])
+                        ]
+                      }]
+                    : []),
+                  ...((latest!.breakdown.hubIncome || 0) > 0
+                    ? [{
+                        id: 'hubIncome',
+                        label: 'Airport ownership income',
+                        variant: 'net' as const,
+                        total: latest!.breakdown.hubIncome,
+                        items: latest!.hubIncomeItems ?? []
+                      }]
+                    : []),
                   ...((latest!.breakdown.marketing || 0) > 0
                     ? [{
                         id: 'marketing',
@@ -437,37 +521,6 @@ function MyCompanyViewImpl({
             </>
           )}
 
-          {/* Milestones. The only thing in the game that accumulates across a
-              whole career, so it shows what is still out there as well. */}
-          <Panel>
-            <div className="flex items-baseline justify-between mb-3">
-              <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Milestones</span>
-              <span className="text-2xs font-mono text-white/40">
-                {milestones.length} / {milestoneCatalogue.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {milestoneCatalogue.map(m => {
-                const earned = milestones.includes(m.id);
-                return (
-                  <div
-                    key={m.id}
-                    className={`p-2 border rounded-sm text-2xs font-mono leading-relaxed ${
-                      earned
-                        ? 'border-aero-good/40 bg-aero-good/5 text-white/80'
-                        : 'border-white/5 bg-white/[0.02] text-white/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={earned ? 'text-aero-good' : 'text-white/20'}>{earned ? '\u2713' : '\u25CB'}</span>
-                      <span className="font-bold uppercase tracking-wider">{m.title}</span>
-                    </div>
-                    <p className="pl-5 mt-0.5">{m.detail}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
         </div>
         )}
       </div>

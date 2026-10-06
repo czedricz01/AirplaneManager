@@ -48,7 +48,7 @@ test('severity: 0 in a normal year, the demand loss or half the fuel rise in a c
   assert.ok(Math.abs(crisisSeverity(at(1973, 11)) - 0.5) < 1e-9, 'oil shock: fuel x2.0');
   assert.ok(Math.abs(crisisSeverity(at(2001, 10)) - 0.35) < 1e-9, '2001: demand x0.65');
   // Every scripted crisis is above the line.
-  for (const ev of scripted) {
+  for (const ev of scripted.filter(e => !e.regions)) {
     assert.ok(crisisSeverity(ev.startOffset) >= CRISIS_FROM, `${ev.title} should count as a crisis`);
   }
 });

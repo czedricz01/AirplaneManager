@@ -21,6 +21,7 @@
  */
 import type { Campaign, CampaignTier, Marketing, RegionId } from './gameState';
 import { regionOf } from './geoUtils';
+import { RANK_NEEDED, rankGateMessage } from './airlineRank';
 
 // --- Regions -------------------------------------------------------------------
 
@@ -141,7 +142,9 @@ export function regionDemandFactors(marketing: Marketing, offset: number): Parti
  * with a cancel button. The game never books one for later, and a save that
  * holds one has it moved to the present on load.
  */
-export function campaignBlocker(marketing: Marketing, tier: CampaignTier, region: RegionId, offset: number): string | null {
+export function campaignBlocker(marketing: Marketing, tier: CampaignTier, region: RegionId, offset: number, rank?: number): string | null {
+  const gated = rank === undefined ? null : campaignRankGate(tier, rank);
+  if (gated) return gated;
   const running = marketing.campaigns.filter(c => isCampaignActive(c, offset));
   if (tier === 'global') {
     return running.some(c => c.tier === 'global') ? 'A global campaign is already running.' : null;
@@ -150,6 +153,18 @@ export function campaignBlocker(marketing: Marketing, tier: CampaignTier, region
   return clash
     ? `A ${CAMPAIGN_SPECS[clash.tier].label.toLowerCase()} campaign is already running in ${REGION_LABELS[region]}. Cancel it first to change it.`
     : null;
+}
+
+/** The refusal for a campaign tier the airline's rank does not yet allow, or null. */
+export function campaignRankGate(tier: CampaignTier, rank: number): string | null {
+  if (tier === 'national') return rankGateMessage(rank, RANK_NEEDED.nationalCampaign, 'A national campaign');
+  if (tier === 'global') return rankGateMessage(rank, RANK_NEEDED.globalCampaign, 'A global campaign');
+  return null;
+}
+
+/** The refusal for the frequent-flyer programme at this rank, or null. */
+export function ffpRankGate(rank: number): string | null {
+  return rankGateMessage(rank, RANK_NEEDED.frequentFlyer, 'The frequent-flyer programme');
 }
 
 /** A new campaign starting in the month at `offset`. */

@@ -10,6 +10,8 @@ import {
   advanceStaff,
   crewCostFactor,
   isStrikeActive,
+  labourMarketLabel,
+  labourMarketPremium,
   moraleSatDelta,
   salaryFloor,
   setSalary,
@@ -225,14 +227,36 @@ test('the engine flies what a strike leaves and pays the crew what the slider sa
 });
 
 test('the outlook shows what the coming close will do at today\'s pay', () => {
-  const outlook = staffOutlook(staffAt(40, 80), 0, 100);
+  const outlook = staffOutlook(staffAt(40, 80), 0, 40);
   assert.equal(outlook.target, 20);
   assert.equal(outlook.nextMorale, 36);
   assert.equal(outlook.strikeChance, 0);
-  const worse = staffOutlook(staffAt(30, 80), 0, 100);
+  const worse = staffOutlook(staffAt(30, 80), 0, 40);
   assert.equal(worse.nextMorale, 28);
   assert.ok(Math.abs(worse.strikeChance - 0.042) < 1e-12);
-  assert.equal(staffOutlook(staffAt(30, 80), 0, 100, true).strikeChance, 0, 'none while one waits for an answer');
+  assert.equal(staffOutlook(staffAt(30, 80), 0, 40, true).strikeChance, 0, 'none while one waits for an answer');
+});
+
+test('in a boom the staff expect more than the going wage, in a slump less', () => {
+  const offsetOf = (year: number) => (year - 1960) * 12 + 5;
+  assert.equal(labourMarketPremium(offsetOf(1961)), 0);
+  assert.ok(labourMarketPremium(offsetOf(2017)) > 5, 'the pilot shortage');
+  assert.ok(labourMarketPremium(offsetOf(2020)) < -5, 'the pandemic');
+  assert.equal(labourMarketLabel(9), 'Very tight: crews are scarce');
+  assert.equal(labourMarketLabel(-6), 'Slack: jobs are scarce');
+  assert.equal(labourMarketLabel(0), 'Balanced');
+});
+
+test('market pay no longer holds morale at 50 in a boom: it takes more pay to keep the peace', () => {
+  assert.equal(targetMorale(100, 0, false), 50);
+  assert.equal(targetMorale(100, 0, false, 9), 36.5);
+  assert.equal(targetMorale(109, 0, false, 9), 50);
+  assert.equal(targetMorale(100, 0, false, -6), 59);
+  // The close uses the premium of the month it opens.
+  const boom = (2017 - 1960) * 12;
+  const calm = (1961 - 1960) * 12;
+  assert.ok(advanceStaff(staffAt(50, 100), { profitStreak: 0, nextOffset: boom }, () => 1).target < 40);
+  assert.equal(advanceStaff(staffAt(50, 100), { profitStreak: 0, nextOffset: calm }, () => 1).target, 50);
 });
 
 test('a pay rise agreed to end a strike cannot be taken back while the strike is recent', () => {
