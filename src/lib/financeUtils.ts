@@ -799,6 +799,19 @@ export function seatWeightedSatisfaction(routeSat: Record<string, number>, confi
 /** Overpricing hits demand much harder than underpricing rewards it. */
 const OVERPRICE_ELASTICITY_FACTOR = 3;
 
+/**
+ * Above the fare not every passenger reacts alike. Most compare prices and
+ * leave quickly (the steep curve above); a quarter has to travel and is only
+ * unit-elastic: twice the fare halves them. So demand first drops steeply,
+ * then levels off instead of running to nothing.
+ *
+ * Unit elasticity is the bound that keeps this from being a lever: a fare
+ * above the market fare can never earn more than the market fare itself,
+ * because what this group pays in total stays the same however high it goes.
+ */
+export const PRICE_INSENSITIVE_SHARE = 0.25;
+const PRICE_INSENSITIVE_ELASTICITY = 1;
+
 export function getPriceDemandMultiplier(price: number, satBasePrice: number, sat: number) {
     // Nothing is worth zero, and a free ticket draws the most demand there is.
     // Without these two lines 0/0 and x/0 turned the whole route result into NaN.
@@ -806,10 +819,10 @@ export function getPriceDemandMultiplier(price: number, satBasePrice: number, sa
     if (!(price > 0)) return 1.5;
     const baseElasticity = 1.5;
     const elasticity = Math.max(0.5, baseElasticity - (sat / 200));
-    const overpriced = price > satBasePrice;
-    const effectiveElasticity = overpriced ? elasticity * OVERPRICE_ELASTICITY_FACTOR : elasticity;
-    const rawDemand = Math.pow(satBasePrice / price, effectiveElasticity);
-    return Math.min(1.5, rawDemand);
+    const appeal = satBasePrice / price;
+    if (price <= satBasePrice) return Math.min(1.5, Math.pow(appeal, elasticity));
+    return (1 - PRICE_INSENSITIVE_SHARE) * Math.pow(appeal, elasticity * OVERPRICE_ELASTICITY_FACTOR)
+      + PRICE_INSENSITIVE_SHARE * Math.pow(appeal, PRICE_INSENSITIVE_ELASTICITY);
 }
 
 /**

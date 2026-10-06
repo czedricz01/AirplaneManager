@@ -541,6 +541,15 @@ Ausgearbeitet, aber nicht Teil von Paket 1. Reihenfolge nach Wirkung pro Aufwand
 > AN-24 DUS–LHR vorher bestenfalls −7 k$/Woche, jetzt +5 bis +9 k$; F-27 −35 k$
 > → +13 k$. DUS–Izmir bleibt mit der AN-24 ein Verlust (5 h je Strecke mit
 > 450 km/h); mit einer Caravelle oder Comet ist sie hoch profitabel.
+>
+> **Preis-Nachfrage-Kurve flacht ab.** Über dem Marktpreis fiel die Nachfrage als
+> reine Potenzkurve mit Exponent 1,5–4,5 auf fast null. Jetzt reagiert ein Viertel
+> der Passagiere nur einfach elastisch (`PRICE_INSENSITIVE_SHARE`): bei SAT 120
+> bleiben bei doppeltem Marktpreis 24 % statt 15 %, bei dreifachem 12 % statt 5 %.
+> Weil diese Gruppe einfach elastisch ist, bringt ein Preis über dem Marktpreis
+> nie mehr Umsatz als der Marktpreis selbst. Gemessen an allen Zielen, die ein
+> Startup ab DUS 1960 erreichen darf (Flughafen-Level ≤ 4, AN-24 in Reichweite):
+> profitabel bei bestem Preis auf Hard vorher 0 von 152, jetzt 94; auf Normal 130.
 
 
 **Das Problem:** `calculateDemand` kennt keinen Wettbewerb. Zwei identische

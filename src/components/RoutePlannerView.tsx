@@ -52,6 +52,7 @@ import {
   getSatMultiplier,
   getPriceDemandMultiplier,
   MAX_SCARCITY_PREMIUM,
+  PRICE_INSENSITIVE_SHARE,
   validateClassConfigs,
   getFlightDurationMinutes as sharedFlightDurationMinutes,
   toStoredRouteMetrics,
@@ -3680,7 +3681,7 @@ function RoutePlannerInner({
                                            <span>Price ratio: market fare / price = {formatNumber(fare / currentPrice, 2)}</span>
                                          </div>
                                          <div className="flex justify-between pl-4 text-3xs">
-                                           <span>Demand mult: min(1.5, appeal^{formatNumber(elasticity, 2)})</span>
+                                           <span>Demand mult: {currentPrice <= fare ? `min(1.5, ratio^${formatNumber(elasticity, 2)})` : `${formatNumber(1 - PRICE_INSENSITIVE_SHARE, 2)} × ratio^${formatNumber(elasticity * 3, 2)} + ${formatNumber(PRICE_INSENSITIVE_SHARE, 2)} × ratio`}</span>
                                            <span>{formatNumber(demMult * 100, 1)}%</span>
                                          </div>
                                          <div className="flex justify-between pl-4 text-3xs text-aero-yellow">

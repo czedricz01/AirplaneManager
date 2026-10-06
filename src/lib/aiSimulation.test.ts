@@ -146,9 +146,10 @@ test('an aircraft is never scheduled for more round trips than fit in a week', (
         const dest = airportsMapAdjusted.get(r.destination)!;
         assert.ok(!icao || icao <= dest.maxIcaoCode, `${plane.type} cannot land at ${dest.id}`);
       }
-      // One aircraft per route, and no route twice.
+      // One aircraft per route, and no route twice. A rival with a second hub
+      // may serve the same destination from both.
       assert.equal(new Set(ai.routes.map(r => r.aircraftReg)).size, ai.routes.length);
-      assert.equal(new Set(ai.routes.map(r => r.destination)).size, ai.routes.length);
+      assert.equal(new Set(ai.routes.map(r => `${r.origin}>${r.destination}`)).size, ai.routes.length);
     }
   }
 });

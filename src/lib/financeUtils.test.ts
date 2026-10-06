@@ -34,6 +34,23 @@ test('getPriceDemandMultiplier falls faster above the base price than it grows b
   assert.equal(underpriced, Math.pow(base / 80, elasticity), 'underpricing is unaffected by the overprice penalty');
 });
 
+test('above the fare demand first falls steeply, then levels off, and never pays more than the fare', () => {
+  const fare = 100;
+  for (const sat of [40, 100, 200]) {
+    const at = (p: number) => getPriceDemandMultiplier(p, fare, sat);
+    // Each further step up the price loses a smaller share of what is left.
+    const lossNear = 1 - at(130) / at(100);
+    const lossFar = 1 - at(300) / at(230);
+    assert.ok(lossFar < lossNear, `sat ${sat}: the curve flattens (${lossNear.toFixed(2)} then ${lossFar.toFixed(2)})`);
+    // The price-insensitive travellers remain however high the fare goes.
+    assert.ok(at(1000) > 0.25 * 0.1 * 0.99, `sat ${sat}: some passengers stay at ten times the fare`);
+    // Revenue per passenger the fare would have brought never grows above the fare.
+    for (const p of [101, 120, 150, 200, 400, 1000]) {
+      assert.ok(p * at(p) < fare, `sat ${sat}: charging ${p} earns less than the fare`);
+    }
+  }
+});
+
 test('getMultiOptionSum collapses a stale double-selection within a tiered family', () => {
   const bothWifiTiers = getMultiOptionSum(['wifi_limited', 'wifi_unlimited'], EXTRAS_OPTIONS);
   const unlimitedAlone = getMultiOptionSum(['wifi_unlimited'], EXTRAS_OPTIONS);
