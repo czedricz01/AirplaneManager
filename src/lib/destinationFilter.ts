@@ -21,6 +21,8 @@ export interface RangeFilter {
 export interface DestinationFilters {
   /** Only airports that none of the player's routes touches yet. */
   unservedOnly: boolean;
+  /** Hide airports the airline's rank does not yet allow (the ones marked RANK). */
+  reachableOnly: boolean;
   /** Distance from the chosen origin, in km. */
   distance: RangeFilter;
   business: RangeFilter;
@@ -29,6 +31,7 @@ export interface DestinationFilters {
 
 export const NO_DESTINATION_FILTERS: DestinationFilters = {
   unservedOnly: false,
+  reachableOnly: false,
   distance: { min: '', max: '' },
   business: { min: '', max: '' },
   tourism: { min: '', max: '' }
@@ -59,6 +62,7 @@ export function sanitizeDestinationFilters(raw: unknown): DestinationFilters {
   const stored = (raw ?? {}) as Record<string, unknown>;
   return {
     unservedOnly: stored.unservedOnly === true,
+    reachableOnly: stored.reachableOnly === true,
     distance: storedRange(stored.distance),
     business: storedRange(stored.business),
     tourism: storedRange(stored.tourism)
@@ -83,6 +87,8 @@ export interface DestinationCandidate {
   tourism: number;
   /** True when one of the player's routes starts or ends here. */
   served: boolean;
+  /** True when the airline's rank does not allow this airport yet. */
+  rankLocked?: boolean;
 }
 
 /** A typed bound as a number; null for an empty or invalid field. */
@@ -110,6 +116,7 @@ function inRange(value: number, range: RangeFilter): boolean {
 export function activeDestinationFilterCount(filters: DestinationFilters, hasOrigin: boolean): number {
   let count = 0;
   if (filters.unservedOnly) count++;
+  if (filters.reachableOnly) count++;
   if (hasOrigin && isRangeSet(filters.distance)) count++;
   if (isRangeSet(filters.business)) count++;
   if (isRangeSet(filters.tourism)) count++;
@@ -118,6 +125,7 @@ export function activeDestinationFilterCount(filters: DestinationFilters, hasOri
 
 export function passesDestinationFilters(filters: DestinationFilters, airport: DestinationCandidate): boolean {
   if (filters.unservedOnly && airport.served) return false;
+  if (filters.reachableOnly && airport.rankLocked) return false;
   if (airport.distanceKm !== null && !inRange(airport.distanceKm, filters.distance)) return false;
   return inRange(airport.business, filters.business) && inRange(airport.tourism, filters.tourism);
 }
