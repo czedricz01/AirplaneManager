@@ -54,7 +54,7 @@ export const RANKS: readonly RankDef[] = [
     index: 3, id: 'international', title: 'International Airline',
     requires: { routes: 20, monthlyPax: 150_000, reputation: 58, regions: 2 },
     maxHubs: 4,
-    unlocks: ['Global marketing campaigns', 'A fourth hub']
+    unlocks: ['Global marketing campaigns', 'Takeovers of rivals in distress', 'A fourth hub']
   },
   {
     index: 4, id: 'flag', title: 'Flag Carrier',
@@ -66,7 +66,7 @@ export const RANKS: readonly RankDef[] = [
     index: 5, id: 'global', title: 'Global Player',
     requires: { routes: 80, monthlyPax: 1_500_000, reputation: 75, regions: 4 },
     maxHubs: 12,
-    unlocks: ['Takeovers of rival airlines', 'Twelve hubs']
+    unlocks: ['Takeover bids for healthy rivals', 'Twelve hubs']
   }
 ];
 
@@ -139,7 +139,10 @@ export const RANK_NEEDED = {
   nationalCampaign: 1,
   globalCampaign: 3,
   managementTier3: 4,
-  takeover: 5
+  /** Buying a rival that is in distress and for sale. */
+  takeoverDistressed: 3,
+  /** Bidding for a healthy rival. */
+  takeoverHealthy: 5
 } as const;
 
 /** The rank an aircraft needs before it can be bought; 0 for most. */

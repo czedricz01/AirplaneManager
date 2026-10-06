@@ -5,7 +5,7 @@ import { MILESTONES, SLOT_DISCOUNT_CAP, milestonePerks, newlyEarned, totalReward
 
 const ctx = (over: Partial<MilestoneContext> = {}): MilestoneContext => ({
   routeCount: 0, fleetSize: 0, capital: 0, longestRouteKm: 0, continents: 0, profitableMonthStreak: 0,
-  reputation: 50, careerPax: 0, transferPaxMonth: 0, hasWidebody: false, hasSupersonic: false, ...over
+  reputation: 50, careerPax: 0, transferPaxMonth: 0, hasWidebody: false, hasSupersonic: false, takeovers: 0, ...over
 });
 
 test('ids are unique and every milestone has a track and tier', () => {

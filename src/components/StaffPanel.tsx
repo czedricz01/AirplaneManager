@@ -21,6 +21,8 @@ import {
   moraleSatDelta,
   salaryFloor,
   staffOutlook,
+  labourMarketLabel,
+  labourMarketPremium,
   strikeCancelShare,
   strikeIsRecent
 } from '../lib/staff';
@@ -110,6 +112,19 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           </div>
         </div>
       )}
+
+      {(() => {
+        const premium = labourMarketPremium(offset);
+        return (
+          <div className="text-2xs font-mono text-white/50 leading-relaxed">
+            Labour market: <span className={premium >= 4 ? 'text-aero-warn' : premium <= -4 ? 'text-aero-good' : 'text-white/70'}>{labourMarketLabel(premium)}</span>.
+            {premium !== 0 && (
+              <> Crews expect {premium > 0 ? `${premium} points more` : `${-premium} points less`} than the going wage, so market pay
+              {premium > 0 ? ' no longer keeps morale at neutral.' : ' now holds morale above neutral.'}</>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatTile

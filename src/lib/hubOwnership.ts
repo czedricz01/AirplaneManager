@@ -76,3 +76,8 @@ export function ownerIncome(
 export function rivalMayEnter(airportId: string, management: Record<string, { level?: number } | undefined>): boolean {
   return (management[airportId]?.level ?? 0) < TIER3;
 }
+
+/** The airports the player owns outright (management tier 3), closed to rivals' new routes. */
+export function ownedAirports(management: Record<string, { level?: number } | undefined> | null | undefined): Set<string> {
+  return new Set(Object.entries(management || {}).filter(([, m]) => (m?.level ?? 0) >= TIER3).map(([id]) => id));
+}

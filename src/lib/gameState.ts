@@ -277,9 +277,11 @@ export interface Career {
   careerPax: number;
   /** The goals on offer for the coming year, until one is chosen. */
   goalOffer: GoalOffer | null;
+  /** Rival airlines bought so far. */
+  takeovers: number;
 }
 
-export const DEFAULT_CAREER: Career = { rank: 0, careerPax: 0, goalOffer: null };
+export const DEFAULT_CAREER: Career = { rank: 0, careerPax: 0, goalOffer: null, takeovers: 0 };
 
 /** Everything above, as it is saved, loaded and reset together. */
 export interface GameSystems {

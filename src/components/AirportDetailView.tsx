@@ -88,10 +88,11 @@ export function AirportDetailView({
   };
 
   const upkeepData = useMemo(() => {
-    return getAirportUpkeep(airport, infrastructure, routes, fleet);
-  }, [airport, infrastructure, routes, fleet]);
+    return getAirportUpkeep(airport, infrastructure, routes, fleet, currentYear);
+  }, [airport, infrastructure, routes, fleet, currentYear]);
 
   const {
+    slotCosts,
     standUpgradeCosts,
     deskCosts,
     deskCapacities,
@@ -313,10 +314,10 @@ export function AirportDetailView({
                   <div className="space-y-4">
                     <SectionLabel icon={<Plus size={12}/>} label="Flight Slots" />
                     <div className="grid grid-cols-1 gap-2">
-                        <InfaRow label="Regional" count={infrastructure.slots.regional} used={utilizedSlots.regional} showUtilBar={true} purchaseCost={getSlotPurchaseCost('regional')} cost={250} onBuy={(n, isShift) => buyItem('slots', 'regional', n, isShift)} />
-                        <InfaRow label="Narrowbody" count={infrastructure.slots.narrowbody} used={utilizedSlots.narrowbody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('narrowbody')} cost={250} onBuy={(n, isShift) => buyItem('slots', 'narrowbody', n, isShift)} />
+                        <InfaRow label="Regional" count={infrastructure.slots.regional} used={utilizedSlots.regional} showUtilBar={true} purchaseCost={getSlotPurchaseCost('regional')} cost={slotCosts.regional} onBuy={(n, isShift) => buyItem('slots', 'regional', n, isShift)} />
+                        <InfaRow label="Narrowbody" count={infrastructure.slots.narrowbody} used={utilizedSlots.narrowbody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('narrowbody')} cost={slotCosts.narrowbody} onBuy={(n, isShift) => buyItem('slots', 'narrowbody', n, isShift)} />
                        {avail.widebodySlots && (
-                         <InfaRow label="Widebody" count={infrastructure.slots.widebody} used={utilizedSlots.widebody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('widebody')} cost={250} onBuy={(n, isShift) => buyItem('slots', 'widebody', n, isShift)} />
+                         <InfaRow label="Widebody" count={infrastructure.slots.widebody} used={utilizedSlots.widebody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('widebody')} cost={slotCosts.widebody} onBuy={(n, isShift) => buyItem('slots', 'widebody', n, isShift)} />
                        )}
                     </div>
                   </div>

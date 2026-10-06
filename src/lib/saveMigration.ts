@@ -333,7 +333,8 @@ function migrateCareer(raw: unknown, ctx: { routes: any[]; fleet: any[]; reputat
     return {
       rank: clampRank(src.rank),
       careerPax: Math.max(0, finiteOr(src.careerPax, 0)),
-      goalOffer: normalizeOffer(src.goalOffer)
+      goalOffer: normalizeOffer(src.goalOffer),
+      takeovers: Math.max(0, Math.round(finiteOr(src.takeovers, 0)))
     };
   }
   const careerPax = ctx.reportHistory.reduce((sum, r) => sum + Math.max(0, finiteOr(r?.paxTotal, 0)), 0);
@@ -343,7 +344,8 @@ function migrateCareer(raw: unknown, ctx: { routes: any[]; fleet: any[]; reputat
       ctx.fleet
     ),
     careerPax,
-    goalOffer: null
+    goalOffer: null,
+    takeovers: 0
   };
 }
 

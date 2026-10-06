@@ -39,6 +39,8 @@ export interface MilestoneContext {
   transferPaxMonth: number;
   hasWidebody: boolean;
   hasSupersonic: boolean;
+  /** Rival airlines bought. */
+  takeovers: number;
 }
 
 export interface MilestoneReward {
@@ -126,7 +128,9 @@ export const MILESTONES: Milestone[] = [
 
   // Feats
   make('widebody', 'feats', 'feat', 'The wide-body age', 'A wide-body aircraft joins the fleet.', c => c.hasWidebody),
-  make('supersonic', 'feats', 'feat', 'Flying faster than sound', 'A supersonic airliner joins the fleet.', c => c.hasSupersonic, { reputation: 8 })
+  make('supersonic', 'feats', 'feat', 'Flying faster than sound', 'A supersonic airliner joins the fleet.', c => c.hasSupersonic, { reputation: 8 }),
+  make('takeover', 'feats', 'feat', 'Consolidator', 'You bought a rival airline.', c => c.takeovers >= 1, { reputation: 5 }),
+  make('takeover-3', 'feats', 'feat', 'Empire builder', 'Three rival airlines have been absorbed.', c => c.takeovers >= 3, { reputation: 8, extraHubs: 1 })
 ];
 
 /** Slot discounts never add up to more than this. */

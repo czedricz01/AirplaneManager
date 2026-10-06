@@ -297,10 +297,11 @@ test('career passengers are summed from the reports an old save still holds', ()
 
 test('a saved career is kept, with the rank clamped', () => {
   const save: any = oldSave();
-  save.career = { rank: 99, careerPax: 12345, goalOffer: null };
+  save.career = { rank: 99, careerPax: 12345, goalOffer: null, takeovers: 2 };
   const c = migrateSave(save).career;
   assert.equal(c.rank, 5);
   assert.equal(c.careerPax, 12345);
+  assert.equal(c.takeovers, 2);
 });
 
 test('the first annual goal format loads as a steady profit goal', () => {

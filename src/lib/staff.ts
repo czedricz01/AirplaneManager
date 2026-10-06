@@ -14,9 +14,10 @@
  * player answers: a 10% pay rise halves the cancellations, sitting it out
  * grounds everything and costs reputation. A raise agreed with the unions
  * holds: pay cannot drop below it while the strike weighs on morale. Market pay settles morale at 50,
- * which is also where satisfaction is neither helped nor hurt, and well clear
- * of the threshold; only an airline that underpays for months ever sees a
- * strike.
+ * which is also where satisfaction is neither helped nor hurt. The labour
+ * market moves that point: in a boom crews expect more than the going wage,
+ * and an airline that keeps paying 100% drifts towards a strike; in a slump
+ * it can pay less.
  *
  * Everything here is pure. The one random draw, whether a strike is called,
  * takes its generator as a parameter so a test can fix it.
@@ -98,11 +99,52 @@ export function strikeIsRecent(strike: Strike | null | undefined, offset: number
   return since >= 0 && since <= STRIKE_MEMORY_MONTHS;
 }
 
-/** The morale that pay and the airline's fortunes justify, 0-100. */
-export function targetMorale(salaryPct: number, profitStreak: number, recentStrike: boolean): number {
+/**
+ * The labour market. In a boom every airline is hiring and crews expect more
+ * than the going wage; in a slump they take what they are offered. The figure
+ * is the pay, in points above (or below) the market wage, at which staff are
+ * neither pleased nor aggrieved: at 100% pay in a +9 year they behave as if
+ * they were paid 91%. Years are those of the real industry: the jet-age
+ * hiring of the sixties, the oil-shock layoffs, the pilot shortage of the
+ * 2010s and the one after the pandemic.
+ */
+const LABOUR_MARKET: ReadonlyArray<{ from: number; to: number; points: number }> = [
+  { from: 1964, to: 1970, points: 6 },
+  { from: 1973, to: 1975, points: -6 },
+  { from: 1980, to: 1983, points: -4 },
+  { from: 1987, to: 1990, points: 5 },
+  { from: 1991, to: 1993, points: -5 },
+  { from: 1996, to: 2000, points: 8 },
+  { from: 2001, to: 2004, points: -6 },
+  { from: 2005, to: 2008, points: 6 },
+  { from: 2009, to: 2011, points: -5 },
+  { from: 2014, to: 2019, points: 9 },
+  { from: 2020, to: 2021, points: -8 },
+  { from: 2022, to: 2200, points: 10 }
+];
+
+/** Pay points above the market wage the staff expect in the month at `offset`; negative in a slump. */
+export function labourMarketPremium(offset: number): number {
+  const year = 1960 + Math.floor(offset / 12);
+  return LABOUR_MARKET.find(p => year >= p.from && year <= p.to)?.points ?? 0;
+}
+
+/** A word for the labour market, for the staff screen. */
+export function labourMarketLabel(points: number): string {
+  if (points >= 8) return 'Very tight: crews are scarce';
+  if (points >= 4) return 'Tight: airlines are hiring';
+  if (points <= -4) return 'Slack: jobs are scarce';
+  return 'Balanced';
+}
+
+/**
+ * The morale that pay and the airline's fortunes justify, 0-100. `marketPremium`
+ * is what the labour market adds to the pay the staff expect; see labourMarketPremium.
+ */
+export function targetMorale(salaryPct: number, profitStreak: number, recentStrike: boolean, marketPremium = 0): number {
   return clampMorale(
     BASE_MORALE
-    + (clampSalaryPct(salaryPct) - 100) * MORALE_PER_PAY_POINT
+    + (clampSalaryPct(salaryPct) - 100 - marketPremium) * MORALE_PER_PAY_POINT
     + (profitStreak > PROFIT_STREAK_MONTHS ? PROFIT_STREAK_MORALE : 0)
     - (recentStrike ? STRIKE_MORALE_PENALTY : 0)
   );
@@ -190,7 +232,7 @@ export interface StaffMonthResult {
  * `rng` is drawn from only when a strike is possible at all.
  */
 export function advanceStaff(staff: Staff, ctx: StaffMonthContext, rng: () => number): StaffMonthResult {
-  const target = targetMorale(staff.salaryPct, ctx.profitStreak, strikeIsRecent(staff.strike, ctx.nextOffset));
+  const target = targetMorale(staff.salaryPct, ctx.profitStreak, strikeIsRecent(staff.strike, ctx.nextOffset), labourMarketPremium(ctx.nextOffset));
   const morale = stepMorale(staff.morale, target);
   const blocked = !!ctx.strikePending || !!ctx.noRoutes || !!ctx.malusBlocked
     || (!!staff.strike && staff.strike.startOffset >= ctx.nextOffset - 1);

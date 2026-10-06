@@ -1,7 +1,10 @@
+import { takeoverQuote } from '../lib/takeover';
+import { SALE_TO_LIQUIDATION_MONTHS } from '../lib/aiSimulation';
+import { Button } from './ui/Button';
 import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { useTapReveal } from './ui/useTapReveal';
-import { AI_MONTHLY_SUBSIDY } from '../lib/aiSimulation';
+import { aiMonthlySubsidy } from '../lib/aiSimulation';
 import { 
   Search, 
   ChevronDown, 
@@ -75,8 +78,21 @@ export interface AiAirline {
      * is rebuilt to when the crisis is over. Absent when nothing was cut.
      */
     fullDepartures?: number;
+    /**
+     * Fares cut by this share (0-0.2) to take passengers from the player on a
+     * shared city pair; see simulateAiAirlinesTurn. Absent in normal times.
+     */
+    priceCut?: number;
   }[];
   monthlyProfitsHistory: number[];
+  /** A second hub, opened once the airline is big enough; routes start from both. */
+  secondHub?: string;
+  /** Months in a row the airline has been in financial distress; 0 or absent when it is sound. */
+  distressMonths?: number;
+  /** The airline is in distress and can be taken over; it is wound up if nobody does. */
+  forSale?: boolean;
+  /** The month it was put up for sale. */
+  forSaleSince?: number;
   personality?: 'flag' | 'lcc' | 'expansionist' | 'optimizer' | 'boutique';
   aggression?: number;
   /** A real-world carrier (true) or an invented one (false). */
@@ -101,6 +117,12 @@ interface Props {
   playerRouteProfits?: Record<string, number>;
   /** The player's brand colour, for the colour dot beside each airline. */
   playerColor?: string;
+  /** The month shown, for the size of the rivals' subsidy. */
+  currentDateOffset?: number;
+  /** The player's rank, which decides whether a takeover is allowed. */
+  rank?: number;
+  /** Buys the rival with this id; the game checks the rank and the cash again. */
+  onTakeover?: (aiId: string) => void;
 }
 
 type SortField = 'rank' | 'name' | 'capital' | 'fleet' | 'routes';
@@ -123,7 +145,10 @@ function CompetitorsViewImpl({
   playerRoutes = NONE,
   playerProfitHistory = NONE,
   playerRouteProfits,
-  playerColor
+  playerColor,
+  currentDateOffset = 0,
+  rank = 0,
+  onTakeover
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>('capital');
@@ -181,6 +206,9 @@ function CompetitorsViewImpl({
         // off the union and fall back to "Independent" / 5 on its own.
         personality: undefined as string | undefined,
         aggression: undefined as number | undefined,
+        secondHub: undefined as string | undefined,
+        forSale: undefined as boolean | undefined,
+        forSaleSince: undefined as number | undefined,
         fleet: pFleet,
         routes: pRoutes,
         isPlayer: true,
@@ -416,13 +444,52 @@ function CompetitorsViewImpl({
                   <MapPin size={16} className="text-aero-yellow opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-aero-yellow">{selectedAirline.hub}</div>
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-aero-yellow">
+                    {selectedAirline.hub}
+                    {!selectedAirline.isPlayer && selectedAirline.secondHub && <span className="text-base text-white/60"> + {selectedAirline.secondHub}</span>}
+                  </div>
                   <div className="text-2xs text-white/50 font-mono mt-1 flex items-center gap-1.5">
                     <Shield size={10} className="text-white/40" /> Operating Tier: {selectedAirline.isPlayer ? 'Player' : selectedAirline.aiDifficulty}
                   </div>
                 </div>
               </div>
             </div>
+
+            {!selectedAirline.isPlayer && (selectedAirline.forSale || onTakeover) && (() => {
+              const quote = takeoverQuote(selectedAirline as any, rank);
+              const forSale = !!selectedAirline.forSale;
+              const affordable = playerCapital >= quote.price;
+              const monthsLeft = forSale && selectedAirline.forSaleSince !== undefined
+                ? Math.max(0, SALE_TO_LIQUIDATION_MONTHS - (currentDateOffset - selectedAirline.forSaleSince))
+                : null;
+              return (
+                <div className={`border p-4 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${forSale ? 'border-aero-yellow/40 bg-aero-yellow/5' : 'border-white/10 bg-white/[0.02]'}`}>
+                  <div className="font-mono text-2xs leading-relaxed max-w-xl">
+                    <div className={`font-black uppercase tracking-widest text-xs mb-1 ${forSale ? 'text-aero-yellow' : 'text-white/60'}`}>
+                      {forSale ? 'For sale: insolvent' : 'Takeover bid'}
+                    </div>
+                    <div className="text-white/60">
+                      {forSale
+                        ? `Wound up in ${monthsLeft} month${monthsLeft === 1 ? '' : 's'} if nobody buys it. `
+                        : 'A healthy airline costs two and a half times as much. '}
+                      You get its {quote.aircraft} aircraft and its slots at {selectedAirline.hub}; its {quote.routes} route{quote.routes === 1 ? ' is' : 's are'} not
+                      taken over, and the competitor is gone.
+                    </div>
+                    {quote.blocked && <div className="text-aero-warn mt-1">{quote.blocked}</div>}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="font-mono text-lg font-black">{formatCurrency(quote.price)}</span>
+                    <Button
+                      variant="primary"
+                      disabled={!onTakeover || !!quote.blocked || !affordable}
+                      onClick={() => onTakeover?.(selectedAirline.id)}
+                    >
+                      {affordable || quote.blocked ? 'Take over' : 'Not enough cash'}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* In-depth Analytical Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
@@ -663,7 +730,7 @@ function CompetitorsViewImpl({
 
                     {!selectedAirline.isPlayer && (
                       <div className="text-3xs text-white/30 uppercase leading-snug">
-                        AI results include a fixed operating subsidy of {formatCurrency(AI_MONTHLY_SUBSIDY)} per month.
+                        AI results include a fixed operating subsidy of {formatCurrency(aiMonthlySubsidy(currentDateOffset))} per month.
                       </div>
                     )}
 
@@ -848,6 +915,9 @@ function CompetitorsViewImpl({
                                 />
                               )}
                               <span className="font-sans font-bold text-white tracking-wide">{airline.name}</span>
+                              {!airline.isPlayer && (airline as { forSale?: boolean }).forSale && (
+                                <span className="ml-2 text-3xs font-mono font-black uppercase tracking-widest text-aero-yellow border border-aero-yellow/40 px-1 py-0.5 rounded-sm">For sale</span>
+                              )}
                               {airline.isPlayer && (
                                 <span className="px-2 py-0.5 bg-aero-yellow text-black text-3xs font-black uppercase tracking-widest rounded-sm">YOU</span>
                               )}

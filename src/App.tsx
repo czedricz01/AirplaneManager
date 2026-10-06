@@ -163,7 +163,9 @@ function buildRivalOffers(ais: any[] | null | undefined) {
       origin: r.origin,
       destination: r.destination,
       departures: r.departures || 0,
-      airline: ai.name
+      airline: ai.name,
+      // A rival cutting fares in a price war is that much more attractive.
+      ...(r.priceCut > 0 ? { priceAppeal: 1 / (1 - Math.min(0.5, r.priceCut)) } : {})
     }))
   );
 }
@@ -279,7 +281,8 @@ import {
 } from "./lib/annualGoals";
 import { setSlotPriceFactor } from "./lib/economyContext";
 import { ageYears, agedPopularity, fleetOwnershipCost } from "./lib/fleetCosts";
-import { ownerIncome } from "./lib/hubOwnership";
+import { ownerIncome, ownedAirports } from "./lib/hubOwnership";
+import { buildTakeover, takeoverQuote, withTakenSlots } from "./lib/takeover";
 import {
   buildPlayerModifiers,
   createGameSystems,
@@ -1479,7 +1482,7 @@ export default function App() {
     Object.entries(airportManagement).forEach(([airportId, mgt]) => {
       const airport = localAirportsMap.get(airportId);
       if (airport) {
-         const monthlyUpkeepObj = getAirportUpkeep(airport, mgt, routes, fleet);
+         const monthlyUpkeepObj = getAirportUpkeep(airport, mgt, routes, fleet, currentYearNum);
          
          const monthSlots = monthlyUpkeepObj.slots.regional + monthlyUpkeepObj.slots.narrowbody + monthlyUpkeepObj.slots.widebody;
          const monthStands = monthlyUpkeepObj.stands.regional + monthlyUpkeepObj.stands.narrowbody + monthlyUpkeepObj.stands.widebody;
@@ -1582,7 +1585,8 @@ export default function App() {
       careerPax: careerPaxNow,
       transferPaxMonth,
       hasWidebody: fleet.some(p => p.class === 'Widebody'),
-      hasSupersonic: fleet.some(p => (p.cruiseSpeed ?? 0) > 1000)
+      hasSupersonic: fleet.some(p => (p.cruiseSpeed ?? 0) > 1000),
+      takeovers: career.takeovers
     };
 
     const newlyEarned = newlyEarnedMilestones(milestones, mctx);
@@ -1760,6 +1764,7 @@ export default function App() {
     setMonthlyCapex([]);
 
     // Simulate AI Controlled Airlines
+    const nextOffsetForRivals = currentDateOffset + 1;
     let aiMessages: GameMessage[] = [];
     let aisAfterTurn = aiAirlines;
     if (aiAirlines.length > 0) {
@@ -1768,11 +1773,27 @@ export default function App() {
         airports,
         currentDateOffset,
         selectedHub,
-        routes
+        routes,
+        { blocked: ownedAirports(airportManagement) }
       );
-      setAiAirlines(updatedAis);
+      // A rival wound up is eventually replaced by a new one, so the market
+      // does not empty over the decades; the game's rival count is the target.
+      let afterTurn = updatedAis;
+      if (updatedAis.length < aiAirlinesCount && Math.random() < 0.15) {
+        const fresh = generateAiAirlines(1, aiDifficulty, selectedHub, nextOffsetForRivals, airlineCode, branding.color, updatedAis);
+        if (fresh.length > 0) {
+          afterTurn = [...updatedAis, ...fresh];
+          newMessages.push({
+            id: nextMessageId(),
+            text: `NEW RIVAL: ${fresh[0].name} (${fresh[0].code}) starts flying from ${fresh[0].hub}.`,
+            isRead: false,
+            dateStr: offsetToDateStr(currentDateOffset)
+          });
+        }
+      }
+      setAiAirlines(afterTurn);
       aiMessages = newMessages;
-      aisAfterTurn = updatedAis;
+      aisAfterTurn = afterTurn;
     }
 
     const nextOffset = currentDateOffset + 1;
@@ -2857,6 +2878,37 @@ export default function App() {
     }
     spend(cost, `Airport Management T${tier}`);
     setAirportManagement(prev => ({ ...prev, [airportId]: applyManagementUnlock(prev[airportId], tier) }));
+  };
+
+  /**
+   * Buys a rival airline: its aircraft join the fleet, its slots at its home
+   * airport become the player's, and it leaves the game. The price and the
+   * rank needed come from takeoverQuote.
+   */
+  const handleTakeover = (aiId: string) => {
+    const target = aiAirlines.find(a => a.id === aiId);
+    if (!target) return;
+    const quote = takeoverQuote(target, career.rank);
+    if (quote.blocked) {
+      setAppAlert(quote.blocked);
+      return;
+    }
+    if (capital < quote.price) {
+      setAppAlert(`Buying ${target.name} costs ${formatCurrency(quote.price)}, but you only have ${formatCurrency(capital)}.`);
+      return;
+    }
+    const deal = buildTakeover(target, fleet.map(p => p.registration));
+    spend(quote.price, 'Airline Takeover');
+    setFleet(prev => [...prev, ...deal.aircraft]);
+    setAirportManagement(prev => ({ ...prev, [deal.hub]: withTakenSlots(prev[deal.hub], deal.slots) }));
+    setAiAirlines(prev => prev.filter(a => a.id !== aiId));
+    setCareer(prev => ({ ...prev, takeovers: prev.takeovers + 1 }));
+    setReputation(prev => Math.min(100, prev + 2));
+    setAppAlert(
+      `SUCCESS: ${target.name} is yours for ${formatCurrency(quote.price)}. ${deal.aircraft.length} aircraft joined your fleet` +
+      `${deal.slots.narrowbody + deal.slots.regional + deal.slots.widebody > 0 ? ` and you took over its slots at ${deal.hub}` : ''}. ` +
+      `The airline's routes are gone; plan new ones with your new aircraft.`
+    );
   };
 
   const handleDeleteRoute = React.useCallback((id: string) => setRoutes(prev => prev.filter(r => r.id !== id)), []);
@@ -4359,6 +4411,9 @@ export default function App() {
                           playerProfitHistory={playerProfitHistory}
                           playerRouteProfits={routeProfits}
                           playerColor={branding.color}
+                          currentDateOffset={currentDateOffset}
+                          rank={career.rank}
+                          onTakeover={handleTakeover}
                         />
                       </React.Suspense>
                     </ViewFrame>
