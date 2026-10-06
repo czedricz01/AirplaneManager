@@ -11,7 +11,7 @@ import { StaffPanel, type StaffPanelProps } from './StaffPanel';
 import { IncidentList } from './IncidentList';
 import { ChronicleView } from './ChronicleView';
 import { LineChart } from './charts/LineChart';
-import { CareerPanel, type CareerPanelProps } from './CareerPanel';
+import { CareerPanel, type CareerPart, type CareerPanelProps } from './CareerPanel';
 import type { Commonality } from '../lib/fleetCosts';
 import { rankDef } from '../lib/airlineRank';
 import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
@@ -43,9 +43,9 @@ interface MonthlyReport extends ReportMetrics {
 }
 
 interface ProgressionProps {
-  /** 'progression' shows the career screen alone (rank, goals, development, score); 'company' everything else. */
+  /** 'progression' shows the Career screen alone (tabs Rank, Development, Board goals); 'company' everything else. */
   page?: 'company' | 'progression';
-  /** Opens the Progression screen from the overview's links. */
+  /** Opens the Career screen from the overview's links. */
   onOpenProgression?: () => void;
 }
 
@@ -158,6 +158,7 @@ function MyCompanyViewImpl({
   ...marketingProps
 }: Props) {
   const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
+  const [careerTab, setCareerTab] = useState<CareerPart>('rank');
   const progression = page === 'progression';
   const shown = progression ? 'career' : section;
 
@@ -177,29 +178,35 @@ function MyCompanyViewImpl({
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         eyebrow={[airlineName, airlineCode].filter(Boolean).join(' · ') || undefined}
-        title={progression ? 'PROGRESSION' : 'MY COMPANY'}
+        title={progression ? 'CAREER' : 'MY COMPANY'}
         icon={<BrandBadge branding={branding} code={airlineCode} name={airlineName} size={36} className="mr-2" />}
         right={progression ? undefined : <LiveryEditor branding={branding} airlineName={airlineName} airlineCode={airlineCode} onBrandingChange={onBrandingChange} />}
       />
 
-      {!progression && <div className="pr-4 mb-3">
+      <div className="pr-4 mb-3">
        <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
-        {([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={section === id}
-            onClick={() => setSection(id)}
-            className={`px-2 md:px-4 py-2 -mb-px text-2xs uppercase tracking-wider md:tracking-widest font-black border-b-2 transition-colors ${
-              section === id ? 'border-aero-yellow text-aero-yellow' : 'border-transparent text-white/40 hover:text-white'
-            }`}
-          >
-            {text}
-          </button>
-        ))}
+        {(progression
+          ? ([['rank', 'Rank'], ['development', 'Development'], ['goals', 'Board goals']] as const)
+          : ([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const)
+        ).map(([id, text]) => {
+          const active = progression ? careerTab === id : section === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => (progression ? setCareerTab(id as CareerPart) : setSection(id as typeof section))}
+              className={`px-2 md:px-4 py-2 -mb-px text-2xs uppercase tracking-wider md:tracking-widest font-black border-b-2 transition-colors ${
+                active ? 'border-aero-yellow text-aero-yellow' : 'border-transparent text-white/40 hover:text-white'
+              }`}
+            >
+              {text}
+            </button>
+          );
+        })}
        </div>
-      </div>}
+      </div>
 
       <div className="flex-1 overflow-auto pr-4 custom-scrollbar">
         {shown === 'history' ? (
@@ -209,6 +216,7 @@ function MyCompanyViewImpl({
         ) : shown === 'career' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <CareerPanel
+              part={careerTab}
               free={free}
               rank={rank}
               rankStats={rankStats}
@@ -275,7 +283,7 @@ function MyCompanyViewImpl({
             <StatTile size="md" label="Rank" value={rankDef(rank).title.replace(' Airline', '')}>
               <span className="block text-3xs font-mono text-white/30 mt-1">
                 <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-widest text-aero-yellow hover:text-white">
-                  Progression &rarr;
+                  Career &rarr;
                 </button>
               </span>
             </StatTile>

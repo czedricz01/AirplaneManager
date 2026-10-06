@@ -78,5 +78,5 @@ export function classGateMessage(
   if (open.has(id)) return null;
   const def = classDef(id);
   const name = [aircraft.manufacturer, aircraft.type].filter(Boolean).join(' ') || 'This aircraft';
-  return `The ${name} belongs to the class "${def.title}" (${def.detail.toLowerCase()}). Develop it first under Progression.`;
+  return `The ${name} belongs to the class "${def.title}" (${def.detail.toLowerCase()}). Develop it first under Career > Development.`;
 }
