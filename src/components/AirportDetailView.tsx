@@ -289,7 +289,7 @@ export function AirportDetailView({
              const minLandingFee = Math.floor((2000 + 100 * level) * 1.1 * (hubBonus ? 0.95 : 1));
              return (
                <>
-                 <Metric label="Landing Fee (Reg)" value={formatCurrency(minLandingFee)} />
+                 <Metric label="Landing Fee (Reg, 100+ seats)" value={formatCurrency(minLandingFee)} />
                  <Metric label="Pax Handling Fee" value={`${formatCurrency(paxUnitFee)} / pax`} />
                </>
              );
