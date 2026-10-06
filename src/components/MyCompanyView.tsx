@@ -37,6 +37,8 @@ interface MonthlyReport extends ReportMetrics {
   marketingItems?: { label: string; amount: number }[];
   /** Strikes and disruptions in the month; absent when there were none. */
   incidents?: ReportIncident[];
+  /** Rival landings at the airports the airline owns (tier 3), one line per airport. */
+  hubIncomeItems?: { label: string; amount: number }[];
 }
 
 interface Props extends Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, CareerPanelProps {
@@ -362,6 +364,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-white/80">Flight revenue</strong> — ticket sales on your active routes.</p>
                   <p><strong className="text-white/80">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
                   <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
+                  <p><strong className="text-white/80">Aircraft ownership</strong> — insurance and the maintenance programme for every aircraft in the fleet, flying or parked. A parked aircraft costs half, and the older an aircraft gets the more its upkeep takes.</p>
                   <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
                   <p><strong className="text-white/80">Incident repairs &amp; charters</strong> — replacement aircraft chartered to fly cancelled flights (older reports also list repair bills). A bird strike is paid on the spot and shows as capex.</p>
                   <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers, airport slots. Deducted from cash at once, but not from operating profit, which is why the two differ.</p>
@@ -399,6 +402,28 @@ function MyCompanyViewImpl({
                       { label: 'Service desk operations', amount: latest!.breakdown.desks }
                     ]
                   },
+                  ...((latest!.breakdown.fleetOwnership || 0) > 0
+                    ? [{
+                        id: 'fleetOwnership',
+                        label: 'Aircraft ownership',
+                        total: latest!.breakdown.fleetOwnership,
+                        items: [
+                          { label: 'Insurance & maintenance programme', amount: latest!.breakdown.fleetOwnership - (latest!.breakdown.fleetParked || 0) },
+                          ...((latest!.breakdown.fleetParked || 0) > 0
+                            ? [{ label: `Parked aircraft (${latest!.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latest!.breakdown.fleetParked }]
+                            : [])
+                        ]
+                      }]
+                    : []),
+                  ...((latest!.breakdown.hubIncome || 0) > 0
+                    ? [{
+                        id: 'hubIncome',
+                        label: 'Airport ownership income',
+                        variant: 'net' as const,
+                        total: latest!.breakdown.hubIncome,
+                        items: latest!.hubIncomeItems ?? []
+                      }]
+                    : []),
                   ...((latest!.breakdown.marketing || 0) > 0
                     ? [{
                         id: 'marketing',

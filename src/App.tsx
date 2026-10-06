@@ -278,6 +278,8 @@ import {
   type GoalOffer
 } from "./lib/annualGoals";
 import { setSlotPriceFactor } from "./lib/economyContext";
+import { ageYears, agedPopularity, fleetOwnershipCost } from "./lib/fleetCosts";
+import { ownerIncome } from "./lib/hubOwnership";
 import {
   buildPlayerModifiers,
   createGameSystems,
@@ -411,6 +413,8 @@ export interface SimulatedRoute {
   monthlyProfit?: number;
   weeklyRevenue?: number;
   weeklyCost?: number;
+  /** The month offset the route was opened; absent on routes from before ramp-up existed, which count as mature. */
+  openedOffset?: number;
 }
 
 export const randomEventTemplates = [
@@ -647,11 +651,6 @@ export default function App() {
     [reportHistory]
   );
 
-  /** Resale value of the whole fleet, for the balance sheet. */
-  const fleetValue = useMemo(
-    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue(p), 0),
-    [fleet]
-  );
   /**
    * One-off spending since the last month rolled over.
    *
@@ -745,6 +744,12 @@ export default function App() {
 
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
+
+  /** Resale value of the whole fleet, for the balance sheet. */
+  const fleetValue = useMemo(
+    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue({ ...p, ageYears: ageYears(p, currentDateOffset) }), 0),
+    [fleet, currentDateOffset]
+  );
   
   const [uiScaleSetting, setUiScaleSettingState] = useState(() => {
     const stored = parseFloat(readString('aero_ui_scale') || '');
@@ -806,10 +811,10 @@ export default function App() {
    * receives, so the route list, the planner and the report agree.
    */
   const playerMods = useMemo(
-    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions }, currentDateOffset),
+    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions, routes }, currentDateOffset),
     // randomEvents: eventReliefFactor reads the active events from module state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents]
+    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents, routes]
   );
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
@@ -1488,6 +1493,13 @@ export default function App() {
 
     const totalAirportUpkeep = managementCosts + deskCosts;
 
+    // Every aircraft is insured and kept airworthy whether it flies or not, and
+    // more so as it ages; see fleetCosts.ts.
+    const ownership = fleetOwnershipCost(fleet, flyingRegs, currentDateOffset);
+    // The airports owned outright (management tier 3) collect from the rivals
+    // that land there; see hubOwnership.ts.
+    const hubIncome = ownerIncome(airportManagement, id => localAirportsMap.get(id)?.level ?? 1, aiAirlines);
+
     // Campaigns running this month and the frequent-flyer programme. Their
     // demand and loyalty are already in this month's route figures above,
     // through playerMods; here they are paid for.
@@ -1501,11 +1513,11 @@ export default function App() {
     const charterFees = charterFeesFor(
       disruptions,
       currentDateOffset,
-      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list }, currentDateOffset), monthEnv),
+      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list, routes }, currentDateOffset), monthEnv),
       revenueOf(monthNetwork)
     );
     const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - charterCosts;
+    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - charterCosts - ownership.total + hubIncome.total;
 
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
@@ -1727,8 +1739,17 @@ export default function App() {
         ffp: marketingCost.ffp,
         // Charters, as the report lists them per incident (older reports add repair bills).
         incidents: charterCosts,
-        charters: charterCosts
+        charters: charterCosts,
+        // Insurance and maintenance of the whole fleet, and what of it was
+        // spent on aircraft with no route; income from rivals at owned airports.
+        fleetOwnership: ownership.total,
+        fleetParked: ownership.parked,
+        fleetParkedCount: ownership.parkedCount,
+        hubIncome: hubIncome.total
       },
+      ...(hubIncome.items.length > 0
+        ? { hubIncomeItems: hubIncome.items.map(i => ({ label: `${localAirportsMap.get(i.airportId)?.name || i.airportId}: ${formatNumber(i.landings)} rival landings a week`, amount: i.amount })) }
+        : {}),
       marketingItems: marketingCost.items,
       // Only in months that had any; older reports have none.
       ...(incidents.length > 0 ? { incidents } : {})
@@ -2195,7 +2216,7 @@ export default function App() {
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
     const nextMods = buildPlayerModifiers({
-      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions
+      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions, routes
     }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
     const nextEnv = {
@@ -2228,7 +2249,7 @@ export default function App() {
     if (majorCandidates.length > 0) {
       const staffBeforeStrike: Staff = { ...nextStaff, strike: staffMonth.strikeCalled ? null : nextStaff.strike };
       const revenueWith = (list: Disruption[]) => networkRevenue(repricedNext, buildPlayerModifiers({
-        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list
+        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list, routes
       }, nextOffset), nextEnv);
       const allCancelling = staffMonth.strikeCalled ? revenueWith(nextDisruptions) : revenueOf(nextNetwork);
       const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, revenueWith, allCancelling)]));
@@ -2287,8 +2308,14 @@ export default function App() {
         GC_MONTHLY_CAP
       );
 
+      // Passengers like an old aircraft less, whatever its condition: the
+      // type's popularity from the catalogue, less what its age takes.
+      const catalog = aircraftList.find(a => a.id === plane.id)?.popularity;
+      const popularity = catalog === undefined ? plane.popularity : agedPopularity(catalog, ageYears(plane, nextOffset));
+
       return {
         ...plane,
+        popularity,
         conditionInterior: Math.max(0, plane.conditionInterior - interiorDecay),
         conditionGeneral: Math.max(0, plane.conditionGeneral - airframeDecay)
       };
@@ -2782,7 +2809,7 @@ export default function App() {
   // can keep one identity for the life of the app; inline arrows here used to
   // defeat React.memo on every render of App.
   const handleSellAircraft = React.useCallback((plane: OwnedAircraft) => {
-    const value = getAircraftResaleValue(plane);
+    const value = getAircraftResaleValue({ ...plane, ageYears: ageYears(plane, marketingCtx.current.currentDateOffset) });
 
     // Recorded like any other one-off amount, so the month's report explains
     // the jump in capital instead of leaving it unaccounted for.
@@ -3838,6 +3865,26 @@ export default function App() {
                                { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
                              ]
                            },
+                           // Insurance and maintenance of every aircraft, flying or parked.
+                           ...((latestReport.breakdown.fleetOwnership || 0) > 0 ? [{
+                             id: 'fleetOwnership',
+                             label: 'Aircraft Ownership',
+                             total: latestReport.breakdown.fleetOwnership,
+                             items: [
+                               { label: 'Insurance & maintenance programme', amount: latestReport.breakdown.fleetOwnership - (latestReport.breakdown.fleetParked || 0) },
+                               ...((latestReport.breakdown.fleetParked || 0) > 0
+                                 ? [{ label: `Parked aircraft (${latestReport.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latestReport.breakdown.fleetParked }]
+                                 : [])
+                             ]
+                           }] : []),
+                           // What the rivals landing at an airport owned outright pay the airline.
+                           ...((latestReport.breakdown.hubIncome || 0) > 0 ? [{
+                             id: 'hubIncome',
+                             label: 'Airport Ownership Income',
+                             variant: 'net' as const,
+                             total: latestReport.breakdown.hubIncome,
+                             items: latestReport.hubIncomeItems || []
+                           }] : []),
                            // Only in months with campaigns or the frequent-flyer
                            // programme running; older reports have no such line.
                            ...((latestReport.breakdown.marketing || 0) > 0 ? [{
@@ -4429,7 +4476,7 @@ export default function App() {
                         initialRouteId={editingCabinRouteId}
                         isEditingCabinOnly={true}
                         onSaveRoute={(route) => {
-                          setRoutes(prev => prev.map(r => r.id === route.id ? route : r));
+                          setRoutes(prev => prev.map(r => r.id === route.id ? { ...route, openedOffset: r.openedOffset ?? route.openedOffset } : r));
                           setEditingCabinRouteId(null);
                         }}
                         onClose={() => setEditingCabinRouteId(null)}
@@ -4462,7 +4509,7 @@ export default function App() {
                         initialRouteId={editingPricingRouteId}
                         isEditingPricingOnly={true}
                         onSaveRoute={(route) => {
-                          setRoutes(prev => prev.map(r => r.id === route.id ? route : r));
+                          setRoutes(prev => prev.map(r => r.id === route.id ? { ...route, openedOffset: r.openedOffset ?? route.openedOffset } : r));
                           setEditingPricingRouteId(null);
                         }}
                         onClose={() => setEditingPricingRouteId(null)}
@@ -4520,9 +4567,10 @@ export default function App() {
                           setRoutes(prev => {
                             const existing = prev.find(r => r.id === route.id);
                             if (existing) {
-                              return prev.map(r => r.id === route.id ? route : r);
+                              return prev.map(r => r.id === route.id ? { ...route, openedOffset: existing.openedOffset ?? route.openedOffset } : r);
                             }
-                            return [...prev, route];
+                            // A new route starts its ramp-up now; see routeMaturity.ts.
+                            return [...prev, { ...route, openedOffset: currentDateOffset }];
                           });
                           // Reset planning state after save
                           setPlanningOriginId(null);

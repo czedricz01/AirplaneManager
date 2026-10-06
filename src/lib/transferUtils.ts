@@ -14,6 +14,7 @@
  * Deterministic by construction: no randomness, and every loop that decides
  * who gets a scarce seat runs in a fixed order.
  */
+import { TIER3_HUB_QUALITY_BONUS } from './hubOwnership';
 import { calculateDistance, getAirportStats, type Airport } from '../data/airports';
 import {
   CABIN_CLASSES,
@@ -155,7 +156,8 @@ export function hubQuality(infra: { level?: number; hubFacilities?: { vipLounge?
   const level = Math.max(0, Number(infra?.level) || 0);
   const lounge = infra?.hubFacilities?.vipLounge ? 0.05 : 0;
   const catering = infra?.hubFacilities?.catering ? 0.05 : 0;
-  return Math.min(1, 0.4 + 0.15 * level + lounge + catering);
+  const owned = level >= 3 ? TIER3_HUB_QUALITY_BONUS : 0;
+  return Math.min(1, 0.4 + 0.15 * level + owned + lounge + catering);
 }
 
 // --- Flows -------------------------------------------------------------------

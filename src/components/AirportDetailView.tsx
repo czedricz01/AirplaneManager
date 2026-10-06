@@ -579,10 +579,10 @@ export function AirportDetailView({
               gate={gates?.tier3}
               icon={<Crown size={24} />}
               features={[
-                "Full Revenue Collection",
-                "Terminal Branding Rights",
-                "Infrastructure Resale",
-                "Strategic Control"
+                "Landing & desk fees 15% below standard",
+                "Better connections (hub quality +0.05)",
+                "Rivals cannot open new routes here",
+                "Half of the rivals' landing fees paid to you"
               ]}
             />
           </div>

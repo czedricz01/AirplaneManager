@@ -3,6 +3,8 @@ import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
 import { routeCancelShare, routeDemandFactor, type PlayerModifiers } from './gameState';
 import { getSlotPriceFactor } from './economyContext';
+import { resaleAgeFactor } from './fleetCosts';
+import { hubFeeFactor } from './hubOwnership';
 
 export function getAirportUpkeep(
   airport: Airport,
@@ -26,8 +28,8 @@ export function getAirportUpkeep(
   };
   
   const deskCosts = {
-    normal: Math.floor(2500 * (hubAutoUpgrade ? 0.95 : 1)),
-    self: Math.floor(1500 * (hubAutoUpgrade ? 0.95 : 1))
+    normal: Math.floor(2500 * hubFeeFactor(infrastructure.level)),
+    self: Math.floor(1500 * hubFeeFactor(infrastructure.level))
   };
 
   const deskCapacities = {
@@ -958,12 +960,14 @@ export function calculateRouteFinancials(
   
   const originHub = airportManagement[route.origin]?.level >= 2;
   const destHub = airportManagement[route.destination]?.level >= 2;
+  const originFeeFactor = hubFeeFactor(airportManagement[route.origin]?.level);
+  const destFeeFactor = hubFeeFactor(airportManagement[route.destination]?.level);
 
-  const getLandingFee = (level: number, hub: boolean, type: string) => {
+  const getLandingFee = (level: number, feeFactor: number, type: string) => {
     switch (type.toLowerCase()) {
-      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * (hub ? 0.95 : 1));
-      case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * (hub ? 0.95 : 1));
-      case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * (hub ? 0.95 : 1));
+      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * feeFactor);
+      case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * feeFactor);
+      case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * feeFactor);
       default: return 2200;
     }
   };
@@ -972,8 +976,8 @@ export function calculateRouteFinancials(
   // "widebody") while aircraft data capitalises them, so normalise once here.
   // Passing the capitalised form made every slots/stands lookup miss silently.
   const slotType = String(aircraft.class || 'regional').toLowerCase();
-  const originLandingFees = getLandingFee(originLevel, originHub, slotType) * weeklyFlights * flownShare;
-  const destLandingFees = getLandingFee(destLevel, destHub, slotType) * weeklyFlights * flownShare;
+  const originLandingFees = getLandingFee(originLevel, originFeeFactor, slotType) * weeklyFlights * flownShare;
+  const destLandingFees = getLandingFee(destLevel, destFeeFactor, slotType) * weeklyFlights * flownShare;
 
   const originCheckInUnit = originHub ? 0.475 : 0.5;
   const destCheckInUnit = destHub ? 0.475 : 0.5;
@@ -1001,7 +1005,7 @@ export function calculateRouteFinancials(
     originStats.business, originStats.tourism,
     destStats.business, destStats.tourism,
     timeClass, currentMonth, difficulty, currentYear,
-    mods ? routeDemandFactor(mods, originAirport, destAirport) : extraDemandFactor
+    mods ? routeDemandFactor(mods, originAirport, destAirport) * (mods.maturity?.[route.id] ?? 1) : extraDemandFactor
   );
 
   const bases = calculateBasePrices(dist, timeClass);
@@ -1260,11 +1264,14 @@ export function getAircraftResaleValue(plane: {
   basePrice?: number;
   conditionGeneral?: number;
   conditionInterior?: number;
+  /** Years since it was bought; leave out for a figure that ignores age. */
+  ageYears?: number;
 }): number {
   const baseValue = plane.basePrice || 10000000;
   const condGenFactor = ((plane.conditionGeneral ?? 100) / 100) * 0.45;
   const condIntFactor = ((plane.conditionInterior ?? 100) / 100) * 0.15;
-  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor));
+  const ageFactor = plane.ageYears === undefined ? 1 : resaleAgeFactor(plane.ageYears);
+  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor) * ageFactor);
 }
 
 /**
@@ -1274,7 +1281,7 @@ export function getAircraftResaleValue(plane: {
  * airport console charged these per-level prices, and only the console also
  * applied the tier's effects (hub auto-upgrade, stands). Both now use this.
  */
-const MANAGEMENT_COST_PER_AIRPORT_LEVEL: Record<number, number> = { 1: 30_000, 2: 750_000, 3: 500_000_000 };
+const MANAGEMENT_COST_PER_AIRPORT_LEVEL: Record<number, number> = { 1: 30_000, 2: 750_000, 3: 25_000_000 };
 
 export function getManagementUnlockCost(airportLevel: number, tier: number): number {
   return Math.max(1, Number(airportLevel) || 1) * (MANAGEMENT_COST_PER_AIRPORT_LEVEL[tier] ?? 0);

@@ -185,7 +185,7 @@ test('route satisfaction is weighted by seats, including classes at 0%', () => {
 test('management tiers cost the same wherever they are bought', () => {
   assert.equal(getManagementUnlockCost(4, 1), 120_000);
   assert.equal(getManagementUnlockCost(2, 2), 1_500_000);
-  assert.equal(getManagementUnlockCost(1, 3), 500_000_000);
+  assert.equal(getManagementUnlockCost(1, 3), 25_000_000);
 });
 
 test('unlocking a tier applies its effects and never lowers the tier', () => {
@@ -498,4 +498,16 @@ test('a full aircraft sells out at the base fare and loses passengers above it, 
   // the 5% premium the old margin of 1.2 allowed, so this fails on the old cap.
   const above = run(Math.round(satBase * 1.03));
   assert.ok(above.paxByClass.economy.actual < seats, 'a fare 3% over the base does not fill the cabin');
+});
+
+test('a route in its first months draws less demand than the same route once mature', () => {
+  const { aircraft, route, mgt } = sampleRoute(40);
+  const price = (maturity?: Record<string, number>) =>
+    calculateRouteFinancials(route, aircraft, 1, mgt, 1970, 6, 'Normal', airportsMapAdjusted, [route], [aircraft], false, 1, [], { demandFactor: 1, maturity });
+  const mature = price();
+  const fresh = price({ [route.id]: 0.6 });
+  const loyal = price({ [route.id]: 1.05 });
+  assert.ok(fresh.paxPerWeek < mature.paxPerWeek, 'ramping up carries fewer passengers');
+  assert.ok(loyal.paxPerWeek >= mature.paxPerWeek, 'loyalty never carries fewer');
+  assert.equal(price({ other: 0.6 }).paxPerWeek, mature.paxPerWeek, 'another route\'s ramp-up does not matter');
 });

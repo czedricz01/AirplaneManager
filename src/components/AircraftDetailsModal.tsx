@@ -1,3 +1,4 @@
+import { monthlyOwnershipCost } from '../lib/fleetCosts';
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, routeFlightNumber } from '../lib/format';
 import type { OwnedAircraft } from './MyFleetView';
@@ -155,6 +156,15 @@ export function AircraftDetailsModal({
                 <span className="text-3xs uppercase tracking-widest text-white/50 mb-1">Age</span>
                 <span className="font-mono">{ageLabel}</span>
               </div>
+              {typeof currentDateOffset === 'number' && (
+                <div className="flex flex-col col-span-2 sm:col-span-5">
+                  <span className="text-3xs uppercase tracking-widest text-white/50 mb-1">Insurance &amp; maintenance</span>
+                  <span className="font-mono">
+                    {formatCurrency(monthlyOwnershipCost(plane, currentDateOffset, aircraftRoutes.length > 0))} a month
+                    {aircraftRoutes.length === 0 && <span className="text-aero-warn"> (parked: half rate, still a cost)</span>}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Config & Condition */}
@@ -239,7 +249,7 @@ export function AircraftDetailsModal({
             {/* Liquidation & Market Value */}
             {(() => {
               // The amount the sale actually credits (App.handleSellAircraft).
-              const salePrice = getAircraftResaleValue(plane);
+              const salePrice = getAircraftResaleValue({ ...plane, ageYears: ageMonths === null ? undefined : ageMonths / 12 });
               const formatUSD = formatCurrency;
 
               return (
@@ -247,7 +257,7 @@ export function AircraftDetailsModal({
                   <div className="flex flex-col gap-1 w-full sm:w-auto">
                     <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-aero-yellow">Market Liquidation Value</h3>
                     <p className="text-2xs text-white/50 lowercase tracking-wide font-sans max-w-sm">
-                      calculated dynamically from general airframe condition and passenger interior satisfaction. residual base value is guaranteed.
+                      calculated dynamically from general airframe condition, passenger interior satisfaction and age. residual base value is guaranteed.
                     </p>
                   </div>
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">

@@ -123,7 +123,8 @@ test('connections are counted by the scarcer side, not per pair', () => {
 test('hub quality grows with management and facilities, capped at 1', () => {
   assert.equal(hubQuality(undefined), 0.4);
   assert.ok(Math.abs(hubQuality({ level: 2 }) - 0.7) < 1e-9);
-  assert.ok(Math.abs(hubQuality({ level: 3, hubFacilities: { vipLounge: true, catering: true } }) - 0.95) < 1e-9);
+  assert.ok(Math.abs(hubQuality({ level: 3 }) - 0.9) < 1e-9, 'tier 3 adds its own 0.05 on top of the tier bonus');
+  assert.equal(hubQuality({ level: 3, hubFacilities: { vipLounge: true, catering: true } }), 1);
   assert.equal(hubQuality({ level: 9 }), 1);
 });
 
