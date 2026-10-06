@@ -84,6 +84,8 @@ interface Props {
   initialStep?: number;
   initialRouteId?: string;
   onUnlockManagement?: (airportId: string, level: ManagementLevel) => void;
+  /** Why an airport is closed at the airline's rank, or null when it is open; see airportAccess.ts. */
+  airportLock?: (airport: Airport) => string | null;
   onUpdateInfrastructure?: (airportId: string, infra: AirportInfrastructure) => void;
   /**
    * Takes a one-off cost out of the capital at once; a negative amount pays
@@ -220,7 +222,7 @@ const aircraftImageName = (ac: OwnedAircraft) =>
 
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, fuelPrice: playerFuelPrice, rivalOffers = NO_RIVAL_OFFERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, airportLock, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, fuelPrice: playerFuelPrice, rivalOffers = NO_RIVAL_OFFERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -2103,6 +2105,7 @@ function RoutePlannerInner({
                             <div className="font-bold flex items-center gap-1">
                               {a.id} 
                               {mgtLvl >= 1 && <span className="text-4xs bg-aero-yellow/20 text-aero-yellow px-1 rounded-sm">UNLOCKED</span>}
+                              {mgtLvl < 1 && airportLock?.(a) && <span className="text-4xs bg-aero-warn/20 text-aero-warn px-1 rounded-sm" title={airportLock(a) ?? undefined}>RANK</span>}
                             </div>
                             <div className="text-2xs text-white/50">{a.name}</div>
                             
@@ -2225,9 +2228,13 @@ function RoutePlannerInner({
                     <div className="flex-1 flex flex-col items-center justify-center p-4 border border-white/10 bg-aero-panel text-center">
                        <div className="text-aero-warn font-bold mb-2 uppercase tracking-widest">Destination Locked</div>
                        <p className="text-xs text-white/50 mb-3">You must unlock T1 Management at {selectedDest.id} to fly there.</p>
+                       {airportLock?.(selectedDest) && (
+                         <p className="text-xs text-aero-warn mb-3 max-w-sm leading-relaxed">{airportLock(selectedDest)}</p>
+                       )}
                        <button
                          onClick={() => onUnlockManagement(selectedDest.id, 1)}
-                         className="px-3 py-3 bg-aero-panel-2 text-white font-black uppercase text-sm hover:bg-aero-panel-2 transition-colors"
+                         disabled={!!airportLock?.(selectedDest)}
+                         className="px-3 py-3 bg-aero-panel-2 text-white font-black uppercase text-sm hover:bg-aero-panel-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                        >
                          Unlock T1 ({formatCurrency(getManagementUnlockCost(selectedDest.level, 1))})
                        </button>

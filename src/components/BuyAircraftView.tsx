@@ -10,7 +10,9 @@ import { ViewHeader } from './ui/ViewHeader';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { readString } from '../lib/safeStorage';
-import { aircraftRankNeeded, rankGateMessage } from '../lib/airlineRank';
+import { ALL_CLASS_IDS, classGateMessage, type AircraftClassId } from '../lib/aircraftClasses';
+
+const ALL_CLASSES_OPEN: ReadonlySet<AircraftClassId> = new Set(ALL_CLASS_IDS);
 import { AircraftMarketPanel, type AircraftMarketPanelProps, type MarketTab } from './AircraftMarketPanel';
 
 interface Props {
@@ -18,13 +20,13 @@ interface Props {
   onSelectAircraft: (aircraft: Aircraft) => void;
   /** Passed down from App, which already owns this as state. */
   debugMode?: boolean;
-  /** The airline's rank; wide-bodies and supersonics need a higher one. */
-  rank?: number;
+  /** The aircraft classes the airline has developed (or flies); the others are shown but locked. */
+  classesOpen?: ReadonlySet<AircraftClassId>;
   /** The order book and the used market; without it the shop sells new aircraft only. */
   market?: Omit<AircraftMarketPanelProps, 'tab'>;
 }
 
-function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp, rank = 99, market }: Props) {
+function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp, classesOpen = ALL_CLASSES_OPEN, market }: Props) {
   const [tab, setTab] = useState<'new' | MarketTab>('new');
   const [expandedMfgs, setExpandedMfgs] = useState<Set<string>>(new Set());
   const [expandedPlaneId, setExpandedPlaneId] = useState<string | null>(null);
@@ -884,7 +886,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
 
                                 <div className="flex flex-wrap items-center justify-end mt-auto pt-2 gap-4">
                                   {(() => {
-                                    const gate = rankGateMessage(rank, aircraftRankNeeded(plane), `The ${plane.manufacturer} ${plane.type}`);
+                                    const gate = classGateMessage(plane, classesOpen);
                                     return gate ? (
                                       <>
                                         <span className="flex items-center gap-2 text-2xs font-mono text-aero-warn mr-auto">

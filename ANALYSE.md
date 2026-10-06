@@ -897,15 +897,15 @@ nichts davon abfloss. Jeder Punkt unten nennt Ort, Zahlen und Test.
 
 | Teil | Was | Ort |
 |---|---|---|
-| Rang | Startup → Regional → National → International → Flag Carrier → Global Player; verdient aus Routen, Passagieren/Monat, Ruf, Regionen; **fällt nie** | `src/lib/airlineRank.ts` |
-| Sperren | Großraumflugzeuge ab National, Überschall ab Flag Carrier, VIP-Lounge ab National, nationale Kampagnen und Vielfliegerprogramm ab Regional, globale Kampagnen ab International, T3 ab Flag Carrier, Hubs begrenzt (1/2/3/4/6/12) | `RANK_NEEDED`, `managementGate` |
+| Rang | zehn Stufen (Startup → … → Global Player, siehe F6); verdient aus Routen, Passagieren/Monat, Ruf, Regionen und Jahren im Geschäft; **fällt nie** | `src/lib/airlineRank.ts` |
+| Sperren | Flughafengröße, Hubs, Marketing, VIP-Lounge, T3, Übernahmen nach Rang (siehe F6); Flugzeugklassen nicht mehr nach Rang, sondern über den Entwicklungsbaum | `RANK_NEEDED`, `managementGate`, `airportAccess.ts`, `aircraftClasses.ts` |
 | Meilensteine | 7 → 31, in Bronze/Silber/Gold und „Feats"; Belohnung: Ruf, Prämie (0,5/3/15 Mio. $), Slotrabatt (bis −30 %), Gold: Platz für einen weiteren Hub | `src/lib/milestones.ts` |
 | Jahresziele | Jeden Dezember drei Angebote (Standard-Gewinn, ein Ziel anderer Art, Gewinn-Stretch); schwerer = mehr Belohnung, mehr Verlust bei Verfehlen; ohne Wahl gilt im Januar das erste | `src/lib/annualGoals.ts` |
 | Oberfläche | Neuer Reiter *Career* in My Company; Auswahldialog nach dem Dezemberabschluss | `CareerPanel.tsx`, `GoalOfferDialog.tsx` |
 
-Savegame **Version 6** (`career`-Block). Alte Spielstände bekommen einen Rang aus
-dem Stand ihrer Airline und behalten Großraumflugzeuge, die sie schon fliegen.
-Szenarien können einen Startrang setzen (`Scenario.startRank`).
+Savegame **Version 6** (`career`-Block), seit F6 **Version 7**. Alte Spielstände bekommen
+einen Rang aus dem Stand ihrer Airline und behalten Flugzeugklassen, die sie schon
+fliegen. Szenarien können einen Startrang setzen (`Scenario.startRank`).
 
 ## F2 — Hub-Eigentum (T3), Flugzeugkosten, Routen-Anlauf
 
@@ -957,9 +957,8 @@ Szenarien können einen Startrang setzen (`Scenario.startRank`).
   Erstkunden: Beliebtheit +5 für 24 Monate.
 * **Gebrauchtmarkt** (`src/lib/usedMarket.ts`): sechs Angebote pro Monat, deterministisch
   aus dem Monat gezogen, Typen ab fünf Jahren im Dienst, auch ausgelaufene.
-* **Entwicklung** (`src/lib/research.ts`): zehn Projekte (Kraftstoff ×2, Ertrag ×2,
-  Wartung, Crew-Akademie, Allianz, Slots, Kabine, Routenplanung), zwei parallel,
-  Kosten wachsen mit den Jahren.
+* **Entwicklung** (`src/lib/research.ts`): zunächst zehn Projekte; seit F6 ein Baum mit
+  45 Projekten, der sich mit dem Rang öffnet. Kosten wachsen mit den Jahren.
 * **Wertung** (`src/lib/careerScore.ts`): Vermögen (Größenordnungen), Rang, Meilensteine,
   Ruf, Übernahmen, Entwicklung, Jahre; jederzeit in den Ruhestand gehen (Bestenliste im
   Browser, Weiterspielen möglich); alle zehn Jahre eine Zwischenbilanz. Szenarien: bis
@@ -975,3 +974,123 @@ Szenarien können einen Startrang setzen (`Scenario.startRank`).
   schlug einmal bei einem von mehreren Läufen fehl; in 15 Wiederholungen nie.
 * Die Zahlen (Rangschwellen, Rabatte, Kosten) sind erste Werte, die gegen Spielerfahrung
   nachgezogen werden sollten; sie stehen jeweils als benannte Konstanten oben im Modul.
+
+## F6 — Normal Mode / Free Mode, zehn Ränge, Entwicklungsbaum
+
+Auftrag: zwei Spielarten, langsamere Rangfolge, Zugang zu den großen Flughäfen erst ab
+National, ein Entwicklungsbaum mit den Flugzeugklassen als Hauptpunkten und kleinen
+Prozent-Boni dazwischen, der sich mit dem Rang öffnet.
+
+### Normal Mode und Free Mode
+
+| | Normal Mode | Free Mode |
+|---|---|---|
+| Start | Startup | Global Player (Rang 10 von 10) |
+| Rang | wird verdient, fällt nie | abgeschaltet: nichts hängt daran |
+| Flughäfen | nach Rang (s. u.) | alle |
+| Hubs | Grenze nach Rang | unbegrenzt |
+| Flugzeugklassen | über die Entwicklung | alle offen |
+| Entwicklung | Projekte erscheinen mit dem Rang | alle Projekte sofort kaufbar |
+| Wertung | Rangpunkte (80 je Stufe) | Rang zählt 0, die fünf Klassen-Projekte zählen nicht; Eintrag in der Bestenliste mit „Free Mode" |
+
+Gewählt auf dem Neues-Spiel-Bildschirm (zwei Karten neben den Szenarien); ein Szenario ist
+immer Normal Mode. `Career.mode` steht im Savegame; im Free Mode ist `career.rank` immer
+der höchste, so dass jede Rangprüfung ohne Sonderfall besteht (`effectiveRank`).
+Der frühere Begriff „Free Play" (Spiel ohne Szenario) heißt in der Oberfläche jetzt
+„ohne Szenario", damit er nicht mit Free Mode verwechselt wird.
+
+### Zehn Ränge, langsamer
+
+Jede Stufe braucht **alle** fünf Werte zugleich; die **Jahre im Geschäft** lassen sich
+nicht kaufen.
+
+| Rang | Routen | Pax/Monat | Ruf | Regionen | Jahre | Hubs | Flughäfen bis Ebene |
+|---|---|---|---|---|---|---|---|
+| Startup | – | – | – | – | 0 | 1 | 3 |
+| Local Airline | 3 | 8.000 | 40 | 1 | 0 | 1 | 4 |
+| Regional Airline | 6 | 25.000 | 45 | 1 | 1 | 2 | 4 |
+| Domestic Airline | 12 | 70.000 | 50 | 1 | 3 | 2 | 5 |
+| **National Airline** | 24 | 170.000 | 55 | 1 | 6 | 3 | **7** |
+| Continental Airline | 40 | 350.000 | 60 | 2 | 10 | 4 | 7 |
+| International Airline | 65 | 700.000 | 65 | 3 | 15 | 5 | 7 |
+| Intercontinental Airline | 95 | 1,2 Mio. | 70 | 4 | 22 | 6 | 7 |
+| Flag Carrier | 135 | 2 Mio. | 75 | 5 | 30 | 8 | 7 |
+| Global Player | 190 | 3,5 Mio. | 80 | 6 | 40 | 12 | 7 |
+
+Weitere Sperren (`RANK_NEEDED`): Vielfliegerprogramm ab Regional, nationale Kampagnen ab
+Domestic, VIP-Lounge ab National, globale Kampagnen und Übernahme eines Rivalen in Not ab
+International, T3 ab Flag Carrier, Übernahme eines gesunden Rivalen ab Global Player.
+Die Schwellen sind erste Werte (Konstanten oben in `airlineRank.ts`).
+
+### Flughäfen nach Ebene (`src/lib/airportAccess.ts`)
+
+Ebene 1–3 sind offen, jede Stufe öffnet die nächste Ebene bis 5; **die großen Hubs
+(Ebene 6 und 7: Heathrow, Atlanta, Frankfurt, Dubai …) ab National**. Offen bleibt immer,
+was die Airline schon hat: der Heimatflughafen, jeder Flughafen mit Management und jeder,
+den eine Route berührt, so dass ein Rang nie etwas wegnimmt. Erzwungen wird an der einen
+Stelle, an der man einen Flughafen nutzbar macht: das Management-Level 1
+(`handleUnlockManagement`); ohne Management ist keine Route dorthin möglich. Anzeige:
+Schloss in der Flughafenliste, Hinweis und gesperrter Knopf im Flughafen, Marke „RANK" im
+Routenplaner.
+
+### Entwicklungsbaum (`src/lib/research.ts`, `src/lib/aircraftClasses.ts`)
+
+45 Projekte, nach Rang geordnet. **Hauptpunkte sind die Flugzeugklassen**; eine Klasse muss
+entwickelt sein, bevor man ihre Flugzeuge kaufen, bestellen oder gebraucht erwerben kann:
+
+| Klasse | Flugzeuge | Projekt (Rang · Kosten 1960 · Dauer) |
+|---|---|---|
+| Commuter | Regional bis 60 Sitze | von Anfang an offen |
+| Regional | Regional über 60, Schmalrumpf bis 130 Sitze (Caravelle, Comet, DC-9, ATR 72) | Local · 3 Mio. $ · 6 Mon. |
+| Narrowbody | Schmalrumpf über 130 (707, DC-8, 727, A320) | Domestic · 12 Mio. $ · 9 Mon. |
+| Widebody | Großraum bis 500 Sitze (A300, 767, DC-10, A330, 787) | Continental · 60 Mio. $ · 12 Mon. |
+| Jumbo | Großraum über 500 (747, 777-300, A380) | Intercontinental · 200 Mio. $ · 18 Mon. |
+| Supersonic | schneller als der Schall (Concorde) | Flag Carrier · 500 Mio. $ · 24 Mon. |
+
+Jede Klasse braucht die davor. Die Sitzzahl ist der Datenwert (Höchstbestuhlung), die
+Schwelle für Jumbo liegt bei 500. Was die Flotte schon fliegt, bleibt offen. Dazwischen
+sitzen **Prozent-Boni**, je Kette ein Glied pro Rang (Effizienz +1 Punkt ×6, Beliebtheit des
+Flugzeugtyps +1 Punkt ×6, Crew −1 % ×3, Wartung −1 % ×4, Gebühren −1 % ×3, Catering −2 % ×2,
+Verschleiß −3 % ×2, Wiederverkauf +1/+1,5 %, dazu die alten: Kraftstoff, Ertrag, Slots,
+Wartungsvorhersage, Allianz, Kabine, Routenplanung, Crew-Akademie). Wirkungen:
+
+* **Effizienz / Beliebtheit** werden jeden Monat aus dem Katalogwert neu berechnet
+  (`boostedEfficiency`, `boostedPopularity`), damit sie sich nicht aufschaukeln; neue
+  Flugzeuge bekommen sie sofort.
+* **Crew, Gebühren, Catering** laufen über `PlayerModifiers` in `calculateRouteFinancials`
+  und gelten nur für den Spieler (Rivalen übergeben keine Modifikatoren). Die
+  Flughafen-Unterhaltskosten lesen den Gebührenfaktor aus `economyContext.ts`.
+* **Wartung** wirkt auf den Wartungsanteil der Flottenkosten (nicht auf die Versicherung),
+  **Verschleiß** auf Kabine und Rumpf im Monatsabschluss, **Wiederverkauf** auf Verkauf
+  und Flottenwert.
+* Sparfaktoren werden bei 40 % gedeckelt. Gleichzeitig laufende Projekte: 2 + ⌊Rang/3⌋,
+  höchstens 5.
+
+Eine Chain-Folge wie `eff-1 → eff-2` braucht das vorige Glied. Im Reiter *Career* stehen
+die Projekte nach Rang gruppiert; der nächste Rang ist als Vorschau sichtbar, der Rest
+unter „Show the whole tree". Oben stehen die sechs Klassen mit Haken und eine Zeile mit
+dem, was gerade wirkt.
+
+### Savegame Version 7
+
+* `Career.mode` ist neu; Saves vor Version 7 sind Normal Mode.
+* Der Rang einer alten Sechs-Stufen-Leiter wird auf dieselbe Stelle der neuen gesetzt
+  (0/1/2/3/4/5 → 0/2/4/6/8/9) und nie gesenkt.
+* Für Saves vor Version 7 gelten die Klassen als entwickelt, die der Rang geöffnet hätte
+  und die die Flotte schon fliegt; bereits Entwickeltes bleibt.
+* Szenarien: Startränge auf der neuen Leiter (Jet Age, Oil Shock, Deregulation: National,
+  Hub Builder: International); die Startflotte öffnet ihre Klassen ohnehin.
+
+### Grenzen
+
+* Wer 2005 oder später startet, hat in Normal Mode wenig Zeit für den Aufstieg, weil die
+  Jahre im Geschäft nicht zu kaufen sind; dafür gibt es Free Mode (Hinweis auf der Karte).
+* Die Rangschwellen und Projektkosten sind nicht in einem vollen Spielverlauf abgestimmt.
+  Gemessen mit `calculateRouteFinancials` (Vollkostenpreise, ein Flug pro Tag, Frankfurt –
+  München/London/Paris, 1962–1975): eine Strecke mit An-24 trägt ≈ 2.900 Passagiere im Monat,
+  mit 737-100 ≈ 6.900, mit 727-200 ≈ 10.500 (zweimal täglich ≈ 21.000). Local (3 Routen,
+  8.000) und Regional (6 Routen, 25.000) sind damit in den ersten Jahren erreichbar, National
+  (24 Routen, 170.000, ≈ 7.000 je Route) braucht Schmalrumpfflugzeuge auf den meisten
+  Strecken. Die Werte stehen als Konstanten oben in `airlineRank.ts` und `research.ts` und
+  gehören nach Spielerfahrung nachgezogen.
+* Rivalen unterliegen keiner Flughafensperre.

@@ -51,8 +51,9 @@ src/
     financeUtils.ts    Einzige Quelle der Wahrheit für Kosten, Nachfrage, Preise
     eventSystem.ts     Historische und zufällige Weltereignisse
     imageUtils.ts      Auflösung von Flugzeugbild-URLs
-    airlineRank.ts, milestones.ts, annualGoals.ts, research.ts, careerScore.ts
-                       Fortschritt: Rang, Meilensteine, Jahresziele, Entwicklung, Wertung
+    airlineRank.ts, airportAccess.ts, aircraftClasses.ts, milestones.ts, annualGoals.ts, research.ts, careerScore.ts
+                       Fortschritt: Normal/Free Mode, zehn Ränge, Flughafenzugang, Flugzeugklassen,
+                       Meilensteine, Jahresziele, Entwicklungsbaum, Wertung
     preorders.ts, usedMarket.ts, takeover.ts, fleetCosts.ts, hubOwnership.ts, routeMaturity.ts
                        Flugzeugmarkt, Übernahmen, Besitzkosten, Hub-Eigentum, Routen-Anlauf
     supabase.ts        Supabase-Client (null, wenn nicht konfiguriert)

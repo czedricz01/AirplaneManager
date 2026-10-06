@@ -50,7 +50,7 @@ export function RetirementDialog({ open, airline, score, entry, position, hall, 
           <ol className="flex flex-col gap-1">
             {hall.map((e, i) => (
               <li key={e.id} className={`flex items-center justify-between gap-3 text-2xs font-mono border-b border-white/5 py-1 ${e.id === entry.id ? 'text-aero-yellow' : ''}`}>
-                <span className="truncate"><span className="text-white/30">{i + 1}.</span> {e.airline}{e.code ? ` (${e.code})` : ''}</span>
+                <span className="truncate"><span className="text-white/30">{i + 1}.</span> {e.airline}{e.code ? ` (${e.code})` : ''}{e.mode === 'free' ? ' · Free Mode' : ''}</span>
                 <span className="tabular-nums">{formatNumber(e.score)}</span>
               </li>
             ))}

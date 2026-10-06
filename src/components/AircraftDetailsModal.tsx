@@ -6,6 +6,7 @@ import { Plane, Wrench, ShieldAlert, ArrowLeftRight } from 'lucide-react';
 import { AircraftImage } from './AircraftImage';
 import { loadAircraftImagesMap } from '../lib/imageUtils';
 import { getPlaneSat, getAircraftResaleValue } from '../lib/financeUtils';
+import { getResaleBonus } from '../lib/economyContext';
 import { Modal } from './ui/Modal';
 import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
 import { AircraftSwapPanel } from './AircraftReassign';
@@ -249,7 +250,7 @@ export function AircraftDetailsModal({
             {/* Liquidation & Market Value */}
             {(() => {
               // The amount the sale actually credits (App.handleSellAircraft).
-              const salePrice = getAircraftResaleValue({ ...plane, ageYears: ageMonths === null ? undefined : ageMonths / 12 });
+              const salePrice = getAircraftResaleValue({ ...plane, ageYears: ageMonths === null ? undefined : ageMonths / 12, resaleBonus: getResaleBonus() });
               const formatUSD = formatCurrency;
 
               return (

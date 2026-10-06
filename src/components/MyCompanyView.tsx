@@ -147,7 +147,7 @@ function MyCompanyViewImpl({
   capital, reportHistory, fleetValue, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
   staff, profitStreak, monthlyCrewCost, strikePending, moraleBonus, onSetSalary,
-  rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
+  free, rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
   ...marketingProps
 }: Props) {
   const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
@@ -200,6 +200,7 @@ function MyCompanyViewImpl({
         ) : section === 'career' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <CareerPanel
+              free={free}
               rank={rank}
               rankStats={rankStats}
               perks={perks}
