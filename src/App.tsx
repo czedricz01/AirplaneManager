@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   MapPin,
   Briefcase,
+  TrendingUp,
   Users,
   Plus,
   LogOut,
@@ -278,7 +279,7 @@ import {
   type RankStats
 } from "./lib/airlineRank";
 import { classGateMessage, classesOfFleet, openClasses, type AircraftClassId } from "./lib/aircraftClasses";
-import { airportGate, exemptAirports, lockedSummary } from "./lib/airportAccess";
+import { airportGate, exemptAirports, lockedSummary, maxAirportLevel } from "./lib/airportAccess";
 import {
   buildYearSnapshot,
   describeGoal,
@@ -421,7 +422,7 @@ import {
 
 
 type ViewState = 'login' | 'main-menu' | 'start-menu' | 'monthly-overview' | 'game';
-type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'competitors' | 'new-route';
+type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'progression' | 'competitors' | 'new-route';
 
 
 export type ManagementLevel = 0 | 1 | 2 | 3; // 0: None, 1: Basic, 2: Hub, 3: Owner
@@ -710,6 +711,23 @@ export default function App() {
   const [airlineName, setAirlineName] = useState("");
   const [airlineCode, setAirlineCode] = useState("");
   const [selectedHub, setSelectedHub] = useState<string>("FRA");
+  /**
+   * The home airports offered on the new-game screen. A Normal Mode startup
+   * may only begin at an airport its rank allows (level 3); the great hubs are
+   * for Free Mode. A scenario fixes its own hub.
+   */
+  const newGameHubChoices = useMemo(
+    () => newGameScenarioId === null && newGameMode === 'normal'
+      ? airportsByName.filter(a => a.level <= maxAirportLevel(0))
+      : airportsByName,
+    [newGameScenarioId, newGameMode]
+  );
+  useEffect(() => {
+    if (newGameScenarioId !== null || newGameMode !== 'normal') return;
+    if (!newGameHubChoices.some(a => a.id === selectedHub) && newGameHubChoices.length > 0) {
+      setSelectedHub(newGameHubChoices[0].id);
+    }
+  }, [newGameScenarioId, newGameMode, newGameHubChoices, selectedHub]);
   const [difficulty, setDifficulty] = useState("Normal");
   const [startingBudget, setStartingBudget] = useState("$25M");
   const [debugMode, setDebugMode] = useState(() => {
@@ -2187,7 +2205,7 @@ export default function App() {
           source: 'Board of Directors',
           content:
             `The board looks back on ${years} years: career score ${formatNumber(snapshot.total)}.\n\n` +
-            `You may retire at any time under My Company > Career: the career is filed in the hall of fame, and you can play on.`
+            `You may retire at any time under Progression: the career is filed in the hall of fame, and you can play on.`
         }
       });
     }
@@ -3861,6 +3879,7 @@ export default function App() {
               {/* Business */}
               <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
                 <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" shortLabel="COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
+                <SidebarIcon icon={<TrendingUp size={28} />} label="PROGRESSION" shortLabel="PROGRESS" tour="nav-progression" active={activeWindow === 'progression' && !isPlanningRoute} onClick={() => openWindow('progression')} />
                 <SidebarIcon icon={<Users size={28} />} label="RIVALS" tour="nav-rivals" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => openWindow('competitors')} />
               </div>
 
@@ -4086,7 +4105,7 @@ export default function App() {
                           onChange={(e) => setSelectedHub(e.target.value)}
                           className="w-full bg-aero-carbon border border-white/10 p-4 short:py-2.5 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
                         >
-                          {airportsByName.map(a => (
+                          {newGameHubChoices.map(a => (
                             <option key={a.id} value={a.id}>{a.name} ({a.id}) - Level {a.level}</option>
                           ))}
                         </select>
@@ -4776,10 +4795,12 @@ export default function App() {
                         />
                       </React.Suspense>
                     </ViewFrame>
-                  ) : activeWindow === 'my-company' ? (
-                    <ViewFrame label="My Company" onReset={backToMap}>
-                      <React.Suspense fallback={<LazyFallback label="My Company" />}>
+                  ) : activeWindow === 'my-company' || activeWindow === 'progression' ? (
+                    <ViewFrame label={activeWindow === 'progression' ? 'Progression' : 'My Company'} onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="Progression" />}>
                         <MyCompanyView
+                          page={activeWindow === 'progression' ? 'progression' : 'company'}
+                          onOpenProgression={() => openWindow('progression')}
                           capital={capital}
                           reportHistory={reportHistory}
                           reputation={reputation}

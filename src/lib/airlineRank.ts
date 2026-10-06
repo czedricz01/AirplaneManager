@@ -43,32 +43,32 @@ export const RANKS: readonly RankDef[] = [
   {
     index: 0, id: 'startup', title: 'Startup',
     requires: { routes: 0, monthlyPax: 0, reputation: 0, regions: 0, years: 0 },
-    maxHubs: 1, maxAirportLevel: 3,
-    unlocks: ['Airports up to level 3', 'One hub', 'Local marketing campaigns', 'The first development projects']
+    maxHubs: 1, maxAirportLevel: 4,
+    unlocks: ['Airports up to level 4', 'One hub', 'Local marketing campaigns', 'The first development projects']
   },
   {
     index: 1, id: 'local', title: 'Local Airline',
     requires: { routes: 3, monthlyPax: 8_000, reputation: 40, regions: 1, years: 0 },
-    maxHubs: 1, maxAirportLevel: 4,
-    unlocks: ['Airports of level 4', 'Regional aircraft (development)']
+    maxHubs: 1, maxAirportLevel: 5,
+    unlocks: ['Airports of level 5', 'Regional aircraft (development)']
   },
   {
     index: 2, id: 'regional', title: 'Regional Airline',
     requires: { routes: 6, monthlyPax: 25_000, reputation: 45, regions: 1, years: 1 },
-    maxHubs: 2, maxAirportLevel: 4,
+    maxHubs: 2, maxAirportLevel: 5,
     unlocks: ['A second hub', 'The frequent-flyer programme', 'More development projects']
   },
   {
     index: 3, id: 'domestic', title: 'Domestic Airline',
     requires: { routes: 12, monthlyPax: 70_000, reputation: 50, regions: 1, years: 3 },
-    maxHubs: 2, maxAirportLevel: 5,
-    unlocks: ['Airports of level 5', 'Narrowbody aircraft (development)', 'National marketing campaigns']
+    maxHubs: 2, maxAirportLevel: 6,
+    unlocks: ['Airports of level 6', 'Narrowbody aircraft (development)', 'National marketing campaigns']
   },
   {
     index: 4, id: 'national', title: 'National Airline',
     requires: { routes: 24, monthlyPax: 170_000, reputation: 55, regions: 1, years: 6 },
     maxHubs: 3, maxAirportLevel: 7,
-    unlocks: ['The great hubs: airports of level 6 and 7', 'A third hub', 'The VIP lounge', 'A third development project at a time']
+    unlocks: ['The greatest hubs: airports of level 7', 'A third hub', 'The VIP lounge', 'A third development project at a time']
   },
   {
     index: 5, id: 'continental', title: 'Continental Airline',

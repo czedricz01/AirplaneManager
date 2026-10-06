@@ -30,9 +30,9 @@ test('the climb is slow: the top ranks need decades in business', () => {
   assert.ok(RANKS[MAX_RANK].requires.years >= 35, 'Global Player takes most of a career');
 });
 
-test('the great airports (level 6 and 7) open at National', () => {
+test('the greatest airports (level 7) open at National', () => {
   const national = RANKS.findIndex(r => r.id === 'national');
-  assert.ok(RANKS[national - 1].maxAirportLevel <= 5);
+  assert.ok(RANKS[national - 1].maxAirportLevel <= 6);
   assert.equal(RANKS[national].maxAirportLevel, 7);
 });
 

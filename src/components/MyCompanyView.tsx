@@ -42,7 +42,14 @@ interface MonthlyReport extends ReportMetrics {
   hubIncomeItems?: { label: string; amount: number }[];
 }
 
-interface Props extends Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, Omit<CareerPanelProps, 'capital' | 'currentDateOffset'> {
+interface ProgressionProps {
+  /** 'progression' shows the career screen alone (rank, goals, development, score); 'company' everything else. */
+  page?: 'company' | 'progression';
+  /** Opens the Progression screen from the overview's links. */
+  onOpenProgression?: () => void;
+}
+
+interface Props extends ProgressionProps,  Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, Omit<CareerPanelProps, 'capital' | 'currentDateOffset'> {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
@@ -147,10 +154,12 @@ function MyCompanyViewImpl({
   capital, reportHistory, fleetValue, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
   staff, profitStreak, monthlyCrewCost, strikePending, moraleBonus, onSetSalary,
-  free, rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
+  page = 'company', onOpenProgression, free, rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
   ...marketingProps
 }: Props) {
   const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
+  const progression = page === 'progression';
+  const shown = progression ? 'career' : section;
 
   // The last two years of profit at a glance; the History tab has the rest.
   const recent = useMemo(() => reportHistory.slice(-24), [reportHistory]);
@@ -168,14 +177,14 @@ function MyCompanyViewImpl({
     <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         eyebrow={[airlineName, airlineCode].filter(Boolean).join(' · ') || undefined}
-        title="MY COMPANY"
+        title={progression ? 'PROGRESSION' : 'MY COMPANY'}
         icon={<BrandBadge branding={branding} code={airlineCode} name={airlineName} size={36} className="mr-2" />}
-        right={<LiveryEditor branding={branding} airlineName={airlineName} airlineCode={airlineCode} onBrandingChange={onBrandingChange} />}
+        right={progression ? undefined : <LiveryEditor branding={branding} airlineName={airlineName} airlineCode={airlineCode} onBrandingChange={onBrandingChange} />}
       />
 
-      <div className="pr-4 mb-3">
+      {!progression && <div className="pr-4 mb-3">
        <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
-        {([['overview', 'Overview'], ['career', goalOffer ? 'Career \u25CF' : 'Career'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
+        {([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
           <button
             key={id}
             type="button"
@@ -190,14 +199,14 @@ function MyCompanyViewImpl({
           </button>
         ))}
        </div>
-      </div>
+      </div>}
 
       <div className="flex-1 overflow-auto pr-4 custom-scrollbar">
-        {section === 'history' ? (
+        {shown === 'history' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <ChronicleView reportHistory={reportHistory} chronicle={chronicle} />
           </div>
-        ) : section === 'career' ? (
+        ) : shown === 'career' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <CareerPanel
               free={free}
@@ -218,11 +227,11 @@ function MyCompanyViewImpl({
               onRetire={onRetire}
             />
           </div>
-        ) : section === 'marketing' ? (
+        ) : shown === 'marketing' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <MarketingPanel capital={capital} rank={rank} {...marketingProps} />
           </div>
-        ) : section === 'staff' ? (
+        ) : shown === 'staff' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <StaffPanel
               staff={staff}
@@ -265,15 +274,15 @@ function MyCompanyViewImpl({
             </StatTile>
             <StatTile size="md" label="Rank" value={rankDef(rank).title.replace(' Airline', '')}>
               <span className="block text-3xs font-mono text-white/30 mt-1">
-                <button type="button" onClick={() => setSection('career')} className="uppercase tracking-widest text-aero-yellow hover:text-white">
-                  Career &rarr;
+                <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+                  Progression &rarr;
                 </button>
               </span>
             </StatTile>
             {goalOffer ? (
               <StatTile size="md" label={`${goalOffer.year} goal`} value="Choose">
                 <span className="block text-3xs font-mono text-white/30 mt-1">
-                  <button type="button" onClick={() => setSection('career')} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+                  <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-widest text-aero-yellow hover:text-white">
                     The board waits &rarr;
                   </button>
                 </span>
