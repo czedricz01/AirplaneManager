@@ -19,6 +19,7 @@ import {
   MAX_REGION_DEMAND,
   REGION_LABELS,
   campaignBlocker,
+  ffpRankGate,
   campaignMonthlyCost,
   campaignMonthsLeft,
   campaignTotalCost,
@@ -45,6 +46,8 @@ export interface MarketingPanelProps {
   onLaunchCampaign: (tier: CampaignTier, region: RegionId, months: number) => void;
   onCancelCampaign: (id: string) => void;
   onSetFfp: (active: boolean) => void;
+  /** The airline's rank; the higher campaign tiers and the programme need one. */
+  rank?: number;
 }
 
 const REGIONS = Object.keys(REGION_LABELS) as RegionId[];
@@ -88,7 +91,7 @@ function CampaignRow({ campaign, offset, onCancel }: { campaign: Campaign; offse
  */
 export function MarketingPanel({
   marketing, currentDateOffset: offset, capital, projectedMonthlyPax, regionRouteCounts, homeRegion,
-  onLaunchCampaign, onCancelCampaign, onSetFfp
+  onLaunchCampaign, onCancelCampaign, onSetFfp, rank
 }: MarketingPanelProps) {
   /** The launch dialog: the region it was opened from and the tier picked. */
   const [launch, setLaunch] = useState<{ region: RegionId; tier: CampaignTier } | null>(null);
@@ -98,6 +101,7 @@ export function MarketingPanel({
   const factors = useMemo(() => regionDemandFactors(marketing, offset) ?? {}, [marketing, offset]);
   const monthCost = useMemo(() => marketingMonthCost(marketing, offset, projectedMonthlyPax), [marketing, offset, projectedMonthlyPax]);
   const reputationGain = marketingReputation(marketing, offset);
+  const ffpGate = rank === undefined ? null : ffpRankGate(rank);
   const loyalty = ffpLoyaltyBonus(marketing, offset);
   const global = running.find(c => c.tier === 'global');
   const ffpCost = ffpMonthlyCost(projectedMonthlyPax);
@@ -147,12 +151,15 @@ export function MarketingPanel({
                 more each month, up to {Math.round(FFP_LOYALTY_MAX * 100)}%. Reputation +{FFP_REPUTATION_PER_MONTH} a month.
                 Ending the programme loses the loyalty built up.
               </p>
+              {ffpGate && !marketing.ffpActive && (
+                <p className="text-2xs font-mono text-aero-warn mt-2">{ffpGate}</p>
+              )}
             </div>
           </div>
           <Button
             variant={marketing.ffpActive ? 'danger' : 'primary'}
             onClick={() => onSetFfp(!marketing.ffpActive)}
-            disabled={!marketing.ffpActive && capital < ffpCost}
+            disabled={!marketing.ffpActive && (capital < ffpCost || !!ffpGate)}
           >
             {marketing.ffpActive ? 'End programme' : 'Launch programme'}
           </Button>
@@ -255,6 +262,7 @@ export function MarketingPanel({
           tier={launch.tier}
           months={months}
           routes={regionRouteCounts}
+          rank={rank}
           onTier={tier => setLaunch({ ...launch, tier })}
           onMonths={setMonths}
           onClose={() => setLaunch(null)}
@@ -276,6 +284,7 @@ interface LaunchDialogProps {
   tier: CampaignTier;
   months: number;
   routes: Record<RegionId, number>;
+  rank?: number;
   onTier: (tier: CampaignTier) => void;
   onMonths: (months: number) => void;
   onClose: () => void;
@@ -283,11 +292,11 @@ interface LaunchDialogProps {
 }
 
 /** Tier, length, what it costs and what it does, before anything is booked. */
-function LaunchDialog({ marketing, offset, capital, region, tier, months, routes, onTier, onMonths, onClose, onLaunch }: LaunchDialogProps) {
+function LaunchDialog({ marketing, offset, capital, region, tier, months, routes, rank, onTier, onMonths, onClose, onLaunch }: LaunchDialogProps) {
   const spec = CAMPAIGN_SPECS[tier];
   const monthly = campaignMonthlyCost(tier, offset);
   const total = campaignTotalCost(tier, offset, months);
-  const blocker = campaignBlocker(marketing, tier, region, offset);
+  const blocker = campaignBlocker(marketing, tier, region, offset, rank);
   const short = capital < monthly;
 
   // The regions it would reach, before and after, so a campaign that runs

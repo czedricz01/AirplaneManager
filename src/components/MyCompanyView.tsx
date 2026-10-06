@@ -11,6 +11,9 @@ import { StaffPanel, type StaffPanelProps } from './StaffPanel';
 import { IncidentList } from './IncidentList';
 import { ChronicleView } from './ChronicleView';
 import { LineChart } from './charts/LineChart';
+import { CareerPanel, type CareerPanelProps } from './CareerPanel';
+import { rankDef } from '../lib/airlineRank';
+import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
 import type { Branding, ChronicleEntry, ReportIncident } from '../lib/gameState';
 import type { ReportMetrics } from '../lib/chronicle';
 import { CHART_COLORS } from '../lib/theme';
@@ -36,7 +39,7 @@ interface MonthlyReport extends ReportMetrics {
   incidents?: ReportIncident[];
 }
 
-interface Props extends Omit<MarketingPanelProps, 'capital'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'> {
+interface Props extends Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, CareerPanelProps {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
@@ -46,11 +49,6 @@ interface Props extends Omit<MarketingPanelProps, 'capital'>, Omit<StaffPanelPro
   routeCount: number;
   /** Airline reputation, 0-100. */
   reputation: number;
-  /** Milestones earned so far, with the full catalogue to show what is left. */
-  milestones: string[];
-  milestoneCatalogue: { id: string; title: string; detail: string }[];
-  /** The board's target for the current year, and what has been earned so far. */
-  annualGoal: { year: number; targetProfit: number } | null;
   branding: Branding;
   airlineName: string;
   airlineCode: string;
@@ -141,11 +139,13 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
 }
 
 function MyCompanyViewImpl({
-  capital, reportHistory, fleetValue, fleetCount, routeCount, reputation, milestones, milestoneCatalogue, annualGoal,
+  capital, reportHistory, fleetValue, fleetCount, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
-  staff, profitStreak, monthlyCrewCost, strikePending, onSetSalary, ...marketingProps
+  staff, profitStreak, monthlyCrewCost, strikePending, onSetSalary,
+  rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal,
+  ...marketingProps
 }: Props) {
-  const [section, setSection] = useState<'overview' | 'marketing' | 'staff' | 'history'>('overview');
+  const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
 
   // The last two years of profit at a glance; the History tab has the rest.
   const recent = useMemo(() => reportHistory.slice(-24), [reportHistory]);
@@ -170,7 +170,7 @@ function MyCompanyViewImpl({
 
       <div className="pr-4 mb-3">
        <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
-        {([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
+        {([['overview', 'Overview'], ['career', goalOffer ? 'Career \u25CF' : 'Career'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const).map(([id, text]) => (
           <button
             key={id}
             type="button"
@@ -192,9 +192,22 @@ function MyCompanyViewImpl({
           <div className="max-w-4xl mx-auto pb-6">
             <ChronicleView reportHistory={reportHistory} chronicle={chronicle} />
           </div>
+        ) : section === 'career' ? (
+          <div className="max-w-4xl mx-auto pb-6">
+            <CareerPanel
+              rank={rank}
+              rankStats={rankStats}
+              perks={perks}
+              milestones={milestones}
+              annualGoal={annualGoal}
+              goalOffer={goalOffer}
+              goalSnapshot={goalSnapshot}
+              onChooseGoal={onChooseGoal}
+            />
+          </div>
         ) : section === 'marketing' ? (
           <div className="max-w-4xl mx-auto pb-6">
-            <MarketingPanel capital={capital} {...marketingProps} />
+            <MarketingPanel capital={capital} rank={rank} {...marketingProps} />
           </div>
         ) : section === 'staff' ? (
           <div className="max-w-4xl mx-auto pb-6">
@@ -236,25 +249,36 @@ function MyCompanyViewImpl({
                 />
               </div>
             </StatTile>
-            {annualGoal && (() => {
-              const earned = reportHistory
-                .filter(r => r.year === annualGoal.year)
-                .reduce((a, r) => a + r.totalProfit, 0);
-              const pct = annualGoal.targetProfit > 0
-                ? Math.max(0, Math.min(100, (earned / annualGoal.targetProfit) * 100))
-                : 0;
+            <StatTile size="md" label="Rank" value={rankDef(rank).title.replace(' Airline', '')}>
+              <span className="block text-3xs font-mono text-white/30 mt-1">
+                <button type="button" onClick={() => setSection('career')} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+                  Career &rarr;
+                </button>
+              </span>
+            </StatTile>
+            {goalOffer ? (
+              <StatTile size="md" label={`${goalOffer.year} goal`} value="Choose">
+                <span className="block text-3xs font-mono text-white/30 mt-1">
+                  <button type="button" onClick={() => setSection('career')} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+                    The board waits &rarr;
+                  </button>
+                </span>
+              </StatTile>
+            ) : annualGoal && goalSnapshot && (() => {
+              const fraction = goalFraction(annualGoal, goalSnapshot);
+              const value = goalValue(annualGoal, goalSnapshot);
               return (
                 <StatTile
                   size="md"
-                  label={`${annualGoal.year} target`}
-                  value={compact(earned)}
-                  valueClassName={pct >= 100 ? 'text-aero-good' : ''}
+                  label={`${annualGoal.year} goal`}
+                  value={annualGoal.kind === 'profit' ? compact(value) : annualGoal.kind === 'noLoss' ? (value === 0 ? 'Clean' : `${value} loss`) : Math.round(value)}
+                  valueClassName={fraction >= 1 ? 'text-aero-good' : ''}
                 >
                   <span className="block text-3xs font-mono text-white/30 mt-1">
-                    of {compact(annualGoal.targetProfit)} operating profit
+                    {describeGoal(annualGoal, compact, n => String(Math.round(n)))}
                   </span>
                   <div className="w-full h-1 bg-white/10 mt-2 overflow-hidden">
-                    <div className={`h-full ${pct >= 100 ? 'bg-aero-good' : 'bg-aero-yellow'}`} style={{ width: `${pct}%` }} />
+                    <div className={`h-full ${fraction >= 1 ? 'bg-aero-good' : 'bg-aero-yellow'}`} style={{ width: `${fraction * 100}%` }} />
                   </div>
                 </StatTile>
               );
@@ -437,37 +461,6 @@ function MyCompanyViewImpl({
             </>
           )}
 
-          {/* Milestones. The only thing in the game that accumulates across a
-              whole career, so it shows what is still out there as well. */}
-          <Panel>
-            <div className="flex items-baseline justify-between mb-3">
-              <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Milestones</span>
-              <span className="text-2xs font-mono text-white/40">
-                {milestones.length} / {milestoneCatalogue.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {milestoneCatalogue.map(m => {
-                const earned = milestones.includes(m.id);
-                return (
-                  <div
-                    key={m.id}
-                    className={`p-2 border rounded-sm text-2xs font-mono leading-relaxed ${
-                      earned
-                        ? 'border-aero-good/40 bg-aero-good/5 text-white/80'
-                        : 'border-white/5 bg-white/[0.02] text-white/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={earned ? 'text-aero-good' : 'text-white/20'}>{earned ? '\u2713' : '\u25CB'}</span>
-                      <span className="font-bold uppercase tracking-wider">{m.title}</span>
-                    </div>
-                    <p className="pl-5 mt-0.5">{m.detail}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
         </div>
         )}
       </div>

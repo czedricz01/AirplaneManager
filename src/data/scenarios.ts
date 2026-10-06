@@ -95,6 +95,12 @@ export interface Scenario {
   deadlineOffset: number;
   hub: string;
   capital: number;
+  /**
+   * The rank the airline starts at (see airlineRank.ts). A scenario that opens
+   * with an established carrier would otherwise lock it out of the aircraft a
+   * carrier of that size flies; defaults to a startup.
+   */
+  startRank?: number;
   fleet: ScenarioFleetEntry[];
   /** The game's own difficulty (fuel prices, demand). */
   difficulty: Difficulty;
@@ -157,6 +163,7 @@ export const SCENARIOS: readonly Scenario[] = [
     deadlineOffset: at(1976, 12),
     hub: 'LHR',
     capital: 8_000_000,
+    startRank: 2,
     fleet: [
       { model: '707-320b', count: 2, ageMonths: 96, condition: 60 },
       { model: 'trident-2e', count: 2, ageMonths: 60, condition: 65 }
@@ -189,6 +196,7 @@ export const SCENARIOS: readonly Scenario[] = [
     deadlineOffset: at(1982, 12),
     hub: 'JFK',
     capital: 40_000_000,
+    startRank: 3,
     fleet: [
       { model: '727-200', count: 2 },
       { model: 'dc-9-30', count: 1 }
@@ -218,6 +226,7 @@ export const SCENARIOS: readonly Scenario[] = [
     deadlineOffset: at(1994, 12),
     hub: 'AMS',
     capital: 80_000_000,
+    startRank: 3,
     fleet: [
       { model: '737-400', count: 2 },
       { model: '767-300er', count: 1 }

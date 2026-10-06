@@ -279,3 +279,36 @@ test('a save with no open slot bill keeps its capital and capex as they are', ()
   assert.equal(migrated.capital, 1_000_000);
   assert.deepEqual(migrated.monthlyCapex, []);
 });
+
+test('an old save gets a rank from the airline as it stands, and keeps the wide-bodies it flies', () => {
+  const save: any = oldSave();
+  save.fleet.push({ registration: 'D-WIDE', id: '747-100', type: '747-100', manufacturer: 'Boeing', class: 'Widebody', capacity: 400 });
+  const migrated = migrateSave(save);
+  assert.ok(migrated.career.rank >= 2, `rank ${migrated.career.rank}`);
+  assert.equal(migrated.career.careerPax, 0);
+  assert.equal(migrated.career.goalOffer, null);
+});
+
+test('career passengers are summed from the reports an old save still holds', () => {
+  const save: any = oldSave();
+  save.reportHistory = [{ year: 1960, month: 1, paxTotal: 1000 }, { year: 1960, month: 2, paxTotal: 2500 }];
+  assert.equal(migrateSave(save).career.careerPax, 3500);
+});
+
+test('a saved career is kept, with the rank clamped', () => {
+  const save: any = oldSave();
+  save.career = { rank: 99, careerPax: 12345, goalOffer: null };
+  const c = migrateSave(save).career;
+  assert.equal(c.rank, 5);
+  assert.equal(c.careerPax, 12345);
+});
+
+test('the first annual goal format loads as a steady profit goal', () => {
+  const save: any = oldSave();
+  save.annualGoal = { year: 1962, targetProfit: 4_000_000 };
+  const g = migrateSave(save).annualGoal;
+  assert.equal(g.kind, 'profit');
+  assert.equal(g.target, 4_000_000);
+  save.annualGoal = { year: 'x' };
+  assert.equal(migrateSave(save).annualGoal, null);
+});

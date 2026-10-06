@@ -7,6 +7,8 @@ import { trimChronicle } from './chronicle';
 import { DISRUPTION_OPTION_CHARTER } from './disruptions';
 import { assignRivalColors, isHexColor } from './theme';
 import { scenarioById } from '../data/scenarios';
+import { clampRank, startingRank } from './airlineRank';
+import { normalizeGoal, normalizeOffer } from './annualGoals';
 import {
   CAMPAIGN_TIERS,
   CHRONICLE_KINDS,
@@ -22,6 +24,7 @@ import {
   decisionTargetExists,
   ensureFreeOption,
   type Branding,
+  type Career,
   type ChronicleEntry,
   type Disruption,
   type GameDecision,
@@ -42,7 +45,7 @@ import {
  */
 
 /** Written into every new save. Bump it whenever the shape changes. */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** The first save version whose tutorial step means anything; older saves load with the tutorial off. */
 const TUTORIAL_SAVE_VERSION = 4;
@@ -318,6 +321,33 @@ function migrateChronicle(list: unknown): ChronicleEntry[] {
 }
 
 /**
+ * The career block. A save from before ranks existed has none: its rank is
+ * worked out from the airline as it stands, no lower than its fleet needs, and
+ * its passenger total from the months the reports still hold.
+ */
+function migrateCareer(raw: unknown, ctx: { routes: any[]; fleet: any[]; reputation: number; reportHistory: any[] }): Career {
+  const src = asObject<any>(raw, {});
+  const last = ctx.reportHistory[ctx.reportHistory.length - 1];
+  const regions = new Set<string>(asArray<string>(last?.regions).filter(isString));
+  if (Number.isFinite(src.rank)) {
+    return {
+      rank: clampRank(src.rank),
+      careerPax: Math.max(0, finiteOr(src.careerPax, 0)),
+      goalOffer: normalizeOffer(src.goalOffer)
+    };
+  }
+  const careerPax = ctx.reportHistory.reduce((sum, r) => sum + Math.max(0, finiteOr(r?.paxTotal, 0)), 0);
+  return {
+    rank: startingRank(
+      { routes: ctx.routes.length, monthlyPax: Math.max(0, finiteOr(last?.paxTotal, 0)), reputation: ctx.reputation, regions: regions.size },
+      ctx.fleet
+    ),
+    careerPax,
+    goalOffer: null
+  };
+}
+
+/**
  * A scenario game's state. One whose scenario the game no longer knows is
  * played on as a free game: nothing could judge it. Version 3 saves held only
  * an id; they are all free games in practice, since no scenario could be
@@ -389,6 +419,8 @@ export function migrateSave(raw: any): any {
     : capex.some(c => c.label === SLOT_CAPEX_LABEL)
       ? capex.map(c => (c.label === SLOT_CAPEX_LABEL ? { ...c, amount: c.amount + unbilledSlots } : c))
       : [...capex, { label: SLOT_CAPEX_LABEL, amount: unbilledSlots }];
+  const reportHistory = asArray<any>(raw.reportHistory).filter(r => r && typeof r === 'object');
+  const reputation = clamp(finiteOr(raw.reputation, 50), 0, 100);
   const migrated = {
     ...rest,
     saveVersion: SAVE_VERSION,
@@ -403,14 +435,12 @@ export function migrateSave(raw: any): any {
     aiAirlinesCount: finiteOr(raw.aiAirlinesCount, 6),
     aiAirlines: migrateAiAirlines(raw.aiAirlines, branding.color),
     monthlyCapex,
-    reportHistory: asArray<any>(raw.reportHistory).filter(r => r && typeof r === 'object'),
+    reportHistory,
     eventChoices: asObject<Record<string, string>>(raw.eventChoices, {}),
-    reputation: clamp(finiteOr(raw.reputation, 50), 0, 100),
+    reputation,
     milestones: asArray<string>(raw.milestones).filter(m => typeof m === 'string'),
     profitStreak: Math.max(0, finiteOr(raw.profitStreak, 0)),
-    annualGoal: raw.annualGoal && Number.isFinite(raw.annualGoal.year) && Number.isFinite(raw.annualGoal.targetProfit)
-      ? raw.annualGoal
-      : null,
+    annualGoal: normalizeGoal(raw.annualGoal),
     startDateOffset,
     currentDateOffset,
     airportManagement: migrateInfrastructure(raw.airportManagement),
@@ -425,6 +455,7 @@ export function migrateSave(raw: any): any {
     disruptions,
     pendingDecisions,
     scenario: migrateScenario(raw.scenario, startDateOffset, currentDateOffset),
+    career: migrateCareer(raw.career, { routes, fleet, reputation, reportHistory }),
     chronicle: migrateChronicle(raw.chronicle),
     // Saves from before version 4 were started before the tutorial existed;
     // their players do not need it, so it stays off rather than starting on

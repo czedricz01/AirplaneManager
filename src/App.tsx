@@ -120,44 +120,6 @@ function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: nu
  * the $200k general check a pure sink.
  */
 
-/**
- * Milestones. Checked at the end of each month, awarded once, announced in the
- * inbox. They are the only thing in the game that accumulates across a whole
- * career, and each one nudges reputation, which is the reward that lasts.
- */
-export interface MilestoneContext {
-  routeCount: number;
-  fleetSize: number;
-  capital: number;
-  longestRouteKm: number;
-  continents: number;
-  profitableMonthStreak: number;
-  reputation: number;
-}
-
-export const MILESTONES: {
-  id: string;
-  title: string;
-  detail: string;
-  reputationBonus: number;
-  met: (c: MilestoneContext) => boolean;
-}[] = [
-  { id: 'first-route', title: 'First route opened', detail: 'Your airline is flying.', reputationBonus: 2,
-    met: c => c.routeCount >= 1 },
-  { id: 'fleet-10', title: 'Ten aircraft', detail: 'A fleet rather than a handful of aeroplanes.', reputationBonus: 3,
-    met: c => c.fleetSize >= 10 },
-  { id: 'longhaul', title: 'First intercontinental route', detail: 'A route beyond 5,000 km.', reputationBonus: 4,
-    met: c => c.longestRouteKm >= 5000 },
-  { id: 'continents-4', title: 'Four continents served', detail: 'Your network spans four continents.', reputationBonus: 5,
-    met: c => c.continents >= 4 },
-  { id: 'capital-100m', title: '$100 million in the bank', detail: 'Enough to buy almost anything on the market.', reputationBonus: 3,
-    met: c => c.capital >= 100_000_000 },
-  { id: 'profit-12', title: 'A full year in profit', detail: 'Twelve consecutive months without a loss.', reputationBonus: 6,
-    met: c => c.profitableMonthStreak >= 12 },
-  { id: 'reputation-80', title: 'A reputation worth having', detail: 'Reputation above 80.', reputationBonus: 0,
-    met: c => c.reputation >= 80 }
-];
-
 export const REPUTATION_INERTIA = 0.15;
 
 export function computeReputationTarget(samples: {
@@ -239,11 +201,13 @@ import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
 import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
 import { NewspaperOverlay } from "./components/NewspaperOverlay";
+import { GoalOfferDialog } from "./components/GoalOfferDialog";
 import {
   CAMPAIGN_SPECS,
   REGION_LABELS,
   campaignBlocker,
   campaignMonthlyCost,
+  ffpRankGate,
   createCampaign,
   dropExpiredCampaigns,
   ffpMonthlyCost,
@@ -287,6 +251,34 @@ import {
 } from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
+  MILESTONES,
+  describeReward,
+  milestonePerks,
+  newlyEarned as newlyEarnedMilestones,
+  totalReward as totalMilestoneReward,
+  type MilestoneContext
+} from "./lib/milestones";
+import {
+  RANKS,
+  RANK_NEEDED,
+  aircraftRankNeeded,
+  managementGate,
+  nextRank,
+  rankDef,
+  rankGateMessage,
+  startingRank,
+  type RankStats
+} from "./lib/airlineRank";
+import {
+  buildYearSnapshot,
+  describeGoal,
+  generateGoalOffers,
+  settleGoal,
+  type AnnualGoal,
+  type GoalOffer
+} from "./lib/annualGoals";
+import { setSlotPriceFactor } from "./lib/economyContext";
+import {
   buildPlayerModifiers,
   createGameSystems,
   decisionTargetExists,
@@ -297,6 +289,7 @@ import {
   DEFAULT_MARKETING,
   DEFAULT_STAFF,
   type Branding,
+  type Career,
   type CampaignTier,
   type Marketing,
   type RegionId,
@@ -514,13 +507,19 @@ export default function App() {
   const [reputation, setReputation] = useState(50);
   /** Milestone ids already awarded, so each is announced once. */
   const [milestones, setMilestones] = useState<string[]>([]);
+  /** What the milestones earned so far give: cheaper slots, room for hubs. */
+  const perks = useMemo(() => milestonePerks(milestones), [milestones]);
+  // Published for the pricing code that has no access to the game state; see
+  // economyContext.ts. Set while rendering, from a pure value, so a screen
+  // never shows a price the next purchase would not charge.
+  setSlotPriceFactor(perks.slotPriceFactor);
   /** Consecutive months closed without a loss, for the profit milestone. */
   const [profitStreak, setProfitStreak] = useState(0);
   /**
    * The target set each January and settled each December. Gives the calendar a
    * rhythm: before this, which month you acted in never mattered.
    */
-  const [annualGoal, setAnnualGoal] = useState<{ year: number; targetProfit: number } | null>(null);
+  const [annualGoal, setAnnualGoal] = useState<AnnualGoal | null>(null);
   /** The event whose decision is waiting to be made, if any. */
   const [pendingDecision, setPendingDecision] = useState<HistoricalEvent | null>(null);
   /** The airline's colour and badge. */
@@ -551,8 +550,12 @@ export default function App() {
   const newGameScenario = scenarioById(newGameScenarioId);
   /** The won-or-lost dialog, shown once after the close that decided the scenario. Not saved. */
   const [scenarioResultOpen, setScenarioResultOpen] = useState(false);
+  /** The annual-goal choice dialog; opens after the December close, not saved. */
+  const [goalOfferOpen, setGoalOfferOpen] = useState(false);
   /** The airline's history, newest last. */
   const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
+  /** Rank, career passengers and the annual goals on offer. */
+  const [career, setCareer] = useState<Career>(() => createGameSystems().career);
   /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   /**
@@ -1016,6 +1019,30 @@ export default function App() {
 
   /** How many of the player's routes a campaign in each region would reach. */
   const regionRouteCounts = useMemo(() => routesByRegion(routes, airportsMapAdjusted), [routes]);
+
+  /** The figures the rank is judged on, as they stand now, for the Career tab. */
+  const rankStats = useMemo<RankStats>(() => ({
+    routes: routes.length,
+    monthlyPax: reportHistory.length > 0 ? Math.max(0, reportHistory[reportHistory.length - 1].paxTotal ?? 0) : 0,
+    reputation,
+    regions: Object.values(regionRouteCounts).filter(n => n > 0).length
+  }), [routes.length, reportHistory, reputation, regionRouteCounts]);
+
+  /** The year of the chosen annual goal as it stands, for its progress bar. */
+  const goalSnapshot = useMemo(
+    () => annualGoal
+      ? buildYearSnapshot(reportHistory, annualGoal.year, { routes: rankStats.routes, regions: rankStats.regions, reputation })
+      : null,
+    [annualGoal, reportHistory, rankStats.routes, rankStats.regions, reputation]
+  );
+
+  /** Takes one of the board's offered goals for the coming year. */
+  const handleChooseGoal = React.useCallback((goal: AnnualGoal) => {
+    setAnnualGoal(goal);
+    setCareer(prev => ({ ...prev, goalOffer: null }));
+    setGoalOfferOpen(false);
+    setToast(`Goal for ${goal.year}: ${describeGoal(goal, formatCurrency, formatNumber)}`);
+  }, []);
 
   /** The hub's region: where a global campaign is booked from, for the record. */
   const homeRegion = useMemo<RegionId>(() => {
@@ -1520,6 +1547,18 @@ export default function App() {
       });
     });
 
+    // Passengers flown this month, every leg counted, and what the career
+    // has added up to. The rank and the passenger milestones read these.
+    const monthlyPax = Math.round(paxWeek * 4);
+    const careerPaxNow = career.careerPax + monthlyPax;
+    const regionCountNow = regionsServed(routes, localAirportsMap).size;
+    const transferPaxMonth = Math.round(
+      Object.values(monthNetwork.hubStats).reduce((sum, h) => sum + (h.pax > 0 ? h.pax * 4 : 0), 0)
+    );
+    // Money the board and the sponsors pay out this close; settled once, below.
+    let awardsCash = 0;
+    const awardLines: string[] = [];
+
     const mctx: MilestoneContext = {
       routeCount: routes.length,
       fleetSize: fleet.length,
@@ -1527,14 +1566,20 @@ export default function App() {
       longestRouteKm: longestKm,
       continents: servedContinents.size,
       profitableMonthStreak: nextStreak,
-      reputation: nextReputation
+      reputation: nextReputation,
+      careerPax: careerPaxNow,
+      transferPaxMonth,
+      hasWidebody: fleet.some(p => p.class === 'Widebody'),
+      hasSupersonic: fleet.some(p => (p.cruiseSpeed ?? 0) > 1000)
     };
 
-    const newlyEarned = MILESTONES.filter(m => !milestones.includes(m.id) && m.met(mctx));
+    const newlyEarned = newlyEarnedMilestones(milestones, mctx);
     if (newlyEarned.length > 0) {
       setMilestones(prev => [...prev, ...newlyEarned.map(m => m.id)]);
-      nextReputation = Math.min(100, nextReputation + newlyEarned.reduce((a, m) => a + m.reputationBonus, 0));
-      newlyEarned.forEach((m, i) => {
+      const reward = totalMilestoneReward(newlyEarned);
+      nextReputation = Math.min(100, nextReputation + reward.reputation);
+      awardsCash += reward.cash;
+      newlyEarned.forEach(m => {
         additionalMessages.push({
           id: nextMessageId(),
           text: `MILESTONE: ${m.title}`,
@@ -1543,15 +1588,37 @@ export default function App() {
           details: {
             title: m.title,
             source: 'Board of Directors',
-            content:
-              `${m.detail}\n\n` +
-              (m.reputationBonus > 0
-                ? `Reputation +${m.reputationBonus}.`
-                : `No bonus attached -- this one is the reward.`)
+            content: `${m.detail}\n\nReward: ${describeReward(m.reward, formatCurrency)}.`
           }
         });
       });
     }
+
+    // --- Rank -------------------------------------------------------------------
+    // Judged on the month's final reputation, after the milestone bonuses. A
+    // rank is never lost, so this only ever moves up.
+    const rankStats: RankStats = { routes: routes.length, monthlyPax, reputation: nextReputation, regions: regionCountNow };
+    const newRank = nextRank(career.rank, rankStats);
+    const rankUps: { title: string; detail: string }[] = [];
+    for (let r = career.rank + 1; r <= newRank; r++) {
+      const def = rankDef(r);
+      rankUps.push({ title: `Promoted to ${def.title}`, detail: `Now open: ${def.unlocks.join(', ')}.` });
+      nextReputation = Math.min(100, nextReputation + 3);
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `RANK: your airline is now a ${def.title}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `Promoted to ${def.title}`,
+          source: 'Aviation Authority',
+          content:
+            `Your network, your passengers and your reputation have earned the rank ${def.title}.\n\n` +
+            `Now open to you:\n${def.unlocks.map(u => `• ${u}`).join('\n')}\n\nReputation +3.`
+        }
+      });
+    }
+    const nextCareer: Career = { ...career, rank: newRank, careerPax: careerPaxNow };
 
 
     // Bad luck is capped at half the months (see malus.ts). Whether the coming
@@ -1814,60 +1881,104 @@ export default function App() {
     }
 
     // --- Annual goal -------------------------------------------------------
-    // Settled in December against the twelve months just closed, then a new one
-    // is set for January. The target is 15% above what the year actually
-    // delivered, with a floor so the first year is not trivially met.
+    // Each December the board settles the goal the player picked for the year
+    // and puts three goals for the next one. An offer still unanswered when the
+    // next year's first month closes is settled by taking the steady goal.
     const closingYear = currentYearNum;
     const isDecember = currentMonthNum === 12;
-    let goalResult: { year: number; target: number; achieved: number; met: boolean } | null = null;
+    const nowFigures = { routes: routes.length, regions: regionCountNow, reputation: nextReputation };
+    let goalResult: { year: number; target: number; achieved: number; met: boolean; text?: string } | null = null;
+    let activeGoal = annualGoal;
+    if (nextCareer.goalOffer && nextCareer.goalOffer.year <= closingYear && (!activeGoal || activeGoal.year < nextCareer.goalOffer.year)) {
+      const fallback = nextCareer.goalOffer.options[0];
+      activeGoal = fallback;
+      setAnnualGoal(fallback);
+      nextCareer.goalOffer = null;
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `TARGET FOR ${fallback.year}: the board set the standard goal, ${describeGoal(fallback, formatCurrency, formatNumber)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `${fallback.year} target`,
+          source: 'Board of Directors',
+          content:
+            `The board waited for your choice and, having none, set the standard goal for ${fallback.year}: ` +
+            `${describeGoal(fallback, formatCurrency, formatNumber)}.\n\nMeeting it is worth ${fallback.reward.reputation} reputation.`
+        }
+      });
+    }
     if (isDecember) {
-      const yearReports = [...reportHistory, report].filter(
-        r => r && r.year === closingYear
+      const yearSnap = buildYearSnapshot(
+        [...reportHistory, { ...report, paxTotal: monthlyPax }],
+        closingYear,
+        nowFigures
       );
-      const achieved = yearReports.reduce((a, r) => a + (r.totalProfit || 0), 0);
 
-      if (annualGoal && annualGoal.year === closingYear) {
-        const met = achieved >= annualGoal.targetProfit;
-        goalResult = { year: closingYear, target: annualGoal.targetProfit, achieved, met };
-        if (met) nextReputation = Math.min(100, nextReputation + 4);
+      if (activeGoal && activeGoal.year === closingYear) {
+        const settled = settleGoal(activeGoal, yearSnap);
+        const summary = describeGoal(activeGoal, formatCurrency, formatNumber);
+        goalResult = {
+          year: closingYear,
+          target: activeGoal.target,
+          achieved: settled.achieved,
+          met: settled.met,
+          text: settled.met
+            ? `${closingYear} goal met: ${summary}.`
+            : `${closingYear} goal missed: ${summary}.`
+        };
+        nextReputation = Math.max(0, Math.min(100, nextReputation + settled.reputation));
+        awardsCash += settled.cash;
         additionalMessages.push({
           id: nextMessageId(),
-          text: met
-            ? `TARGET MET: ${closingYear} closed at ${formatCurrency(achieved)}.`
-            : `TARGET MISSED: ${closingYear} closed at ${formatCurrency(achieved)}.`,
+          text: settled.met ? `GOAL MET: ${summary}.` : `GOAL MISSED: ${summary}.`,
           isRead: false,
           dateStr: offsetToDateStr(currentDateOffset),
           details: {
             title: `${closingYear} annual result`,
             source: 'Board of Directors',
             content:
-              `Target for ${closingYear}: ${formatCurrency(annualGoal.targetProfit)}\n` +
-              `Achieved: ${formatCurrency(achieved)}\n\n` +
-              (met ? 'The board is satisfied. Reputation +4.' : 'The board expected more.')
+              `Goal for ${closingYear}: ${summary}\n\n` +
+              (settled.met
+                ? `The board is satisfied. Reputation +${settled.reputation}` +
+                  (settled.cash > 0 ? ` and a bonus of ${formatCurrency(settled.cash)}.` : '.')
+                : `The board expected more. Reputation ${settled.reputation}.`)
           }
         });
       }
 
-      const nextTarget = Math.max(2_000_000, Math.round(achieved * 1.15));
-      setAnnualGoal({ year: closingYear + 1, targetProfit: nextTarget });
+      const options = generateGoalOffers(closingYear + 1, {
+        lastYearProfit: yearSnap.profit,
+        lastYearPax: yearSnap.pax,
+        routes: routes.length,
+        regions: regionCountNow,
+        reputation: nextReputation
+      });
+      nextCareer.goalOffer = { year: closingYear + 1, options };
+      setAnnualGoal(null);
+      setGoalOfferOpen(true);
       additionalMessages.push({
         id: nextMessageId(),
-        text: `TARGET FOR ${closingYear + 1}: ${formatCurrency(nextTarget)} operating profit.`,
+        text: `GOALS FOR ${closingYear + 1}: the board asks you to choose one.`,
         isRead: false,
         dateStr: offsetToDateStr(currentDateOffset),
         details: {
-          title: `${closingYear + 1} target`,
+          title: `${closingYear + 1} goals`,
           source: 'Board of Directors',
           content:
-            `The board expects ${formatCurrency(nextTarget)} of operating profit across ${closingYear + 1}, ` +
-            `15% above what ${closingYear} delivered.\n\nMeeting it is worth 4 reputation.`
+            `The board offers three goals for ${closingYear + 1}:\n\n` +
+            options.map(o => `• ${describeGoal(o, formatCurrency, formatNumber)} -- reputation +${o.reward.reputation}` +
+              (o.reward.cash > 0 ? `, bonus ${formatCurrency(o.reward.cash)}` : '') +
+              `; missing it costs ${o.penalty} reputation`).join('\n') +
+            `\n\nChoose one under My Company > Overview. Without a choice the first is taken when ${closingYear + 1} begins.`
         }
       });
     }
 
-    // Written once, after both the milestone and the annual-goal bonuses have
+    // Written once, after the milestone, rank and annual-goal bonuses have all
     // had their say. Setting it earlier silently dropped the December bonus.
     setReputation(nextReputation);
+    setCareer(nextCareer);
 
     // 3. Announce every event that starts or ends with this tick.
     const afterEvents = getActiveEvents(nextOffset);
@@ -1901,8 +2012,17 @@ export default function App() {
     const hubsNow = Object.entries(monthNetwork.hubStats)
       .filter(([, h]) => h.pax > 0)
       .map(([id, h]) => ({ id, name: localAirportsMap.get(id)?.name || id, pax: h.pax * 4 }));
+    // Prizes and bonuses paid at this close enter the report as negative
+    // one-off spending, so cash change and capital still reconcile.
+    const awardedCash = awardsCash;
+    const awardedItems = awardedCash > 0 ? [{ label: 'Board prizes & bonuses', amount: -awardedCash }] : [];
+    if (awardedCash > 0) setCapital(prev => prev + awardedCash);
     const fullReport = {
       ...report,
+      capex: report.capex - awardedCash,
+      capexItems: [...report.capexItems, ...awardedItems],
+      cashChange: report.cashChange + awardedCash,
+      capitalAfter: report.capitalAfter + awardedCash,
       reputation: nextReputation,
       morale: nextStaff.morale,
       paxTotal: Math.round(paxWeek * 4),
@@ -1920,11 +2040,11 @@ export default function App() {
     const monthChronicle = chronicleEntriesForMonth(chronicle, {
       offset: currentDateOffset,
       profit: totalMonthlyProfit,
-      capitalAfter: capital + totalMonthlyProfit,
+      capitalAfter: capital + totalMonthlyProfit + awardedCash,
       reputation: nextReputation,
       reputationBefore: reputation,
       history: reportHistory,
-      milestones: newlyEarned,
+      milestones: [...newlyEarned, ...rankUps],
       goal: goalResult,
       eventsStarted,
       eventsEnded: eventsEnded.map(ev => ({ title: ev.title, endOffset: nextOffset })),
@@ -2004,7 +2124,7 @@ export default function App() {
       prevReport: latestReport,
       profitHistory: reportHistory.map(r => r.totalProfit),
       chronicle: monthChronicle,
-      milestones: newlyEarned,
+      milestones: [...newlyEarned, ...rankUps],
       eventsStarted,
       eventsEnded,
       eventsRunning: afterEvents,
@@ -2296,6 +2416,7 @@ export default function App() {
       pendingDecisions,
       scenario,
       chronicle,
+      career,
       tutorialStep
     };
     
@@ -2354,16 +2475,16 @@ export default function App() {
    * company view, so they keep one identity and read the current cash, month
    * and campaigns from here rather than closing over a stale render.
    */
-  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax });
-  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax };
+  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank });
+  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank };
 
   /**
    * Books a campaign from this month on. It is paid month by month at each
    * close, so launching needs only the first month in the bank.
    */
   const handleLaunchCampaign = React.useCallback((tier: CampaignTier, region: RegionId, months: number) => {
-    const { capital: cash, currentDateOffset: offset, marketing: current } = marketingCtx.current;
-    const blocker = campaignBlocker(current, tier, region, offset);
+    const { capital: cash, currentDateOffset: offset, marketing: current, rank } = marketingCtx.current;
+    const blocker = campaignBlocker(current, tier, region, offset, rank);
     if (blocker) {
       setAppAlert(blocker);
       return;
@@ -2387,8 +2508,13 @@ export default function App() {
 
   /** Starts or ends the frequent-flyer programme. Ending it throws away the loyalty built up. */
   const handleSetFfp = React.useCallback((active: boolean) => {
-    const { capital: cash, currentDateOffset: offset, projectedMonthlyPax: pax } = marketingCtx.current;
+    const { capital: cash, currentDateOffset: offset, projectedMonthlyPax: pax, rank } = marketingCtx.current;
     if (active) {
+      const gate = ffpRankGate(rank);
+      if (gate) {
+        setAppAlert(gate);
+        return;
+      }
       const cost = ffpMonthlyCost(pax);
       if (cash < cost) {
         setAppAlert(`Not enough cash: the frequent flyer programme would cost about ${formatCurrency(cost)} this month, and you have ${formatCurrency(cash)}.`);
@@ -2421,6 +2547,7 @@ export default function App() {
     setPendingDecisions(systems.pendingDecisions);
     setScenario(systems.scenario);
     setChronicle(systems.chronicle);
+    setCareer(systems.career);
     setTutorialStep(systems.tutorialStep);
   };
 
@@ -2439,6 +2566,7 @@ export default function App() {
     applyGameSystems(createGameSystems());
     setBirdStrikeAlerts([]);
     setScenarioResultOpen(false);
+    setGoalOfferOpen(false);
     setEdition(null);
     setIsNewspaperOpen(false);
     const welcome = [createWelcomeMessage()];
@@ -2524,6 +2652,7 @@ export default function App() {
     setRandomEventsState(saveObj.randomEvents);
     setRuntimeRandomEvents(saveObj.randomEvents);
     applyGameSystems(saveObj);
+    if (saveObj.career?.goalOffer) setGoalOfferOpen(true);
 
     setSessionKey(Date.now());
     setCurrentSaveId(slotId);
@@ -2571,8 +2700,13 @@ export default function App() {
     // editors carried over from a game played earlier.
     resetTransientGameState();
     // A new game offers the tutorial, unless it was switched off.
+    const startFleet = chosen ? startingFleet(chosen) : [];
     const systems: GameSystems = {
       ...createGameSystems(),
+      career: {
+        ...createGameSystems().career,
+        rank: startingRank({ routes: 0, monthlyPax: 0, reputation: 50, regions: 0 }, startFleet, chosen?.startRank ?? 0)
+      },
       branding: { ...(keepBranding ?? newGameBranding) },
       tutorialStep: gameSettings.tutorial ? 0 : null,
       ...(chosen ? {
@@ -2594,7 +2728,7 @@ export default function App() {
     setCurrentDateOffset(start);
     setCapital(initialCapital);
     // A scenario's aircraft come free, through the same code a purchase uses.
-    setFleet(chosen ? startingFleet(chosen) : []);
+    setFleet(startFleet);
     setAirportManagement({ 
       [hub]: {
         level: 2,
@@ -2684,6 +2818,11 @@ export default function App() {
    * the console's applied the tier's effects.
    */
   const handleUnlockManagement = (airportId: string, tier: ManagementLevel) => {
+    const gate = managementGate(tier, career.rank, perks.extraHubs, airportManagement, airportId);
+    if (gate) {
+      setAppAlert(gate);
+      return;
+    }
     const cost = getManagementUnlockCost(airportsMapAdjusted.get(airportId)?.level || 1, tier);
     if (capital < cost) {
       setAppAlert(`Unlocking T${tier} management at ${airportId} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
@@ -2764,6 +2903,13 @@ export default function App() {
     totalCost: number
   ) => {
     let isRenovating = 'registration' in aircraft;
+    if (!isRenovating) {
+      const gate = rankGateMessage(career.rank, aircraftRankNeeded(aircraft), `The ${aircraft.manufacturer} ${aircraft.type}`);
+      if (gate) {
+        setAppAlert(`${gate} Nothing was bought.`);
+        return;
+      }
+    }
     if (capital < totalCost) {
       setAppAlert(
         `${isRenovating ? 'This refit' : 'This purchase'} costs ${formatCurrency(totalCost)}, ` +
@@ -3051,6 +3197,13 @@ export default function App() {
               </Modal>
             );
           })()}
+          {/* The board's goals for the coming year, after the December close. */}
+          <GoalOfferDialog
+            offer={career.goalOffer}
+            open={goalOfferOpen && !pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0}
+            onChoose={handleChooseGoal}
+            onLater={() => setGoalOfferOpen(false)}
+          />
           {/* A bird strike: the bill is paid already, this only says so. Waits
               for the newspaper and any question, like they wait for each other. */}
           {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0 && birdStrikeAlerts.length > 0 && (() => {
@@ -4032,7 +4185,7 @@ export default function App() {
                   {activeWindow === 'buy-aircraft' ? (
                     <ViewFrame label="Buy Aircraft" onReset={backToMap}>
                       <React.Suspense fallback={<LazyFallback label="Buy Aircraft" />}>
-                        <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} />
+                        <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} rank={career.rank} />
                         {selectedPurchasingAircraft && (
                           <ConfigurePurchaseView
                             aircraft={selectedPurchasingAircraft}
@@ -4112,7 +4265,12 @@ export default function App() {
                           reportHistory={reportHistory}
                           reputation={reputation}
                           milestones={milestones}
-                          milestoneCatalogue={MILESTONES}
+                          rank={career.rank}
+                          rankStats={rankStats}
+                          perks={perks}
+                          goalOffer={career.goalOffer}
+                          goalSnapshot={goalSnapshot}
+                          onChooseGoal={handleChooseGoal}
                           annualGoal={annualGoal}
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}
@@ -4408,6 +4566,11 @@ export default function App() {
                         currentDateOffset={currentDateOffset}
                         transferHub={network.hubStats[selectedAirport.id]}
                         onNotify={setAppAlert}
+                        gates={{
+                          tier2: managementGate(2, career.rank, perks.extraHubs, airportManagement, selectedAirport.id),
+                          tier3: managementGate(3, career.rank, perks.extraHubs, airportManagement, selectedAirport.id),
+                          vipLounge: rankGateMessage(career.rank, RANK_NEEDED.vipLounge, 'The VIP lounge')
+                        }}
                         onClose={() => setSelectedAirport(null)}
                         fleet={fleet}
                         routes={routes}

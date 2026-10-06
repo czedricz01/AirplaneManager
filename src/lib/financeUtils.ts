@@ -2,6 +2,7 @@ import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
 import { routeCancelShare, routeDemandFactor, type PlayerModifiers } from './gameState';
+import { getSlotPriceFactor } from './economyContext';
 
 export function getAirportUpkeep(
   airport: Airport,
@@ -1333,12 +1334,9 @@ export function getInfraAvailability(airport: { level?: number } | null | undefi
 export const SLOT_CAPEX_LABEL = 'Airport Slots';
 
 export function getSlotPurchaseCost(type: string) {
-  switch (type) {
-    case 'regional': return 25000;
-    case 'narrowbody': return 50000;
-    case 'widebody': return 100000;
-    default: return 25000;
-  }
+  const base = type === 'narrowbody' ? 50000 : type === 'widebody' ? 100000 : 25000;
+  // Milestones make slots cheaper; see economyContext.ts.
+  return Math.round((base * getSlotPriceFactor()) / 50) * 50;
 }
 
 export interface InfraChangeParams {

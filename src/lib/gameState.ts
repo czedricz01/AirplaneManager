@@ -16,6 +16,7 @@ import { regionOf } from './geoUtils';
 import { ffpLoyaltyBonus, regionDemandFactors } from './marketing';
 import { crewCostFactor, moraleSatDelta, strikeCancelShare } from './staff';
 import { combineCancelShares, disruptionCancelShares } from './disruptions';
+import type { GoalOffer } from './annualGoals';
 
 export { SALARY_PCT_MIN, SALARY_PCT_MAX } from './staff';
 export { combineCancelShares } from './disruptions';
@@ -262,6 +263,23 @@ export const CHRONICLE_KINDS: readonly ChronicleKind[] = ['milestone', 'goal', '
 /** Oldest entries go first; sixty years of history fit comfortably. */
 export const CHRONICLE_LIMIT = 300;
 
+/**
+ * How the airline has grown: its rank (which never falls), the passengers it
+ * has carried over its whole career, and the annual goals the board has put
+ * to it but the player has not yet answered. See airlineRank.ts and
+ * annualGoals.ts.
+ */
+export interface Career {
+  /** Index into RANKS. */
+  rank: number;
+  /** Passengers carried since the first month, every leg counted. */
+  careerPax: number;
+  /** The goals on offer for the coming year, until one is chosen. */
+  goalOffer: GoalOffer | null;
+}
+
+export const DEFAULT_CAREER: Career = { rank: 0, careerPax: 0, goalOffer: null };
+
 /** Everything above, as it is saved, loaded and reset together. */
 export interface GameSystems {
   branding: Branding;
@@ -271,6 +289,7 @@ export interface GameSystems {
   pendingDecisions: GameDecision[];
   scenario: ScenarioState | null;
   chronicle: ChronicleEntry[];
+  career: Career;
   /** Index of the tutorial step on screen, null once it is finished or skipped. */
   tutorialStep: number | null;
 }
@@ -285,6 +304,7 @@ export function createGameSystems(): GameSystems {
     pendingDecisions: [],
     scenario: null,
     chronicle: [],
+    career: { ...DEFAULT_CAREER },
     tutorialStep: null
   };
 }

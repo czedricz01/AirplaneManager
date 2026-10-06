@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
-import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database } from 'lucide-react';
+import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
@@ -10,15 +10,18 @@ import { ViewHeader } from './ui/ViewHeader';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { readString } from '../lib/safeStorage';
+import { aircraftRankNeeded, rankGateMessage } from '../lib/airlineRank';
 
 interface Props {
   currentDateOffset: number;
   onSelectAircraft: (aircraft: Aircraft) => void;
   /** Passed down from App, which already owns this as state. */
   debugMode?: boolean;
+  /** The airline's rank; wide-bodies and supersonics need a higher one. */
+  rank?: number;
 }
 
-function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp }: Props) {
+function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp, rank = 99 }: Props) {
   const [expandedMfgs, setExpandedMfgs] = useState<Set<string>>(new Set());
   const [expandedPlaneId, setExpandedPlaneId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -852,14 +855,26 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                 </div>
 
                                 <div className="flex flex-wrap items-center justify-end mt-auto pt-2 gap-4">
-                                  <Button
-                                    variant="primary"
-                                    size="md"
-                                    onClick={() => onSelectAircraft(plane)}
-                                    className="transform hover:scale-[1.02] active:scale-[0.98]"
-                                  >
-                                    Purchase
-                                  </Button>
+                                  {(() => {
+                                    const gate = rankGateMessage(rank, aircraftRankNeeded(plane), `The ${plane.manufacturer} ${plane.type}`);
+                                    return gate ? (
+                                      <>
+                                        <span className="flex items-center gap-2 text-2xs font-mono text-aero-warn mr-auto">
+                                          <Lock size={12} aria-hidden="true" /> {gate}
+                                        </span>
+                                        <Button variant="secondary" size="md" disabled>Locked</Button>
+                                      </>
+                                    ) : (
+                                      <Button
+                                        variant="primary"
+                                        size="md"
+                                        onClick={() => onSelectAircraft(plane)}
+                                        className="transform hover:scale-[1.02] active:scale-[0.98]"
+                                      >
+                                        Purchase
+                                      </Button>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
