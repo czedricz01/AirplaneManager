@@ -2205,7 +2205,7 @@ export default function App() {
           source: 'Board of Directors',
           content:
             `The board looks back on ${years} years: career score ${formatNumber(snapshot.total)}.\n\n` +
-            `You may retire at any time under Progression: the career is filed in the hall of fame, and you can play on.`
+            `You may retire at any time under Career: the career is filed in the hall of fame, and you can play on.`
         }
       });
     }
@@ -3879,7 +3879,7 @@ export default function App() {
               {/* Business */}
               <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
                 <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" shortLabel="COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
-                <SidebarIcon icon={<TrendingUp size={28} />} label="PROGRESSION" shortLabel="PROGRESS" tour="nav-progression" active={activeWindow === 'progression' && !isPlanningRoute} onClick={() => openWindow('progression')} />
+                <SidebarIcon icon={<TrendingUp size={28} />} label="CAREER" shortLabel="CAREER" tour="nav-progression" active={activeWindow === 'progression' && !isPlanningRoute} onClick={() => openWindow('progression')} />
                 <SidebarIcon icon={<Users size={28} />} label="RIVALS" tour="nav-rivals" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => openWindow('competitors')} />
               </div>
 
@@ -4796,8 +4796,8 @@ export default function App() {
                       </React.Suspense>
                     </ViewFrame>
                   ) : activeWindow === 'my-company' || activeWindow === 'progression' ? (
-                    <ViewFrame label={activeWindow === 'progression' ? 'Progression' : 'My Company'} onReset={backToMap}>
-                      <React.Suspense fallback={<LazyFallback label="Progression" />}>
+                    <ViewFrame label={activeWindow === 'progression' ? 'Career' : 'My Company'} onReset={backToMap}>
+                      <React.Suspense fallback={<LazyFallback label="Career" />}>
                         <MyCompanyView
                           page={activeWindow === 'progression' ? 'progression' : 'company'}
                           onOpenProgression={() => openWindow('progression')}

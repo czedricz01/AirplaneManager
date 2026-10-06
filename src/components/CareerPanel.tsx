@@ -476,27 +476,38 @@ function MilestoneSection({ milestones }: { milestones: string[] }) {
   );
 }
 
-/** The Career tab of My Company: rank, the board's goal, and the milestones. */
-export function CareerPanel(props: CareerPanelProps) {
+/** The three tabs of the Career screen. */
+export type CareerPart = 'rank' | 'development' | 'goals';
+
+/** One tab of the Career screen: rank (with score and milestones), development, or the board's goal. */
+export function CareerPanel({ part, ...props }: CareerPanelProps & { part: CareerPart }) {
   return (
     <div className="flex flex-col gap-3">
-      <RankSection rank={props.rank} stats={props.rankStats} perks={props.perks} free={props.free} />
-      <GoalSection
-        annualGoal={props.annualGoal}
-        goalOffer={props.goalOffer}
-        goalSnapshot={props.goalSnapshot}
-        onChooseGoal={props.onChooseGoal}
-      />
-      <ResearchSection
-        research={props.research}
-        rank={props.rank}
-        free={props.free}
-        capital={props.capital}
-        currentDateOffset={props.currentDateOffset}
-        onStartResearch={props.onStartResearch}
-      />
-      <ScoreSection score={props.score} hall={props.hall} onRetire={props.onRetire} />
-      <MilestoneSection milestones={props.milestones} />
+      {part === 'rank' && (
+        <>
+          <RankSection rank={props.rank} stats={props.rankStats} perks={props.perks} free={props.free} />
+          <ScoreSection score={props.score} hall={props.hall} onRetire={props.onRetire} />
+          <MilestoneSection milestones={props.milestones} />
+        </>
+      )}
+      {part === 'development' && (
+        <ResearchSection
+          research={props.research}
+          rank={props.rank}
+          free={props.free}
+          capital={props.capital}
+          currentDateOffset={props.currentDateOffset}
+          onStartResearch={props.onStartResearch}
+        />
+      )}
+      {part === 'goals' && (
+        <GoalSection
+          annualGoal={props.annualGoal}
+          goalOffer={props.goalOffer}
+          goalSnapshot={props.goalSnapshot}
+          onChooseGoal={props.onChooseGoal}
+        />
+      )}
     </div>
   );
 }
