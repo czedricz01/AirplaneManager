@@ -24,10 +24,10 @@ export const LOYALTY_FULL_MONTHS = 48;
 export const LOYALTY_MAX = 0.05;
 
 /** The demand multiplier for a route that has been open `monthsOpen` months. */
-export function routeMaturityFactor(monthsOpen: number): number {
+export function routeMaturityFactor(monthsOpen: number, rampStart: number = RAMP_START): number {
   if (!Number.isFinite(monthsOpen)) return 1;
   const m = Math.max(0, monthsOpen);
-  if (m < RAMP_MONTHS) return RAMP_START + (1 - RAMP_START) * (m / RAMP_MONTHS);
+  if (m < RAMP_MONTHS) return rampStart + (1 - rampStart) * (m / RAMP_MONTHS);
   if (m < LOYALTY_START_MONTHS) return 1;
   if (m < LOYALTY_FULL_MONTHS) {
     return 1 + LOYALTY_MAX * ((m - LOYALTY_START_MONTHS) / (LOYALTY_FULL_MONTHS - LOYALTY_START_MONTHS));
@@ -48,13 +48,14 @@ export function monthsOpen(route: { openedOffset?: number } | null | undefined, 
  */
 export function maturityFactors(
   routes: ReadonlyArray<{ id: string; openedOffset?: number }>,
-  offset: number
+  offset: number,
+  rampStart: number = RAMP_START
 ): Record<string, number> | undefined {
   const out: Record<string, number> = {};
   for (const r of routes) {
     const months = monthsOpen(r, offset);
     if (months === null) continue;
-    const f = routeMaturityFactor(months);
+    const f = routeMaturityFactor(months, rampStart);
     if (f !== 1) out[r.id] = f;
   }
   return Object.keys(out).length > 0 ? out : undefined;

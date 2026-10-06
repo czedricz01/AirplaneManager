@@ -289,6 +289,37 @@ import { ageYears, agedPopularity, fleetCommonality, fleetOwnershipCost } from "
 import { ownerIncome, ownedAirports } from "./lib/hubOwnership";
 import { buildTakeover, takeoverQuote, withTakenSlots } from "./lib/takeover";
 import {
+  LAUNCH_BONUS,
+  LAUNCH_BONUS_MONTHS,
+  cancelRefund,
+  createOrder,
+  isLaunchDelivery,
+  quoteOrder,
+  settleDeliveries
+} from "./lib/preorders";
+import { type UsedListing } from "./lib/usedMarket";
+import {
+  bestStars,
+  careerScore,
+  fileCareer,
+  hallPosition,
+  normalizeHall,
+  normalizeStars,
+  scenarioUnlocked,
+  starsFor,
+  type HallOfFameEntry,
+  type ScenarioStars
+} from "./lib/careerScore";
+import { RetirementDialog } from "./components/RetirementDialog";
+import {
+  advanceResearch,
+  projectById,
+  projectCost,
+  researchEffects,
+  startBlocker as researchBlocker,
+  startProject
+} from "./lib/research";
+import {
   buildPlayerModifiers,
   createGameSystems,
   decisionTargetExists,
@@ -352,7 +383,7 @@ const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey, eventScope, eventRegionLabel, type EventRegion } from "./lib/eventSystem";
 import { isMalusEvent, malusMonthOpen } from "./lib/malus";
-import { createOwnedAircraft, startingFleet } from "./lib/fleet";
+import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
 import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
 import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
@@ -541,6 +572,8 @@ export default function App() {
   const [eventChoices, setEventChoices] = useState<Record<string, string>>({});
   /** Airline reputation, 0-100. Starts neutral: nobody has heard of you yet. */
   const [reputation, setReputation] = useState(50);
+  /** Rank, career passengers and the annual goals on offer. */
+  const [career, setCareer] = useState<Career>(() => createGameSystems().career);
   /** Milestone ids already awarded, so each is announced once. */
   const [milestones, setMilestones] = useState<string[]>([]);
   /** What the milestones earned so far give: cheaper slots, room for hubs. */
@@ -548,7 +581,9 @@ export default function App() {
   // Published for the pricing code that has no access to the game state; see
   // economyContext.ts. Set while rendering, from a pure value, so a screen
   // never shows a price the next purchase would not charge.
-  setSlotPriceFactor(perks.slotPriceFactor);
+  /** What the finished development projects do; see research.ts. */
+  const researchFx = useMemo(() => researchEffects(career.research.done), [career.research.done]);
+  setSlotPriceFactor(perks.slotPriceFactor * researchFx.slotFactor);
   /** Consecutive months closed without a loss, for the profit milestone. */
   const [profitStreak, setProfitStreak] = useState(0);
   /**
@@ -588,10 +623,14 @@ export default function App() {
   const [scenarioResultOpen, setScenarioResultOpen] = useState(false);
   /** The annual-goal choice dialog; opens after the December close, not saved. */
   const [goalOfferOpen, setGoalOfferOpen] = useState(false);
+  /** The ten best careers filed in this browser; see careerScore.ts. */
+  const [hall, setHall] = useState<HallOfFameEntry[]>(() => normalizeHall(readJson('neo_hall_of_fame', [])));
+  /** Best stars per scenario, kept per account in this browser. */
+  const [scenarioStars, setScenarioStars] = useState<ScenarioStars>({});
+  /** The final report of a retired career, shown until closed. Not saved. */
+  const [retirement, setRetirement] = useState<{ entry: HallOfFameEntry; position: number | null } | null>(null);
   /** The airline's history, newest last. */
   const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
-  /** Rank, career passengers and the annual goals on offer. */
-  const [career, setCareer] = useState<Career>(() => createGameSystems().career);
   /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   /**
@@ -843,10 +882,10 @@ export default function App() {
    * receives, so the route list, the planner and the report agree.
    */
   const playerMods = useMemo(
-    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions, routes }, currentDateOffset),
+    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions, routes, research: researchFx }, currentDateOffset),
     // randomEvents: eventReliefFactor reads the active events from module state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents, routes]
+    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents, routes, researchFx]
   );
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
@@ -921,11 +960,12 @@ export default function App() {
   };
 
   const getFuelData = (offset: number) => {
-    const price = priceAtOffset(offset);
+    // The fuel programmes cut what the airline burns, so what it pays.
+    const price = priceAtOffset(offset) * researchFx.fuelFactor;
 
     let trend = "0%";
     if (offset > 0) {
-      const prevPrice = priceAtOffset(offset - 1);
+      const prevPrice = priceAtOffset(offset - 1) * researchFx.fuelFactor;
       if (prevPrice > 0) {
         const diff = ((price - prevPrice) / prevPrice) * 100;
         trend = diff > 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
@@ -939,7 +979,7 @@ export default function App() {
   const fuelData = useMemo(
     () => getFuelData(currentDateOffset),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentDateOffset, difficulty, eventChoices, randomEvents]
+    [currentDateOffset, difficulty, eventChoices, randomEvents, researchFx]
   );
 
   /**
@@ -1083,6 +1123,36 @@ export default function App() {
     setGoalOfferOpen(false);
     setToast(`Goal for ${goal.year}: ${describeGoal(goal, formatCurrency, formatNumber)}`);
   }, []);
+
+  /** The career so far, as a score; see careerScore.ts. */
+  const score = useMemo(() => careerScore({
+    netWorth: capital + fleetValue,
+    rank: career.rank,
+    milestones: milestones.length,
+    reputation,
+    takeovers: career.takeovers,
+    projectsDone: career.research.done.length,
+    years: Math.floor((currentDateOffset - startDateOffset) / 12)
+  }), [capital, fleetValue, career.rank, milestones.length, reputation, career.takeovers, career.research.done.length, currentDateOffset, startDateOffset]);
+
+  /** Files the career in the hall of fame and shows the final report; the game can carry on. */
+  const handleRetire = () => {
+    const entry: HallOfFameEntry = {
+      id: (currentSaveId || `career_${Date.now()}`).split('_auto_')[0],
+      airline: airlineName || 'Neo Airlines',
+      code: airlineCode,
+      score: score.total,
+      rank: career.rank,
+      years: Math.floor((currentDateOffset - startDateOffset) / 12),
+      netWorth: capital + fleetValue,
+      filed: new Date().toISOString()
+    };
+    const position = hallPosition(hall, entry);
+    const next = fileCareer(hall, entry);
+    setHall(next);
+    writeJson('neo_hall_of_fame', next);
+    setRetirement({ entry, position });
+  };
 
   /** The hub's region: where a global campaign is booked from, for the record. */
   const homeRegion = useMemo<RegionId>(() => {
@@ -1548,7 +1618,7 @@ export default function App() {
     const charterFees = charterFeesFor(
       disruptions,
       currentDateOffset,
-      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list, routes }, currentDateOffset), monthEnv),
+      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list, routes, research: researchFx }, currentDateOffset), monthEnv),
       revenueOf(monthNetwork)
     );
     const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
@@ -1557,6 +1627,8 @@ export default function App() {
     // Inbox messages produced by this tick. Declared here because the
     // milestone check below already writes into it.
     const additionalMessages: GameMessage[] = [];
+    /** Aircraft delivered this close; they join the fleet after the month's wear. */
+    let deliveredPlanes: OwnedAircraft[] = [];
 
     // --- Reputation -------------------------------------------------------
     // Only updated when something actually flew. An airline with no routes is
@@ -1683,7 +1755,8 @@ export default function App() {
       nextOffset: currentDateOffset + 1,
       strikePending: pendingDecisions.some(d => d.kind === 'strike'),
       noRoutes: routes.length === 0,
-      malusBlocked: !malusOpen
+      malusBlocked: !malusOpen,
+      moraleBonus: researchFx.moraleBonus
     }, Math.random);
     const nextStaff = staffMonth.staff;
     setStaff(nextStaff);
@@ -1908,7 +1981,7 @@ export default function App() {
     // already leave the cancelled flights out; the month's close books that.
     // A month the malus ceiling holds clear is not rolled for at all.
     const rolledDisruptions = malusOpen
-      ? rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap)
+      ? rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap, researchFx.defectFactor)
       : [];
     const nextDisruptions = [...dropPastDisruptions(disruptions, nextOffset), ...rolledDisruptions];
     if (nextDisruptions.length !== disruptions.length || rolledDisruptions.length > 0) setDisruptions(nextDisruptions);
@@ -2052,6 +2125,107 @@ export default function App() {
       });
     }
 
+    // --- Anniversaries ------------------------------------------------------------
+    // Every ten years the board takes stock and points out that the airline may
+    // retire at any time.
+    if (currentDateOffset + 1 > startDateOffset && (currentDateOffset + 1 - startDateOffset) % 120 === 0) {
+      const years = (currentDateOffset + 1 - startDateOffset) / 12;
+      const snapshot = careerScore({
+        netWorth: capital + totalMonthlyProfit + fleetValue,
+        rank: nextCareer.rank,
+        milestones: milestones.length + newlyEarned.length,
+        reputation: nextReputation,
+        takeovers: nextCareer.takeovers,
+        projectsDone: nextCareer.research.done.length,
+        years
+      });
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `ANNIVERSARY: ${years} years of ${airlineName || 'Neo Airlines'}. Career score ${formatNumber(snapshot.total)}.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: `${years} years`,
+          source: 'Board of Directors',
+          content:
+            `The board looks back on ${years} years: career score ${formatNumber(snapshot.total)}.\n\n` +
+            `You may retire at any time under My Company > Career: the career is filed in the hall of fame, and you can play on.`
+        }
+      });
+    }
+
+    // --- Development --------------------------------------------------------------
+    const research = advanceResearch(nextCareer.research, currentDateOffset + 1);
+    nextCareer.research = research.state;
+    for (const project of research.completed) {
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `DEVELOPMENT: "${project.title}" is complete.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: { title: project.title, source: 'Development department', content: `${project.detail}\n\nThe effect is in place from next month.` }
+      });
+    }
+
+    // --- Deliveries ---------------------------------------------------------------
+    // Ordered aircraft arrive when their month comes, paid for from the cash
+    // the month leaves; see preorders.ts. They join the fleet after the month's
+    // wear is applied, so a new aircraft is not worn on arrival.
+    const deliveryMonth = currentDateOffset + 1;
+    const book = settleDeliveries(nextCareer.orders, deliveryMonth, capital + totalMonthlyProfit);
+    nextCareer.orders = book.remaining;
+    deliveredPlanes = [];
+    for (const o of book.delivered) {
+      const spec = aircraftList.find(a => a.id === o.aircraftId);
+      if (!spec) continue;
+      const { config, baseInteriorPop } = defaultCabin(spec);
+      const made = createOwnedAircraft(spec, o.quantity, {
+        config,
+        baseInteriorPop,
+        hub: selectedHub || 'FRA',
+        existingRegistrations: [...fleet.map(p => p.registration), ...deliveredPlanes.map(p => p.registration)],
+        purchasedAt: deliveryMonth
+      });
+      const launch = isLaunchDelivery(spec, deliveryMonth);
+      deliveredPlanes.push(...made.map(p => launch ? { ...p, popularity: p.popularity + LAUNCH_BONUS, launchBonusUntil: deliveryMonth + LAUNCH_BONUS_MONTHS } : p));
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `DELIVERY: ${o.quantity} \u00d7 ${spec.manufacturer} ${spec.type} have arrived.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset),
+        details: {
+          title: 'Aircraft delivered',
+          source: 'Manufacturer',
+          content:
+            `${o.quantity} \u00d7 ${spec.manufacturer} ${spec.type} joined your fleet at ${selectedHub || 'FRA'}, with the standard economy cabin. ` +
+            `The balance of ${formatCurrency(o.unitPrice * o.quantity - o.deposit)} was paid on delivery.` +
+            (launch ? ` As a launch customer you get +${LAUNCH_BONUS} popularity on them for ${LAUNCH_BONUS_MONTHS} months.` : '')
+        }
+      });
+    }
+    for (const o of book.postponed) {
+      const spec = aircraftList.find(a => a.id === o.aircraftId);
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `DELIVERY DELAYED: ${spec ? `${spec.manufacturer} ${spec.type}` : 'an order'} slips a month; the balance could not be paid.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset)
+      });
+    }
+    for (const o of book.cancelled) {
+      const spec = aircraftList.find(a => a.id === o.aircraftId);
+      additionalMessages.push({
+        id: nextMessageId(),
+        text: `ORDER CANCELLED: the manufacturer gave up on your order of ${spec ? `${spec.manufacturer} ${spec.type}` : 'aircraft'}; the deposit of ${formatCurrency(o.deposit)} is lost.`,
+        isRead: false,
+        dateStr: offsetToDateStr(currentDateOffset)
+      });
+    }
+    if (book.charged > 0) {
+      setCapital(prev => prev - book.charged);
+      setMonthlyCapex(prev => addCapexItem(prev, 'Aircraft Deliveries', book.charged));
+    }
+
     // Written once, after the milestone, rank and annual-goal bonuses have all
     // had their say. Setting it earlier silently dropped the December bonus.
     setReputation(nextReputation);
@@ -2145,6 +2319,7 @@ export default function App() {
     // the game carries on as free play, no longer judged.
     const runningScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
     let scenarioDecided: { title: string; won: boolean; reason: string } | null = null;
+    let earnedStars = 0;
     if (scenario && runningScenario) {
       const closingCapital = capital + totalMonthlyProfit;
       const evaluation = evaluateScenario(runningScenario, {
@@ -2161,17 +2336,30 @@ export default function App() {
         const won = evaluation.status === 'won';
         const reason = evaluation.reason || '';
         scenarioDecided = { title: runningScenario.title, won, reason };
+        // Stars for how fast it was won; the best of every try is kept.
+        earnedStars = starsFor(
+          won,
+          currentDateOffset - scenario.startedOffset + 1,
+          runningScenario.deadlineOffset - scenario.startedOffset + 1
+        );
+        if (earnedStars > 0) {
+          const nextStars = bestStars(scenarioStars, runningScenario.id, earnedStars);
+          if (nextStars !== scenarioStars) {
+            setScenarioStars(nextStars);
+            writeJson(`neo_scenario_stars:${userId || 'local'}`, nextStars);
+          }
+        }
         setScenario({ ...scenario, status: evaluation.status, result: { offset: currentDateOffset, reason } });
         setScenarioResultOpen(true);
         monthChronicle.push({
           offset: currentDateOffset,
           kind: 'scenario',
           key: 'scenario:result',
-          text: `Scenario "${runningScenario.title}" ${won ? 'won' : 'lost'}. ${reason}`
+          text: `Scenario "${runningScenario.title}" ${won ? `won with ${earnedStars} star${earnedStars === 1 ? '' : 's'}` : 'lost'}. ${reason}`
         });
         additionalMessages.push({
           id: nextMessageId(),
-          text: won ? `SCENARIO WON: ${runningScenario.title}.` : `SCENARIO LOST: ${runningScenario.title}.`,
+          text: won ? `SCENARIO WON: ${runningScenario.title} (${'\u2605'.repeat(earnedStars)}${'\u2606'.repeat(3 - earnedStars)}).` : `SCENARIO LOST: ${runningScenario.title}.`,
           isRead: false,
           dateStr: offsetToDateStr(currentDateOffset),
           details: {
@@ -2179,6 +2367,7 @@ export default function App() {
             source: 'Board of Directors',
             content:
               `${reason}\n\n` +
+              (won ? `Stars: ${earnedStars} of 3. Two for winning within three quarters of the time, three within half.\n\n` : '') +
               `Capital ${formatCurrency(closingCapital)}, ${routes.length} route${routes.length === 1 ? '' : 's'}, ` +
               `${fleet.length} aircraft, reputation ${Math.round(nextReputation)}.\n\n` +
               `The airline is yours to fly on as a free game; the scenario is no longer judged.`
@@ -2272,7 +2461,7 @@ export default function App() {
     // leave out reputation, crisis relief and every rival, so the route list and
     // the map disagreed with the report the same route then produced.
     const nextMods = buildPlayerModifiers({
-      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions, routes
+      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions, routes, research: researchFx
     }, nextOffset);
     const nextRivalOffers = buildRivalOffers(aisAfterTurn);
     const nextEnv = {
@@ -2305,7 +2494,7 @@ export default function App() {
     if (majorCandidates.length > 0) {
       const staffBeforeStrike: Staff = { ...nextStaff, strike: staffMonth.strikeCalled ? null : nextStaff.strike };
       const revenueWith = (list: Disruption[]) => networkRevenue(repricedNext, buildPlayerModifiers({
-        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list, routes
+        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list, routes, research: researchFx
       }, nextOffset), nextEnv);
       const allCancelling = staffMonth.strikeCalled ? revenueWith(nextDisruptions) : revenueOf(nextNetwork);
       const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, revenueWith, allCancelling)]));
@@ -2367,7 +2556,8 @@ export default function App() {
       // Passengers like an old aircraft less, whatever its condition: the
       // type's popularity from the catalogue, less what its age takes.
       const catalog = aircraftList.find(a => a.id === plane.id)?.popularity;
-      const popularity = catalog === undefined ? plane.popularity : agedPopularity(catalog, ageYears(plane, nextOffset));
+      const launchBonus = plane.launchBonusUntil !== undefined && nextOffset < plane.launchBonusUntil ? LAUNCH_BONUS : 0;
+      const popularity = catalog === undefined ? plane.popularity : agedPopularity(catalog, ageYears(plane, nextOffset)) + launchBonus;
 
       return {
         ...plane,
@@ -2376,6 +2566,7 @@ export default function App() {
         conditionGeneral: Math.max(0, plane.conditionGeneral - airframeDecay)
       };
     }));
+    if (deliveredPlanes.length > 0) setFleet(prev => [...prev, ...deliveredPlanes]);
   };
 
   const [sessionKey, setSessionKey] = useState(Date.now());
@@ -2522,6 +2713,11 @@ export default function App() {
     }
     setShowSaveMenu(false);
   };
+
+  // Stars earned in scenarios, kept per account in this browser.
+  useEffect(() => {
+    setScenarioStars(normalizeStars(readJson(`neo_scenario_stars:${userId || 'local'}`, {})));
+  }, [userId]);
 
   useEffect(() => {
     if (pendingAutosave) {
@@ -2751,6 +2947,7 @@ export default function App() {
    * fills in the fields it sets, which stay locked while it is picked.
    */
   const pickNewGameScenario = (id: string | null) => {
+    if (id !== null && !scenarioUnlocked(id, scenarioStars)) return;
     setNewGameScenarioId(id);
     const chosen = scenarioById(id);
     if (!chosen) return;
@@ -2913,6 +3110,87 @@ export default function App() {
     }
     spend(cost, `Airport Management T${tier}`);
     setAirportManagement(prev => ({ ...prev, [airportId]: applyManagementUnlock(prev[airportId], tier) }));
+  };
+
+  /** Starts a development project; the cost is paid at once. */
+  const handleStartResearch = (projectId: string) => {
+    const project = projectById(projectId);
+    if (!project) return;
+    const year = 1960 + Math.floor(currentDateOffset / 12);
+    const blocker = researchBlocker(career.research, project, career.rank, capital, year);
+    if (blocker) {
+      setAppAlert(blocker);
+      return;
+    }
+    const cost = projectCost(project, year);
+    spend(cost, 'Development Projects');
+    setCareer(prev => ({ ...prev, research: startProject(prev.research, projectId, currentDateOffset) }));
+    setToast(`Development started: ${project.title} (${project.months} months)`);
+  };
+
+  /** The standard cabin a delivered or second-hand aircraft arrives with. */
+  const plainCabin = (spec: Aircraft) => defaultCabin(spec);
+
+  /** Places an order for aircraft not yet delivered. Pays the deposit now. */
+  const handlePlaceOrder = (spec: Aircraft, quantity: number) => {
+    const gate = rankGateMessage(career.rank, aircraftRankNeeded(spec), `The ${spec.manufacturer} ${spec.type}`);
+    if (gate) {
+      setAppAlert(`${gate} Nothing was ordered.`);
+      return;
+    }
+    const quote = quoteOrder(spec, quantity);
+    if (capital < quote.deposit) {
+      setAppAlert(`The deposit is ${formatCurrency(quote.deposit)}, but you only have ${formatCurrency(capital)}. Nothing was ordered.`);
+      return;
+    }
+    const order = createOrder(spec, quantity, currentDateOffset, `ord_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`);
+    spend(order.deposit, 'Aircraft Deposits');
+    setCareer(prev => ({ ...prev, orders: [...prev.orders, order] }));
+    setToast(`Ordered ${order.quantity} \u00d7 ${spec.manufacturer} ${spec.type}: delivery ${offsetToDateStr(order.deliveryOffset)}`);
+  };
+
+  /** Cancels an order; half the deposit comes back. */
+  const handleCancelOrder = (orderId: string) => {
+    const order = career.orders.find(o => o.id === orderId);
+    if (!order) return;
+    const refund = cancelRefund(order);
+    spend(-refund, 'Aircraft Deposits');
+    setCareer(prev => ({ ...prev, orders: prev.orders.filter(o => o.id !== orderId) }));
+    setToast(`Order cancelled: ${formatCurrency(refund)} of the deposit returned`);
+  };
+
+  /** Buys a second-hand aircraft from this month's listings. */
+  const handleBuyUsed = (listing: UsedListing) => {
+    const spec = aircraftList.find(a => a.id === listing.aircraftId);
+    if (!spec) return;
+    const gate = rankGateMessage(career.rank, aircraftRankNeeded(spec), `The ${spec.manufacturer} ${spec.type}`);
+    if (gate) {
+      setAppAlert(`${gate} Nothing was bought.`);
+      return;
+    }
+    if (career.usedSold.offset === currentDateOffset && career.usedSold.ids.includes(listing.id)) return;
+    if (capital < listing.price) {
+      setAppAlert(`This aircraft costs ${formatCurrency(listing.price)}, but you only have ${formatCurrency(capital)}. Nothing was bought.`);
+      return;
+    }
+    const { config, baseInteriorPop } = plainCabin(spec);
+    const [plane] = createOwnedAircraft(spec, 1, {
+      config,
+      baseInteriorPop,
+      hub: selectedHub || 'FRA',
+      existingRegistrations: fleet.map(p => p.registration),
+      purchasedAt: currentDateOffset - listing.ageMonths
+    });
+    spend(listing.price, 'Used Aircraft');
+    setFleet(prev => [...prev, { ...plane, conditionGeneral: listing.conditionGeneral, conditionInterior: listing.conditionInterior }]);
+    setCareer(prev => ({
+      ...prev,
+      usedSold: {
+        offset: currentDateOffset,
+        ids: [...(prev.usedSold.offset === currentDateOffset ? prev.usedSold.ids : []), listing.id]
+      }
+    }));
+    setToast(`Bought a ${(listing.ageMonths / 12).toFixed(1)}-year-old ${spec.manufacturer} ${spec.type} for ${formatCurrency(listing.price)}`);
   };
 
   /**
@@ -3311,6 +3589,16 @@ export default function App() {
               </Modal>
             );
           })()}
+          <RetirementDialog
+            open={!!retirement}
+            airline={airlineName}
+            score={score}
+            entry={retirement?.entry ?? null}
+            position={retirement?.position ?? null}
+            hall={hall}
+            onKeepPlaying={() => setRetirement(null)}
+            onMainMenu={() => { setRetirement(null); returnToMainMenu(); }}
+          />
           {/* The board's goals for the coming year, after the December close. */}
           <GoalOfferDialog
             offer={career.goalOffer}
@@ -3660,7 +3948,7 @@ export default function App() {
                   <div className="space-y-8 bar:space-y-5 max-w-2xl mx-auto short:max-w-none short:space-y-0 short:grid short:grid-cols-2 short:gap-x-6 short:gap-y-3">
                     <div className="space-y-4 short:space-y-2 short:col-span-2">
                       <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
-                      <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} />
+                      <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} stars={scenarioStars} />
                       {newGameScenario && (
                         <p className="text-2xs text-white/40 italic">
                           {newGameScenario.title} sets the hub, start date, budget, difficulty and rivals below, so every
@@ -4319,7 +4607,23 @@ export default function App() {
                   {activeWindow === 'buy-aircraft' ? (
                     <ViewFrame label="Buy Aircraft" onReset={backToMap}>
                       <React.Suspense fallback={<LazyFallback label="Buy Aircraft" />}>
-                        <BuyAircraftView currentDateOffset={currentDateOffset} onSelectAircraft={setSelectedPurchasingAircraft} debugMode={debugMode} rank={career.rank} />
+                        <BuyAircraftView
+                          currentDateOffset={currentDateOffset}
+                          onSelectAircraft={setSelectedPurchasingAircraft}
+                          debugMode={debugMode}
+                          rank={career.rank}
+                          market={{
+                            currentDateOffset,
+                            capital,
+                            rank: career.rank,
+                            orders: career.orders,
+                            soldUsedIds: career.usedSold.offset === currentDateOffset ? career.usedSold.ids : [],
+                            rivalNames: aiAirlines.map(a => a.name),
+                            onOrder: handlePlaceOrder,
+                            onCancelOrder: handleCancelOrder,
+                            onBuyUsed: handleBuyUsed
+                          }}
+                        />
                         {selectedPurchasingAircraft && (
                           <ConfigurePurchaseView
                             aircraft={selectedPurchasingAircraft}
@@ -4405,6 +4709,12 @@ export default function App() {
                           goalOffer={career.goalOffer}
                           goalSnapshot={goalSnapshot}
                           onChooseGoal={handleChooseGoal}
+                          research={career.research}
+                          onStartResearch={handleStartResearch}
+                          score={score}
+                          hall={hall}
+                          onRetire={handleRetire}
+                          moraleBonus={researchFx.moraleBonus}
                           annualGoal={annualGoal}
                           fleetValue={fleetValue}
                           fleetCount={fleet.length}

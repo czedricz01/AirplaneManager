@@ -9,6 +9,9 @@ import { assignRivalColors, isHexColor } from './theme';
 import { scenarioById } from '../data/scenarios';
 import { clampRank, startingRank } from './airlineRank';
 import { normalizeGoal, normalizeOffer } from './annualGoals';
+import { normalizeOrders } from './preorders';
+import { normalizeResearch } from './research';
+import { aircraftList } from '../data/aircraft';
 import {
   CAMPAIGN_TIERS,
   CHRONICLE_KINDS,
@@ -320,6 +323,16 @@ function migrateChronicle(list: unknown): ChronicleEntry[] {
   return trimChronicle(entries, CHRONICLE_LIMIT);
 }
 
+const KNOWN_AIRCRAFT = new Set(aircraftList.map(a => a.id));
+
+function migrateUsedSold(raw: unknown): { offset: number; ids: string[] } {
+  const src = asObject<any>(raw, {});
+  return {
+    offset: Number.isFinite(src.offset) ? Math.round(src.offset) : -1,
+    ids: asArray<unknown>(src.ids).filter(isString)
+  };
+}
+
 /**
  * The career block. A save from before ranks existed has none: its rank is
  * worked out from the airline as it stands, no lower than its fleet needs, and
@@ -334,7 +347,10 @@ function migrateCareer(raw: unknown, ctx: { routes: any[]; fleet: any[]; reputat
       rank: clampRank(src.rank),
       careerPax: Math.max(0, finiteOr(src.careerPax, 0)),
       goalOffer: normalizeOffer(src.goalOffer),
-      takeovers: Math.max(0, Math.round(finiteOr(src.takeovers, 0)))
+      takeovers: Math.max(0, Math.round(finiteOr(src.takeovers, 0))),
+      orders: normalizeOrders(src.orders, id => KNOWN_AIRCRAFT.has(id)),
+      research: normalizeResearch(src.research),
+      usedSold: migrateUsedSold(src.usedSold)
     };
   }
   const careerPax = ctx.reportHistory.reduce((sum, r) => sum + Math.max(0, finiteOr(r?.paxTotal, 0)), 0);
@@ -345,7 +361,10 @@ function migrateCareer(raw: unknown, ctx: { routes: any[]; fleet: any[]; reputat
     ),
     careerPax,
     goalOffer: null,
-    takeovers: 0
+    takeovers: 0,
+    orders: [],
+    research: { done: [], active: [] },
+    usedSold: { offset: -1, ids: [] }
   };
 }
 

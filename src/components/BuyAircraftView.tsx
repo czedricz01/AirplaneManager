@@ -11,6 +11,7 @@ import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { readString } from '../lib/safeStorage';
 import { aircraftRankNeeded, rankGateMessage } from '../lib/airlineRank';
+import { AircraftMarketPanel, type AircraftMarketPanelProps, type MarketTab } from './AircraftMarketPanel';
 
 interface Props {
   currentDateOffset: number;
@@ -19,9 +20,12 @@ interface Props {
   debugMode?: boolean;
   /** The airline's rank; wide-bodies and supersonics need a higher one. */
   rank?: number;
+  /** The order book and the used market; without it the shop sells new aircraft only. */
+  market?: Omit<AircraftMarketPanelProps, 'tab'>;
 }
 
-function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp, rank = 99 }: Props) {
+function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: debugModeProp, rank = 99, market }: Props) {
+  const [tab, setTab] = useState<'new' | MarketTab>('new');
   const [expandedMfgs, setExpandedMfgs] = useState<Set<string>>(new Set());
   const [expandedPlaneId, setExpandedPlaneId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -418,6 +422,30 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
         }
       />
 
+      {market && (
+        <div className="flex gap-2 border-b border-white/5 mb-3 pr-4" role="tablist">
+          {([['new', 'New aircraft'], ['orders', market.orders.length > 0 ? `Order book (${market.orders.length})` : 'Order book'], ['used', 'Used market']] as const).map(([id, text]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`px-3 py-2 -mb-px text-2xs uppercase tracking-widest font-black border-b-2 transition-colors ${
+                tab === id ? 'border-aero-yellow text-aero-yellow' : 'border-transparent text-white/40 hover:text-white'
+              }`}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {market && tab !== 'new' ? (
+        <div className="flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar pb-20">
+          <AircraftMarketPanel {...market} tab={tab} />
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar space-y-6 pb-20">
         {/* Permanent Supabase Storage Bucket Settings */}
         {debugMode && (
@@ -890,6 +918,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
           );
         })}
       </div>
+      )}
     </div>
   );
 }

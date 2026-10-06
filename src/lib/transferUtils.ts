@@ -384,7 +384,7 @@ export function computeTransferFlows(
   for (const hub of hubs) {
     const spokes = atAirport.get(hub)!.slice().sort((a, b) => cmp(a.id, b.id));
     if (spokes.length < 2) continue;
-    const quality = hubQuality(airportManagement?.[hub]);
+    const quality = hubQuality(airportManagement?.[hub]) * (1 + (mods?.transferBoost ?? 0));
     for (const routeA of spokes) {
       const o = routeA.origin === hub ? routeA.destination : routeA.origin;
       const arrivals = arrivalsBy.get(directionKey(routeA.id, o, hub));

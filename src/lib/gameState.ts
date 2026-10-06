@@ -18,6 +18,8 @@ import { crewCostFactor, moraleSatDelta, strikeCancelShare } from './staff';
 import { combineCancelShares, disruptionCancelShares } from './disruptions';
 import { maturityFactors } from './routeMaturity';
 import type { GoalOffer } from './annualGoals';
+import type { PreOrder } from './preorders';
+import type { ResearchEffects, ResearchState } from './research';
 
 export { SALARY_PCT_MIN, SALARY_PCT_MAX } from './staff';
 export { combineCancelShares } from './disruptions';
@@ -279,9 +281,15 @@ export interface Career {
   goalOffer: GoalOffer | null;
   /** Rival airlines bought so far. */
   takeovers: number;
+  /** Aircraft ordered ahead of delivery; see preorders.ts. */
+  orders: PreOrder[];
+  /** Development projects finished and under way; see research.ts. */
+  research: ResearchState;
+  /** The used-market listings bought in the month `offset`, so a reload does not list them again. */
+  usedSold: { offset: number; ids: string[] };
 }
 
-export const DEFAULT_CAREER: Career = { rank: 0, careerPax: 0, goalOffer: null, takeovers: 0 };
+export const DEFAULT_CAREER: Career = { rank: 0, careerPax: 0, goalOffer: null, takeovers: 0, orders: [], research: { done: [], active: [] }, usedSold: { offset: -1, ids: [] } };
 
 /** Everything above, as it is saved, loaded and reset together. */
 export interface GameSystems {
@@ -307,7 +315,7 @@ export function createGameSystems(): GameSystems {
     pendingDecisions: [],
     scenario: null,
     chronicle: [],
-    career: { ...DEFAULT_CAREER },
+    career: { ...DEFAULT_CAREER, orders: [], research: { done: [], active: [] }, usedSold: { offset: -1, ids: [] } },
     tutorialStep: null
   };
 }
@@ -351,6 +359,8 @@ export interface PlayerModifiers {
    * ramp up, old ones build loyalty. See routeMaturity.ts. A route not listed is mature.
    */
   maturity?: Record<string, number>;
+  /** Connecting passengers: 0.1 = 10% more. From the alliance project; see research.ts. */
+  transferBoost?: number;
   /** Raises the player's appeal against rivals on a shared city pair: 0.1 = 10% more. */
   loyaltyBonus?: number;
   /** Satisfaction points added to every cabin class. */
@@ -396,6 +406,8 @@ export interface PlayerModifierState {
   disruptions?: Disruption[];
   /** The player's routes, for how long each has been open; none when absent. */
   routes?: ReadonlyArray<{ id: string; openedOffset?: number }>;
+  /** What the finished development projects do; neutral when absent. */
+  research?: ResearchEffects;
 }
 
 /**
@@ -460,8 +472,14 @@ export function buildPlayerModifiers(state: PlayerModifierState, offset: number)
   const cancelShare = disruptionCancelShares(state.disruptions, offset);
   if (cancelShare) mods.cancelShare = cancelShare;
   if (state.routes) {
-    const maturity = maturityFactors(state.routes, offset);
+    const maturity = maturityFactors(state.routes, offset, state.research?.rampStart);
     if (maturity) mods.maturity = maturity;
+  }
+  if (state.research) {
+    const r = state.research;
+    if (r.demandBonus) mods.demandFactor *= 1 + r.demandBonus;
+    if (r.satBonus) mods.satDelta = (mods.satDelta ?? 0) + r.satBonus;
+    if (r.transferBoost) mods.transferBoost = r.transferBoost;
   }
   return mods;
 }

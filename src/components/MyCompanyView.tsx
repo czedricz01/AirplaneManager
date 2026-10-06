@@ -42,7 +42,7 @@ interface MonthlyReport extends ReportMetrics {
   hubIncomeItems?: { label: string; amount: number }[];
 }
 
-interface Props extends Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, CareerPanelProps {
+interface Props extends Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, Omit<CareerPanelProps, 'capital' | 'currentDateOffset'> {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
@@ -146,8 +146,8 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
 function MyCompanyViewImpl({
   capital, reportHistory, fleetValue, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
-  staff, profitStreak, monthlyCrewCost, strikePending, onSetSalary,
-  rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal,
+  staff, profitStreak, monthlyCrewCost, strikePending, moraleBonus, onSetSalary,
+  rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
   ...marketingProps
 }: Props) {
   const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
@@ -208,6 +208,13 @@ function MyCompanyViewImpl({
               goalOffer={goalOffer}
               goalSnapshot={goalSnapshot}
               onChooseGoal={onChooseGoal}
+              research={research}
+              capital={capital}
+              currentDateOffset={marketingProps.currentDateOffset}
+              onStartResearch={onStartResearch}
+              score={score}
+              hall={hall}
+              onRetire={onRetire}
             />
           </div>
         ) : section === 'marketing' ? (
@@ -222,6 +229,7 @@ function MyCompanyViewImpl({
               currentDateOffset={marketingProps.currentDateOffset}
               monthlyCrewCost={monthlyCrewCost}
               strikePending={strikePending}
+              moraleBonus={moraleBonus}
               noRoutes={routeCount === 0}
               onSetSalary={onSetSalary}
             />

@@ -39,6 +39,8 @@ export interface StaffPanelProps {
   strikePending: boolean;
   /** The airline flies no routes: nothing to strike against. */
   noRoutes?: boolean;
+  /** Morale points the crew academy adds to the level staff settle at. */
+  moraleBonus?: number;
   onSetSalary: (pct: number) => void;
 }
 
@@ -75,8 +77,8 @@ function MoraleBar({ morale, target }: { morale: number; target: number }) {
  * it carries. Pay takes effect at once in every forecast; morale only moves
  * at month end.
  */
-export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, monthlyCrewCost, strikePending, noRoutes = false, onSetSalary }: StaffPanelProps) {
-  const outlook = staffOutlook(staff, profitStreak, offset, strikePending, noRoutes);
+export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, monthlyCrewCost, strikePending, noRoutes = false, moraleBonus = 0, onSetSalary }: StaffPanelProps) {
+  const outlook = staffOutlook(staff, profitStreak, offset, strikePending, noRoutes, moraleBonus);
   /** Pay agreed to settle a recent strike, below which the slider will not go. */
   const floor = salaryFloor(staff, offset);
   const satNow = moraleSatDelta(staff.morale);

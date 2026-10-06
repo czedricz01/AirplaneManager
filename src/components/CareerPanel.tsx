@@ -21,6 +21,16 @@ import {
   type GoalOffer,
   type YearSnapshot
 } from '../lib/annualGoals';
+import {
+  MAX_PARALLEL,
+  PROJECTS,
+  projectById,
+  projectCost,
+  projectProgress,
+  startBlocker,
+  type ResearchState
+} from '../lib/research';
+import type { HallOfFameEntry, ScoreBreakdown } from '../lib/careerScore';
 import { formatCurrency, formatNumber, formatMoneyCompact as compact } from '../lib/format';
 
 export interface CareerPanelProps {
@@ -33,6 +43,14 @@ export interface CareerPanelProps {
   /** The current year as it stands, for the progress of the chosen goal. */
   goalSnapshot: YearSnapshot | null;
   onChooseGoal: (goal: AnnualGoal) => void;
+  research: ResearchState;
+  capital: number;
+  currentDateOffset: number;
+  onStartResearch: (projectId: string) => void;
+  score: ScoreBreakdown;
+  hall: HallOfFameEntry[];
+  /** Files the career in the hall of fame and shows the final report. */
+  onRetire: () => void;
 }
 
 const TIER_TONE: Record<MilestoneTier, BadgeTone> = { bronze: 'warn', silver: 'neutral', gold: 'yellow', feat: 'good' };
@@ -182,6 +200,117 @@ function GoalSection({ annualGoal, goalOffer, goalSnapshot, onChooseGoal }: Pick
   );
 }
 
+function ResearchSection({ research, rank, capital, currentDateOffset, onStartResearch }: Pick<CareerPanelProps, 'research' | 'rank' | 'capital' | 'currentDateOffset' | 'onStartResearch'>) {
+  const year = 1960 + Math.floor(currentDateOffset / 12);
+  return (
+    <Panel>
+      <div className="flex items-baseline justify-between mb-3">
+        <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Development</span>
+        <span className="text-2xs font-mono text-white/40">
+          {research.done.length} / {PROJECTS.length} done · {research.active.length} / {MAX_PARALLEL} running
+        </span>
+      </div>
+      <p className="text-3xs font-mono text-white/40 leading-relaxed mb-3 max-w-2xl">
+        Long-term investments that pay back for good. Each costs money at once and takes months; two can run at the same time.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {PROJECTS.map(project => {
+          const done = research.done.includes(project.id);
+          const running = research.active.find(a => a.id === project.id);
+          const blocker = !done && !running ? startBlocker(research, project, rank, capital, year) : null;
+          const cost = projectCost(project, year);
+          const progress = running ? projectProgress(project, running.startedOffset, currentDateOffset) : null;
+          return (
+            <div
+              key={project.id}
+              className={`flex flex-col gap-2 p-3 border rounded-sm ${
+                done ? 'border-aero-good/40 bg-aero-good/5' : running ? 'border-aero-yellow/40 bg-aero-yellow/5' : 'border-white/10 bg-white/[0.02]'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold">{project.title}</span>
+                {done ? <Badge tone="good">Done</Badge> : running ? <Badge tone="yellow">Running</Badge> : <Badge>{project.months} months</Badge>}
+              </div>
+              <p className="text-2xs font-mono text-white/50 leading-relaxed">{project.detail}</p>
+              {progress && (
+                <div>
+                  <div className="flex justify-between text-3xs font-mono uppercase tracking-wider text-white/40 mb-1">
+                    <span>{progress.monthsDone} of {project.months} months</span>
+                    <span>{Math.round(progress.fraction * 100)}%</span>
+                  </div>
+                  <Bar fraction={progress.fraction} />
+                </div>
+              )}
+              {!done && !running && (
+                <div className="flex items-center justify-between gap-2 mt-auto">
+                  <span className={`text-2xs font-mono ${blocker ? 'text-white/40' : 'text-white/70'}`}>
+                    {blocker ?? `Cost ${formatCurrency(cost)}`}
+                  </span>
+                  <Button variant="primary" disabled={!!blocker} onClick={() => onStartResearch(project.id)}>
+                    {formatCurrency(cost)}
+                  </Button>
+                </div>
+              )}
+              {project.requires && !done && (
+                <span className="text-3xs font-mono text-white/30">after {projectById(project.requires)?.title}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+const SCORE_LINES: { key: keyof Omit<ScoreBreakdown, 'total'>; label: string }[] = [
+  { key: 'wealth', label: 'Net worth' },
+  { key: 'rank', label: 'Rank' },
+  { key: 'milestones', label: 'Milestones' },
+  { key: 'reputation', label: 'Reputation' },
+  { key: 'takeovers', label: 'Takeovers' },
+  { key: 'development', label: 'Development' },
+  { key: 'longevity', label: 'Years played' }
+];
+
+function ScoreSection({ score, hall, onRetire }: Pick<CareerPanelProps, 'score' | 'hall' | 'onRetire'>) {
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+        <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Career score</span>
+        <span className="text-xl font-mono font-black text-aero-yellow tabular-nums">{formatNumber(score.total)}</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        {SCORE_LINES.map(l => (
+          <div key={l.key} className="border border-white/5 bg-white/[0.02] px-2 py-1.5">
+            <div className="text-4xs font-mono uppercase tracking-widest text-white/40">{l.label}</div>
+            <div className="text-sm font-mono font-bold tabular-nums">{formatNumber(score[l.key])}</div>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-3xs font-mono text-white/40 leading-relaxed max-w-xl">
+          The game has no end. Retire whenever you like: the career is filed in the hall of fame and you can play on.
+        </p>
+        <Button variant="secondary" onClick={onRetire}>Retire and file the career</Button>
+      </div>
+      {hall.length > 0 && (
+        <div className="mt-4">
+          <div className="text-3xs uppercase tracking-[0.25em] text-white/30 font-black mb-1">Hall of fame</div>
+          <ol className="flex flex-col gap-1">
+            {hall.map((e, i) => (
+              <li key={e.id} className="flex items-center justify-between gap-3 text-2xs font-mono border-b border-white/5 py-1">
+                <span className="truncate"><span className="text-white/30">{i + 1}.</span> {e.airline}{e.code ? ` (${e.code})` : ''}</span>
+                <span className="text-white/40 shrink-0">{e.years} yrs · {rankDef(e.rank).title.replace(' Airline', '')}</span>
+                <span className="text-aero-yellow tabular-nums shrink-0">{formatNumber(e.score)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function MilestoneSection({ milestones }: { milestones: string[] }) {
   const earned = new Set(milestones);
   const byTrack = TRACK_ORDER.map(track => ({ track, list: MILESTONES.filter(m => m.track === track) }));
@@ -236,6 +365,14 @@ export function CareerPanel(props: CareerPanelProps) {
         goalSnapshot={props.goalSnapshot}
         onChooseGoal={props.onChooseGoal}
       />
+      <ResearchSection
+        research={props.research}
+        rank={props.rank}
+        capital={props.capital}
+        currentDateOffset={props.currentDateOffset}
+        onStartResearch={props.onStartResearch}
+      />
+      <ScoreSection score={props.score} hall={props.hall} onRetire={props.onRetire} />
       <MilestoneSection milestones={props.milestones} />
     </div>
   );

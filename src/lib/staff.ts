@@ -141,9 +141,10 @@ export function labourMarketLabel(points: number): string {
  * The morale that pay and the airline's fortunes justify, 0-100. `marketPremium`
  * is what the labour market adds to the pay the staff expect; see labourMarketPremium.
  */
-export function targetMorale(salaryPct: number, profitStreak: number, recentStrike: boolean, marketPremium = 0): number {
+export function targetMorale(salaryPct: number, profitStreak: number, recentStrike: boolean, marketPremium = 0, bonus = 0): number {
   return clampMorale(
     BASE_MORALE
+    + bonus
     + (clampSalaryPct(salaryPct) - 100 - marketPremium) * MORALE_PER_PAY_POINT
     + (profitStreak > PROFIT_STREAK_MONTHS ? PROFIT_STREAK_MORALE : 0)
     - (recentStrike ? STRIKE_MORALE_PENALTY : 0)
@@ -205,6 +206,8 @@ export interface StaffMonthContext {
    * strike is put off, not cancelled: it is rolled for again at the next close.
    */
   malusBlocked?: boolean;
+  /** Morale points the crew academy adds to the level staff settle at. */
+  moraleBonus?: number;
 }
 
 export interface StaffMonthResult {
@@ -232,7 +235,7 @@ export interface StaffMonthResult {
  * `rng` is drawn from only when a strike is possible at all.
  */
 export function advanceStaff(staff: Staff, ctx: StaffMonthContext, rng: () => number): StaffMonthResult {
-  const target = targetMorale(staff.salaryPct, ctx.profitStreak, strikeIsRecent(staff.strike, ctx.nextOffset), labourMarketPremium(ctx.nextOffset));
+  const target = targetMorale(staff.salaryPct, ctx.profitStreak, strikeIsRecent(staff.strike, ctx.nextOffset), labourMarketPremium(ctx.nextOffset), ctx.moraleBonus ?? 0);
   const morale = stepMorale(staff.morale, target);
   const blocked = !!ctx.strikePending || !!ctx.noRoutes || !!ctx.malusBlocked
     || (!!staff.strike && staff.strike.startOffset >= ctx.nextOffset - 1);
@@ -323,7 +326,7 @@ export interface StaffOutlook {
  * month's actual result. An airline without routes has nothing to strike
  * against, as at the close.
  */
-export function staffOutlook(staff: Staff, profitStreak: number, currentOffset: number, strikePending = false, noRoutes = false): StaffOutlook {
-  const r = advanceStaff(staff, { profitStreak: profitStreak + 1, nextOffset: currentOffset + 1, strikePending, noRoutes }, () => 1);
+export function staffOutlook(staff: Staff, profitStreak: number, currentOffset: number, strikePending = false, noRoutes = false, moraleBonus = 0): StaffOutlook {
+  const r = advanceStaff(staff, { profitStreak: profitStreak + 1, nextOffset: currentOffset + 1, strikePending, noRoutes, moraleBonus }, () => 1);
   return { target: r.target, nextMorale: r.staff.morale, strikeChance: r.chance };
 }

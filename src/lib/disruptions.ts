@@ -190,7 +190,9 @@ export function rollDisruptions(
   airportManagement: Record<string, { hubFacilities?: { hangar?: boolean } } | undefined>,
   offset: number,
   rng: () => number,
-  airportsMap: Map<string, { coords: [number, number] }>
+  airportsMap: Map<string, { coords: [number, number] }>,
+  /** Multiplies the chance of a technical defect; predictive maintenance makes it 0.7. */
+  defectFactor: number = 1
 ): Disruption[] {
   const byReg = new Map<string, DisruptionAircraft>();
   for (const f of fleet || []) if (f && !byReg.has(f.registration)) byReg.set(f.registration, f);
@@ -200,7 +202,7 @@ export function rollDisruptions(
   for (const r of flying) {
     const plane = byReg.get(r.aircraft);
     const hangar = !!airportManagement?.[r.origin]?.hubFacilities?.hangar;
-    if (rng() < technicalDefectChance(plane, offset, hangar)) {
+    if (rng() < technicalDefectChance(plane, offset, hangar) * defectFactor) {
       out.push({
         id: `dis_${offset}_technical_${r.id}`, kind: 'technical', offset,
         routeIds: [r.id], cancelShare: DISRUPTION_SPECS.technical.cancelShare, ref: r.aircraft
