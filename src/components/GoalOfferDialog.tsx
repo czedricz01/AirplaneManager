@@ -8,7 +8,7 @@ interface Props {
   offer: GoalOffer | null;
   open: boolean;
   onChoose: (goal: AnnualGoal) => void;
-  /** Closes the dialog; the offer stays open under My Company > Career. */
+  /** Closes the dialog; the offer stays open under Progression. */
   onLater: () => void;
 }
 

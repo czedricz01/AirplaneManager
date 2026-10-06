@@ -1006,10 +1006,10 @@ nicht kaufen.
 
 | Rang | Routen | Pax/Monat | Ruf | Regionen | Jahre | Hubs | Flughäfen bis Ebene |
 |---|---|---|---|---|---|---|---|
-| Startup | – | – | – | – | 0 | 1 | 3 |
-| Local Airline | 3 | 8.000 | 40 | 1 | 0 | 1 | 4 |
-| Regional Airline | 6 | 25.000 | 45 | 1 | 1 | 2 | 4 |
-| Domestic Airline | 12 | 70.000 | 50 | 1 | 3 | 2 | 5 |
+| Startup | – | – | – | – | 0 | 1 | 4 |
+| Local Airline | 3 | 8.000 | 40 | 1 | 0 | 1 | 5 |
+| Regional Airline | 6 | 25.000 | 45 | 1 | 1 | 2 | 5 |
+| Domestic Airline | 12 | 70.000 | 50 | 1 | 3 | 2 | 6 |
 | **National Airline** | 24 | 170.000 | 55 | 1 | 6 | 3 | **7** |
 | Continental Airline | 40 | 350.000 | 60 | 2 | 10 | 4 | 7 |
 | International Airline | 65 | 700.000 | 65 | 3 | 15 | 5 | 7 |
@@ -1024,8 +1024,8 @@ Die Schwellen sind erste Werte (Konstanten oben in `airlineRank.ts`).
 
 ### Flughäfen nach Ebene (`src/lib/airportAccess.ts`)
 
-Ebene 1–3 sind offen, jede Stufe öffnet die nächste Ebene bis 5; **die großen Hubs
-(Ebene 6 und 7: Heathrow, Atlanta, Frankfurt, Dubai …) ab National**. Offen bleibt immer,
+Ebene 1–4 sind von Anfang an offen, Ebene 5 ab Local, Ebene 6 ab Domestic; **die größten Hubs
+(Ebene 7: Heathrow, Atlanta, Frankfurt, Dubai …) ab National**. Auch der Heimatflughafen im Normal Mode darf höchstens Ebene 4 haben (Free Mode: jeder). Offen bleibt immer,
 was die Airline schon hat: der Heimatflughafen, jeder Flughafen mit Management und jeder,
 den eine Route berührt, so dass ein Rang nie etwas wegnimmt. Erzwungen wird an der einen
 Stelle, an der man einen Flughafen nutzbar macht: das Management-Level 1
@@ -1066,7 +1066,7 @@ Wartungsvorhersage, Allianz, Kabine, Routenplanung, Crew-Akademie). Wirkungen:
 * Sparfaktoren werden bei 40 % gedeckelt. Gleichzeitig laufende Projekte: 2 + ⌊Rang/3⌋,
   höchstens 5.
 
-Eine Chain-Folge wie `eff-1 → eff-2` braucht das vorige Glied. Im Reiter *Career* stehen
+Eine Chain-Folge wie `eff-1 → eff-2` braucht das vorige Glied. Im Bildschirm *Progression* (Seitenleiste, unter My Company) stehen
 die Projekte nach Rang gruppiert; der nächste Rang ist als Vorschau sichtbar, der Rest
 unter „Show the whole tree". Oben stehen die sechs Klassen mit Haken und eine Zeile mit
 dem, was gerade wirkt.
