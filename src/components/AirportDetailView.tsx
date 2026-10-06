@@ -41,9 +41,11 @@ interface Props {
   transferHub?: HubTransferStats;
   /**
    * Why something cannot be built at the airline's current rank, or null when
-   * it can: the second hub, management tier 3, the VIP lounge.
+   * it can: the second hub, management tier 3, the VIP lounge. `airport` is
+   * set while the airport itself is closed at the rank: nothing can be built
+   * or started here until the rank opens it.
    */
-  gates?: { tier2?: string | null; tier3?: string | null; vipLounge?: string | null };
+  gates?: { airport?: string | null; tier2?: string | null; tier3?: string | null; vipLounge?: string | null };
 }
 
 export function AirportDetailView({ 
@@ -78,6 +80,10 @@ export function AirportDetailView({
   const unlockCost = (tier: number) => getManagementUnlockCost(level, tier);
 
   const handleStartRouteClick = () => {
+    if (gates?.airport) {
+      onNotify?.(gates.airport);
+      return;
+    }
     if (infrastructure.level === 0) {
       setShowMgmtModal(true);
     } else if (infrastructure.level === 1) {
@@ -395,12 +401,16 @@ export function AirportDetailView({
                   <div className="space-y-2">
                     <div className="text-xl font-black italic text-white uppercase tracking-widest">Access Protocol Locked</div>
                     <div className="text-2xs text-white/40 uppercase tracking-widest">Require Level 1 Management Permit: {formatCurrency(unlockCost(1))}</div>
+                    {gates?.airport && (
+                      <div className="text-2xs text-aero-warn font-mono normal-case tracking-normal max-w-md mx-auto leading-relaxed">{gates.airport}</div>
+                    )}
                   </div>
                   <button 
                     onClick={() => onBuyManagement(1)}
-                    className="px-4 py-3 bg-white text-black font-black text-xs uppercase tracking-[0.2em] hover:bg-aero-yellow transition-all"
+                    disabled={!!gates?.airport}
+                    className="px-4 py-3 bg-white text-black font-black text-xs uppercase tracking-[0.2em] hover:bg-aero-yellow transition-all disabled:bg-white/5 disabled:text-white/20 disabled:cursor-not-allowed"
                   >
-                    Initiate Setup
+                    {gates?.airport ? 'Locked: Rank' : 'Initiate Setup'}
                   </button>
                 </div>
               )}

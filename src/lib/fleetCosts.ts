@@ -124,7 +124,9 @@ export function fleetCommonality(
 export function fleetOwnershipCost(
   fleet: ReadonlyArray<{ registration: string; basePrice?: number; purchasedAt?: number; family?: string; type?: string }>,
   flyingRegistrations: ReadonlySet<string>,
-  offset: number
+  offset: number,
+  /** What the development tree takes off the maintenance programme, as a multiplier; 1 for none. */
+  programmeFactor: number = 1
 ): { total: number; parked: number; parkedCount: number } {
   let total = 0;
   let parked = 0;
@@ -132,7 +134,7 @@ export function fleetOwnershipCost(
   const commonality = fleetCommonality(fleet);
   for (const plane of fleet) {
     const flying = flyingRegistrations.has(plane.registration);
-    const cost = monthlyOwnershipCost(plane, offset, flying, commonality.factorByRegistration.get(plane.registration) ?? 1);
+    const cost = monthlyOwnershipCost(plane, offset, flying, (commonality.factorByRegistration.get(plane.registration) ?? 1) * programmeFactor);
     total += cost;
     if (!flying) {
       parked += cost;

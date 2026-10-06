@@ -7,10 +7,11 @@ import { trimChronicle } from './chronicle';
 import { DISRUPTION_OPTION_CHARTER } from './disruptions';
 import { assignRivalColors, isHexColor } from './theme';
 import { scenarioById } from '../data/scenarios';
-import { clampRank, startingRank } from './airlineRank';
+import { clampRank, effectiveRank, migrateOldRank, normalizeMode, startingRank } from './airlineRank';
+import { classesOfFleet } from './aircraftClasses';
 import { normalizeGoal, normalizeOffer } from './annualGoals';
 import { normalizeOrders } from './preorders';
-import { normalizeResearch } from './research';
+import { normalizeResearch, projectsForClasses, startingResearch } from './research';
 import { aircraftList } from '../data/aircraft';
 import {
   CAMPAIGN_TIERS,
@@ -48,7 +49,7 @@ import {
  */
 
 /** Written into every new save. Bump it whenever the shape changes. */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 /** The first save version whose tutorial step means anything; older saves load with the tutorial off. */
 const TUTORIAL_SAVE_VERSION = 4;
@@ -335,36 +336,58 @@ function migrateUsedSold(raw: unknown): { offset: number; ids: string[] } {
 
 /**
  * The career block. A save from before ranks existed has none: its rank is
- * worked out from the airline as it stands, no lower than its fleet needs, and
- * its passenger total from the months the reports still hold.
+ * worked out from the airline as it stands, and its passenger total from the
+ * months the reports still hold. A save from before version 7 has a rank on
+ * the old six-step ladder, which is moved to the same place on the ten-step
+ * one (the rank is never lowered), and the aircraft classes its rank and its
+ * fleet already had are counted as developed. Saves before the Free Mode
+ * were all Normal Mode.
  */
-function migrateCareer(raw: unknown, ctx: { routes: any[]; fleet: any[]; reputation: number; reportHistory: any[] }): Career {
+function migrateCareer(
+  raw: unknown,
+  ctx: { routes: any[]; fleet: any[]; reputation: number; reportHistory: any[]; saveVersion: number; years: number }
+): Career {
   const src = asObject<any>(raw, {});
   const last = ctx.reportHistory[ctx.reportHistory.length - 1];
   const regions = new Set<string>(asArray<string>(last?.regions).filter(isString));
-  if (Number.isFinite(src.rank)) {
-    return {
-      rank: clampRank(src.rank),
-      careerPax: Math.max(0, finiteOr(src.careerPax, 0)),
-      goalOffer: normalizeOffer(src.goalOffer),
-      takeovers: Math.max(0, Math.round(finiteOr(src.takeovers, 0))),
-      orders: normalizeOrders(src.orders, id => KNOWN_AIRCRAFT.has(id)),
-      research: normalizeResearch(src.research),
-      usedSold: migrateUsedSold(src.usedSold)
-    };
+  const mode = ctx.saveVersion >= 7 ? normalizeMode(src.mode) : 'normal';
+  const hasCareer = Number.isFinite(src.rank);
+  const careerPax = hasCareer
+    ? Math.max(0, finiteOr(src.careerPax, 0))
+    : ctx.reportHistory.reduce((sum, r) => sum + Math.max(0, finiteOr(r?.paxTotal, 0)), 0);
+  const stats = {
+    routes: ctx.routes.length,
+    monthlyPax: Math.max(0, finiteOr(last?.paxTotal, 0)),
+    reputation: ctx.reputation,
+    regions: regions.size,
+    years: ctx.years
+  };
+  const earned = hasCareer
+    ? (ctx.saveVersion >= 7 ? clampRank(src.rank) : migrateOldRank(src.rank))
+    : startingRank(stats);
+  const rank = effectiveRank(mode, earned);
+
+  let research = normalizeResearch(src.research);
+  if (ctx.saveVersion < 7) {
+    // The classes the airline could already buy are developed: those its rank
+    // would have opened and every one it flies.
+    const done = [...new Set([
+      ...research.done,
+      ...startingResearch(rank).done,
+      ...projectsForClasses(classesOfFleet(ctx.fleet))
+    ])];
+    research = normalizeResearch({ done, active: research.active });
   }
-  const careerPax = ctx.reportHistory.reduce((sum, r) => sum + Math.max(0, finiteOr(r?.paxTotal, 0)), 0);
+
   return {
-    rank: startingRank(
-      { routes: ctx.routes.length, monthlyPax: Math.max(0, finiteOr(last?.paxTotal, 0)), reputation: ctx.reputation, regions: regions.size },
-      ctx.fleet
-    ),
+    mode,
+    rank,
     careerPax,
-    goalOffer: null,
-    takeovers: 0,
-    orders: [],
-    research: { done: [], active: [] },
-    usedSold: { offset: -1, ids: [] }
+    goalOffer: hasCareer ? normalizeOffer(src.goalOffer) : null,
+    takeovers: hasCareer ? Math.max(0, Math.round(finiteOr(src.takeovers, 0))) : 0,
+    orders: hasCareer ? normalizeOrders(src.orders, id => KNOWN_AIRCRAFT.has(id)) : [],
+    research,
+    usedSold: hasCareer ? migrateUsedSold(src.usedSold) : { offset: -1, ids: [] }
   };
 }
 
@@ -476,7 +499,11 @@ export function migrateSave(raw: any): any {
     disruptions,
     pendingDecisions,
     scenario: migrateScenario(raw.scenario, startDateOffset, currentDateOffset),
-    career: migrateCareer(raw.career, { routes, fleet, reputation, reportHistory }),
+    career: migrateCareer(raw.career, {
+      routes, fleet, reputation, reportHistory,
+      saveVersion: raw.saveVersion ?? 1,
+      years: Math.max(0, Math.floor((currentDateOffset - startDateOffset) / 12))
+    }),
     chronicle: migrateChronicle(raw.chronicle),
     // Saves from before version 4 were started before the tutorial existed;
     // their players do not need it, so it stays off rather than starting on

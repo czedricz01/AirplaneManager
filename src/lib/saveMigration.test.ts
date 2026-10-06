@@ -280,13 +280,38 @@ test('a save with no open slot bill keeps its capital and capex as they are', ()
   assert.deepEqual(migrated.monthlyCapex, []);
 });
 
-test('an old save gets a rank from the airline as it stands, and keeps the wide-bodies it flies', () => {
+test('a save from before ranks gets a rank from the airline as it stands, and keeps the classes it flies', () => {
   const save: any = oldSave();
-  save.fleet.push({ registration: 'D-WIDE', id: '747-100', type: '747-100', manufacturer: 'Boeing', class: 'Widebody', capacity: 400 });
+  save.fleet.push({ registration: 'D-WIDE', id: '767-200', type: '767-200', manufacturer: 'Boeing', class: 'Widebody', capacity: 290 });
   const migrated = migrateSave(save);
-  assert.ok(migrated.career.rank >= 2, `rank ${migrated.career.rank}`);
+  assert.equal(migrated.career.rank, 0, 'one route and no passengers: a startup');
+  assert.equal(migrated.career.mode, 'normal');
   assert.equal(migrated.career.careerPax, 0);
   assert.equal(migrated.career.goalOffer, null);
+  // The wide-body (and the classes before it) count as developed: nothing is taken away.
+  for (const id of ['class-regional', 'class-narrowbody', 'class-widebody']) assert.ok(migrated.career.research.done.includes(id), id);
+  assert.ok(!migrated.career.research.done.includes('class-jumbo'));
+});
+
+test('a rank of the first six-step ladder moves to the same place on the ten-step one, with its classes', () => {
+  const save: any = { ...oldSave(), saveVersion: 6, career: { rank: 2, careerPax: 5, goalOffer: null, takeovers: 0, research: { done: ['fuel-1'], active: [] } } };
+  const c = migrateSave(save).career;
+  assert.equal(c.rank, 4, 'National stays National');
+  assert.equal(c.mode, 'normal');
+  assert.ok(c.research.done.includes('fuel-1'), 'what was developed stays');
+  assert.ok(c.research.done.includes('class-narrowbody'), 'what the rank opened is developed');
+  assert.ok(!c.research.done.includes('class-widebody'));
+  const top = migrateSave({ ...save, career: { ...save.career, rank: 5 } }).career;
+  assert.equal(top.rank, 9, 'Global Player stays Global Player');
+});
+
+test('a Free Mode game is kept as one, at the top rank', () => {
+  const save: any = { ...oldSave(), saveVersion: SAVE_VERSION, career: { mode: 'free', rank: 3, careerPax: 0 } };
+  const c = migrateSave(save).career;
+  assert.equal(c.mode, 'free');
+  assert.equal(c.rank, 9);
+  assert.equal(migrateSave({ ...save, career: { mode: 'nonsense', rank: 3 } }).career.mode, 'normal');
+  assert.equal(migrateSave({ ...save, saveVersion: 6 }).career.mode, 'normal', 'older saves were all Normal Mode');
 });
 
 test('career passengers are summed from the reports an old save still holds', () => {
@@ -297,9 +322,10 @@ test('career passengers are summed from the reports an old save still holds', ()
 
 test('a saved career is kept, with the rank clamped', () => {
   const save: any = oldSave();
+  save.saveVersion = SAVE_VERSION;
   save.career = { rank: 99, careerPax: 12345, goalOffer: null, takeovers: 2 };
   const c = migrateSave(save).career;
-  assert.equal(c.rank, 5);
+  assert.equal(c.rank, 9);
   assert.equal(c.careerPax, 12345);
   assert.equal(c.takeovers, 2);
 });

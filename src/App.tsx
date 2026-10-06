@@ -266,16 +266,19 @@ import {
   type MilestoneContext
 } from "./lib/milestones";
 import {
+  FREE_MODE_RANK,
   RANKS,
   RANK_NEEDED,
-  aircraftRankNeeded,
   managementGate,
   nextRank,
   rankDef,
   rankGateMessage,
   startingRank,
+  type GameMode,
   type RankStats
 } from "./lib/airlineRank";
+import { classGateMessage, classesOfFleet, openClasses, type AircraftClassId } from "./lib/aircraftClasses";
+import { airportGate, exemptAirports, lockedSummary } from "./lib/airportAccess";
 import {
   buildYearSnapshot,
   describeGoal,
@@ -284,7 +287,7 @@ import {
   type AnnualGoal,
   type GoalOffer
 } from "./lib/annualGoals";
-import { setSlotPriceFactor } from "./lib/economyContext";
+import { setFeeFactor, setResaleBonus, setSlotPriceFactor } from "./lib/economyContext";
 import { ageYears, agedPopularity, fleetCommonality, fleetOwnershipCost } from "./lib/fleetCosts";
 import { ownerIncome, ownedAirports } from "./lib/hubOwnership";
 import { buildTakeover, takeoverQuote, withTakenSlots } from "./lib/takeover";
@@ -312,11 +315,16 @@ import {
 } from "./lib/careerScore";
 import { RetirementDialog } from "./components/RetirementDialog";
 import {
+  CLASS_PROJECTS,
   advanceResearch,
+  boostedEfficiency,
+  boostedPopularity,
   projectById,
   projectCost,
   researchEffects,
   startBlocker as researchBlocker,
+  projectsForClasses,
+  startingResearch,
   startProject
 } from "./lib/research";
 import {
@@ -584,6 +592,10 @@ export default function App() {
   /** What the finished development projects do; see research.ts. */
   const researchFx = useMemo(() => researchEffects(career.research.done), [career.research.done]);
   setSlotPriceFactor(perks.slotPriceFactor * researchFx.slotFactor);
+  setFeeFactor(researchFx.feeFactor);
+  setResaleBonus(researchFx.resaleBonus);
+  /** Free Mode: a Global Player from the first month, with nothing gated by rank. */
+  const freeMode = career.mode === 'free';
   /** Consecutive months closed without a loss, for the profit milestone. */
   const [profitStreak, setProfitStreak] = useState(0);
   /**
@@ -618,6 +630,8 @@ export default function App() {
   const [scenario, setScenario] = useState<ScenarioState | null>(null);
   /** The scenario picked on the new-game screen; null for free play. */
   const [newGameScenarioId, setNewGameScenarioId] = useState<string | null>(null);
+  /** Normal Mode or Free Mode, picked on the new-game screen (a scenario is always Normal Mode). */
+  const [newGameMode, setNewGameMode] = useState<GameMode>('normal');
   const newGameScenario = scenarioById(newGameScenarioId);
   /** The won-or-lost dialog, shown once after the close that decided the scenario. Not saved. */
   const [scenarioResultOpen, setScenarioResultOpen] = useState(false);
@@ -818,8 +832,8 @@ export default function App() {
 
   /** Resale value of the whole fleet, for the balance sheet. */
   const fleetValue = useMemo(
-    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue({ ...p, ageYears: ageYears(p, currentDateOffset) }), 0),
-    [fleet, currentDateOffset]
+    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue({ ...p, ageYears: ageYears(p, currentDateOffset), resaleBonus: researchFx.resaleBonus }), 0),
+    [fleet, currentDateOffset, researchFx.resaleBonus]
   );
   
   const [uiScaleSetting, setUiScaleSettingState] = useState(() => {
@@ -1101,12 +1115,33 @@ export default function App() {
   const commonality = useMemo(() => fleetCommonality(fleet), [fleet]);
 
   /** The figures the rank is judged on, as they stand now, for the Career tab. */
+  const yearsInBusiness = Math.max(0, Math.floor((currentDateOffset - startDateOffset) / 12));
   const rankStats = useMemo<RankStats>(() => ({
     routes: routes.length,
     monthlyPax: reportHistory.length > 0 ? Math.max(0, reportHistory[reportHistory.length - 1].paxTotal ?? 0) : 0,
     reputation,
-    regions: Object.values(regionRouteCounts).filter(n => n > 0).length
-  }), [routes.length, reportHistory, reputation, regionRouteCounts]);
+    regions: Object.values(regionRouteCounts).filter(n => n > 0).length,
+    years: yearsInBusiness
+  }), [routes.length, reportHistory, reputation, regionRouteCounts, yearsInBusiness]);
+
+  /**
+   * The aircraft classes the airline may buy: those it has developed (all of
+   * them in Free Mode) and every one it already flies, so a class is never
+   * taken away from a fleet. See aircraftClasses.ts.
+   */
+  const aircraftClassesOpen = useMemo<ReadonlySet<AircraftClassId>>(() => {
+    const open = openClasses(career.research.done, freeMode);
+    classesOfFleet(fleet).forEach(c => open.add(c));
+    return open;
+  }, [career.research.done, freeMode, fleet]);
+
+  /** Airports open whatever their level: the home airport, built-up ones and every one a route touches. */
+  const airportExempt = useMemo(() => exemptAirports(selectedHub, airportManagement, routes), [selectedHub, airportManagement, routes]);
+  /** Why an airport cannot be used at the current rank, or null; see airportAccess.ts. */
+  const airportRankGate = React.useCallback(
+    (airport: { id: string; name?: string; level?: number } | null | undefined) => airportGate(airport, career.rank, airportExempt),
+    [career.rank, airportExempt]
+  );
 
   /** The year of the chosen annual goal as it stands, for its progress bar. */
   const goalSnapshot = useMemo(
@@ -1128,12 +1163,14 @@ export default function App() {
   const score = useMemo(() => careerScore({
     netWorth: capital + fleetValue,
     rank: career.rank,
+    free: freeMode,
     milestones: milestones.length,
     reputation,
     takeovers: career.takeovers,
-    projectsDone: career.research.done.length,
+    // A Free Mode airline starts with every class developed; those do not count.
+    projectsDone: Math.max(0, career.research.done.length - (freeMode ? CLASS_PROJECTS.length : 0)),
     years: Math.floor((currentDateOffset - startDateOffset) / 12)
-  }), [capital, fleetValue, career.rank, milestones.length, reputation, career.takeovers, career.research.done.length, currentDateOffset, startDateOffset]);
+  }), [capital, fleetValue, career.rank, freeMode, milestones.length, reputation, career.takeovers, career.research.done.length, currentDateOffset, startDateOffset]);
 
   /** Files the career in the hall of fame and shows the final report; the game can carry on. */
   const handleRetire = () => {
@@ -1145,7 +1182,8 @@ export default function App() {
       rank: career.rank,
       years: Math.floor((currentDateOffset - startDateOffset) / 12),
       netWorth: capital + fleetValue,
-      filed: new Date().toISOString()
+      filed: new Date().toISOString(),
+      mode: career.mode
     };
     const position = hallPosition(hall, entry);
     const next = fileCareer(hall, entry);
@@ -1600,7 +1638,7 @@ export default function App() {
 
     // Every aircraft is insured and kept airworthy whether it flies or not, and
     // more so as it ages; see fleetCosts.ts.
-    const ownership = fleetOwnershipCost(fleet, flyingRegs, currentDateOffset);
+    const ownership = fleetOwnershipCost(fleet, flyingRegs, currentDateOffset, researchFx.maintenanceFactor);
     // The airports owned outright (management tier 3) collect from the rivals
     // that land there; see hubOwnership.ts.
     const hubIncome = ownerIncome(airportManagement, id => localAirportsMap.get(id)?.level ?? 1, aiAirlines);
@@ -1717,7 +1755,7 @@ export default function App() {
     // --- Rank -------------------------------------------------------------------
     // Judged on the month's final reputation, after the milestone bonuses. A
     // rank is never lost, so this only ever moves up.
-    const rankStats: RankStats = { routes: routes.length, monthlyPax, reputation: nextReputation, regions: regionCountNow };
+    const rankStats: RankStats = { routes: routes.length, monthlyPax, reputation: nextReputation, regions: regionCountNow, years: yearsInBusiness };
     const newRank = nextRank(career.rank, rankStats);
     const rankUps: { title: string; detail: string }[] = [];
     for (let r = career.rank + 1; r <= newRank; r++) {
@@ -2157,13 +2195,23 @@ export default function App() {
     // --- Development --------------------------------------------------------------
     const research = advanceResearch(nextCareer.research, currentDateOffset + 1);
     nextCareer.research = research.state;
+    // What the development tree has finished by now, this month's completions
+    // included, already acts on the month that starts.
+    const fxAfter = researchEffects(nextCareer.research.done);
+    const boost = (p: OwnedAircraft): OwnedAircraft => ({
+      ...p,
+      efficiency: boostedEfficiency(p.efficiency, fxAfter),
+      popularity: boostedPopularity(p.popularity, fxAfter)
+    });
     for (const project of research.completed) {
       additionalMessages.push({
         id: nextMessageId(),
         text: `DEVELOPMENT: "${project.title}" is complete.`,
         isRead: false,
         dateStr: offsetToDateStr(currentDateOffset),
-        details: { title: project.title, source: 'Development department', content: `${project.detail}\n\nThe effect is in place from next month.` }
+        details: { title: project.title, source: 'Development department', content: project.kind === 'class'
+          ? `${project.detail}\n\nThese aircraft can be bought, ordered and found second-hand from now on.`
+          : `${project.detail}\n\nThe effect is in place from next month.` }
       });
     }
 
@@ -2187,7 +2235,7 @@ export default function App() {
         purchasedAt: deliveryMonth
       });
       const launch = isLaunchDelivery(spec, deliveryMonth);
-      deliveredPlanes.push(...made.map(p => launch ? { ...p, popularity: p.popularity + LAUNCH_BONUS, launchBonusUntil: deliveryMonth + LAUNCH_BONUS_MONTHS } : p));
+      deliveredPlanes.push(...made.map(p => boost(launch ? { ...p, popularity: p.popularity + LAUNCH_BONUS, launchBonusUntil: deliveryMonth + LAUNCH_BONUS_MONTHS } : p)));
       additionalMessages.push({
         id: nextMessageId(),
         text: `DELIVERY: ${o.quantity} \u00d7 ${spec.manufacturer} ${spec.type} have arrived.`,
@@ -2370,7 +2418,7 @@ export default function App() {
               (won ? `Stars: ${earnedStars} of 3. Two for winning within three quarters of the time, three within half.\n\n` : '') +
               `Capital ${formatCurrency(closingCapital)}, ${routes.length} route${routes.length === 1 ? '' : 's'}, ` +
               `${fleet.length} aircraft, reputation ${Math.round(nextReputation)}.\n\n` +
-              `The airline is yours to fly on as a free game; the scenario is no longer judged.`
+              `The airline is yours to fly on without the scenario; it is no longer judged.`
           }
         });
       }
@@ -2517,7 +2565,7 @@ export default function App() {
       routesByAircraft[r.aircraft].push(r);
     });
 
-    // Process month effects 
+    // Process month effects
     setFleet(prevFleet => prevFleet.map(plane => {
       // Calculate weekly flight hours dynamically
       const aircraftRoutes = routesByAircraft[plane.registration] || [];
@@ -2542,26 +2590,34 @@ export default function App() {
       const IC_MONTHLY_CAP = 12 / 12;
       const GC_MONTHLY_CAP = 8 / 12;
 
-      const interiorDecay = Math.min(
+      // Protective materials (development) make both wear more slowly.
+      const interiorDecay = fxAfter.wearFactor * Math.min(
         monthlyFlightHours * INTERIOR_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH,
         IC_MONTHLY_CAP
       );
       // conditionGeneral previously never decreased at all, which made the general
       // check a pure money sink and the "< 40 %" fleet warning unreachable.
-      const airframeDecay = Math.min(
+      const airframeDecay = fxAfter.wearFactor * Math.min(
         monthlyFlightHours * AIRFRAME_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH,
         GC_MONTHLY_CAP
       );
 
       // Passengers like an old aircraft less, whatever its condition: the
       // type's popularity from the catalogue, less what its age takes.
-      const catalog = aircraftList.find(a => a.id === plane.id)?.popularity;
+      // The development tree adds points to both the type's popularity and the
+      // aircraft's efficiency, always counted from the catalogue so they never
+      // add up on themselves.
+      const spec = aircraftList.find(a => a.id === plane.id);
       const launchBonus = plane.launchBonusUntil !== undefined && nextOffset < plane.launchBonusUntil ? LAUNCH_BONUS : 0;
-      const popularity = catalog === undefined ? plane.popularity : agedPopularity(catalog, ageYears(plane, nextOffset)) + launchBonus;
+      const popularity = spec === undefined
+        ? plane.popularity
+        : boostedPopularity(agedPopularity(spec.popularity, ageYears(plane, nextOffset)) + launchBonus, fxAfter);
+      const efficiency = spec === undefined ? plane.efficiency : boostedEfficiency(spec.efficiency, fxAfter);
 
       return {
         ...plane,
         popularity,
+        efficiency,
         conditionInterior: Math.max(0, plane.conditionInterior - interiorDecay),
         conditionGeneral: Math.max(0, plane.conditionGeneral - airframeDecay)
       };
@@ -2754,8 +2810,8 @@ export default function App() {
    * company view, so they keep one identity and read the current cash, month
    * and campaigns from here rather than closing over a stale render.
    */
-  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank });
-  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank };
+  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, resaleBonus: researchFx.resaleBonus });
+  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, resaleBonus: researchFx.resaleBonus };
 
   /**
    * Books a campaign from this month on. It is paid month by month at each
@@ -2946,9 +3002,10 @@ export default function App() {
    * Picks free play (null) or a scenario on the new-game screen. A scenario
    * fills in the fields it sets, which stay locked while it is picked.
    */
-  const pickNewGameScenario = (id: string | null) => {
+  const pickNewGameScenario = (id: string | null, mode: GameMode = 'normal') => {
     if (id !== null && !scenarioUnlocked(id, scenarioStars)) return;
     setNewGameScenarioId(id);
+    setNewGameMode(id === null ? mode : 'normal');
     const chosen = scenarioById(id);
     if (!chosen) return;
     setSelectedHub(chosen.hub);
@@ -2981,11 +3038,22 @@ export default function App() {
     resetTransientGameState();
     // A new game offers the tutorial, unless it was switched off.
     const startFleet = chosen ? startingFleet(chosen) : [];
+    // A scenario is always Normal Mode: it is judged on what the airline earns.
+    const mode: GameMode = chosen ? 'normal' : newGameMode;
+    const startRank = mode === 'free'
+      ? FREE_MODE_RANK
+      : startingRank({ routes: 0, monthlyPax: 0, reputation: 50, regions: 0, years: 0 }, chosen?.startRank ?? 0);
     const systems: GameSystems = {
       ...createGameSystems(),
       career: {
         ...createGameSystems().career,
-        rank: startingRank({ routes: 0, monthlyPax: 0, reputation: 50, regions: 0 }, startFleet, chosen?.startRank ?? 0)
+        mode,
+        rank: startRank,
+        // The aircraft classes the rank has opened, and those the start fleet flies, are developed.
+        research: {
+          done: [...new Set([...startingResearch(startRank).done, ...projectsForClasses(classesOfFleet(startFleet))])],
+          active: []
+        }
       },
       branding: { ...(keepBranding ?? newGameBranding) },
       tutorialStep: gameSettings.tutorial ? 0 : null,
@@ -3062,7 +3130,7 @@ export default function App() {
   // can keep one identity for the life of the app; inline arrows here used to
   // defeat React.memo on every render of App.
   const handleSellAircraft = React.useCallback((plane: OwnedAircraft) => {
-    const value = getAircraftResaleValue({ ...plane, ageYears: ageYears(plane, marketingCtx.current.currentDateOffset) });
+    const value = getAircraftResaleValue({ ...plane, ageYears: ageYears(plane, marketingCtx.current.currentDateOffset), resaleBonus: marketingCtx.current.resaleBonus });
 
     // Recorded like any other one-off amount, so the month's report explains
     // the jump in capital instead of leaving it unaccounted for.
@@ -3098,7 +3166,12 @@ export default function App() {
    * the console's applied the tier's effects.
    */
   const handleUnlockManagement = (airportId: string, tier: ManagementLevel) => {
-    const gate = managementGate(tier, career.rank, perks.extraHubs, airportManagement, airportId);
+    const lock = airportRankGate(airportsMapAdjusted.get(airportId));
+    if (lock) {
+      setAppAlert(lock);
+      return;
+    }
+    const gate = managementGate(tier, career.rank, perks.extraHubs, airportManagement, airportId, freeMode);
     if (gate) {
       setAppAlert(gate);
       return;
@@ -3131,9 +3204,16 @@ export default function App() {
   /** The standard cabin a delivered or second-hand aircraft arrives with. */
   const plainCabin = (spec: Aircraft) => defaultCabin(spec);
 
+  /** A new aircraft with what the development tree adds to its efficiency and type satisfaction. */
+  const withDevelopment = (plane: OwnedAircraft): OwnedAircraft => ({
+    ...plane,
+    efficiency: boostedEfficiency(plane.efficiency, researchFx),
+    popularity: boostedPopularity(plane.popularity, researchFx)
+  });
+
   /** Places an order for aircraft not yet delivered. Pays the deposit now. */
   const handlePlaceOrder = (spec: Aircraft, quantity: number) => {
-    const gate = rankGateMessage(career.rank, aircraftRankNeeded(spec), `The ${spec.manufacturer} ${spec.type}`);
+    const gate = classGateMessage(spec, aircraftClassesOpen);
     if (gate) {
       setAppAlert(`${gate} Nothing was ordered.`);
       return;
@@ -3163,7 +3243,7 @@ export default function App() {
   const handleBuyUsed = (listing: UsedListing) => {
     const spec = aircraftList.find(a => a.id === listing.aircraftId);
     if (!spec) return;
-    const gate = rankGateMessage(career.rank, aircraftRankNeeded(spec), `The ${spec.manufacturer} ${spec.type}`);
+    const gate = classGateMessage(spec, aircraftClassesOpen);
     if (gate) {
       setAppAlert(`${gate} Nothing was bought.`);
       return;
@@ -3182,7 +3262,7 @@ export default function App() {
       purchasedAt: currentDateOffset - listing.ageMonths
     });
     spend(listing.price, 'Used Aircraft');
-    setFleet(prev => [...prev, { ...plane, conditionGeneral: listing.conditionGeneral, conditionInterior: listing.conditionInterior }]);
+    setFleet(prev => [...prev, withDevelopment({ ...plane, conditionGeneral: listing.conditionGeneral, conditionInterior: listing.conditionInterior })]);
     setCareer(prev => ({
       ...prev,
       usedSold: {
@@ -3296,7 +3376,7 @@ export default function App() {
   ) => {
     let isRenovating = 'registration' in aircraft;
     if (!isRenovating) {
-      const gate = rankGateMessage(career.rank, aircraftRankNeeded(aircraft), `The ${aircraft.manufacturer} ${aircraft.type}`);
+      const gate = classGateMessage(aircraft, aircraftClassesOpen);
       if (gate) {
         setAppAlert(`${gate} Nothing was bought.`);
         return;
@@ -3336,7 +3416,7 @@ export default function App() {
            existingRegistrations: fleet.map(p => p.registration),
            purchasedAt: currentDateOffset
          });
-         setFleet(prev => [...prev, ...newPlanes]);
+         setFleet(prev => [...prev, ...newPlanes.map(withDevelopment)]);
 
          if (isPurchasingForRoute) {
            const newReg = newPlanes[0].registration;
@@ -3675,8 +3755,8 @@ export default function App() {
                   </div>
                   <p className="text-2xs font-mono text-white/40 mb-4 leading-relaxed">
                     {won
-                      ? 'The result is written into your chronicle. Fly on as a free game, or leave for the main menu.'
-                      : 'The airline still flies: carry on as a free game, or start the scenario over.'}
+                      ? 'The result is written into your chronicle. Fly on without the scenario, or leave for the main menu.'
+                      : 'The airline still flies: carry on without the scenario, or start it over.'}
                   </p>
                   <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
                     {won ? (
@@ -3694,7 +3774,7 @@ export default function App() {
                           onClick={() => setScenarioResultOpen(false)}
                           className="px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
                         >
-                          Continue in free play
+                          Continue without the scenario
                         </button>
                       </>
                     ) : (
@@ -3704,7 +3784,7 @@ export default function App() {
                           onClick={() => setScenarioResultOpen(false)}
                           className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
                         >
-                          Continue in free play
+                          Continue without the scenario
                         </button>
                         <button
                           type="button"
@@ -3948,7 +4028,7 @@ export default function App() {
                   <div className="space-y-8 bar:space-y-5 max-w-2xl mx-auto short:max-w-none short:space-y-0 short:grid short:grid-cols-2 short:gap-x-6 short:gap-y-3">
                     <div className="space-y-4 short:space-y-2 short:col-span-2">
                       <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
-                      <ScenarioPicker selectedId={newGameScenarioId} onSelect={pickNewGameScenario} stars={scenarioStars} />
+                      <ScenarioPicker selectedId={newGameScenarioId} mode={newGameMode} onSelect={pickNewGameScenario} stars={scenarioStars} />
                       {newGameScenario && (
                         <p className="text-2xs text-white/40 italic">
                           {newGameScenario.title} sets the hub, start date, budget, difficulty and rivals below, so every
@@ -4611,11 +4691,11 @@ export default function App() {
                           currentDateOffset={currentDateOffset}
                           onSelectAircraft={setSelectedPurchasingAircraft}
                           debugMode={debugMode}
-                          rank={career.rank}
+                          classesOpen={aircraftClassesOpen}
                           market={{
                             currentDateOffset,
                             capital,
-                            rank: career.rank,
+                            classesOpen: aircraftClassesOpen,
                             orders: career.orders,
                             soldUsedIds: career.usedSold.offset === currentDateOffset ? career.usedSold.ids : [],
                             rivalNames: aiAirlines.map(a => a.name),
@@ -4692,6 +4772,7 @@ export default function App() {
                           onSelectAirport={setSelectedAirport}
                           airportManagement={airportManagement}
                           aiAirlines={aiAirlines}
+                          airportLock={airportRankGate}
                         />
                       </React.Suspense>
                     </ViewFrame>
@@ -4703,6 +4784,7 @@ export default function App() {
                           reportHistory={reportHistory}
                           reputation={reputation}
                           milestones={milestones}
+                          free={freeMode}
                           rank={career.rank}
                           rankStats={rankStats}
                           perks={perks}
@@ -4995,6 +5077,7 @@ export default function App() {
                           setActiveWindow('map');
                         }}
                         onUnlockManagement={handleUnlockManagement}
+                        airportLock={airportRankGate}
                         onUpdateInfrastructure={(airportId, infra) => {
                           setAirportManagement(prev => ({ ...prev, [airportId]: infra }));
                         }}
@@ -5016,8 +5099,9 @@ export default function App() {
                         transferHub={network.hubStats[selectedAirport.id]}
                         onNotify={setAppAlert}
                         gates={{
-                          tier2: managementGate(2, career.rank, perks.extraHubs, airportManagement, selectedAirport.id),
-                          tier3: managementGate(3, career.rank, perks.extraHubs, airportManagement, selectedAirport.id),
+                          airport: airportRankGate(selectedAirport),
+                          tier2: managementGate(2, career.rank, perks.extraHubs, airportManagement, selectedAirport.id, freeMode),
+                          tier3: managementGate(3, career.rank, perks.extraHubs, airportManagement, selectedAirport.id, freeMode),
                           vipLounge: rankGateMessage(career.rank, RANK_NEEDED.vipLounge, 'The VIP lounge')
                         }}
                         onClose={() => setSelectedAirport(null)}

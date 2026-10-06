@@ -117,7 +117,9 @@ test('a distressed rival is cheaper than a healthy one and needs a lower rank', 
   assert.match(distressed.blocked ?? '', /International/);
   assert.match(healthy.blocked ?? '', /Global Player/);
   assert.equal(takeoverQuote({ ...ai, forSale: true }, RANK_NEEDED.takeoverDistressed).blocked, null);
-  assert.ok(takeoverQuote({ ...ai, forSale: true }, 3).blocked === null && takeoverQuote({ ...ai, forSale: false }, 3).blocked !== null);
+  assert.ok(takeoverQuote({ ...ai, forSale: true }, RANK_NEEDED.takeoverDistressed).blocked === null && takeoverQuote({ ...ai, forSale: false }, RANK_NEEDED.takeoverDistressed).blocked !== null);
+  assert.equal(takeoverQuote({ ...ai, forSale: true }, RANK_NEEDED.takeoverDistressed - 1).blocked !== null, true);
+  assert.equal(takeoverQuote({ ...ai, forSale: false }, RANK_NEEDED.takeoverHealthy).blocked, null);
   assert.equal(takeoverQuote({ ...ai, forSale: false }, RANK_NEEDED.takeoverHealthy).blocked, null);
   assert.ok(distressed.price >= 1_000_000);
 });

@@ -2,7 +2,7 @@ import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
 import { routeCancelShare, routeDemandFactor, type PlayerModifiers } from './gameState';
-import { getSlotPriceFactor } from './economyContext';
+import { getFeeFactor, getSlotPriceFactor } from './economyContext';
 import { resaleAgeFactor } from './fleetCosts';
 import { hubFeeFactor } from './hubOwnership';
 import { realCostIndex } from './realCosts';
@@ -17,7 +17,8 @@ export function getAirportUpkeep(
 ) {
   const level = airport.level;
   const hubAutoUpgrade = infrastructure.level >= 2;
-  const idx = year === undefined ? 1 : realCostIndex(year);
+  // The development tree's saving on airport charges applies to the upkeep too.
+  const idx = (year === undefined ? 1 : realCostIndex(year)) * getFeeFactor();
 
   const slotCosts = {
     regional: Math.round(250 * idx),
@@ -975,6 +976,9 @@ export function calculateRouteFinancials(
   const hourlyCrewRate = (2 * 100) + (faCount * 40);
   // Pay above or below the market rate; ground staff below follow the crew.
   const costIndex = realCostIndex(currentYear);
+  // Development projects make the airport charges and the catering cheaper.
+  const feeFactor = mods?.feeFactor ?? 1;
+  const cateringFactor = mods?.cateringFactor ?? 1;
   const weeklyCrewCost = hourlyCrewRate * flightHoursWeekly * (mods?.crewCostFactor ?? 1) * costIndex;
   
   // Assuming staff cost is same as crew or similar if handled differently
@@ -990,12 +994,12 @@ export function calculateRouteFinancials(
   const originFeeFactor = hubFeeFactor(airportManagement[route.origin]?.level);
   const destFeeFactor = hubFeeFactor(airportManagement[route.destination]?.level);
 
-  const getLandingFee = (level: number, feeFactor: number, type: string) => {
+  const getLandingFee = (level: number, hubFactor: number, type: string) => {
     switch (type.toLowerCase()) {
-      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * feeFactor * costIndex);
-      case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * feeFactor * costIndex);
-      case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * feeFactor * costIndex);
-      default: return Math.floor(2200 * costIndex);
+      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * hubFactor * costIndex * feeFactor);
+      case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * hubFactor * costIndex * feeFactor);
+      case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * hubFactor * costIndex * feeFactor);
+      default: return Math.floor(2200 * costIndex * feeFactor);
     }
   };
 
@@ -1006,9 +1010,9 @@ export function calculateRouteFinancials(
   const originLandingFees = getLandingFee(originLevel, originFeeFactor, slotType) * weeklyFlights * flownShare;
   const destLandingFees = getLandingFee(destLevel, destFeeFactor, slotType) * weeklyFlights * flownShare;
 
-  const originCheckInUnit = (originHub ? 0.475 : 0.5) * costIndex;
-  const destCheckInUnit = (destHub ? 0.475 : 0.5) * costIndex;
-  const getPaxHandlingUnit = (level: number) => (level >= 5 ? 5 : level >= 3 ? 4 : 3) * costIndex;
+  const originCheckInUnit = (originHub ? 0.475 : 0.5) * costIndex * feeFactor;
+  const destCheckInUnit = (destHub ? 0.475 : 0.5) * costIndex * feeFactor;
+  const getPaxHandlingUnit = (level: number) => (level >= 5 ? 5 : level >= 3 ? 4 : 3) * costIndex * feeFactor;
 
   const timeClass = getFlightTimeClass(durMin);
 
@@ -1093,7 +1097,7 @@ export function calculateRouteFinancials(
     for (let i = 0; i < mealCount; i++) catSum += getCateringOpt(config.catering, i).cost;
     const extSum = getMultiOptionSum(config.extras, EXTRAS_OPTIONS).cost;
     const srvSum = getMultiOptionSum(config.service, SERVICE_OPTIONS).cost;
-    return catSum + extSum + srvSum;
+    return (catSum + extSum + srvSum) * cateringFactor;
   };
 
   // CALCULATE PAX AND DEPENDENT COSTS
@@ -1294,12 +1298,14 @@ export function getAircraftResaleValue(plane: {
   conditionInterior?: number;
   /** Years since it was bought; leave out for a figure that ignores age. */
   ageYears?: number;
+  /** What the development tree adds to the price: 0.02 = 2% more. */
+  resaleBonus?: number;
 }): number {
   const baseValue = plane.basePrice || 10000000;
   const condGenFactor = ((plane.conditionGeneral ?? 100) / 100) * 0.45;
   const condIntFactor = ((plane.conditionInterior ?? 100) / 100) * 0.15;
   const ageFactor = plane.ageYears === undefined ? 1 : resaleAgeFactor(plane.ageYears);
-  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor) * ageFactor);
+  return Math.round(baseValue * (0.30 + condGenFactor + condIntFactor) * ageFactor * (1 + Math.max(0, plane.resaleBonus ?? 0)));
 }
 
 /**

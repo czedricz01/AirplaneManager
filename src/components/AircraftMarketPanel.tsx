@@ -4,7 +4,7 @@ import { Panel } from './ui/Panel';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { aircraftList, type Aircraft } from '../data/aircraft';
-import { aircraftRankNeeded, rankGateMessage } from '../lib/airlineRank';
+import { classGateMessage, type AircraftClassId } from '../lib/aircraftClasses';
 import {
   ORDER_HORIZON, announcedAircraft, cancelRefund, orderBalance, quoteOrder, MAX_ORDER_SIZE, type PreOrder
 } from '../lib/preorders';
@@ -17,7 +17,8 @@ export interface AircraftMarketPanelProps {
   tab: MarketTab;
   currentDateOffset: number;
   capital: number;
-  rank: number;
+  /** The aircraft classes the airline has developed (or flies). */
+  classesOpen: ReadonlySet<AircraftClassId>;
   orders: PreOrder[];
   /** Used listings already bought this month. */
   soldUsedIds: string[];
@@ -31,7 +32,7 @@ export interface AircraftMarketPanelProps {
 const byId = new Map(aircraftList.map(a => [a.id, a]));
 const name = (a: Aircraft) => `${a.manufacturer} ${a.type}`;
 
-function OrdersTab({ currentDateOffset, capital, rank, orders, onOrder, onCancelOrder }: AircraftMarketPanelProps) {
+function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, onCancelOrder }: AircraftMarketPanelProps) {
   const announced = useMemo(() => announcedAircraft(aircraftList, currentDateOffset), [currentDateOffset]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   return (
@@ -83,7 +84,7 @@ function OrdersTab({ currentDateOffset, capital, rank, orders, onOrder, onCancel
             {announced.map(a => {
               const qty = quantities[a.id] ?? 1;
               const quote = quoteOrder(a, qty);
-              const gate = rankGateMessage(rank, aircraftRankNeeded(a), `The ${name(a)}`);
+              const gate = classGateMessage(a, classesOpen);
               const affordable = capital >= quote.deposit;
               return (
                 <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-white/[0.03] px-3 py-2 rounded-sm">
@@ -127,7 +128,7 @@ function OrdersTab({ currentDateOffset, capital, rank, orders, onOrder, onCancel
   );
 }
 
-function UsedTab({ currentDateOffset, capital, rank, soldUsedIds, rivalNames, onBuyUsed }: AircraftMarketPanelProps) {
+function UsedTab({ currentDateOffset, capital, classesOpen, soldUsedIds, rivalNames, onBuyUsed }: AircraftMarketPanelProps) {
   const listings = useMemo(() => usedListings(aircraftList, currentDateOffset, rivalNames), [currentDateOffset, rivalNames]);
   return (
     <Panel>
@@ -143,7 +144,7 @@ function UsedTab({ currentDateOffset, capital, rank, soldUsedIds, rivalNames, on
             const spec = byId.get(l.aircraftId);
             if (!spec) return null;
             const sold = soldUsedIds.includes(l.id);
-            const gate = rankGateMessage(rank, aircraftRankNeeded(spec), `The ${name(spec)}`);
+            const gate = classGateMessage(spec, classesOpen);
             const years = l.ageMonths / 12;
             return (
               <li key={l.id} className={`flex flex-wrap items-center justify-between gap-3 border border-white/10 px-3 py-2 rounded-sm ${sold ? 'opacity-40' : 'bg-white/[0.03]'}`}>

@@ -13,11 +13,14 @@ interface BadgeProps {
   tone?: BadgeTone;
   children: ReactNode;
   className?: string;
+  /** Shown on hover, for a badge that is only a short label. */
+  title?: string;
 }
 
-export function Badge({ tone = 'neutral', children, className = '' }: BadgeProps) {
+export function Badge({ tone = 'neutral', children, className = '', title }: BadgeProps) {
   return (
     <span
+      title={title}
       className={`inline-flex items-center gap-1 px-2 py-1 text-3xs font-mono font-bold uppercase tracking-widest border rounded-sm whitespace-nowrap ${TONE_CLASSES[tone]} ${className}`}
     >
       {children}

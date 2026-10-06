@@ -14,6 +14,8 @@ export interface ScoreInput {
   /** Cash plus the resale value of the fleet. */
   netWorth: number;
   rank: number;
+  /** Free Mode: there is no rank to earn, so it scores nothing. */
+  free?: boolean;
   milestones: number;
   reputation: number;
   takeovers: number;
@@ -33,10 +35,13 @@ export interface ScoreBreakdown {
   total: number;
 }
 
+/** Points per rank step; ten ranks make nine steps. */
+export const RANK_POINTS = 80;
+
 /** What each part of a career is worth, in points. */
 export function careerScore(input: ScoreInput): ScoreBreakdown {
   const wealth = Math.max(0, Math.round(100 * Math.log10(Math.max(1, input.netWorth / 1_000_000))));
-  const rank = 150 * Math.max(0, Math.round(input.rank));
+  const rank = input.free ? 0 : RANK_POINTS * Math.max(0, Math.round(input.rank));
   const milestones = 10 * Math.max(0, Math.round(input.milestones));
   const reputation = Math.round(2 * Math.max(0, Math.min(100, input.reputation)));
   const takeovers = 25 * Math.max(0, Math.round(input.takeovers));
@@ -60,6 +65,8 @@ export interface HallOfFameEntry {
   netWorth: number;
   /** ISO date the career was filed. */
   filed: string;
+  /** Free Mode careers are filed too, and marked as such; older entries are Normal Mode. */
+  mode?: 'normal' | 'free';
 }
 
 export const HALL_SIZE = 10;
@@ -87,7 +94,8 @@ export function normalizeHall(raw: unknown): HallOfFameEntry[] {
   ).map(e => ({
     id: e.id, airline: e.airline, code: typeof e.code === 'string' ? e.code : '', score: Math.round(e.score),
     rank: Number.isFinite(e.rank) ? e.rank : 0, years: Number.isFinite(e.years) ? e.years : 0,
-    netWorth: Number.isFinite(e.netWorth) ? e.netWorth : 0, filed: e.filed
+    netWorth: Number.isFinite(e.netWorth) ? e.netWorth : 0, filed: e.filed,
+    mode: (e as any).mode === 'free' ? 'free' as const : 'normal' as const
   }));
   return ok.sort((a, b) => b.score - a.score).slice(0, HALL_SIZE);
 }

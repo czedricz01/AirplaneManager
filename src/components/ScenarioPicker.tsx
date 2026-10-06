@@ -1,9 +1,10 @@
-import { Compass, Flag, Lock, Plane, Star, Wallet, Users } from 'lucide-react';
+import { Compass, Flag, Infinity, Lock, Plane, Star, Wallet, Users } from 'lucide-react';
 import { SCENARIOS, type Scenario, type ScenarioRating } from '../data/scenarios';
 import { aircraftList } from '../data/aircraft';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { formatMoneyCompact, formatMonthOffset } from '../lib/format';
 import { SCENARIO_ORDER, scenarioUnlocked, type ScenarioStars } from '../lib/careerScore';
+import type { GameMode } from '../lib/airlineRank';
 
 const RATING_TONE: Record<ScenarioRating, string> = {
   Moderate: 'text-aero-good border-aero-good/40',
@@ -22,18 +23,21 @@ function fleetLine(scenario: Scenario): string {
 }
 
 export interface ScenarioPickerProps {
-  /** The picked scenario's id; null for free play. */
+  /** The picked scenario's id; null for a game without one. */
   selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  /** Normal Mode or Free Mode, for a game without a scenario. */
+  mode: GameMode;
+  /** The picked scenario, or null with the mode picked. */
+  onSelect: (id: string | null, mode: GameMode) => void;
   /** Best stars earned per scenario; a scenario opens once the one before it has a star. */
   stars?: ScenarioStars;
 }
 
 /**
- * The new-game screen's mode picker: free play, or one of the scenarios, each
- * card saying where and when it starts, what it asks and with what.
+ * The new-game screen's mode picker: Normal Mode, Free Mode, or one of the
+ * scenarios, each card saying where and when it starts, what it asks and with what.
  */
-export function ScenarioPicker({ selectedId, onSelect, stars }: ScenarioPickerProps) {
+export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPickerProps) {
   const card = (selected: boolean) =>
     `relative w-full h-full flex flex-col items-stretch justify-start text-left p-4 short:p-3 border rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
       selected ? 'bg-aero-yellow/10 border-aero-yellow' : 'bg-aero-carbon border-white/10 hover:border-aero-yellow/50'
@@ -41,13 +45,26 @@ export function ScenarioPicker({ selectedId, onSelect, stars }: ScenarioPickerPr
 
   return (
     <div role="radiogroup" aria-label="Game mode" className="grid grid-cols-1 md:grid-cols-2 short:grid-cols-3 gap-3 short:gap-2">
-      <button type="button" role="radio" aria-checked={selectedId === null} onClick={() => onSelect(null)} className={card(selectedId === null)}>
+      <button type="button" role="radio" aria-checked={selectedId === null && mode === 'normal'} onClick={() => onSelect(null, 'normal')} className={card(selectedId === null && mode === 'normal')}>
         <div className="flex items-center gap-2 mb-2">
-          <Compass size={16} className={selectedId === null ? 'text-aero-yellow' : 'text-white/50'} aria-hidden="true" />
-          <span className="font-black uppercase tracking-widest text-sm text-white">Free Play</span>
+          <Compass size={16} className={selectedId === null && mode === 'normal' ? 'text-aero-yellow' : 'text-white/50'} aria-hidden="true" />
+          <span className="font-black uppercase tracking-widest text-sm text-white">Normal Mode</span>
         </div>
         <p className="text-2xs font-mono text-white/50 leading-relaxed">
-          Any hub, any year from 1960, your choice of money and rivals. No deadline and no goal but your own.
+          Start as a Startup and earn your way up ten ranks, from Local Airline to Global Player. Bigger airports,
+          more hubs and new aircraft classes open step by step. Any hub, any year from 1960, no deadline. The climb
+          takes years, so a late start leaves less time for it: Free Mode skips it.
+        </p>
+      </button>
+
+      <button type="button" role="radio" aria-checked={selectedId === null && mode === 'free'} onClick={() => onSelect(null, 'free')} className={card(selectedId === null && mode === 'free')}>
+        <div className="flex items-center gap-2 mb-2">
+          <Infinity size={16} className={selectedId === null && mode === 'free' ? 'text-aero-yellow' : 'text-white/50'} aria-hidden="true" />
+          <span className="font-black uppercase tracking-widest text-sm text-white">Free Mode</span>
+        </div>
+        <p className="text-2xs font-mono text-white/50 leading-relaxed">
+          Start as a Global Player: no rank to earn. Every airport, every aircraft class and every development
+          project is open from the first month, and the number of hubs is not limited. Build what you like.
         </p>
       </button>
 
@@ -65,7 +82,7 @@ export function ScenarioPicker({ selectedId, onSelect, stars }: ScenarioPickerPr
             role="radio"
             aria-checked={selected}
             aria-disabled={!open}
-            onClick={() => { if (open) onSelect(sc.id); }}
+            onClick={() => { if (open) onSelect(sc.id, 'normal'); }}
             className={`${card(selected)} ${open ? '' : 'opacity-50 cursor-not-allowed'}`}
           >
             {!open && (

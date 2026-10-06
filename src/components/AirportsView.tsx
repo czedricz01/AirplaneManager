@@ -6,7 +6,7 @@ import { Airport, getAirportStats } from '../data/airports';
 // entirely, so the demand column disagreed with what routes actually earned.
 import { airports } from '../data/airportRegistry';
 
-import { Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { ViewHeader } from './ui/ViewHeader';
 import { TableScrollContainer, Table, Thead, Th, Td } from './ui/Table';
 
@@ -18,9 +18,11 @@ interface Props {
   onSelectAirport?: (airport: Airport) => void;
   airportManagement: Record<string, import('../App').AirportInfrastructure>;
   aiAirlines?: any[];
+  /** Why an airport is closed at the airline's rank, or null when it is open; see airportAccess.ts. */
+  airportLock?: (airport: Airport) => string | null;
 }
 
-function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiAirlines }: Props) {
+function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiAirlines, airportLock }: Props) {
   const [search, setSearch] = useState("");
   const [icaoFilter, setIcaoFilter] = useState<string>("All");
   const [sortField, setSortField] = useState<SortField>('id');
@@ -220,18 +222,23 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
                 const aiSlotsUsed = aiSlotsByAirport.get(airport.id) || 0;
 
                 const availableSlots = Math.max(0, totalSlots - rentedSlots - aiSlotsUsed);
+                const lock = airportLock?.(airport) ?? null;
 
                 return (
                   <tr
                     key={`${airport.id}-${firstVisible + idx}`}
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer"
+                    title={lock ?? undefined}
+                    className={`border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer ${lock ? 'opacity-60' : ''}`}
                     onClick={() => onSelectAirport?.(airport)}
                   >
                     <Td className="pl-4 font-bold text-aero-yellow tracking-widest">
                       {airport.id}
                     </Td>
                     <Td>{airport.name}</Td>
-                    <Td className="text-xs font-mono">{airport.level}</Td>
+                    <Td className="text-xs font-mono">
+                      {airport.level}
+                      {lock && <Lock size={11} className="inline ml-1.5 text-aero-warn" aria-label="Closed at your rank" />}
+                    </Td>
                     <Td className="text-xs font-mono font-bold">{airport.maxIcaoCode}</Td>
                     <Td className="text-xs font-mono">{availableSlots} <span className="text-white/30">/</span> {totalSlots}</Td>
                     <Td className="text-xs font-mono">{businessDemand}</Td>

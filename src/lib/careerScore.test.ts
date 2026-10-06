@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  HALL_SIZE, SCENARIO_ORDER, bestStars, careerScore, fileCareer, hallPosition, normalizeHall, normalizeStars,
+  HALL_SIZE, RANK_POINTS, SCENARIO_ORDER, bestStars, careerScore, fileCareer, hallPosition, normalizeHall, normalizeStars,
   scenarioUnlocked, starsFor, type HallOfFameEntry
 } from './careerScore';
 import { SCENARIOS } from '../data/scenarios';
@@ -73,4 +73,19 @@ test('only a better result replaces the stars held, and saved stars are cleaned'
   assert.deepEqual(bestStars({}, 'oil-shock', 1), { 'oil-shock': 1 });
   assert.deepEqual(normalizeStars({ a: 2, b: 9, c: 0, d: 'x', e: -1 }), { a: 2, b: 3 });
   assert.deepEqual(normalizeStars(null), {});
+});
+
+test('a rank is worth points in Normal Mode and nothing in Free Mode', () => {
+  assert.equal(careerScore(input({ rank: 4 })).rank, 4 * RANK_POINTS);
+  assert.equal(careerScore(input({ rank: 9, free: true })).rank, 0, 'there is no rank to earn');
+  assert.ok(careerScore(input({ rank: 9 })).rank <= 9 * RANK_POINTS);
+});
+
+test('a Free Mode career is filed with its mode; older entries count as Normal Mode', () => {
+  const hall = normalizeHall([
+    { ...entry('a', 500), mode: 'free' },
+    entry('b', 400),
+    { ...entry('c', 300), mode: 'junk' }
+  ]);
+  assert.deepEqual(hall.map(e => e.mode), ['free', 'normal', 'normal']);
 });

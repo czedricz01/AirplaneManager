@@ -20,6 +20,7 @@ import { maturityFactors } from './routeMaturity';
 import type { GoalOffer } from './annualGoals';
 import type { PreOrder } from './preorders';
 import type { ResearchEffects, ResearchState } from './research';
+import type { GameMode } from './airlineRank';
 
 export { SALARY_PCT_MIN, SALARY_PCT_MAX } from './staff';
 export { combineCancelShares } from './disruptions';
@@ -273,7 +274,9 @@ export const CHRONICLE_LIMIT = 300;
  * annualGoals.ts.
  */
 export interface Career {
-  /** Index into RANKS. */
+  /** Normal Mode climbs the rank ladder; Free Mode is a Global Player from the start. */
+  mode: GameMode;
+  /** Index into RANKS; the top one in Free Mode. */
   rank: number;
   /** Passengers carried since the first month, every leg counted. */
   careerPax: number;
@@ -289,7 +292,7 @@ export interface Career {
   usedSold: { offset: number; ids: string[] };
 }
 
-export const DEFAULT_CAREER: Career = { rank: 0, careerPax: 0, goalOffer: null, takeovers: 0, orders: [], research: { done: [], active: [] }, usedSold: { offset: -1, ids: [] } };
+export const DEFAULT_CAREER: Career = { mode: 'normal', rank: 0, careerPax: 0, goalOffer: null, takeovers: 0, orders: [], research: { done: [], active: [] }, usedSold: { offset: -1, ids: [] } };
 
 /** Everything above, as it is saved, loaded and reset together. */
 export interface GameSystems {
@@ -367,6 +370,10 @@ export interface PlayerModifiers {
   satDelta?: number;
   /** Multiplies crew and ground staff cost. */
   crewCostFactor?: number;
+  /** Multiplies landing, passenger-handling and check-in fees. From the development tree. */
+  feeFactor?: number;
+  /** Multiplies the cost of meals, extras and service on board. From the development tree. */
+  cateringFactor?: number;
   /** Share of each route's flights that do not operate this month, by route id, 0-1. */
   cancelShare?: Record<string, number>;
   /**
@@ -480,6 +487,9 @@ export function buildPlayerModifiers(state: PlayerModifierState, offset: number)
     if (r.demandBonus) mods.demandFactor *= 1 + r.demandBonus;
     if (r.satBonus) mods.satDelta = (mods.satDelta ?? 0) + r.satBonus;
     if (r.transferBoost) mods.transferBoost = r.transferBoost;
+    if (r.crewFactor !== 1) mods.crewCostFactor = (mods.crewCostFactor ?? 1) * r.crewFactor;
+    if (r.feeFactor !== 1) mods.feeFactor = r.feeFactor;
+    if (r.cateringFactor !== 1) mods.cateringFactor = r.cateringFactor;
   }
   return mods;
 }

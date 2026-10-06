@@ -85,8 +85,12 @@ import {
   getFlightDurationMinutes,
   getManagementUnlockCost,
   applyManagementUnlock,
-  getInfraAvailability
+  getInfraAvailability,
+  getAircraftResaleValue
 } from './financeUtils';
+import { fleetOwnershipCost } from './fleetCosts';
+import { buildPlayerModifiers } from './gameState';
+import { researchEffects } from './research';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { aircraftList } from '../data/aircraft';
 
@@ -510,4 +514,43 @@ test('a route in its first months draws less demand than the same route once mat
   assert.ok(fresh.paxPerWeek < mature.paxPerWeek, 'ramping up carries fewer passengers');
   assert.ok(loyal.paxPerWeek >= mature.paxPerWeek, 'loyalty never carries fewer');
   assert.equal(price({ other: 0.6 }).paxPerWeek, mature.paxPerWeek, 'another route\'s ramp-up does not matter');
+});
+
+// --- What the development tree takes off the costs -------------------------------
+
+test('development projects make airport charges, catering and crews cheaper on the player\'s routes only', () => {
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const price = (mods?: ReturnType<typeof buildPlayerModifiers>) =>
+    calculateRouteFinancials(route, aircraft, 1, mgt, 1970, 6, 'Normal', airportsMapAdjusted, [route], [aircraft], false, mods?.demandFactor ?? 1, [], mods);
+  const none = buildPlayerModifiers({ reputation: 50, eventChoices: {}, research: researchEffects([]) }, 100);
+  const done = buildPlayerModifiers({
+    reputation: 50, eventChoices: {},
+    research: researchEffects(['fees-1', 'fees-2', 'catering-1', 'crew-1', 'crew-2'])
+  }, 100);
+  assert.equal(done.feeFactor, 0.98);
+  assert.equal(done.cateringFactor, 0.98);
+  assert.ok(Math.abs((done.crewCostFactor ?? 1) - 0.98) < 1e-12);
+  assert.equal(none.feeFactor, undefined, 'nothing developed changes nothing');
+  const a = price(none), b = price(done);
+  assert.equal(a.paxPerWeek, b.paxPerWeek, 'costs only: the passengers are the same');
+  assert.ok(b.costsBreakdown.landingFees < a.costsBreakdown.landingFees);
+  assert.ok(b.costsBreakdown.paxFees < a.costsBreakdown.paxFees);
+  assert.ok(b.costsBreakdown.catering < a.costsBreakdown.catering);
+  assert.ok(b.costsBreakdown.crew < a.costsBreakdown.crew);
+  assert.ok(Math.abs(b.costsBreakdown.landingFees / a.costsBreakdown.landingFees - 0.98) < 0.01);
+  assert.ok(b.estWeeklyProfit > a.estWeeklyProfit);
+  const rival = price(undefined);
+  assert.equal(rival.costsBreakdown.landingFees, a.costsBreakdown.landingFees, 'without modifiers (the rivals) nothing changes');
+});
+
+test('a development bonus on resale and on maintenance reaches the fleet\'s books', () => {
+  const plane = { basePrice: 50_000_000, conditionGeneral: 80, conditionInterior: 70, ageYears: 5 };
+  const plain = getAircraftResaleValue(plane);
+  assert.equal(getAircraftResaleValue({ ...plane, resaleBonus: 0 }), plain);
+  const better = getAircraftResaleValue({ ...plane, resaleBonus: researchEffects(['resale-1', 'resale-2']).resaleBonus });
+  assert.ok(Math.abs(better / plain - 1.025) < 0.001);
+  const fleet = [{ registration: 'A', basePrice: 50_000_000, purchasedAt: 0, family: 'x', type: 'x' }];
+  const cost = (factor: number) => fleetOwnershipCost(fleet, new Set(['A']), 120, factor).total;
+  assert.ok(cost(0.96) < cost(1));
+  assert.ok(cost(0.96) > cost(1) * 0.9, 'insurance is not part of the maintenance programme');
 });
