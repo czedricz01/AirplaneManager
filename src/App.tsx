@@ -177,6 +177,7 @@ function buildRivalOffers(ais: any[] | null | undefined) {
 }
 
 import { WorldMap } from "./components/WorldMap";
+import { HubPickerModal } from "./components/HubPickerModal";
 import { BrandingPicker } from "./components/BrandingPicker";
 import { IncidentList } from "./components/IncidentList";
 import { recolorClashingRivals } from "./lib/theme";
@@ -711,6 +712,7 @@ export default function App() {
   const [airlineName, setAirlineName] = useState("");
   const [airlineCode, setAirlineCode] = useState("");
   const [selectedHub, setSelectedHub] = useState<string>("FRA");
+  const [hubPickerOpen, setHubPickerOpen] = useState(false);
   /**
    * The home airports offered on the new-game screen. A Normal Mode startup
    * may only begin at an airport its rank allows (level 3); the great hubs are
@@ -4097,22 +4099,32 @@ export default function App() {
                         <label htmlFor="new-game-hub" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
                         <ScenarioLock scenario={newGameScenario} />
                       </div>
-                      <div className="relative w-full">
-                        <select 
-                          id="new-game-hub"
-                          value={selectedHub}
-                          disabled={!!newGameScenario}
-                          onChange={(e) => setSelectedHub(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 short:py-2.5 pl-4 pr-10 font-mono text-sm outline-none focus:border-aero-yellow text-white hover:border-aero-yellow/50 transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
-                        >
-                          {newGameHubChoices.map(a => (
-                            <option key={a.id} value={a.id}>{a.name} ({a.id}) - Level {a.level}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
+                      <button
+                        id="new-game-hub"
+                        type="button"
+                        disabled={!!newGameScenario}
+                        onClick={() => setHubPickerOpen(true)}
+                        className="relative w-full text-left bg-aero-carbon border border-white/10 p-4 short:py-2.5 pl-4 pr-10 font-mono text-sm text-white hover:border-aero-yellow/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
+                      >
+                        {(() => {
+                          const hubAirport = airportsMapAdjusted.get(selectedHub);
+                          return hubAirport ? `${hubAirport.name} (${hubAirport.id}) - Level ${hubAirport.level}` : selectedHub;
+                        })()}
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
                           <ChevronDown size={16} />
-                        </div>
-                      </div>
+                        </span>
+                      </button>
+                      {hubPickerOpen && !newGameScenario && (
+                        <HubPickerModal
+                          airports={airportsByName}
+                          maxLevel={newGameMode === 'normal' ? maxAirportLevel(0) : 7}
+                          rankTitle={rankDef(0).title}
+                          year={1960 + Math.floor(startDateOffset / 12)}
+                          selectedId={selectedHub}
+                          onSelect={setSelectedHub}
+                          onClose={() => setHubPickerOpen(false)}
+                        />
+                      )}
                     </div>
 
                     <div className="space-y-4 short:space-y-2">
