@@ -31,6 +31,11 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
   const [expandedMfgs, setExpandedMfgs] = useState<Set<string>>(new Set());
   const [expandedPlaneId, setExpandedPlaneId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  // Filters: first only aircraft the progression allows, then minimum range / seats and maximum price.
+  const [onlyPurchasable, setOnlyPurchasable] = useState(false);
+  const [minRange, setMinRange] = useState("");
+  const [minCapacity, setMinCapacity] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
 
   // Falls back to storage only when the prop is absent. This used to poll
   // localStorage every 500 ms for a value that already lives in App's state.
@@ -343,9 +348,13 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
           return false;
         }
       }
+      if (onlyPurchasable && classGateMessage(a, classesOpen)) return false;
+      if (minRange !== "" && a.maxRange < Number(minRange)) return false;
+      if (minCapacity !== "" && a.capacity < Number(minCapacity)) return false;
+      if (maxPrice !== "" && a.basePrice > Number(maxPrice)) return false;
       return true;
     });
-  }, [currentDateOffset, searchTerm, debugMode]);
+  }, [currentDateOffset, searchTerm, debugMode, onlyPurchasable, minRange, minCapacity, maxPrice, classesOpen]);
 
   // Group by manufacturer and family
   const grouped = useMemo(() => {
@@ -812,6 +821,47 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
           </div>
           </>
         )}
+
+        {/* Filters: purchasable first, then range, capacity and price */}
+        <div className="flex flex-wrap items-end gap-3 bg-black/40 border border-white/5 rounded-sm p-3 shrink-0 font-mono">
+          <button
+            type="button"
+            aria-pressed={onlyPurchasable}
+            onClick={() => setOnlyPurchasable(v => !v)}
+            className={`px-3 py-2 text-2xs uppercase tracking-widest border transition-colors flex items-center gap-1.5 ${
+              onlyPurchasable ? 'bg-aero-yellow/10 border-aero-yellow text-aero-yellow font-bold' : 'bg-black/40 border-white/10 text-white/50 hover:text-white'
+            }`}
+          >
+            <Lock size={12} aria-hidden="true" /> Only purchasable
+          </button>
+          {([
+            ['Min range (km)', minRange, setMinRange],
+            ['Min capacity (pax)', minCapacity, setMinCapacity],
+            ['Max price ($)', maxPrice, setMaxPrice],
+          ] as const).map(([label, value, set]) => (
+            <label key={label} className="flex flex-col gap-1 text-3xs uppercase tracking-widest text-white/40">
+              {label}
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={value}
+                onChange={e => set(e.target.value)}
+                className="w-36 bg-black/50 border border-white/10 rounded-sm px-2 py-1.5 text-xs text-white focus:outline-none focus:border-aero-yellow/50"
+              />
+            </label>
+          ))}
+          {(onlyPurchasable || minRange || minCapacity || maxPrice) && (
+            <button
+              type="button"
+              onClick={() => { setOnlyPurchasable(false); setMinRange(""); setMinCapacity(""); setMaxPrice(""); }}
+              className="px-3 py-2 text-2xs uppercase tracking-widest text-white/50 hover:text-aero-yellow"
+            >
+              Reset filters
+            </button>
+          )}
+          <span className="ml-auto text-2xs text-white/40">{availableAircraft.length} aircraft</span>
+        </div>
 
         {manufacturers.length === 0 ? (
           <div className="text-white/50 text-center uppercase tracking-widest mt-12 w-full">NO AIRCRAFT AVAILABLE IN THIS ERA.</div>
