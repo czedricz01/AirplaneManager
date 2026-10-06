@@ -883,3 +883,95 @@ Die beiden zuvor offenen Punkte sind behoben:
   gedrosseltem Netzwerk (40 KB/s) zeigt „Route Planner“ kurz die
   `LazyFallback`-Anzeige, bevor der Inhalt erscheint.
 - `server.ts` per `curl`: Traversal, SVG, fremde Hosts → 400; gültiger Upload ok.
+
+---
+
+# Teil F — Fortschritt und Tiefe (06.10.2026)
+
+Umgesetzt auf `claude/charming-wright-fi7mok` nach der Analyse „Wie wird die
+Progression interessanter?". Befund vorher: nach etwa zehn Spieljahren gab es kein
+neues Ziel, kein neues Werkzeug und keine Gefahr mehr; Geld häufte sich an, weil
+nichts davon abfloss. Jeder Punkt unten nennt Ort, Zahlen und Test.
+
+## F1 — Rang, Meilensteine, Jahresziele
+
+| Teil | Was | Ort |
+|---|---|---|
+| Rang | Startup → Regional → National → International → Flag Carrier → Global Player; verdient aus Routen, Passagieren/Monat, Ruf, Regionen; **fällt nie** | `src/lib/airlineRank.ts` |
+| Sperren | Großraumflugzeuge ab National, Überschall ab Flag Carrier, VIP-Lounge ab National, nationale Kampagnen und Vielfliegerprogramm ab Regional, globale Kampagnen ab International, T3 ab Flag Carrier, Hubs begrenzt (1/2/3/4/6/12) | `RANK_NEEDED`, `managementGate` |
+| Meilensteine | 7 → 31, in Bronze/Silber/Gold und „Feats"; Belohnung: Ruf, Prämie (0,5/3/15 Mio. $), Slotrabatt (bis −30 %), Gold: Platz für einen weiteren Hub | `src/lib/milestones.ts` |
+| Jahresziele | Jeden Dezember drei Angebote (Standard-Gewinn, ein Ziel anderer Art, Gewinn-Stretch); schwerer = mehr Belohnung, mehr Verlust bei Verfehlen; ohne Wahl gilt im Januar das erste | `src/lib/annualGoals.ts` |
+| Oberfläche | Neuer Reiter *Career* in My Company; Auswahldialog nach dem Dezemberabschluss | `CareerPanel.tsx`, `GoalOfferDialog.tsx` |
+
+Savegame **Version 6** (`career`-Block). Alte Spielstände bekommen einen Rang aus
+dem Stand ihrer Airline und behalten Großraumflugzeuge, die sie schon fliegen.
+Szenarien können einen Startrang setzen (`Scenario.startRank`).
+
+## F2 — Hub-Eigentum (T3), Flugzeugkosten, Routen-Anlauf
+
+* **T3** kostet jetzt Ebene × 25 Mio. $ (vorher × 500 Mio. $, ohne Wirkung): Lande- und
+  Schaltergebühren −15 % (T2: −5 %), Umsteigequalität +0,05, Rivalen dürfen keine
+  neuen Routen in den Flughafen eröffnen, die Hälfte der Landegebühren der Rivalen
+  geht an den Spieler (`src/lib/hubOwnership.ts`).
+* **Flugzeugkosten**: Versicherung 0,6 %/Jahr plus Wartung 3 % (neu) bis 8 % (25
+  Jahre alt) vom Listenpreis, geparkt halb. Restwert fällt mit dem Alter (−2 %/Jahr,
+  Boden 40 %), der Typ verliert nach acht Jahren bis zu 15 Beliebtheitspunkte
+  (`src/lib/fleetCosts.ts`). Der Bericht zeigt „Aircraft Ownership".
+* **Anlauf**: neue Route startet bei 60 % der Nachfrage, nach 9 Monaten 100 %, nach 2–4
+  Jahren bis +5 % Stammkunden. Alte Routen ohne Eröffnungsmonat gelten als reif
+  (`src/lib/routeMaturity.ts`).
+
+## F3 — Rivalen, Übernahmen, Personal, Kosten, Ereignisse
+
+* **Aggressive Rivalen**: Preiskampf (−12 % auf einer geteilten Strecke, ab Aggression
+  7), zweiter Hub ab 8 Flugzeugen und 100 Mio. $ (mit Vorliebe am Spielerhub).
+  Rivalen zahlen dieselben Flugzeugkosten, erleiden Rückschläge (0,5 %/Monat,
+  20–70 Mio. $) und der Zuschuss sinkt 1985–2005 von 450.000 auf 150.000 $.
+* **Insolvenz**: sechs Monate im Minus → zum Verkauf, zwölf Monate später aufgelöst,
+  ein neuer Rivale rückt nach. Simuliert über 36 Jahre (6 Rivalen): 1–5
+  Verkaufsfälle, 0–1 Auflösung.
+* **Übernahme** (`src/lib/takeover.ts`): ab International ein Rivale in Not (80 % des
+  Flottenwerts plus 250.000 $ je Route), ab Global Player auch ein gesunder (×2,5).
+  Flugzeuge mit Alter und Zustand plus die Slots am Heimatflughafen; die Routen
+  bleiben beim Verkäufer.
+* **Personal**: Arbeitsmarkt verschiebt den Lohn, bei dem die Crew zufrieden ist
+  (Boom +5…+10 Punkte, Flaute −4…−8): Marktlohn hält die Moral im Boom nicht mehr
+  bei 50 (`labourMarketPremium`).
+* **Kosten (W2, abweichend vom Vorschlag)**: Löhne und Flughafengebühren wachsen
+  real um 1,2 %/Jahr (2020 ≈ ×2). Eine nominale Inflation auf alles wurde bewusst
+  *nicht* eingebaut: das Spiel preist bereits in konstanten Dollar (Flugzeugpreise
+  steigen mit der Baureihe, Fares sind fix), eine zweite Inflation hätte doppelt
+  gezählt und Geld schneller anhäufen lassen (`src/lib/realCosts.ts`).
+* **Flottengleichheit**: Familie mit 3/6/12/25 Flugzeugen −4/−8/−12/−15 % Wartung,
+  jede Familie über drei +3 % auf alles (max. +30 %).
+* **Regionale Ereignisse**: elf historische (Pariser Generalstreik 1968, Fluglotsenstreik
+  1981, Asienkrise, SARS, Olympia, Aschewolke …) und drei zufällige. Strecke in der
+  Region: voll, mit einem Ende: halb, sonst nichts; Kraftstoff bleibt global
+  (`regionalDemandFactor`).
+
+## F4 — Bestellbuch, Gebrauchtmarkt, Entwicklung, Wertung
+
+* **Bestellbuch** (`src/lib/preorders.ts`): Typen, die in 12 Monaten erscheinen;
+  20 % Anzahlung, 12–20 % Rabatt, Lieferung nach der Erstauslieferung plus 1 + ⌊n/3⌋
+  Monate; ohne Geld rutscht die Lieferung bis zu dreimal, dann verfällt die Anzahlung.
+  Erstkunden: Beliebtheit +5 für 24 Monate.
+* **Gebrauchtmarkt** (`src/lib/usedMarket.ts`): sechs Angebote pro Monat, deterministisch
+  aus dem Monat gezogen, Typen ab fünf Jahren im Dienst, auch ausgelaufene.
+* **Entwicklung** (`src/lib/research.ts`): zehn Projekte (Kraftstoff ×2, Ertrag ×2,
+  Wartung, Crew-Akademie, Allianz, Slots, Kabine, Routenplanung), zwei parallel,
+  Kosten wachsen mit den Jahren.
+* **Wertung** (`src/lib/careerScore.ts`): Vermögen (Größenordnungen), Rang, Meilensteine,
+  Ruf, Übernahmen, Entwicklung, Jahre; jederzeit in den Ruhestand gehen (Bestenliste im
+  Browser, Weiterspielen möglich); alle zehn Jahre eine Zwischenbilanz. Szenarien: bis
+  zu drei Sterne nach Tempo, geordnet freigeschaltet (nur Jet Age ist offen).
+
+## F5 — Bekannte Grenzen und Hinweise
+
+* Der Haupt-Chunk wächst auf ~963 kB (vorher 902 kB), die Vite-Warnung bestand schon.
+* Im freien Spiel bleibt negatives Kapital folgenlos; Kredite und Insolvenz des Spielers
+  sind weiterhin nicht umgesetzt.
+* Bestellte und gebrauchte Flugzeuge kommen mit der Standard-Economy-Kabine.
+* `rivals do not hoard idle aircraft` (aiSimulation.test.ts) ist zufallsabhängig und
+  schlug einmal bei einem von mehreren Läufen fehl; in 15 Wiederholungen nie.
+* Die Zahlen (Rangschwellen, Rabatte, Kosten) sind erste Werte, die gegen Spielerfahrung
+  nachgezogen werden sollten; sie stehen jeweils als benannte Konstanten oben im Modul.
