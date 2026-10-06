@@ -799,6 +799,19 @@ export function seatWeightedSatisfaction(routeSat: Record<string, number>, confi
 /** Overpricing hits demand much harder than underpricing rewards it. */
 const OVERPRICE_ELASTICITY_FACTOR = 3;
 
+/**
+ * Above the fare not every passenger reacts alike. Most compare prices and
+ * leave quickly (the steep curve above); a quarter has to travel and is only
+ * unit-elastic: twice the fare halves them. So demand first drops steeply,
+ * then levels off instead of running to nothing.
+ *
+ * Unit elasticity is the bound that keeps this from being a lever: a fare
+ * above the market fare can never earn more than the market fare itself,
+ * because what this group pays in total stays the same however high it goes.
+ */
+export const PRICE_INSENSITIVE_SHARE = 0.25;
+const PRICE_INSENSITIVE_ELASTICITY = 1;
+
 export function getPriceDemandMultiplier(price: number, satBasePrice: number, sat: number) {
     // Nothing is worth zero, and a free ticket draws the most demand there is.
     // Without these two lines 0/0 and x/0 turned the whole route result into NaN.
@@ -806,10 +819,10 @@ export function getPriceDemandMultiplier(price: number, satBasePrice: number, sa
     if (!(price > 0)) return 1.5;
     const baseElasticity = 1.5;
     const elasticity = Math.max(0.5, baseElasticity - (sat / 200));
-    const overpriced = price > satBasePrice;
-    const effectiveElasticity = overpriced ? elasticity * OVERPRICE_ELASTICITY_FACTOR : elasticity;
-    const rawDemand = Math.pow(satBasePrice / price, effectiveElasticity);
-    return Math.min(1.5, rawDemand);
+    const appeal = satBasePrice / price;
+    if (price <= satBasePrice) return Math.min(1.5, Math.pow(appeal, elasticity));
+    return (1 - PRICE_INSENSITIVE_SHARE) * Math.pow(appeal, elasticity * OVERPRICE_ELASTICITY_FACTOR)
+      + PRICE_INSENSITIVE_SHARE * Math.pow(appeal, PRICE_INSENSITIVE_ELASTICITY);
 }
 
 /**
@@ -832,6 +845,29 @@ export function getPriceDemandMultiplier(price: number, satBasePrice: number, sa
  * costs passengers in every era. Flying at the base fare is unaffected.
  */
 export const MAX_DEMAND_SURPLUS = 1.0;
+
+/**
+ * How much more than the satisfaction-adjusted fare passengers accept when
+ * seats are scarce, at most.
+ *
+ * With the cap above alone, demand beyond the seats counted for nothing: a
+ * route with ten times the passengers it could carry priced exactly like one
+ * with just enough, and above the satisfaction fare it emptied just as fast.
+ * Scarce seats do sell dearer, but only a little and never without limit, so
+ * the premium grows with the fourth root of demand over seats and stops at
+ * 15%: 5% at 1.2 times the seats, 11% at 1.5 times, 15% from 1.75 times on.
+ * It is the same in every era and at every satisfaction, which is what the
+ * old surplus margin was not: there the premium grew with satisfaction and,
+ * before the margin, with the era's demand.
+ */
+export const MAX_SCARCITY_PREMIUM = 0.10;
+const SCARCITY_EXPONENT = 0.25;
+
+/** The multiplier on the satisfaction-adjusted fare for `demand` passengers wanting `seats` seats; 1 when they fit. */
+export function scarcityPremium(demand: number, seats: number): number {
+  if (!(seats > 0) || !(demand > seats)) return 1;
+  return Math.min(1 + MAX_SCARCITY_PREMIUM, Math.pow(demand / seats, SCARCITY_EXPONENT));
+}
 
 /**
  * One airline's offer on a city pair, for the market-share split below.
@@ -929,6 +965,29 @@ export function marketShare(ownAttractiveness: number, rivalAttractiveness: numb
   return ownAttractiveness / total;
 }
 
+/**
+ * Seats a regional aircraft needs to pay the full regional landing fee, and
+ * the smallest share of it any aircraft pays.
+ */
+export const REGIONAL_FEE_REFERENCE_SEATS = 100;
+export const REGIONAL_FEE_MIN_SHARE = 0.3;
+
+/**
+ * The share of its class's landing fee an aircraft pays.
+ *
+ * Real airports charge by take-off weight. The game charged one flat amount
+ * per class, so a 52-seat turboprop paid 80% of what a 180-seat jet paid:
+ * about $50 per seat and landing, two thirds of a 500 km fare. No regional
+ * aircraft of 1960 could break even on any route at any price. Regional
+ * aircraft now pay by size, measured in seats, up to the full fee at
+ * REGIONAL_FEE_REFERENCE_SEATS. Narrowbodies and widebodies are unchanged.
+ */
+export function landingFeeSizeFactor(seats: number | undefined, aircraftClass: string | undefined): number {
+  if (String(aircraftClass || 'regional').toLowerCase() !== 'regional') return 1;
+  if (!(Number(seats) > 0)) return 1;
+  return Math.max(REGIONAL_FEE_MIN_SHARE, Math.min(1, Number(seats) / REGIONAL_FEE_REFERENCE_SEATS));
+}
+
 // Full Financial Calculation
 export function calculateRouteFinancials(
   route: any,
@@ -994,9 +1053,10 @@ export function calculateRouteFinancials(
   const originFeeFactor = hubFeeFactor(airportManagement[route.origin]?.level);
   const destFeeFactor = hubFeeFactor(airportManagement[route.destination]?.level);
 
+  const sizeFactor = landingFeeSizeFactor(aircraft.capacity, aircraft.class);
   const getLandingFee = (level: number, hubFactor: number, type: string) => {
     switch (type.toLowerCase()) {
-      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * hubFactor * costIndex * feeFactor);
+      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * hubFactor * costIndex * feeFactor * sizeFactor);
       case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * hubFactor * costIndex * feeFactor);
       case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * hubFactor * costIndex * feeFactor);
       default: return Math.floor(2200 * costIndex * feeFactor);
@@ -1049,6 +1109,11 @@ export function calculateRouteFinancials(
    * so a cabin's load factor is (actual + transfer) / max.
    */
   const paxByClass: Record<string, { actual: number, max: number, transfer?: number }> = {};
+  /**
+   * Per cabin, the fare above which passengers start to stay away: the
+   * satisfaction-adjusted base fare times the scarcity premium.
+   */
+  const marketFare: Record<string, number> = {};
   // A route mid-creation carries `ticketPrices: {}` (and copies that into
   // `activeTicketPrices` too, see RoutePlannerView's routeDraft) until the
   // player's first price edit. `{}` is truthy, so `a || b || c` never reached
@@ -1112,7 +1177,6 @@ export function calculateRouteFinancials(
       // refit) is priced at the going rate rather than at `undefined`, which
       // made every figure of the route NaN.
       const price = Number.isFinite(ticketPrices[c]) ? ticketPrices[c] : satBase;
-      const demMult = getPriceDemandMultiplier(price, satBase, sat);
 
       // The share of this class's demand won against the rivals above. With
       // nobody else on the pair this is 1 and nothing changes.
@@ -1128,9 +1192,15 @@ export function calculateRouteFinancials(
       // Whole seats: with part of the timetable cancelled, flightLegs is a
       // fraction, and so would be every passenger count derived from it.
       const weeklySupply = Math.round(seats * flightLegs);
+      // Scarce seats sell a little dearer: the fare passengers measure the
+      // price against carries the scarcity premium.
+      const marketDemand = maxPax * share;
+      const fare = Math.round(satBase * scarcityPremium(marketDemand, weeklySupply));
+      marketFare[c] = fare;
+      const demMult = getPriceDemandMultiplier(price, fare, sat);
       // Demand beyond MAX_DEMAND_SURPLUS times what this route can carry is not
       // available to it at any price, so it cannot prop up an inflated fare.
-      const reachableDemand = Math.min(maxPax * share, weeklySupply * MAX_DEMAND_SURPLUS);
+      const reachableDemand = Math.min(marketDemand, weeklySupply * MAX_DEMAND_SURPLUS);
       const targetPax = Math.floor(reachableDemand * demMult);
 
       const actualPax = forceFullLoad ? weeklySupply : Math.min(weeklySupply, targetPax);
@@ -1200,6 +1270,7 @@ export function calculateRouteFinancials(
     estWeeklyRev: totalRev,
     paxPerWeek: totalPax,
     paxByClass,
+    marketFare,
     /** Connecting passengers per week, included in paxPerWeek. */
     transferPax,
     /** Their share of the fare, included in estWeeklyRev. */

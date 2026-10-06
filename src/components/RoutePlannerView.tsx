@@ -51,6 +51,8 @@ import {
   eventRegionalFactor,
   getSatMultiplier,
   getPriceDemandMultiplier,
+  MAX_SCARCITY_PREMIUM,
+  PRICE_INSENSITIVE_SHARE,
   validateClassConfigs,
   getFlightDurationMinutes as sharedFlightDurationMinutes,
   toStoredRouteMetrics,
@@ -1065,17 +1067,24 @@ function RoutePlannerInner({
     };
   }, [financials]);
 
+  // New fares start at what the market pays per cabin. They used to start at
+  // break-even at 75% load, which on a costly route lay far above that fare,
+  // so the first thing a player saw was a nearly empty aircraft at every
+  // price near the notch. Break-even is the fallback when no fare is known.
   useEffect(() => {
     if (step === 4 && basePricePoints && Object.keys(ticketPrices).length === 0) {
        const base = basePricePoints.be75;
+       const fare = saveFinancials?.marketFare ?? {};
+       const seed = (c: string, multiplier: number) =>
+         Math.round(fare[c] > 0 ? fare[c] : base * multiplier);
        setTicketPrices({
-         economy: Math.round(base),
-         premium: Math.round(base * 1.6),
-         business: Math.round(base * 3.0),
-         first: Math.round(base * 5.0)
+         economy: seed('economy', 1),
+         premium: seed('premium', 1.6),
+         business: seed('business', 3.0),
+         first: seed('first', 5.0)
        });
     }
-  }, [step, basePricePoints, ticketPrices]);
+  }, [step, basePricePoints, ticketPrices, saveFinancials]);
 
   useEffect(() => {
     onScheduleChange?.(schedule);
@@ -3431,8 +3440,18 @@ function RoutePlannerInner({
            // stays at the same relative spot on the bar either way, so a player
            // testing a much cheaper or much pricier fare isn't capped at the
            // 99%/35%-load break-even points.
-           const sliderMin = basePriceBE75 - 2 * (basePriceBE75 - basePriceBE99);
-           const sliderMax = basePriceBE75 + 2 * (basePriceBE35 - basePriceBE75);
+           // The bar also always reaches half and one and a half times the
+           // market fare, so on a route that costs more than passengers pay the
+           // fares that actually sell are still on it.
+           const marketFare: Record<string, number> = saveFinancials?.marketFare ?? {};
+           const fareRange = (min: number, max: number, fare: number | undefined) => fare && fare > 0
+             ? { min: Math.max(1, Math.min(min, fare * 0.5)), max: Math.max(max, fare * 1.5) }
+             : { min, max };
+           const { min: sliderMin, max: sliderMax } = fareRange(
+             basePriceBE75 - 2 * (basePriceBE75 - basePriceBE99),
+             basePriceBE75 + 2 * (basePriceBE35 - basePriceBE75),
+             marketFare.economy
+           );
            const tickPct = (value: number, min: number, max: number) => ((value - min) / (max - min)) * 100;
 
            const actualCapacity = aircraftConfig 
@@ -3641,7 +3660,8 @@ function RoutePlannerInner({
                                    const satBase = Math.round(base * satMultiplier);
                                    const currentPrice = ticketPrices[c] || satBase;
                                    const elasticity = Math.max(0.5, 1.5 - sat / 200);
-                                   const demMult = getPriceDemandMultiplier(currentPrice, satBase, sat);
+                                   const fare = saveFinancials.marketFare?.[c] ?? satBase;
+                                   const demMult = getPriceDemandMultiplier(currentPrice, fare, sat);
                                    const pax = saveFinancials.paxByClass[c];
                                    return (
                                       <div key={c} className="flex flex-col py-2 border-b border-white/5 last:border-0 gap-1">
@@ -3655,10 +3675,13 @@ function RoutePlannerInner({
                                             </div>
                                          )}
                                          <div className="flex justify-between pl-4 text-3xs">
-                                           <span>Price appeal: SAT base / price = {formatNumber(satBase / currentPrice, 2)}</span>
+                                           <span>Scarcity premium (demand over seats, at most +{Math.round(MAX_SCARCITY_PREMIUM * 100)}%): &times;{formatNumber(fare / Math.max(1, satBase), 3)} &rarr; market fare ${fare}</span>
                                          </div>
                                          <div className="flex justify-between pl-4 text-3xs">
-                                           <span>Demand mult: min(1.5, appeal^{formatNumber(elasticity, 2)})</span>
+                                           <span>Price ratio: market fare / price = {formatNumber(fare / currentPrice, 2)}</span>
+                                         </div>
+                                         <div className="flex justify-between pl-4 text-3xs">
+                                           <span>Demand mult: {currentPrice <= fare ? `min(1.5, ratio^${formatNumber(elasticity, 2)})` : `${formatNumber(1 - PRICE_INSENSITIVE_SHARE, 2)} × ratio^${formatNumber(elasticity * 3, 2)} + ${formatNumber(PRICE_INSENSITIVE_SHARE, 2)} × ratio`}</span>
                                            <span>{formatNumber(demMult * 100, 1)}%</span>
                                          </div>
                                          <div className="flex justify-between pl-4 text-3xs text-aero-yellow">
@@ -3713,6 +3736,13 @@ function RoutePlannerInner({
                                     title={`Break-even at 99% full: $${Math.round(basePriceBE99)}`}
                                     style={{ left: `calc(${tickPct(basePriceBE99, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE99, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                  />
+                                 {marketFare.economy > 0 && (
+                                   <div
+                                      className="absolute top-[20px] h-4 w-0.5 bg-emerald-400/80 pointer-events-none z-0"
+                                      title={`Economy market fare: $${marketFare.economy}. Above it, passengers stay away.`}
+                                      style={{ left: `calc(${tickPct(marketFare.economy, sliderMin, sliderMax)}% + ${8 - tickPct(marketFare.economy, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
+                                   />
+                                 )}
                                  <div
                                     className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
                                     title={`Break-even at 35% full: $${Math.round(basePriceBE35)}`}
@@ -3724,9 +3754,11 @@ function RoutePlannerInner({
                                  </div>
                                  <p className="text-2xs text-white/30 leading-relaxed mt-1">
                                    The notch is break-even at 75% full, a realistic year-round average; the two thin
-                                   ticks mark break-even at 99% and 35% full. Below them you are betting on filling
-                                   more seats than that; well above, passengers stop booking. The bar itself reaches
-                                   twice as far past both ticks for testing more extreme fares.
+                                   ticks mark break-even at 99% and 35% full. The green tick is the market fare: what
+                                   passengers pay for this cabin, up to {Math.round(MAX_SCARCITY_PREMIUM * 100)}% more when they want far more seats than
+                                   the route offers. Above it they stay away quickly. A route whose break-even lies
+                                   above the green tick loses money at any fare. The bar itself reaches twice as far
+                                   past both ticks for testing more extreme fares.
                                  </p>
                               </div>
                            </div>
@@ -3741,8 +3773,10 @@ function RoutePlannerInner({
                              const be35Price = Math.round(basePriceBE35 * multiplier);
                              // Same doubled headroom as the general-settings bar above, scaled
                              // by this class's price multiplier.
-                             const minPossiblePrice = Math.round(sliderMin * multiplier);
-                             const maxPossiblePrice = Math.round(sliderMax * multiplier);
+                             const classFare = marketFare[c];
+                             const classRange = fareRange(sliderMin * multiplier, sliderMax * multiplier, classFare);
+                             const minPossiblePrice = Math.round(classRange.min);
+                             const maxPossiblePrice = Math.round(classRange.max);
                              // Expected load of this cabin at today's demand: local
                              // passengers plus the connecting ones the network sells
                              // in it (the same figures as the expected-profit box).
@@ -3768,6 +3802,9 @@ function RoutePlannerInner({
                                      </div>
                                      <div className="flex flex-col items-end">
                                         <span className="text-2xl font-mono text-white font-bold">${currentPrice}</span>
+                                        {classFare > 0 && (
+                                          <span className="text-2xs font-mono text-emerald-400/80 mt-1">Market fare ${classFare}</span>
+                                        )}
                                      </div>
                                   </div>
                                   
@@ -3794,6 +3831,13 @@ function RoutePlannerInner({
                                         title={`Break-Even at 35% LF: $${be35Price}`}
                                         style={{ left: `calc(${tickPct(be35Price, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(be35Price, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                      />
+                                     {classFare > 0 && (
+                                       <div
+                                          className="absolute top-[20px] h-4 w-0.5 bg-emerald-400/80 pointer-events-none z-0"
+                                          title={`Market fare: $${classFare}. Above it, passengers stay away.`}
+                                          style={{ left: `calc(${tickPct(classFare, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(classFare, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
+                                       />
+                                     )}
                                      <div className="flex justify-between mt-2 px-1">
                                         <span className="text-2xs text-white/30 font-mono">${minPossiblePrice}</span>
                                         <span className="text-2xs text-white/30 font-mono">${maxPossiblePrice}</span>

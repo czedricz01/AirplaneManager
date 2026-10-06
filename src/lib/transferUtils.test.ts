@@ -50,7 +50,7 @@ function hubNetwork(hub: string, spokes: string[], opts: { aircraftId?: string; 
     const distance = Math.round(calculateDistance(o.coords[0], o.coords[1], d.coords[0], d.coords[1]));
     const bases = calculateBasePrices(distance, getFlightTimeClass(durMin));
     const ticketPrices = {
-      economy: Math.round(bases.economy * (opts.economyMarkup ?? 1.3)), premium: bases.premium, business: bases.business, first: bases.first
+      economy: Math.round(bases.economy * (opts.economyMarkup ?? 1.45)), premium: bases.premium, business: bases.business, first: bases.first
     };
     routes.push({
       id: `r${i}-${spoke}`, airline: 'My Airline', origin: hub, destination: spoke, aircraft: aircraft.registration,

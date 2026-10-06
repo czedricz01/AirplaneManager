@@ -523,6 +523,33 @@ Ausgearbeitet, aber nicht Teil von Paket 1. Reihenfolge nach Wirkung pro Aufwand
 > Hard 0,75, vorher 1,2 / 1,1 / 1,0) und `eraDemandFactor` (×1,00 in 1960, ×0,65
 > in 1990, ×0,40 ab 2020, dazwischen linear). Beim Median-Paar sättigt ein
 > Flugzeug mit 124 Sitzen damit 2018 ab etwa 30 statt 73 Rundflügen pro Woche.
+>
+> **Nachgezogen (Knappheitsaufschlag, Landegebühr nach Größe).** Mit dem Deckel
+> 1,0 zählte Nachfrage über den Sitzen gar nicht mehr: Die Auslastung hing nur
+> noch vom Preis ab, war bei 1 und 7 Flügen pro Woche gleich, und über dem
+> SAT-Basispreis brach sie sofort ein. Zusammen mit der pauschalen Landegebühr je
+> Klasse (ein 52-Sitzer zahlte 80 % dessen, was ein 180-Sitzer zahlte, rund 50 $
+> je Sitz und Landung) konnte 1960 kein Regionalflugzeug auf irgendeiner Strecke
+> die Kosten decken; der Planer setzte den Startpreis zudem auf Break-even bei
+> 75 % Auslastung, weit über dem Marktpreis, und zeigte so fast leere Flugzeuge.
+> Jetzt: `scarcityPremium` hebt den Preis, ab dem Passagiere wegbleiben, um
+> (Nachfrage/Sitze)^0,25, höchstens +10 % (`MAX_SCARCITY_PREMIUM`), gleich in
+> jeder Epoche und bei jeder SAT. Regionalflugzeuge zahlen die Landegebühr nach
+> Sitzen (`landingFeeSizeFactor`, volle Gebühr ab 100 Sitzen, mindestens 30 %).
+> Der Planer startet mit dem Marktpreis je Kabine und markiert ihn grün auf den
+> Preisreglern. Gemessen (Hard, 1960, Sitzladefaktor 100 %, inkl. Halterkosten):
+> AN-24 DUS–LHR vorher bestenfalls −7 k$/Woche, jetzt +5 bis +9 k$; F-27 −35 k$
+> → +13 k$. DUS–Izmir bleibt mit der AN-24 ein Verlust (5 h je Strecke mit
+> 450 km/h); mit einer Caravelle oder Comet ist sie hoch profitabel.
+>
+> **Preis-Nachfrage-Kurve flacht ab.** Über dem Marktpreis fiel die Nachfrage als
+> reine Potenzkurve mit Exponent 1,5–4,5 auf fast null. Jetzt reagiert ein Viertel
+> der Passagiere nur einfach elastisch (`PRICE_INSENSITIVE_SHARE`): bei SAT 120
+> bleiben bei doppeltem Marktpreis 24 % statt 15 %, bei dreifachem 12 % statt 5 %.
+> Weil diese Gruppe einfach elastisch ist, bringt ein Preis über dem Marktpreis
+> nie mehr Umsatz als der Marktpreis selbst. Gemessen an allen Zielen, die ein
+> Startup ab DUS 1960 erreichen darf (Flughafen-Level ≤ 4, AN-24 in Reichweite):
+> profitabel bei bestem Preis auf Hard vorher 0 von 152, jetzt 94; auf Normal 130.
 
 
 **Das Problem:** `calculateDemand` kennt keinen Wettbewerb. Zwei identische

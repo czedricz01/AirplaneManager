@@ -34,6 +34,23 @@ test('getPriceDemandMultiplier falls faster above the base price than it grows b
   assert.equal(underpriced, Math.pow(base / 80, elasticity), 'underpricing is unaffected by the overprice penalty');
 });
 
+test('above the fare demand first falls steeply, then levels off, and never pays more than the fare', () => {
+  const fare = 100;
+  for (const sat of [40, 100, 200]) {
+    const at = (p: number) => getPriceDemandMultiplier(p, fare, sat);
+    // Each further step up the price loses a smaller share of what is left.
+    const lossNear = 1 - at(130) / at(100);
+    const lossFar = 1 - at(300) / at(230);
+    assert.ok(lossFar < lossNear, `sat ${sat}: the curve flattens (${lossNear.toFixed(2)} then ${lossFar.toFixed(2)})`);
+    // The price-insensitive travellers remain however high the fare goes.
+    assert.ok(at(1000) > 0.25 * 0.1 * 0.99, `sat ${sat}: some passengers stay at ten times the fare`);
+    // Revenue per passenger the fare would have brought never grows above the fare.
+    for (const p of [101, 120, 150, 200, 400, 1000]) {
+      assert.ok(p * at(p) < fare, `sat ${sat}: charging ${p} earns less than the fare`);
+    }
+  }
+});
+
 test('getMultiOptionSum collapses a stale double-selection within a tiered family', () => {
   const bothWifiTiers = getMultiOptionSum(['wifi_limited', 'wifi_unlimited'], EXTRAS_OPTIONS);
   const unlimitedAlone = getMultiOptionSum(['wifi_unlimited'], EXTRAS_OPTIONS);
@@ -429,7 +446,7 @@ test('a fare that is missing or zero never turns the route result into NaN', () 
 
 // --- Demand level -------------------------------------------------------------
 
-import { calculateDemand, eraDemandFactor, getSatMultiplier, calculateBasePrices } from './financeUtils';
+import { calculateDemand, eraDemandFactor, getSatMultiplier, calculateBasePrices, scarcityPremium, MAX_SCARCITY_PREMIUM, landingFeeSizeFactor, REGIONAL_FEE_MIN_SHARE } from './financeUtils';
 
 test('the era factor keeps all of 1960, falls in a straight line, and holds after 2020', () => {
   assert.equal(eraDemandFactor(1960), 1);
@@ -481,7 +498,7 @@ test('the three difficulty levels are told apart by 0.9 : 1.1 : 0.75', () => {
   assert.ok(Math.abs(hard.total / normal.total - 0.75 / 0.9) < 0.001);
 });
 
-test('a full aircraft sells out at the base fare and loses passengers above it, however large the demand', () => {
+test('scarce seats sell a little above the base fare, and no further however large the demand', () => {
   const { aircraft, route, mgt } = sampleRoute(7);
   const run = (economy: number) => {
     const priced = { ...route, ticketPrices: { economy, business: 400 } };
@@ -495,13 +512,66 @@ test('a full aircraft sells out at the base fare and loses passengers above it, 
 
   const atBase = run(satBase);
   const seats = atBase.paxByClass.economy.max;
-  assert.ok(atBase.demandData.economy > 2 * seats, 'the market is several times the seats, so only the cap can matter');
+  assert.ok(atBase.demandData.economy > 2 * seats, 'the market is several times the seats');
   assert.equal(atBase.paxByClass.economy.actual, seats, 'the base fare fills the cabin');
+  assert.equal(atBase.marketFare.economy, Math.round(satBase * (1 + MAX_SCARCITY_PREMIUM)), 'the full premium applies');
 
-  // Above it, the passengers the cap used to hold back are gone. 3% is inside
-  // the 5% premium the old margin of 1.2 allowed, so this fails on the old cap.
-  const above = run(Math.round(satBase * 1.03));
-  assert.ok(above.paxByClass.economy.actual < seats, 'a fare 3% over the base does not fill the cabin');
+  // Inside the premium the surplus still fills the cabin; it used to count for nothing.
+  const inside = run(Math.round(satBase * 1.05));
+  assert.equal(inside.paxByClass.economy.actual, seats, 'a fare 5% over the base still fills the cabin');
+
+  // Past the premium passengers stay away, however large the demand.
+  const above = run(Math.round(satBase * (1 + MAX_SCARCITY_PREMIUM) * 1.05));
+  assert.ok(above.paxByClass.economy.actual < seats, 'a fare past the premium does not fill the cabin');
+});
+
+test('the scarcity premium grows with demand over seats and stops at its maximum', () => {
+  assert.equal(scarcityPremium(80, 100), 1, 'seats to spare: no premium');
+  assert.equal(scarcityPremium(100, 100), 1);
+  assert.equal(scarcityPremium(100, 0), 1, 'no seats: neutral, not infinite');
+  const small = scarcityPremium(110, 100);
+  const larger = scarcityPremium(130, 100);
+  assert.ok(small > 1 && larger > small, 'more demand per seat, more premium');
+  assert.equal(scarcityPremium(1_000_000, 100), 1 + MAX_SCARCITY_PREMIUM, 'capped');
+});
+
+test('with demand close to the seats, fewer flights fill better at the same fare', () => {
+  // Above the base fare the load depends on how scarce the seats are, so the
+  // same fare fills a thinner timetable better. It used to be the same load
+  // at any frequency.
+  const load = (weeklyFlights: number) => {
+    const { aircraft, route, mgt } = sampleRoute(weeklyFlights);
+    const probe = calculateRouteFinancials(route, aircraft, 1, mgt, 1960, 1, 'Hard', airportsMapAdjusted, [route], [aircraft]);
+    const satBase = Math.round(calculateBasePrices(probe.distance, probe.timeClass).economy * getSatMultiplier(probe.routeSat.economy));
+    const priced = { ...route, ticketPrices: { economy: Math.round(satBase * 1.06), business: 400 } };
+    const fin = calculateRouteFinancials(priced, aircraft, 1, mgt, 1960, 1, 'Hard', airportsMapAdjusted, [priced], [aircraft]);
+    return { lf: fin.paxByClass.economy.actual / fin.paxByClass.economy.max, ratio: fin.demandData.economy / fin.paxByClass.economy.max };
+  };
+  const thin = load(20);
+  const dense = load(27);
+  assert.ok(thin.ratio > 1 && dense.ratio < thin.ratio, `demand per seat ${thin.ratio.toFixed(2)} vs ${dense.ratio.toFixed(2)}`);
+  assert.ok(thin.lf > dense.lf, `load ${thin.lf.toFixed(2)} vs ${dense.lf.toFixed(2)}`);
+});
+
+test('regional aircraft pay landing fees by size; larger classes are unchanged', () => {
+  assert.equal(landingFeeSizeFactor(52, 'Regional'), 0.52);
+  assert.equal(landingFeeSizeFactor(120, 'Regional'), 1, 'never more than the full fee');
+  assert.equal(landingFeeSizeFactor(10, 'Regional'), REGIONAL_FEE_MIN_SHARE, 'never less than the floor');
+  assert.equal(landingFeeSizeFactor(52, 'Narrowbody'), 1);
+  assert.equal(landingFeeSizeFactor(300, 'Widebody'), 1);
+  assert.equal(landingFeeSizeFactor(undefined, 'Regional'), 1, 'unknown size pays the full fee');
+
+  const spec = aircraftList.find(a => a.id === 'f-27')!;
+  const make = (capacity: number) => ({
+    ...spec, capacity, registration: 'T-F27', purchasedAt: 0, conditionInterior: 90, conditionGeneral: 90, baseInteriorPop: 60,
+    config: { economy: capacity, premium: 0, business: 0, first: 0, details: {} }
+  });
+  const { route, mgt } = sampleRoute(7);
+  const fee = (capacity: number) => {
+    const aircraft = make(capacity);
+    return calculateRouteFinancials({ ...route, aircraft: 'T-F27' }, aircraft, 1, mgt, 1960, 6, 'Normal', airportsMapAdjusted, [route], [aircraft]).costsBreakdown.landingFees;
+  };
+  assert.ok(Math.abs(fee(50) / fee(100) - 0.5) < 0.01, 'half the seats, half the landing fee');
 });
 
 test('a route in its first months draws less demand than the same route once mature', () => {
