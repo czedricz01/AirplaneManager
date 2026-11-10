@@ -260,7 +260,7 @@ test('a cabin missing on one leg sells no connections in that cabin', () => {
   // First class only on the feeders into FRA from MAD, not on the one to VIE:
   // nobody books first on a trip whose second leg has no first cabin.
   const { routes, fleet, env } = hubNetwork('FRA', ['MAD', 'VIE']);
-  const local = new Map(routes.map(r => [r.id, {
+  const local = new Map<string, any>(routes.map(r => [r.id, {
     paxByClass: r.destination === 'MAD'
       ? { economy: { actual: 500, max: 1000 }, first: { actual: 0, max: 100 } }
       : { economy: { actual: 500, max: 1000 } }

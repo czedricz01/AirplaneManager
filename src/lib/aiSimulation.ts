@@ -851,7 +851,7 @@ export const simulateAiAirlinesTurn = (
 
     // Rivals insure and maintain their aircraft like the player does; an old
     // fleet, or one standing idle, costs them too.
-    const flyingRegs = new Set(newRoutes.map(r => r.aircraftReg));
+    const flyingRegs = new Set(newRoutes.map(r => r.aircraftReg).filter((reg): reg is string => typeof reg === 'string'));
     const upkeep = fleetOwnershipCost(
       newFleet.map(p => ({ registration: p.reg, basePrice: p.basePrice, purchasedAt: p.purchasedAt, family: p.family, type: p.type })),
       flyingRegs,

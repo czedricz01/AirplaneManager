@@ -151,7 +151,7 @@ test('findDayRunStart moves the run past a busy block on the same day', () => {
   const start = findDayRunStart(2, 2, 120, busy, 480);
   assert.ok(start !== null);
   for (let op = 0; op < 2; op++) {
-    const s = start! + op * 120;
+    const s: number = start! + op * 120;
     assert.equal(checkOverlap(s, s + 120, busy[0].start, busy[0].end), false);
   }
   assert.equal(start, 1440 + 720);

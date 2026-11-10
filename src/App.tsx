@@ -5452,7 +5452,7 @@ export default function App() {
           step={tutorialStep}
           state={tutorialState}
           currentView={tutorialView}
-          layoutKey={`${view}|${activeWindow}|${isPlanningRoute}|${selectedAirport?.id ?? ''}|${isEditingSchedule}|${finalUiScale}`}
+          layoutKey={`${view}|${activeWindow}|${isPlanningRoute}|${isEditingSchedule}|${finalUiScale}`}
           onGoTo={goToTutorialStep}
           onNavigate={showTutorialTarget}
         />

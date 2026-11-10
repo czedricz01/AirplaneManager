@@ -193,7 +193,7 @@ export function validateClassConfigs(classConfigs: any, selectedAircraft: any, a
     else allowedCategories.push('Luxury');
   }
 
-  const allowedPrefixes = [];
+  const allowedPrefixes: string[] = [];
   if (allowedCategories.includes('Basic')) allowedPrefixes.push('b');
   if (allowedCategories.includes('Standard')) allowedPrefixes.push('s');
   if (allowedCategories.includes('Premium')) allowedPrefixes.push('p');

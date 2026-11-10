@@ -116,8 +116,10 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
     }
     
     return result.sort((a, b) => {
-      let valA: any = a[sortField];
-      let valB: any = b[sortField];
+      // 'status' is not a field of the aircraft; it sorts as undefined, as it always has.
+      const field = sortField as keyof OwnedAircraft;
+      let valA: any = a[field];
+      let valB: any = b[field];
 
       if (sortField === 'popularity') {
          // The figure the column shows and the economy uses, not a variant of it.

@@ -267,7 +267,7 @@ const RouteLayer = React.memo(function RouteLayer({
     aiAirlines.forEach((airline, aiIdx) => {
       const style = rivalStyles[aiIdx];
       if (style && airline.routes && airline.routes.length > 0) {
-        airline.routes.forEach((r, routeIdx) => {
+        airline.routes.forEach((r: any, routeIdx: number) => {
           const a1 = airportsMapAdjusted.get(r.origin);
           const a2 = airportsMapAdjusted.get(r.destination);
           if (!a1 || !a2) return;

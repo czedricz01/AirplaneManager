@@ -280,7 +280,9 @@ function RoutePlannerInner({
   const activeConfigClass = ui.activeConfigClass;
   const setActiveConfigClass = (v: any) => setUi('activeConfigClass', typeof v === 'function' ? v(ui.activeConfigClass) : v);
   const expandedSections = ui.expandedSections;
-  const setExpandedSections = (v: any) => setUi('expandedSections', typeof v === 'function' ? v(ui.expandedSections) : v);
+  type ExpandedSections = typeof ui.expandedSections;
+  const setExpandedSections = (v: ExpandedSections | ((prev: ExpandedSections) => ExpandedSections)) =>
+    setUi('expandedSections', typeof v === 'function' ? v(ui.expandedSections) : v);
   const takeControl = ui.takeControl;
   const setTakeControl = (v: any) => setUi('takeControl', typeof v === 'function' ? v(ui.takeControl) : v);
   const setClassConfigs = (
@@ -1372,7 +1374,7 @@ function RoutePlannerInner({
 
      // Paid for on the spot, like every other one-off cost; a sale refunds at once.
      if (result.cost !== 0) onSubtractCapital?.(result.cost, SLOT_CAPEX_LABEL);
-     onUpdateInfrastructure(airportId, result.infra);
+     onUpdateInfrastructure?.(airportId, result.infra);
   };
 
   // Reset and Auto-set optimal start time logic
@@ -1745,7 +1747,7 @@ function RoutePlannerInner({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport(selectedOrigin)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => onGoToAirport?.(selectedOrigin)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
                        <button onClick={() => setOriginId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
                     </div>
                   </div>
@@ -1769,7 +1771,7 @@ function RoutePlannerInner({
                         </div>
                         {(airportManagement[selectedOrigin.id]?.level || 0) < 2 && (
                           <button 
-                             onClick={() => onUpdateInfrastructure(selectedOrigin.id, { ...airportManagement[selectedOrigin.id], autoBuyStands: !(airportManagement[selectedOrigin.id]?.autoBuyStands) })}
+                             onClick={() => onUpdateInfrastructure?.(selectedOrigin.id, { ...airportManagement[selectedOrigin.id], autoBuyStands: !(airportManagement[selectedOrigin.id]?.autoBuyStands) })}
                              className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedOrigin.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
                           >
                              AUTO-BUY: {airportManagement[selectedOrigin.id]?.autoBuyStands ? 'ON' : 'OFF'}
@@ -2138,7 +2140,7 @@ function RoutePlannerInner({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport(selectedDest)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => onGoToAirport?.(selectedDest)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
                        <button onClick={() => setDestId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
                     </div>
                   </div>
@@ -2213,7 +2215,7 @@ function RoutePlannerInner({
                          <p className="text-xs text-aero-warn mb-3 max-w-sm leading-relaxed">{airportLock(selectedDest)}</p>
                        )}
                        <button
-                         onClick={() => onUnlockManagement(selectedDest.id, 1)}
+                         onClick={() => onUnlockManagement?.(selectedDest.id, 1)}
                          disabled={!!airportLock?.(selectedDest)}
                          className="px-3 py-3 bg-aero-panel-2 text-white font-black uppercase text-sm hover:bg-aero-panel-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                        >
@@ -2241,7 +2243,7 @@ function RoutePlannerInner({
                           </div>
                           {(airportManagement[selectedDest.id]?.level || 0) < 2 && (
                             <button 
-                               onClick={() => onUpdateInfrastructure(selectedDest.id, { ...airportManagement[selectedDest.id], autoBuyStands: !(airportManagement[selectedDest.id]?.autoBuyStands) })}
+                               onClick={() => onUpdateInfrastructure?.(selectedDest.id, { ...airportManagement[selectedDest.id], autoBuyStands: !(airportManagement[selectedDest.id]?.autoBuyStands) })}
                                className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedDest.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
                             >
                                AUTO-BUY: {airportManagement[selectedDest.id]?.autoBuyStands ? 'ON' : 'OFF'}
@@ -2316,14 +2318,14 @@ function RoutePlannerInner({
                    </div>
                    <div className="flex justify-between font-mono text-xs text-white/70">
                      <span>{selectedOrigin.id}</span>
-                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
-                        {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0}
+                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                        {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
                    <div className="flex justify-between font-mono text-xs text-white/70">
                      <span>{selectedDest.id}</span>
-                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
-                        {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0}
+                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                        {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
                 </div>
@@ -3342,7 +3344,7 @@ function RoutePlannerInner({
               </div>
         )})()}
 
-        {step === 4 && financials && (() => {
+        {step === 4 && financials && selectedAircraft && selectedOrigin && selectedDest && (() => {
            const { 
               dist, flightLegs, weeklyFuelCost, weeklyCrewCost, weeklyInfraCost, 
               originDepartures, destDepartures, originLandingFees, destLandingFees,
