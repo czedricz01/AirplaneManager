@@ -132,7 +132,6 @@ export function AircraftSwapPanel(props: SwapProps) {
   }, [fleet, routes, plane.registration, moving, ctx]);
 
   const [selectedReg, setSelectedReg] = useState<string | null>(null);
-  const selected = candidates.find(c => c.plane.registration === selectedReg) || null;
 
   return (
     <div className="flex flex-col gap-3">

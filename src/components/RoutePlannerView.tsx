@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
-import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen, AlertTriangle, Eye, EyeOff, SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { Plane, ChevronRight, Map as MapIcon, Search, Plus, Minus, Check, ChevronDown, ChevronUp, Save, FolderOpen, AlertTriangle, Eye, EyeOff, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
 import { AirportInfrastructure, ManagementLevel } from '../App';
-import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
+import { SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerContext';
@@ -16,7 +16,7 @@ import { loadAircraftImagesMap } from '../lib/imageUtils';
 // this one, differing only in groupId being required. One type now.
 import type { ConfigOutput } from './ConfigurePurchaseView';
 import type { ScheduledTrip } from './RouteScheduleEditView';
-import { readJson, readString, writeJson } from '../lib/safeStorage';
+import { readJson, writeJson } from '../lib/safeStorage';
 import {
   NO_DESTINATION_FILTERS,
   activeDestinationFilterCount,
@@ -45,7 +45,6 @@ import {
   getFlightTimeClass,
   getCateringOpt,
   getMultiOptionSum,
-  TIME_CLASS_SAT_MULTIPLIERS,
   calculateDemand,
   calculateBasePrices,
   eventRegionalFactor,
@@ -58,7 +57,7 @@ import {
   toStoredRouteMetrics,
   marketKey,
   buildRivalRoutesByPair,
-  RouteOffer,
+  RouteOffer
 } from '../lib/financeUtils';
 import { NEUTRAL_PLAYER_MODIFIERS, routeDemandFactor, type PlayerModifiers } from '../lib/gameState';
 import { priceDraftInNetwork, type NetworkEnv } from '../lib/transferUtils';
@@ -168,25 +167,6 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
   );
 }
 
-function ConfigBox({ label, value }: { label: string, value: number }) {
-   return (
-      <div className="bg-black/40 border border-white/10 p-2 flex flex-col items-center justify-center">
-         <span className="text-4xs text-white/30 font-black uppercase tracking-widest mb-1">{label}</span>
-         <span className="text-xs font-black text-white">{value}</span>
-      </div>
-   );
-}
-
-function DetailMetric({ label, value, color }: { label: string, value: string, color?: string }) {
-   return (
-      <div className="flex flex-col gap-0.5">
-         <span className="text-2xs text-white/40 uppercase tracking-widest font-black">{label}</span>
-         <span className={`text-base font-black italic tracking-tighter ${color || 'text-white'}`}>{value}</span>
-      </div>
-   );
-}
-
-
 /**
  * The wizard's state lives in RoutePlannerProvider; see
  * routePlanner/RoutePlannerContext.tsx for why. This outer component exists
@@ -227,7 +207,7 @@ const aircraftImageName = (ac: OwnedAircraft) =>
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
   onUnlockManagement, airportLock, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, fuelPrice: playerFuelPrice, rivalOffers = NO_RIVAL_OFFERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
-  initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
+  initialOriginId, initialDestId, initialSelectedReg, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
   aiAirlines = NO_AI_AIRLINES,
@@ -283,10 +263,6 @@ function RoutePlannerInner({
     }, 0);
   };
 
-  const getAirportBonus = (airportId: string | null) => {
-    return 0; // Removed level-based bonus
-  };
-
   // Everything below reads the wizard state from the provider. The local names
   // are unchanged on purpose: the 3,000 lines of JSX further down did not have
   // to be touched, which is what makes this reviewable.
@@ -307,8 +283,6 @@ function RoutePlannerInner({
   const setExpandedSections = (v: any) => setUi('expandedSections', typeof v === 'function' ? v(ui.expandedSections) : v);
   const takeControl = ui.takeControl;
   const setTakeControl = (v: any) => setUi('takeControl', typeof v === 'function' ? v(ui.takeControl) : v);
-  const expandedMealCats = ui.expandedMealCats;
-  const setExpandedMealCats = (v: any) => setUi('expandedMealCats', typeof v === 'function' ? v(ui.expandedMealCats) : v);
   const setClassConfigs = (
     next: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)
   ) => {
@@ -319,13 +293,7 @@ function RoutePlannerInner({
   };
 
   useEffect(() => {
-    if (initialRouteId && (!initialClassConfigs || JSON.stringify(initialClassConfigs) === JSON.stringify({
-      general: { catering: [['none']], extras: ['none'], service: ['none'] },
-      economy: { catering: [['none']], extras: ['none'], service: ['none'] },
-      premium: { catering: [['none']], extras: ['none'], service: ['none'] },
-      business: { catering: [['none']], extras: ['none'], service: ['none'] },
-      first: { catering: [['none']], extras: ['none'], service: ['none'] }
-    }))) {
+    if (initialRouteId && (!initialClassConfigs || JSON.stringify(initialClassConfigs) === JSON.stringify(DEFAULT_CLASS_CONFIGS))) {
       const r = routes.find(rt => rt.id === initialRouteId);
       if (r && r.classConfigs) {
         setClassConfigs(r.classConfigs);
@@ -338,20 +306,8 @@ function RoutePlannerInner({
     onClassConfigsChange?.(classConfigs);
   }, [classConfigs, onClassConfigsChange]);
 
-  const showConfigSaveModal = ui.showConfigSaveModal;
   const setShowConfigSaveModal = (v: any) => setUi('showConfigSaveModal', typeof v === 'function' ? v(ui.showConfigSaveModal) : v);
-  const showConfigLoadModal = ui.showConfigLoadModal;
   const setShowConfigLoadModal = (v: any) => setUi('showConfigLoadModal', typeof v === 'function' ? v(ui.showConfigLoadModal) : v);
-  const newConfigName = ui.newConfigName;
-  const setNewConfigName = (v: any) => setUi('newConfigName', typeof v === 'function' ? v(ui.newConfigName) : v);
-
-
-
-
-
-
-
-
 
   const setOriginId = (id: string | null) => {
     dispatch({ type: 'selectOrigin', originId: id });
@@ -392,7 +348,7 @@ function RoutePlannerInner({
     if (incoming && selectedOrigin && selectedDest) {
       adapt = {
         durMin: sharedFlightDurationMinutes(selectedOrigin, selectedDest, incoming),
-        turnoverMin: incoming.class === 'Regional' ? 30 : incoming.class === 'Widebody' ? 90 : 60
+        turnoverMin: turnoverForClass(incoming.class)
       };
 
       const dist = Math.round(calculateDistance(
@@ -778,10 +734,8 @@ function RoutePlannerInner({
   const mgt = airportManagement || {};
   const originAvail = getInfraAvailability(selectedOrigin, currentYear);
   const destAvail = getInfraAvailability(selectedDest, currentYear);
-  const originMgtLvl = selectedOrigin ? (mgt[selectedOrigin.id]?.level || 0) : 0;
   const destMgtLvl = selectedDest ? (mgt[selectedDest.id]?.level || 0) : 0;
 
-  const isOneWay = false;
   const [isStopoverMode, setIsStopoverMode] = useState(false);
 
   const initialBase = React.useMemo(() => Math.floor(1000 + Math.random() * 8000), []);
@@ -854,17 +808,6 @@ function RoutePlannerInner({
          setFlightMinute(newTotal % 60);
     }
   }
-
-  // Time displayed in clock: Preparation Start (30m before departure)
-  const prepStartHour = Math.floor(((flightHour * 60 + flightMinute - 30 + 1440) % 1440) / 60);
-  const prepStartMin = (flightHour * 60 + flightMinute - 30 + 1440) % 60;
-
-  const handleSetPrepTime = (h: number, m: number) => {
-    // Convert prep start back to departure time
-    const depTotalMin = (h * 60 + m + 30) % 1440;
-    setFlightHour(Math.floor(depTotalMin / 60));
-    setFlightMinute(depTotalMin % 60);
-  };
 
   const daysOfWeek = [
     { id: 1, label: 'Mon' },
@@ -1482,9 +1425,6 @@ function RoutePlannerInner({
     let bestScore = -1;
     let bestResult = { hour: 8, minute: 0, autoSchedule: [] as ScheduledTrip[] };
 
-    // If no existing trips, randomize or pick a set time that works
-    const noExisting = existingTrips.length === 0;
-
     for (let totalMin = 0; totalMin < 1440; totalMin += 5) {
       const h = Math.floor(totalMin / 60);
       const m = totalMin % 60;
@@ -1564,8 +1504,6 @@ function RoutePlannerInner({
 
     return bestResult;
   };
-
-  const [showSuccessMsg, setShowSuccessMsg] = useState(false);
 
   const [multipleOps, setMultipleOps] = useState(1);
   const [maximizeFlights, setMaximizeFlights] = useState(false);
@@ -2656,7 +2594,6 @@ function RoutePlannerInner({
                               }
 
                               for (const testM of testTimes) {
-                                let conflict = false;
                                 let validDays = 0;
                                 for (const d of daysOfWeek) {
                                   let currentAbs = (d.id - 1) * 1440 + testM;
@@ -3407,7 +3344,7 @@ function RoutePlannerInner({
 
         {step === 4 && financials && (() => {
            const { 
-              dist, fuelPrice, flightLegs, weeklyFuelCost, weeklyCrewCost, weeklyInfraCost, 
+              dist, flightLegs, weeklyFuelCost, weeklyCrewCost, weeklyInfraCost, 
               originDepartures, destDepartures, originLandingFees, destLandingFees,
               originCheckInUnit, destCheckInUnit, originCheckInFees, destCheckInFees,
               originPaxFeeUnit, destPaxFeeUnit, originPaxHandlingFees, destPaxHandlingFees
@@ -3418,7 +3355,6 @@ function RoutePlannerInner({
            // block no longer recomputes the model on every keystroke.
            const displayFinancials = financials;
 
-           const totalExpenses = displayFinancials.estWeeklyCosts;
            const estProfit = displayFinancials.estWeeklyProfit;
            const paxPerWeek = displayFinancials.paxPerWeek;
            const maxRevenue = displayFinancials.estWeeklyRev;
@@ -3874,10 +3810,8 @@ function RoutePlannerInner({
                             // be a slider tick behind.
                             const stored = priceInNetwork(newRoute) ?? saveFinancials;
                             onSaveRoute({ ...newRoute, ...(stored ? toStoredRouteMetrics(stored) : {}) });
-                            setShowSuccessMsg(true);
                             later(() => {
                               onClose();
-                              setShowSuccessMsg(false);
                               setIsFinalizing(false);
                               setStep(1);
                               setOriginId(null);
@@ -3912,9 +3846,7 @@ function RoutePlannerInner({
                                 ticketPrices: ticketPrices || r.ticketPrices || { economy: 100 }
                               });
                             }
-                            setShowSuccessMsg(true);
                             later(() => {
-                              setShowSuccessMsg(false);
                               setIsFinalizing(false);
                               onClose();
                             }, 1500);

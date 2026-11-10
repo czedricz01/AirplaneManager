@@ -12,7 +12,6 @@ import {
   previousTutorialStep,
   restartTutorial,
   settleTutorialStep,
-  skipTutorial,
   type TutorialState,
   visibleCenter
 } from './tutorial';
@@ -53,8 +52,7 @@ test('back goes to the nearest step that would not finish at once', () => {
   assert.equal(previousTutorialStep(index('plan'), { ...fresh, fleetSize: 1 }), index('welcome'));
 });
 
-test('skip ends the tutorial, restart starts over, and the last step is known', () => {
-  assert.equal(skipTutorial(), null);
+test('restart starts over, and the last step is known', () => {
   assert.equal(restartTutorial(), 0);
   assert.equal(isLastTutorialStep(index('company')), true);
   assert.equal(isLastTutorialStep(index('report')), false);

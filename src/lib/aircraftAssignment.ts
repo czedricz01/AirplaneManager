@@ -306,7 +306,6 @@ export function checkReassignment(
   const notes: AssignmentNote[] = [];
   const movingIds = new Set(moving.map(r => r.id));
   const fleetByReg = new Map(ctx.fleet.map(p => [p.registration, p]));
-  const planeName = `${plane.registration} (${plane.manufacturer} ${plane.type})`;
 
   let patches = moving.map(r => adaptRoute(r, plane, ctx));
 

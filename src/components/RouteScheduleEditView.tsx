@@ -1,15 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, 
-  Clock, 
-  Calendar, 
-  ChevronRight, 
-  ChevronLeft, 
-  Plus, 
-  Minus, 
-  Check, 
-  Info,
+import {
+  X,
+  Calendar,
+  ChevronLeft,
+  Plus,
+  Minus,
+  Check,
   Save,
   Trash2,
   AlertCircle,
@@ -60,7 +57,6 @@ interface RouteScheduleEditViewProps {
   /** For the slot count: slots are rented per aircraft class. */
   fleet: OwnedAircraft[];
   airportManagement: Record<string, AirportInfrastructure>;
-  airlineCode: string;
   /**
    * The route is moving to `aircraft` from this registration (the route
    * page's "Change"). The editor then offers the aircraft's free time slots
@@ -81,7 +77,6 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   allRoutes,
   fleet,
   airportManagement,
-  airlineCode,
   reassignFrom,
   onSave,
   onClose
@@ -484,7 +479,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   // Pointer events rather than mouse events, so a block can be dragged with a
   // finger as well as a mouse; the block itself is touch-none so the drag does
   // not scroll the timetable instead.
-  const handleDragStart = (e: React.PointerEvent, dragTrip: ScheduledTrip) => {
+  const handleDragStart = (e: React.PointerEvent) => {
     e.preventDefault();
     const startY = e.clientY;
     
@@ -790,7 +785,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                               key={b.id} 
                               onPointerDown={(e) => {
                                  if (!b.isBusy) {
-                                     handleDragStart(e, b.s);
+                                     handleDragStart(e);
                                  }
                               }}
                               onClick={(e) => {

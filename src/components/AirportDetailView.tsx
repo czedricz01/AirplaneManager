@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info, ArrowRightLeft } from 'lucide-react';
-import { ManagementLevel, AirportInfrastructure } from '../App';
+import { AirportInfrastructure } from '../App';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';

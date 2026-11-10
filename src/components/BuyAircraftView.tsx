@@ -3,13 +3,11 @@ import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getExternalImageBaseUrl, setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
+import { setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
-import { SupabaseBucketModal } from './SupabaseBucketModal';
 import { ViewHeader } from './ui/ViewHeader';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
-import { readString } from '../lib/safeStorage';
 import { ALL_CLASS_IDS, classGateMessage, type AircraftClassId } from '../lib/aircraftClasses';
 
 const ALL_CLASSES_OPEN: ReadonlySet<AircraftClassId> = new Set(ALL_CLASS_IDS);

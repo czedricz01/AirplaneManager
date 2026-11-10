@@ -1,5 +1,5 @@
 import { monthlyOwnershipCost } from '../lib/fleetCosts';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { formatCurrency, routeFlightNumber } from '../lib/format';
 import type { OwnedAircraft } from './MyFleetView';
 import { Plane, Wrench, ShieldAlert, ArrowLeftRight } from 'lucide-react';

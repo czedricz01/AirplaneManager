@@ -74,5 +74,3 @@ export const airports: Airport[] = rawAirports.map(a => {
 /** Lookup over the adjusted list. This is what every screen should use. */
 export const airportsMapAdjusted = new Map<string, Airport>();
 for (const a of airports) airportsMapAdjusted.set(a.id, a);
-
-export const getAirport = (id: string): Airport | undefined => airportsMapAdjusted.get(id);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { airportRows } from './airportsRows';
-import { airports, getAirport, rawAirports } from './airportRegistry';
+import { airports, airportsMapAdjusted, rawAirports } from './airportRegistry';
 
 /**
  * The core list carried 19 ids twice (JNB SCL CPT LCA ASU MVD KRT FIH LAD LUN
@@ -25,7 +25,7 @@ test('no airport id appears twice in the generated rows', () => {
 test('the registry is a bijection between ids and airports', () => {
   assert.equal(new Set(airports.map(a => a.id)).size, airports.length);
   assert.equal(airports.length, rawAirports.length);
-  for (const a of airports) assert.equal(getAirport(a.id)?.id, a.id);
+  for (const a of airports) assert.equal(airportsMapAdjusted.get(a.id)?.id, a.id);
 });
 
 test('every airport has usable coordinates and a demand table', () => {

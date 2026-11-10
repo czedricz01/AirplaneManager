@@ -159,9 +159,6 @@ export function previousTutorialStep(step: number, state: TutorialState, steps: 
   return step;
 }
 
-/** Skipping ends the tutorial for this game only; whether new games offer it is a setting. */
-export const skipTutorial = (): null => null;
-
 /** Restarting starts over at the first step. */
 export const restartTutorial = (): number => 0;
 

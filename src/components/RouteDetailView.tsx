@@ -1,12 +1,11 @@
 import { maturityNote } from '../lib/routeMaturity';
 import { FinancialReport } from "./FinancialReport";
 import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport } from '../data/airports';
 
-import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import {
   getFlightTimeClass,
   calculateRouteFinancials,
@@ -17,7 +16,7 @@ import {
 import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers, type RouteCancellation } from '../lib/gameState';
 import type { RouteTransfer } from '../lib/transferUtils';
 
-import { airports, airportsMapAdjusted } from '../data/airportRegistry';
+import { airportsMapAdjusted } from '../data/airportRegistry';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
@@ -336,7 +335,6 @@ export function RouteDetailView({
                     const dep2 = formatTimeSpecial(base + 30 + s.durMin + s.turnoverMin);
                     const arr2 = formatTimeSpecial(base + 30 + s.durMin + s.turnoverMin + s.durMin);
                     const sortedDays = [...s.days].sort((a: number, b: number) => a - b);
-                    const daysStr = sortedDays.map((d: number) => dayNamesShort[d - 1]).join(", ");
                     
                     return (
                       <div key={`${s.flightNumOut}-${s.days[0]}`} className="bg-white/5 border border-white/10 p-3 rounded-sm group-hover:border-aero-yellow/30 transition-all">

@@ -183,8 +183,6 @@ export interface ResearchState {
   active: { id: string; startedOffset: number }[];
 }
 
-export const EMPTY_RESEARCH: ResearchState = { done: [], active: [] };
-
 /**
  * The state a new game starts with: the class projects of the ranks already
  * reached are done (a scenario that starts as a National Airline already flies

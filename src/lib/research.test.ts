@@ -2,11 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  CLASS_PROJECTS, EMPTY_RESEARCH, NEUTRAL_EFFECTS, PROJECTS, advanceResearch, boostedEfficiency, boostedPopularity,
+  CLASS_PROJECTS, NEUTRAL_EFFECTS, PROJECTS, advanceResearch, boostedEfficiency, boostedPopularity,
   maxParallel, normalizeResearch, projectById, projectCost, projectProgress, projectsForClasses, projectsOfRank,
   researchEffects, startBlocker, startProject, startingResearch
 } from './research';
 import { MAX_RANK, RANKS } from './airlineRank';
+
+import type { ResearchState } from './research';
+
+/** A development tree with nothing done or under way. */
+const EMPTY_RESEARCH: ResearchState = { done: [], active: [] };
 
 test('the tree has unique ids, real prerequisites and sensible figures', () => {
   assert.ok(PROJECTS.length >= 40, 'a deep tree');

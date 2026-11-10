@@ -30,10 +30,6 @@ export function setDecimalSymbol(symbol: DecimalSymbol) {
   locale = symbol === ',' ? 'de-DE' : 'en-US';
 }
 
-export function getNumberLocale(): string {
-  return locale;
-}
-
 const safe = (value: number) => (Number.isFinite(value) ? value : 0);
 
 /** $1,235 -- whole dollars unless `fractionDigits` asks for more. */

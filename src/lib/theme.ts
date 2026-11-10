@@ -10,10 +10,6 @@ export const PERSONALITY_META: Record<AiPersonality, { label: string; descriptio
   boutique: { label: 'Boutique/Elite', description: 'Boutique/Elite Status', tone: 'warn' },
 };
 
-export function personalityMeta(personality: AiPersonality | undefined) {
-  return personality ? PERSONALITY_META[personality] : undefined;
-}
-
 /** Aircraft condition thresholds shared by MyFleetView and AircraftDetailsModal. */
 export function conditionTone(value: number): 'warn' | 'yellow' | 'neutral' {
   if (value < 40) return 'warn';

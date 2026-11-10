@@ -15,7 +15,6 @@ export function getAirportUpkeep(
   /** The calendar year, for the real growth of airport charges; leave out for 1960 prices. */
   year?: number
 ) {
-  const level = airport.level;
   const hubAutoUpgrade = infrastructure.level >= 2;
   // The development tree's saving on airport charges applies to the upkeep too.
   const idx = (year === undefined ? 1 : realCostIndex(year)) * getFeeFactor();
@@ -555,8 +554,6 @@ export function calculateDemand(
     const businessRatio = totalInteraction > 0 ? businessInteraction / totalInteraction : 0.5;
     const premiumMultiplier = Math.pow(timeClass / 8, 0.7);
 
-    const firstPct = Math.max(0.01, 0.05 * businessRatio * Math.pow(premiumMultiplier, 1.5));
-    const busPct = Math.max(0.05, 0.15 * businessRatio * premiumMultiplier);
     const prePct = Math.max(0.10, 0.15 * (0.3 + 0.7 * businessRatio) * Math.sqrt(premiumMultiplier));
     
     // Lower premium economy demand by 10%

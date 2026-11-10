@@ -5,25 +5,20 @@ import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { useTapReveal } from './ui/useTapReveal';
 import { aiMonthlySubsidy } from '../lib/aiSimulation';
-import { 
-  Search, 
-  ChevronDown, 
-  ChevronUp, 
-  Users, 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Plus, 
-  Plane, 
-  Waypoints, 
-  Award, 
+import {
+  Search,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  Plane,
+  Waypoints,
+  Award,
   ArrowLeft,
   Activity,
   Shield,
   Coins,
   MapPin,
-  Calendar,
-  Briefcase,
   PieChart
 } from 'lucide-react';
 import { ViewHeader } from './ui/ViewHeader';
@@ -104,8 +99,6 @@ export interface AiAirline {
 interface Props {
   aiAirlines: AiAirline[];
   playerCapital: number;
-  playerFleetCount: number;
-  playerRoutesCount: number;
   playerAirlineName: string;
   playerAirlineCode: string;
   playerHub: string;
@@ -136,8 +129,6 @@ type SortDir = 'asc' | 'desc';
 function CompetitorsViewImpl({ 
   aiAirlines, 
   playerCapital, 
-  playerFleetCount, 
-  playerRoutesCount, 
   playerAirlineName, 
   playerAirlineCode, 
   playerHub,

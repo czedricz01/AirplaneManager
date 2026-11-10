@@ -9,7 +9,6 @@ import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import {
   getFlightTimeClass,
   getCateringOpt,
-  getMultiOptionSum,
   seatWeightedSatisfaction,
   TIME_CLASS_SAT_MULTIPLIERS
 } from '../lib/financeUtils';

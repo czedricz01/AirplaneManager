@@ -3,7 +3,7 @@ import { formatCurrency, formatNumber } from '../lib/format';
 import { getPlaneSat } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
 import type { OwnedAircraft } from './MyFleetView';
-import { Minus, Plus, ChevronLeft, Info, Settings, Wifi, Tv, X, Download, Trash2 } from 'lucide-react';
+import { Minus, Plus, Info, Settings, X, Download, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 // The shared version of what used to be a local SeatInfoTooltip here; the rest of
 // the interface needs the same affordance, so it now lives in its own module.

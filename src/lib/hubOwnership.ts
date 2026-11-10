@@ -72,11 +72,6 @@ export function ownerIncome(
   return { total: items.reduce((s, i) => s + i.amount, 0), items };
 }
 
-/** Whether a rival may open a new route into this airport: not a tier-3 airport of the player. */
-export function rivalMayEnter(airportId: string, management: Record<string, { level?: number } | undefined>): boolean {
-  return (management[airportId]?.level ?? 0) < TIER3;
-}
-
 /** The airports the player owns outright (management tier 3), closed to rivals' new routes. */
 export function ownedAirports(management: Record<string, { level?: number } | undefined> | null | undefined): Set<string> {
   return new Set(Object.entries(management || {}).filter(([, m]) => (m?.level ?? 0) >= TIER3).map(([id]) => id));

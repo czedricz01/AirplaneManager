@@ -6,19 +6,14 @@
 import React, { useState, ReactNode, useEffect, useRef, useMemo } from "react";
 import { FinancialReport } from "./components/FinancialReport";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  Plane, 
-  Map as MapIcon, 
-  Settings as SettingsIcon, 
-  Save, 
+import {
+  Plane,
+  Map as MapIcon,
   ChevronRight,
-  Globe,
   Navigation,
-  Wind,
   Bird,
   Maximize2,
   Minimize2,
-  Target,
   X,
   ShoppingCart,
   MapPin,
@@ -31,7 +26,6 @@ import {
   Bell,
   AlertTriangle,
   Trash2,
-  Edit2,
   Check,
   CheckCircle2,
   Newspaper,
@@ -40,7 +34,6 @@ import {
   RotateCcw
 } from "lucide-react";
 
-import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Airport, calculateDistance } from "./data/airports";
 import { airports, airportsMapAdjusted } from "./data/airportRegistry";
@@ -260,7 +253,6 @@ import {
 } from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
-  MILESTONES,
   describeReward,
   milestonePerks,
   newlyEarned as newlyEarnedMilestones,
@@ -269,7 +261,6 @@ import {
 } from "./lib/milestones";
 import {
   FREE_MODE_RANK,
-  RANKS,
   RANK_NEEDED,
   managementGate,
   nextRank,
@@ -280,14 +271,13 @@ import {
   type RankStats
 } from "./lib/airlineRank";
 import { classGateMessage, classesOfFleet, openClasses, type AircraftClassId } from "./lib/aircraftClasses";
-import { airportGate, exemptAirports, lockedSummary, maxAirportLevel } from "./lib/airportAccess";
+import { airportGate, exemptAirports, maxAirportLevel } from "./lib/airportAccess";
 import {
   buildYearSnapshot,
   describeGoal,
   generateGoalOffers,
   settleGoal,
-  type AnnualGoal,
-  type GoalOffer
+  type AnnualGoal
 } from "./lib/annualGoals";
 import { setFeeFactor, setResaleBonus, setSlotPriceFactor } from "./lib/economyContext";
 import { ageYears, agedPopularity, fleetCommonality, fleetOwnershipCost } from "./lib/fleetCosts";
@@ -395,7 +385,7 @@ import { Aircraft, aircraftList } from "./data/aircraft";
 import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey, eventScope, eventRegionLabel, type EventRegion } from "./lib/eventSystem";
 import { isMalusEvent, malusMonthOpen } from "./lib/malus";
 import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
-import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
+import { scenarioById, type Scenario } from "./data/scenarios";
 import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
 import { ScenarioPicker } from "./components/ScenarioPicker";
@@ -424,7 +414,7 @@ import {
 
 
 type ViewState = 'login' | 'main-menu' | 'start-menu' | 'monthly-overview' | 'game';
-type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'progression' | 'competitors' | 'new-route';
+type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'progression' | 'competitors';
 
 
 export type ManagementLevel = 0 | 1 | 2 | 3; // 0: None, 1: Basic, 2: Hub, 3: Owner
@@ -697,13 +687,6 @@ export default function App() {
    */
   const [reportHistory, setReportHistory] = useState<any[]>([]);
   const latestReport = reportHistory.length > 0 ? reportHistory[reportHistory.length - 1] : null;
-  const [openReportCategories, setOpenReportCategories] = useState<string[]>([]);
-  
-  const toggleReportCategory = (category: string) => {
-    setOpenReportCategories(prev => 
-      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
-    );
-  };
 
   // Routes used to be mirrored to an unscoped `neo_routes` key on every change:
   // a full serialisation per edit, shared between accounts on one browser, and
@@ -879,7 +862,9 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Hub Migration: assign a hub to existing aircraft if they have routes
+  // An aircraft without a hub is based where its first route starts. This is
+  // the one place that rule lives: it covers a route saved in the planner, a
+  // route moved to another aircraft, and old savegames without hubs.
   useEffect(() => {
     if (fleet.length > 0 && routes.length > 0) {
       let changed = false;
@@ -1448,18 +1433,6 @@ export default function App() {
   }, [gameSettings]);
 
 
-  // Fix for Leaflet marker icons in React
-  useEffect(() => {
-    // @ts-ignore
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
-  }, []);
-
-
   const visibleAirports = useMemo(() => {
     return airports.filter(airport => {
       const isManaged = (airportManagement[airport.id]?.level || 0) > 0;
@@ -1744,7 +1717,6 @@ export default function App() {
     );
     // Money the board and the sponsors pay out this close; settled once, below.
     let awardsCash = 0;
-    const awardLines: string[] = [];
 
     const mctx: MilestoneContext = {
       routeCount: routes.length,
@@ -3355,13 +3327,6 @@ export default function App() {
       const p = byId.get(r.id);
       return p ? ({ ...r, ...p } as SimulatedRoute) : r;
     }));
-    // The same rule as a route saved in the planner: an aircraft without a hub
-    // is based where its route starts.
-    setFleet(prev => prev.map(plane => {
-      if (plane.hubId) return plane;
-      const first = patches.find(p => p.aircraft === plane.registration);
-      return first ? { ...plane, hubId: first.origin } : plane;
-    }));
     setToast(note);
   }, []);
 
@@ -3410,7 +3375,7 @@ export default function App() {
     baseInteriorPop: number,
     totalCost: number
   ) => {
-    let isRenovating = 'registration' in aircraft;
+    const isRenovating = 'registration' in aircraft;
     if (!isRenovating) {
       const gate = classGateMessage(aircraft, aircraftClassesOpen);
       if (gate) {
@@ -3425,68 +3390,56 @@ export default function App() {
       );
       return;
     }
-    if (capital >= totalCost) {
-      spend(totalCost, isRenovating ? 'Cabin Refits' : 'Aircraft Purchases');
-      
-      if (isRenovating) {
-         setFleet(prev => prev.map(p => {
-           if (p.registration === (aircraft as any).registration) {
-             const refits = p.refitsDone || 0;
-             let restorePercent = 90 - (refits * 10);
-             restorePercent = Math.max(30, restorePercent); // floor at 30% or maybe 0, assuming 30
-             return {
-               ...p,
-               config,
-               baseInteriorPop,
-               refitsDone: refits + 1,
-               conditionInterior: Math.min(100, Math.max(p.conditionInterior, restorePercent))
-             };
-           }
-           return p;
-         }));
-      } else {
-         const newPlanes = createOwnedAircraft(aircraft, quantity, {
-           config,
-           baseInteriorPop,
-           hub: selectedHub || 'FRA',
-           existingRegistrations: fleet.map(p => p.registration),
-           purchasedAt: currentDateOffset
-         });
-         setFleet(prev => [...prev, ...newPlanes.map(withDevelopment)]);
+    spend(totalCost, isRenovating ? 'Cabin Refits' : 'Aircraft Purchases');
 
-         if (isPurchasingForRoute) {
-           const newReg = newPlanes[0].registration;
-           if (planningOriginId && planningDestId) {
-             const origin = airportsMapAdjusted.get(planningOriginId);
-             const dest = airportsMapAdjusted.get(planningDestId);
-             if (origin && dest) {
-               const dist = calculateDistance(origin.coords[0], origin.coords[1], dest.coords[0], dest.coords[1]);
-               if (dist > aircraft.maxRange) {
-                 setAppAlert(`Warning: The aircraft ${newReg} (${aircraft.type}) was purchased, but with ${formatNumber(aircraft.maxRange)}km it does not have enough range for the planned route (${formatNumber(Math.round(dist))}km).`);
-                 setIsPurchasingForRoute(false);
-                 setSelectedPurchasingAircraft(null);
-                 return;
-               } else {
-                 setPlanningReg(newReg);
-                 setIsPlanningRoute(true);
-               }
-             } else {
-               setPlanningReg(newReg);
-               setIsPlanningRoute(true);
-             }
-           } else {
-             setPlanningReg(newReg);
-             setIsPlanningRoute(true);
-           }
-           setIsPurchasingForRoute(false);
-           setSelectedPurchasingAircraft(null);
-           setActiveWindow('map');
-           return;
-         }
+    if (isRenovating) {
+      const registration = (aircraft as OwnedAircraft).registration;
+      setFleet(prev => prev.map(p => {
+        if (p.registration !== registration) return p;
+        // Each refit restores less than the one before: 90%, 80%, ... never under 30%.
+        const refits = p.refitsDone || 0;
+        const restorePercent = Math.max(30, 90 - refits * 10);
+        return {
+          ...p,
+          config,
+          baseInteriorPop,
+          refitsDone: refits + 1,
+          conditionInterior: Math.min(100, Math.max(p.conditionInterior, restorePercent))
+        };
+      }));
+    } else {
+      const newPlanes = createOwnedAircraft(aircraft, quantity, {
+        config,
+        baseInteriorPop,
+        hub: selectedHub || 'FRA',
+        existingRegistrations: fleet.map(p => p.registration),
+        purchasedAt: currentDateOffset
+      });
+      setFleet(prev => [...prev, ...newPlanes.map(withDevelopment)]);
+
+      if (isPurchasingForRoute) {
+        // Bought from the planner: go back to it with the new aircraft, unless
+        // it cannot fly the route that was being planned.
+        const newReg = newPlanes[0].registration;
+        const origin = planningOriginId ? airportsMapAdjusted.get(planningOriginId) : undefined;
+        const dest = planningDestId ? airportsMapAdjusted.get(planningDestId) : undefined;
+        const dist = origin && dest
+          ? calculateDistance(origin.coords[0], origin.coords[1], dest.coords[0], dest.coords[1])
+          : 0;
+        setIsPurchasingForRoute(false);
+        setSelectedPurchasingAircraft(null);
+        if (dist > aircraft.maxRange) {
+          setAppAlert(`Warning: The aircraft ${newReg} (${aircraft.type}) was purchased, but with ${formatNumber(aircraft.maxRange)}km it does not have enough range for the planned route (${formatNumber(Math.round(dist))}km).`);
+          return;
+        }
+        setPlanningReg(newReg);
+        setIsPlanningRoute(true);
+        setActiveWindow('map');
+        return;
       }
-      setSelectedPurchasingAircraft(null);
-      setActiveWindow('map');
     }
+    setSelectedPurchasingAircraft(null);
+    setActiveWindow('map');
   };
 
   /** The way out of a tab whose screen failed to render. */
@@ -4891,8 +4844,6 @@ export default function App() {
                         <CompetitorsView
                           aiAirlines={aiAirlines}
                           playerCapital={capital}
-                          playerFleetCount={fleet.length}
-                          playerRoutesCount={routes.length}
                           playerAirlineName={airlineName}
                           playerAirlineCode={airlineCode}
                           playerHub={selectedHub}
@@ -4907,16 +4858,7 @@ export default function App() {
                         />
                       </React.Suspense>
                     </ViewFrame>
-                  ) : activeWindow !== 'map' && (
-                    <ViewFrame contentClassName="w-full h-full flex flex-col items-center p-4 overflow-y-auto pt-8">
-                      <h2 className="text-4xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg mb-4 relative z-10">{activeWindow.replace('-', ' ')}</h2>
-                      <div className="max-w-4xl w-full text-white/70 text-center uppercase tracking-widest font-mono text-sm leading-relaxed border border-aero-yellow/20 shadow-2xl p-12 bg-black/60 backdrop-blur-xl rounded-sm relative z-10">
-                        <div className="text-aero-yellow mb-4 text-xs font-black tracking-[0.4em]">SYSTEM MODULE [{activeWindow.toUpperCase()}]</div>
-                        <div className="opacity-50">INITIALIZATION STRATEGY DEPLOYED.</div>
-                        <div className="animate-pulse text-aero-yellow/80 mt-4">AWAITING UPLINK...</div>
-                      </div>
-                    </ViewFrame>
-                  )}
+                  ) : null}
                   </React.Fragment>
 
                   {isEditingSchedule && editingRouteId && (() => {
@@ -4936,7 +4878,6 @@ export default function App() {
                         allRoutes={routes}
                         fleet={fleet}
                         airportManagement={airportManagement}
-                        airlineCode={airlineCode}
                         onSave={(updatedRoute) => {
                           setRoutes(prev => prev.map(r => r.id === updatedRoute.id ? updatedRoute : r));
                         }}
@@ -4977,7 +4918,6 @@ export default function App() {
                         allRoutes={routes}
                         fleet={fleet}
                         airportManagement={airportManagement}
-                        airlineCode={airlineCode}
                         onSave={(updatedRoute) => {
                           handleReassignRoutes(
                             [{
@@ -5129,13 +5069,6 @@ export default function App() {
                           setPlanningClassConfigs(createDefaultPlanningClassConfigs());
                           setEditingRouteId(null);
                           setIsPlanningRoute(false);
-                          // Assign hub to aircraft if not present
-                          setFleet(prev => prev.map(p => {
-                            if (p.registration === route.aircraft && !p.hubId) {
-                              return { ...p, hubId: route.origin };
-                            }
-                            return p;
-                          }));
                         }}
                         onClose={() => {
                           setIsPlanningRoute(false);
