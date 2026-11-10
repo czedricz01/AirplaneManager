@@ -2,11 +2,10 @@ import React, { useMemo } from 'react';
 import { formatCurrency, formatNumber, yearOf } from '../lib/format';
 import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info, ArrowRightLeft } from 'lucide-react';
-import { AirportInfrastructure } from '../App';
+import type { AirportInfrastructure, SimulatedRoute } from '../lib/gameTypes';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
-import { SimulatedRoute } from '../App';
 
 import { getAirportUpkeep, getSlotPurchaseCost, SLOT_CAPEX_LABEL, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';

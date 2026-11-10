@@ -3,7 +3,7 @@ import { Plane, ChevronRight, Map as MapIcon, Search, Plus, Minus, Check, Chevro
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
-import { AirportInfrastructure, ManagementLevel } from '../App';
+import type { AirportInfrastructure, ManagementLevel } from '../lib/gameTypes';
 import { SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
@@ -76,7 +76,7 @@ const flightNumberBase = (value: string, fallback: number) => {
 interface Props {
   airports: Airport[];
   fleet: OwnedAircraft[];
-  routes: import('../App').SimulatedRoute[];
+  routes: import('../lib/gameTypes').SimulatedRoute[];
   airportManagement: Record<string, AirportInfrastructure>;
   capital: number;
   initialOriginId?: string;

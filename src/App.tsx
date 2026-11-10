@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, ReactNode, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plane,
@@ -24,11 +24,9 @@ import {
   ChevronDown,
   Bell,
   AlertTriangle,
-  Trash2,
   Check,
   CheckCircle2,
   Newspaper,
-  Lock,
   Trophy,
   RotateCcw
 } from "lucide-react";
@@ -345,13 +343,15 @@ import {
   type ChronicleEntry
 } from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
+import { GameMenuOption, GameStat, ScenarioLock, SidebarIcon, ThemeMenuButton } from "./components/app/AppChrome";
+import { SaveLoadOverlay } from "./components/SaveLoadOverlay";
 import { useStableCallback } from "./lib/useStableCallback";
 import { rawBlockMinutes } from "./lib/scheduleUtils";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
 import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf, LITRES_PER_GALLON } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
-import type { GameMessage, MonthlyReport, ScheduledTrip } from "./lib/gameTypes";
+import type { AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute } from "./lib/gameTypes";
 export type { GameMessage };
 import type { OwnedAircraft } from "./components/MyFleetView";
 import type { ConfigOutput } from "./components/ConfigurePurchaseView";
@@ -404,7 +404,6 @@ import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
 import { Modal } from "./components/ui/Modal";
-import { StatTile } from "./components/ui/StatTile";
 import {
   SaveMetadata,
   listSaves,
@@ -421,46 +420,6 @@ import {
 type ViewState = 'login' | 'main-menu' | 'start-menu' | 'monthly-overview' | 'game';
 type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'progression' | 'competitors';
 
-
-export type ManagementLevel = 0 | 1 | 2 | 3; // 0: None, 1: Basic, 2: Hub, 3: Owner
-
-export interface AirportInfrastructure {
-  level: ManagementLevel;
-  slots: { regional: number; narrowbody: number; widebody: number };
-  stands: { regional?: number; narrowbody: number; widebody: number }; // manual upgrades if level < 2
-  autoBuyStands?: boolean;
-  desks: { normal: number; self: number };
-  hubAutoUpgrade?: boolean;
-  hubFacilities?: {
-    hangar?: boolean;
-    vipLounge?: boolean;
-    catering?: boolean;
-  };
-}
-
-export interface SimulatedRoute {
-  id: string;
-  airline: string;
-  origin: string;
-  destination: string;
-  distance: number;
-  aircraft: string;
-  weeklyFlights: number;
-  paxPerWeek: number;
-  paxByClass?: Record<string, { actual: number, max: number, transfer?: number }>;
-  schedule?: ScheduledTrip[];
-  classConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
-  ticketPrices?: Record<string, number>;
-  activeTicketPrices?: Record<string, number>;
-  durMin?: number;
-  turnoverMin?: number;
-  routeSat?: Record<string, number>;
-  monthlyProfit?: number;
-  weeklyRevenue?: number;
-  weeklyCost?: number;
-  /** The month offset the route was opened; absent on routes from before ramp-up existed, which count as mature. */
-  openedOffset?: number;
-}
 
 export const randomEventTemplates = [
   {
@@ -5474,316 +5433,5 @@ export default function App() {
       )}
     </div>
     </AccountScopeContext.Provider>
-  );
-}
-
-/** Why a new-game field cannot be changed: the scenario picked above sets it. */
-function ScenarioLock({ scenario }: { scenario?: Scenario }) {
-  if (!scenario) return null;
-  return (
-    <span className="flex items-center gap-1 text-3xs font-mono uppercase tracking-widest text-aero-yellow/70 whitespace-nowrap">
-      <Lock size={10} aria-hidden="true" /> Set by {scenario.title}
-    </span>
-  );
-}
-
-function ThemeMenuButton({ 
-  index, 
-  label, 
-  onClick, 
-  primary = false,
-  disabled = false 
-}: { 
-  index: string, 
-  label: string, 
-  onClick: () => void,
-  primary?: boolean,
-  disabled?: boolean
-}) {
-  return (
-    <button 
-      onClick={disabled ? undefined : onClick}
-      className={`
-        group flex items-center p-1 transition-all
-        ${disabled ? 'opacity-30 cursor-not-allowed grayscale' : 'cursor-pointer'}
-        ${primary 
-          ? 'bg-white text-black hover:bg-aero-yellow' 
-          : 'bg-aero-carbon border border-white/10 text-white hover:border-aero-yellow'}
-      `}
-    >
-      <span className={`
-        px-4 py-3 short:py-2 font-mono text-sm transition-all
-        ${primary 
-          ? 'bg-black text-white group-hover:bg-white group-hover:text-black' 
-          : 'bg-white/10 text-white/40 group-hover:bg-aero-yellow/20 group-hover:text-aero-yellow'}
-      `}>
-        {index}
-      </span>
-      {/* Tighter letter spacing on narrow phones, so "Resume Game" stays on one line. */}
-      <span className="flex-1 text-left px-3 font-black uppercase tracking-wider sm:tracking-widest text-lg italic whitespace-nowrap">
-        {label}
-      </span>
-      <span className={`pr-6 opacity-0 group-hover:opacity-100 transition-all ${primary ? 'text-black' : 'text-aero-yellow'}`}>
-        →
-      </span>
-    </button>
-  );
-}
-
-/**
- * A real <button>, not a clickable <div>. The whole primary navigation used to
- * be unreachable by keyboard, and the 7.5px label was the smallest type in the
- * interface.
- *
- * On upright phones all eight buttons share one row of the bottom bar, and on
- * sideways phones one short column, so both use `shortLabel` (when given),
- * smaller icons and tighter letter spacing. With the browser's address bar
- * also showing (tiny) even that column is too tall, so the labels move to
- * the tooltip and screen readers and only the icons remain.
- */
-function SidebarIcon({ icon, label, shortLabel, active = false, onClick, tour }: { icon: ReactNode, label: string, shortLabel?: string, active?: boolean, onClick?: () => void, tour?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-tour={tour}
-      title={label}
-      aria-current={active ? 'page' : undefined}
-      className={`
-      py-1.5 short:py-1 tiny:py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all flex-auto rail:flex-none rail:w-full select-none bg-transparent border-0
-      focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow
-      ${active ? 'text-aero-yellow opacity-100' : 'text-white opacity-40 hover:opacity-100 hover:text-white'}
-    `}>
-      <div className={`p-1 rail:p-1.5 short:p-0.5 rounded-sm border border-transparent [&_svg]:size-6 rail:[&_svg]:size-7 short:[&_svg]:size-5 ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
-        {icon}
-      </div>
-      <span className="text-3xs font-black tracking-tight rail:tracking-widest short:tracking-tight text-center px-0.5 rail:px-1 short:px-0.5 leading-[1.2] tiny:sr-only">
-        <span className="rail:hidden short:inline">{shortLabel ?? label}</span>
-        <span className="hidden rail:inline short:hidden">{label}</span>
-      </span>
-    </button>
-  );
-}
-
-/**
- * `goodDirection` says which way is good news for this particular stat, because
- * the sign alone does not: demand falling is bad, the fuel price falling is
- * good. Thin wrapper over the shared StatTile so the top stats bar uses the
- * same tile component as every KPI card elsewhere in the app.
- */
-function GameStat(
-  { label, value, trend, goodDirection = 'up' }:
-  { label: string, value: string, trend?: string, goodDirection?: 'up' | 'down' }
-) {
-  return <StatTile size="sm" compact label={label} value={value} trend={trend} goodDirection={goodDirection} />;
-}
-
-function GameMenuOption({ label, onClick }: { label: string, onClick: () => void }) {
-  return (
-    <button 
-      onClick={onClick}
-      className="text-left px-4 py-3 text-2xs font-mono uppercase tracking-widest text-white/70 hover:text-aero-yellow hover:bg-white/5 transition-all outline-none"
-    >
-      {label}
-    </button>
-  );
-}
-
-
-function SaveLoadOverlay({ 
-  saves, 
-  onSave, 
-  onLoad, 
-  onDelete, 
-  onClose, 
-  mode 
-}: { 
-  saves: SaveMetadata[], 
-  onSave?: (id?: string, name?: string) => void, 
-  onLoad?: (id: string) => void, 
-  onDelete: (id: string) => void, 
-  onClose: () => void,
-  mode: 'save' | 'load'
-}) {
-  const [saveName, setSaveName] = useState("");
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-
-  const handleAction = () => {
-    if (mode === 'save') {
-      if (selectedSlot) {
-        setShowOverwriteConfirm(true);
-      } else {
-        onSave?.(undefined, saveName);
-      }
-    } else {
-      if (selectedSlot) {
-        onLoad?.(selectedSlot);
-      }
-    }
-  };
-
-  const handleConfirmOverwrite = () => {
-    onSave?.(selectedSlot || undefined, saveName);
-    setShowOverwriteConfirm(false);
-  };
-
-  const handleConfirmDelete = () => {
-    if (showDeleteConfirm) {
-      onDelete(showDeleteConfirm);
-      if (selectedSlot === showDeleteConfirm) setSelectedSlot(null);
-      setShowDeleteConfirm(null);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[10000] bg-black/90 flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-aero-panel border border-white/10 w-full max-w-lg overflow-hidden flex flex-col shadow-2xl"
-      >
-        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
-           <h2 className="text-aero-yellow font-black uppercase tracking-[0.2em] text-2xs">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
-           <button onClick={onClose} className="text-white/40 hover:text-white"><X size={20}/></button>
-        </div>
-
-        <div className="flex-1 p-4 overflow-y-auto no-scrollbar max-h-[60vh]">
-          <div className="grid gap-2 mb-3">
-            {saves.length === 0 ? (
-              <div className="text-white/20 font-mono text-xs p-12 text-center border border-dashed border-white/5 uppercase tracking-widest">
-                No telemetry archives discovered
-              </div>
-            ) : (
-              [...saves].sort((a, b) => b.timestamp - a.timestamp).map(slot => (
-                <div 
-                  key={slot.id}
-                  onClick={() => {
-                    setSelectedSlot(slot.id);
-                    if (mode === 'save') setSaveName(slot.name);
-                  }}
-                  className={`group p-4 border transition-all cursor-pointer flex justify-between items-center ${selectedSlot === slot.id ? 'bg-aero-yellow/10 border-aero-yellow shadow-2xl' : 'bg-white/5 border-white/5 hover:border-white/20'}`}
-                >
-                  <div className="flex flex-col">
-                    <span className={`text-sm font-bold uppercase tracking-tight ${selectedSlot === slot.id ? 'text-aero-yellow' : 'text-white'}`}>{slot.name}</span>
-                    <span className="text-2xs font-mono text-white/30">{new Date(slot.timestamp).toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {mode === 'load' && selectedSlot === slot.id && <ChevronRight className="text-aero-yellow" size={16} />}
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(slot.id); }}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-white/20 border border-transparent hover:text-aero-yellow/60 hover:border-white/20 hover:bg-aero-panel transition-all rounded-sm"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {mode === 'save' && (
-            <div className="space-y-4">
-              <div className="h-px bg-white/10"></div>
-              <div className="space-y-2">
-                <label className="text-2xs uppercase font-bold tracking-[0.2em] text-white/40">ARCHIVE_NAME_INPUT</label>
-                <input 
-                  type="text" 
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  placeholder="Designate save archive..."
-                  className="w-full bg-black border border-white/10 p-4 text-white font-mono text-sm focus:outline-none focus:border-aero-yellow/50 transition-all placeholder:text-white/10"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 bg-black/40 border-t border-white/5 flex gap-4">
-          <button 
-            onClick={onClose}
-            className="flex-1 py-4 border border-white/10 text-white font-black uppercase tracking-widest hover:bg-white/5 transition-all text-xs"
-          >
-            Back
-          </button>
-          <button 
-            onClick={handleAction}
-            disabled={mode === 'save' ? !saveName.trim() : !selectedSlot}
-            className={`flex-1 py-4 font-black uppercase tracking-widest transition-all text-xs ${mode === 'save' ? 'bg-aero-yellow text-black hover:bg-white' : 'bg-aero-yellow text-black hover:bg-white'} disabled:opacity-30`}
-          >
-            {mode === 'save' ? 'Save' : 'Load'}
-          </button>
-        </div>
-
-        <AnimatePresence>
-          {showOverwriteConfirm && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/95 flex items-center justify-center p-4 z-[100]"
-            >
-              <div className="text-center space-y-6 max-w-sm">
-                 <div className="flex justify-center">
-                    <AlertTriangle className="text-aero-yellow/60" size={64} />
-                 </div>
-                 <div className="space-y-2">
-                   <h3 className="text-white text-xl font-bold uppercase tracking-tight">Overwrite Archive?</h3>
-                   <p className="text-white/40 text-sm italic">Initializing this sequence will permanently erase the prior telemetry state for "{saves.find(s => s.id === selectedSlot)?.name}".</p>
-                 </div>
-                 <div className="flex gap-4 w-full">
-                   <button 
-                     onClick={() => setShowOverwriteConfirm(false)}
-                     className="flex-1 py-3 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-xs"
-                   >
-                     Back
-                   </button>
-                   <button 
-                     onClick={handleConfirmOverwrite}
-                     className="flex-1 py-3 bg-aero-carbon text-white font-bold uppercase tracking-widest hover:bg-aero-carbon transition-all text-xs shadow-2xl"
-                   >
-                     Overwrite
-                   </button>
-                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {showDeleteConfirm && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/95 flex items-center justify-center p-4 z-[100]"
-            >
-              <div className="text-center space-y-6 max-w-sm">
-                 <div className="flex justify-center">
-                    <Trash2 className="text-aero-yellow/60" size={64} />
-                 </div>
-                 <div className="space-y-2">
-                   <h3 className="text-white text-xl font-bold uppercase tracking-tight">Erase Archive?</h3>
-                   <p className="text-white/40 text-sm italic">Are you sure you want to delete this telemetry archive? This action cannot be undone.</p>
-                 </div>
-                 <div className="flex gap-4 w-full">
-                   <button 
-                     onClick={() => setShowDeleteConfirm(null)}
-                     className="flex-1 py-3 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-xs"
-                   >
-                     Back
-                   </button>
-                   <button 
-                     onClick={handleConfirmDelete}
-                     className="flex-1 py-3 bg-aero-carbon text-white font-bold uppercase tracking-widest hover:bg-aero-carbon transition-all text-xs shadow-2xl"
-                   >
-                     Delete
-                   </button>
-                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-    </div>
   );
 }

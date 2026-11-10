@@ -33,8 +33,7 @@ import { getFlightDurationMinutes } from '../lib/financeUtils';
 import { createTimerBag } from '../lib/timerBag';
 import { formatWeekMinute, openShiftWindows, shiftTrips, timetablePeriod } from '../lib/aircraftAssignment';
 import type { OwnedAircraft } from './MyFleetView';
-import { SimulatedRoute, AirportInfrastructure } from '../App';
-import type { ScheduledTrip } from '../lib/gameTypes';
+import type { AirportInfrastructure, ScheduledTrip, SimulatedRoute } from '../lib/gameTypes';
 
 interface RouteScheduleEditViewProps {
   route: SimulatedRoute;

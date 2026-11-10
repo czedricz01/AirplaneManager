@@ -76,3 +76,43 @@ export interface MonthlyReport extends ReportMetrics {
   /** Rival landings at the airports the airline owns (tier 3), one line per airport. */
   hubIncomeItems?: ReportLine[];
 }
+
+export type ManagementLevel = 0 | 1 | 2 | 3; // 0: None, 1: Basic, 2: Hub, 3: Owner
+
+export interface AirportInfrastructure {
+  level: ManagementLevel;
+  slots: { regional: number; narrowbody: number; widebody: number };
+  stands: { regional?: number; narrowbody: number; widebody: number }; // manual upgrades if level < 2
+  autoBuyStands?: boolean;
+  desks: { normal: number; self: number };
+  hubAutoUpgrade?: boolean;
+  hubFacilities?: {
+    hangar?: boolean;
+    vipLounge?: boolean;
+    catering?: boolean;
+  };
+}
+
+export interface SimulatedRoute {
+  id: string;
+  airline: string;
+  origin: string;
+  destination: string;
+  distance: number;
+  aircraft: string;
+  weeklyFlights: number;
+  paxPerWeek: number;
+  paxByClass?: Record<string, { actual: number, max: number, transfer?: number }>;
+  schedule?: ScheduledTrip[];
+  classConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
+  ticketPrices?: Record<string, number>;
+  activeTicketPrices?: Record<string, number>;
+  durMin?: number;
+  turnoverMin?: number;
+  routeSat?: Record<string, number>;
+  monthlyProfit?: number;
+  weeklyRevenue?: number;
+  weeklyCost?: number;
+  /** The month offset the route was opened; absent on routes from before ramp-up existed, which count as mature. */
+  openedOffset?: number;
+}
