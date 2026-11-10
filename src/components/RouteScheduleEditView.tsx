@@ -33,6 +33,7 @@ import {
   tripStartMinute
 } from '../lib/scheduleUtils';
 import { getFlightDurationMinutes } from '../lib/financeUtils';
+import { createTimerBag } from '../lib/timerBag';
 import { formatWeekMinute, openShiftWindows, shiftTrips, timetablePeriod } from '../lib/aircraftAssignment';
 import type { OwnedAircraft } from './MyFleetView';
 import { SimulatedRoute, AirportInfrastructure } from '../App';
@@ -452,6 +453,12 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   }, [schedule, allRoutes, aircraft, selectedOrigin, selectedDest]);
 
   const [isSaving, setIsSaving] = useState(false);
+  // The pause after a save must end with the editor: left running, its timer
+  // closed whatever editor the player had opened in the meantime.
+  const timers = React.useRef<ReturnType<typeof createTimerBag> | null>(null);
+  if (timers.current === null) timers.current = createTimerBag();
+  const later = timers.current.after;
+  useEffect(() => () => timers.current?.cancelAll(), []);
 
   const handleSave = () => {
     if (isSaving) return;
@@ -467,7 +474,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
     };
     onSave(updatedRoute);
     setShowSuccess(true);
-    setTimeout(() => {
+    later(() => {
       setShowSuccess(false);
       setIsSaving(false);
       onClose();
