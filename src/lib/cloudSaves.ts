@@ -19,6 +19,13 @@ export interface SaveMetadata {
   timestamp: number;
   /** Written locally but not yet accepted by the server. */
   pendingSync?: boolean;
+  /**
+   * The server's own time stamp of the cloud copy this slot was last in step
+   * with. A save made offline is in conflict when the cloud copy has changed
+   * since then. Comparing against `timestamp`, which is this device's clock,
+   * called a conflict whenever that clock ran behind the server's.
+   */
+  cloudTime?: number;
 }
 
 export type SaveScope = string | null;
@@ -76,6 +83,23 @@ function upsertLocalMeta(scope: SaveScope, meta: SaveMetadata) {
   writeLocalIndex(scope, list);
 }
 
+/** The cloud time stamp the slot was last in step with, if it ever was. */
+function knownCloudTime(scope: SaveScope, slotId: string): number | undefined {
+  return readLocalIndex(scope).find(s => s.id === slotId)?.cloudTime;
+}
+
+/** A pending save's entry: it keeps the cloud time stamp it was based on. */
+function pendingMeta(scope: SaveScope, slotId: string, name: string, timestamp: number): SaveMetadata {
+  const cloudTime = knownCloudTime(scope, slotId);
+  return { id: slotId, name, timestamp, pendingSync: true, ...(cloudTime !== undefined ? { cloudTime } : {}) };
+}
+
+/** Milliseconds of the `updated_at` a write returned, or undefined when it returned none. */
+function serverTime(row: { updated_at?: string } | null | undefined): number | undefined {
+  const time = row?.updated_at ? new Date(row.updated_at).getTime() : NaN;
+  return Number.isFinite(time) ? time : undefined;
+}
+
 // --- cloud helpers ---------------------------------------------------------
 
 /** True when a signed-in session can actually reach the database. */
@@ -84,7 +108,8 @@ function cloudFor(scope: SaveScope) {
 }
 
 function toMeta(row: { slot_id: string; name: string; updated_at: string }): SaveMetadata {
-  return { id: row.slot_id, name: row.name, timestamp: new Date(row.updated_at).getTime() };
+  const time = new Date(row.updated_at).getTime();
+  return { id: row.slot_id, name: row.name, timestamp: time, cloudTime: time };
 }
 
 // --- public API ------------------------------------------------------------
@@ -186,27 +211,29 @@ export async function writeSave(
   const client = cloudFor(scope);
   if (!client) {
     if (!storedLocally) throw new Error(NOT_STORED_MESSAGE);
-    const meta: SaveMetadata = { id: slotId, name, timestamp, pendingSync: Boolean(scope) };
+    const meta: SaveMetadata = scope ? pendingMeta(scope, slotId, name, timestamp) : { id: slotId, name, timestamp, pendingSync: false };
     upsertLocalMeta(scope, meta);
     return { meta, cloudOk: false };
   }
 
-  const { error } = await client
+  const { data: stored, error } = await client
     .from('saves')
     .upsert(
       { user_id: scope, slot_id: slotId, name, payload, updated_at: new Date(timestamp).toISOString() },
       { onConflict: 'user_id,slot_id' }
-    );
+    )
+    .select('updated_at')
+    .maybeSingle();
 
   if (error) {
     if (!storedLocally) throw new Error(NOT_STORED_MESSAGE);
     console.warn('[saves] cloud write failed, kept a local copy', error);
-    const meta: SaveMetadata = { id: slotId, name, timestamp, pendingSync: true };
+    const meta = pendingMeta(scope, slotId, name, timestamp);
     upsertLocalMeta(scope, meta);
     return { meta, cloudOk: false };
   }
 
-  const meta: SaveMetadata = { id: slotId, name, timestamp };
+  const meta: SaveMetadata = { id: slotId, name, timestamp, cloudTime: serverTime(stored) ?? timestamp };
   upsertLocalMeta(scope, meta);
   if (!storedLocally) {
     // The cloud copy is safe even though the browser refused the mirror.
@@ -276,9 +303,11 @@ export async function syncPending(scope: SaveScope): Promise<SyncResult> {
       continue;
     }
 
-    // Client and server clocks can differ a little; a newer cloud copy by any
-    // margin is treated as a conflict, which errs on the side of keeping both.
-    if (remote && new Date(remote.updated_at).getTime() > meta.timestamp) {
+    // A conflict is a cloud copy that changed after the one this save was
+    // based on. Both stamps are the server's, so the device clock plays no
+    // part. Entries from before `cloudTime` existed fall back to comparing
+    // against the device's own time, as this always did.
+    if (remote && new Date(remote.updated_at).getTime() > (meta.cloudTime ?? meta.timestamp)) {
       const conflictId = `${meta.id}_conflict_${meta.timestamp}`;
       const conflictName = `${meta.name} (offline copy)`;
       const { error: conflictError } = await client
@@ -295,12 +324,12 @@ export async function syncPending(scope: SaveScope): Promise<SyncResult> {
       upsertLocalMeta(scope, { id: conflictId, name: conflictName, timestamp: meta.timestamp });
       // The original slot now follows the newer cloud copy again.
       removeKey(payloadKey(scope, meta.id));
-      upsertLocalMeta(scope, { ...meta, pendingSync: false });
+      upsertLocalMeta(scope, { ...meta, pendingSync: false, cloudTime: new Date(remote.updated_at).getTime() });
       result.conflicts++;
       continue;
     }
 
-    const { error } = await client
+    const { data: stored, error } = await client
       .from('saves')
       .upsert(
         {
@@ -311,13 +340,15 @@ export async function syncPending(scope: SaveScope): Promise<SyncResult> {
           updated_at: new Date(meta.timestamp).toISOString(),
         },
         { onConflict: 'user_id,slot_id' }
-      );
+      )
+      .select('updated_at')
+      .maybeSingle();
 
     if (error) {
       console.warn('[saves] retry failed for', meta.id, error);
       continue;
     }
-    upsertLocalMeta(scope, { ...meta, pendingSync: false });
+    upsertLocalMeta(scope, { ...meta, pendingSync: false, cloudTime: serverTime(stored) ?? meta.timestamp });
     result.pushed++;
   }
 

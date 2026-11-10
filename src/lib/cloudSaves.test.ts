@@ -30,3 +30,12 @@ test('a save that could be stored nowhere fails instead of reporting success', a
   await assert.rejects(() => writeSave(null, 'slot2', 'My save', { capital: 1 }), /storage is full/);
   assert.deepEqual(readLocalIndex(null).map(s => s.id), [], 'the list must not name a save that does not exist');
 });
+
+test('a save made offline keeps the cloud time stamp it was based on', async () => {
+  const data = installStorage(false);
+  data.set('neo_saves_index:user1', JSON.stringify([{ id: 'slot1', name: 'My save', timestamp: 1000, cloudTime: 5000 }]));
+  const { meta } = await writeSave('user1', 'slot1', 'My save', { capital: 2 });
+  assert.equal(meta.pendingSync, true);
+  assert.equal(meta.cloudTime, 5000, 'the conflict check needs the server time of the copy this save replaces');
+  assert.equal(readLocalIndex('user1')[0].cloudTime, 5000);
+});
