@@ -16,6 +16,7 @@
 import { calculateDistance } from '../data/airports';
 import type { Airport } from '../data/airportTypes';
 import { getFlightDurationMinutes, validateClassConfigs } from './financeUtils';
+import { formatNumber } from './format';
 import {
   Interval,
   TripLike,
@@ -322,7 +323,7 @@ export function checkReassignment(
     if (plane.maxRange < dist) {
       issues.push({
         kind: 'range',
-        message: `${label}: the route is ${dist.toLocaleString('en-US')} km, ${plane.registration} flies ${plane.maxRange.toLocaleString('en-US')} km at most.`
+        message: `${label}: the route is ${formatNumber(dist)} km, ${plane.registration} flies ${formatNumber(plane.maxRange)} km at most.`
       });
     }
     for (const ap of [origin, dest]) {

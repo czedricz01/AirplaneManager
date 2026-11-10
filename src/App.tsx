@@ -2197,10 +2197,12 @@ export default function App() {
       const snapshot = careerScore({
         netWorth: capital + totalMonthlyProfit + fleetValue,
         rank: nextCareer.rank,
+        free: freeMode,
         milestones: milestones.length + newlyEarned.length,
         reputation: nextReputation,
         takeovers: nextCareer.takeovers,
-        projectsDone: nextCareer.research.done.length,
+        // As on the Career screen: the classes a Free Mode airline starts with do not count.
+        projectsDone: Math.max(0, nextCareer.research.done.length - (freeMode ? CLASS_PROJECTS.length : 0)),
         years
       });
       additionalMessages.push({
@@ -2395,7 +2397,8 @@ export default function App() {
     let scenarioDecided: { title: string; won: boolean; reason: string } | null = null;
     let earnedStars = 0;
     if (scenario && runningScenario) {
-      const closingCapital = capital + totalMonthlyProfit;
+      // Prizes paid at this close count, as they do in the report and the chronicle.
+      const closingCapital = capital + totalMonthlyProfit + awardedCash;
       const evaluation = evaluateScenario(runningScenario, {
         offset: currentDateOffset,
         capital: closingCapital,
@@ -3455,7 +3458,7 @@ export default function App() {
              if (origin && dest) {
                const dist = calculateDistance(origin.coords[0], origin.coords[1], dest.coords[0], dest.coords[1]);
                if (dist > aircraft.maxRange) {
-                 setAppAlert(`Warning: The aircraft ${newReg} (${aircraft.type}) was purchased, but with ${aircraft.maxRange.toLocaleString()}km it does not have enough range for the planned route (${Math.round(dist).toLocaleString()}km).`);
+                 setAppAlert(`Warning: The aircraft ${newReg} (${aircraft.type}) was purchased, but with ${formatNumber(aircraft.maxRange)}km it does not have enough range for the planned route (${formatNumber(Math.round(dist))}km).`);
                  setIsPurchasingForRoute(false);
                  setSelectedPurchasingAircraft(null);
                  return;

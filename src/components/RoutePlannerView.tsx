@@ -132,7 +132,7 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
     <div className={`py-1.5 px-2 border transition-colors flex items-center justify-between ${disabled ? 'bg-white/[0.02] border-white/5 opacity-50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
       <div className="flex flex-col w-24 shrink-0">
         <span className="text-3xs font-bold text-white uppercase tracking-widest">{label}</span>
-        <span className="text-4xs text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${cost.toLocaleString()}${costSuffix}` : 'FREE'}</span>
+        <span className="text-4xs text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${formatNumber(cost)}${costSuffix}` : 'FREE'}</span>
       </div>
       <div className="flex items-center gap-2">
         {used !== undefined && (
@@ -397,7 +397,7 @@ function RoutePlannerInner({
         selectedDest.coords[0], selectedDest.coords[1]
       ));
       if (incoming.maxRange < dist) {
-        validationMsg = `AIRCRAFT RANGE VIOLATION: Range is ${incoming.maxRange.toLocaleString()} km but distance is ${dist.toLocaleString()} km.`;
+        validationMsg = `AIRCRAFT RANGE VIOLATION: Range is ${formatNumber(incoming.maxRange)} km but distance is ${formatNumber(dist)} km.`;
       } else if (incoming.icaoCode > selectedDest.maxIcaoCode || incoming.icaoCode > selectedOrigin.maxIcaoCode) {
         validationMsg = 'AIRCRAFT CLASS EXCEEDS PORT CAPACITY';
       }
@@ -761,7 +761,7 @@ function RoutePlannerInner({
             </div>
           </div>
           <div className="text-2xs flex justify-between text-white/50 font-mono">
-            <span>{ac.type} • {ac.maxRange.toLocaleString()} km</span>
+            <span>{ac.type} • {formatNumber(ac.maxRange)} km</span>
             <span>{ac.capacity} pax</span>
           </div>
           <div className="mt-2 w-full bg-black h-1 rounded-sm overflow-hidden relative">
@@ -1419,8 +1419,8 @@ function RoutePlannerInner({
      }
      if (result.cost > 0 && capital < result.cost) {
        onNotify?.(
-         `${result.actualAmount} ${subType} slot${result.actualAmount === 1 ? '' : 's'} at ${airportId} cost $${Math.round(result.cost).toLocaleString('en-US')}, ` +
-         `but you only have $${Math.round(capital).toLocaleString('en-US')}. Nothing was bought.`
+         `${result.actualAmount} ${subType} slot${result.actualAmount === 1 ? '' : 's'} at ${airportId} cost $${formatNumber(Math.round(result.cost))}, ` +
+         `but you only have $${formatNumber(Math.round(capital))}. Nothing was bought.`
        );
        return;
      }
@@ -1855,7 +1855,7 @@ function RoutePlannerInner({
                         return (
                           <div className="mt-2 text-2xs text-white/50 space-y-1">
                             <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
-                            <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
+                            <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
                             <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-warn font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                           </div>
@@ -1976,7 +1976,7 @@ function RoutePlannerInner({
                        {/* Stats */}
                        <div className="grid grid-cols-2 gap-2 text-3xs">
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Efficiency</span><span className="font-bold">{selectedAircraft.efficiency}/100</span></div>
-                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Max Range</span><span className="font-bold">{selectedAircraft.maxRange.toLocaleString()} km</span></div>
+                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Max Range</span><span className="font-bold">{formatNumber(selectedAircraft.maxRange)} km</span></div>
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Gen. Cond</span><span className={`font-bold ${selectedAircraft.conditionGeneral < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionGeneral)}%</span></div>
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Int. Cond</span><span className={`font-bold ${selectedAircraft.conditionInterior < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionInterior)}%</span></div>
                        </div>
@@ -2243,16 +2243,16 @@ function RoutePlannerInner({
                                    Interaction: {formatNumber(d.formulaVars.totalInteraction)}
                                  </div>
                                  <div className="flex justify-between items-center text-aero-yellow">
-                                   <span>ECONOMY:</span> <span>{d.economy.toLocaleString()} | BASE: ${basePrices.economy}</span>
+                                   <span>ECONOMY:</span> <span>{formatNumber(d.economy)} | BASE: ${basePrices.economy}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-aero-yellow">
-                                   <span>PREMIUM:</span> <span>{d.premium.toLocaleString()} | BASE: ${basePrices.premium}</span>
+                                   <span>PREMIUM:</span> <span>{formatNumber(d.premium)} | BASE: ${basePrices.premium}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-white/80">
-                                   <span>BUSINESS:</span> <span>{d.business.toLocaleString()} | BASE: ${basePrices.business}</span>
+                                   <span>BUSINESS:</span> <span>{formatNumber(d.business)} | BASE: ${basePrices.business}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-purple-400 font-bold border-b border-white/10 pb-1 mb-1">
-                                   <span>FIRST:</span> <span>{d.first.toLocaleString()} | BASE: ${basePrices.first}</span>
+                                   <span>FIRST:</span> <span>{formatNumber(d.first)} | BASE: ${basePrices.first}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-white font-black text-sm pt-1">
                                    <span>MARKET DEMAND / WK (all airlines):</span> <span>{formatNumber(d.total)}</span>
@@ -2327,7 +2327,7 @@ function RoutePlannerInner({
                            return (
                              <div className="mt-2 text-2xs text-white/50 space-y-1">
                                <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
-                               <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
+                               <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
                                <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-warn font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                              </div>

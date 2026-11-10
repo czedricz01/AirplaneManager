@@ -251,8 +251,8 @@ export function AirportDetailView({
             infrastructure.level === 1 ? 'Standard' :
             infrastructure.level === 2 ? 'Hub' : 'Owner'
           } />
-          <Metric label="Business" value={getAirportStats(airport, currentYear).business.toLocaleString()} />
-          <Metric label="Tourism" value={getAirportStats(airport, currentYear).tourism.toLocaleString()} />
+          <Metric label="Business" value={formatNumber(getAirportStats(airport, currentYear).business)} />
+          <Metric label="Tourism" value={formatNumber(getAirportStats(airport, currentYear).tourism)} />
           <Metric label="Weekly Seats" value={formatNumber(passengerData.total)} />
           <div className="flex flex-col relative group min-w-[100px]">
             <span className="text-white/30 text-3xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-white transition-colors" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>

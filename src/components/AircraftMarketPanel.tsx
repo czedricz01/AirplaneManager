@@ -9,7 +9,7 @@ import {
   ORDER_HORIZON, announcedAircraft, cancelRefund, orderBalance, quoteOrder, MAX_ORDER_SIZE, type PreOrder
 } from '../lib/preorders';
 import { usedListings, type UsedListing } from '../lib/usedMarket';
-import { formatCurrency, formatMonthOffset } from '../lib/format';
+import { formatCurrency, formatMonthOffset, formatNumber } from '../lib/format';
 
 export type MarketTab = 'orders' | 'used';
 
@@ -91,7 +91,7 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
                   <div className="font-mono text-2xs leading-relaxed min-w-0">
                     <div className="font-bold text-xs">{name(a)} <Badge>{a.class}</Badge></div>
                     <div className="text-white/50">
-                      {a.capacity} seats · {a.maxRange.toLocaleString()} km · first delivery {formatMonthOffset(a.firstDeliveryOffset)}
+                      {a.capacity} seats · {formatNumber(a.maxRange)} km · first delivery {formatMonthOffset(a.firstDeliveryOffset)}
                     </div>
                     <div className="text-white/50">
                       {formatCurrency(quote.unitPrice)} each (&minus;{Math.round(quote.discount * 100)}%) · deposit {formatCurrency(quote.deposit)} · your delivery {formatMonthOffset(quote.deliveryOffset)}
@@ -151,7 +151,7 @@ function UsedTab({ currentDateOffset, capital, classesOpen, soldUsedIds, rivalNa
                 <div className="font-mono text-2xs leading-relaxed min-w-0">
                   <div className="font-bold text-xs">{name(spec)} <Badge>{spec.class}</Badge></div>
                   <div className="text-white/50">
-                    {years.toFixed(1)} years old · airframe {l.conditionGeneral}% · cabin {l.conditionInterior}% · {spec.capacity} seats · {spec.maxRange.toLocaleString()} km
+                    {years.toFixed(1)} years old · airframe {l.conditionGeneral}% · cabin {l.conditionInterior}% · {spec.capacity} seats · {formatNumber(spec.maxRange)} km
                   </div>
                   <div className="text-white/50">
                     Sold by {l.seller}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatNumber } from '../lib/format';
 import { getPlaneSat } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
 import type { OwnedAircraft } from './MyFleetView';
@@ -747,7 +747,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
                   </label>
@@ -826,7 +826,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
                   </label>
@@ -905,7 +905,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
                   </label>
@@ -984,7 +984,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${ext.price.toLocaleString()}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
                       </span>
                     </div>
                   </label>

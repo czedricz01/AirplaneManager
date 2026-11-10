@@ -16,6 +16,7 @@
  *
  * Everything here is pure; App.tsx applies the effects where they act.
  */
+import { formatNumber } from './format';
 import { MAX_RANK, clampRank, rankDef } from './airlineRank';
 import type { AircraftClassId } from './aircraftClasses';
 
@@ -294,7 +295,7 @@ export function startBlocker(state: ResearchState, project: ResearchProject, ran
   const limit = maxParallel(rank);
   if (state.active.length >= limit) return `Only ${limit} project${limit === 1 ? '' : 's'} can run at once at this rank.`;
   const cost = projectCost(project, year);
-  if (capital < cost) return `Costs ${cost.toLocaleString('en-US')} dollars; the airline has less.`;
+  if (capital < cost) return `Costs ${formatNumber(cost)} dollars; the airline has less.`;
   return null;
 }
 
