@@ -1,6 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
 import {defineConfig} from 'vite';
 
 // `npm run build:static` sets this. It produces a single self-contained HTML file
@@ -17,11 +16,6 @@ export default defineConfig(() => {
     // domain root (a subfolder, an artifact host, or a local file).
     base: './',
     plugins: [react(), tailwindcss()],
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
-    },
     build: isStaticBuild
       ? {
           outDir: 'dist-static',
