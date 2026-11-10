@@ -4,7 +4,6 @@
  */
 
 import React, { useState, ReactNode, useEffect, useRef, useMemo } from "react";
-import { FinancialReport } from "./components/FinancialReport";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plane,
@@ -34,7 +33,7 @@ import {
   RotateCcw
 } from "lucide-react";
 
-import L from "leaflet";
+import type L from "leaflet";
 import { Airport, calculateDistance } from "./data/airports";
 import { airports, airportsMapAdjusted } from "./data/airportRegistry";
 export { airportsMapAdjusted };
@@ -170,8 +169,6 @@ function buildRivalOffers(ais: any[] | null | undefined) {
   );
 }
 
-import { WorldMap } from "./components/WorldMap";
-import { HubPickerModal } from "./components/HubPickerModal";
 import { BrandingPicker } from "./components/BrandingPicker";
 import { IncidentList } from "./components/IncidentList";
 import { recolorClashingRivals } from "./lib/theme";
@@ -203,7 +200,6 @@ import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRout
 import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
 import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
-import { NewspaperOverlay } from "./components/NewspaperOverlay";
 import { GoalOfferDialog } from "./components/GoalOfferDialog";
 import {
   CAMPAIGN_SPECS,
@@ -372,6 +368,14 @@ import type { AiAirline } from "./components/CompetitorsView";
  * `ConfigurePurchaseView` ~1,500 -- between them the two biggest single cuts
  * to the shipped bundle.
  */
+// The map library is only needed once a game is on screen or the hub picker is
+// open, so the sign-in screen and the menus no longer wait for it. The same
+// goes for the newspaper, the tutorial and the monthly report.
+const WorldMap = React.lazy(() => import("./components/WorldMap").then(m => ({ default: m.WorldMap })));
+const HubPickerModal = React.lazy(() => import("./components/HubPickerModal").then(m => ({ default: m.HubPickerModal })));
+const NewspaperOverlay = React.lazy(() => import("./components/NewspaperOverlay").then(m => ({ default: m.NewspaperOverlay })));
+const TutorialOverlay = React.lazy(() => import("./components/TutorialOverlay").then(m => ({ default: m.TutorialOverlay })));
+const FinancialReport = React.lazy(() => import("./components/FinancialReport").then(m => ({ default: m.FinancialReport })));
 const BuyAircraftView = React.lazy(() => import("./components/BuyAircraftView").then(m => ({ default: m.BuyAircraftView })));
 const MyFleetView = React.lazy(() => import("./components/MyFleetView").then(m => ({ default: m.MyFleetView })));
 const RoutesView = React.lazy(() => import("./components/RoutesView").then(m => ({ default: m.RoutesView })));
@@ -391,7 +395,6 @@ import { scenarioById, type Scenario } from "./data/scenarios";
 import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
 import { ScenarioPicker } from "./components/ScenarioPicker";
-import { TutorialOverlay } from "./components/TutorialOverlay";
 import { restartTutorial, settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { autoScaleFor } from "./lib/layout";
@@ -3586,7 +3589,11 @@ export default function App() {
           {/* The month's newspaper comes before any question: the paper tells
               what happened, the dialogs below ask what to do about it. It can
               always be closed, so no question ever waits on it for long. */}
-          <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
+          {edition && (
+            <React.Suspense fallback={null}>
+              <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
+            </React.Suspense>
+          )}
           {pendingDecision && !isNewspaperOpen && !scenarioResultOpen && (
             <Modal open size="lg" accent="warn" layer="top">
               <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
@@ -4107,6 +4114,7 @@ export default function App() {
                         </span>
                       </button>
                       {hubPickerOpen && !newGameScenario && (
+                        <React.Suspense fallback={null}>
                         <HubPickerModal
                           airports={airportsByName}
                           maxLevel={newGameMode === 'normal' ? maxAirportLevel(0) : 7}
@@ -4116,6 +4124,7 @@ export default function App() {
                           onSelect={setSelectedHub}
                           onClose={() => setHubPickerOpen(false)}
                         />
+                        </React.Suspense>
                       )}
                     </div>
 
@@ -4312,6 +4321,7 @@ export default function App() {
                   
                   <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible custom-scrollbar pr-4 bar:pr-0 short:pr-0">
                    <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="CONTINUE">
+                    <React.Suspense fallback={<LazyFallback label="Monthly Report" />}>
                     {latestReport ? (
                       <>
                       <FinancialReport
@@ -4442,6 +4452,7 @@ export default function App() {
                         No financial data available for this month.
                       </div>
                     )}
+                    </React.Suspense>
                    </ErrorBoundary>
                   </div>
 
@@ -4666,6 +4677,7 @@ export default function App() {
                       a window it is not there to point at. */}
                   <div className="absolute inset-0 z-0 bg-aero-panel" data-tour={activeWindow === 'map' && !isPlanningRoute ? 'map' : undefined}>
                      <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
+                      <React.Suspense fallback={<LazyFallback label="World Map" />}>
                       <WorldMap
                         sessionKey={sessionKey}
                         zoom={zoom}
@@ -4691,6 +4703,7 @@ export default function App() {
                         routeProfits={routeHeat.profit}
                         routePax={routeHeat.pax}
                       />
+                      </React.Suspense>
                      </ErrorBoundary>
                   </div>
                   
@@ -5448,6 +5461,7 @@ export default function App() {
     </div>
       {/* Outside the scaled root: the tutorial measures and draws in screen pixels. */}
       {tutorialStep !== null && !tutorialHidden && (
+        <React.Suspense fallback={null}>
         <TutorialOverlay
           step={tutorialStep}
           state={tutorialState}
@@ -5456,6 +5470,7 @@ export default function App() {
           onGoTo={goToTutorialStep}
           onNavigate={showTutorialTarget}
         />
+        </React.Suspense>
       )}
     </div>
     </AccountScopeContext.Provider>
