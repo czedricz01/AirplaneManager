@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { formatCurrency, formatNumber } from '../lib/format';
+import { formatCurrency, formatNumber, yearOf } from '../lib/format';
 import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info, ArrowRightLeft } from 'lucide-react';
 import { AirportInfrastructure } from '../App';
@@ -72,7 +72,7 @@ export function AirportDetailView({
   const [showMgmtModal, setShowMgmtModal] = React.useState(false);
 
   const level = airport.level;
-  const currentYear = 1960 + Math.floor(currentDateOffset / 12);
+  const currentYear = yearOf(currentDateOffset);
   
   const hubAutoUpgrade = infrastructure.level >= 2;
   // Same rules and prices as the route planner.

@@ -31,7 +31,7 @@ import {
   marketingReputation,
   regionDemandFactors
 } from '../lib/marketing';
-import { formatCurrency, formatMoneyCompact as compact, formatNumber } from '../lib/format';
+import { formatCurrency, formatMoneyCompact as compact, formatNumber, yearOf, monthOf } from '../lib/format';
 
 export interface MarketingPanelProps {
   marketing: Marketing;
@@ -55,7 +55,7 @@ const REGIONS = Object.keys(REGION_LABELS) as RegionId[];
 const pct = (factor: number) => `+${Math.round((factor - 1) * 100)}%`;
 
 const monthLabel = (offset: number) =>
-  `${String(1 + (offset % 12)).padStart(2, '0')}/${1960 + Math.floor(offset / 12)}`;
+  `${String(monthOf(offset)).padStart(2, '0')}/${yearOf(offset)}`;
 
 /** One running campaign, with what is left of it and a way to stop it. */
 function CampaignRow({ campaign, offset, onCancel }: { campaign: Campaign; offset: number; onCancel: (id: string) => void }) {

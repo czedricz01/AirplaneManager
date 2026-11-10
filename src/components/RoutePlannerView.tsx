@@ -26,7 +26,7 @@ import {
 } from '../lib/destinationFilter';
 
 const HIDDEN_AIRCRAFT_KEY = 'planner_hidden_aircraft';
-import { dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
+import { blockMinutes, rawBlockMinutes, dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { createTimerBag } from '../lib/timerBag';
 import {
@@ -467,7 +467,7 @@ function RoutePlannerInner({
   function getLongestFreeBlock(aircraftRegistration: string) {
     const aircraftRoutes = routes.filter(r => r.aircraft === aircraftRegistration && r.id !== initialRouteId);
     const occupied = aircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+      const cycleMin = rawBlockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + Math.ceil(cycleMin / 5) * 5 };
     }) || []).sort((a, b) => a.start - b.start);
@@ -583,7 +583,7 @@ function RoutePlannerInner({
   const tripCapacity = useMemo(() => {
     if (!selectedAircraft || !selectedOrigin || !selectedDest) return null;
     const dur = sharedFlightDurationMinutes(selectedOrigin, selectedDest, selectedAircraft);
-    const cycleMin = Math.ceil((30 + dur + turnoverForClass(selectedAircraft.class) + dur + 30) / 5) * 5;
+    const cycleMin = blockMinutes({ durMin: dur, turnoverMin: turnoverForClass(selectedAircraft.class) });
     const occupied = occupiedIntervals(routes, selectedAircraft.registration, initialRouteId);
     const perWeek = Math.max(0, findMaxFlightStarts(occupied, cycleMin, 2100).bestCount);
     const perDay = Math.floor(dailyRunCapacity(occupied, []) / cycleMin);
@@ -634,7 +634,7 @@ function RoutePlannerInner({
       (routesByAircraft.get(ac.registration) || []).forEach(r => {
          if (r.schedule) {
             r.schedule.forEach((s: any) => {
-               const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+               const cycleMin = rawBlockMinutes(s);
                usedMins += Math.ceil(cycleMin / 5) * 5;
             });
          }
@@ -678,7 +678,7 @@ function RoutePlannerInner({
     (routesByAircraft.get(ac.registration) || []).forEach(r => {
        if (r.schedule) {
           r.schedule.forEach((s: any) => {
-             const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+             const cycleMin = rawBlockMinutes(s);
              usedMins += cycleMin;
           });
        }
@@ -757,14 +757,14 @@ function RoutePlannerInner({
   const isScheduleValid = (testSchedule: ScheduledTrip[]) => {
     const existingAircraftRoutes = selectedAircraft ? routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId) : [];
     const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+      const c = blockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + c };
     }) || []);
 
     for (const trip of testSchedule) {
       const tempStart = (trip.dayId - 1) * 1440 + trip.startHour * 60 + trip.startMin;
-      const cycle = Math.ceil(((trip as any).isOneWay ? (30 + trip.durMin + 30) : (30 + trip.durMin + trip.turnoverMin + trip.durMin + 30)) / 5) * 5;
+      const cycle = blockMinutes(trip);
       const newEnd = tempStart + cycle;
       for (const occ of occupied) {
         if (checkOverlap(tempStart, newEnd, occ.start, occ.end)) {
@@ -843,13 +843,13 @@ function RoutePlannerInner({
     const aircraftRoutes = routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId);
     let totalMinutes = aircraftRoutes.reduce((acc, r) => {
       const tripsMinutes = (r.schedule || []).reduce((sAcc, s) => {
-        const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+        const cycleMin = rawBlockMinutes(s);
         return sAcc + cycleMin;
       }, 0);
       return acc + tripsMinutes;
     }, 0);
     const draftMinutes = schedule.reduce((acc, s) => {
-      const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+      const cycleMin = rawBlockMinutes(s);
       return acc + cycleMin;
     }, 0);
     totalMinutes += draftMinutes;
@@ -1061,7 +1061,7 @@ function RoutePlannerInner({
 
     const existingAircraftRoutes = selectedAircraft ? routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId) : [];
     const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const c = Math.ceil((s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+      const c = blockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + c };
     }) || []);
@@ -1089,7 +1089,7 @@ function RoutePlannerInner({
       for (const trip of nextSchedule) {
         const tempStart = (trip as any)._tempStart;
         if (tempStart !== undefined) {
-          const cycle = Math.ceil(((trip as any).isOneWay ? (30 + trip.durMin + 30) : (30 + trip.durMin + trip.turnoverMin + trip.durMin + 30)) / 5) * 5;
+          const cycle = blockMinutes(trip);
           const newEnd = tempStart + cycle;
           for (const occ of occupied) {
             if (checkOverlap(tempStart, newEnd, occ.start, occ.end)) {
@@ -1175,12 +1175,12 @@ function RoutePlannerInner({
 
     const durMin = getFlightDurationMinutes();
     const turnMin = getTurnoverMinutes();
-    const cycleMin = Math.ceil((30 + durMin + turnMin + durMin + 30) / 5) * 5;
+    const cycleMin = blockMinutes({ durMin, turnoverMin: turnMin });
 
     let bestStartM = (flightHour * 60 + flightMinute);
     const existingAircraftRoutes = routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId);
     const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+      const c = blockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + c };
     }) || []);
@@ -1216,7 +1216,7 @@ function RoutePlannerInner({
       const allEnds = [
         ...occupied.map(occ => (occ.end % 1440)),
         ...schedule.map(s => {
-          const c = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+          const c = rawBlockMinutes(s);
           return ((s.startHour * 60 + s.startMin) + Math.ceil(c / 5) * 5) % 1440;
         })
       ];
@@ -1401,13 +1401,13 @@ function RoutePlannerInner({
 
     const durMin = getFlightDurationMinutes();
     const turnMin = getTurnoverMinutes();
-    const totalDurRaw = (30 + durMin + turnMin + durMin + 30);
+    const totalDurRaw = rawBlockMinutes({ durMin, turnoverMin: turnMin });
     const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
 
     const existingTrips = routes
       .filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId)
       .flatMap(r => r.schedule?.map(s => {
-          const exCycleRaw = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+          const exCycleRaw = rawBlockMinutes(s);
           const exCycle = Math.ceil(exCycleRaw / 5) * 5;
           const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
           return { start, end: start + exCycle };
@@ -1538,9 +1538,7 @@ function RoutePlannerInner({
     ];
 
     return rawBlocks.flatMap(({ s, isBusy, orig, dest }) => {
-      const durMin = s.durMin;
-      const turnMin = s.turnoverMin;
-      const totalDurRaw = (s as any).isOneWay ? (30 + durMin + 30) : (30 + durMin + turnMin + durMin + 30);
+      const totalDurRaw = rawBlockMinutes(s);
       const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
       const blockStartAbs = s.startHour * 60 + s.startMin; 
       
@@ -2426,14 +2424,14 @@ function RoutePlannerInner({
 
                           const durMin = getFlightDurationMinutes();
                           const turnMin = getTurnoverMinutes();
-                          const totalDurRaw = (30 + durMin + turnMin + durMin + 30);
+                          const totalDurRaw = rawBlockMinutes({ durMin, turnoverMin: turnMin });
                           const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
                           
                           const newTrips: ScheduledTrip[] = [];
 
                           const existingAircraftRoutes = routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId);
                           const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-                            const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+                            const c = blockMinutes(s);
                             const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
                             return { start, end: start + c };
                           }) || []).sort((a, b) => a.start - b.start);
@@ -2576,7 +2574,7 @@ function RoutePlannerInner({
                               const allEnds = [
                                 ...occupied.map(occ => (occ.end % 1440)),
                                 ...schedule.map(s => {
-                                  const c = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+                                  const c = rawBlockMinutes(s);
                                   return ((s.startHour * 60 + s.startMin) + Math.ceil(c / 5) * 5) % 1440;
                                 })
                               ];
@@ -2642,7 +2640,7 @@ function RoutePlannerInner({
                                   if (!r.schedule) continue;
                                   for (const s of r.schedule) {
                                     const exStart = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
-                                    const exCycle = Math.ceil((s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+                                    const exCycle = blockMinutes(s);
                                     if (checkOverlap(newStart, newEnd, exStart, exStart + exCycle)) {
                                       conflict = true; break;
                                     }
@@ -2874,7 +2872,7 @@ function RoutePlannerInner({
                           
                           {allBlocks.filter(b => b.dayId === day.id).map(b => {
                               const startAbs = Math.round(b.s.startHour * 60 + b.s.startMin);
-                              const totalDurRaw = ((b.s as any).isOneWay ? (30 + b.s.durMin + 30) : (30 + b.s.durMin + b.s.turnoverMin + b.s.durMin + 30));
+                              const totalDurRaw = rawBlockMinutes(b.s);
                               const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
                               const endAbs = startAbs + cycleMin;
                               

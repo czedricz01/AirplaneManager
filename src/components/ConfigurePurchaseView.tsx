@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { formatCurrency, formatNumber } from '../lib/format';
+import { formatCurrency, formatNumber, yearOf } from '../lib/format';
 import { getPlaneSat } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
 import type { OwnedAircraft } from './MyFleetView';
@@ -707,7 +707,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${firstType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
-                      {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
                 )
@@ -747,7 +747,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>
@@ -786,7 +786,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${bizType === t.n ? 'text-white/80 opacity-80' : 'text-white/40'}`}>
-                      {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
                 )
@@ -826,7 +826,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>
@@ -865,7 +865,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${premType === t.n ? 'text-aero-yellow opacity-80' : 'text-white/40'}`}>
-                      {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
                 )
@@ -905,7 +905,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>
@@ -944,7 +944,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
                     </div>
                     <span className={`text-2xs uppercase font-mono transition-colors ${ecoType === t.n ? 'text-slate-400 opacity-80' : 'text-white/40'}`}>
-                      {disabled ? `Avail. ${1960 + Math.floor(t.req / 12)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
                     </span>
                   </label>
                 )
@@ -984,7 +984,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-white/40'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${1960 + Math.floor(ext.req / 12)}`}
+                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>

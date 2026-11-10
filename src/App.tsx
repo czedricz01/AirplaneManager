@@ -40,7 +40,7 @@ import { airports, airportsMapAdjusted } from "./data/airportRegistry";
 export { airportsMapAdjusted };
 
 const offsetToDateStr = (offset: number) =>
-  `${(1 + (offset % 12)).toString().padStart(2, '0')}/${1960 + Math.floor(offset / 12)}`;
+  `${(monthOf(offset)).toString().padStart(2, '0')}/${yearOf(offset)}`;
 
 const signedPercent = (multiplier: number) => {
   const pct = Math.round((multiplier - 1.0) * 100);
@@ -350,9 +350,10 @@ import {
 } from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
 import { useStableCallback } from "./lib/useStableCallback";
+import { rawBlockMinutes } from "./lib/scheduleUtils";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
-import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
+import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf, LITRES_PER_GALLON } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
 import type { GameMessage, MonthlyReport, ScheduledTrip } from "./lib/gameTypes";
 export type { GameMessage };
@@ -951,15 +952,15 @@ export default function App() {
   const finalUiScale = uiScaleSetting * autoScale;
 
   const formatDate = (offset: number) => {
-    const year = 1960 + Math.floor(offset / 12);
-    const month = 1 + (offset % 12);
+    const year = yearOf(offset);
+    const month = monthOf(offset);
     return `${month.toString().padStart(2, '0')}/${year}`;
   };
 
   // Price comes from the shared model; only the month-on-month trend string is
   // computed here, so the top bar can never disagree with what routes are billed.
   const rawPriceAtOffset = (offset: number) =>
-    getJetFuelPrice(1960 + Math.floor(offset / 12), 1 + (offset % 12), difficulty);
+    getJetFuelPrice(yearOf(offset), monthOf(offset), difficulty);
 
   /**
    * The fuel price the PLAYER pays, which is the market price unless a hedge is
@@ -1013,8 +1014,8 @@ export default function App() {
   const network = useMemo(() => computeNetworkFinancials(routes, fleet, playerMods, {
     fuelPrice: fuelData.price,
     airportManagement,
-    year: 1960 + Math.floor(currentDateOffset / 12),
-    month: 1 + (currentDateOffset % 12),
+    year: yearOf(currentDateOffset),
+    month: monthOf(currentDateOffset),
     difficulty,
     airportsMap: airportsMapAdjusted,
     rivalOffers
@@ -1210,7 +1211,7 @@ export default function App() {
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
-    const mNum = 1 + (offset % 12);
+    const mNum = monthOf(offset);
     const mFactor = mvValues[mNum - 1] || 1.0;
     const { demandMult } = getEventMultipliers(offset);
     
@@ -1519,8 +1520,8 @@ export default function App() {
     // airportsMapAdjusted is the same lookup, built once at module load.
     const localAirportsMap = airportsMapAdjusted;
     const currentFuelPrice = getFuelData(currentDateOffset).price;
-    const currentYearNum = 1960 + Math.floor(currentDateOffset / 12);
-    const currentMonthNum = 1 + (currentDateOffset % 12);
+    const currentYearNum = yearOf(currentDateOffset);
+    const currentMonthNum = monthOf(currentDateOffset);
 
     let totalRouteRevenues = 0;
     let totalRouteCosts = 0;
@@ -1582,7 +1583,7 @@ export default function App() {
         if (fin.costsBreakdown) {
           fuelCosts += fin.costsBreakdown.fuel * 4;
           fuelLitersUsed += (fin.costsBreakdown.fuelLiters || 0) * 4;
-          averageFuelPricePerL = fin.costsBreakdown.fuelPriceL || Math.round((currentFuelPrice / 3.78541) * 1000) / 1000;
+          averageFuelPricePerL = fin.costsBreakdown.fuelPriceL || Math.round((currentFuelPrice / LITRES_PER_GALLON) * 1000) / 1000;
           cateringCosts += fin.costsBreakdown.catering * 4;
           staffCosts += fin.costsBreakdown.crew * 4;
           infraCosts += fin.costsBreakdown.infra * 4;
@@ -1952,7 +1953,7 @@ export default function App() {
 
     // 1. Check January Forecast News
     if (isNextJanuary) {
-      const forecastYear = 1960 + Math.floor(nextOffset / 12);
+      const forecastYear = yearOf(nextOffset);
       const debutingAircraft = aircraftList.filter(
         ac => ac.firstDeliveryOffset >= nextOffset && ac.firstDeliveryOffset <= nextOffset + 11
       );
@@ -2465,7 +2466,7 @@ export default function App() {
       scenario: scenarioDecided,
       airportName: id => localAirportsMap.get(id)?.name || id,
       ticker: {
-        fuelPerLitre: nextFuel.price / 3.78541,
+        fuelPerLitre: nextFuel.price / LITRES_PER_GALLON,
         fuelTrend: nextFuel.trend,
         demand: nextDemand.value,
         demandTrend: nextDemand.trend,
@@ -2521,8 +2522,8 @@ export default function App() {
     const nextEnv = {
       fuelPrice: getFuelData(nextOffset).price,
       airportManagement,
-      year: 1960 + Math.floor(nextOffset / 12),
-      month: 1 + (nextOffset % 12),
+      year: yearOf(nextOffset),
+      month: monthOf(nextOffset),
       difficulty,
       airportsMap: localAirportsMap,
       rivalOffers: nextRivalOffers
@@ -2579,9 +2580,7 @@ export default function App() {
       aircraftRoutes.forEach(r => {
         if (!r.schedule) return;
         r.schedule.forEach(s => {
-          const dur = Number(s.durMin) || 0;
-          const turn = Number(s.turnoverMin) || 0;
-          weeklyFlightMinutes += s.isOneWay ? (30 + dur + 30) : (30 + dur + turn + dur + 30);
+          weeklyFlightMinutes += rawBlockMinutes(s);
         });
       });
       // Rough monthly logic: 4 weeks per month
@@ -3198,7 +3197,7 @@ export default function App() {
   const handleStartResearch = (projectId: string) => {
     const project = projectById(projectId);
     if (!project) return;
-    const year = 1960 + Math.floor(currentDateOffset / 12);
+    const year = yearOf(currentDateOffset);
     const blocker = researchBlocker(career.research, project, career.rank, capital, year);
     if (blocker) {
       setAppAlert(blocker);
@@ -4112,7 +4111,7 @@ export default function App() {
                           airports={airportsByName}
                           maxLevel={newGameMode === 'normal' ? maxAirportLevel(0) : 7}
                           rankTitle={rankDef(0).title}
-                          year={1960 + Math.floor(startDateOffset / 12)}
+                          year={yearOf(startDateOffset)}
                           selectedId={selectedHub}
                           onSelect={setSelectedHub}
                           onClose={() => setHubPickerOpen(false)}
@@ -4489,7 +4488,7 @@ export default function App() {
                     <GameStat label="Routes" value={routes.length.toString()} />
                     <GameStat label="Reputation" value={`${Math.round(reputation)}`} />
                     <GameStat label="Global Demand" value={`${Math.round(globalDemandData.value * 100)}%`} trend={globalDemandData.trend} />
-                    <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / 3.78541, 3)}`} trend={fuelData.trend} goodDirection="down" />
+                    <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / LITRES_PER_GALLON, 3)}`} trend={fuelData.trend} goodDirection="down" />
                   </div>
                   <div className="flex items-center gap-3 short:gap-2 short:shrink-0 rail:relative">
                     <div className="flex items-center gap-4 mr-auto rail:mr-0">
@@ -4771,8 +4770,8 @@ export default function App() {
                           transferFlows={network.flowsByRoute}
                           cancellations={routeCancellations}
                           airportManagement={airportManagement}
-                          currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                          currentMonth={1 + (currentDateOffset % 12)}
+                          currentYear={yearOf(currentDateOffset)}
+                          currentMonth={monthOf(currentDateOffset)}
                           difficulty={difficulty}
                           airlineCode={airlineCode}
                         />
@@ -4782,7 +4781,7 @@ export default function App() {
                     <ViewFrame label="Airports" onReset={backToMap}>
                       <React.Suspense fallback={<LazyFallback label="Airports" />}>
                         <AirportsView
-                          currentYear={1960 + Math.floor(currentDateOffset / 12)}
+                          currentYear={yearOf(currentDateOffset)}
                           onSelectAirport={setSelectedAirport}
                           airportManagement={airportManagement}
                           aiAirlines={aiAirlines}
@@ -4957,8 +4956,8 @@ export default function App() {
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
-                        currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                        currentMonth={1 + (currentDateOffset % 12)}
+                        currentYear={yearOf(currentDateOffset)}
+                        currentMonth={monthOf(currentDateOffset)}
                         difficulty={difficulty}
                         initialRouteId={editingCabinRouteId}
                         isEditingCabinOnly={true}
@@ -4991,8 +4990,8 @@ export default function App() {
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
-                        currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                        currentMonth={1 + (currentDateOffset % 12)}
+                        currentYear={yearOf(currentDateOffset)}
+                        currentMonth={monthOf(currentDateOffset)}
                         difficulty={difficulty}
                         initialRouteId={editingPricingRouteId}
                         isEditingPricingOnly={true}
@@ -5047,8 +5046,8 @@ export default function App() {
                         onStepChange={setPlanningStep}
                         onScheduleChange={setPlanningSchedule}
                         onClassConfigsChange={setPlanningClassConfigs}
-                        currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                        currentMonth={1 + (currentDateOffset % 12)}
+                        currentYear={yearOf(currentDateOffset)}
+                        currentMonth={monthOf(currentDateOffset)}
                         difficulty={difficulty}
                         aiAirlines={aiAirlines}
                         airlineCode={airlineCode}

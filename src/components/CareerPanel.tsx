@@ -36,7 +36,7 @@ import {
   type ResearchState
 } from '../lib/research';
 import type { HallOfFameEntry, ScoreBreakdown } from '../lib/careerScore';
-import { formatCurrency, formatNumber, formatMoneyCompact as compact } from '../lib/format';
+import { formatCurrency, formatNumber, formatMoneyCompact as compact, yearOf } from '../lib/format';
 
 export interface CareerPanelProps {
   /** Free Mode: a Global Player from the start, no rank to earn. */
@@ -308,7 +308,7 @@ function ProjectCard({
 }
 
 function ResearchSection({ research, rank, free, capital, currentDateOffset, onStartResearch }: Pick<CareerPanelProps, 'research' | 'rank' | 'free' | 'capital' | 'currentDateOffset' | 'onStartResearch'>) {
-  const year = 1960 + Math.floor(currentDateOffset / 12);
+  const year = yearOf(currentDateOffset);
   const fx = React.useMemo(() => researchEffects(research.done), [research.done]);
   const lines = effectLines(fx);
   const open = openClasses(research.done, free);

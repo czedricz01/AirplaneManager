@@ -73,6 +73,19 @@ export function formatNumberCompact(value: number): string {
 /** The game's calendar starts in January 1960: month offset 0. */
 export const CALENDAR_START_YEAR = 1960;
 
+/** The calendar year of a month offset: 0 is 1960, 12 is 1961. */
+export function yearOf(offset: number): number {
+  return CALENDAR_START_YEAR + Math.floor(offset / 12);
+}
+
+/** The calendar month of a month offset, 1 to 12. */
+export function monthOf(offset: number): number {
+  return 1 + (offset % 12);
+}
+
+/** Litres in a US gallon; the fuel price is kept per gallon and shown per litre. */
+export const LITRES_PER_GALLON = 3.78541;
+
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'

@@ -1,3 +1,4 @@
+import { LITRES_PER_GALLON } from './format';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
@@ -1013,7 +1014,7 @@ export function calculateRouteFinancials(
   mods?: PlayerModifiers
 ) {
   const dist = route.distance || 0;
-  const fuelPricePerL = Math.round((fuelPrice / 3.78541) * 1000) / 1000;
+  const fuelPricePerL = Math.round((fuelPrice / LITRES_PER_GALLON) * 1000) / 1000;
   const weeklyFlights = route.schedule?.length || route.weeklyFlights || 0;
   // The share of the timetable that actually operates. Strikes and disruptions
   // cancel the rest: fuel, crew hours, fees and seats all scale with it, while
