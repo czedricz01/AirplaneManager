@@ -1,6 +1,7 @@
 # Code-Review AirlineManagerNeo
 
-Stand: 10.11.2026 · Branch `claude/vibrant-pasteur-zx25o6` · Phase 1a (nur Bericht, keine Code-Änderung)
+Stand: 10.11.2026 · Branch `claude/vibrant-pasteur-zx25o6` · Phase 1a (Bericht) und Phase 1b (Umsetzung) abgeschlossen.
+Das Ergebnis der Umsetzung steht am Ende unter [Phase 1b – Ergebnis](#phase-1b--ergebnis). Die Zeilenangaben in den Fund-Tabellen beziehen sich auf den Stand vor der Umsetzung.
 
 ## Ausgangswerte
 
@@ -121,3 +122,90 @@ Nicht als Fund gewertet: `src/data/raw_airports.csv` (391 kB), `raw_fuel.csv` un
 - Nr. 26: `metadata.json` löschen?
 - Nr. 36: `adm-zip` auf die nächste Hauptversion heben?
 - Nr. 27/28: Zerlegung von `App.tsx` jetzt, später oder gar nicht?
+
+---
+
+# Phase 1b – Ergebnis
+
+Freigabe des Nutzers: ganze Liste; Nr. 9 ja, Nr. 22 entfernen, Nr. 26 löschen, Nr. 36 freigeben, Nr. 27/28 jetzt und in kleinen Schritten.
+
+## Vorher / Nachher
+
+| Messwert | Vorher | Nachher |
+|---|---|---|
+| Typecheck (`npm run lint`) | grün, ohne `strict` | grün, mit `strict`, `noUnusedLocals`, `noUnusedParameters` |
+| Tests | 474 bestanden | 484 bestanden (10 neue) |
+| Build | grün, Warnung „Chunk über 900 kB" | grün, keine Warnung |
+| Größter Chunk (`index.js`) | 983 kB roh / 303 kB gzip | 387 kB roh / 127 kB gzip |
+| Übertragung beim Start | 528 kB, 6 Anfragen | 473 kB, 8 Anfragen |
+| Kartenbibliothek (45 kB gzip) | lädt mit der Anmeldeseite | lädt erst mit dem Spiel oder der Hub-Auswahl |
+| Fremd-Downloads im Spiel | 3 Unsplash-Fotos, cdnjs-Adressen im Code | keine (Schriften von Google Fonts bleiben bis Phase 2) |
+| `src/App.tsx` | 5 809 Zeilen | 3 026 Zeilen |
+| `any`-Stellen außerhalb der Tests | 194 | 166 |
+| Ungenutzte Variablen/Importe | 84 | 0 (vom Compiler erzwungen) |
+| `npm audit` | Lücken der Stufe „hoch" in 6 Paketen | 0 Lücken |
+| Startseite FCP (lokal, 3 Läufe, 1280 px) | 364–588 ms | 324–524 ms |
+
+Die Summe aller JavaScript-Dateien ist praktisch gleich geblieben: Der Haupt-Chunk ist kleiner, weil React, Supabase und die
+Animations-Bibliothek jetzt eigene Dateien sind. Der Gewinn liegt im Caching (ein neues Release lädt diese Dateien nicht neu)
+und darin, dass Leaflet nicht mehr beim Start geladen wird. Die FCP-Werte stammen von einem lokalen Server und schwanken von Lauf zu Lauf;
+der Unterschied ist dort nicht aussagekräftig.
+
+## Wie geprüft wurde
+
+- Nach jedem Commit: `npm run lint`, `npm test`, `npm run build:pages`.
+- Zusätzlich einmal `npm run build` (mit Server) und `npm run build:static`.
+- Browser-Rauchtest (Playwright gegen `vite preview`) bei 1280, 768 und 360 px: Anmeldung, Einstellungen, neues Spiel,
+  alle neun Navigationsziele, Monatsabschluss. Keine Laufzeitfehler, kein horizontales Scrollen.
+- Durchgespielter Ablauf bei 1280 px: Flugzeug kaufen, Route AAL–BLL planen (Slots kaufen, Stufe freischalten, vier Schritte),
+  speichern, Monat abschließen. Die Zahlen passen zusammen: 672 Passagiere je Woche × 4 × 42 $ = 112 896 $ Umsatz im Bericht.
+- Nicht geprüft: Anmeldung und Cloud-Spielstände gegen ein echtes Supabase-Projekt (in dieser Umgebung nicht vorhanden).
+  Die Änderungen an `cloudSaves.ts` (Nr. 1, 6, 7) sind nur durch Tests des lokalen Teils und durch Lesen abgesichert.
+
+## Status je Fund
+
+| Nr. | Status | Was gemacht wurde |
+|---|---|---|
+| 1 | erledigt | `writeSave` wirft einen Fehler, wenn weder lokal noch in der Cloud gespeichert wurde; die vorhandene Fehlermeldung erscheint. Zwei Tests. |
+| 2 | erledigt | Autosave-Einstellungen werden beim Anlegen des States gelesen. |
+| 3 | erledigt | Der Zeitplan-Editor bricht seinen Timer beim Schließen ab. |
+| 4 | erledigt (anders) | `SupabaseBucketModal` wurde nirgends angezeigt. Die Datei ist gelöscht, damit entfällt der Timer. |
+| 5 | erledigt | Fehler beim Wiederherstellen der Sitzung wird geloggt und als „nicht angemeldet" behandelt. |
+| 6 | erledigt | Schlägt das Löschen in der Cloud fehl, erscheint ein Hinweis. |
+| 7 | erledigt | Jeder Slot merkt sich den Server-Zeitstempel der Cloud-Kopie, auf der er beruht; ein Konflikt ist eine Cloud-Kopie, die sich danach geändert hat. Ein Test. |
+| 8 | erledigt | Die Jubiläums-Nachricht rechnet die Wertung wie die Karriere-Ansicht. |
+| 9 | erledigt | Die Szenario-Bewertung zählt Prämien desselben Monats mit. |
+| 10 | erledigt | 27 Zahlen laufen über `lib/format` (die vier Datumsangaben mit `toLocaleString` bleiben). |
+| 11 | erledigt | Alle 17 Stellen geprüft. Eine geändert (Routen im Flugzeug-Dialog); die übrigen sind feste oder reine Anzeige-Listen, dort ist der Index unbedenklich. |
+| 12 | Stufe 1 erledigt, Stufe 2 verworfen | Eigener Vendor-Chunk. Nachladen per `import()` bringt der echten Seite nichts: Dort ist Supabase eingerichtet und wird schon für die Anmeldung gebraucht. |
+| 13 | Stufe 1 erledigt | Eigener Vendor-Chunk. Ob die Bibliothek bleibt, entscheidet Phase 2. |
+| 14 | erledigt | Karte, Hub-Auswahl, Zeitung, Tutorial und Monatsbericht werden nachgeladen. Die Flughafendaten bleiben im Start, weil `App` sie selbst liest. |
+| 15 | erledigt | Die drei Fotos sind entfernt. Sichtbare Änderung: Der Flughafen-Bildschirm hat keinen schwach durchscheinenden Foto-Hintergrund mehr. |
+| 16 | offen | Wie geplant in Phase 2 mit der Schriftwahl. |
+| 17 | erledigt | Stabile Handler über `useStableCallback`, `market` per `useMemo`. |
+| 18 | erledigt | Der Debug-Schalter kommt als Prop. |
+| 19 | erledigt | Sortierwert einmal je Flughafen. |
+| 20 | erledigt | 84 Stellen entfernt; `noUnusedLocals` und `noUnusedParameters` sind eingeschaltet. |
+| 21 | erledigt | Sieben Exporte entfernt. |
+| 22 | erledigt | Vier Exporte entfernt, Tests angepasst. Dabei fiel `lockedSummary` (`airportAccess.ts`) als fünfter nur von Tests genutzter Export auf; er bleibt, weil sein Test die echten Flughafendaten prüft. |
+| 23 | erledigt | Leaflet-Workaround entfernt. |
+| 24 | erledigt | `'new-route'` und der Platzhalter-Zweig entfernt. |
+| 25 | erledigt | Konstante statt Kopie. |
+| 26 | erledigt | Konfiguration bereinigt, Paket heißt `airline-manager-neo`, `metadata.json` gelöscht. |
+| 27 | erledigt | In drei Schritten: Typen und Hilfskomponenten, dann Menüs/Bericht/Einstellungen, dann obere Leiste/Navigation/Dialoge. Neue Dateien unter `src/components/app/`. In `App` bleiben Spielzustand, Handler und die Verdrahtung der Ansichten. |
+| 28 | erledigt | `closeMonth()` in `src/lib/monthClose.ts`. Der Code wurde verschoben, nicht umgeschrieben: Die Funktion liefert die Setter-Aufrufe als Liste in der ursprünglichen Reihenfolge, `App` spielt sie ab. Sieben Tests. |
+| 29 | teilweise | Die zwölf untypisierten Setter sind durch eine typisierte Hilfsfunktion ersetzt. Die Aufteilung der vier Schritte in eigene Dateien ist **nicht** gemacht: Sie teilen sich rund 60 lokale Werte. Das passt besser in Phase 2c, wenn jeder Schritt ohnehin neu gestaltet wird. |
+| 30 | erledigt | `blockMinutes`/`rawBlockMinutes`, `yearOf`/`monthOf`, `LITRES_PER_GALLON`. Zwei Stellen im Planer mit leicht anderer Formel (`RoutePlannerView.tsx`, Suche nach `testDurMin * 2` und `exCycle`) blieben bewusst unverändert. |
+| 31 | erledigt | Die Hub-Regel steht nur noch im Effekt. |
+| 32 | erledigt | `handlePurchase` vereinfacht, gleiches Verhalten. |
+| 33 | unverändert | Wie vorgeschlagen nur dokumentiert (Kopfkommentar von `monthClose.ts`). |
+| 34 | erledigt | 50 Stellen behoben, `strict: true`. |
+| 35 | teilweise | `MonthlyReport` und `ScheduledTrip` sind zentrale Typen; Bericht, Flugplan und Planer-Entwurf sind typisiert. 166 `any` bleiben, vor allem im Planer (41), in der Spielstand-Migration (35, liest unbekannte Daten) und in `financeUtils.ts` (26). |
+| 36 | erledigt | `npm audit fix` und `adm-zip` 0.5 → 0.6.1; die ZIP-Aufrufe des Servers gegen die neue Version geprüft. |
+| 37 | erledigt | Der Server lauscht auf `127.0.0.1`; `HOST=0.0.0.0` öffnet ihn. In `README.md` und `.env.example` vermerkt. |
+
+## Was offen bleibt
+
+- Nr. 16 (Schriften) und der Rest von Nr. 13: Phase 2.
+- Nr. 29 (Planer in Dateien aufteilen) und der Rest von Nr. 35 (`any` im Planer): Phase 2c.
+- `App.tsx` hat noch 3 026 Zeilen. Der größte verbleibende Block ist die Verdrahtung der Ansichten im Spiel (rund 500 Zeilen JSX mit vielen Handlern); er wird in Phase 2c mit der neuen Navigation neu aufgebaut.
