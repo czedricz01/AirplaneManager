@@ -287,9 +287,9 @@ export function AircraftDetailsModal({
                 <h3 className="text-sm font-bold uppercase tracking-widest border-b border-white/10 pb-2 mb-4 text-white/80">Assigned Routes</h3>
                 {aircraftRoutes.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {aircraftRoutes.map((r, i) => (
+                    {aircraftRoutes.map((r) => (
                       <button 
-                        key={i}
+                        key={r.id}
                         onClick={() => {
                           onClose();
                           onSelectRoute?.(r);
