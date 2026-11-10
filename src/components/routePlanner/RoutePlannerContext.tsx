@@ -38,7 +38,6 @@ export interface PlannerUiState {
   destFiltersOpen: boolean;
   activeConfigClass: string | null;
   expandedSections: Record<string, boolean>;
-  expandedMealCats: Record<string, boolean>;
   takeControl: Record<string, boolean>;
   showConfigSaveModal: boolean;
   showConfigLoadModal: boolean;
@@ -60,7 +59,6 @@ const defaultUi: PlannerUiState = {
   destFiltersOpen: false,
   activeConfigClass: null,
   expandedSections: { plane: false, sce: false, airport: false },
-  expandedMealCats: { Basic: false, Standard: false, Premium: false, Luxury: false },
   takeControl: { catering: false, extras: false, service: false },
   showConfigSaveModal: false,
   showConfigLoadModal: false,

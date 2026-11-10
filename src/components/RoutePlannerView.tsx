@@ -7,7 +7,7 @@ import { AirportInfrastructure, ManagementLevel } from '../App';
 import { SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
-import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerContext';
+import { RoutePlannerProvider, usePlanner, type PlannerUiState } from './routePlanner/RoutePlannerContext';
 import type { PlannerSelection } from './routePlanner/plannerState';
 import { CabinConfigDialogs } from './routePlanner/CabinConfigDialogs';
 import { AircraftImage } from './AircraftImage';
@@ -267,6 +267,14 @@ function RoutePlannerInner({
   // are unchanged on purpose: the 3,000 lines of JSX further down did not have
   // to be touched, which is what makes this reviewable.
   const { selection, dispatch, ui, setUi } = usePlanner();
+
+  /**
+   * A useState-style setter for one field of the planner's interface state:
+   * it takes the new value, or a function of the current one.
+   */
+  const uiSetter = <K extends keyof PlannerUiState>(key: K) =>
+    (next: PlannerUiState[K] | ((prev: PlannerUiState[K]) => PlannerUiState[K])) =>
+      setUi(key, typeof next === 'function' ? (next as (prev: PlannerUiState[K]) => PlannerUiState[K])(ui[key]) : next);
   const { step, originId, destId, selectedReg, schedule, classConfigs, ticketPrices, validationMsg } = selection;
 
   const setStep = (s: number) => {
@@ -274,17 +282,15 @@ function RoutePlannerInner({
     onStepChange?.(s);
   };
   const showSuccess = ui.showSuccess;
-  const setShowSuccess = (v: any) => setUi('showSuccess', typeof v === 'function' ? v(ui.showSuccess) : v);
+  const setShowSuccess = uiSetter('showSuccess');
   const isFinalizing = ui.isFinalizing;
-  const setIsFinalizing = (v: any) => setUi('isFinalizing', typeof v === 'function' ? v(ui.isFinalizing) : v);
+  const setIsFinalizing = uiSetter('isFinalizing');
   const activeConfigClass = ui.activeConfigClass;
-  const setActiveConfigClass = (v: any) => setUi('activeConfigClass', typeof v === 'function' ? v(ui.activeConfigClass) : v);
+  const setActiveConfigClass = uiSetter('activeConfigClass');
   const expandedSections = ui.expandedSections;
-  type ExpandedSections = typeof ui.expandedSections;
-  const setExpandedSections = (v: ExpandedSections | ((prev: ExpandedSections) => ExpandedSections)) =>
-    setUi('expandedSections', typeof v === 'function' ? v(ui.expandedSections) : v);
+  const setExpandedSections = uiSetter('expandedSections');
   const takeControl = ui.takeControl;
-  const setTakeControl = (v: any) => setUi('takeControl', typeof v === 'function' ? v(ui.takeControl) : v);
+  const setTakeControl = uiSetter('takeControl');
   const setClassConfigs = (
     next: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)
   ) => {
@@ -308,8 +314,8 @@ function RoutePlannerInner({
     onClassConfigsChange?.(classConfigs);
   }, [classConfigs, onClassConfigsChange]);
 
-  const setShowConfigSaveModal = (v: any) => setUi('showConfigSaveModal', typeof v === 'function' ? v(ui.showConfigSaveModal) : v);
-  const setShowConfigLoadModal = (v: any) => setUi('showConfigLoadModal', typeof v === 'function' ? v(ui.showConfigLoadModal) : v);
+  const setShowConfigSaveModal = uiSetter('showConfigSaveModal');
+  const setShowConfigLoadModal = uiSetter('showConfigLoadModal');
 
   const setOriginId = (id: string | null) => {
     dispatch({ type: 'selectOrigin', originId: id });
@@ -415,15 +421,15 @@ function RoutePlannerInner({
   }, [initialRouteId]);
 
   const originSearch = ui.originSearch;
-  const setOriginSearch = (v: any) => setUi('originSearch', typeof v === 'function' ? v(ui.originSearch) : v);
+  const setOriginSearch = uiSetter('originSearch');
   const destSearch = ui.destSearch;
-  const setDestSearch = (v: any) => setUi('destSearch', typeof v === 'function' ? v(ui.destSearch) : v);
+  const setDestSearch = uiSetter('destSearch');
   const showDemandDebug = ui.showDemandDebug;
-  const setShowDemandDebug = (v: any) => setUi('showDemandDebug', typeof v === 'function' ? v(ui.showDemandDebug) : v);
+  const setShowDemandDebug = uiSetter('showDemandDebug');
   const showPricingDebug = ui.showPricingDebug;
-  const setShowPricingDebug = (v: any) => setUi('showPricingDebug', typeof v === 'function' ? v(ui.showPricingDebug) : v);
+  const setShowPricingDebug = uiSetter('showPricingDebug');
   const destSortBy = ui.destSortBy;
-  const setDestSortBy = (v: any) => setUi('destSortBy', typeof v === 'function' ? v(ui.destSortBy) : v);
+  const setDestSortBy = uiSetter('destSortBy');
   const destFilters = ui.destFilters;
   const setDestFilters = (v: DestinationFilters) => setUi('destFilters', v);
   const destFiltersOpen = ui.destFiltersOpen;
@@ -431,7 +437,7 @@ function RoutePlannerInner({
   const setDestRange = (key: 'distance' | 'business' | 'tourism', bound: keyof RangeFilter, value: string) =>
     setDestFilters({ ...destFilters, [key]: { ...destFilters[key], [bound]: value } });
   const aircraftSearch = ui.aircraftSearch;
-  const setAircraftSearch = (v: any) => setUi('aircraftSearch', typeof v === 'function' ? v(ui.aircraftSearch) : v);
+  const setAircraftSearch = uiSetter('aircraftSearch');
   const setTicketPrices = (
     next: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)
   ) => {
