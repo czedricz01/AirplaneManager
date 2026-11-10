@@ -215,15 +215,24 @@ export async function writeSave(
   return { meta, cloudOk: true };
 }
 
-export async function deleteSave(scope: SaveScope, slotId: string): Promise<void> {
+/**
+ * Deletes a savegame here and in the cloud. Returns false when the cloud copy
+ * could not be deleted: it then comes back with the next list, and the caller
+ * should say so.
+ */
+export async function deleteSave(scope: SaveScope, slotId: string): Promise<boolean> {
   removeKey(payloadKey(scope, slotId));
   writeLocalIndex(scope, readLocalIndex(scope).filter(s => s.id !== slotId));
 
   const client = cloudFor(scope);
-  if (!client) return;
+  if (!client) return true;
 
   const { error } = await client.from('saves').delete().eq('user_id', scope).eq('slot_id', slotId);
-  if (error) console.warn('[saves] cloud delete failed', error);
+  if (error) {
+    console.warn('[saves] cloud delete failed', error);
+    return false;
+  }
+  return true;
 }
 
 export interface SyncResult {

@@ -1278,7 +1278,13 @@ export default function App() {
       setIsAuthResolved(true);
     };
 
-    supabase.auth.getSession().then(({ data }) => adopt(data.session));
+    supabase.auth.getSession()
+      .then(({ data }) => adopt(data.session))
+      .catch(e => {
+        // Without a session the player is simply not signed in; the login screen follows.
+        logError('auth', 'Restoring the session failed', e);
+        adopt(null);
+      });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => adopt(session));
 
     return () => {
@@ -1408,21 +1414,21 @@ export default function App() {
     return () => { cancelled = true; };
   }, [isAuthResolved, userId, refreshSaves]);
 
-  const [autosaveInterval, setAutosaveInterval] = useState(6);
-  const [autosaveOverwrite, setAutosaveOverwrite] = useState(true);
+  // Read once, when the state is created. Loading them in an effect let the
+  // effect below write the defaults over them first.
+  const [autosaveInterval, setAutosaveInterval] = useState<number>(() => {
+    const stored = readJson<{ autosaveInterval?: unknown } | null>('neo_autosave_settings', null)?.autosaveInterval;
+    return typeof stored === 'number' && Number.isFinite(stored) ? stored : 6;
+  });
+  const [autosaveOverwrite, setAutosaveOverwrite] = useState<boolean>(() => {
+    const stored = readJson<{ autosaveOverwrite?: unknown } | null>('neo_autosave_settings', null)?.autosaveOverwrite;
+    return typeof stored === 'boolean' ? stored : true;
+  });
   const [currentSaveId, setCurrentSaveId] = useState<string | null>(null);
   const [currentSaveName, setCurrentSaveName] = useState<string | null>(null);
   const [pendingAutosave, setPendingAutosave] = useState(false);
   const [pendingInitialSave, setPendingInitialSave] = useState(false);
   const [initialSaveFileName, setInitialSaveFileName] = useState("");
-
-  useEffect(() => {
-    const parsed = readJson<any>('neo_autosave_settings', null);
-    if (parsed) {
-      if (parsed.autosaveInterval !== undefined) setAutosaveInterval(parsed.autosaveInterval);
-      if (parsed.autosaveOverwrite !== undefined) setAutosaveOverwrite(parsed.autosaveOverwrite);
-    }
-  }, []);
 
   useEffect(() => {
     writeJson('neo_autosave_settings', { autosaveInterval, autosaveOverwrite });
@@ -3143,7 +3149,10 @@ export default function App() {
 
   const deleteSave = async (id: string) => {
     setSaves(prev => prev.filter(s => s.id !== id));
-    await deleteSaveSlot(userId, id);
+    const cloudOk = await deleteSaveSlot(userId, id);
+    if (!cloudOk) {
+      setAppAlert('The savegame was deleted in this browser, but not in your account: the server could not be reached. It will be listed again until it is deleted while online.');
+    }
   };
 
   // Handlers handed to the memoised views. They only use state setters, so they
