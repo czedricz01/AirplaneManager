@@ -11,8 +11,6 @@ import {
   ChevronRight,
   Navigation,
   Bird,
-  Maximize2,
-  Minimize2,
   X,
   ShoppingCart,
   MapPin,
@@ -20,11 +18,8 @@ import {
   TrendingUp,
   Users,
   Plus,
-  LogOut,
-  ChevronDown,
   Bell,
   AlertTriangle,
-  Check,
   CheckCircle2,
   Newspaper,
   Trophy,
@@ -33,7 +28,7 @@ import {
 
 import type L from "leaflet";
 import { Airport, calculateDistance } from "./data/airports";
-import { airports, airportsMapAdjusted } from "./data/airportRegistry";
+import { airports, airportsByName, airportsMapAdjusted } from "./data/airportRegistry";
 export { airportsMapAdjusted };
 
 const offsetToDateStr = (offset: number) =>
@@ -167,18 +162,9 @@ function buildRivalOffers(ais: any[] | null | undefined) {
   );
 }
 
-import { BrandingPicker } from "./components/BrandingPicker";
-import { IncidentList } from "./components/IncidentList";
 import { recolorClashingRivals } from "./lib/theme";
 import { getRoutePath, continentOf, regionOf } from "./lib/geoUtils";
 
-/**
- * The hub picker's option list. This used to be sorted inline in the start
- * menu's JSX, which copied 562 airports and ran an Intl collator over them on
- * every keystroke in the airline name and code fields. The list never changes,
- * so it is built once.
- */
-const airportsByName: Airport[] = [...airports].sort((a, b) => a.name.localeCompare(b.name));
 
 /** A fresh, empty cabin set-up for the route planner. A factory, so no two plans share objects. */
 const createDefaultPlanningClassConfigs = (): Record<string, any> => ({
@@ -343,7 +329,7 @@ import {
   type ChronicleEntry
 } from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
-import { GameMenuOption, GameStat, ScenarioLock, SidebarIcon, ThemeMenuButton } from "./components/app/AppChrome";
+import { GameMenuOption, GameStat, SidebarIcon } from "./components/app/AppChrome";
 import { SaveLoadOverlay } from "./components/SaveLoadOverlay";
 import { useStableCallback } from "./lib/useStableCallback";
 import { rawBlockMinutes } from "./lib/scheduleUtils";
@@ -351,7 +337,7 @@ import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLo
 import { findNonFinite } from "./lib/invariants";
 import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf, LITRES_PER_GALLON } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
-import type { AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute } from "./lib/gameTypes";
+import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
 export type { GameMessage };
 import type { OwnedAircraft } from "./components/MyFleetView";
 import type { ConfigOutput } from "./components/ConfigurePurchaseView";
@@ -372,10 +358,8 @@ import type { AiAirline } from "./components/CompetitorsView";
 // open, so the sign-in screen and the menus no longer wait for it. The same
 // goes for the newspaper, the tutorial and the monthly report.
 const WorldMap = React.lazy(() => import("./components/WorldMap").then(m => ({ default: m.WorldMap })));
-const HubPickerModal = React.lazy(() => import("./components/HubPickerModal").then(m => ({ default: m.HubPickerModal })));
 const NewspaperOverlay = React.lazy(() => import("./components/NewspaperOverlay").then(m => ({ default: m.NewspaperOverlay })));
 const TutorialOverlay = React.lazy(() => import("./components/TutorialOverlay").then(m => ({ default: m.TutorialOverlay })));
-const FinancialReport = React.lazy(() => import("./components/FinancialReport").then(m => ({ default: m.FinancialReport })));
 const BuyAircraftView = React.lazy(() => import("./components/BuyAircraftView").then(m => ({ default: m.BuyAircraftView })));
 const MyFleetView = React.lazy(() => import("./components/MyFleetView").then(m => ({ default: m.MyFleetView })));
 const RoutesView = React.lazy(() => import("./components/RoutesView").then(m => ({ default: m.RoutesView })));
@@ -394,8 +378,7 @@ import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
 import { scenarioById, type Scenario } from "./data/scenarios";
 import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
-import { ScenarioPicker } from "./components/ScenarioPicker";
-import { restartTutorial, settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
+import { settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { autoScaleFor } from "./lib/layout";
 import { useFullscreen } from "./components/ui/useFullscreen";
@@ -404,6 +387,10 @@ import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
 import { Modal } from "./components/ui/Modal";
+import { MonthlyReportScreen } from "./components/app/MonthlyReportScreen";
+import { NewGameScreen } from "./components/app/NewGameScreen";
+import { MainMenuScreen } from "./components/app/MainMenuScreen";
+import { SettingsDialog } from "./components/app/SettingsDialog";
 import {
   SaveMetadata,
   listSaves,
@@ -417,8 +404,6 @@ import {
 
 
 
-type ViewState = 'login' | 'main-menu' | 'start-menu' | 'monthly-overview' | 'game';
-type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'progression' | 'competitors';
 
 
 export const randomEventTemplates = [
@@ -3861,580 +3846,78 @@ export default function App() {
             )}
 
             {view === 'main-menu' && (
-              <motion.div
+              <MainMenuScreen
                 key="main-menu"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start p-4 pt-14 md:pt-4 short:pt-14 bg-aero-black relative"
-              >
-                {/* The menu card is centred with auto margins instead of
-                    justify-center, which would push its top out of reach whenever it
-                    is taller than the screen, as on phones; on those pt-14 keeps it
-                    clear of this bar. */}
-                <div className="absolute top-4 right-4 md:right-8 z-50 flex items-center gap-3 md:gap-4">
-                  <div className="text-white/40 font-mono text-xs tracking-widest flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full shadow-2xl ${userId ? (cloudOnline ? 'bg-aero-yellow animate-pulse' : 'bg-white/30') : 'bg-white/20'}`}></div>
-                    {user || 'UNKNOWN_USER'}
-                  </div>
-                  <div className="hidden sm:block h-4 w-px bg-white/10"></div>
-                  <span className="hidden sm:inline text-white/25 font-mono text-2xs uppercase tracking-widest">{cloudStatusLabel}</span>
-                  <div className="h-4 w-px bg-white/10"></div>
-                  {fullscreen.supported && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={fullscreen.toggle}
-                        aria-label={fullscreen.active ? 'Exit full screen' : 'Full screen'}
-                        className="text-white/40 hover:text-white font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
-                      >
-                        {fullscreen.active ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                        <span className="hidden sm:inline">{fullscreen.active ? 'Exit full screen' : 'Full screen'}</span>
-                      </button>
-                      <div className="h-4 w-px bg-white/10"></div>
-                    </>
-                  )}
-                  <button 
-                    onClick={handleDisconnect}
-                    className="text-white/40 hover:text-white font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
-                  >
-                    <LogOut size={14} /> Logout
-                  </button>
-                </div>
-                {/* Background Decor */}
-                <svg className="absolute inset-0 w-full h-full opacity-5 pointer-events-none" viewBox="0 0 800 400">
-                  <path d="M150,100 Q200,80 250,120 T400,100 T550,150 T700,80" fill="none" stroke="#FACC15" strokeWidth="1" strokeDasharray="4" />
-                  <circle cx="150" cy="100" r="3" fill="#FACC15" />
-                  <circle cx="700" cy="80" r="3" fill="#FACC15" />
-                </svg>
-
-                {/* On a phone held sideways the logo and the menu sit side by side,
-                    so the whole card fits the short screen without scrolling. */}
-                <div className="w-full max-w-2xl short:max-w-3xl z-10 flex flex-col short:flex-row short:items-center gap-8 sm:gap-12 short:gap-8 border border-white/5 bg-aero-panel/30 rounded-sm p-5 sm:p-8 lg:p-14 short:p-5 my-auto">
-                  <div className="space-y-4 short:space-y-2 short:shrink-0">
-                    <Bird className="text-aero-yellow short:w-12 short:h-12" size={64} strokeWidth={2.5} />
-                    <h1 className="text-6xl sm:text-8xl short:text-6xl tiny:text-5xl font-black italic tracking-tighter leading-none">
-                      <span className="text-aero-yellow">AM</span><br/>
-                      <span className="text-white">NEO</span>
-                    </h1>
-                    <p className="text-2xs tracking-[0.4em] font-light text-white/40 pl-2">COMMAND INTERFACE v4.2</p>
-                  </div>
-
-                  {legacySaveCount > 0 && (
-                    <div className="bg-aero-yellow/5 border border-aero-yellow/30 rounded-sm p-4 flex flex-col gap-3">
-                      <div className="text-2xs font-mono uppercase tracking-widest text-aero-yellow font-bold">
-                        {legacySaveCount} savegame{legacySaveCount === 1 ? '' : 's'} found from before accounts existed
-                      </div>
-                      <p className="text-2xs font-mono text-white/40 leading-relaxed">
-                        They are still stored in this browser. Import them into your account to
-                        reach them from any device. The originals are left untouched.
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={handleImportLegacySaves}
-                          disabled={isImportingLegacy}
-                          className="px-4 py-2 bg-aero-yellow text-black font-black uppercase tracking-widest text-2xs hover:bg-white transition-colors disabled:opacity-50 rounded-sm"
-                        >
-                          {isImportingLegacy ? 'Importing...' : 'Import into my account'}
-                        </button>
-                        <button
-                          onClick={() => setLegacySaveCount(0)}
-                          className="px-4 py-2 border border-white/20 text-white/50 font-black uppercase tracking-widest text-2xs hover:text-white transition-colors rounded-sm"
-                        >
-                          Not now
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-3 short:gap-2 short:flex-1 short:min-w-0">
-                    <ThemeMenuButton
-                      index="01"
-                      label="Resume Game"
-                      onClick={() => {
-                        if (saves.length > 0) {
-                          const latest = [...saves].sort((a, b) => b.timestamp - a.timestamp)[0];
-                          handleLoadGame(latest.id);
-                        } else {
-                          setAppAlert("No telemetry archives discovered to resume from.");
-                        }
-                      }}
-                    />
-                    <ThemeMenuButton
-                      index="02"
-                      label="Load Game"
-                      onClick={() => setShowLoadMenu(true)}
-                    />
-                    <ThemeMenuButton
-                      index="03"
-                      label="Start Game"
-                      onClick={() => setView('start-menu')}
-                      primary
-                    />
-                    <ThemeMenuButton
-                      index="04"
-                      label="Settings"
-                      onClick={() => setIsSettingsOpen(true)}
-                    />
-
-                  </div>
-                </div>
-              </motion.div>
+                userId={userId}
+                cloudOnline={cloudOnline}
+                user={user}
+                cloudStatusLabel={cloudStatusLabel}
+                fullscreen={fullscreen}
+                handleDisconnect={handleDisconnect}
+                legacySaveCount={legacySaveCount}
+                handleImportLegacySaves={handleImportLegacySaves}
+                isImportingLegacy={isImportingLegacy}
+                setLegacySaveCount={setLegacySaveCount}
+                saves={saves}
+                handleLoadGame={handleLoadGame}
+                setAppAlert={setAppAlert}
+                setShowLoadMenu={setShowLoadMenu}
+                setView={setView}
+                setIsSettingsOpen={setIsSettingsOpen}
+              />
             )}
 
             {view === 'start-menu' && (
-              <motion.div
+              <NewGameScreen
                 key="start-menu"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex-1 min-h-0 p-4 lg:p-12 short:pt-2 bar:pb-0 short:pb-0 overflow-y-auto custom-scrollbar"
-              >
-                <div className="max-w-4xl mx-auto space-y-12 bar:space-y-5 short:space-y-3 pb-20 bar:pb-0 short:pb-0">
-                  <div className="flex items-end short:items-center justify-between gap-4 border-b border-white/10 pb-6 bar:pb-3 short:pb-2">
-                    <div>
-                      <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2 bar:hidden short:hidden">Operation: Initialize</span>
-                      <h2 className="text-4xl sm:text-5xl bar:text-3xl short:text-3xl tiny:text-2xl font-black italic uppercase tracking-tighter leading-none">Pre-Flight <span className="text-aero-yellow">Config</span></h2>
-                    </div>
-                    <button 
-                      onClick={() => setView('main-menu')}
-                      className="shrink-0 whitespace-nowrap text-xs font-mono uppercase tracking-widest text-white/40 hover:text-aero-yellow transition-colors"
-                    >
-                      [ Abort_Mission ]
-                    </button>
-                  </div>
-
-                  {/* On a phone held sideways the settings go into two columns. */}
-                  <div className="space-y-8 bar:space-y-5 max-w-2xl mx-auto short:max-w-none short:space-y-0 short:grid short:grid-cols-2 short:gap-x-6 short:gap-y-3">
-                    <div className="space-y-4 short:space-y-2 short:col-span-2">
-                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
-                      <ScenarioPicker selectedId={newGameScenarioId} mode={newGameMode} onSelect={pickNewGameScenario} stars={scenarioStars} />
-                      {newGameScenario && (
-                        <p className="text-2xs text-white/40 italic">
-                          {newGameScenario.title} sets the hub, start date, budget, difficulty and rivals below, so every
-                          player faces the same challenge. Name, code, livery and debug mode are yours to choose.
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-4 short:space-y-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Name</label>
-                        <input 
-                          type="text" 
-                          value={airlineName}
-                          onChange={(e) => setAirlineName(e.target.value)}
-                          placeholder="Neo Airlines"
-                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
-                        />
-                      </div>
-                      <div className="space-y-4 short:space-y-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Code</label>
-                        <input 
-                          type="text" 
-                          value={airlineCode}
-                          onChange={handleAirlineCodeChange}
-                          placeholder="NX"
-                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow uppercase placeholder:text-white/20"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Livery</div>
-                      <div className="bg-aero-carbon border border-white/10 p-4 short:p-2.5">
-                        <BrandingPicker
-                          value={newGameBranding}
-                          onChange={setNewGameBranding}
-                          code={airlineCode}
-                          name={airlineName}
-                        />
-                      </div>
-                      <p className="text-2xs text-white/40 italic">Your routes and aircraft are drawn in this colour; rivals get colours clearly apart from it.</p>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label htmlFor="new-game-hub" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
-                        <ScenarioLock scenario={newGameScenario} />
-                      </div>
-                      <button
-                        id="new-game-hub"
-                        type="button"
-                        disabled={!!newGameScenario}
-                        onClick={() => setHubPickerOpen(true)}
-                        className="relative w-full text-left bg-aero-carbon border border-white/10 p-4 short:py-2.5 pl-4 pr-10 font-mono text-sm text-white hover:border-aero-yellow/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
-                      >
-                        {(() => {
-                          const hubAirport = airportsMapAdjusted.get(selectedHub);
-                          return hubAirport ? `${hubAirport.name} (${hubAirport.id}) - Level ${hubAirport.level}` : selectedHub;
-                        })()}
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
-                          <ChevronDown size={16} />
-                        </span>
-                      </button>
-                      {hubPickerOpen && !newGameScenario && (
-                        <React.Suspense fallback={null}>
-                        <HubPickerModal
-                          airports={airportsByName}
-                          maxLevel={newGameMode === 'normal' ? maxAirportLevel(0) : 7}
-                          rankTitle={rankDef(0).title}
-                          year={yearOf(startDateOffset)}
-                          selectedId={selectedHub}
-                          onSelect={setSelectedHub}
-                          onClose={() => setHubPickerOpen(false)}
-                        />
-                        </React.Suspense>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
-                        <ScenarioLock scenario={newGameScenario} />
-                      </div>
-                      <div className="flex gap-4">
-                        {['Easy', 'Normal', 'Hard'].map((diff) => (
-                          <button
-                            key={diff}
-                            disabled={!!newGameScenario}
-                            onClick={() => setDifficulty(diff)}
-                            className={`flex-1 p-4 short:p-2.5 font-mono text-sm border uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow disabled:opacity-40 disabled:hover:border-white/10'}`}
-                          >
-                            {diff}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
-                        <ScenarioLock scenario={newGameScenario} />
-                      </div>
-                      {newGameScenario ? (
-                        <div className="p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest bg-aero-yellow/10 border-aero-yellow/40 text-aero-yellow">
-                          {formatCurrency(newGameScenario.capital)} and the scenario's fleet
-                        </div>
-                      ) : (
-                      <div className="flex flex-wrap gap-4">
-                        {['$25M', '$50M', '$100M', '$200M'].map((budget) => (
-                          <button
-                            key={budget}
-                            onClick={() => setStartingBudget(budget)}
-                            className={`flex-1 min-w-[100px] p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest transition-colors ${startingBudget === budget ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
-                          >
-                            {budget}
-                          </button>
-                        ))}
-                      </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Debug Mode</label>
-                      <div className="flex gap-4">
-                        {[
-                          { label: 'Deactivated (Normal Play)', value: false },
-                          { label: 'Activated (Debug Info)', value: true }
-                        ].map((opt) => (
-                          <button
-                            key={opt.label}
-                            type="button"
-                            onClick={() => {
-                              setDebugMode(opt.value);
-                              writeString('airline_debug_mode', String(opt.value));
-                            }}
-                            className={`flex-1 p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest transition-all ${debugMode === opt.value ? 'bg-aero-yellow text-black border-aero-yellow font-black shadow-2xl' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow/50'}`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-2xs text-white/40 italic">When activated, real-time demand calculation and pricing base debug tools are enabled.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-4 short:space-y-2">
-                        <div className="flex justify-between items-end">
-                          <label htmlFor="new-game-rivals" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
-                          <span className="flex items-center gap-3">
-                            <ScenarioLock scenario={newGameScenario} />
-                            <span className="text-xl font-mono text-aero-yellow">{aiAirlinesCount}</span>
-                          </span>
-                        </div>
-                        <input 
-                          id="new-game-rivals"
-                          type="range"
-                          min="0"
-                          max="12"
-                          value={aiAirlinesCount}
-                          disabled={!!newGameScenario}
-                          onChange={(e) => setAiAirlinesCount(parseInt(e.target.value))}
-                          className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
-                        />
-                        <div className="flex justify-between text-2xs font-mono text-white/40">
-                          <span>0</span>
-                          <span>12</span>
-                        </div>
-                      </div>
-                      <div className="space-y-4 short:space-y-2">
-                        <div className="flex justify-between items-end gap-2">
-                          <label htmlFor="new-game-rival-difficulty" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
-                          <ScenarioLock scenario={newGameScenario} />
-                        </div>
-                        <select 
-                          id="new-game-rival-difficulty"
-                          value={aiDifficulty}
-                          disabled={!!newGameScenario}
-                          onChange={(e) => setAiDifficulty(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <option>Easy</option>
-                          <option>Normal</option>
-                          <option>Hard</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label htmlFor="new-game-start" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
-                        <span className="flex items-center gap-3">
-                          <ScenarioLock scenario={newGameScenario} />
-                          <span className="text-xl font-mono text-aero-yellow">{formatDate(startDateOffset)}</span>
-                        </span>
-                      </div>
-                      <input 
-                        id="new-game-start"
-                        type="range"
-                        min="0"
-                        max="731"
-                        value={startDateOffset}
-                        disabled={!!newGameScenario}
-                        onChange={(e) => setStartDateOffset(parseInt(e.target.value))}
-                        className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
-                      />
-                      <div className="flex justify-between text-2xs font-mono text-white/40">
-                        <span>01/1960</span>
-                        <span>12/2020</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-aero-yellow">Initial Save File Name</label>
-                      <input 
-                        type="text" 
-                        value={initialSaveFileName}
-                        onChange={(e) => setInitialSaveFileName(e.target.value)}
-                        placeholder="My Airline Save 1"
-                        className="w-full bg-aero-carbon border border-aero-yellow/30 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
-                      />
-                      <p className="text-2xs text-white/40 italic mt-2">A save file name must be provided to initialize the system.</p>
-                    </div>
-                    
-                    {/* Kept in reach at the foot of the screen on phones, rather than
-                        at the end of the whole form. */}
-                    <div className="pt-8 flex justify-end short:col-span-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:z-10 short:z-10 bar:pt-2 short:pt-2 bar:pb-1 short:pb-1 bar:bg-aero-black short:bg-aero-black">
-                      <button 
-                        onClick={() => {
-                          if (!initialSaveFileName.trim()) {
-                            setAppAlert("You must provide a save file name to begin.");
-                            return;
-                          }
-                          startNewGame(initialSaveFileName.trim(), newGameScenario);
-                        }}
-                        className="group flex items-center bg-aero-yellow text-black px-4 py-4 short:py-2.5 tiny:py-2 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
-                      >
-                        Start Game
-                        <ChevronRight size={20} className="ml-4 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                setView={setView}
+                newGameScenarioId={newGameScenarioId}
+                newGameMode={newGameMode}
+                pickNewGameScenario={pickNewGameScenario}
+                scenarioStars={scenarioStars}
+                newGameScenario={newGameScenario}
+                airlineName={airlineName}
+                setAirlineName={setAirlineName}
+                airlineCode={airlineCode}
+                handleAirlineCodeChange={handleAirlineCodeChange}
+                newGameBranding={newGameBranding}
+                setNewGameBranding={setNewGameBranding}
+                setHubPickerOpen={setHubPickerOpen}
+                selectedHub={selectedHub}
+                hubPickerOpen={hubPickerOpen}
+                startDateOffset={startDateOffset}
+                setSelectedHub={setSelectedHub}
+                setDifficulty={setDifficulty}
+                difficulty={difficulty}
+                setStartingBudget={setStartingBudget}
+                startingBudget={startingBudget}
+                setDebugMode={setDebugMode}
+                debugMode={debugMode}
+                aiAirlinesCount={aiAirlinesCount}
+                setAiAirlinesCount={setAiAirlinesCount}
+                aiDifficulty={aiDifficulty}
+                setAiDifficulty={setAiDifficulty}
+                formatDate={formatDate}
+                setStartDateOffset={setStartDateOffset}
+                initialSaveFileName={initialSaveFileName}
+                setInitialSaveFileName={setInitialSaveFileName}
+                setAppAlert={setAppAlert}
+                startNewGame={startNewGame}
+              />
             )}
 
             {view === 'monthly-overview' && (
-              <motion.div
+              <MonthlyReportScreen
                 key="monthly-overview"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start bg-aero-black relative p-12 bar:p-3 short:p-3"
-              >
-                {/* Centred with auto margins, not justify-center, which cut the top
-                    off whenever the report was taller than the screen. On phones
-                    the whole page scrolls as one, rather than the report scrolling
-                    inside it, and the buttons stay pinned to the bottom. */}
-                <div className="max-w-4xl w-full my-auto" data-tour="monthly-report">
-                  <div className="border-b border-white/10 pb-6 mb-6 bar:pb-3 bar:mb-3 short:pb-2 short:mb-2">
-                    <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2 short:hidden">Operation: Execution</span>
-                    <h2 className="text-5xl bar:text-3xl short:text-2xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
-                    {/* The report covers the month that just ended, not the one the clock
-                        has already advanced to, so label it from the report itself. */}
-                    <p className="text-white/60 font-mono mt-4 bar:mt-2 short:mt-1 font-bold text-xl bar:text-sm short:text-sm">
-                      {latestReport
-                        ? `${latestReport.month.toString().padStart(2, '0')}/${latestReport.year}`
-                        : formatDate(currentDateOffset)} - {airlineName || 'Neo Airlines'} ({airlineCode || 'NX'})
-                    </p>
-                  </div>
-                  
-                  <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible custom-scrollbar pr-4 bar:pr-0 short:pr-0">
-                   <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="CONTINUE">
-                    <React.Suspense fallback={<LazyFallback label="Monthly Report" />}>
-                    {latestReport ? (
-                      <>
-                      <FinancialReport
-                         title="Monthly Financial Overview"
-                         netProfit={latestReport.totalProfit}
-                         totalRevenue={latestReport.routeRevenues}
-                         revenues={(latestReport.routes || []).map(r => ({
-                           label: `${r.name}${(r.capacity ?? 0) > 0 ? ` (${Math.round(((r.paxPerWeek ?? 0) / (r.capacity ?? 1)) * 100)}% LF)` : ''}${(r.transferPax ?? 0) > 0 ? ` incl. ${formatNumber(r.transferPax ?? 0)} transfer pax/wk` : ''}`,
-                           amount: r.revenue
-                         }))}
-                         expenses={[
-                           {
-                             id: 'routeCosts',
-                             label: 'Route Operational Costs',
-                             total: latestReport.routeCosts,
-                             items: [
-                               { label: `Jet Fuel (${formatNumber(latestReport.breakdown.fuelLiters || 0)} L @ $${(latestReport.breakdown.fuelPriceL || 0).toFixed(3)})`, amount: latestReport.breakdown.fuel },
-                               { label: 'In-Flight Catering & Amenities', amount: latestReport.breakdown.catering },
-                               { label: 'Flight Crew & Ground Staff Salaries', amount: latestReport.breakdown.staff },
-                               { label: 'Landing & passenger fees', amount: latestReport.breakdown.routeInfra }
-                             ]
-                           },
-                           {
-                             id: 'airportCosts',
-                             label: 'Airport & Hub Upkeep',
-                             total: latestReport.airportUpkeep,
-                             items: [
-                               { label: 'Base Management & Slot Maintenance', amount: latestReport.breakdown.mgt },
-                               { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
-                             ]
-                           },
-                           // Insurance and maintenance of every aircraft, flying or parked.
-                           ...((latestReport.breakdown.fleetOwnership || 0) > 0 ? [{
-                             id: 'fleetOwnership',
-                             label: 'Aircraft Ownership',
-                             total: latestReport.breakdown.fleetOwnership,
-                             items: [
-                               { label: 'Insurance & maintenance programme', amount: latestReport.breakdown.fleetOwnership - (latestReport.breakdown.fleetParked || 0) },
-                               ...((latestReport.breakdown.fleetParked || 0) > 0
-                                 ? [{ label: `Parked aircraft (${latestReport.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latestReport.breakdown.fleetParked }]
-                                 : [])
-                             ]
-                           }] : []),
-                           // What the rivals landing at an airport owned outright pay the airline.
-                           ...((latestReport.breakdown.hubIncome || 0) > 0 ? [{
-                             id: 'hubIncome',
-                             label: 'Airport Ownership Income',
-                             variant: 'net' as const,
-                             total: latestReport.breakdown.hubIncome,
-                             items: latestReport.hubIncomeItems || []
-                           }] : []),
-                           // Only in months with campaigns or the frequent-flyer
-                           // programme running; older reports have no such line.
-                           ...((latestReport.breakdown.marketing || 0) > 0 ? [{
-                             id: 'marketing',
-                             label: 'Marketing & Loyalty',
-                             total: latestReport.breakdown.marketing,
-                             items: latestReport.marketingItems || [
-                               { label: 'Advertising campaigns', amount: latestReport.breakdown.marketingCampaigns || 0 },
-                               { label: 'Frequent flyer programme', amount: latestReport.breakdown.ffp || 0 }
-                             ]
-                           }] : []),
-                           // Only in months with a charter (older reports: also repair bills).
-                           ...((latestReport.breakdown.incidents || 0) > 0 ? [{
-                             id: 'incidents',
-                             label: 'Incident repairs & charters',
-                             total: latestReport.breakdown.incidents,
-                             items: (latestReport.incidents || [])
-                               .filter((i: ReportIncident) => (i.cost || 0) > 0)
-                               .map((i: ReportIncident) => ({ label: i.title, amount: i.cost || 0 }))
-                           }] : []),
-                           // Only in reports closed before slots were paid for on the
-                           // spot: they were billed into that month's result then.
-                           // Slots bought since are a capex item ('Airport Slots').
-                           // Signed: selling slots back refunds money.
-                           ...((latestReport.breakdown.purchasedSlots || 0) !== 0 ? [{
-                             id: 'slots',
-                             label: 'Slot purchases & refunds',
-                             variant: 'net' as const,
-                             total: -latestReport.breakdown.purchasedSlots,
-                             items: [{
-                               label: latestReport.breakdown.purchasedSlots > 0 ? 'Slot rights bought this month' : 'Slot rights sold back this month',
-                               amount: -latestReport.breakdown.purchasedSlots
-                             }]
-                           }] : []),
-                           // These left the bank account but are not part of the
-                           // operating profit above — without them the profit and
-                           // the change in capital never reconcile.
-                           // Signed as well: aircraft sales come in here.
-                           ...((latestReport.capexItems || []).some(i => i.amount !== 0) ? [{
-                             id: 'capex',
-                             label: 'One-off investments & sales (below the line)',
-                             variant: 'net' as const,
-                             total: -(latestReport.capex || 0),
-                             items: (latestReport.capexItems || [])
-                               .filter(i => i.amount !== 0)
-                               .map(i => ({ label: i.label, amount: -i.amount }))
-                           }] : []),
-                           ...(latestReport.routes && latestReport.routes.length > 0 ? [{
-                             id: 'routeBreakdown',
-                             label: 'Route Breakdown',
-                             // Profits and losses per route, not deductions — see
-                             // the 'net' variant in FinancialReport.
-                             variant: 'net' as const,
-                             total: latestReport.routes.reduce((sum, r) => sum + r.profit, 0),
-                             items: latestReport.routes.map(r => ({
-                               label: `${r.name} (Rev: ${formatCurrency(r.revenue)}, Exp: ${formatCurrency(r.cost)})`,
-                               amount: r.profit
-                             }))
-                           }] : [])
-                         ]}
-                         defaultOpen={true}
-                      />
-                      <IncidentList incidents={latestReport.incidents} className="mt-4" />
-                      {/* Operating profit and the change in the bank balance are
-                          different numbers whenever anything was bought. Stating
-                          both, next to each other, is what makes the report add up. */}
-                      <div className="mt-4 flex items-center justify-between border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs">
-                        <span className="uppercase tracking-widest text-white/40 font-bold">Cash change this month</span>
-                        <span className={(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? 'text-aero-good font-bold' : 'text-aero-warn font-bold'}>
-                          {(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? '+' : ''}
-                          {formatCurrency(latestReport.cashChange ?? latestReport.totalProfit)}
-                        </span>
-                      </div>
-                      </>
-                    ) : (
-                      <div className="h-64 flex items-center justify-center text-white/40">
-                        No financial data available for this month.
-                      </div>
-                    )}
-                    </React.Suspense>
-                   </ErrorBoundary>
-                  </div>
-
-                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3 bar:flex-row bar:gap-2 short:gap-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:bg-aero-black short:bg-aero-black bar:py-2 short:py-2 bar:border-t short:border-t border-white/10">
-                    {edition && (
-                      <button
-                        type="button"
-                        onClick={() => setIsNewspaperOpen(true)}
-                        className="flex items-center justify-center gap-2 border border-white/15 text-white/70 px-4 py-4 bar:py-2.5 short:py-2 bar:px-3 bar:text-xs short:text-xs font-bold uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all w-full md:w-auto"
-                      >
-                        <Newspaper size={18} /> Read the newspaper
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => setView('game')}
-                      className="group flex items-center justify-center md:justify-start bg-aero-yellow text-black px-4 py-4 bar:py-2.5 short:py-2 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto bar:flex-1 short:w-auto"
-                    >
-                      Continue
-                      <ChevronRight size={20} className="ml-4 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
+                latestReport={latestReport}
+                formatDate={formatDate}
+                currentDateOffset={currentDateOffset}
+                airlineName={airlineName}
+                airlineCode={airlineCode}
+                setView={setView}
+                edition={edition}
+                setIsNewspaperOpen={setIsNewspaperOpen}
+              />
             )}
 
             {view === 'game' && (
@@ -5171,140 +4654,23 @@ export default function App() {
       {/* Settings Modal */}
       {isSettingsOpen && (
         // Above the floating Next Month button (z-[1000]), which otherwise sat on top of the dialog.
-        <div className="fixed inset-0 z-[1001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 short:p-2">
-          {/* Scrolls when taller than the screen, as on a phone held sideways;
-              otherwise its top was cut off with no way to reach it. There the
-              settings also go into two columns, so most of them fit at once. */}
-          <div className="bg-aero-carbon border border-white/10 shadow-2xl p-4 short:p-3 max-w-lg short:max-w-3xl w-full max-h-full overflow-y-auto custom-scrollbar short:relative">
-            <h2 className="text-2xl short:text-lg font-mono text-aero-yellow uppercase tracking-[0.2em] font-black drop-shadow-md mb-3 short:mb-2">System Settings</h2>
-            
-            <div className="flex flex-col gap-4 short:grid short:grid-cols-2 short:grid-rows-[repeat(3,auto)] short:grid-flow-col short:gap-x-5 short:gap-y-2">
-              <div className="space-y-4 short:space-y-2">
-                <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Number Format (Decimal Separator)</label>
-                <div className="flex gap-4 short:gap-2">
-                  {[".", ","].map((symbol) => (
-                    <button
-                      key={symbol}
-                      onClick={() => setDecimalSymbol(symbol as DecimalSymbol)}
-                      className={`flex-1 p-4 short:p-2 font-mono text-xl short:text-base border uppercase tracking-widest transition-colors ${decimalSymbol === symbol ? 'bg-aero-yellow text-black border-aero-yellow font-black' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
-                    >
-                      {symbol === "." ? "1.234" : "1,234"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-widest text-white/50 font-bold flex justify-between">
-                  <span>UI Scale Factor</span>
-                  <span className="text-aero-yellow">{uiScaleSetting.toFixed(2)}x</span>
-                </label>
-                <input 
-                  type="range" 
-                  min="0.5" 
-                  max="1.5" 
-                  step="0.05" 
-                  value={uiScaleSetting}
-                  onChange={(e) => setUiScaleSetting(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
-                />
-                <span className="text-2xs text-white/30 font-mono">Adjusts the scale of the user interface. Auto-scaling is also active for small screens.</span>
-              </div>
-
-              <div className="flex flex-col gap-4 pt-4 border-t border-white/10 short:contents">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-widest text-white/50 font-bold flex justify-between">
-                    <span>Autosave Interval (Months)</span>
-                    <span className="text-aero-yellow">{autosaveInterval} Months</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="12" 
-                    step="1" 
-                    value={autosaveInterval}
-                    onChange={(e) => setAutosaveInterval(parseInt(e.target.value))}
-                    className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-aero-yellow"
-                  />
-                  <div className="flex justify-between text-2xs text-white/30 uppercase tracking-widest">
-                    <span>1 Month</span>
-                    <span>12 Months</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 bg-white/5 p-4 short:p-2.5 select-none cursor-pointer border border-transparent hover:border-white/10 transition-colors" onClick={() => setAutosaveOverwrite(!autosaveOverwrite)}>
-                  <div className={`w-5 h-5 flex items-center justify-center border ${autosaveOverwrite ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
-                    {autosaveOverwrite && <Check size={14} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Overwrite Save File</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-white/10 short:pt-0 short:border-t-0">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={gameSettings.newspaper}
-                  onClick={() => setGameSettings(prev => ({ ...prev, newspaper: !prev.newspaper }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
-                >
-                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.newspaper ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
-                    {gameSettings.newspaper && <Check size={14} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Monthly Newspaper</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Show The Aviation Times after every month. When off, the latest edition is still under Messages and on the monthly report.</span>
-                  </div>
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={gameSettings.tutorial}
-                  onClick={() => setGameSettings(prev => ({ ...prev, tutorial: !prev.tutorial }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
-                >
-                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.tutorial ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
-                    {gameSettings.tutorial && <Check size={14} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Tutorial for New Games</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Start every new game with the guided tour of the first steps. Skipping it ends the tour for that game only.</span>
-                  </div>
-                </button>
-                {(view === 'game' || view === 'monthly-overview') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTutorialStep(restartTutorial());
-                      setIsSettingsOpen(false);
-                      if (view === 'monthly-overview') setView('game');
-                      openWindow('map');
-                    }}
-                    className="self-start flex items-center gap-2 px-3 py-2 border border-white/10 text-white/70 hover:text-aero-yellow hover:border-aero-yellow/50 font-mono text-2xs uppercase tracking-widest transition-colors"
-                  >
-                    <RotateCcw size={12} aria-hidden="true" /> Restart tutorial in this game
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Sideways: beside the title rather than below everything. */}
-            <div className="mt-8 flex justify-end short:mt-0 short:absolute short:top-3 short:right-3">
-              <button 
-                onClick={() => setIsSettingsOpen(false)}
-                className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-2 short:py-1 font-mono text-sm tracking-widest uppercase transition-all"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsDialog
+          setDecimalSymbol={setDecimalSymbol}
+          decimalSymbol={decimalSymbol}
+          uiScaleSetting={uiScaleSetting}
+          setUiScaleSetting={setUiScaleSetting}
+          autosaveInterval={autosaveInterval}
+          setAutosaveInterval={setAutosaveInterval}
+          setAutosaveOverwrite={setAutosaveOverwrite}
+          autosaveOverwrite={autosaveOverwrite}
+          gameSettings={gameSettings}
+          setGameSettings={setGameSettings}
+          view={view}
+          setTutorialStep={setTutorialStep}
+          setIsSettingsOpen={setIsSettingsOpen}
+          setView={setView}
+          openWindow={openWindow}
+        />
       )}
 
       {showExitSavePrompt && (() => {

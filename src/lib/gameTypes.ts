@@ -116,3 +116,9 @@ export interface SimulatedRoute {
   /** The month offset the route was opened; absent on routes from before ramp-up existed, which count as mature. */
   openedOffset?: number;
 }
+
+/** Which screen the application shows. */
+export type ViewState = 'login' | 'main-menu' | 'start-menu' | 'monthly-overview' | 'game';
+
+/** Which of the navigation's screens is open in a game; 'map' is the map alone. */
+export type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'progression' | 'competitors';

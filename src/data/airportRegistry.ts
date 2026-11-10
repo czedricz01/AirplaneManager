@@ -74,3 +74,6 @@ export const airports: Airport[] = rawAirports.map(a => {
 /** Lookup over the adjusted list. This is what every screen should use. */
 export const airportsMapAdjusted = new Map<string, Airport>();
 for (const a of airports) airportsMapAdjusted.set(a.id, a);
+
+/** Every airport sorted by name, for pickers and lists. */
+export const airportsByName: Airport[] = [...airports].sort((a, b) => a.name.localeCompare(b.name));
