@@ -120,6 +120,8 @@ interface Props {
   initialClassConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
   isEditingCabinOnly?: boolean;
   isEditingPricingOnly?: boolean;
+  /** Shows the demand and pricing breakdowns; the game's debug setting. */
+  debugMode?: boolean;
   currentYear: number;
   currentMonth: number;
   difficulty: string;
@@ -229,7 +231,8 @@ function RoutePlannerInner({
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
   aiAirlines = NO_AI_AIRLINES,
-  airlineCode = "NE"
+  airlineCode = "NE",
+  debugMode = false
 }: Props) {
   const airportsMap = useMemo(() => {
     const m = new Map<string, Airport>();
@@ -457,7 +460,6 @@ function RoutePlannerInner({
   const setOriginSearch = (v: any) => setUi('originSearch', typeof v === 'function' ? v(ui.originSearch) : v);
   const destSearch = ui.destSearch;
   const setDestSearch = (v: any) => setUi('destSearch', typeof v === 'function' ? v(ui.destSearch) : v);
-  const debugMode = readString('airline_debug_mode') === 'true';
   const showDemandDebug = ui.showDemandDebug;
   const setShowDemandDebug = (v: any) => setUi('showDemandDebug', typeof v === 'function' ? v(ui.showDemandDebug) : v);
   const showPricingDebug = ui.showPricingDebug;
@@ -600,22 +602,22 @@ function RoutePlannerInner({
       return blockTime <= longestFree;
     });
 
-    return [...list].sort((a, b) => {
+    // The figure each airport is sorted by, worked out once per airport
+    // rather than twice per comparison. Largest first; the default is tourism
+    // and business combined.
+    const sortValue = (a: Airport) => {
       if (destSortBy === 'distance') {
-        const distA = selectedOrigin ? calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]) : 0;
-        const distB = selectedOrigin ? calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], b.coords[0], b.coords[1]) : 0;
-        return distB - distA; // Large to small
+        return selectedOrigin ? calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]) : 0;
       }
-      
-      const statsA = getAirportStats(a, currentYear);
-      const statsB = getAirportStats(b, currentYear);
-      
-      if (destSortBy === 'tourism') return statsB.tourism - statsA.tourism;
-      if (destSortBy === 'business') return statsB.business - statsA.business;
-      
-      // Default: combined
-      return (statsB.tourism + statsB.business) - (statsA.tourism + statsA.business);
-    });
+      const stats = getAirportStats(a, currentYear);
+      if (destSortBy === 'tourism') return stats.tourism;
+      if (destSortBy === 'business') return stats.business;
+      return stats.tourism + stats.business;
+    };
+    return list
+      .map(airport => ({ airport, value: sortValue(airport) }))
+      .sort((a, b) => b.value - a.value)
+      .map(entry => entry.airport);
   }, [airports, destSearch, destFilters, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear, airportLock, airportManagement]);
 
   // How many round trips the selected aircraft can still fly on this city pair:
@@ -1639,7 +1641,7 @@ function RoutePlannerInner({
   return (
     <div 
        className="absolute inset-0 z-50 p-2 lg:p-3 flex flex-col font-sans overflow-hidden bg-aero-panel-2 text-white"
-       style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98)), url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2000&auto=format&fit=crop")' }}
+       style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98))' }}
     >
       {/* Success Message Overlay */}
       <AnimatePresence>
@@ -2872,7 +2874,6 @@ function RoutePlannerInner({
 
             {/* Right Column: Timetable */}
             <div className="flex-none md:flex-1 h-[75dvh] md:h-auto border border-white/10 bg-black/60 flex flex-col overflow-hidden relative">
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover opacity-[0.03] pointer-events-none"></div>
               
               {/* Header Days */}
               <div className="flex shrink-0 z-30">

@@ -200,14 +200,6 @@ export function AirportDetailView({
 
   return (
     <div className="absolute inset-0 z-[2000] flex flex-col bg-aero-black overflow-hidden pointer-events-auto font-mono">
-      <div className="absolute inset-0 z-0 opacity-20 grayscale grayscale-100">
-        <img 
-          src="https://images.unsplash.com/photo-1556388158-158ea5ccacbd?q=80&w=1600&auto=format&fit=crop" 
-          className="w-full h-full object-cover" 
-          alt="Airport"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-aero-black via-aero-black/90 to-transparent"></div>
-      </div>
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}

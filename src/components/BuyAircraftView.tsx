@@ -39,7 +39,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
 
   // Falls back to storage only when the prop is absent. This used to poll
   // localStorage every 500 ms for a value that already lives in App's state.
-  const debugMode = debugModeProp ?? (readString('airline_debug_mode') === 'true');
+  const debugMode = debugModeProp ?? false;
 
   // ZIP upload state
   const [dragActive, setDragActive] = useState(false);

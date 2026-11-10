@@ -358,6 +358,7 @@ import {
   type ChronicleEntry
 } from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
+import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
 import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
@@ -550,6 +551,9 @@ export const randomEventTemplates = [
 ];
 
 export const GENERAL_CHECK_COST = 200000;
+
+/** One empty list for "nothing sold this month", so the market's props stay equal between renders. */
+const NO_SOLD_IDS: string[] = [];
 
 /** How much airframe condition a general check restores. The fifth and later checks
  *  restore nothing, so the UI must not charge for them. */
@@ -3588,6 +3592,29 @@ export default function App() {
     return () => { delete (window as any).__amneo; };
   }, [debugMode]);
 
+  // Handlers and objects handed to the memoised views, kept at one identity so
+  // those views re-render for their own data only (see useStableCallback).
+  const onPlaceOrder = useStableCallback(handlePlaceOrder);
+  const onCancelOrder = useStableCallback(handleCancelOrder);
+  const onBuyUsed = useStableCallback(handleBuyUsed);
+  const onStartResearch = useStableCallback(handleStartResearch);
+  const onRetire = useStableCallback(handleRetire);
+  const onTakeover = useStableCallback(handleTakeover);
+  const onOpenProgression = useStableCallback(() => openWindow('progression'));
+  const soldUsedIds = career.usedSold.offset === currentDateOffset ? career.usedSold.ids : NO_SOLD_IDS;
+  const rivalNames = useMemo(() => aiAirlines.map(a => a.name), [aiAirlines]);
+  const market = useMemo(() => ({
+    currentDateOffset,
+    capital,
+    classesOpen: aircraftClassesOpen,
+    orders: career.orders,
+    soldUsedIds,
+    rivalNames,
+    onOrder: onPlaceOrder,
+    onCancelOrder,
+    onBuyUsed
+  }), [currentDateOffset, capital, aircraftClassesOpen, career.orders, soldUsedIds, rivalNames, onPlaceOrder, onCancelOrder, onBuyUsed]);
+
   return (
     <AccountScopeContext.Provider value={userId}>
     <div className="absolute inset-0 overflow-hidden bg-aero-black">
@@ -4735,17 +4762,7 @@ export default function App() {
                           onSelectAircraft={setSelectedPurchasingAircraft}
                           debugMode={debugMode}
                           classesOpen={aircraftClassesOpen}
-                          market={{
-                            currentDateOffset,
-                            capital,
-                            classesOpen: aircraftClassesOpen,
-                            orders: career.orders,
-                            soldUsedIds: career.usedSold.offset === currentDateOffset ? career.usedSold.ids : [],
-                            rivalNames: aiAirlines.map(a => a.name),
-                            onOrder: handlePlaceOrder,
-                            onCancelOrder: handleCancelOrder,
-                            onBuyUsed: handleBuyUsed
-                          }}
+                          market={market}
                         />
                         {selectedPurchasingAircraft && (
                           <ConfigurePurchaseView
@@ -4824,7 +4841,7 @@ export default function App() {
                       <React.Suspense fallback={<LazyFallback label="Career" />}>
                         <MyCompanyView
                           page={activeWindow === 'progression' ? 'progression' : 'company'}
-                          onOpenProgression={() => openWindow('progression')}
+                          onOpenProgression={onOpenProgression}
                           capital={capital}
                           reportHistory={reportHistory}
                           reputation={reputation}
@@ -4837,10 +4854,10 @@ export default function App() {
                           goalSnapshot={goalSnapshot}
                           onChooseGoal={handleChooseGoal}
                           research={career.research}
-                          onStartResearch={handleStartResearch}
+                          onStartResearch={onStartResearch}
                           score={score}
                           hall={hall}
-                          onRetire={handleRetire}
+                          onRetire={onRetire}
                           moraleBonus={researchFx.moraleBonus}
                           annualGoal={annualGoal}
                           fleetValue={fleetValue}
@@ -4886,7 +4903,7 @@ export default function App() {
                           playerColor={branding.color}
                           currentDateOffset={currentDateOffset}
                           rank={career.rank}
-                          onTakeover={handleTakeover}
+                          onTakeover={onTakeover}
                         />
                       </React.Suspense>
                     </ViewFrame>
@@ -4988,6 +5005,7 @@ export default function App() {
                      <ErrorBoundary label="Cabin Editor" onReset={() => setEditingCabinRouteId(null)} resetLabel="CLOSE EDITOR">
                       <React.Suspense fallback={<LazyFallback label="Cabin Editor" />}>
                       <RoutePlannerView
+                        debugMode={debugMode}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -5021,6 +5039,7 @@ export default function App() {
                      <ErrorBoundary label="Pricing Editor" onReset={() => setEditingPricingRouteId(null)} resetLabel="CLOSE EDITOR">
                       <React.Suspense fallback={<LazyFallback label="Pricing Editor" />}>
                       <RoutePlannerView
+                        debugMode={debugMode}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -5054,6 +5073,7 @@ export default function App() {
                      <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="CLOSE PLANNER">
                       <React.Suspense fallback={<LazyFallback label="Route Planner" />}>
                       <RoutePlannerView
+                        debugMode={debugMode}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
