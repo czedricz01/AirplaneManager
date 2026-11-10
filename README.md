@@ -28,7 +28,7 @@ lokalen Modus.
 
 | Befehl | Was er tut |
 |---|---|
-| `npm run dev` | Entwicklungsserver auf Port 3000 |
+| `npm run dev` | Entwicklungsserver auf Port 3000, nur von diesem Rechner erreichbar (`HOST=0.0.0.0` öffnet ihn fürs Netzwerk) |
 | `npm run build` | Produktions-Build nach `dist/` (inkl. Server) |
 | `npm run build:pages` | Nur die statische Seite nach `dist/` (für GitHub Pages) |
 | `npm run build:static` | Eine einzige eigenständige HTML-Datei nach `dist-static/` |

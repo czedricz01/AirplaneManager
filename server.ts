@@ -420,8 +420,12 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Server] Listening on http://0.0.0.0:${PORT}`);
+  // The picture upload endpoints have no sign-in, so by default the server is
+  // reachable from this computer only. HOST=0.0.0.0 opens it to the network,
+  // for a container or a trusted LAN.
+  const HOST = process.env.HOST || "127.0.0.1";
+  app.listen(PORT, HOST, () => {
+    console.log(`[Server] Listening on http://${HOST}:${PORT}`);
   });
 }
 
