@@ -34,20 +34,7 @@ import { createTimerBag } from '../lib/timerBag';
 import { formatWeekMinute, openShiftWindows, shiftTrips, timetablePeriod } from '../lib/aircraftAssignment';
 import type { OwnedAircraft } from './MyFleetView';
 import { SimulatedRoute, AirportInfrastructure } from '../App';
-
-export type ScheduledTrip = { 
-  id: string;
-  groupId?: string;
-  isGroupLead?: boolean;
-  flightNumOut: string;
-  flightNumIn: string;
-  dayId: number;
-  startHour: number;
-  startMin: number;
-  durMin: number;
-  turnoverMin: number;
-  isOneWay?: boolean;
-};
+import type { ScheduledTrip } from '../lib/gameTypes';
 
 interface RouteScheduleEditViewProps {
   route: SimulatedRoute;

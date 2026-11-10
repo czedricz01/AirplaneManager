@@ -15,32 +15,11 @@ import { CareerPanel, type CareerPart, type CareerPanelProps } from './CareerPan
 import type { Commonality } from '../lib/fleetCosts';
 import { rankDef } from '../lib/airlineRank';
 import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
-import type { Branding, ChronicleEntry, ReportIncident } from '../lib/gameState';
-import type { ReportMetrics } from '../lib/chronicle';
+import type { Branding, ChronicleEntry } from '../lib/gameState';
+import type { MonthlyReport } from '../lib/gameTypes';
 import { CHART_COLORS } from '../lib/theme';
 
 import { CALENDAR_START_YEAR, formatCurrency, formatMoneyCompact as compact } from '../lib/format';
-
-interface MonthlyReport extends ReportMetrics {
-  month: number;
-  year: number;
-  routeRevenues: number;
-  routeCosts: number;
-  airportUpkeep: number;
-  totalProfit: number;
-  capex?: number;
-  capexItems?: { label: string; amount: number }[];
-  cashChange?: number;
-  capitalAfter?: number;
-  routes?: { name: string; revenue: number; cost: number; profit: number; paxPerWeek?: number; capacity?: number }[];
-  breakdown: Record<string, number>;
-  /** One line per campaign and the frequent-flyer programme; absent before marketing existed. */
-  marketingItems?: { label: string; amount: number }[];
-  /** Strikes and disruptions in the month; absent when there were none. */
-  incidents?: ReportIncident[];
-  /** Rival landings at the airports the airline owns (tier 3), one line per airport. */
-  hubIncomeItems?: { label: string; amount: number }[];
-}
 
 interface ProgressionProps {
   /** 'progression' shows the Career screen alone (tabs Rank, Development, Board goals); 'company' everything else. */

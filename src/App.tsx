@@ -145,10 +145,11 @@ function addCapexItem(list: { label: string; amount: number }[], label: string, 
 const reportOffset = (r: { year: number; month: number }) => (r.year - 1960) * 12 + (r.month - 1);
 
 /** Capital at the month-ends a scenario has seen so far, oldest first, from the saved reports. */
-function scenarioCapitalHistory(reports: any[], startedOffset: number): number[] {
+function scenarioCapitalHistory(reports: MonthlyReport[], startedOffset: number): number[] {
   return reports
-    .filter(r => r && reportOffset(r) >= startedOffset && Number.isFinite(r.capitalAfter))
-    .map(r => r.capitalAfter);
+    .filter(r => r && reportOffset(r) >= startedOffset)
+    .map(r => r.capitalAfter)
+    .filter((capital): capital is number => typeof capital === 'number' && Number.isFinite(capital));
 }
 
 /** The player's routes as a scenario's goals count them: by city pair, with their weekly departures. */
@@ -353,7 +354,7 @@ import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLo
 import { findNonFinite } from "./lib/invariants";
 import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
-import type { GameMessage } from "./lib/gameTypes";
+import type { GameMessage, MonthlyReport, ScheduledTrip } from "./lib/gameTypes";
 export type { GameMessage };
 import type { OwnedAircraft } from "./components/MyFleetView";
 import type { ConfigOutput } from "./components/ConfigurePurchaseView";
@@ -443,7 +444,7 @@ export interface SimulatedRoute {
   weeklyFlights: number;
   paxPerWeek: number;
   paxByClass?: Record<string, { actual: number, max: number, transfer?: number }>;
-  schedule?: any[];
+  schedule?: ScheduledTrip[];
   classConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
   ticketPrices?: Record<string, number>;
   activeTicketPrices?: Record<string, number>;
@@ -685,7 +686,7 @@ export default function App() {
    * and there was no way to tell whether a decision had worked. The AI airlines
    * have had a monthlyProfitsHistory all along; this is the player's.
    */
-  const [reportHistory, setReportHistory] = useState<any[]>([]);
+  const [reportHistory, setReportHistory] = useState<MonthlyReport[]>([]);
   const latestReport = reportHistory.length > 0 ? reportHistory[reportHistory.length - 1] : null;
 
   // Routes used to be mirrored to an unscoped `neo_routes` key on every change:
@@ -733,7 +734,7 @@ export default function App() {
   /** Last closed month's profit per route id, for the route list's money column. */
   const routeProfits = useMemo(() => {
     const map: Record<string, number> = {};
-    (latestReport?.routes || []).forEach((r: any) => { map[r.id] = r.profit; });
+    (latestReport?.routes || []).forEach(r => { if (r.id) map[r.id] = r.profit; });
     return map;
   }, [latestReport]);
 
@@ -1107,7 +1108,7 @@ export default function App() {
       routes: scenarioRoutes(routes),
       reputation,
       regionsServed: regionsServed(routes, airportsMapAdjusted).size,
-      transferPaxMonth: lastClose ? (Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
+      transferPaxMonth: lastClose ? (typeof lastClose.transferPax === 'number' && Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
       monthlyProfit: lastClose && Number.isFinite(lastClose.totalProfit) ? lastClose.totalProfit : null,
       capitalHistory: scenarioCapitalHistory(reportHistory, scenario.startedOffset)
     };
@@ -1333,7 +1334,7 @@ export default function App() {
   const [planningDestId, setPlanningDestId] = useState<string | null>(null);
   const [planningReg, setPlanningReg] = useState<string | null>(null);
   const [planningStep, setPlanningStep] = useState<number>(1);
-  const [planningSchedule, setPlanningSchedule] = useState<any[]>([]);
+  const [planningSchedule, setPlanningSchedule] = useState<ScheduledTrip[]>([]);
   const [planningClassConfigs, setPlanningClassConfigs] = useState<Record<string, any>>(createDefaultPlanningClassConfigs);
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
   const [editingCabinRouteId, setEditingCabinRouteId] = useState<string | null>(null);
@@ -4318,8 +4319,8 @@ export default function App() {
                          title="Monthly Financial Overview"
                          netProfit={latestReport.totalProfit}
                          totalRevenue={latestReport.routeRevenues}
-                         revenues={(latestReport.routes || []).map((r: any) => ({
-                           label: `${r.name}${r.capacity > 0 ? ` (${Math.round((r.paxPerWeek / r.capacity) * 100)}% LF)` : ''}${r.transferPax > 0 ? ` incl. ${formatNumber(r.transferPax)} transfer pax/wk` : ''}`,
+                         revenues={(latestReport.routes || []).map(r => ({
+                           label: `${r.name}${(r.capacity ?? 0) > 0 ? ` (${Math.round(((r.paxPerWeek ?? 0) / (r.capacity ?? 1)) * 100)}% LF)` : ''}${(r.transferPax ?? 0) > 0 ? ` incl. ${formatNumber(r.transferPax ?? 0)} transfer pax/wk` : ''}`,
                            amount: r.revenue
                          }))}
                          expenses={[
@@ -4401,14 +4402,14 @@ export default function App() {
                            // operating profit above — without them the profit and
                            // the change in capital never reconcile.
                            // Signed as well: aircraft sales come in here.
-                           ...((latestReport.capexItems || []).some((i: any) => i.amount !== 0) ? [{
+                           ...((latestReport.capexItems || []).some(i => i.amount !== 0) ? [{
                              id: 'capex',
                              label: 'One-off investments & sales (below the line)',
                              variant: 'net' as const,
                              total: -(latestReport.capex || 0),
                              items: (latestReport.capexItems || [])
-                               .filter((i: any) => i.amount !== 0)
-                               .map((i: any) => ({ label: i.label, amount: -i.amount }))
+                               .filter(i => i.amount !== 0)
+                               .map(i => ({ label: i.label, amount: -i.amount }))
                            }] : []),
                            ...(latestReport.routes && latestReport.routes.length > 0 ? [{
                              id: 'routeBreakdown',
@@ -4416,8 +4417,8 @@ export default function App() {
                              // Profits and losses per route, not deductions — see
                              // the 'net' variant in FinancialReport.
                              variant: 'net' as const,
-                             total: latestReport.routes.reduce((sum: number, r: any) => sum + r.profit, 0),
-                             items: latestReport.routes.map((r: any) => ({
+                             total: latestReport.routes.reduce((sum, r) => sum + r.profit, 0),
+                             items: latestReport.routes.map(r => ({
                                label: `${r.name} (Rev: ${formatCurrency(r.revenue)}, Exp: ${formatCurrency(r.cost)})`,
                                amount: r.profit
                              }))

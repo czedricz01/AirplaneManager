@@ -15,7 +15,7 @@ import { loadAircraftImagesMap } from '../lib/imageUtils';
 // The component used to declare a near-identical ScheduledTrip that shadowed
 // this one, differing only in groupId being required. One type now.
 import type { ConfigOutput } from './ConfigurePurchaseView';
-import type { ScheduledTrip } from './RouteScheduleEditView';
+import type { ScheduledTrip } from '../lib/gameTypes';
 import { readJson, writeJson } from '../lib/safeStorage';
 import {
   NO_DESTINATION_FILTERS,
