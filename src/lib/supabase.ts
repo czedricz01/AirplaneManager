@@ -11,8 +11,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
  * When the variables are missing the app still runs, with cloud features off and
  * savegames kept in this browser only.
  */
-const rawUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// `import.meta.env` only exists under Vite. Outside it (the unit tests run in
+// plain Node) the project counts as not configured instead of failing to load.
+const env: Partial<ImportMetaEnv> = import.meta.env ?? {};
+const rawUrl = env.VITE_SUPABASE_URL as string | undefined;
+const anonKey = env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 /**
  * Reduces whatever was configured to the bare project origin.

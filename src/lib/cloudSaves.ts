@@ -166,7 +166,14 @@ export interface WriteResult {
   cloudOk: boolean;
 }
 
-/** Writes locally first, then to the cloud. Never throws. */
+/** What the player is told when a save reached neither this browser nor the cloud. */
+const NOT_STORED_MESSAGE = 'the browser storage is full or blocked, and the game could not be stored';
+
+/**
+ * Writes locally first, then to the cloud. Throws only when the save ended up
+ * nowhere: reporting success then would let the player carry on with a game
+ * that is not stored.
+ */
 export async function writeSave(
   scope: SaveScope,
   slotId: string,
@@ -178,6 +185,7 @@ export async function writeSave(
 
   const client = cloudFor(scope);
   if (!client) {
+    if (!storedLocally) throw new Error(NOT_STORED_MESSAGE);
     const meta: SaveMetadata = { id: slotId, name, timestamp, pendingSync: Boolean(scope) };
     upsertLocalMeta(scope, meta);
     return { meta, cloudOk: false };
@@ -191,6 +199,7 @@ export async function writeSave(
     );
 
   if (error) {
+    if (!storedLocally) throw new Error(NOT_STORED_MESSAGE);
     console.warn('[saves] cloud write failed, kept a local copy', error);
     const meta: SaveMetadata = { id: slotId, name, timestamp, pendingSync: true };
     upsertLocalMeta(scope, meta);
@@ -328,8 +337,13 @@ export async function importLegacyLocalSaves(scope: SaveScope): Promise<number> 
     if (existing.has(meta.id)) continue;
     const payload = readJson<any | null>(`${LEGACY_PAYLOAD_PREFIX}${meta.id}`, null);
     if (!payload) continue;
-    await writeSave(scope, meta.id, meta.name || 'Imported save', payload);
-    imported++;
+    try {
+      await writeSave(scope, meta.id, meta.name || 'Imported save', payload);
+      imported++;
+    } catch (e) {
+      // Nowhere to put it; the old key is left alone, so nothing is lost.
+      console.warn(`[saves] could not import ${meta.id}`, e);
+    }
   }
 
   return imported;
