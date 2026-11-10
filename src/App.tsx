@@ -6,24 +6,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Plane,
-  Map as MapIcon,
   ChevronRight,
-  Navigation,
-  Bird,
-  X,
-  ShoppingCart,
-  MapPin,
-  Briefcase,
-  TrendingUp,
-  Users,
-  Plus,
-  Bell,
-  AlertTriangle,
-  CheckCircle2,
-  Newspaper,
-  Trophy,
-  RotateCcw
+  X
 } from "lucide-react";
 
 import type L from "leaflet";
@@ -184,7 +168,6 @@ import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRout
 import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
 import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
-import { GoalOfferDialog } from "./components/GoalOfferDialog";
 import {
   CAMPAIGN_SPECS,
   REGION_LABELS,
@@ -286,7 +269,6 @@ import {
   type HallOfFameEntry,
   type ScenarioStars
 } from "./lib/careerScore";
-import { RetirementDialog } from "./components/RetirementDialog";
 import {
   CLASS_PROJECTS,
   advanceResearch,
@@ -329,13 +311,12 @@ import {
   type ChronicleEntry
 } from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
-import { GameMenuOption, GameStat, SidebarIcon } from "./components/app/AppChrome";
 import { SaveLoadOverlay } from "./components/SaveLoadOverlay";
 import { useStableCallback } from "./lib/useStableCallback";
 import { rawBlockMinutes } from "./lib/scheduleUtils";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { findNonFinite } from "./lib/invariants";
-import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf, LITRES_PER_GALLON } from "./lib/format";
+import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf, LITRES_PER_GALLON } from "./lib/format";
 import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
 import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
 export type { GameMessage };
@@ -372,7 +353,7 @@ const MyCompanyView = React.lazy(() => import("./components/MyCompanyView").then
 const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").then(m => ({ default: m.CompetitorsView })));
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey, eventScope, eventRegionLabel, type EventRegion } from "./lib/eventSystem";
+import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, eventKey, eventScope, type EventRegion } from "./lib/eventSystem";
 import { isMalusEvent, malusMonthOpen } from "./lib/malus";
 import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
 import { scenarioById, type Scenario } from "./data/scenarios";
@@ -386,11 +367,13 @@ import { useHoverAutoClose } from "./components/ui/useHoverAutoClose";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
-import { Modal } from "./components/ui/Modal";
 import { MonthlyReportScreen } from "./components/app/MonthlyReportScreen";
 import { NewGameScreen } from "./components/app/NewGameScreen";
 import { MainMenuScreen } from "./components/app/MainMenuScreen";
 import { SettingsDialog } from "./components/app/SettingsDialog";
+import { GameTopBar } from "./components/app/GameTopBar";
+import { GameNavigation } from "./components/app/GameNavigation";
+import { GameDialogs } from "./components/app/GameDialogs";
 import {
   SaveMetadata,
   listSaves,
@@ -3538,261 +3521,42 @@ export default function App() {
               <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
             </React.Suspense>
           )}
-          {pendingDecision && !isNewspaperOpen && !scenarioResultOpen && (
-            <Modal open size="lg" accent="warn" layer="top">
-              <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
-                <AlertTriangle size={22} /> {pendingDecision.title}
-              </h3>
-              <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
-                {pendingDecision.description} Running for {pendingDecision.duration} months.
-              </p>
-
-              <div className="space-y-2">
-                {pendingDecision.choices?.map((choice: EventChoice) => {
-                  const affordable = capital >= choice.cost;
-                  return (
-                    <button
-                      key={choice.id}
-                      type="button"
-                      disabled={!affordable}
-                      onClick={() => {
-                        if (choice.cost > 0) spend(choice.cost, `Crisis response: ${pendingDecision.title}`);
-                        setEventChoices(prev => ({ ...prev, [eventKey(pendingDecision)]: choice.id }));
-                        setPendingDecision(null);
-                      }}
-                      className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
-                    >
-                      <div className="flex items-baseline justify-between gap-3 mb-1">
-                        <span className="font-black uppercase tracking-widest text-2xs text-white">{choice.label}</span>
-                        <span className={`font-mono text-2xs font-bold shrink-0 ${choice.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
-                          {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
-                        </span>
-                      </div>
-                      <p className="text-2xs font-mono text-white/50 leading-relaxed">{choice.detail}</p>
-                      {!affordable && (
-                        <p className="text-2xs font-mono text-aero-warn mt-1">
-                          {formatCurrency(choice.cost - capital)} short.
-                        </p>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={() => setPendingDecision(null)}
-                  className="px-3 py-2 text-white/40 hover:text-white text-2xs font-mono uppercase tracking-widest transition-colors bg-transparent border-0"
-                >
-                  Decide later (does nothing)
-                </button>
-              </div>
-            </Modal>
-          )}
-          {/* Any other question for the player, one at a time. Waits while a
-              world event decision or the newspaper is open, so none stack. */}
-          {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length > 0 && (() => {
-            const decision = pendingDecisions[0];
-            return (
-              <Modal open size="lg" accent="warn" layer="top">
-                <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
-                  <AlertTriangle size={22} /> {decision.title}
-                </h3>
-                <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
-                  {decision.description}
-                </p>
-
-                <div className="space-y-2">
-                  {decision.options.map(option => {
-                    const affordable = option.cost <= 0 || capital >= option.cost;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        disabled={!affordable}
-                        onClick={() => resolveDecision(decision.id, option.id)}
-                        className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
-                      >
-                        <div className="flex items-baseline justify-between gap-3 mb-1">
-                          <span className="font-black uppercase tracking-widest text-2xs text-white">{option.label}</span>
-                          <span className={`font-mono text-2xs font-bold shrink-0 ${option.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
-                            {option.cost > 0 ? formatCurrency(option.cost) : 'No cost'}
-                          </span>
-                        </div>
-                        <p className="text-2xs font-mono text-white/50 leading-relaxed">{option.detail}</p>
-                        {!affordable && (
-                          <p className="text-2xs font-mono text-aero-warn mt-1">
-                            {formatCurrency(option.cost - capital)} short.
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </Modal>
-            );
-          })()}
-          <RetirementDialog
-            open={!!retirement}
-            airline={airlineName}
+          <GameDialogs
+            pendingDecision={pendingDecision}
+            isNewspaperOpen={isNewspaperOpen}
+            scenarioResultOpen={scenarioResultOpen}
+            capital={capital}
+            spend={spend}
+            setEventChoices={setEventChoices}
+            setPendingDecision={setPendingDecision}
+            pendingDecisions={pendingDecisions}
+            resolveDecision={resolveDecision}
+            retirement={retirement}
+            airlineName={airlineName}
             score={score}
-            entry={retirement?.entry ?? null}
-            position={retirement?.position ?? null}
             hall={hall}
-            onKeepPlaying={() => setRetirement(null)}
-            onMainMenu={() => { setRetirement(null); returnToMainMenu(); }}
+            setRetirement={setRetirement}
+            returnToMainMenu={returnToMainMenu}
+            career={career}
+            goalOfferOpen={goalOfferOpen}
+            handleChooseGoal={handleChooseGoal}
+            setGoalOfferOpen={setGoalOfferOpen}
+            birdStrikeAlerts={birdStrikeAlerts}
+            fleet={fleet}
+            routes={routes}
+            setBirdStrikeAlerts={setBirdStrikeAlerts}
+            scenario={scenario}
+            currentDateOffset={currentDateOffset}
+            reputation={reputation}
+            setScenarioResultOpen={setScenarioResultOpen}
+            setShowExitSavePrompt={setShowExitSavePrompt}
+            currentSaveName={currentSaveName}
+            startNewGame={startNewGame}
+            branding={branding}
+            toast={toast}
+            appAlert={appAlert}
+            setAppAlert={setAppAlert}
           />
-          {/* The board's goals for the coming year, after the December close. */}
-          <GoalOfferDialog
-            offer={career.goalOffer}
-            open={goalOfferOpen && !pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0}
-            onChoose={handleChooseGoal}
-            onLater={() => setGoalOfferOpen(false)}
-          />
-          {/* A bird strike: the bill is paid already, this only says so. Waits
-              for the newspaper and any question, like they wait for each other. */}
-          {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0 && birdStrikeAlerts.length > 0 && (() => {
-            const strike = birdStrikeAlerts[0];
-            const plane = fleet.find(f => f.registration === strike.registration);
-            const route = routes.find(r => r.id === strike.routeId);
-            const dismiss = () => setBirdStrikeAlerts(prev => prev.slice(1));
-            return (
-              <Modal open size="sm" accent="warn" layer="top" onClose={dismiss}>
-                <div role="alertdialog" aria-labelledby="bird-strike-title" aria-describedby="bird-strike-detail">
-                  <h3 id="bird-strike-title" className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
-                    <Bird size={22} aria-hidden="true" /> Bird strike
-                  </h3>
-                  <p className="text-3xl font-mono font-black text-aero-warn tabular-nums my-3">{formatCurrency(-strike.cost)}</p>
-                  <p id="bird-strike-detail" className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
-                    {strike.registration}{plane ? ` (${plane.manufacturer} ${plane.type})` : ''} hit a flock of birds{route ? ` on ${route.origin}-${route.destination}` : ''}.
-                    The repair bill was deducted from your balance.
-                  </p>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      autoFocus
-                      onClick={dismiss}
-                      className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
-                    >
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </Modal>
-            );
-          })()}
-          {/* The scenario's verdict, once, after the newspaper that reports it.
-              Any question the same close raised waits until it is closed. */}
-          {scenarioResultOpen && !isNewspaperOpen && scenario && scenario.status !== 'running' && (() => {
-            const decided = scenarioById(scenario.id);
-            if (!decided) return null;
-            const won = scenario.status === 'won';
-            const months = (scenario.result?.offset ?? currentDateOffset) - scenario.startedOffset + 1;
-            const stats = [
-              { label: 'Capital', value: formatMoneyCompact(capital) },
-              { label: 'Routes', value: String(routes.length) },
-              { label: 'Fleet', value: String(fleet.length) },
-              { label: 'Reputation', value: String(Math.round(reputation)) },
-              { label: 'Months played', value: String(months) }
-            ];
-            return (
-              <Modal open size="lg" accent={won ? 'yellow' : 'warn'} layer="top">
-                <div role="alertdialog" aria-labelledby="scenario-result-title" aria-describedby="scenario-result-reason">
-                  <div className={`flex items-center gap-3 mb-2 ${won ? 'text-aero-yellow' : 'text-aero-warn'}`}>
-                    {won ? <Trophy size={28} aria-hidden="true" /> : <AlertTriangle size={28} aria-hidden="true" />}
-                    <div>
-                      <div className="text-3xs font-mono uppercase tracking-[0.3em] text-white/40">Scenario {won ? 'complete' : 'failed'}</div>
-                      <h3 id="scenario-result-title" className="font-black uppercase tracking-widest text-xl leading-tight">
-                        {decided.title}: {won ? 'you did it' : 'out of reach'}
-                      </h3>
-                    </div>
-                  </div>
-                  <p id="scenario-result-reason" className="text-sm text-white/80 leading-relaxed mb-4">{scenario.result?.reason}</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
-                    {stats.map(st => (
-                      <div key={st.label} className="border border-white/10 bg-white/[0.03] px-2 py-2">
-                        <div className="text-4xs font-mono uppercase tracking-widest text-white/40">{st.label}</div>
-                        <div className="text-sm font-mono font-bold text-white tabular-nums truncate">{st.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-2xs font-mono text-white/40 mb-4 leading-relaxed">
-                    {won
-                      ? 'The result is written into your chronicle. Fly on without the scenario, or leave for the main menu.'
-                      : 'The airline still flies: carry on without the scenario, or start it over.'}
-                  </p>
-                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-                    {won ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => { setScenarioResultOpen(false); setShowExitSavePrompt(true); }}
-                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
-                        >
-                          Main menu
-                        </button>
-                        <button
-                          type="button"
-                          autoFocus
-                          onClick={() => setScenarioResultOpen(false)}
-                          className="px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
-                        >
-                          Continue without the scenario
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setScenarioResultOpen(false)}
-                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
-                        >
-                          Continue without the scenario
-                        </button>
-                        <button
-                          type="button"
-                          autoFocus
-                          onClick={() => {
-                            const base = (currentSaveName || decided.title).replace(/\s*\((Autosave.*|retry)\)$/, '');
-                            startNewGame(`${base} (retry)`, decided, branding);
-                          }}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
-                        >
-                          <RotateCcw size={14} aria-hidden="true" /> Try again
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </Modal>
-            );
-          })()}
-          {toast && (
-            <div
-              role="status"
-              aria-live="polite"
-              className="fixed top-16 left-1/2 -translate-x-1/2 z-[4000] flex items-center gap-2 bg-aero-panel-2 border border-aero-good/40 px-4 py-2 text-xs font-mono text-white/90 shadow-2xl pointer-events-none"
-            >
-              <CheckCircle2 size={14} className="text-aero-good shrink-0" />
-              {toast}
-            </div>
-          )}
-          {appAlert && (
-            <Modal open size="md" layer="top" onClose={() => setAppAlert(null)}>
-              <h3 className="text-aero-yellow font-black uppercase tracking-widest text-lg mb-4 flex items-center gap-2">
-                <AlertTriangle size={24} /> System Alert
-              </h3>
-              <p className="text-white/80 mb-3">{appAlert}</p>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setAppAlert(null)}
-                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
-                >
-                  OK
-                </button>
-              </div>
-            </Modal>
-          )}
           {/* Upright phones stack the content above a bottom navigation bar; in
               the rail layout (md and up, or a phone held sideways) the navigation
               is the left-hand column. See the variants in index.css. */}
@@ -3804,39 +3568,12 @@ export default function App() {
                 screens. Sideways phones get a slightly wider, compact rail with
                 no spacer, since height is what they lack. */}
         {view === 'game' && (
-          <div className="order-last rail:order-none w-full rail:w-14 lg:rail:w-16 short:w-16 tiny:w-12 bg-aero-panel border-t rail:border-t-0 rail:border-r border-white/10 flex flex-row rail:flex-col items-stretch rail:items-center rail:pb-4 short:pb-0 shrink-0 z-50 rail:h-full overflow-auto no-scrollbar bar:scrollbar-hidden short:scrollbar-hidden">
-            {/* Spacer corresponding to the h-14 height of the Game Stats Bar */}
-            <div className="hidden rail:block short:hidden h-14 shrink-0 w-full" />
-            <div className="flex flex-row rail:flex-col w-full">
-              {/* Fleet & Ops */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5">
-                <SidebarIcon icon={<MapIcon size={28} />} label="MAP" tour="nav-map" active={activeWindow === 'map' && !isPlanningRoute} onClick={() => openWindow('map')} />
-                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" shortLabel="BUY" tour="nav-buy-aircraft" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => openWindow('buy-aircraft')} />
-                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" shortLabel="FLEET" tour="nav-my-fleet" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => openWindow('my-fleet')} />
-              </div>
-
-              {/* Network */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
-                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" tour="nav-routes" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => openWindow('routes')} />
-                <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" tour="nav-airports" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => openWindow('airports')} />
-              </div>
-
-              {/* Business */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
-                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" shortLabel="COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
-                <SidebarIcon icon={<TrendingUp size={28} />} label="CAREER" shortLabel="CAREER" tour="nav-progression" active={activeWindow === 'progression' && !isPlanningRoute} onClick={() => openWindow('progression')} />
-                <SidebarIcon icon={<Users size={28} />} label="RIVALS" tour="nav-rivals" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => openWindow('competitors')} />
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none border-l rail:border-l-0 rail:border-t border-white/10 bg-aero-yellow/5">
-                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" shortLabel="NEW" tour="nav-new-route" active={isPlanningRoute} onClick={openPlanner} />
-              </div>
-            </div>
-            <div className="hidden rail:block short:hidden mt-4 pb-4 shrink-0 w-full mb-3">
-
-            </div>
-          </div>
+          <GameNavigation
+            activeWindow={activeWindow}
+            isPlanningRoute={isPlanningRoute}
+            openWindow={openWindow}
+            openPlanner={openPlanner}
+          />
         )}
 
         <div className="flex-1 flex flex-col relative overflow-hidden">
@@ -3927,189 +3664,45 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="flex-1 flex flex-col bg-aero-black relative"
               >
-                {/* Game Stats Bar. On upright phones it has two rows: date and
-                    buttons on top, then the stats as a 3x2 grid so every figure
-                    stays visible. The dropdowns below are anchored to this bar there
-                    (their wrappers are only `relative` in the rail layout), so they
-                    open below it at the right edge instead of running off the left
-                    of the screen. Sideways phones keep one lower row, and the stats
-                    scroll sideways when they do not all fit. */}
-                <div className="rail:h-14 short:h-8 bg-aero-carbon border-b border-white/5 flex flex-col rail:flex-row rail:items-center rail:justify-between gap-1.5 rail:gap-0 short:gap-3 px-3 rail:px-4 short:px-2 py-1.5 rail:py-0 shrink-0 relative z-50">
-                  <div className="order-last rail:order-none grid grid-cols-3 gap-x-2 gap-y-1.5 rail:flex rail:gap-5 rail:items-center short:gap-3 short:min-w-0 short:overflow-x-auto short:scrollbar-hidden">
-                    <GameStat label="Capital" value={formatCurrency(capital)} />
-                    <GameStat label="Fleet" value={fleet.length.toString()} />
-                    <GameStat label="Routes" value={routes.length.toString()} />
-                    <GameStat label="Reputation" value={`${Math.round(reputation)}`} />
-                    <GameStat label="Global Demand" value={`${Math.round(globalDemandData.value * 100)}%`} trend={globalDemandData.trend} />
-                    <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / LITRES_PER_GALLON, 3)}`} trend={fuelData.trend} goodDirection="down" />
-                  </div>
-                  <div className="flex items-center gap-3 short:gap-2 short:shrink-0 rail:relative">
-                    <div className="flex items-center gap-4 mr-auto rail:mr-0">
-                      <div className="text-aero-yellow font-mono text-sm short:text-xs font-bold tracking-widest short:tracking-wider">{formatDate(currentDateOffset)}</div>
-                    </div>
-
-                    <div className="rail:relative" {...messagesHover}>
-                       <button
-                         onClick={() => {
-                           setIsMessagesOpen(!isMessagesOpen);
-                           if (!isMessagesOpen) {
-                             setMessages(messages.map(m => ({ ...m, isRead: true })));
-                           }
-                         }}
-                         aria-label={unreadMessagesCount > 0 ? `Messages, ${unreadMessagesCount} unread` : 'Messages'}
-                         className={`flex items-center gap-2 px-3 py-1 border text-2xs uppercase font-bold tracking-widest transition-all rounded-sm ${unreadMessagesCount > 0 ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white hover:bg-white/10 border-white/10'}`}
-                       >
-                         <Bell size={12} />
-                         <span className="hidden sm:inline short:hidden">Messages</span>
-                         {unreadMessagesCount > 0 && (
-                           <span className="ml-1 bg-black text-aero-yellow px-1.5 py-0.5 text-4xs rounded-sm">{unreadMessagesCount}</span>
-                         )}
-                       </button>
-                       
-                       {isMessagesOpen && (
-                         <div className="absolute top-full right-2 rail:right-0 mt-2 w-[min(20rem,calc(100vw-1rem))] bg-aero-panel border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
-                           <div className="p-3 border-b border-white/10 flex justify-between items-center">
-                             <span className="text-aero-yellow text-2xs uppercase tracking-widest font-bold">Communications</span>
-                             <div className="flex items-center gap-2">
-                               {edition && (
-                                 <button
-                                   type="button"
-                                   onClick={() => { setIsMessagesOpen(false); setIsNewspaperOpen(true); }}
-                                   className="flex items-center gap-1 px-2 py-0.5 border border-white/10 text-3xs uppercase tracking-widest font-bold text-white/60 hover:text-aero-yellow hover:border-aero-yellow/40 transition-colors"
-                                   title={`Read The Aviation Times, ${edition.date}`}
-                                 >
-                                   <Newspaper size={11} /> Latest newspaper
-                                 </button>
-                               )}
-                               <button onClick={() => setIsMessagesOpen(false)} className="text-white/40 hover:text-white" aria-label="Close messages"><X size={14}/></button>
-                             </div>
-                           </div>
-                           <div className="max-h-64 overflow-y-auto no-scrollbar">
-                             {messages.length === 0 ? (
-                               <div className="p-4 text-center text-white/30 text-xs font-mono">No new messages</div>
-                             ) : (
-                               messages.map(msg => (
-                                 <div 
-                                   key={msg.id} 
-                                   onClick={() => {
-                                     setSelectedMessage(msg);
-                                     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isRead: true } : m));
-                                   }}
-                                   className="p-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group flex flex-col gap-1 text-left"
-                                 >
-                                   <div className="text-3xs text-white/40 font-mono flex justify-between items-center w-full"><span>{msg.dateStr}</span><span className="text-3xs opacity-0 group-hover:opacity-100 text-aero-yellow font-bold uppercase transition-opacity">Read Dispatch</span></div>
-                                   <div className={`text-xs ${msg.isRead ? 'text-white/60' : 'text-white font-semibold'} group-hover:text-aero-yellow transition-colors line-clamp-3`}>{msg.text}</div>
-                                 </div>
-                               ))
-                             )}
-                           </div>
-                         </div>
-                       )}
-                    </div>
-                    
-                    <div className="rail:relative" {...mapSettingsHover}>
-                      <button
-                         onClick={() => setIsMapSettingsOpen(!isMapSettingsOpen)}
-                         className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-1 rail:mr-2"
-                      >
-                        [ Map ]
-                      </button>
-                      {isMapSettingsOpen && (
-                        <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-64 bg-aero-panel border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-aero-yellow w-4 h-4 cursor-pointer" />
-                            Your Routes
-                          </label>
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow/60 cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showRivalRoutes} onChange={(e) => setShowRivalRoutes(e.target.checked)} className="accent-red-500 w-4 h-4 cursor-pointer" />
-                            Rival Routes
-                          </label>
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-white/80 cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showLiveTraffic} onChange={(e) => setShowLiveTraffic(e.target.checked)} className="accent-blue-400 w-4 h-4 cursor-pointer" />
-                            Live Traffic
-                          </label>
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-white/80 cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={gameSettings.heatmap}
-                              onChange={(e) => {
-                                const heatmap = e.target.checked;
-                                setGameSettings(prev => ({ ...prev, heatmap }));
-                              }}
-                              className="accent-emerald-500 w-4 h-4 cursor-pointer"
-                            />
-                            Profit Heatmap
-                          </label>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="rail:relative" {...gameMenuHover}>
-                      <button
-                         onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
-                         className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all"
-                      >
-                        [ Menu ]
-                      </button>
-                      {isGameMenuOpen && (
-                        <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-56 bg-aero-carbon border border-white/10 shadow-2xl flex flex-col z-[100] py-2">
-                          <GameMenuOption label="Continue" onClick={() => setIsGameMenuOpen(false)} />
-                          <GameMenuOption label="Save Game" onClick={() => { setShowSaveMenu(true); setIsGameMenuOpen(false); }} />
-                          <GameMenuOption label="Settings" onClick={() => { setIsSettingsOpen(true); setIsGameMenuOpen(false); }} />
-                          {fullscreen.supported && (
-                            <GameMenuOption label={fullscreen.active ? 'Exit Full Screen' : 'Full Screen'} onClick={() => { fullscreen.toggle(); setIsGameMenuOpen(false); }} />
-                          )}
-                          <div className="h-px bg-white/10 my-2"></div>
-                          <GameMenuOption label="Return to Main Menu" onClick={() => { setIsGameMenuOpen(false); setShowExitSavePrompt(true); }} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Active Events Banner. The banner itself already existed; what it
-                    never said was how much longer the event runs, which is the one
-                    thing a player needs in order to decide whether to ride it out. */}
-                {activeWorldEvents.map((ev, i) => (
-                   <div key={`idx-${i}`} className="bg-aero-warn/10 border-b border-aero-warn/40 text-white/80 px-4 py-2.5 flex items-center gap-4 z-40 shrink-0 shadow-2xl">
-                      <AlertTriangle className="text-aero-warn shrink-0" size={16} />
-                      <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-4 min-w-0">
-                         <span className="font-black uppercase tracking-widest text-aero-warn text-2xs shrink-0">{ev.title}</span>
-                         <span className="text-2xs md:text-xs font-bold text-white/70 shrink-0 whitespace-nowrap">
-                            {ev.monthsLeft} {ev.monthsLeft === 1 ? 'month' : 'months'} left
-                         </span>
-                         {ev.chosen && ev.chosen.cost > 0 && (
-                            <span className="text-2xs font-mono font-bold text-aero-good shrink-0 whitespace-nowrap border border-aero-good/40 px-1.5 py-0.5">
-                               {ev.chosen.label}
-                            </span>
-                         )}
-                         {!ev.chosen && ev.choices && ev.choices.length > 0 && (
-                            <button
-                               type="button"
-                               onClick={() => setPendingDecision(ev)}
-                               className="text-2xs font-mono font-bold text-black bg-aero-yellow hover:bg-white shrink-0 whitespace-nowrap px-1.5 py-0.5 border-0 cursor-pointer transition-colors"
-                            >
-                               Decision pending
-                            </button>
-                         )}
-                         <span className="text-2xs md:text-xs opacity-70 truncate font-mono">{ev.description}</span>
-                         <span className="text-2xs md:text-xs font-bold text-aero-warn ml-auto whitespace-nowrap">
-                            {/* What the player actually gets: bought relief softens the
-                                event's demand hit (see eventReliefFactor). The banner
-                                used to show the raw hit even after paying for relief. */}
-                            {(() => {
-                              const softens = ev.chosen?.softensDemand;
-                              const effective = softens && ev.demandMultiplier < 1
-                                ? ev.demandMultiplier + (1 - ev.demandMultiplier) * softens
-                                : ev.demandMultiplier;
-                              const pct = (m: number) => `${m >= 1 ? '+' : ''}${((m - 1) * 100).toFixed(0)}%`;
-                              return `PAX${eventRegionLabel(ev) ? ` (${eventRegionLabel(ev)})` : ''}: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''}${ev.regions?.length ? '' : ` | FUEL: ${pct(ev.fuelMultiplier)}`}`;
-                            })()}
-                         </span>
-                      </div>
-                   </div>
-                ))}
-
+                <GameTopBar
+                  capital={capital}
+                  fleet={fleet}
+                  routes={routes}
+                  reputation={reputation}
+                  globalDemandData={globalDemandData}
+                  fuelData={fuelData}
+                  formatDate={formatDate}
+                  currentDateOffset={currentDateOffset}
+                  messagesHover={messagesHover}
+                  setIsMessagesOpen={setIsMessagesOpen}
+                  isMessagesOpen={isMessagesOpen}
+                  setMessages={setMessages}
+                  messages={messages}
+                  unreadMessagesCount={unreadMessagesCount}
+                  edition={edition}
+                  setIsNewspaperOpen={setIsNewspaperOpen}
+                  setSelectedMessage={setSelectedMessage}
+                  mapSettingsHover={mapSettingsHover}
+                  setIsMapSettingsOpen={setIsMapSettingsOpen}
+                  isMapSettingsOpen={isMapSettingsOpen}
+                  showYourRoutes={showYourRoutes}
+                  setShowYourRoutes={setShowYourRoutes}
+                  showRivalRoutes={showRivalRoutes}
+                  setShowRivalRoutes={setShowRivalRoutes}
+                  showLiveTraffic={showLiveTraffic}
+                  setShowLiveTraffic={setShowLiveTraffic}
+                  gameSettings={gameSettings}
+                  setGameSettings={setGameSettings}
+                  gameMenuHover={gameMenuHover}
+                  setIsGameMenuOpen={setIsGameMenuOpen}
+                  isGameMenuOpen={isGameMenuOpen}
+                  setShowSaveMenu={setShowSaveMenu}
+                  setIsSettingsOpen={setIsSettingsOpen}
+                  fullscreen={fullscreen}
+                  setShowExitSavePrompt={setShowExitSavePrompt}
+                  activeWorldEvents={activeWorldEvents}
+                  setPendingDecision={setPendingDecision}
+                />
                 {/* Main Viewport */}
                 <div className="flex-1 relative bg-aero-panel">
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
