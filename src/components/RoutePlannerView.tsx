@@ -1584,7 +1584,6 @@ function RoutePlannerInner({
   return (
     <div 
        className="absolute inset-0 z-50 p-2 lg:p-3 flex flex-col font-sans overflow-hidden bg-raised text-ink"
-       style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98))' }}
     >
       {/* Success Message Overlay */}
       <>
@@ -2861,7 +2860,7 @@ function RoutePlannerInner({
                     aligned with them. */}
                 <div className="flex-1 flex md:min-w-[700px] short:min-w-0">
                   {daysOfWeek.map(day => (
-                    <div key={day.id} className="flex-1 min-w-0 border-r border-line relative bg-gradient-to-b from-ink to-transparent">
+                    <div key={day.id} className="flex-1 min-w-0 border-r border-line relative">
                        <div className="relative h-[720px] border-y border-accent/30"> {/* 24 * 30px */}
                           <div className="absolute inset-0 grid grid-rows-[repeat(24,minmax(0,1fr))] pointer-events-none opacity-20">
                             {Array.from({ length: 24 }).map((_, i) => (
@@ -3047,10 +3046,6 @@ function RoutePlannerInner({
                                      : 'bg-surface border-line text-ink hover:border-accent/50 hover:bg-raised'
                                }`}
                              >
-                                {/* Decorative background class name */}
-                                <div className={`absolute -bottom-4 -right-2 text-3xl font-semibold opacity-[0.03] select-none pointer-events-none group-hover:opacity-[0.1] transition-opacity ${activeConfigClass === c ? 'text-on-accent' : 'text-ink'}`}>
-                                   {c === 'general' ? 'general' : c}
-                                </div>
 
                                 <div className={`text-2xs font-semibold uppercase tracking-label mb-10 ${activeConfigClass === c ? 'text-on-accent' : 'text-muted'}`}>
                                    {c === 'general' ? 'General Standards' : c}
@@ -3640,7 +3635,6 @@ function RoutePlannerInner({
 
                         <div className="space-y-8 max-w-2xl">
                                                       <div className="flex flex-col gap-4 bg-ground/40 p-4 border border-line group hover:border-rule transition-all mb-4 relative overflow-hidden">
-                              <div className="absolute inset-0 bg-gradient-to-r from-accent/10 to-transparent pointer-events-none" />
                               <div className="flex justify-between items-center relative z-10">
                                  <div className="flex flex-col">
                                     <span className="text-sm font-semibold text-accent">General Settings</span>

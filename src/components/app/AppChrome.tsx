@@ -16,45 +16,31 @@ export function ScenarioLock({ scenario }: { scenario?: Scenario }) {
   );
 }
 
-export function ThemeMenuButton({ 
-  index, 
-  label, 
-  onClick, 
+/** A row of the main menu: what it does on the left, a short note on the right. */
+export function ThemeMenuButton({
+  label,
+  hint,
+  onClick,
   primary = false,
-  disabled = false 
-}: { 
-  index: string, 
-  label: string, 
+  disabled = false
+}: {
+  label: string,
+  hint?: string,
   onClick: () => void,
   primary?: boolean,
   disabled?: boolean
 }) {
   return (
-    <button 
-      onClick={disabled ? undefined : onClick}
-      className={`
- group flex items-center p-1 transition-all
- ${disabled ? 'opacity-30 cursor-not-allowed grayscale' : 'cursor-pointer'}
-        ${primary 
-          ? 'bg-ink text-on-accent hover:bg-accent' 
-          : 'bg-raised border border-line text-ink hover:border-accent'}
-      `}
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full min-h-12 px-4 flex items-center justify-between gap-3 border rounded-sm text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+        primary ? 'bg-accent border-accent text-on-accent hover:bg-ink hover:border-ink' : 'bg-surface border-rule text-ink hover:bg-raised hover:border-ink'
+      }`}
     >
-      <span className={`
- px-4 py-3 short:py-2 font-mono text-sm transition-all
- ${primary 
-          ? 'bg-ground text-ink group-hover:bg-ink group-hover:text-on-accent' 
-          : 'bg-raised text-muted group-hover:bg-accent/20 group-hover:text-accent'}
-      `}>
-        {index}
-      </span>
-      {/* Tighter letter spacing on narrow phones, so "Resume Game" stays on one line. */}
-      <span className="flex-1 text-left px-3 font-semibold text-lg whitespace-nowrap">
-        {label}
-      </span>
-      <span className={`pr-6 opacity-0 group-hover:opacity-100 transition-all ${primary ? 'text-on-accent' : 'text-accent'}`}>
-        →
-      </span>
+      <span className="font-label font-semibold text-lg">{label}</span>
+      {hint && <span className={`text-xs ${primary ? 'text-on-accent' : 'text-muted'}`}>{hint}</span>}
     </button>
   );
 }

@@ -1019,7 +1019,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             and scroll the two together; from md up, which includes most phones
             held sideways, they sit side by side as on the desktop and scroll
             separately, so the diagram stays in view while the sliders move. */}
-        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row relative bg-gradient-to-br from-ground to-surface">
+        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row relative bg-ground">
           
           {/* Main Work Area */}
           <div className="flex-none md:flex-1 md:min-h-0 min-w-0 flex flex-col items-center justify-start p-3 md:p-4 short:p-2 relative md:overflow-y-auto border-b md:border-b-0 md:border-r border-line">

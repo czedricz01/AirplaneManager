@@ -431,7 +431,7 @@ function CompetitorsViewImpl({
               {/* Card 4: Operating Hub & Level */}
               <div className="bg-surface border border-line p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
-                  <span className="text-muted font-label text-2xs uppercase tracking-label font-semibold">Strategic Hub Base</span>
+                  <span className="text-muted font-label text-2xs uppercase tracking-label font-semibold">Home hub</span>
                   <MapPin size={16} className="text-accent opacity-80" />
                 </div>
                 <div>
@@ -889,7 +889,7 @@ function CompetitorsViewImpl({
                             rank === 1 ? 'text-accent scale-110 flex items-center' : rank === 2 ? 'text-ink' : rank === 3 ? 'text-muted' : 'text-muted'
                           }`}>
                             #{rank}
-                            {rank === 1 && <Award size={14} className="ml-1 inline animate-bounce" />}
+                            {rank === 1 && <Award size={14} className="ml-1 inline" />}
                           </span>
                         </div>
 

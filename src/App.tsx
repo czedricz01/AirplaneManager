@@ -2336,7 +2336,6 @@ export default function App() {
                 />
                 {/* Main Viewport */}
                 <div className="flex-1 relative bg-surface">
-                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
                   
                   {/* Map Viewport - Leaflet Map */}
                   {/* The tutorial's "map" only while the map is what is on screen: under
@@ -2985,7 +2984,7 @@ export default function App() {
               <div className="mt-6 flex justify-end">
                 <button 
                   onClick={() => setSelectedMessage(null)}
-                  className="bg-accent text-on-accent hover:bg-ink hover:text-on-accent px-3 py-2.5 text-xs uppercase font-semibold tracking-label transition-all animate-pulse"
+                  className="bg-accent text-on-accent hover:bg-ink hover:text-on-accent px-3 py-2.5 text-xs uppercase font-semibold tracking-label transition-all"
                 >
                   Acknowledge Dispatch
                 </button>

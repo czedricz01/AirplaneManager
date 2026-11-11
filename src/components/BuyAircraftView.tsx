@@ -661,7 +661,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                             : "bg-ground/40 border-line text-muted hover:text-ink"
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${onlyMissingImages ? "bg-accent animate-pulse" : "bg-raised"}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${onlyMissingImages ? "bg-accent" : "bg-raised"}`} />
                         Only without image
                       </button>
                     </div>
@@ -879,7 +879,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               </button>
               
               {isExpanded && (
-                <div className="flex flex-col gap-10 bar:gap-6 short:gap-4 p-4 bar:p-3 short:p-2.5 bg-gradient-to-b from-ink to-transparent">
+                <div className="flex flex-col gap-10 bar:gap-6 short:gap-4 p-4 bar:p-3 short:p-2.5">
                   {families.map(fam => {
                     const planes = familiesMap.get(fam)!;
                     return (

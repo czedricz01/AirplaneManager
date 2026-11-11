@@ -520,8 +520,6 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   return (
     <div className="absolute inset-0 z-[100] bg-ground font-sans flex flex-col overflow-hidden">
       {/* Background Decor */}
-      <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" 
-           style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
       
       {/* Header */}
       <div className="relative z-10 px-4 py-3 short:py-1.5 border-b border-line flex justify-between items-center bg-ground/40">

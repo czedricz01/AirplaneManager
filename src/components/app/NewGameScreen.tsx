@@ -1,4 +1,5 @@
 /** The new-game screen: airline, scenario or mode, hub, difficulty, rivals and the save name. */
+import { Button } from '../ui/Button';
 import { ScenarioPicker } from '../ScenarioPicker';
 import { BrandingPicker } from '../BrandingPicker';
 import { ScenarioLock } from './AppChrome';
@@ -66,15 +67,9 @@ export function NewGameScreen({
                 <div className="max-w-4xl mx-auto space-y-12 bar:space-y-5 short:space-y-3 pb-20 bar:pb-0 short:pb-0">
                   <div className="flex items-end short:items-center justify-between gap-4 border-b border-line pb-6 bar:pb-3 short:pb-2">
                     <div>
-                      <span className="text-accent font-label text-xs tracking-label uppercase block mb-2 bar:hidden short:hidden">Operation: Initialize</span>
-                      <h2 className="text-3xl sm:text-3xl bar:text-3xl short:text-3xl tiny:text-2xl font-semibold leading-none">Pre-Flight <span className="text-accent">Config</span></h2>
+                      <h2 className="font-label text-2xl short:text-xl font-semibold">New game</h2>
                     </div>
-                    <button 
-                      onClick={() => setView('main-menu')}
-                      className="shrink-0 whitespace-nowrap text-xs font-label uppercase tracking-label text-muted hover:text-accent transition-colors"
-                    >
-                      [ Abort_Mission ]
-                    </button>
+                    <Button onClick={() => setView('main-menu')}>Back to menu</Button>
                   </div>
 
                   {/* On a phone held sideways the settings go into two columns. */}

@@ -206,7 +206,6 @@ export function AirportDetailView({
             slim row without the eyebrow line. */}
         <div className="p-4 pb-4 bar:p-3 short:px-3 short:py-1.5 flex flex-col md:flex-row justify-between items-start short:items-center gap-3 short:gap-2 border-b border-line bg-raised/80">
           <div className="flex flex-col min-w-0">
-            <div className="text-accent text-2xs uppercase tracking-label mb-2 bar:mb-1 font-semibold short:hidden">Strategic Operations Console</div>
             <h1 className="text-3xl md:text-3xl bar:text-2xl short:text-2xl font-semibold text-ink flex flex-wrap items-center gap-x-4 short:gap-x-3 gap-y-1">
               {airport.name} <span className="text-accent font-normal not-italic opacity-50">[{airport.id}] <span className="text-2xl bar:text-lg short:text-lg ml-4 bar:ml-2 short:ml-2 font-semibold text-accent">L{airport.level}</span></span>
             </h1>
@@ -325,7 +324,7 @@ export function AirportDetailView({
                       <div className="flex justify-between items-center">
                         <SectionLabel icon={<Anchor size={12} className="text-ink"/>} label="Gate/Stand Upgrades (up to +2 quality pts)" />
                         {hubAutoUpgrade ? (
-                          <span className="text-2xs text-ink font-semibold animate-pulse uppercase tracking-label">Automatic Hub Upgrade Enabled</span>
+                          <span className="text-2xs text-ink font-semibold uppercase tracking-label">Automatic Hub Upgrade Enabled</span>
                         ) : (
                           <button
                             onClick={() => {
@@ -390,7 +389,7 @@ export function AirportDetailView({
                 <div className="py-20 flex flex-col items-center justify-center text-center gap-3 border-2 border-dashed border-line">
                   <Lock size={48} className="text-muted" />
                   <div className="space-y-2">
-                    <div className="text-xl font-semibold text-ink">Access Protocol Locked</div>
+                    <div className="text-xl font-semibold text-ink">Locked</div>
                     <div className="text-2xs text-muted uppercase tracking-label">Require Level 1 Management Permit: {formatCurrency(unlockCost(1))}</div>
                     {gates?.airport && (
                       <div className="text-2xs text-bad normal-case max-w-md mx-auto leading-relaxed">{gates.airport}</div>
@@ -412,12 +411,8 @@ export function AirportDetailView({
           <div className="flex flex-col gap-3">
             <TransferHubCard stats={transferHub} quality={hubQuality(infrastructure)} />
             {infrastructure.level >= 2 ? (
-              <div className="bg-raised border border-accent p-4 flex flex-col gap-3 relative overflow-hidden">
-                <div className="absolute -top-10 -right-10 text-accent">
-                  <Anchor size={200} />
-                </div>
+              <div className="bg-surface border border-line p-4 flex flex-col gap-3">
                 <div className="relative z-10 flex flex-col">
-                  <div className="text-accent text-2xs font-semibold uppercase tracking-label mb-1">Active Protocol</div>
                   <div className="text-2xl font-semibold text-ink flex items-center gap-3">
                     <Anchor size={24} className="text-accent" />
                     Hub Operations

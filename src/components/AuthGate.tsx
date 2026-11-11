@@ -1,5 +1,6 @@
+import { Button } from './ui/Button';
+import { TextInput } from './ui/Field';
 import { useState, FormEvent } from 'react';
-import { Bird, LogIn, AlertTriangle } from 'lucide-react';
 import { supabase, isCloudConfigured, describeAuthError } from '../lib/supabase';
 import { logError } from '../lib/debugLog';
 
@@ -53,119 +54,61 @@ export function AuthGate({ onLocalOnly }: Props) {
     }
   };
 
-  const inputClass =
-    'w-full bg-ground border border-line p-3 outline-none focus:border-accent transition-colors text-sm text-ink disabled:opacity-50';
-  const labelClass =
-    'block text-2xs uppercase tracking-label text-muted mb-2 font-semibold font-label';
-
   return (
-    <div
-      key="login"
-      className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-4 relative w-full animate-appear"
-    >
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent rounded-full" />
-      </div>
-
-      <div className="z-10 w-full max-w-md">
-        <div className="flex flex-col mb-6 animate-appear">
-          <h1 className="text-3xl lg:text-3xl font-semibold leading-none mb-3 flex flex-col items-start gap-4">
-            <Bird className="text-accent shrink-0" size={72} strokeWidth={2.5} />
-            {/* One line per word: the name as a single token overflowed the column and wrapped mid-name. */}
-            <div>
-              <span className="text-accent">Airline</span>
-              <br />
-              <span className="text-ink">Manager</span>
-              <br />
-              <span className="text-accent">NEO</span>
-            </div>
-          </h1>
-          <p className="text-2xs tracking-label font-normal text-muted pl-2 uppercase">
-            Aviation Management Core
-          </p>
+    <div key="login" className="flex-1 min-h-0 overflow-y-auto flex flex-col bg-ground animate-appear">
+      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-10 py-8 short:py-3 flex flex-col short:flex-row short:items-center gap-8 short:gap-10">
+        <div className="short:shrink-0">
+          <h1 className="font-label font-bold text-3xl leading-none uppercase tracking-label text-ink">Airline Manager Neo</h1>
+          <p className="mt-2 text-base text-muted max-w-[40ch]">Start in 1960 with a hub and a budget, and build a route network month by month.</p>
         </div>
 
-        {!isCloudConfigured ? (
-          <div className="bg-raised p-4 rounded-sm border border-line space-y-4">
-            <div className="flex items-start gap-3 text-accent">
-              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-              <div className="text-xs font-label uppercase tracking-label font-semibold">
-                Cloud accounts not configured
-              </div>
+        <div className="w-full max-w-sm">
+          {!isCloudConfigured ? (
+            <div className="bg-surface border border-line p-4 flex flex-col gap-3">
+              <h2 className="font-label font-semibold text-lg text-ink">Play without an account</h2>
+              <p className="text-sm text-muted">
+                This build has no Supabase project attached, so there are no accounts and no
+                cloud savegames. You can still play: progress is kept in this browser only.
+              </p>
+              <Button variant="primary" size="lg" onClick={onLocalOnly}>Continue locally</Button>
             </div>
-            <p className="text-xs text-muted leading-relaxed">
-              This build has no Supabase project attached, so there are no accounts and no
-              cloud savegames. You can still play — progress is kept in this browser only.
-            </p>
-            <button
-              type="button"
-              onClick={onLocalOnly}
-              className="w-full bg-accent text-on-accent py-4 font-semibold uppercase hover:bg-ink transition-all flex items-center justify-center gap-2"
-            >
-              Continue Locally <LogIn size={18} />
-            </button>
-          </div>
-        ) : (
-          <form
-            onSubmit={handleSignIn}
-            className="bg-raised p-4 rounded-sm border border-line space-y-6"
-          >
-            {error && (
-              <div
-                className="bg-surface border-l-2 border-accent p-3 animate-appear"
-              >
-                <p className="text-2xs font-label text-accent uppercase tracking-label">
-                  {error}
-                </p>
-              </div>
-            )}
-
-            <div>
-              <label className={labelClass} htmlFor="auth-email">Operator Email</label>
-              <input
+          ) : (
+            <form onSubmit={handleSignIn} className="bg-surface border border-line p-4 flex flex-col gap-4">
+              <h2 className="font-label font-semibold text-lg text-ink">Sign in</h2>
+              {error && (
+                <p role="alert" className="text-sm text-bad border-l-[3px] border-bad pl-3">{error}</p>
+              )}
+              <TextInput
                 id="auth-email"
+                label="Email"
                 type="email"
                 autoComplete="email"
-                placeholder="operator@airline.neo"
+                placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={isBusy}
-                className={inputClass}
                 required
               />
-            </div>
-
-            <div>
-              <label className={labelClass} htmlFor="auth-password">Bio-Key (Password)</label>
-              <input
+              <TextInput
                 id="auth-password"
+                label="Password"
                 type="password"
                 autoComplete="current-password"
-                placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 disabled={isBusy}
-                className={inputClass}
                 required
               />
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <button
-                type="submit"
-                disabled={isBusy}
-                className="w-full bg-ink text-on-accent py-4 font-semibold uppercase hover:bg-accent transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isBusy ? 'Processing...' : 'Initialize System'} <LogIn size={18} />
-              </button>
-
-              <p className="text-2xs text-muted leading-relaxed text-center">
+              <Button type="submit" variant="primary" size="lg" disabled={isBusy}>
+                {isBusy ? 'Signing in…' : 'Sign in'}
+              </Button>
+              <p className="text-xs text-muted">
                 Accounts are issued by the operator running this server.
                 There is no self-registration.
               </p>
-            </div>
-          </form>
-        )}
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

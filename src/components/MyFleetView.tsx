@@ -273,7 +273,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                   : 'bg-ground/50 border border-line text-muted hover:text-ink'
               }`}
             >
-              <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-bad animate-pulse' : ''} />
+              <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-bad' : ''} />
               <span className="short:hidden">Alerts (&lt;40%)</span>
               {summaryStats.alertsCount > 0 && (
                 <span className="bg-bad text-on-accent text-2xs px-1.5 py-0.2 rounded-full font-semibold">
@@ -465,7 +465,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                       {/* Alert badge if any plane in model < 40% */}
                       {hasAlert && (
-                        <div className="absolute bottom-2 right-2 bg-bad text-on-accent px-2 py-0.5 rounded-sm text-2xs font-semibold flex items-center gap-1 animate-pulse">
+                        <div className="absolute bottom-2 right-2 bg-bad text-on-accent px-2 py-0.5 rounded-sm text-2xs font-semibold flex items-center gap-1">
                           <ShieldAlert size={12} />
                           <span>{m.alertCount} Alert{m.alertCount > 1 ? 's' : ''} (&lt;40%)</span>
                         </div>
@@ -478,7 +478,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                         <div className="text-2xs text-accent uppercase tracking-label font-semibold flex items-center justify-between">
                           <span>{m.manufacturer}</span>
                           {hasAlert && (
-                            <span className="text-bad text-2xs font-semibold uppercase tracking-label animate-pulse flex items-center gap-0.5">
+                            <span className="text-bad text-2xs font-semibold uppercase tracking-label flex items-center gap-0.5">
                               <ShieldAlert size={10} /> Maintenance Required
                             </span>
                           )}
@@ -605,7 +605,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                           {/* Critical Condition Warning Overlay */}
                           {critical ? (
-                            <div className="absolute top-2 right-2 bg-bad text-on-accent border border-bad text-2xs font-label font-semibold px-2 py-0.5 rounded-sm uppercase tracking-label flex items-center gap-1 animate-pulse">
+                            <div className="absolute top-2 right-2 bg-bad text-on-accent border border-bad text-2xs font-label font-semibold px-2 py-0.5 rounded-sm uppercase tracking-label flex items-center gap-1">
                               <ShieldAlert size={12} />
                               <span>Critical (&lt;40%)</span>
                             </div>
@@ -699,7 +699,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                               View Details &rarr;
                             </span>
                             {critical ? (
-                              <span className="text-bad flex items-center gap-1 text-2xs font-semibold uppercase tracking-label animate-pulse">
+                              <span className="text-bad flex items-center gap-1 text-2xs font-semibold uppercase tracking-label">
                                 <ShieldAlert size={12} /> Maintenance Urgent
                               </span>
                             ) : (plane.conditionInterior < 50 || plane.conditionGeneral < 50) && (
@@ -779,7 +779,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             </td>
                             <td className="py-3 pl-3 font-semibold">
                               <span className={critical ? 'text-bad flex items-center gap-1 font-semibold' : 'text-accent'}>
-                                {critical && <ShieldAlert size={13} className="animate-pulse" />}
+                                {critical && <ShieldAlert size={13} className="" />}
                                 {plane.registration}
                               </span>
                             </td>
@@ -803,7 +803,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             </td>
                             <td className="py-3">
                               {critical ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-2xs font-semibold bg-raised text-ink uppercase tracking-label animate-pulse">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-2xs font-semibold bg-raised text-ink uppercase tracking-label">
                                   <ShieldAlert size={10} /> Maintenance Urgent
                                 </span>
                               ) : assignedRoutes.length > 0 ? (
@@ -882,7 +882,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                       {critical && (
                         <div className="bg-bad/10 border border-bad/40 text-bad text-2xs font-semibold px-2 py-1 rounded-sm mb-2 flex items-center justify-between">
                           <span className="flex items-center gap-1">
-                            <ShieldAlert size={12} className="animate-pulse text-bad" />
+                            <ShieldAlert size={12} className=" text-bad" />
                             CRITICAL CONDITION (&lt;40%)
                           </span>
                           <span className="uppercase text-2xs font-semibold">Maintenance Urgent</span>

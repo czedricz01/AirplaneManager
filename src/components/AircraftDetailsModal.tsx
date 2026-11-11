@@ -196,7 +196,7 @@ export function AircraftDetailsModal({
                 <h3 className="text-sm font-semibold border-b border-line pb-2 mb-2 text-ink flex items-center justify-between">
                   <span>Maintenance</span>
                   {(plane.conditionInterior < 40 || plane.conditionGeneral < 40) && (
-                    <span className="text-accent text-2xs font-semibold uppercase tracking-label animate-pulse flex items-center gap-1">
+                    <span className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-1">
                       <ShieldAlert size={12} /> CRITICAL COND. (&lt;40%)
                     </span>
                   )}
@@ -236,7 +236,7 @@ export function AircraftDetailsModal({
                   onClick={onRenovate}
                   className={`mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-sm text-xs uppercase tracking-label font-semibold transition-all ${
                     plane.conditionInterior < 40 || plane.conditionGeneral < 40
-                      ? 'bg-bad hover:bg-bad/80 text-on-accent font-semibold animate-pulse'
+                      ? 'bg-bad hover:bg-bad/80 text-on-accent font-semibold'
                       : 'bg-surface hover:bg-raised border border-line text-ink'
                   }`}
                 >

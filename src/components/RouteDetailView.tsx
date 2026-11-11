@@ -180,7 +180,6 @@ export function RouteDetailView({
             below (flex-wrap plus order); each block takes its own height
             (flex-none), or the middle one gets clipped. */}
         <div className="min-h-[280px] bar:min-h-0 short:min-h-0 shrink-0 md:shrink flex flex-row flex-wrap md:flex-nowrap border border-line bg-ground/40 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none"></div>
           <div className="order-1 md:order-none w-1/2 md:w-auto flex-none md:flex-1 flex flex-col items-center justify-center py-3 md:py-0 short:py-2 border-r border-line relative z-10">
             <span className="text-muted text-2xs uppercase tracking-label font-semibold mb-4 bar:mb-1 short:mb-1">Origin Hub</span>
             <span className="text-3xl bar:text-3xl short:text-3xl font-semibold text-accent">{route.origin}</span>

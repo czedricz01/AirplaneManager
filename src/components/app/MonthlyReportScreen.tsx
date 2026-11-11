@@ -37,8 +37,7 @@ export function MonthlyReportScreen({
                     inside it, and the buttons stay pinned to the bottom. */}
                 <div className="max-w-4xl w-full my-auto" data-tour="monthly-report">
                   <div className="border-b border-line pb-6 mb-6 bar:pb-3 bar:mb-3 short:pb-2 short:mb-2">
-                    <span className="text-accent font-label text-xs tracking-label uppercase block mb-2 short:hidden">Operation: Execution</span>
-                    <h2 className="text-3xl bar:text-3xl short:text-2xl font-semibold leading-none">Monthly <span className="text-accent">Report</span></h2>
+                    <h2 className="font-label text-2xl short:text-xl font-semibold">Monthly report</h2>
                     {/* The report covers the month that just ended, not the one the clock
                         has already advanced to, so label it from the report itself. */}
                     <p className="text-muted font-mono mt-4 bar:mt-2 short:mt-1 font-semibold text-xl bar:text-sm short:text-sm">
