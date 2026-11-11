@@ -2130,9 +2130,9 @@ export default function App() {
 
   return (
     <AccountScopeContext.Provider value={userId}>
-    <div className="absolute inset-0 overflow-hidden bg-aero-black">
+    <div className="absolute inset-0 overflow-hidden bg-ground">
       <div 
-        className="bg-aero-black text-white font-sans selection:bg-aero-yellow selection:text-black overflow-hidden flex flex-col absolute top-0 left-0"
+        className="bg-ground text-ink font-sans selection:bg-accent selection:text-on-accent overflow-hidden flex flex-col absolute top-0 left-0"
         style={{ 
           transform: `scale(${finalUiScale})`, 
           transformOrigin: 'top left',
@@ -2292,7 +2292,7 @@ export default function App() {
                 key="game"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex-1 flex flex-col bg-aero-black relative"
+                className="flex-1 flex flex-col bg-ground relative"
               >
                 <GameTopBar
                   capital={capital}
@@ -2334,13 +2334,13 @@ export default function App() {
                   setPendingDecision={setPendingDecision}
                 />
                 {/* Main Viewport */}
-                <div className="flex-1 relative bg-aero-panel">
+                <div className="flex-1 relative bg-surface">
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
                   
                   {/* Map Viewport - Leaflet Map */}
                   {/* The tutorial's "map" only while the map is what is on screen: under
                       a window it is not there to point at. */}
-                  <div className="absolute inset-0 z-0 bg-aero-panel" data-tour={activeWindow === 'map' && !isPlanningRoute ? 'map' : undefined}>
+                  <div className="absolute inset-0 z-0 bg-surface" data-tour={activeWindow === 'map' && !isPlanningRoute ? 'map' : undefined}>
                      <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
                       <React.Suspense fallback={<LazyFallback label="World Map" />}>
                       <WorldMap
@@ -2857,7 +2857,7 @@ export default function App() {
                       <button
                         onClick={handleAdvanceMonth}
                         data-tour="next-month"
-                        className="flex items-center gap-3 bg-aero-yellow text-black px-3 py-3 font-bold uppercase tracking-[0.2em] text-xs shadow-2xl border-2 border-aero-yellow hover:bg-white hover:border-white transition-all transform hover:scale-105 group font-sans italic"
+                        className="flex items-center gap-3 bg-accent text-on-accent px-3 py-3 font-semibold uppercase tracking-label text-xs border-2 border-accent hover:bg-ink hover:border-ink transition-all transform hover:scale-105 group font-sans"
                         title="Advance to next month"
                       >
                         Next Month
@@ -2900,28 +2900,28 @@ export default function App() {
         const target = manualSaveTarget();
         const existing = target ? saves.find(s => s.id === target.id) : undefined;
         return (
-          <div className="fixed inset-0 z-[1001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div role="dialog" aria-modal="true" aria-labelledby="exit-save-title" className="bg-aero-carbon border border-white/10 shadow-2xl p-4 max-w-md w-full">
-              <h2 id="exit-save-title" className="text-lg font-mono text-aero-yellow uppercase tracking-[0.2em] font-black mb-3">Save before leaving?</h2>
-              <p className="text-sm text-white/80 mb-4">
+          <div className="fixed inset-0 z-[1001] bg-ground/80 flex items-center justify-center p-4">
+            <div role="dialog" aria-modal="true" aria-labelledby="exit-save-title" className="bg-raised border border-line p-4 max-w-md w-full">
+              <h2 id="exit-save-title" className="text-lg font-mono text-accent font-semibold mb-3">Save before leaving?</h2>
+              <p className="text-sm text-ink mb-4">
                 {existing
-                  ? <>This overwrites <span className="text-white font-bold">"{existing.name}"</span> (last saved {new Date(existing.timestamp).toLocaleString()}).</>
+                  ? <>This overwrites <span className="text-ink font-semibold">"{existing.name}"</span> (last saved {new Date(existing.timestamp).toLocaleString()}).</>
                   : target
-                    ? <>This saves your game as <span className="text-white font-bold">"{target.name}"</span>.</>
+                    ? <>This saves your game as <span className="text-ink font-semibold">"{target.name}"</span>.</>
                     : <>This game has not been saved yet. It will be stored as a new save.</>}
               </p>
               <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                 <button
                   onClick={() => setShowExitSavePrompt(false)}
                   disabled={isSavingBeforeExit}
-                  className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-2 font-mono text-xs tracking-widest uppercase transition-all disabled:opacity-40"
+                  className="bg-surface hover:bg-raised text-ink border border-line px-3 py-2 font-label text-xs tracking-label uppercase transition-all disabled:opacity-40"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={returnToMainMenu}
                   disabled={isSavingBeforeExit}
-                  className="bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 px-3 py-2 font-mono text-xs tracking-widest uppercase transition-all disabled:opacity-40"
+                  className="bg-surface hover:bg-raised text-ink border border-line px-3 py-2 font-label text-xs tracking-label uppercase transition-all disabled:opacity-40"
                 >
                   Leave without saving
                 </button>
@@ -2929,7 +2929,7 @@ export default function App() {
                   autoFocus
                   onClick={saveAndReturnToMainMenu}
                   disabled={isSavingBeforeExit}
-                  className="bg-aero-yellow text-black border border-aero-yellow px-3 py-2 font-mono text-xs tracking-widest uppercase font-black transition-all hover:brightness-110 disabled:opacity-60"
+                  className="bg-accent text-on-accent border border-accent px-3 py-2 font-label text-xs tracking-label uppercase font-semibold transition-all hover:brightness-110 disabled:opacity-60"
                 >
                   {isSavingBeforeExit ? 'Saving…' : 'Save & leave'}
                 </button>
@@ -2963,39 +2963,39 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-ground/85 z-[9999] flex items-center justify-center p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 15 }}
-              className="bg-aero-panel border-2 border-aero-yellow/40 max-w-lg w-full p-4 shadow-2xl relative text-left"
+              className="bg-surface border-2 border-accent/40 max-w-lg w-full p-4 relative text-left"
             >
-              <div className="flex justify-between items-start border-b border-white/10 pb-4 mb-4">
+              <div className="flex justify-between items-start border-b border-line pb-4 mb-4">
                 <div>
-                  <span className="text-3xs font-mono text-white/40 block mb-1 uppercase tracking-widest font-black">
+                  <span className="text-2xs font-label text-muted block mb-1 uppercase tracking-label font-semibold">
                     {selectedMessage.details?.source || "Neo Airlines Dispatch"} • {selectedMessage.dateStr}
                   </span>
-                  <h3 className="text-aero-yellow font-sans font-black italic tracking-wide text-lg uppercase leading-tight">
+                  <h3 className="text-accent font-sans font-semibold text-lg leading-tight">
                     {selectedMessage.details?.title || "Inbox Transmission"}
                   </h3>
                 </div>
                 <button 
                   onClick={() => setSelectedMessage(null)}
-                  className="text-white/40 hover:text-white bg-white/5 hover:bg-white/10 p-1.5 rounded-sm transition-all"
+                  className="text-muted hover:text-ink bg-surface hover:bg-raised p-1.5 rounded-sm transition-all"
                 >
                   <X size={16} />
                 </button>
               </div>
               
-              <div className="text-sm text-white/85 font-sans leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto no-scrollbar pt-2 font-medium">
+              <div className="text-sm text-ink font-sans leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto no-scrollbar pt-2 font-medium">
                 {selectedMessage.details?.content || selectedMessage.text}
               </div>
 
               <div className="mt-6 flex justify-end">
                 <button 
                   onClick={() => setSelectedMessage(null)}
-                  className="bg-aero-yellow text-black hover:bg-white hover:text-black px-3 py-2.5 text-xs uppercase font-black tracking-widest transition-all animate-pulse"
+                  className="bg-accent text-on-accent hover:bg-ink hover:text-on-accent px-3 py-2.5 text-xs uppercase font-semibold tracking-label transition-all animate-pulse"
                 >
                   Acknowledge Dispatch
                 </button>

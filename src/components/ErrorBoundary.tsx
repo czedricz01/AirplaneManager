@@ -67,23 +67,23 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
 
     return (
-      <div className="p-6 bg-black text-aero-warn font-mono text-[12px] flex flex-col gap-3 items-start">
-        <div className="text-[13px] font-bold tracking-wider">
+      <div className="p-6 bg-ground text-bad font-mono text-xs flex flex-col gap-3 items-start">
+        <div className="text-xs font-semibold">
           {this.props.label ? `${this.props.label} could not be displayed` : 'Something went wrong'}
         </div>
-        <div className="text-white/60 max-w-[520px] leading-relaxed">
+        <div className="text-muted max-w-[520px] leading-relaxed">
           The rest of the game is unaffected and your progress is intact. Close this
           screen and carry on; if it keeps happening, the message below identifies
           the fault.
         </div>
-        <code className="text-white/40 text-xs break-all max-w-[520px]">
+        <code className="text-muted text-xs break-all max-w-[520px]">
           {error.message || String(error)}
         </code>
         <div className="flex gap-2 mt-1">
           <button
             type="button"
             onClick={this.handleReset}
-            className="px-3 py-1.5 border border-aero-yellow/40 text-aero-yellow text-xs tracking-wider hover:bg-aero-yellow/10"
+            className="px-3 py-1.5 border border-accent/40 text-accent text-xs hover:bg-accent/10"
           >
             {this.props.resetLabel ?? 'CLOSE'}
           </button>
@@ -91,7 +91,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <button
             type="button"
             onClick={this.handleCopy}
-            className="px-3 py-1.5 border border-white/20 text-white/60 text-xs tracking-wider hover:bg-white/10"
+            className="px-3 py-1.5 border border-rule text-muted text-xs hover:bg-raised"
           >
             {this.state.copied === 'done' ? 'COPIED' : this.state.copied === 'failed' ? 'COPY FAILED' : 'COPY DIAGNOSTICS'}
           </button>

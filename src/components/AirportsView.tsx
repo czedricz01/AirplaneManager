@@ -150,7 +150,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
   const padBottom = Math.max(0, (totalRows - lastVisible) * ROW_HEIGHT);
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         title="AIRPORTS"
         right={
@@ -159,24 +159,24 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
               <select
                 value={icaoFilter}
                 onChange={(e) => setIcaoFilter(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-4 pr-8 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors appearance-none cursor-pointer"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-4 pr-8 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors appearance-none cursor-pointer"
               >
                 <option value="All">All ICAO</option>
                 {['A', 'B', 'C', 'D', 'E', 'F'].map(cls => (
                   <option key={cls} value={cls}>Class {cls}</option>
                 ))}
               </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
                 <ChevronDown size={14} />
               </div>
             </div>
             <div className="relative flex-1 min-w-0 md:flex-none md:w-72">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={16} className="text-white/40" />
+                <Search size={16} className="text-muted" />
               </div>
               <input
                 type="text"
-                className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors"
                 placeholder="Search IATA or name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -204,7 +204,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
           <tbody>
             {filteredAndSortedAirports.length === 0 ? (
               <tr>
-                 <td colSpan={7} className="text-center py-16 text-white/40 uppercase tracking-widest">
+                 <td colSpan={7} className="text-center py-16 text-muted uppercase tracking-label">
                    No airports match your search.
                  </td>
                </tr>
@@ -228,19 +228,19 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
                   <tr
                     key={`${airport.id}-${firstVisible + idx}`}
                     title={lock ?? undefined}
-                    className={`border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer ${lock ? 'opacity-60' : ''}`}
+                    className={`border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer ${lock ? 'opacity-60' : ''}`}
                     onClick={() => onSelectAirport?.(airport)}
                   >
-                    <Td className="pl-4 font-bold text-aero-yellow tracking-widest">
+                    <Td className="pl-4 font-semibold text-accent">
                       {airport.id}
                     </Td>
                     <Td>{airport.name}</Td>
                     <Td className="text-xs font-mono">
                       {airport.level}
-                      {lock && <Lock size={11} className="inline ml-1.5 text-aero-warn" aria-label="Closed at your rank" />}
+                      {lock && <Lock size={11} className="inline ml-1.5 text-bad" aria-label="Closed at your rank" />}
                     </Td>
-                    <Td className="text-xs font-mono font-bold">{airport.maxIcaoCode}</Td>
-                    <Td className="text-xs font-mono">{availableSlots} <span className="text-white/30">/</span> {totalSlots}</Td>
+                    <Td className="text-xs font-mono font-semibold">{airport.maxIcaoCode}</Td>
+                    <Td className="text-xs font-mono">{availableSlots} <span className="text-muted">/</span> {totalSlots}</Td>
                     <Td className="text-xs font-mono">{businessDemand}</Td>
                     <Td className="text-xs font-mono">{tourismDemand}</Td>
                   </tr>

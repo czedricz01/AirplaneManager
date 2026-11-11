@@ -4,14 +4,14 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: 'bg-aero-yellow text-black border-aero-yellow hover:bg-white hover:border-white',
-  secondary: 'bg-aero-panel text-white border-white/10 hover:border-aero-yellow hover:text-aero-yellow',
-  ghost: 'bg-transparent text-white/60 border-transparent hover:text-white hover:bg-white/5',
-  danger: 'bg-transparent text-aero-warn border-aero-warn/50 hover:bg-aero-warn/10',
+  primary: 'bg-accent text-on-accent border-accent hover:bg-ink hover:border-ink',
+  secondary: 'bg-surface text-ink border-line hover:border-accent hover:text-accent',
+  ghost: 'bg-transparent text-muted border-transparent hover:text-ink hover:bg-raised',
+  danger: 'bg-transparent text-bad border-bad/50 hover:bg-bad/10',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: 'px-2 py-1 text-3xs gap-1',
+  sm: 'px-2 py-1 text-2xs gap-1',
   md: 'px-3 py-2 text-2xs gap-1.5',
   lg: 'px-4 py-4 text-sm gap-2',
 };
@@ -37,7 +37,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center font-mono font-bold uppercase tracking-widest border rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${VARIANT_CLASSES[resolvedVariant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex items-center justify-center font-label font-semibold uppercase tracking-label border rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${VARIANT_CLASSES[resolvedVariant]} ${SIZE_CLASSES[size]} ${className}`}
       {...rest}
     >
       {icon}

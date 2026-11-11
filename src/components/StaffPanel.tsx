@@ -48,23 +48,23 @@ const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}
 
 /** The morale scale with the strike zone, the neutral line, where morale is and where it is heading. */
 function MoraleBar({ morale, target }: { morale: number; target: number }) {
-  const tone = morale < STRIKE_MORALE_THRESHOLD ? 'bg-aero-warn' : morale < NEUTRAL_MORALE ? 'bg-aero-yellow' : 'bg-aero-good';
+  const tone = morale < STRIKE_MORALE_THRESHOLD ? 'bg-bad' : morale < NEUTRAL_MORALE ? 'bg-accent' : 'bg-good';
   return (
     <div>
-      <div className="relative h-3 bg-white/10 overflow-hidden">
+      <div className="relative h-3 bg-raised overflow-hidden">
         {/* Where strikes become possible. */}
-        <div className="absolute inset-y-0 left-0 bg-aero-warn/15" style={{ width: `${STRIKE_MORALE_THRESHOLD}%` }} />
+        <div className="absolute inset-y-0 left-0 bg-bad/15" style={{ width: `${STRIKE_MORALE_THRESHOLD}%` }} />
         <div className={`absolute inset-y-0 left-0 ${tone}`} style={{ width: `${Math.max(0, Math.min(100, morale))}%` }} />
-        <div className="absolute inset-y-0 w-px bg-white/40" style={{ left: `${NEUTRAL_MORALE}%` }} title="Neutral: no effect on satisfaction" />
+        <div className="absolute inset-y-0 w-px bg-rule" style={{ left: `${NEUTRAL_MORALE}%` }} title="Neutral: no effect on satisfaction" />
         <div
-          className="absolute inset-y-0 w-0.5 bg-white"
+          className="absolute inset-y-0 w-0.5 bg-ink"
           style={{ left: `calc(${Math.max(0, Math.min(100, target))}% - 1px)` }}
           title={`Target ${Math.round(target)}`}
         />
       </div>
-      <div className="relative h-4 mt-1 text-3xs font-mono text-white/40">
+      <div className="relative h-4 mt-1 text-2xs font-mono text-muted">
         <span className="absolute left-0">0</span>
-        <span className="absolute -translate-x-1/2 text-aero-warn/70" style={{ left: `${STRIKE_MORALE_THRESHOLD}%` }}>{STRIKE_MORALE_THRESHOLD}<span className="hidden sm:inline"> strike</span></span>
+        <span className="absolute -translate-x-1/2 text-bad" style={{ left: `${STRIKE_MORALE_THRESHOLD}%` }}>{STRIKE_MORALE_THRESHOLD}<span className="hidden sm:inline"> strike</span></span>
         <span className="absolute -translate-x-1/2" style={{ left: `${NEUTRAL_MORALE}%` }}>{NEUTRAL_MORALE}<span className="hidden sm:inline"> neutral</span></span>
         <span className="absolute right-0">100</span>
       </div>
@@ -97,13 +97,13 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
   return (
     <div className="grid grid-cols-1 gap-3">
       {striking && (
-        <div className="flex items-start gap-3 border border-aero-warn/40 bg-aero-warn/10 px-4 py-3 rounded-sm">
-          <AlertTriangle size={18} className="text-aero-warn shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 border border-bad/40 bg-bad/10 px-4 py-3 rounded-sm">
+          <AlertTriangle size={18} className="text-bad shrink-0 mt-0.5" />
           <div className="text-2xs font-mono leading-relaxed">
-            <span className="block text-aero-warn font-black uppercase tracking-widest mb-0.5">
+            <span className="block text-bad font-semibold uppercase tracking-label mb-0.5">
               Strike this month · {Math.round(strikeShare * 100)}% of flights grounded
             </span>
-            <span className="text-white/60">
+            <span className="text-muted">
               {strikePending
                 ? 'Waiting for your answer: until then every flight stays on the ground.'
                 : strikeShare >= 1
@@ -118,8 +118,8 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
       {(() => {
         const premium = labourMarketPremium(offset);
         return (
-          <div className="text-2xs font-mono text-white/50 leading-relaxed">
-            Labour market: <span className={premium >= 4 ? 'text-aero-warn' : premium <= -4 ? 'text-aero-good' : 'text-white/70'}>{labourMarketLabel(premium)}</span>.
+          <div className="text-2xs font-mono text-muted leading-relaxed">
+            Labour market: <span className={premium >= 4 ? 'text-bad' : premium <= -4 ? 'text-good' : 'text-muted'}>{labourMarketLabel(premium)}</span>.
             {premium !== 0 && (
               <> Crews expect {premium > 0 ? `${premium} points more` : `${-premium} points less`} than the going wage, so market pay
               {premium > 0 ? ' no longer keeps morale at neutral.' : ' now holds morale above neutral.'}</>
@@ -133,10 +133,10 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           size="md"
           label="Morale"
           value={Math.round(staff.morale)}
-          valueClassName={staff.morale < STRIKE_MORALE_THRESHOLD ? 'text-aero-warn' : staff.morale >= NEUTRAL_MORALE ? 'text-aero-good' : ''}
+          valueClassName={staff.morale < STRIKE_MORALE_THRESHOLD ? 'text-bad' : staff.morale >= NEUTRAL_MORALE ? 'text-good' : ''}
         >
-          <span className="flex items-center gap-1 text-3xs font-mono text-white/40 mt-1">
-            <TrendIcon size={10} className={trend > 0.05 ? 'text-aero-good' : trend < -0.05 ? 'text-aero-warn' : ''} />
+          <span className="flex items-center gap-1 text-2xs font-mono text-muted mt-1">
+            <TrendIcon size={10} className={trend > 0.05 ? 'text-good' : trend < -0.05 ? 'text-bad' : ''} />
             {Math.round(outlook.nextMorale)} next month · target {Math.round(outlook.target)}
           </span>
         </StatTile>
@@ -144,9 +144,9 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           size="md"
           label="Strike risk"
           value={`${formatNumber(outlook.strikeChance * 100, 1)}%`}
-          valueClassName={outlook.strikeChance > 0 ? 'text-aero-warn' : 'text-aero-good'}
+          valueClassName={outlook.strikeChance > 0 ? 'text-bad' : 'text-good'}
         >
-          <span className="block text-3xs font-mono text-white/40 mt-1">
+          <span className="block text-2xs font-mono text-muted mt-1">
             {strikePending
               ? 'none while a strike awaits your answer'
               : noRoutes
@@ -158,8 +158,8 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
                   : `none while morale stays at ${STRIKE_MORALE_THRESHOLD} or above`}
           </span>
         </StatTile>
-        <StatTile size="md" label="Satisfaction effect" value={signed(satNow)} valueClassName={satNow > 0 ? 'text-aero-good' : satNow < 0 ? 'text-aero-warn' : ''}>
-          <span className="block text-3xs font-mono text-white/40 mt-1">points in every cabin, from morale</span>
+        <StatTile size="md" label="Satisfaction effect" value={signed(satNow)} valueClassName={satNow > 0 ? 'text-good' : satNow < 0 ? 'text-bad' : ''}>
+          <span className="block text-2xs font-mono text-muted mt-1">points in every cabin, from morale</span>
         </StatTile>
       </div>
 
@@ -167,18 +167,18 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
       <Panel>
         <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
           <div className="flex items-start gap-3 min-w-0">
-            <Users size={18} className="text-aero-yellow shrink-0 mt-0.5" />
+            <Users size={18} className="text-accent shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <span className="text-2xs uppercase tracking-widest text-white/60 font-black block mb-1">Pay</span>
-              <p className="text-2xs font-mono text-white/50 leading-relaxed max-w-xl">
+              <span className="text-2xs uppercase tracking-label text-muted font-semibold block mb-1">Pay</span>
+              <p className="text-2xs font-mono text-muted leading-relaxed max-w-xl">
                 Crew and ground staff are paid a share of the market wage. The bill changes at once;
                 morale follows over the coming months.
               </p>
             </div>
           </div>
           <div className="text-right">
-            <span className="block text-2xl font-mono font-black text-white">{Math.round(staff.salaryPct)}%</span>
-            <span className="text-3xs font-mono text-white/40 uppercase tracking-widest">of market wage</span>
+            <span className="block text-2xl font-mono font-semibold text-ink">{Math.round(staff.salaryPct)}%</span>
+            <span className="text-2xs font-label text-muted uppercase tracking-label">of market wage</span>
           </div>
         </div>
 
@@ -191,35 +191,35 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
             step={SALARY_PCT_STEP}
             value={staff.salaryPct}
             onChange={e => onSetSalary(Number(e.target.value))}
-            className="w-full accent-aero-yellow cursor-pointer"
+            className="w-full accent-accent cursor-pointer"
           />
         </label>
-        <div className="flex justify-between text-3xs font-mono text-white/30 mt-0.5">
+        <div className="flex justify-between text-2xs font-mono text-muted mt-0.5">
           <span>{SALARY_PCT_MIN}%</span>
           <span>100% market</span>
           <span>{SALARY_PCT_MAX}%</span>
         </div>
         {floor > SALARY_PCT_MIN && staff.strike && (
-          <p className="text-2xs font-mono text-aero-yellow/80 leading-relaxed mt-2">
+          <p className="text-2xs font-mono text-accent leading-relaxed mt-2">
             Agreed with the unions to end the strike: pay cannot drop below {Math.round(floor)}% through{' '}
             {formatMonthOffset(staff.strike.startOffset + STRIKE_MEMORY_MONTHS)}.
           </p>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/10 text-2xs font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-line text-2xs font-mono">
           <div>
-            <span className="block text-white/40 uppercase tracking-wider">Crew &amp; ground staff this month</span>
-            <span className="text-base font-bold text-white">{formatCurrency(monthlyCrewCost)}</span>
-            <span className={`block ${vsMarket > 0 ? 'text-aero-warn' : vsMarket < 0 ? 'text-aero-good' : 'text-white/40'}`}>
+            <span className="block text-muted uppercase tracking-label">Crew &amp; ground staff this month</span>
+            <span className="text-base font-semibold text-ink">{formatCurrency(monthlyCrewCost)}</span>
+            <span className={`block ${vsMarket > 0 ? 'text-bad' : vsMarket < 0 ? 'text-good' : 'text-muted'}`}>
               {Math.abs(vsMarket) < 1 ? 'the market rate' : `${vsMarket > 0 ? '+' : '−'}${formatCurrency(Math.abs(vsMarket))} against market pay`}
             </span>
           </div>
           <div>
-            <span className="block text-white/40 uppercase tracking-wider">Morale this pay buys</span>
-            <span className="text-base font-bold text-white">{Math.round(outlook.target)}</span>
-            <span className="block text-white/40">
+            <span className="block text-muted uppercase tracking-label">Morale this pay buys</span>
+            <span className="text-base font-semibold text-ink">{Math.round(outlook.target)}</span>
+            <span className="block text-muted">
               {outlook.target < STRIKE_MORALE_THRESHOLD
-                ? <span className="text-aero-warn">below the strike line</span>
+                ? <span className="text-bad">below the strike line</span>
                 : `satisfaction ${signed(moraleSatDelta(outlook.target))} once reached`}
             </span>
           </div>
@@ -229,14 +229,14 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
       {/* Morale */}
       <Panel>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <span className="text-2xs uppercase tracking-widest text-white/60 font-black">Morale</span>
+          <span className="text-2xs uppercase tracking-label text-muted font-semibold">Morale</span>
           <div className="flex flex-wrap gap-2">
             {profitStreak > PROFIT_STREAK_MONTHS && <Badge tone="good">Profit streak +{PROFIT_STREAK_MORALE}</Badge>}
             {recentStrike && <Badge tone="warn">Recent strike −{STRIKE_MORALE_PENALTY}</Badge>}
           </div>
         </div>
         <MoraleBar morale={staff.morale} target={outlook.target} />
-        <p className="text-2xs font-mono text-white/40 leading-relaxed mt-3">
+        <p className="text-2xs font-mono text-muted leading-relaxed mt-3">
           Morale moves {Math.round(MORALE_INERTIA * 100)}% of the way to its target each month. The target is {BASE_MORALE} at market pay,
           {' '}{MORALE_PER_PAY_POINT} points for every percent of pay above or below it, +{PROFIT_STREAK_MORALE} after more
           than {PROFIT_STREAK_MONTHS} profitable months in a row and −{STRIKE_MORALE_PENALTY} for {STRIKE_MEMORY_MONTHS} months

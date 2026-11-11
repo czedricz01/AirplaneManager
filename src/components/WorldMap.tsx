@@ -151,22 +151,22 @@ const pairKey = (a: string, b: string) => (a < b ? `${a}-${b}` : `${b}-${a}`);
  */
 function HeatmapLegend() {
   return (
-    <div className="absolute bottom-4 left-4 z-[800] pointer-events-none bg-aero-black/85 backdrop-blur-sm border border-white/10 px-3 py-2 shadow-2xl w-56 font-mono">
-      <div className="text-3xs font-black uppercase tracking-[0.25em] text-white/60 mb-1.5">Profit heatmap</div>
+    <div className="absolute bottom-4 left-4 z-[800] pointer-events-none bg-ground/85 border border-line px-3 py-2 w-56 font-mono">
+      <div className="text-2xs font-semibold uppercase tracking-label text-muted mb-1.5">Profit heatmap</div>
       <div
         className="h-2 w-full"
         style={{ background: `linear-gradient(to right, ${HEATMAP_COLORS.loss}, ${HEATMAP_COLORS.neutral}, ${HEATMAP_COLORS.profit})` }}
       />
-      <div className="flex justify-between text-3xs uppercase tracking-wider text-white/50 mt-1">
+      <div className="flex justify-between text-2xs uppercase tracking-label text-muted mt-1">
         <span>Loss</span>
         <span>Break-even</span>
         <span>Profit</span>
       </div>
-      <div className="flex items-center gap-2 mt-2 text-3xs uppercase tracking-wider text-white/50">
+      <div className="flex items-center gap-2 mt-2 text-2xs uppercase tracking-label text-muted">
         <span className="flex items-center gap-1">
-          <span className="block w-4 bg-white/60" style={{ height: 1 }} />
-          <span className="block w-4 bg-white/60" style={{ height: 3 }} />
-          <span className="block w-4 bg-white/60" style={{ height: 5 }} />
+          <span className="block w-4 bg-rule" style={{ height: 1 }} />
+          <span className="block w-4 bg-rule" style={{ height: 3 }} />
+          <span className="block w-4 bg-rule" style={{ height: 5 }} />
         </span>
         Line width = passengers
       </div>
@@ -220,12 +220,12 @@ const RouteLayer = React.memo(function RouteLayer({
           smoothFactor={1}
         >
           <Tooltip sticky>
-            <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
-              <div className="text-xs leading-none mb-1 text-white font-sans font-bold">{heat.a} ↔ {heat.b}</div>
-              <div className="text-2xs leading-none font-black mb-1" style={{ color: heat.style.color }}>
+            <div className="bg-ground/95 border border-line px-3 py-1.5 font-label text-2xs uppercase tracking-label">
+              <div className="text-xs leading-none mb-1 text-ink font-sans font-semibold">{heat.a} ↔ {heat.b}</div>
+              <div className="text-2xs leading-none font-semibold mb-1" style={{ color: heat.style.color }}>
                 {formatSignedCurrency(heat.profit)} / month
               </div>
-              <div className="text-[8px] leading-none text-white/60">
+              <div className="text-2xs leading-none text-muted">
                 {formatNumber(heat.pax)} pax/week{heat.routes > 1 ? ` · ${heat.routes} routes` : ''}
               </div>
             </div>
@@ -281,13 +281,13 @@ const RouteLayer = React.memo(function RouteLayer({
               smoothFactor={1}
             >
               <Tooltip sticky>
-                <div className="bg-aero-black/95 backdrop-blur-sm border border-white/10 text-aero-yellow/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-widest shadow-2xl">
-                  <div className="text-xs leading-none mb-1 text-white font-sans font-bold flex items-center gap-1.5">
+                <div className="bg-ground/95 border border-line text-accent px-3 py-1.5 font-label text-2xs uppercase tracking-label">
+                  <div className="text-xs leading-none mb-1 text-ink font-sans font-semibold flex items-center gap-1.5">
                     <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
                     {airline.name}
                   </div>
-                  <div className="text-2xs leading-none text-aero-yellow/60 font-mono mb-1">{r.origin} ↔ {r.destination}</div>
-                  <div className="text-[8px] opacity-60 leading-none">{r.departures} departures/week</div>
+                  <div className="text-2xs leading-none text-accent font-mono mb-1">{r.origin} ↔ {r.destination}</div>
+                  <div className="text-2xs opacity-60 leading-none">{r.departures} departures/week</div>
                 </div>
               </Tooltip>
             </Polyline>
@@ -327,9 +327,9 @@ const AirportMarker = React.memo(function AirportMarker({ airport, offset, zoom,
     return (
       <Marker position={pos} icon={getAirportIcon(zoom, mgtLvl)} eventHandlers={eventHandlers}>
         <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
-          <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-3 py-1.5 font-mono text-[11px] uppercase font-black tracking-widest shadow-2xl flex flex-col items-center">
-            <div className="text-[14px] leading-none mb-1 text-white">{airport.id}</div>
-            <div className="text-[8px] opacity-60 leading-none">{airport.name}</div>
+          <div className="bg-ground/90 border border-accent text-accent px-3 py-1.5 font-label text-2xs uppercase font-semibold tracking-label flex flex-col items-center">
+            <div className="text-sm leading-none mb-1 text-ink">{airport.id}</div>
+            <div className="text-2xs opacity-60 leading-none">{airport.name}</div>
           </div>
         </Tooltip>
       </Marker>
@@ -345,7 +345,7 @@ const AirportMarker = React.memo(function AirportMarker({ airport, offset, zoom,
       eventHandlers={eventHandlers}
     >
       <Tooltip direction="top" opacity={1} sticky>
-        <div className="bg-aero-black/90 backdrop-blur-sm border border-aero-yellow text-aero-yellow px-2 py-1 font-mono text-[10px] uppercase font-black tracking-widest shadow-2xl">
+        <div className="bg-ground/90 border border-accent text-accent px-2 py-1 font-label text-2xs uppercase font-semibold tracking-label">
           {airport.id}
         </div>
       </Tooltip>

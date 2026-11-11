@@ -13,9 +13,9 @@ import { Loader2 } from 'lucide-react';
  */
 export function LazyFallback({ label }: { label?: string }) {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-aero-black text-white/40 font-mono">
-      <Loader2 size={28} className="animate-spin text-aero-yellow" />
-      <div className="text-xs uppercase tracking-[0.3em]">
+    <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-ground text-muted font-mono">
+      <Loader2 size={28} className="animate-spin text-accent" />
+      <div className="text-xs uppercase tracking-label">
         {label ? `Loading ${label}` : 'Loading'}
       </div>
     </div>

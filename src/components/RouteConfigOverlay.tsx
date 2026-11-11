@@ -98,39 +98,39 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
   const isUpgradeActive = !!(hasAdvancedCateringHub && hasPremiumGalley);
 
   return (
-    <div className="absolute inset-0 bg-black z-[2000] flex flex-col animate-in slide-in-from-bottom duration-500 shadow-2xl overflow-hidden">
+    <div className="absolute inset-0 bg-ground z-[2000] flex flex-col animate-appear slide-in-from-bottom duration-500 overflow-hidden">
       {/* Upright phones: the Confirm button drops below the title. */}
-      <div className="p-4 bar:p-3 short:py-1.5 short:px-3 border-b border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 short:gap-2 bg-white/[0.02]">
+      <div className="p-4 bar:p-3 short:py-1.5 short:px-3 border-b border-line flex flex-col md:flex-row justify-between items-start md:items-center gap-3 short:gap-2 bg-surface">
         <div className="flex items-center gap-4 bar:gap-3 short:gap-3">
-          <div onClick={() => setActiveConfigClass(null)} className="w-12 h-12 bar:w-10 bar:h-10 short:w-9 short:h-9 shrink-0 flex items-center justify-center border border-white/10 rounded-sm cursor-pointer hover:bg-white hover:text-black hover:border-white transition-all shadow-inner group">
+          <div onClick={() => setActiveConfigClass(null)} className="w-12 h-12 bar:w-10 bar:h-10 short:w-9 short:h-9 shrink-0 flex items-center justify-center border border-line rounded-sm cursor-pointer hover:bg-ink hover:text-on-accent hover:border-ink transition-all group">
             <ChevronRight className="rotate-180 group-hover:scale-125 transition-transform" />
           </div>
           <div className="flex flex-col">
-            <h4 className="text-2xl md:text-4xl bar:text-xl short:text-lg font-black uppercase tracking-tighter text-white leading-none">
-              Configure <span className="text-aero-yellow">{activeConfigClass === 'general' ? 'Global Standards' : activeConfigClass.toUpperCase()}</span>
+            <h4 className="text-2xl md:text-3xl bar:text-xl short:text-lg font-semibold text-ink leading-none">
+              Configure <span className="text-accent">{activeConfigClass === 'general' ? 'Global Standards' : activeConfigClass.toUpperCase()}</span>
             </h4>
-            <div className="text-2xs text-white/40 uppercase font-bold tracking-[0.3em] short:tracking-[0.15em] mt-3 bar:mt-2 short:mt-1 flex flex-wrap gap-x-6 short:gap-x-4 items-baseline">
+            <div className="text-2xs text-muted uppercase font-semibold tracking-label short:tracking-label mt-3 bar:mt-2 short:mt-1 flex flex-wrap gap-x-6 short:gap-x-4 items-baseline">
               {activeConfigClass === 'general' ? (
                 <>
-                  <div className="flex items-center gap-2 border-r border-white/10 pr-6">
-                    <span>Flight Class: <span className="text-aero-yellow">{timeClass}</span></span>
-                    <span className="text-3xs opacity-60">({Math.round(satMultiplier * 100)}% Multiplier)</span>
+                  <div className="flex items-center gap-2 border-r border-line pr-6">
+                    <span>Flight Class: <span className="text-accent">{timeClass}</span></span>
+                    <span className="text-2xs opacity-60">({Math.round(satMultiplier * 100)}% Multiplier)</span>
                   </div>
                   {['economy', 'premium', 'business', 'first'].map(c => {
                     const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                     if (seats <= 0) return null;
                     return (
-                      <span key={c} className="whitespace-nowrap">{c}: <span className="text-aero-yellow font-black text-xs">{Math.round(Math.max(0, getRouteSatForClass(c)))}%</span></span>
+                      <span key={c} className="whitespace-nowrap">{c}: <span className="text-accent font-semibold text-xs">{Math.round(Math.max(0, getRouteSatForClass(c)))}%</span></span>
                     );
                   })}
                 </>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 border-r border-white/10 pr-6">
-                    <span>Flight Class: <span className="text-aero-yellow">{timeClass}</span></span>
-                    <span className="text-3xs opacity-60">({Math.round(satMultiplier * 100)}% Multiplier)</span>
+                  <div className="flex items-center gap-2 border-r border-line pr-6">
+                    <span>Flight Class: <span className="text-accent">{timeClass}</span></span>
+                    <span className="text-2xs opacity-60">({Math.round(satMultiplier * 100)}% Multiplier)</span>
                   </div>
-                  <span>Product Selection & Tiering • <span className="text-aero-yellow text-sm font-black italic">Route SAT: {Math.round(Math.max(0, getRouteSatForClass(activeConfigClass)))}%</span></span>
+                  <span>Product Selection & Tiering • <span className="text-accent text-sm font-semibold">Route SAT: {Math.round(Math.max(0, getRouteSatForClass(activeConfigClass)))}%</span></span>
                 </div>
               )}
             </div>
@@ -139,7 +139,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
         <div className="flex items-center gap-4 w-full md:w-auto">
           <button 
             onClick={() => setActiveConfigClass(null)} 
-            className="w-full md:w-auto px-10 py-4 short:py-2.5 bg-white text-black font-black uppercase text-xs tracking-widest hover:bg-aero-yellow transition-all shadow-2xl active:scale-95"
+            className="w-full md:w-auto px-10 py-4 short:py-2.5 bg-ink text-on-accent font-semibold uppercase text-xs tracking-label hover:bg-accent transition-all active:scale-95"
           >
             Confirm & Apply
           </button>
@@ -147,20 +147,20 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
       </div>
 
       {/* Upright phones: the three columns one below the other, scrolling together. */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-1 overflow-y-auto md:overflow-hidden bg-white/5">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-1 overflow-y-auto md:overflow-hidden bg-surface">
         {/* Catering Column */}
-        <div className={`flex-1 md:min-h-0 flex flex-col p-4 border-b md:border-b-0 md:border-r border-white/10 md:overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.catering ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
+        <div className={`flex-1 md:min-h-0 flex flex-col p-4 border-b md:border-b-0 md:border-r border-line md:overflow-y-auto transition-all ${activeConfigClass !== 'general' && takeControl.catering ? 'bg-ground/80 opacity-50 pointer-events-none grayscale' : 'bg-ground/40'}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-aero-yellow/10 flex items-center justify-center border border-aero-yellow/30">
-                <Utensils className="text-aero-yellow" size={18} />
+              <div className="w-10 h-10 bg-accent/10 flex items-center justify-center border border-accent/30">
+                <Utensils className="text-accent" size={18} />
               </div>
-              <span className="text-lg font-black uppercase tracking-tighter">Catering</span>
+              <span className="text-lg font-semibold">Catering</span>
             </div>
             {activeConfigClass === 'general' && (
               <button 
                 onClick={() => toggleTakeControl('catering')}
-                className={`px-3 py-1 text-3xs font-black uppercase tracking-widest border transition-all ${takeControl.catering ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
+                className={`px-3 py-1 text-2xs font-semibold uppercase tracking-label border transition-all ${takeControl.catering ? 'bg-accent border-accent text-on-accent' : 'border-line text-muted hover:text-ink'}`}
               >
                 Take Control
               </button>
@@ -169,13 +169,13 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
 
           <div className="space-y-4">
             {(!isUpgradeActive && selectedAircraft.class !== 'Regional' && selectedAircraft.class !== 'Narrowbody' && selectedAircraft.class !== 'Widebody') ? null : (
-              <div className="p-3 bg-white/5 border border-white/10 text-2xs uppercase font-bold relative overflow-hidden group">
+              <div className="p-3 bg-surface border border-line text-2xs uppercase font-semibold relative overflow-hidden group">
                 <div className="flex flex-col gap-1 z-10 relative">
-                  <span className="tracking-widest opacity-60">NEXT LEVEL CATERING:</span>
+                  <span className="opacity-60">NEXT LEVEL CATERING:</span>
                   {isUpgradeActive ? (
-                    <span className="text-aero-yellow">ACTIVE - Next tier unlocked</span>
+                    <span className="text-accent">ACTIVE - Next tier unlocked</span>
                   ) : (
-                    <span className="text-aero-yellow">
+                    <span className="text-accent">
                       MISSING: {(!hasAdvancedCateringHub && !hasPremiumGalley) ? 'Hub Advanced Catering & Premium Aircraft Galley' : !hasAdvancedCateringHub ? 'Advanced Catering at a Hub' : 'Premium Catering Facility on Aircraft'}
                     </span>
                   )}
@@ -191,10 +191,10 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                     <button 
                       key={idx}
                       onClick={() => setActiveMealIndex(idx)}
-                      className={`flex-1 flex flex-col items-center justify-center py-2 text-2xs font-black uppercase tracking-widest border transition-all overflow-hidden ${activeMealIndex === idx ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}
+                      className={`flex-1 flex flex-col items-center justify-center py-2 text-2xs font-semibold uppercase tracking-label border transition-all overflow-hidden ${activeMealIndex === idx ? 'bg-accent text-on-accent border-accent' : 'bg-surface border-line text-muted hover:bg-raised'}`}
                     >
                       Meal {idx + 1}
-                      <div className="text-3xs mt-1 opacity-70 truncate w-full text-center px-1">
+                      <div className="text-2xs mt-1 opacity-70 truncate w-full text-center px-1">
                         {getCateringOpt(catArr[idx] || ['none'], idx).label}
                       </div>
                     </button>
@@ -216,9 +216,9 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       return next;
                     });
                   }}
-                  className={`w-full p-4 border transition-all text-left ${classConfigs[activeConfigClass!].catering[activeMealIndex]?.includes('none') ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white hover:border-white/40 hover:bg-white/5'}`}
+                  className={`w-full p-4 border transition-all text-left ${classConfigs[activeConfigClass!].catering[activeMealIndex]?.includes('none') ? 'bg-accent border-accent text-on-accent' : 'border-line text-ink hover:border-rule hover:bg-raised'}`}
                 >
-                  <span className="text-2xs font-black uppercase tracking-widest">None</span>
+                  <span className="text-2xs font-semibold uppercase tracking-label">None</span>
                 </button>
 
                 {(() => {
@@ -234,10 +234,10 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                     <div key={catName} className="space-y-1">
                       <button 
                         onClick={() => setExpandedMealCats(prev => ({ ...prev, [catName]: !prev[catName] }))}
-                        className="w-full p-3 bg-white/5 border border-white/10 flex justify-between items-center hover:bg-white/10 transition-all group"
+                        className="w-full p-3 bg-surface border border-line flex justify-between items-center hover:bg-raised transition-all group"
                       >
-                        <span className="text-2xs font-black uppercase tracking-widest text-white">{catName} Class</span>
-                        <ChevronDown size={14} className={`text-white/20 group-hover:text-white transition-transform ${expandedMealCats[catName] ? 'rotate-180' : ''}`} />
+                        <span className="text-2xs font-semibold uppercase tracking-label text-ink">{catName} Class</span>
+                        <ChevronDown size={14} className={`text-muted group-hover:text-ink transition-transform ${expandedMealCats[catName] ? 'rotate-180' : ''}`} />
                       </button>
                       <AnimatePresence>
                         {expandedMealCats[catName] && (
@@ -268,13 +268,13 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                                       return next;
                                     });
                                   }}
-                                  className={`flex flex-col justify-between p-2.5 border transition-all text-left h-full ${isSelected ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/5 text-white/60 hover:bg-white/5'}`}
+                                  className={`flex flex-col justify-between p-2.5 border transition-all text-left h-full ${isSelected ? 'bg-accent border-accent text-on-accent' : 'border-line text-muted hover:bg-raised'}`}
                                 >
                                   <div className="mb-2">
-                                    <span className="text-3xs font-black uppercase leading-tight line-clamp-2">{meal.label}</span>
-                                    <span className="text-3xs opacity-60 block mt-0.5">${meal.cost.toFixed(2)}</span>
+                                    <span className="text-2xs font-semibold uppercase leading-tight line-clamp-2">{meal.label}</span>
+                                    <span className="text-2xs opacity-60 block mt-0.5">${meal.cost.toFixed(2)}</span>
                                   </div>
-                                  <span className="text-xs font-black italic mt-auto">+{Math.round(meal.sat * satMultiplier)} pts</span>
+                                  <span className="text-xs font-semibold mt-auto">+{Math.round(meal.sat * satMultiplier)} pts</span>
                                 </button>
                               );
                             })}
@@ -290,18 +290,18 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
         </div>
 
         {/* Extras Column */}
-        <div className={`flex-1 md:min-h-0 flex flex-col p-4 border-b md:border-b-0 md:border-r border-white/10 md:overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.extras ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
+        <div className={`flex-1 md:min-h-0 flex flex-col p-4 border-b md:border-b-0 md:border-r border-line md:overflow-y-auto transition-all ${activeConfigClass !== 'general' && takeControl.extras ? 'bg-ground/80 opacity-50 pointer-events-none grayscale' : 'bg-ground/40'}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-aero-yellow/10 flex items-center justify-center border border-aero-yellow/30">
-                <Wifi className="text-aero-yellow" size={18} />
+              <div className="w-10 h-10 bg-accent/10 flex items-center justify-center border border-accent/30">
+                <Wifi className="text-accent" size={18} />
               </div>
-              <span className="text-lg font-black uppercase tracking-tighter">Extras</span>
+              <span className="text-lg font-semibold">Extras</span>
             </div>
             {activeConfigClass === 'general' && (
               <button 
                 onClick={() => toggleTakeControl('extras')}
-                className={`px-3 py-1 text-3xs font-black uppercase tracking-widest border transition-all ${takeControl.extras ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
+                className={`px-3 py-1 text-2xs font-semibold uppercase tracking-label border transition-all ${takeControl.extras ? 'bg-accent border-accent text-on-accent' : 'border-line text-muted hover:text-ink'}`}
               >
                 Take Control
               </button>
@@ -345,19 +345,19 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       return next;
                     });
                   }}
-                  className={`w-full py-2.5 px-3 flex justify-between items-center border transition-all text-left group ${isDisabled ? 'opacity-20 cursor-not-allowed grayscale' : isSelected ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white hover:border-white/40 hover:bg-white/5'}`}
+                  className={`w-full py-2.5 px-3 flex justify-between items-center border transition-all text-left group ${isDisabled ? 'opacity-20 cursor-not-allowed grayscale' : isSelected ? 'bg-accent border-accent text-on-accent' : 'border-line text-ink hover:border-rule hover:bg-raised'}`}
                 >
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">
-                      <span className={`text-2xs font-black uppercase tracking-widest mb-1 ${isSelected ? 'text-black/60' : 'text-white/40'}`}>{opt.label}</span>
-                      {isWifiDisabled && <span className="text-3xs bg-aero-panel text-aero-yellow/60 px-1 py-0.5 rounded italic font-black font-mono">REQ. WIFI</span>}
-                      {isGalleyDisabled && <span className="text-3xs bg-aero-panel text-aero-yellow/60 px-1 py-0.5 rounded italic font-black font-mono">REQ. PREM. GALLEY</span>}
+                      <span className={`text-2xs font-semibold uppercase tracking-label mb-1 ${isSelected ? 'text-on-accent' : 'text-muted'}`}>{opt.label}</span>
+                      {isWifiDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold font-mono">REQ. WIFI</span>}
+                      {isGalleyDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold font-mono">REQ. PREM. GALLEY</span>}
                     </div>
-                    <span className="text-xs font-bold font-mono">${opt.cost} / PAX</span>
+                    <span className="text-xs font-semibold font-mono">${opt.cost} / PAX</span>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className={`text-2xs font-black uppercase ${isSelected ? 'text-black/60' : 'text-white/40'}`}>SAT</span>
-                    <span className="text-lg font-black italic">+{Math.round(opt.sat * satMultiplier)} pts</span>
+                    <span className={`text-2xs font-semibold uppercase ${isSelected ? 'text-on-accent' : 'text-muted'}`}>SAT</span>
+                    <span className="text-lg font-semibold">+{Math.round(opt.sat * satMultiplier)} pts</span>
                   </div>
                 </button>
               );
@@ -366,18 +366,18 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
         </div>
 
         {/* Service Column */}
-        <div className={`flex-1 md:min-h-0 flex flex-col p-4 md:overflow-y-auto custom-scrollbar transition-all ${activeConfigClass !== 'general' && takeControl.service ? 'bg-black/80 opacity-50 pointer-events-none grayscale' : 'bg-black/40'}`}>
+        <div className={`flex-1 md:min-h-0 flex flex-col p-4 md:overflow-y-auto transition-all ${activeConfigClass !== 'general' && takeControl.service ? 'bg-ground/80 opacity-50 pointer-events-none grayscale' : 'bg-ground/40'}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-aero-yellow/10 flex items-center justify-center border border-aero-yellow/30">
-                <Users className="text-aero-yellow" size={18} />
+              <div className="w-10 h-10 bg-accent/10 flex items-center justify-center border border-accent/30">
+                <Users className="text-accent" size={18} />
               </div>
-              <span className="text-lg font-black uppercase tracking-tighter">Crew Services</span>
+              <span className="text-lg font-semibold">Crew Services</span>
             </div>
             {activeConfigClass === 'general' && (
               <button 
                 onClick={() => toggleTakeControl('service')}
-                className={`px-3 py-1 text-3xs font-black uppercase tracking-widest border transition-all ${takeControl.service ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white/40 hover:text-white'}`}
+                className={`px-3 py-1 text-2xs font-semibold uppercase tracking-label border transition-all ${takeControl.service ? 'bg-accent border-accent text-on-accent' : 'border-line text-muted hover:text-ink'}`}
               >
                 Take Control
               </button>
@@ -406,15 +406,15 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       return next;
                     });
                   }}
-                  className={`w-full py-2.5 px-3 flex justify-between items-center border transition-all text-left group ${isSelected ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/10 text-white hover:border-white/40 hover:bg-white/5'}`}
+                  className={`w-full py-2.5 px-3 flex justify-between items-center border transition-all text-left group ${isSelected ? 'bg-accent border-accent text-on-accent' : 'border-line text-ink hover:border-rule hover:bg-raised'}`}
                 >
                   <div className="flex flex-col">
-                    <span className={`text-2xs font-black uppercase tracking-widest mb-1 ${isSelected ? 'text-black/60' : 'text-white/40'}`}>{opt.label}</span>
-                    <span className="text-xs font-bold font-mono">${opt.cost} / PAX</span>
+                    <span className={`text-2xs font-semibold uppercase tracking-label mb-1 ${isSelected ? 'text-on-accent' : 'text-muted'}`}>{opt.label}</span>
+                    <span className="text-xs font-semibold font-mono">${opt.cost} / PAX</span>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className={`text-2xs font-black uppercase ${isSelected ? 'text-black/60' : 'text-white/40'}`}>SAT</span>
-                    <span className="text-lg font-black italic">+{Math.round(opt.sat * satMultiplier)} pts</span>
+                    <span className={`text-2xs font-semibold uppercase ${isSelected ? 'text-on-accent' : 'text-muted'}`}>SAT</span>
+                    <span className="text-lg font-semibold">+{Math.round(opt.sat * satMultiplier)} pts</span>
                   </div>
                 </button>
               );

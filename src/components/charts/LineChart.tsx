@@ -116,7 +116,7 @@ export function LineChart({
 
   if (empty) {
     return (
-      <div ref={wrapRef} className="w-full flex items-center justify-center text-2xs font-mono text-white/40 border border-white/5 bg-black/20" style={{ height }}>
+      <div ref={wrapRef} className="w-full flex items-center justify-center text-2xs font-mono text-muted border border-line bg-ground/20" style={{ height }}>
         No data for this period
       </div>
     );
@@ -130,7 +130,7 @@ export function LineChart({
   return (
     <div ref={wrapRef} className="w-full">
       {series.length > 1 && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-2xs font-mono text-white/60">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-2xs font-mono text-muted">
           {series.map(s => (
             <span key={s.id} className="flex items-center gap-1.5">
               <span className="inline-block w-3 h-0.5 rounded-full" style={{ background: s.color }} />
@@ -150,7 +150,7 @@ export function LineChart({
           onKeyDown={onKey}
           onFocus={() => setHover(prev => prev ?? n - 1)}
           onBlur={() => setHover(null)}
-          className="block outline-none focus-visible:ring-1 focus-visible:ring-aero-yellow/60"
+          className="block outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           {/* Grid and value axis */}
           {yTicks.ticks.map(t => (
@@ -248,25 +248,25 @@ export function LineChart({
 
         {hover !== null && (
           <div
-            className="absolute pointer-events-none z-10 bg-aero-panel-2 border border-white/15 shadow-xl px-2.5 py-2 text-2xs font-mono min-w-[9rem]"
+            className="absolute pointer-events-none z-10 bg-raised border border-line px-2.5 py-2 text-2xs font-mono min-w-[9rem]"
             style={{
               left: hoverX,
               top: MARGIN.top,
               transform: tooltipOnLeft ? 'translateX(calc(-100% - 10px))' : 'translateX(10px)'
             }}
           >
-            <div className="text-white/50 mb-1">{formatMonthOffset(offsets[hover])}</div>
+            <div className="text-muted mb-1">{formatMonthOffset(offsets[hover])}</div>
             {series.map(s => {
               const v = s.values[hover];
               return (
                 <div key={s.id} className="flex items-center gap-2 whitespace-nowrap">
                   <span className="inline-block w-2.5 h-0.5 rounded-full shrink-0" style={{ background: s.color }} />
-                  <span className="text-white font-bold">{isValue(v) ? formatValue(v) : 'no data'}</span>
-                  {series.length > 1 && <span className="text-white/50">{s.label}</span>}
+                  <span className="text-ink font-semibold">{isValue(v) ? formatValue(v) : 'no data'}</span>
+                  {series.length > 1 && <span className="text-muted">{s.label}</span>}
                 </div>
               );
             })}
-            {noteText && <div className="text-white/50 mt-1 whitespace-nowrap">{noteText}</div>}
+            {noteText && <div className="text-muted mt-1 whitespace-nowrap">{noteText}</div>}
           </div>
         )}
       </div>

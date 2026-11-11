@@ -49,7 +49,7 @@ interface Props {
 }
 
 /** KPI labels on phones: one line, cut short if need be, instead of wrapping onto two. */
-const KPI_LABEL = 'bar:truncate short:truncate bar:max-w-full short:max-w-full bar:tracking-normal short:tracking-normal short:mb-0.5';
+const KPI_LABEL = 'bar:truncate short:truncate bar:max-w-full short:max-w-full short:mb-0.5';
 
 function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, airlineCode = '', airportManagement, onReassignRoutes }: Props) {
   const [search, setSearch] = useState("");
@@ -86,7 +86,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
-    return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1 text-aero-yellow" /> : <ChevronDown size={12} className="inline ml-1 text-aero-yellow" />;
+    return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1 text-accent" /> : <ChevronDown size={12} className="inline ml-1 text-accent" />;
   };
 
   const routesByAircraft = useMemo(() => {
@@ -242,20 +242,20 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
   }, [fleet, routesByAircraft, modelSummaries]);
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
-        icon={<Plane className="text-aero-yellow" size={28} />}
+        icon={<Plane className="text-accent" size={28} />}
         title="MY FLEET"
         right={
           <div className="flex flex-wrap short:flex-nowrap short:min-w-0 items-center gap-2 lg:gap-3">
             {/* Search Input */}
             <div className="relative flex-1 min-w-40 short:min-w-24 sm:w-64">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={15} className="text-white/40" />
+                <Search size={15} className="text-muted" />
               </div>
               <input
                 type="text"
-                className="w-full bg-black/50 border border-white/10 rounded-sm py-1.5 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-aero-yellow font-mono transition-colors placeholder:text-white/30"
+                className="w-full bg-ground/50 border border-line rounded-sm py-1.5 pl-9 pr-3 text-xs text-ink focus:outline-none focus:border-accent font-mono transition-colors placeholder:text-muted"
                 placeholder="Search reg, type, family..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -265,18 +265,18 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             {/* Condition Alerts Filter Toggle */}
             <button
               onClick={() => setFilterAlertsOnly(!filterAlertsOnly)}
-              className={`px-2.5 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 py-1.5 text-xs font-label font-semibold uppercase tracking-label rounded-sm transition-all flex items-center gap-1.5 ${
                 filterAlertsOnly
-                  ? 'bg-aero-warn text-black shadow-md shadow-aero-warn/40'
+                  ? 'bg-bad text-on-accent'
                   : summaryStats.alertsCount > 0
-                  ? 'bg-aero-warn/10 border border-aero-warn/50 text-aero-warn hover:bg-aero-warn/20'
-                  : 'bg-black/50 border border-white/10 text-white/50 hover:text-white'
+                  ? 'bg-bad/10 border border-bad/50 text-bad hover:bg-bad/20'
+                  : 'bg-ground/50 border border-line text-muted hover:text-ink'
               }`}
             >
-              <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-aero-warn animate-pulse' : ''} />
+              <ShieldAlert size={14} className={summaryStats.alertsCount > 0 ? 'text-bad animate-pulse' : ''} />
               <span className="short:hidden">Alerts (&lt;40%)</span>
               {summaryStats.alertsCount > 0 && (
-                <span className="bg-aero-warn text-black text-2xs px-1.5 py-0.2 rounded-full font-black">
+                <span className="bg-bad text-on-accent text-2xs px-1.5 py-0.2 rounded-full font-semibold">
                   {summaryStats.alertsCount}
                 </span>
               )}
@@ -284,18 +284,18 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
             {/* Grouping Selector (only relevant for grid/table) */}
             {viewMode !== 'models' && (
-              <div className="flex items-center bg-black/60 border border-white/10 rounded-sm p-0.5 font-mono text-xs">
-                <span className="px-2 text-2xs text-white/40 uppercase tracking-wider font-bold hidden sm:inline short:hidden flex items-center gap-1">
+              <div className="flex items-center bg-ground/60 border border-line rounded-sm p-0.5 font-mono text-xs">
+                <span className="px-2 text-2xs text-muted uppercase tracking-label font-semibold hidden sm:inline short:hidden flex items-center gap-1">
                   <Layers size={12} /> Group:
                 </span>
                 {(['family', 'category', 'manufacturer', 'none'] as GroupBy[]).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setGroupBy(mode)}
-                    className={`px-2.5 short:px-1.5 py-1 text-2xs font-bold uppercase tracking-wider rounded-sm transition-all ${
+                    className={`px-2.5 short:px-1.5 py-1 text-2xs font-semibold uppercase tracking-label rounded-sm transition-all ${
                       groupBy === mode
-                        ? 'bg-aero-yellow text-black shadow-md'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                        ? 'bg-accent text-on-accent'
+                        : 'text-muted hover:text-ink hover:bg-raised'
                     }`}
                   >
                     {mode === 'category' ? 'Class' : mode}
@@ -305,14 +305,14 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             )}
 
             {/* View Mode Toggle (Grid | Table | Models) */}
-            <div className="flex items-center bg-black/60 border border-white/10 rounded-sm p-0.5 font-mono">
+            <div className="flex items-center bg-ground/60 border border-line rounded-sm p-0.5 font-mono">
               <button
                 onClick={() => setViewMode('models')}
                 title="Model Summary View"
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-bold uppercase tracking-wider transition-colors ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-semibold uppercase tracking-label transition-colors ${
                   viewMode === 'models'
-                    ? 'bg-aero-yellow text-black shadow-md'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                    ? 'bg-accent text-on-accent'
+                    : 'text-muted hover:text-ink hover:bg-raised'
                 }`}
               >
                 <Boxes size={15} />
@@ -323,8 +323,8 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                 title="Grid View"
                 className={`p-1.5 rounded-sm transition-colors ${
                   viewMode === 'grid'
-                    ? 'bg-aero-yellow text-black'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                    ? 'bg-accent text-on-accent'
+                    : 'text-muted hover:text-ink hover:bg-raised'
                 }`}
               >
                 <LayoutGrid size={16} />
@@ -334,8 +334,8 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                 title="Table View"
                 className={`p-1.5 rounded-sm transition-colors ${
                   viewMode === 'table'
-                    ? 'bg-aero-yellow text-black'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                    ? 'bg-accent text-on-accent'
+                    : 'text-muted hover:text-ink hover:bg-raised'
                 }`}
               >
                 <List size={16} />
@@ -348,19 +348,19 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       {/* Summary KPI Bar. On phones a slim strip (three a row upright, all six
           sideways) with one-line labels, so the aircraft below get the room. */}
       <div className="grid grid-cols-2 sm:grid-cols-6 bar:grid-cols-3 gap-2 bar:gap-1.5 short:gap-1.5 mb-4 bar:mb-2 short:mb-2 shrink-0 font-mono">
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
-          <StatTile size="sm" labelClassName={KPI_LABEL} label="Aircraft Types" value={summaryStats.modelCount} valueClassName="text-aero-yellow" />
+        <div className="bg-surface border border-line px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
+          <StatTile size="sm" labelClassName={KPI_LABEL} label="Aircraft Types" value={summaryStats.modelCount} valueClassName="text-accent" />
         </div>
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
+        <div className="bg-surface border border-line px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile size="sm" labelClassName={KPI_LABEL} label="Total Fleet" value={summaryStats.total} />
         </div>
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
+        <div className="bg-surface border border-line px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile
             size="sm"
             labelClassName={KPI_LABEL}
             label="Active Aircraft"
-            value={<>{summaryStats.activeCount} <span className="text-3xs text-white/40">({summaryStats.idleCount} Idle)</span></>}
-            valueClassName="text-white/80"
+            value={<>{summaryStats.activeCount} <span className="text-2xs text-muted">({summaryStats.idleCount} Idle)</span></>}
+            valueClassName="text-ink"
           />
         </div>
 
@@ -370,9 +370,9 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
           className={`px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm cursor-pointer transition-all ${
             summaryStats.alertsCount > 0
               ? filterAlertsOnly
-                ? 'bg-aero-panel border border-white/10 ring-1 ring-red-500'
-                : 'bg-aero-panel border border-white/20 hover:border-white/10'
-              : 'bg-aero-panel border border-white/10'
+                ? 'bg-surface border border-line ring-1 ring-bad'
+                : 'bg-surface border border-rule hover:border-line'
+              : 'bg-surface border border-line'
           }`}
         >
           <StatTile
@@ -380,11 +380,11 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             labelClassName={KPI_LABEL}
             label="Alerts (<40%)"
             value={summaryStats.alertsCount}
-            valueClassName={summaryStats.alertsCount > 0 ? 'text-aero-warn' : 'text-white/50'}
+            valueClassName={summaryStats.alertsCount > 0 ? 'text-bad' : 'text-muted'}
           />
         </div>
 
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
+        <div className="bg-surface border border-line px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile
             size="sm"
             labelClassName={KPI_LABEL}
@@ -393,7 +393,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             valueClassName={CONDITION_TEXT_CLASS[conditionTone(summaryStats.avgIntCond)]}
           />
         </div>
-        <div className="bg-aero-panel border border-white/10 px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
+        <div className="bg-surface border border-line px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile
             size="sm"
             labelClassName={KPI_LABEL}
@@ -405,26 +405,26 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 sm:pr-2 space-y-6">
         {fleet.length === 0 ? (
-          <div className="bg-black/40 border border-white/10 rounded-sm p-12 text-center font-mono">
-            <Plane size={48} className="mx-auto text-white/20 mb-4" />
-            <h3 className="text-lg text-aero-yellow uppercase tracking-widest font-bold mb-2">No Aircraft in Fleet</h3>
-            <p className="text-xs text-white/50 max-w-md mx-auto leading-relaxed">
+          <div className="bg-ground/40 border border-line rounded-sm p-12 text-center font-mono">
+            <Plane size={48} className="mx-auto text-muted mb-4" />
+            <h3 className="text-lg text-accent font-semibold mb-2">No Aircraft in Fleet</h3>
+            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
               Your airline fleet is currently empty. Visit the aircraft market to purchase your first aircraft and start building your route network.
             </p>
           </div>
         ) : filteredAndSortedFleet.length === 0 ? (
-          <div className="bg-black/40 border border-white/10 rounded-sm p-12 text-center font-mono">
-            <Search size={40} className="mx-auto text-white/20 mb-3" />
-            <p className="text-sm text-white/50 uppercase tracking-wider">No aircraft match your current search query.</p>
+          <div className="bg-ground/40 border border-line rounded-sm p-12 text-center font-mono">
+            <Search size={40} className="mx-auto text-muted mb-3" />
+            <p className="text-sm text-muted">No aircraft match your current search query.</p>
           </div>
         ) : viewMode === 'models' ? (
           /* MODEL SUMMARY GRID MODE */
           <div className="space-y-4">
-            <div className="text-xs font-mono text-white/50 uppercase tracking-widest flex items-center justify-between border-b border-white/10 pb-2">
+            <div className="text-xs font-label text-muted uppercase tracking-label flex items-center justify-between border-b border-line pb-2">
               <span>Aircraft Models Overview ({modelSummaries.length} Models)</span>
-              <span className="text-2xs text-aero-yellow/80">Click a model to inspect individual planes</span>
+              <span className="text-2xs text-accent">Click a model to inspect individual planes</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -436,36 +436,36 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                   <div
                     key={m.modelKey}
                     onClick={() => setSelectedModel({ modelKey: m.modelKey, manufacturer: m.manufacturer, type: m.type, items: m.items })}
-                    className={`border rounded-sm overflow-hidden flex flex-col hover:border-aero-yellow transition-all duration-300 group cursor-pointer shadow-lg relative ${
+                    className={`border rounded-sm overflow-hidden flex flex-col hover:border-accent transition-all duration-300 group cursor-pointer relative ${
                       hasAlert
-                        ? 'bg-aero-warn/10 border-aero-warn/60 shadow-aero-warn/20'
-                        : 'bg-aero-panel border-white/10 hover:shadow-aero-yellow/10'
+                        ? 'bg-bad/10 border-bad/60'
+                        : 'bg-surface border-line'
                     }`}
                   >
                     {/* Aircraft Picture Box */}
-                    <div className="relative w-full aspect-[16/10] bg-black/60 overflow-hidden border-b border-white/10">
+                    <div className="relative w-full aspect-[16/10] bg-ground/60 overflow-hidden border-b border-line">
                       <AircraftImage
                         safeName={safeName}
                         manufacturer={m.manufacturer}
                         type={m.type}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 pointer-events-none" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-ground via-transparent to-transparent opacity-80 pointer-events-none" />
 
                       {/* Count Badge */}
-                      <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md border border-aero-yellow px-2.5 py-1 rounded-sm font-mono text-xs font-black text-aero-yellow tracking-widest flex items-center gap-1.5 shadow-md">
+                      <div className="absolute top-2 left-2 bg-ground/80 border border-accent px-2.5 py-1 rounded-sm font-mono text-xs font-semibold text-accent flex items-center gap-1.5">
                         <Plane size={13} />
                         <span>{m.count} {m.count === 1 ? 'Plane' : 'Planes'}</span>
                       </div>
 
                       {/* Family / Class Badge */}
-                      <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-md border border-white/20 px-2 py-0.5 rounded-sm font-mono text-2xs text-white/80 font-bold uppercase tracking-wider">
+                      <div className="absolute top-2 right-2 bg-ground/70 border border-rule px-2 py-0.5 rounded-sm font-label text-2xs text-ink font-semibold uppercase tracking-label">
                         {m.family}
                       </div>
 
                       {/* Alert badge if any plane in model < 40% */}
                       {hasAlert && (
-                        <div className="absolute bottom-2 right-2 bg-aero-warn text-black backdrop-blur-md px-2 py-0.5 rounded-sm font-mono text-2xs font-black tracking-wider flex items-center gap-1 shadow-md animate-pulse">
+                        <div className="absolute bottom-2 right-2 bg-bad text-on-accent px-2 py-0.5 rounded-sm font-mono text-2xs font-semibold flex items-center gap-1 animate-pulse">
                           <ShieldAlert size={12} />
                           <span>{m.alertCount} Alert{m.alertCount > 1 ? 's' : ''} (&lt;40%)</span>
                         </div>
@@ -475,52 +475,52 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                     {/* Card Content Body */}
                     <div className="p-3.5 font-mono flex-1 flex flex-col justify-between space-y-3">
                       <div>
-                        <div className="text-2xs text-aero-yellow/80 uppercase tracking-widest font-bold flex items-center justify-between">
+                        <div className="text-2xs text-accent uppercase tracking-label font-semibold flex items-center justify-between">
                           <span>{m.manufacturer}</span>
                           {hasAlert && (
-                            <span className="text-aero-warn text-3xs font-black uppercase tracking-wider animate-pulse flex items-center gap-0.5">
+                            <span className="text-bad text-2xs font-semibold uppercase tracking-label animate-pulse flex items-center gap-0.5">
                               <ShieldAlert size={10} /> Maintenance Required
                             </span>
                           )}
                         </div>
-                        <div className="text-base font-bold text-white group-hover:text-aero-yellow transition-colors truncate">
+                        <div className="text-base font-semibold text-ink group-hover:text-accent transition-colors truncate">
                           {m.type}
                         </div>
                       </div>
 
                       {/* Aggregated Performance Specs */}
-                      <div className="bg-black/50 p-2.5 rounded-sm border border-white/5 space-y-2 text-2xs">
-                        <div className="flex items-center justify-between text-white/60">
+                      <div className="bg-ground/50 p-2.5 rounded-sm border border-line space-y-2 text-2xs">
+                        <div className="flex items-center justify-between text-muted">
                           <span>Max Range:</span>
-                          <span className="font-bold text-white">{m.maxRange} km</span>
+                          <span className="font-semibold text-ink">{m.maxRange} km</span>
                         </div>
-                        <div className="flex items-center justify-between text-white/60">
+                        <div className="flex items-center justify-between text-muted">
                           <span>Avg PAX Config:</span>
-                          <span className="font-bold text-aero-yellow">{m.avgTotalPax} Pax</span>
+                          <span className="font-semibold text-accent">{m.avgTotalPax} Pax</span>
                         </div>
-                        <div className="text-2xs text-white/40 text-right font-mono">
+                        <div className="text-2xs text-muted text-right font-mono">
                           ({m.avgFirst} F / {m.avgBusiness} C / {m.avgPremium} W / {m.avgEconomy} Y)
                         </div>
 
-                        <div className="pt-1.5 border-t border-white/10 flex items-center justify-between text-white/60">
+                        <div className="pt-1.5 border-t border-line flex items-center justify-between text-muted">
                           <span>Avg Satisfaction:</span>
-                          <span className="font-bold text-aero-yellow">{m.avgSatisfaction}%</span>
+                          <span className="font-semibold text-accent">{m.avgSatisfaction}%</span>
                         </div>
-                        <div className="flex items-center justify-between text-white/60">
+                        <div className="flex items-center justify-between text-muted">
                           <span>Active Routes:</span>
-                          <span className="font-bold text-white/80">{m.activeRoutesCount} Active</span>
+                          <span className="font-semibold text-ink">{m.activeRoutesCount} Active</span>
                         </div>
                       </div>
 
                       {/* Average Condition Indicators */}
                       <div className="space-y-1.5 text-2xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-white/50">Avg Interior Cond.</span>
+                          <span className="text-muted">Avg Interior Cond.</span>
                           <span className={CONDITION_TEXT_CLASS[conditionTone(m.avgInteriorCond)]}>
                             {m.avgInteriorCond}%
                           </span>
                         </div>
-                        <div className="h-1 bg-black rounded-full overflow-hidden">
+                        <div className="h-1 bg-ground rounded-full overflow-hidden">
                           <div
                             className={`h-full ${CONDITION_BAR_CLASS[conditionTone(m.avgInteriorCond)]}`}
                             style={{ width: `${Math.max(0, Math.min(100, m.avgInteriorCond))}%` }}
@@ -528,12 +528,12 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                         </div>
 
                         <div className="flex items-center justify-between pt-0.5">
-                          <span className="text-white/50">Avg General Cond.</span>
+                          <span className="text-muted">Avg General Cond.</span>
                           <span className={CONDITION_TEXT_CLASS[conditionTone(m.avgGeneralCond)]}>
                             {m.avgGeneralCond}%
                           </span>
                         </div>
-                        <div className="h-1 bg-black rounded-full overflow-hidden">
+                        <div className="h-1 bg-ground rounded-full overflow-hidden">
                           <div
                             className={`h-full ${CONDITION_BAR_CLASS[conditionTone(m.avgGeneralCond)]}`}
                             style={{ width: `${Math.max(0, Math.min(100, m.avgGeneralCond))}%` }}
@@ -542,7 +542,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                       </div>
 
                       {/* Footer Action */}
-                      <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs font-bold text-aero-yellow group-hover:translate-x-1 transition-transform">
+                      <div className="pt-2 border-t border-line flex items-center justify-between text-xs font-semibold text-accent group-hover:translate-x-1 transition-transform">
                         <span>Show {m.count} Aircraft &rarr;</span>
                         <ChevronRight size={16} />
                       </div>
@@ -557,12 +557,12 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
           groupedFleet.map(({ groupName, items }) => (
             <div key={groupName} className="space-y-3">
               {/* Group Header */}
-              <div className="flex items-center justify-between border-b border-aero-yellow/30 pb-2 pt-1 font-mono">
+              <div className="flex items-center justify-between border-b border-accent/30 pb-2 pt-1 font-mono">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase tracking-[0.2em] text-aero-yellow">
+                  <span className="text-xs font-semibold uppercase tracking-label text-accent">
                     {groupName}
                   </span>
-                  <span className="bg-aero-yellow/10 border border-aero-yellow/30 text-aero-yellow text-2xs px-2 py-0.5 rounded-sm font-bold">
+                  <span className="bg-accent/10 border border-accent/30 text-accent text-2xs px-2 py-0.5 rounded-sm font-semibold">
                     {items.length} {items.length === 1 ? 'aircraft' : 'aircraft'}
                   </span>
                 </div>
@@ -582,30 +582,30 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                       <div
                         key={plane.registration}
                         onClick={() => setSelectedPlane(plane)}
-                        className={`rounded-sm overflow-hidden flex flex-col hover:border-aero-yellow/60 transition-all duration-300 group cursor-pointer shadow-lg relative ${
+                        className={`rounded-sm overflow-hidden flex flex-col hover:border-accent/60 transition-all duration-300 group cursor-pointer relative ${
                           critical
-                            ? 'bg-aero-warn/10 border border-aero-warn/60 shadow-aero-warn/20 ring-1 ring-aero-warn/40'
-                            : 'bg-aero-panel border border-white/10 hover:shadow-aero-yellow/10'
+                            ? 'bg-bad/10 border border-bad/60 ring-1 ring-bad/40'
+                            : 'bg-surface border border-line'
                         }`}
                       >
                         {/* Aircraft Image Box */}
-                        <div className="relative w-full aspect-[16/10] bg-black/60 overflow-hidden border-b border-white/10">
+                        <div className="relative w-full aspect-[16/10] bg-ground/60 overflow-hidden border-b border-line">
                           <AircraftImage
                             safeName={safeName}
                             manufacturer={plane.manufacturer}
                             type={plane.type}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 pointer-events-none" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-ground via-transparent to-transparent opacity-80 pointer-events-none" />
 
                           {/* Registration Badge */}
-                          <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md border border-aero-yellow/50 px-2 py-0.5 rounded-sm font-mono text-2xs font-black text-aero-yellow tracking-widest">
+                          <div className="absolute top-2 left-2 bg-ground/80 border border-accent/50 px-2 py-0.5 rounded-sm font-mono text-2xs font-semibold text-accent">
                             {plane.registration}
                           </div>
 
                           {/* Critical Condition Warning Overlay */}
                           {critical ? (
-                            <div className="absolute top-2 right-2 bg-aero-warn text-black backdrop-blur-md border border-aero-warn text-2xs font-mono font-black px-2 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-1 shadow-md animate-pulse">
+                            <div className="absolute top-2 right-2 bg-bad text-on-accent border border-bad text-2xs font-label font-semibold px-2 py-0.5 rounded-sm uppercase tracking-label flex items-center gap-1 animate-pulse">
                               <ShieldAlert size={12} />
                               <span>Critical (&lt;40%)</span>
                             </div>
@@ -613,11 +613,11 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             /* Status Badge */
                             <div className="absolute top-2 right-2">
                               {assignedRoutes.length > 0 ? (
-                                <span className="bg-white/5 backdrop-blur-md border border-white/10 text-white/80 text-2xs font-mono font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                                <span className="bg-surface border border-line text-ink text-2xs font-label font-semibold px-2 py-0.5 rounded-sm uppercase tracking-label">
                                   {assignedRoutes.length} Route{assignedRoutes.length > 1 ? 's' : ''}
                                 </span>
                               ) : (
-                                <span className="bg-aero-yellow/10 backdrop-blur-md border border-aero-yellow/20 text-aero-yellow text-2xs font-mono font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                                <span className="bg-accent/10 border border-accent/20 text-accent text-2xs font-label font-semibold px-2 py-0.5 rounded-sm uppercase tracking-label">
                                   Idle
                                 </span>
                               )}
@@ -626,8 +626,8 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                           {/* Hub Overlay (bottom left of image) */}
                           {plane.hubId && (
-                            <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm border border-white/20 px-1.5 py-0.5 rounded-sm text-2xs font-mono text-white/80">
-                              <MapPin size={10} className="text-aero-yellow" />
+                            <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-ground/70 border border-rule px-1.5 py-0.5 rounded-sm text-2xs font-mono text-ink">
+                              <MapPin size={10} className="text-accent" />
                               <span>{plane.hubId}</span>
                             </div>
                           )}
@@ -636,43 +636,43 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                         {/* Card Info Body */}
                         <div className="p-3 font-mono flex-1 flex flex-col justify-between space-y-3">
                           <div>
-                            <div className="text-2xs text-white/40 uppercase tracking-widest font-bold">
+                            <div className="text-2xs text-muted uppercase tracking-label font-semibold">
                               {plane.manufacturer}
                             </div>
-                            <div className="text-sm font-bold text-white group-hover:text-aero-yellow transition-colors truncate">
+                            <div className="text-sm font-semibold text-ink group-hover:text-accent transition-colors truncate">
                               {plane.type}
                             </div>
                           </div>
 
                           {/* Specs Grid */}
-                          <div className="grid grid-cols-2 gap-2 text-2xs bg-black/40 p-2 rounded-sm border border-white/5">
+                          <div className="grid grid-cols-2 gap-2 text-2xs bg-ground/40 p-2 rounded-sm border border-line">
                             <div>
-                              <span className="text-white/40 block text-3xs uppercase tracking-wider">Range</span>
-                              <span className="text-white font-bold">{plane.maxRange} km</span>
+                              <span className="text-muted block text-2xs uppercase tracking-label">Range</span>
+                              <span className="text-ink font-semibold">{plane.maxRange} km</span>
                             </div>
                             <div>
-                              <span className="text-white/40 block text-3xs uppercase tracking-wider">Capacity</span>
-                              <span className="text-white font-bold">{totalPax} pax</span>
+                              <span className="text-muted block text-2xs uppercase tracking-label">Capacity</span>
+                              <span className="text-ink font-semibold">{totalPax} pax</span>
                             </div>
                             <div>
-                              <span className="text-white/40 block text-3xs uppercase tracking-wider">Satisfaction</span>
-                              <span className="text-aero-yellow font-bold">{combinedPlaneSat}%</span>
+                              <span className="text-muted block text-2xs uppercase tracking-label">Satisfaction</span>
+                              <span className="text-accent font-semibold">{combinedPlaneSat}%</span>
                             </div>
                             <div>
-                              <span className="text-white/40 block text-3xs uppercase tracking-wider">Efficiency</span>
-                              <span className="text-white/80 font-bold">{plane.efficiency}</span>
+                              <span className="text-muted block text-2xs uppercase tracking-label">Efficiency</span>
+                              <span className="text-ink font-semibold">{plane.efficiency}</span>
                             </div>
                           </div>
 
                           {/* Condition Indicator Bars */}
                           <div className="space-y-1.5 text-2xs">
                             <div className="flex items-center justify-between">
-                              <span className="text-white/50">Interior Cond.</span>
+                              <span className="text-muted">Interior Cond.</span>
                               <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionInterior)]}>
                                 {Math.round(plane.conditionInterior)}%
                               </span>
                             </div>
-                            <div className="h-1 bg-black rounded-full overflow-hidden">
+                            <div className="h-1 bg-ground rounded-full overflow-hidden">
                               <div
                                 className={`h-full ${CONDITION_BAR_CLASS[conditionTone(plane.conditionInterior)]}`}
                                 style={{ width: `${Math.max(0, Math.min(100, plane.conditionInterior))}%` }}
@@ -680,12 +680,12 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             </div>
 
                             <div className="flex items-center justify-between pt-0.5">
-                              <span className="text-white/50">General Cond.</span>
+                              <span className="text-muted">General Cond.</span>
                               <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionGeneral)]}>
                                 {Math.round(plane.conditionGeneral)}%
                               </span>
                             </div>
-                            <div className="h-1 bg-black rounded-full overflow-hidden">
+                            <div className="h-1 bg-ground rounded-full overflow-hidden">
                               <div
                                 className={`h-full ${CONDITION_BAR_CLASS[conditionTone(plane.conditionGeneral)]}`}
                                 style={{ width: `${Math.max(0, Math.min(100, plane.conditionGeneral))}%` }}
@@ -694,16 +694,16 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                           </div>
 
                           {/* Quick Actions Footer */}
-                          <div className="pt-1 flex items-center justify-between gap-2 border-t border-white/5">
-                            <span className="text-2xs text-white/40 uppercase tracking-widest group-hover:text-aero-yellow transition-colors font-bold">
+                          <div className="pt-1 flex items-center justify-between gap-2 border-t border-line">
+                            <span className="text-2xs text-muted uppercase tracking-label group-hover:text-accent transition-colors font-semibold">
                               View Details &rarr;
                             </span>
                             {critical ? (
-                              <span className="text-aero-warn flex items-center gap-1 text-2xs font-black uppercase tracking-wider animate-pulse">
+                              <span className="text-bad flex items-center gap-1 text-2xs font-semibold uppercase tracking-label animate-pulse">
                                 <ShieldAlert size={12} /> Maintenance Urgent
                               </span>
                             ) : (plane.conditionInterior < 50 || plane.conditionGeneral < 50) && (
-                              <span className="text-yellow-400 flex items-center gap-1 text-2xs font-bold">
+                              <span className="text-accent flex items-center gap-1 text-2xs font-semibold">
                                 <Wrench size={12} /> Service Soon
                               </span>
                             )}
@@ -715,32 +715,32 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                 </div>
               ) : (
                 /* TABLE VIEW MODE */
-                <div className="overflow-x-auto w-full bg-black/30 border border-white/10 rounded-sm">
+                <div className="overflow-x-auto w-full bg-ground/30 border border-line rounded-sm">
                   <table className="w-full text-left font-mono text-xs border-collapse min-w-[1000px]">
                     <thead>
-                      <tr className="border-b border-aero-yellow/30 text-aero-yellow/80 uppercase tracking-widest text-2xs bg-aero-panel">
+                      <tr className="border-b border-accent/30 text-accent uppercase tracking-label text-2xs bg-surface">
                         <th className="py-3 pl-3 w-16">Image</th>
-                        <th className="py-3 pl-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('registration')}>
+                        <th className="py-3 pl-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('registration')}>
                           Reg {getSortIcon('registration')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('type')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('type')}>
                           Type {getSortIcon('type')}
                         </th>
                         <th className="py-3">Hub</th>
-                        <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('maxRange')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('maxRange')}>
                           Range {getSortIcon('maxRange')}
                         </th>
                         <th className="py-3">Pax Config</th>
-                        <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('efficiency')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('efficiency')}>
                           Eff.<InfoTooltip size={11} {...GLOSSARY.efficiency} /> {getSortIcon('efficiency')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('popularity')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('popularity')}>
                           Comb. Sat<InfoTooltip size={11} {...GLOSSARY.sat} /> {getSortIcon('popularity')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('conditionInterior')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('conditionInterior')}>
                           Int. Cond<InfoTooltip size={11} {...GLOSSARY.conditionInterior} /> {getSortIcon('conditionInterior')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-aero-yellow" onClick={() => toggleSort('conditionGeneral')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('conditionGeneral')}>
                           Gen. Cond<InfoTooltip size={11} {...GLOSSARY.conditionGeneral} /> {getSortIcon('conditionGeneral')}
                         </th>
                         <th className="py-3">Status</th>
@@ -760,12 +760,12 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             onClick={() => setSelectedPlane(plane)}
                             className={`border-b transition-colors cursor-pointer ${
                               critical
-                                ? 'bg-aero-warn/10 border-aero-warn/40 hover:bg-aero-warn/15 text-aero-warn font-medium'
-                                : 'border-white/5 hover:bg-white/5 text-white/70'
+                                ? 'bg-bad/10 border-bad/40 hover:bg-bad/15 text-bad font-medium'
+                                : 'border-line hover:bg-raised text-muted'
                             }`}
                           >
                             <td className="py-2 pl-3">
-                              <div className="w-12 h-8 rounded-sm bg-black/60 border border-white/10 overflow-hidden relative">
+                              <div className="w-12 h-8 rounded-sm bg-ground/60 border border-line overflow-hidden relative">
                                 <AircraftImage
                                   safeName={safeName}
                                   manufacturer={plane.manufacturer}
@@ -773,24 +773,24 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                                   className="w-full h-full object-cover"
                                 />
                                 {critical && (
-                                  <div className="absolute inset-0 bg-aero-panel border border-white/10 animate-pulse pointer-events-none" />
+                                  <div className="absolute inset-0 bg-surface border border-line animate-pulse pointer-events-none" />
                                 )}
                               </div>
                             </td>
-                            <td className="py-3 pl-3 font-bold tracking-wider">
-                              <span className={critical ? 'text-aero-warn flex items-center gap-1 font-black' : 'text-aero-yellow'}>
+                            <td className="py-3 pl-3 font-semibold">
+                              <span className={critical ? 'text-bad flex items-center gap-1 font-semibold' : 'text-accent'}>
                                 {critical && <ShieldAlert size={13} className="animate-pulse" />}
                                 {plane.registration}
                               </span>
                             </td>
-                            <td className="py-3 text-white">{plane.manufacturer} {plane.type}</td>
-                            <td className="py-3">{plane.hubId || <span className="text-white/30 italic text-2xs">None</span>}</td>
+                            <td className="py-3 text-ink">{plane.manufacturer} {plane.type}</td>
+                            <td className="py-3">{plane.hubId || <span className="text-muted text-2xs">None</span>}</td>
                             <td className="py-3">{plane.maxRange} km</td>
                             <td className="py-3 whitespace-nowrap">
                               {totalPax} ({plane.config.first}/{plane.config.business}/{plane.config.premium}/{plane.config.economy})
                             </td>
                             <td className="py-3">{plane.efficiency}</td>
-                            <td className="py-3 font-bold text-aero-yellow">{combinedPlaneSat}%</td>
+                            <td className="py-3 font-semibold text-accent">{combinedPlaneSat}%</td>
                             <td className="py-3">
                               <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionInterior)]}>
                                 {Math.round(plane.conditionInterior)}%
@@ -803,15 +803,15 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             </td>
                             <td className="py-3">
                               {critical ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-2xs font-black bg-aero-panel-2 text-white uppercase tracking-wider shadow animate-pulse">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-2xs font-semibold bg-raised text-ink uppercase tracking-label animate-pulse">
                                   <ShieldAlert size={10} /> Maintenance Urgent
                                 </span>
                               ) : assignedRoutes.length > 0 ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-2xs font-bold bg-white/5 text-white/80 border border-white/10 uppercase tracking-wider">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-2xs font-semibold bg-surface text-ink border border-line uppercase tracking-label">
                                   {assignedRoutes.length} Active
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-2xs font-bold bg-aero-yellow/10 text-aero-yellow border border-aero-yellow/20 uppercase tracking-wider">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-2xs font-semibold bg-accent/10 text-accent border border-accent/20 uppercase tracking-label">
                                   Idle
                                 </span>
                               )}
@@ -830,12 +830,12 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
       {/* Model Aircraft List Modal */}
       {selectedModel && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" className="bg-aero-panel border border-aero-yellow/40 rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col font-mono shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-ground/80 z-50 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" className="bg-surface border border-accent/40 rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col font-mono overflow-hidden animate-appear fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="p-4 bg-black/60 border-b border-white/10 flex items-center justify-between">
+            <div className="p-4 bg-ground/60 border-b border-line flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-16 h-10 rounded-sm bg-black border border-aero-yellow/30 overflow-hidden shrink-0">
+                <div className="w-16 h-10 rounded-sm bg-ground border border-accent/30 overflow-hidden shrink-0">
                   <AircraftImage
                     safeName={(selectedModel.manufacturer + ' ' + selectedModel.type).split('/').join('-').split('\\').join('-')}
                     manufacturer={selectedModel.manufacturer}
@@ -844,24 +844,24 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                   />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-aero-yellow uppercase tracking-widest">
+                  <h3 className="text-lg font-semibold text-accent">
                     {selectedModel.manufacturer} {selectedModel.type}
                   </h3>
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs text-muted">
                     Showing all {selectedModel.items.length} owned aircraft of this model
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedModel(null)}
-                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-sm transition-colors"
+                className="p-1.5 text-muted hover:text-ink hover:bg-raised rounded-sm transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Modal Body - List of Aircraft */}
-            <div className="p-4 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
+            <div className="p-4 flex-1 overflow-y-auto space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {selectedModel.items.map((plane) => {
                   const assignedRoutes = routesByAircraft[plane.registration] || [];
@@ -875,64 +875,64 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                       onClick={() => setSelectedPlane(plane)}
                       className={`border rounded-sm p-3 flex flex-col justify-between cursor-pointer transition-all group ${
                         critical
-                          ? 'bg-aero-warn/10 border-aero-warn/50 hover:border-aero-warn'
-                          : 'bg-black/50 border-white/10 hover:border-aero-yellow/60 hover:bg-white/5'
+                          ? 'bg-bad/10 border-bad/50 hover:border-bad'
+                          : 'bg-ground/50 border-line hover:border-accent/60 hover:bg-raised'
                       }`}
                     >
                       {critical && (
-                        <div className="bg-aero-warn/10 border border-aero-warn/40 text-aero-warn text-2xs font-bold px-2 py-1 rounded-sm mb-2 flex items-center justify-between">
+                        <div className="bg-bad/10 border border-bad/40 text-bad text-2xs font-semibold px-2 py-1 rounded-sm mb-2 flex items-center justify-between">
                           <span className="flex items-center gap-1">
-                            <ShieldAlert size={12} className="animate-pulse text-aero-warn" />
+                            <ShieldAlert size={12} className="animate-pulse text-bad" />
                             CRITICAL CONDITION (&lt;40%)
                           </span>
-                          <span className="uppercase text-3xs font-black">Maintenance Urgent</span>
+                          <span className="uppercase text-2xs font-semibold">Maintenance Urgent</span>
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
+                      <div className="flex items-center justify-between border-b border-line pb-2 mb-2">
                         <div>
-                          <span className={`text-sm font-bold tracking-widest block ${critical ? 'text-aero-warn font-black' : 'text-aero-yellow'}`}>
+                          <span className={`text-sm font-semibold block ${critical ? 'text-bad font-semibold' : 'text-accent'}`}>
                             {plane.registration}
                           </span>
-                          <span className="text-2xs text-white/40">
+                          <span className="text-2xs text-muted">
                             Hub: {plane.hubId || 'Unassigned'}
                           </span>
                         </div>
                         {assignedRoutes.length > 0 ? (
-                          <span className="bg-white/5 text-white/80 border border-white/10 text-2xs font-bold px-2 py-0.5 rounded-sm uppercase">
+                          <span className="bg-surface text-ink border border-line text-2xs font-semibold px-2 py-0.5 rounded-sm uppercase">
                             {assignedRoutes.length} Route{assignedRoutes.length > 1 ? 's' : ''}
                           </span>
                         ) : (
-                          <span className="bg-aero-yellow/10 text-aero-yellow border border-aero-yellow/20 text-2xs font-bold px-2 py-0.5 rounded-sm uppercase">
+                          <span className="bg-accent/10 text-accent border border-accent/20 text-2xs font-semibold px-2 py-0.5 rounded-sm uppercase">
                             Idle
                           </span>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs text-white/70 mb-3">
+                      <div className="grid grid-cols-2 gap-2 text-xs text-muted mb-3">
                         <div>
-                          <span className="text-white/40 block text-3xs">PAX Config:</span>
+                          <span className="text-muted block text-2xs">PAX Config:</span>
                           <span>{totalPax} ({plane.config.first}/{plane.config.business}/{plane.config.premium}/{plane.config.economy})</span>
                         </div>
                         <div>
-                          <span className="text-white/40 block text-3xs">Satisfaction:</span>
-                          <span className="font-bold text-aero-yellow">{combinedPlaneSat}%</span>
+                          <span className="text-muted block text-2xs">Satisfaction:</span>
+                          <span className="font-semibold text-accent">{combinedPlaneSat}%</span>
                         </div>
                         <div>
-                          <span className="text-white/40 block text-3xs">Interior Cond.:</span>
+                          <span className="text-muted block text-2xs">Interior Cond.:</span>
                           <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionInterior)]}>
                             {Math.round(plane.conditionInterior)}%
                           </span>
                         </div>
                         <div>
-                          <span className="text-white/40 block text-3xs">General Cond.:</span>
+                          <span className="text-muted block text-2xs">General Cond.:</span>
                           <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionGeneral)]}>
                             {Math.round(plane.conditionGeneral)}%
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-2xs font-bold text-aero-yellow/80 group-hover:text-aero-yellow flex items-center justify-end gap-1 pt-2 border-t border-white/5">
+                      <div className="text-2xs font-semibold text-accent group-hover:text-accent flex items-center justify-end gap-1 pt-2 border-t border-line">
                         <span>Inspect Aircraft</span>
                         <ChevronRight size={14} />
                       </div>
@@ -943,10 +943,10 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3 bg-black/60 border-t border-white/10 flex justify-end">
+            <div className="p-3 bg-ground/60 border-t border-line flex justify-end">
               <button
                 onClick={() => setSelectedModel(null)}
-                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase px-4 py-2 rounded-sm transition-colors"
+                className="bg-raised hover:bg-raised text-ink font-semibold text-xs uppercase px-4 py-2 rounded-sm transition-colors"
               >
                 Close
               </button>

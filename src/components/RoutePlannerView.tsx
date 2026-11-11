@@ -130,34 +130,34 @@ interface Props {
 
 function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, disabled, disableRemove }: { label: string, count: number, used?: number, cost: number, costSuffix?: string, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, disableRemove?: boolean }) {
   return (
-    <div className={`py-1.5 px-2 border transition-colors flex items-center justify-between ${disabled ? 'bg-white/[0.02] border-white/5 opacity-50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
+    <div className={`py-1.5 px-2 border transition-colors flex items-center justify-between ${disabled ? 'bg-surface border-line opacity-50' : 'bg-surface border-line hover:border-rule'}`}>
       <div className="flex flex-col w-24 shrink-0">
-        <span className="text-3xs font-bold text-white uppercase tracking-widest">{label}</span>
-        <span className="text-4xs text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${formatNumber(cost)}${costSuffix}` : 'FREE'}</span>
+        <span className="text-2xs font-semibold text-ink uppercase tracking-label">{label}</span>
+        <span className="text-2xs text-accent font-mono mt-0.5">{cost > 0 ? `$${formatNumber(cost)}${costSuffix}` : 'FREE'}</span>
       </div>
       <div className="flex items-center gap-2">
         {used !== undefined && (
-          <div className="text-right flex flex-col items-end border-r border-white/10 pr-2">
-            <div className="text-4xs text-white/20 uppercase mb-0.5">Free</div>
-            <span className="text-xs font-black text-white leading-none">{count - used}</span>
+          <div className="text-right flex flex-col items-end border-r border-line pr-2">
+            <div className="text-2xs text-muted uppercase mb-0.5">Free</div>
+            <span className="text-xs font-semibold text-ink leading-none">{count - used}</span>
           </div>
         )}
-        <div className="text-right flex flex-col items-end border-r border-white/10 pr-2">
-          <div className="text-4xs text-white/20 uppercase mb-0.5">Stock</div>
-          <span className="text-xs font-black text-white leading-none">{count}</span>
+        <div className="text-right flex flex-col items-end border-r border-line pr-2">
+          <div className="text-2xs text-muted uppercase mb-0.5">Stock</div>
+          <span className="text-xs font-semibold text-ink leading-none">{count}</span>
         </div>
         <div className="flex gap-0.5 ml-1">
           <button
             disabled={disableRemove || disabled || count <= 0 || (used !== undefined && count - used <= 0)}
             onClick={(e) => onBuy(-1, e.shiftKey)}
-            className="w-5 h-5 flex items-center justify-center bg-black/40 border border-white/5 hover:border-aero-yellow disabled:opacity-0 transition-all text-white/50 hover:text-white text-2xs"
+            className="w-5 h-5 flex items-center justify-center bg-ground/40 border border-line hover:border-accent disabled:opacity-0 transition-all text-muted hover:text-ink text-2xs"
           >
             -
           </button>
           <button 
             disabled={disabled}
             onClick={(e) => onBuy(1, e.shiftKey)}
-            className="w-5 h-5 flex items-center justify-center bg-white text-black font-black hover:bg-aero-yellow transition-all text-2xs"
+            className="w-5 h-5 flex items-center justify-center bg-ink text-on-accent font-semibold hover:bg-accent transition-all text-2xs"
           >
             +
           </button>
@@ -695,30 +695,30 @@ function RoutePlannerInner({
       <div 
         key={ac.registration}
         onClick={() => setSelectedReg(ac.registration)}
-        className={`p-3 border border-white/10 bg-black/40 hover:bg-aero-yellow/20 hover:border-aero-yellow/50 cursor-pointer flex gap-4 ${isHidden ? 'opacity-60 hover:opacity-100' : ''}`}
+        className={`p-3 border border-line bg-ground/40 hover:bg-accent/20 hover:border-accent/50 cursor-pointer flex gap-4 ${isHidden ? 'opacity-60 hover:opacity-100' : ''}`}
       >
-        <div className="w-20 h-14 bg-black/50 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+        <div className="w-20 h-14 bg-ground/50 border border-line flex items-center justify-center shrink-0 overflow-hidden">
            <AircraftImage
              safeName={aircraftImageName(ac)}
              manufacturer={ac.manufacturer}
              type={ac.type}
              imagesMap={imagesMap}
-             fallback={<Plane size={24} className="text-white/20" />}
+             fallback={<Plane size={24} className="text-muted" />}
            />
         </div>
         <div className="flex-1 flex flex-col justify-center">
           <div className="flex justify-between items-center mb-1">
-            <div className="font-black text-sm flex gap-2 items-center">
+            <div className="font-semibold text-sm flex gap-2 items-center">
               {ac.registration}
               {ac.hubId && (
-                <span className="text-4xs bg-white/10 px-1 border border-white/20 uppercase tracking-widest">{ac.hubId} HUB</span>
+                <span className="text-2xs bg-raised px-1 border border-rule uppercase tracking-label">{ac.hubId} HUB</span>
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="text-2xs bg-white/10 px-1 py-0.5">{ac.class}</div>
+              <div className="text-2xs bg-raised px-1 py-0.5">{ac.class}</div>
               <button
                 onClick={e => { e.stopPropagation(); setAircraftHidden(ac.registration, !isHidden); }}
-                className="p-1 text-white/30 hover:text-aero-yellow border border-transparent hover:border-aero-yellow/40 transition-colors"
+                className="p-1 text-muted hover:text-accent border border-transparent hover:border-accent/40 transition-colors"
                 title={isHidden ? 'Show in the list again' : 'Hide from the list'}
                 aria-label={isHidden ? `Show ${ac.registration}` : `Hide ${ac.registration}`}
               >
@@ -726,14 +726,14 @@ function RoutePlannerInner({
               </button>
             </div>
           </div>
-          <div className="text-2xs flex justify-between text-white/50 font-mono">
+          <div className="text-2xs flex justify-between text-muted font-mono">
             <span>{ac.type} • {formatNumber(ac.maxRange)} km</span>
             <span>{ac.capacity} pax</span>
           </div>
-          <div className="mt-2 w-full bg-black h-1 rounded-sm overflow-hidden relative">
-             <div className={`h-full ${utilPercent > 80 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
+          <div className="mt-2 w-full bg-ground h-1 rounded-sm overflow-hidden relative">
+             <div className={`h-full ${utilPercent > 80 ? 'bg-bad' : 'bg-accent'}`} style={{ width: `${Math.min(100, utilPercent)}%` }}></div>
           </div>
-          <div className="text-4xs text-white/40 mt-0.5 uppercase text-right tracking-widest leading-none">{utilPercent}% utilized</div>
+          <div className="text-2xs text-muted mt-0.5 uppercase text-right tracking-label leading-none">{utilPercent}% utilized</div>
         </div>
       </div>
     );
@@ -1584,7 +1584,7 @@ function RoutePlannerInner({
 
   return (
     <div 
-       className="absolute inset-0 z-50 p-2 lg:p-3 flex flex-col font-sans overflow-hidden bg-aero-panel-2 text-white"
+       className="absolute inset-0 z-50 p-2 lg:p-3 flex flex-col font-sans overflow-hidden bg-raised text-ink"
        style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98))' }}
     >
       {/* Success Message Overlay */}
@@ -1594,15 +1594,15 @@ function RoutePlannerInner({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.1 }}
-            className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            className="absolute inset-0 z-[200] bg-ground/80 flex items-center justify-center p-4"
           >
-             <div className="bg-aero-yellow text-black px-12 py-4 rounded-sm shadow-2xl flex flex-col items-center gap-4 text-center">
-                <div className="w-20 h-20 bg-black/10 rounded-full flex items-center justify-center">
+             <div className="bg-accent text-on-accent px-12 py-4 rounded-sm flex flex-col items-center gap-4 text-center">
+                <div className="w-20 h-20 bg-ground/10 rounded-full flex items-center justify-center">
                    <Check size={48} strokeWidth={3} />
                 </div>
                 <div>
-                   <h3 className="text-3xl font-black uppercase italic tracking-tighter">Route Updated</h3>
-                   <p className="text-xs uppercase tracking-[0.2em] font-bold opacity-70 mt-1">Changes saved successfully</p>
+                   <h3 className="text-3xl font-semibold">Route Updated</h3>
+                   <p className="text-xs uppercase tracking-label font-semibold opacity-70 mt-1">Changes saved successfully</p>
                 </div>
              </div>
           </motion.div>
@@ -1610,17 +1610,17 @@ function RoutePlannerInner({
       </AnimatePresence>
 
       {/* 1. SHARED UNIFIED HEADER WITH DYNAMIC ROUTE INFO BADGES */}
-      <div className="flex flex-col gap-2 mb-2 short:mb-1 shrink-0 relative bg-black/60 border-b border-white/10 px-4 bar:px-3 py-2 short:py-1 backdrop-blur-md">
+      <div className="flex flex-col gap-2 mb-2 short:mb-1 shrink-0 relative bg-ground/60 border-b border-line px-4 bar:px-3 py-2 short:py-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Upright phones: title and close button share the first row and the
               step buttons take the full row below (the title group is display:
               contents there, so its children are ordered with the close button). */}
           <div className="contents md:flex md:flex-nowrap md:items-center md:gap-x-3 md:w-auto">
-             <h2 className="order-1 md:order-none text-sm font-black uppercase tracking-wider text-aero-yellow whitespace-nowrap">
+             <h2 className="order-1 md:order-none text-sm font-semibold text-accent whitespace-nowrap">
                 {isEditingCabinOnly ? "Cabin Editor" : isEditingPricingOnly ? "Pricing Editor" : "Route Planner"}
              </h2>
-             <span className="hidden md:inline text-white/20 text-xs font-normal">|</span>
-             <div className="order-3 md:order-none flex w-full md:w-auto bg-white/5 border border-white/10 rounded-sm">
+             <span className="hidden md:inline text-muted text-xs font-normal">|</span>
+             <div className="order-3 md:order-none flex w-full md:w-auto bg-surface border border-line rounded-sm">
                {!isEditingCabinOnly && !isEditingPricingOnly && [
                   { id: 1, label: "1. Setup" },
                   { id: 2, label: "2. Schedule" },
@@ -1641,13 +1641,13 @@ function RoutePlannerInner({
                      disabled={!isAllowed}
                      aria-current={isActive ? 'step' : undefined}
                      onClick={() => isAllowed && setStep(s.id)}
-                     className={`flex flex-1 md:flex-none justify-center items-center px-1.5 md:px-3 py-1.5 text-2xs uppercase font-bold tracking-wide md:tracking-widest whitespace-nowrap border-0 border-r border-white/5 last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
-                       isActive ? 'bg-aero-yellow/10 text-aero-yellow cursor-default' : 
-                       isAllowed ? 'text-white/60 hover:text-white hover:bg-white/5 cursor-pointer' : 'text-white/20 cursor-not-allowed'
+                     className={`flex flex-1 md:flex-none justify-center items-center px-1.5 md:px-3 py-1.5 text-2xs uppercase font-semibold tracking-label md:tracking-label whitespace-nowrap border-0 border-r border-line last:border-0 bg-transparent transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+                       isActive ? 'bg-accent/10 text-accent cursor-default' : 
+                       isAllowed ? 'text-muted hover:text-ink hover:bg-raised cursor-pointer' : 'text-muted cursor-not-allowed'
                      }`}
                    >
                      {s.label}
-                     {isCompleted && <Check size={8} className="ml-1 text-aero-yellow" />}
+                     {isCompleted && <Check size={8} className="ml-1 text-accent" />}
                    </button>
                  )
                })}
@@ -1664,7 +1664,7 @@ function RoutePlannerInner({
             {validationMsg && (
               <div
                 role="alert"
-                className="flex items-center gap-1.5 bg-aero-warn/15 border border-aero-warn/50 text-aero-warn px-2.5 py-1 font-bold uppercase tracking-wider text-2xs mr-2"
+                className="flex items-center gap-1.5 bg-bad/15 border border-bad/50 text-bad px-2.5 py-1 font-semibold uppercase tracking-label text-2xs mr-2"
               >
                 <AlertTriangle size={12} className="shrink-0" />
                 {validationMsg}
@@ -1672,11 +1672,11 @@ function RoutePlannerInner({
             )}
             <button 
                onClick={() => setIsStopoverMode(!isStopoverMode)}
-               className={`hidden px-2 py-1 text-3xs uppercase font-bold tracking-widest border transition-all ${isStopoverMode ? 'bg-aero-yellow text-black border-transparent shadow-2xl' : 'bg-white/5 text-white/30 border-white/10 hover:border-white/30'}`}
+               className={`hidden px-2 py-1 text-2xs uppercase font-semibold tracking-label border transition-all ${isStopoverMode ? 'bg-accent text-on-accent border-transparent' : 'bg-surface text-muted border-line hover:border-rule'}`}
             >
               Stopover
             </button>
-            <button onClick={onClose} className="text-white/60 hover:text-white uppercase text-3xs tracking-widest font-bold font-mono border border-white/10 px-2 py-1 bg-black/30 hover:border-aero-yellow transition-all">
+            <button onClick={onClose} className="text-muted hover:text-ink uppercase text-2xs tracking-label font-semibold font-label border border-line px-2 py-1 bg-ground/30 hover:border-accent transition-all">
               [X]
             </button>
           </div>
@@ -1690,22 +1690,22 @@ function RoutePlannerInner({
                 stack would leave each panel a sliver of the short screen. */}
             <div className="flex-1 w-full flex flex-col lg:flex-row short:flex-row gap-4 short:gap-2 min-h-0 overflow-y-auto lg:overflow-hidden short:overflow-hidden">
             {/* Origin */}
-            <div className="w-full lg:w-1/3 short:w-1/3 short:min-w-0 border border-white/10 flex flex-col h-full bg-black/40">
-              <div className="py-2.5 short:py-1.5 px-3 bg-white/5 border-b border-white/10 text-center uppercase tracking-widest font-bold text-xs">Origin Hub</div>
+            <div className="w-full lg:w-1/3 short:w-1/3 short:min-w-0 border border-line flex flex-col h-full bg-ground/40">
+              <div className="py-2.5 short:py-1.5 px-3 bg-surface border-b border-line text-center uppercase tracking-label font-semibold text-xs">Origin Hub</div>
               
               {!selectedOrigin ? (
                 <div className="p-2.5 flex flex-col flex-1 overflow-hidden">
                   <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={14} />
                     <input 
                       type="text" 
                       placeholder="Search Hub..." 
-                      className="w-full bg-white/5 border border-white/10 p-2 pl-9 outline-none text-xs font-mono focus:border-aero-yellow"
+                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs font-mono focus:border-accent"
                       value={originSearch}
                       onChange={e => setOriginSearch(e.target.value)}
                     />
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-1 bg-black/20 p-2 border border-white/5">
+                  <div className="flex-1 min-h-0 overflow-y-auto space-y-1 bg-ground/20 p-2 border border-line">
                       {originHubs.map(a => {
                         const totalSlots = a.level * 300;
                         const infra = airportManagement[a.id];
@@ -1716,19 +1716,19 @@ function RoutePlannerInner({
                           <div 
                             key={a.id} 
                             onClick={() => setOriginId(a.id)}
-                            className="p-3 border border-white/10 bg-white/5 hover:bg-aero-yellow/10 hover:border-aero-yellow/50 cursor-pointer flex justify-between items-center"
+                            className="p-3 border border-line bg-surface hover:bg-accent/10 hover:border-accent/50 cursor-pointer flex justify-between items-center"
                           >
                             <div>
-                              <div className="font-bold">{a.id}</div>
-                              <div className="text-2xs text-white/50">{a.name}</div>
+                              <div className="font-semibold">{a.id}</div>
+                              <div className="text-2xs text-muted">{a.name}</div>
                             </div>
                             <div className="flex flex-col items-end gap-1">
-                              <div className="text-3xs font-mono text-white/30">
+                              <div className="text-2xs font-mono text-muted">
                                 SLOTS: {available}/{totalSlots}
                               </div>
-                              <div className="flex gap-2 text-4xs font-mono">
-                                <span className="text-aero-yellow">T: {getAirportStats(a, currentYear).tourism}</span>
-                                <span className="text-white/80">B: {getAirportStats(a, currentYear).business}</span>
+                              <div className="flex gap-2 text-2xs font-mono">
+                                <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
+                                <span className="text-ink">B: {getAirportStats(a, currentYear).business}</span>
                               </div>
                             </div>
                           </div>
@@ -1738,30 +1738,30 @@ function RoutePlannerInner({
                 </div>
               ) : (
                 <div className="flex flex-col flex-1 overflow-hidden">
-                  <div className="flex justify-between items-center bg-white/5 p-2 border-b border-white/10 shrink-0">
+                  <div className="flex justify-between items-center bg-surface p-2 border-b border-line shrink-0">
                     <div className="flex items-center gap-3">
-                      <div className="text-xl font-black text-aero-yellow">{selectedOrigin.id}</div>
+                      <div className="text-xl font-semibold text-accent">{selectedOrigin.id}</div>
                       <div className="flex flex-col">
-                         <div className="text-2xs text-white/60 truncate w-32 md:w-auto">{selectedOrigin.name}</div>
-                         <div className="flex gap-2 text-4xs uppercase tracking-widest font-mono text-white/40">
+                         <div className="text-2xs text-muted truncate w-32 md:w-auto">{selectedOrigin.name}</div>
+                         <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
                            <span>B:{getAirportStats(selectedOrigin, currentYear).business}</span>
                            <span>T:{getAirportStats(selectedOrigin, currentYear).tourism}</span>
-                           <span className={((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0)) > 0 ? "text-aero-yellow font-bold" : ""}>S:{Math.max(0, (selectedOrigin.level * 300) - getAiUsedWeeklySlots(selectedOrigin.id)) - ((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0))}/{selectedOrigin.level * 300}</span>
+                           <span className={((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0)) > 0 ? "text-accent font-semibold" : ""}>S:{Math.max(0, (selectedOrigin.level * 300) - getAiUsedWeeklySlots(selectedOrigin.id)) - ((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0))}/{selectedOrigin.level * 300}</span>
                          </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport?.(selectedOrigin)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
-                       <button onClick={() => setOriginId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
+                       <button onClick={() => onGoToAirport?.(selectedOrigin)} className="text-2xs text-muted hover:text-ink py-1.5 px-2 border border-line" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => setOriginId(null)} className="text-2xs text-accent py-1.5 px-2 border border-accent/20 hover:bg-accent hover:text-on-accent">CHG</button>
                     </div>
                   </div>
                   {/* Strategic Infrastructure Dashboard */}
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-black/40 p-2.5 flex flex-col gap-4 pb-32 bar:pb-3 short:pb-3">
-                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                        <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                  <div className="flex-1 min-h-0 overflow-y-auto bg-ground/40 p-2.5 flex flex-col gap-4 pb-32 bar:pb-3 short:pb-3">
+                     <div className="flex justify-between items-center border-b border-line pb-2">
+                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                            <MapIcon size={12} /> Strategic Slots
                         </div>
-                        <span className="text-4xs text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
+                        <span className="text-2xs text-muted font-mono">STOCK / COST / ACTION</span>
                      </div>
                      <div className="space-y-2">
                         <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedOrigin.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'regional', n, shift)} />
@@ -1769,14 +1769,14 @@ function RoutePlannerInner({
                         {originAvail.widebodySlots && <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedOrigin.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'widebody', n, shift)} />}
                      </div>
 
-                     <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                        <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                     <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
+                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                            <Plane size={12} /> Stand Upgrades
                         </div>
                         {(airportManagement[selectedOrigin.id]?.level || 0) < 2 && (
                           <button 
                              onClick={() => onUpdateInfrastructure?.(selectedOrigin.id, { ...airportManagement[selectedOrigin.id], autoBuyStands: !(airportManagement[selectedOrigin.id]?.autoBuyStands) })}
-                             className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedOrigin.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
+                             className={`text-2xs uppercase tracking-label px-2 py-0.5 border ${airportManagement[selectedOrigin.id]?.autoBuyStands ? 'border-accent text-accent bg-accent/10' : 'border-rule text-muted'}`}
                           >
                              AUTO-BUY: {airportManagement[selectedOrigin.id]?.autoBuyStands ? 'ON' : 'OFF'}
                           </button>
@@ -1787,8 +1787,8 @@ function RoutePlannerInner({
                         {originAvail.stands && <InfaRowSmall label="Widebody" count={airportManagement[selectedOrigin.id]?.stands?.widebody || 0} cost={getStandCost('widebody')} disabled={(airportManagement[selectedOrigin.id]?.level || 0) >= 2} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'stands', 'widebody', n, shift)} />}
                      </div>
 
-                     <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                        <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                     <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
+                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                            <ChevronRight size={12} /> Passenger Processing
                         </div>
                      </div>
@@ -1799,11 +1799,11 @@ function RoutePlannerInner({
                      {(() => {
                         const sim = originDeskSim;
                         return (
-                          <div className="mt-2 text-2xs text-white/50 space-y-1">
-                            <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
-                            <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
-                            <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
-                            <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-warn font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
+                          <div className="mt-2 text-2xs text-muted space-y-1">
+                            <div className="flex justify-between"><span className="uppercase tracking-label flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-bad font-semibold' : 'text-ink'}>{sim.load.toFixed(1)}%</span></div>
+                            <div className="flex justify-between"><span className="uppercase tracking-label">Weekly Seats:</span><span className="text-ink">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
+                            <div className="w-full h-1 bg-surface overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-bad' : 'bg-accent'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
+                            <div className="flex justify-between"><span className="uppercase tracking-label">SAT Impact:</span><span className={sim.sat < 0 ? 'text-bad font-semibold' : 'text-accent'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                           </div>
                         );
                       })()}
@@ -1813,45 +1813,45 @@ function RoutePlannerInner({
             </div>
 
             {/* Aircraft */}
-            <div className="w-full lg:w-1/3 short:w-1/3 short:min-w-0 border-y border-white/10 flex flex-col h-full bg-black/60 relative z-10 px-2 lg:px-3 short:px-1.5">
-              <div className="py-2.5 short:py-1.5 px-3 bg-aero-yellow/10 border-b border-aero-yellow/20 text-center uppercase tracking-[0.2em] font-black text-aero-yellow text-xs">Aircraft Selection</div>
+            <div className="w-full lg:w-1/3 short:w-1/3 short:min-w-0 border-y border-line flex flex-col h-full bg-ground/60 relative z-10 px-2 lg:px-3 short:px-1.5">
+              <div className="py-2.5 short:py-1.5 px-3 bg-accent/10 border-b border-accent/20 text-center uppercase tracking-label font-semibold text-accent text-xs">Aircraft Selection</div>
               
               {!selectedAircraft ? (
                 <div className="p-2.5 flex flex-col flex-1 overflow-hidden">
                   <button 
                     onClick={() => onOpenCatalog?.(step)}
-                    className="w-full h-10 mb-4 bg-white/5 border border-white/20 text-white/50 hover:text-white hover:bg-white/10 hover:border-aero-yellow transition-all uppercase text-2xs font-black tracking-widest flex items-center justify-center gap-2"
+                    className="w-full h-10 mb-4 bg-surface border border-rule text-muted hover:text-ink hover:bg-raised hover:border-accent transition-all uppercase text-2xs font-semibold tracking-label flex items-center justify-center gap-2"
                   >
                     <Plus size={14} /> Buy Aircraft
                   </button>
                   <div className="relative mb-4">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={14} />
                     <input 
                       type="text" 
                       placeholder="Search Registration or Type..." 
-                      className="w-full bg-white/5 border border-white/10 p-2 pl-9 outline-none text-xs font-mono focus:border-aero-yellow"
+                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs font-mono focus:border-accent"
                       value={aircraftSearch}
                       onChange={e => setAircraftSearch(e.target.value)}
                     />
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pb-32 bar:pb-3 short:pb-3">
+                  <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pb-32 bar:pb-3 short:pb-3">
                      {/* Without this, a player who opens the planner before buying
                          anything -- which both entry points allow -- sees an empty
                          black column and no reason for it. The filter also hides
                          aircraft based at another hub and aircraft too large for
                          either airport, which looked identical to owning none. */}
                      {validAircraft.length === 0 && (
-                       <div className="border border-white/10 bg-white/[0.02] p-4 text-2xs font-mono text-white/50 leading-relaxed space-y-2">
+                       <div className="border border-line bg-surface p-4 text-2xs font-mono text-muted leading-relaxed space-y-2">
                          {fleet.length === 0 ? (
                            <>
-                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-2xs">No aircraft yet</p>
+                             <p className="text-accent font-semibold uppercase tracking-label text-2xs">No aircraft yet</p>
                              <p>Your fleet is empty. Visit Buy Aircraft in the sidebar and purchase one first — a route needs an aircraft assigned to it.</p>
                            </>
                          ) : (
                            <>
-                             <p className="text-aero-yellow font-bold uppercase tracking-widest text-2xs">None of your aircraft fit</p>
+                             <p className="text-accent font-semibold uppercase tracking-label text-2xs">None of your aircraft fit</p>
                              <p>You own {fleet.length} aircraft, but none can serve this pairing. Usually one of:</p>
-                             <ul className="list-disc pl-4 space-y-1 text-white/40">
+                             <ul className="list-disc pl-4 space-y-1 text-muted">
                                <li>it is based at a different hub</li>
                                <li>its ICAO code is larger than {selectedOrigin?.id || 'the origin'}
                                    {selectedDest ? ` or ${selectedDest.id}` : ''} can handle</li>
@@ -1863,22 +1863,22 @@ function RoutePlannerInner({
                        </div>
                      )}
                      {shownAircraft.length === 0 && hiddenAircraft.length > 0 && (
-                       <div className="border border-white/10 bg-white/[0.02] p-3 text-2xs font-mono text-white/40 leading-relaxed">
+                       <div className="border border-line bg-surface p-3 text-2xs font-mono text-muted leading-relaxed">
                          All fitting aircraft are hidden. Open Hidden Aircraft below to show them again.
                        </div>
                      )}
                      {shownAircraft.map(ac => renderAircraftCard(ac, false))}
                      {hiddenAircraft.length > 0 && (
-                       <div className="border border-white/10 bg-black/30 mt-3">
+                       <div className="border border-line bg-ground/30 mt-3">
                          <button
                            onClick={() => setShowHiddenAircraft(v => !v)}
-                           className="w-full flex items-center justify-between px-3 py-2 text-3xs uppercase font-black tracking-widest text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+                           className="w-full flex items-center justify-between px-3 py-2 text-2xs uppercase font-semibold tracking-label text-muted hover:text-ink hover:bg-raised transition-colors"
                          >
                            <span className="flex items-center gap-2"><EyeOff size={12} /> Hidden Aircraft ({hiddenAircraft.length})</span>
                            {showHiddenAircraft ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                          </button>
                          {showHiddenAircraft && (
-                           <div className="p-2 space-y-2 border-t border-white/10">
+                           <div className="p-2 space-y-2 border-t border-line">
                              {hiddenAircraft.map(ac => renderAircraftCard(ac, true))}
                            </div>
                          )}
@@ -1887,24 +1887,24 @@ function RoutePlannerInner({
                   </div>
                 </div>
               ) : (
-                  <div className="flex flex-col flex-1 overflow-hidden min-h-0 bg-black/40">
-                    <div className="flex justify-between items-center bg-aero-yellow/10 p-2 border-b border-aero-yellow/20 shrink-0">
+                  <div className="flex flex-col flex-1 overflow-hidden min-h-0 bg-ground/40">
+                    <div className="flex justify-between items-center bg-accent/10 p-2 border-b border-accent/20 shrink-0">
                       <div className="flex items-center gap-3">
                         <div className="flex flex-col">
-                           <div className="text-base font-black text-white leading-tight">{selectedAircraft.registration}</div>
-                           <div className="flex gap-2 text-4xs uppercase tracking-widest font-mono text-white/40">
-                             <span className="text-aero-yellow">{selectedAircraft.type}</span>
+                           <div className="text-base font-semibold text-ink leading-tight">{selectedAircraft.registration}</div>
+                           <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
+                             <span className="text-accent">{selectedAircraft.type}</span>
                              <span>{(weeklyUtilization).toFixed(0)}% USE</span>
-                             <span className={getPlaneSat(selectedAircraft) < 50 ? 'text-aero-warn' : 'text-aero-yellow'}>{getPlaneSat(selectedAircraft)}% SAT</span>
+                             <span className={getPlaneSat(selectedAircraft) < 50 ? 'text-bad' : 'text-accent'}>{getPlaneSat(selectedAircraft)}% SAT</span>
                            </div>
                         </div>
                       </div>
-                      <button onClick={() => setSelectedReg(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
+                      <button onClick={() => setSelectedReg(null)} className="text-2xs text-accent py-1.5 px-2 border border-accent/20 hover:bg-accent hover:text-on-accent">CHG</button>
                     </div>
                     
-                    <div className="p-4 space-y-4 font-mono text-2xs flex-1 overflow-y-auto custom-scrollbar pb-32 bar:pb-3 short:pb-3">
+                    <div className="p-4 space-y-4 font-mono text-2xs flex-1 overflow-y-auto pb-32 bar:pb-3 short:pb-3">
                        {/* Picture */}
-                       <div className="relative w-full aspect-[16/9] max-h-[180px] bg-black/60 border border-white/10 rounded-sm overflow-hidden">
+                       <div className="relative w-full aspect-[16/9] max-h-[180px] bg-ground/60 border border-line rounded-sm overflow-hidden">
                           <AircraftImage
                             safeName={aircraftImageName(selectedAircraft)}
                             manufacturer={selectedAircraft.manufacturer}
@@ -1913,23 +1913,23 @@ function RoutePlannerInner({
                           />
                        </div>
                        {/* Config */}
-                       <div className="grid grid-cols-4 gap-2 text-center text-3xs">
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-white/30 uppercase mb-1">ECO</div><div className="font-bold">{selectedAircraft.config?.economy || 0}</div></div>
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-aero-yellow/50 uppercase mb-1">PRE</div><div className="font-bold text-aero-yellow">{selectedAircraft.config?.premium || 0}</div></div>
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-white/80/50 uppercase mb-1">BUS</div><div className="font-bold text-white/80">{selectedAircraft.config?.business || 0}</div></div>
-                          <div className="bg-white/5 py-2 border border-white/10 rounded-sm"><div className="text-4xs text-aero-yellow/50 uppercase mb-1">FST</div><div className="font-bold text-aero-yellow">{selectedAircraft.config?.first || 0}</div></div>
+                       <div className="grid grid-cols-4 gap-2 text-center text-2xs">
+                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-muted uppercase mb-1">ECO</div><div className="font-semibold">{selectedAircraft.config?.economy || 0}</div></div>
+                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-accent uppercase mb-1">PRE</div><div className="font-semibold text-accent">{selectedAircraft.config?.premium || 0}</div></div>
+                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-ink uppercase mb-1">BUS</div><div className="font-semibold text-ink">{selectedAircraft.config?.business || 0}</div></div>
+                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-accent uppercase mb-1">FST</div><div className="font-semibold text-accent">{selectedAircraft.config?.first || 0}</div></div>
                        </div>
                        {/* Stats */}
-                       <div className="grid grid-cols-2 gap-2 text-3xs">
-                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Efficiency</span><span className="font-bold">{selectedAircraft.efficiency}/100</span></div>
-                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Max Range</span><span className="font-bold">{formatNumber(selectedAircraft.maxRange)} km</span></div>
-                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Gen. Cond</span><span className={`font-bold ${selectedAircraft.conditionGeneral < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionGeneral)}%</span></div>
-                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Int. Cond</span><span className={`font-bold ${selectedAircraft.conditionInterior < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionInterior)}%</span></div>
+                       <div className="grid grid-cols-2 gap-2 text-2xs">
+                          <div className="bg-ground/30 p-2 border border-line rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Efficiency</span><span className="font-semibold">{selectedAircraft.efficiency}/100</span></div>
+                          <div className="bg-ground/30 p-2 border border-line rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Max Range</span><span className="font-semibold">{formatNumber(selectedAircraft.maxRange)} km</span></div>
+                          <div className="bg-ground/30 p-2 border border-line rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Gen. Cond</span><span className={`font-semibold ${selectedAircraft.conditionGeneral < 50 ? 'text-bad' : 'text-accent'}`}>{Math.floor(selectedAircraft.conditionGeneral)}%</span></div>
+                          <div className="bg-ground/30 p-2 border border-line rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Int. Cond</span><span className={`font-semibold ${selectedAircraft.conditionInterior < 50 ? 'text-bad' : 'text-accent'}`}>{Math.floor(selectedAircraft.conditionInterior)}%</span></div>
                        </div>
                        {tripCapacity && (
-                         <div className="grid grid-cols-2 gap-2 text-3xs">
-                            <div className="bg-aero-yellow/5 p-2 border border-aero-yellow/20 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Trips / week</span><span className="font-bold text-aero-yellow">{tripCapacity.perWeek}</span></div>
-                            <div className="bg-aero-yellow/5 p-2 border border-aero-yellow/20 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Trips / day</span><span className="font-bold text-aero-yellow">{tripCapacity.perDay}</span></div>
+                         <div className="grid grid-cols-2 gap-2 text-2xs">
+                            <div className="bg-accent/5 p-2 border border-accent/20 rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Trips / week</span><span className="font-semibold text-accent">{tripCapacity.perWeek}</span></div>
+                            <div className="bg-accent/5 p-2 border border-accent/20 rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Trips / day</span><span className="font-semibold text-accent">{tripCapacity.perDay}</span></div>
                          </div>
                        )}
                     </div>
@@ -1938,17 +1938,17 @@ function RoutePlannerInner({
             </div>
 
             {/* Destination */}
-            <div className="w-full lg:w-1/3 short:w-1/3 short:min-w-0 border border-white/10 flex flex-col h-full bg-black/40 relative">
-              <div className="py-2.5 short:py-1.5 px-3 bg-white/5 border-b border-white/10 text-center uppercase tracking-widest font-bold text-xs">Destination</div>
+            <div className="w-full lg:w-1/3 short:w-1/3 short:min-w-0 border border-line flex flex-col h-full bg-ground/40 relative">
+              <div className="py-2.5 short:py-1.5 px-3 bg-surface border-b border-line text-center uppercase tracking-label font-semibold text-xs">Destination</div>
               
               {!selectedDest ? (
                 <div className="p-2.5 flex flex-col flex-1 overflow-hidden">
                   <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={14} />
                     <input 
                       type="text" 
                       placeholder="Search Destination..." 
-                      className="w-full bg-white/5 border border-white/10 p-2 pl-9 outline-none text-xs font-mono focus:border-aero-yellow"
+                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs font-mono focus:border-accent"
                       value={destSearch}
                       onChange={e => setDestSearch(e.target.value)}
                     />
@@ -1965,10 +1965,10 @@ function RoutePlannerInner({
                       <button
                         key={opt.id}
                         onClick={() => setDestSortBy(opt.id as any)}
-                        className={`flex-1 py-1 text-4xs font-black uppercase tracking-widest border transition-all ${
+                        className={`flex-1 py-1 text-2xs font-semibold uppercase tracking-label border transition-all ${
                           destSortBy === opt.id 
-                            ? 'bg-aero-yellow border-aero-yellow text-black' 
-                            : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30 hover:text-white'
+                            ? 'bg-accent border-accent text-on-accent' 
+                            : 'bg-surface border-line text-muted hover:border-rule hover:text-ink'
                         }`}
                       >
                         {opt.label}
@@ -1979,33 +1979,33 @@ function RoutePlannerInner({
                   {/* Filters: airports not flown to yet, distance from the origin,
                       and business / tourism demand. Folded by default, since the
                       column is short on a phone held sideways. */}
-                  <div className="mb-3 short:mb-2 min-h-0 flex flex-col border border-white/10 bg-white/[0.02]">
+                  <div className="mb-3 short:mb-2 min-h-0 flex flex-col border border-line bg-surface">
                     <button
                       onClick={() => setDestFiltersOpen(!destFiltersOpen)}
                       aria-expanded={destFiltersOpen}
-                      className="w-full shrink-0 flex items-center justify-between px-2 py-1.5 text-4xs font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+                      className="w-full shrink-0 flex items-center justify-between px-2 py-1.5 text-2xs font-semibold uppercase tracking-label text-muted hover:text-ink hover:bg-raised transition-colors"
                     >
                       <span className="flex items-center gap-1.5">
                         <SlidersHorizontal size={11} /> Filter
                         {activeDestFilterCount > 0 && (
-                          <span className="bg-aero-yellow text-black px-1 rounded-sm">{activeDestFilterCount}</span>
+                          <span className="bg-accent text-on-accent px-1 rounded-sm">{activeDestFilterCount}</span>
                         )}
                       </span>
                       <span className="flex items-center gap-2">
-                        <span className="font-mono normal-case tracking-normal text-white/30">{validDestinations.length} {validDestinations.length === 1 ? 'airport' : 'airports'}</span>
+                        <span className="font-mono normal-case text-muted">{validDestinations.length} {validDestinations.length === 1 ? 'airport' : 'airports'}</span>
                         {destFiltersOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                       </span>
                     </button>
                     {destFiltersOpen && (
-                      <div className="min-h-0 overflow-y-auto custom-scrollbar p-2 border-t border-white/10 space-y-2">
+                      <div className="min-h-0 overflow-y-auto p-2 border-t border-line space-y-2">
                         <button
                           onClick={() => setDestFilters({ ...destFilters, unservedOnly: !destFilters.unservedOnly })}
                           aria-pressed={destFilters.unservedOnly}
                           title="Hide airports that one of your routes already starts or ends at"
-                          className={`w-full py-1 text-4xs font-black uppercase tracking-widest border transition-all ${
+                          className={`w-full py-1 text-2xs font-semibold uppercase tracking-label border transition-all ${
                             destFilters.unservedOnly
-                              ? 'bg-aero-yellow border-aero-yellow text-black'
-                              : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30 hover:text-white'
+                              ? 'bg-accent border-accent text-on-accent'
+                              : 'bg-surface border-line text-muted hover:border-rule hover:text-ink'
                           }`}
                         >
                           Not yet served
@@ -2014,10 +2014,10 @@ function RoutePlannerInner({
                           onClick={() => setDestFilters({ ...destFilters, reachableOnly: !destFilters.reachableOnly })}
                           aria-pressed={destFilters.reachableOnly}
                           title="Hide airports your airline's rank does not allow yet"
-                          className={`w-full py-1 text-4xs font-black uppercase tracking-widest border transition-all ${
+                          className={`w-full py-1 text-2xs font-semibold uppercase tracking-label border transition-all ${
                             destFilters.reachableOnly
-                              ? 'bg-aero-yellow border-aero-yellow text-black'
-                              : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30 hover:text-white'
+                              ? 'bg-accent border-accent text-on-accent'
+                              : 'bg-surface border-line text-muted hover:border-rule hover:text-ink'
                           }`}
                         >
                           Rank reachable only
@@ -2032,10 +2032,10 @@ function RoutePlannerInner({
                             className={`flex items-center gap-1.5 ${row.disabled ? 'opacity-40' : ''}`}
                             title={row.disabled ? 'Choose an origin hub first' : undefined}
                           >
-                            <span className="w-20 short:w-14 shrink-0 text-4xs font-black uppercase tracking-widest text-white/40">{row.label}</span>
+                            <span className="w-20 short:w-14 shrink-0 text-2xs font-semibold uppercase tracking-label text-muted">{row.label}</span>
                             {(['min', 'max'] as const).map((bound, i) => (
                               <React.Fragment key={bound}>
-                                {i === 1 && <span className="text-white/30">–</span>}
+                                {i === 1 && <span className="text-muted">–</span>}
                                 <input
                                   type="number"
                                   inputMode="numeric"
@@ -2045,7 +2045,7 @@ function RoutePlannerInner({
                                   disabled={row.disabled}
                                   value={destFilters[row.key][bound]}
                                   onChange={e => setDestRange(row.key, bound, e.target.value)}
-                                  className="w-full min-w-0 bg-white/5 border border-white/10 p-1 text-3xs font-mono outline-none focus:border-aero-yellow disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="w-full min-w-0 bg-surface border border-line p-1 text-2xs font-mono outline-none focus:border-accent disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                 />
                               </React.Fragment>
                             ))}
@@ -2054,7 +2054,7 @@ function RoutePlannerInner({
                         <button
                           onClick={() => setDestFilters(NO_DESTINATION_FILTERS)}
                           disabled={activeDestFilterCount === 0}
-                          className="w-full py-1 flex items-center justify-center gap-1.5 text-4xs font-black uppercase tracking-widest border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="w-full py-1 flex items-center justify-center gap-1.5 text-2xs font-semibold uppercase tracking-label border border-line text-muted hover:text-ink hover:border-rule transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <RotateCcw size={10} /> Reset filters
                         </button>
@@ -2062,9 +2062,9 @@ function RoutePlannerInner({
                     )}
                   </div>
 
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-1 bg-black/20 p-2 border border-white/5 pb-32 bar:pb-3 short:pb-3">
+                  <div className="flex-1 min-h-0 overflow-y-auto space-y-1 bg-ground/20 p-2 border border-line pb-32 bar:pb-3 short:pb-3">
                     {validDestinations.length === 0 && (
-                      <div className="p-3 text-2xs font-mono text-white/40 leading-relaxed">
+                      <div className="p-3 text-2xs font-mono text-muted leading-relaxed">
                         No airport matches the search and filters.
                       </div>
                     )}
@@ -2086,25 +2086,25 @@ function RoutePlannerInner({
                         <div 
                           key={a.id} 
                           onClick={() => setDestId(a.id)}
-                          className="p-3 border border-white/10 bg-white/5 hover:bg-aero-yellow/10 hover:border-aero-yellow/50 cursor-pointer flex justify-between items-center group"
+                          className="p-3 border border-line bg-surface hover:bg-accent/10 hover:border-accent/50 cursor-pointer flex justify-between items-center group"
                         >
                           <div>
-                            <div className="font-bold flex items-center gap-1">
+                            <div className="font-semibold flex items-center gap-1">
                               {a.id} 
-                              {mgtLvl >= 1 && <span className="text-4xs bg-aero-yellow/20 text-aero-yellow px-1 rounded-sm">UNLOCKED</span>}
-                              {mgtLvl < 1 && airportLock?.(a) && <span className="text-4xs bg-aero-warn/20 text-aero-warn px-1 rounded-sm" title={airportLock(a) ?? undefined}>RANK</span>}
+                              {mgtLvl >= 1 && <span className="text-2xs bg-accent/20 text-accent px-1 rounded-sm">UNLOCKED</span>}
+                              {mgtLvl < 1 && airportLock?.(a) && <span className="text-2xs bg-bad/20 text-bad px-1 rounded-sm" title={airportLock(a) ?? undefined}>RANK</span>}
                             </div>
-                            <div className="text-2xs text-white/50">{a.name}</div>
+                            <div className="text-2xs text-muted">{a.name}</div>
                             
                             {/* Simple Hints */}
                             <div className="flex gap-2 mt-1">
                               {myRoutesCount > 0 && (
-                                <div className="text-4xs font-black text-aero-yellow/80 uppercase">
+                                <div className="text-2xs font-semibold text-accent uppercase">
                                   YOU: {myRoutesCount}
                                 </div>
                               )}
                               {compRoutesCount > 0 && (
-                                <div className="text-4xs font-black text-aero-warn uppercase">
+                                <div className="text-2xs font-semibold text-bad uppercase">
                                   COMP: {compRoutesCount}
                                 </div>
                               )}
@@ -2112,16 +2112,16 @@ function RoutePlannerInner({
                           </div>
                           <div className="flex flex-col items-end gap-1 text-right">
                              {selectedOrigin && (
-                               <div className="text-2xs font-mono text-white/30">
+                               <div className="text-2xs font-mono text-muted">
                                   {Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]))} km
                                </div>
                              )}
-                             <div className="text-3xs font-mono text-white/30">
+                             <div className="text-2xs font-mono text-muted">
                                 SLOTS: {availableDestSlots}/{totalSlots}
                              </div>
-                             <div className="flex gap-2 text-4xs font-mono">
-                               <span className="text-aero-yellow">T: {getAirportStats(a, currentYear).tourism}</span>
-                               <span className="text-white/80">B: {getAirportStats(a, currentYear).business}</span>
+                             <div className="flex gap-2 text-2xs font-mono">
+                               <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
+                               <span className="text-ink">B: {getAirportStats(a, currentYear).business}</span>
                              </div>
                           </div>
                         </div>
@@ -2131,76 +2131,76 @@ function RoutePlannerInner({
                 </div>
               ) : (
                 <div className="flex flex-col flex-1 overflow-hidden">
-                  <div className="flex justify-between items-center bg-white/5 p-2 border-b border-white/10 shrink-0">
+                  <div className="flex justify-between items-center bg-surface p-2 border-b border-line shrink-0">
                     <div className="flex items-center gap-3">
-                      <div className="text-xl font-black text-aero-yellow">{selectedDest.id}</div>
+                      <div className="text-xl font-semibold text-accent">{selectedDest.id}</div>
                       <div className="flex flex-col">
-                         <div className="text-2xs text-white/60 truncate w-32 md:w-auto">{selectedDest.name}</div>
-                         <div className="flex gap-2 text-4xs uppercase tracking-widest font-mono text-white/40">
+                         <div className="text-2xs text-muted truncate w-32 md:w-auto">{selectedDest.name}</div>
+                         <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
                            <span>B:{getAirportStats(selectedDest, currentYear).business}</span>
                            <span>T:{getAirportStats(selectedDest, currentYear).tourism}</span>
-                           <span className={((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0)) > 0 ? "text-aero-yellow font-bold" : ""}>S:{Math.max(0, (selectedDest.level * 300) - getAiUsedWeeklySlots(selectedDest.id)) - ((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0))}/{selectedDest.level * 300}</span>
+                           <span className={((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0)) > 0 ? "text-accent font-semibold" : ""}>S:{Math.max(0, (selectedDest.level * 300) - getAiUsedWeeklySlots(selectedDest.id)) - ((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0))}/{selectedDest.level * 300}</span>
                          </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport?.(selectedDest)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
-                       <button onClick={() => setDestId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
+                       <button onClick={() => onGoToAirport?.(selectedDest)} className="text-2xs text-muted hover:text-ink py-1.5 px-2 border border-line" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => setDestId(null)} className="text-2xs text-accent py-1.5 px-2 border border-accent/20 hover:bg-accent hover:text-on-accent">CHG</button>
                     </div>
                   </div>
 
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-black/40 p-2.5 flex flex-col gap-4 pb-32 bar:pb-3 short:pb-3">
+                  <div className="flex-1 min-h-0 overflow-y-auto bg-ground/40 p-2.5 flex flex-col gap-4 pb-32 bar:pb-3 short:pb-3">
                   {selectedOrigin && selectedDest && (
-                    <div className="mb-2 p-3 border border-aero-yellow/20 bg-aero-yellow/5 rounded-sm">
+                    <div className="mb-2 p-3 border border-accent/20 bg-accent/5 rounded-sm">
                       <div 
                         className={`flex justify-between items-center ${debugMode ? 'cursor-pointer' : ''}`}
                         onClick={() => debugMode && setShowDemandDebug(!showDemandDebug)}
                       >
-                        <div className="text-aero-yellow/80 text-3xs font-black uppercase tracking-widest flex items-center gap-1.5">
-                          <Search size={12} /> Demand Forecast {debugMode && <span className="text-4xs bg-aero-yellow/20 px-1 py-0.5 rounded-sm text-aero-yellow ml-1">DEBUG</span>}
+                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-1.5">
+                          <Search size={12} /> Demand Forecast {debugMode && <span className="text-2xs bg-accent/20 px-1 py-0.5 rounded-sm text-accent ml-1">DEBUG</span>}
                         </div>
-                        <div className="text-white font-mono text-xs font-bold">
+                        <div className="text-ink font-mono text-xs font-semibold">
                           {demandPreview ? `${formatNumber(demandPreview.d.total)} / WK MARKET` : ''}
                         </div>
                       </div>
                       {demandPreview?.assumedAircraft && (
-                        <div className="text-4xs text-white/30 uppercase tracking-widest mt-1">Flight time assumed at 800 km/h until an aircraft is chosen</div>
+                        <div className="text-2xs text-muted uppercase tracking-label mt-1">Flight time assumed at 800 km/h until an aircraft is chosen</div>
                       )}
 
                       {showDemandDebug && debugMode && demandPreview && (
-                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2 text-2xs font-mono text-white/50 bg-black/60 p-4 rounded-sm">
+                        <div className="mt-4 pt-4 border-t border-line space-y-2 text-2xs font-mono text-muted bg-ground/60 p-4 rounded-sm">
                           {(() => {
                              const { d, tc, basePrices } = demandPreview;
                              return (
                                <>
                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
-                                   <div><span className="text-white/30">b1 (Orig Bus):</span> <span className="text-white/80">{d.formulaVars.b1}</span></div>
-                                   <div><span className="text-white/30">t1 (Orig Tou):</span> <span className="text-aero-yellow">{d.formulaVars.t1}</span></div>
-                                   <div><span className="text-white/30">b2 (Dest Bus):</span> <span className="text-white/80">{d.formulaVars.b2}</span></div>
-                                   <div><span className="text-white/30">t2 (Dest Tou):</span> <span className="text-aero-yellow">{d.formulaVars.t2}</span></div>
-                                   <div><span className="text-white/30">Time Class:</span> <span className="text-white">{tc}</span></div>
-                                   <div><span className="text-white/30">Business Ratio:</span> <span className="text-white">{(d.formulaVars.businessRatio * 100).toFixed(1)}%</span></div>
-                                   <div><span className="text-white/30">Mv (Month {currentMonth}):</span> <span className="text-aero-yellow">{d.formulaVars.Mv}</span></div>
-                                   <div><span className="text-white/30">S (Diff {difficulty}):</span> <span className="text-aero-yellow">{d.formulaVars.S}</span></div>
+                                   <div><span className="text-muted">b1 (Orig Bus):</span> <span className="text-ink">{d.formulaVars.b1}</span></div>
+                                   <div><span className="text-muted">t1 (Orig Tou):</span> <span className="text-accent">{d.formulaVars.t1}</span></div>
+                                   <div><span className="text-muted">b2 (Dest Bus):</span> <span className="text-ink">{d.formulaVars.b2}</span></div>
+                                   <div><span className="text-muted">t2 (Dest Tou):</span> <span className="text-accent">{d.formulaVars.t2}</span></div>
+                                   <div><span className="text-muted">Time Class:</span> <span className="text-ink">{tc}</span></div>
+                                   <div><span className="text-muted">Business Ratio:</span> <span className="text-ink">{(d.formulaVars.businessRatio * 100).toFixed(1)}%</span></div>
+                                   <div><span className="text-muted">Mv (Month {currentMonth}):</span> <span className="text-accent">{d.formulaVars.Mv}</span></div>
+                                   <div><span className="text-muted">S (Diff {difficulty}):</span> <span className="text-accent">{d.formulaVars.S}</span></div>
                                  </div>
-                                 <div className="text-white/40 mb-2 pb-2 border-b border-white/5">
+                                 <div className="text-muted mb-2 pb-2 border-b border-line">
                                    Demand = 29.00 &times; Interaction^0.448 &times; S {d.formulaVars.S} &times; era {formatNumber(d.formulaVars.eraFactor, 2)} &times; time class {formatNumber(d.formulaVars.tcDemandMultiplier, 2)} &times; events {formatNumber(d.formulaVars.eventMult, 2)} &times; your factor {formatNumber(d.formulaVars.extraDemandFactor, 2)}
                                    <br />
                                    Interaction: {formatNumber(d.formulaVars.totalInteraction)}
                                  </div>
-                                 <div className="flex justify-between items-center text-aero-yellow">
+                                 <div className="flex justify-between items-center text-accent">
                                    <span>ECONOMY:</span> <span>{formatNumber(d.economy)} | BASE: ${basePrices.economy}</span>
                                  </div>
-                                 <div className="flex justify-between items-center text-aero-yellow">
+                                 <div className="flex justify-between items-center text-accent">
                                    <span>PREMIUM:</span> <span>{formatNumber(d.premium)} | BASE: ${basePrices.premium}</span>
                                  </div>
-                                 <div className="flex justify-between items-center text-white/80">
+                                 <div className="flex justify-between items-center text-ink">
                                    <span>BUSINESS:</span> <span>{formatNumber(d.business)} | BASE: ${basePrices.business}</span>
                                  </div>
-                                 <div className="flex justify-between items-center text-purple-400 font-bold border-b border-white/10 pb-1 mb-1">
+                                 <div className="flex justify-between items-center text-ink font-semibold border-b border-line pb-1 mb-1">
                                    <span>FIRST:</span> <span>{formatNumber(d.first)} | BASE: ${basePrices.first}</span>
                                  </div>
-                                 <div className="flex justify-between items-center text-white font-black text-sm pt-1">
+                                 <div className="flex justify-between items-center text-ink font-semibold text-sm pt-1">
                                    <span>MARKET DEMAND / WK (all airlines):</span> <span>{formatNumber(d.total)}</span>
                                  </div>
                                </>
@@ -2212,16 +2212,16 @@ function RoutePlannerInner({
                   )}
 
                   {destMgtLvl < 1 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-4 border border-white/10 bg-aero-panel text-center">
-                       <div className="text-aero-warn font-bold mb-2 uppercase tracking-widest">Destination Locked</div>
-                       <p className="text-xs text-white/50 mb-3">You must unlock T1 Management at {selectedDest.id} to fly there.</p>
+                    <div className="flex-1 flex flex-col items-center justify-center p-4 border border-line bg-surface text-center">
+                       <div className="text-bad font-semibold mb-2 uppercase tracking-label">Destination Locked</div>
+                       <p className="text-xs text-muted mb-3">You must unlock T1 Management at {selectedDest.id} to fly there.</p>
                        {airportLock?.(selectedDest) && (
-                         <p className="text-xs text-aero-warn mb-3 max-w-sm leading-relaxed">{airportLock(selectedDest)}</p>
+                         <p className="text-xs text-bad mb-3 max-w-sm leading-relaxed">{airportLock(selectedDest)}</p>
                        )}
                        <button
                          onClick={() => onUnlockManagement?.(selectedDest.id, 1)}
                          disabled={!!airportLock?.(selectedDest)}
-                         className="px-3 py-3 bg-aero-panel-2 text-white font-black uppercase text-sm hover:bg-aero-panel-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                         className="px-3 py-3 bg-raised text-ink font-semibold text-sm hover:bg-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                        >
                          Unlock T1 ({formatCurrency(getManagementUnlockCost(selectedDest.level, 1))})
                        </button>
@@ -2229,11 +2229,11 @@ function RoutePlannerInner({
                   ) : (
                     /* Strategic Infrastructure Dashboard */
                     <div className="flex flex-col gap-4 mt-2 pb-16 bar:pb-3 short:pb-3">
-                       <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                          <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                       <div className="flex justify-between items-center border-b border-line pb-2">
+                          <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                              <MapIcon size={12} /> Strategic Slots
                           </div>
-                          <span className="text-4xs text-white/30 tracking-widest font-mono">STOCK / COST / ACTION</span>
+                          <span className="text-2xs text-muted font-mono">STOCK / COST / ACTION</span>
                        </div>
                        <div className="space-y-2">
                           <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedDest.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedDest.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'regional', n, shift)} />
@@ -2241,14 +2241,14 @@ function RoutePlannerInner({
                           {destAvail.widebodySlots && <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedDest.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedDest.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'widebody', n, shift)} />}
                        </div>
 
-                       <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                          <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                       <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
+                          <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                              <Plane size={12} /> Stand Upgrades
                           </div>
                           {(airportManagement[selectedDest.id]?.level || 0) < 2 && (
                             <button 
                                onClick={() => onUpdateInfrastructure?.(selectedDest.id, { ...airportManagement[selectedDest.id], autoBuyStands: !(airportManagement[selectedDest.id]?.autoBuyStands) })}
-                               className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedDest.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
+                               className={`text-2xs uppercase tracking-label px-2 py-0.5 border ${airportManagement[selectedDest.id]?.autoBuyStands ? 'border-accent text-accent bg-accent/10' : 'border-rule text-muted'}`}
                             >
                                AUTO-BUY: {airportManagement[selectedDest.id]?.autoBuyStands ? 'ON' : 'OFF'}
                             </button>
@@ -2259,8 +2259,8 @@ function RoutePlannerInner({
                           {destAvail.stands && <InfaRowSmall label="Widebody" count={airportManagement[selectedDest.id]?.stands?.widebody || 0} cost={(airportManagement[selectedDest.id]?.level || 0) >= 2 ? 0 : getStandCost('widebody')} disabled={(airportManagement[selectedDest.id]?.level || 0) >= 2} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'stands', 'widebody', n, shift)} />}
                        </div>
 
-                       <div className="flex justify-between items-center border-b border-white/10 pb-2 mt-2">
-                          <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                       <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
+                          <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                              <ChevronRight size={12} /> Passenger Processing
                           </div>
                        </div>
@@ -2271,11 +2271,11 @@ function RoutePlannerInner({
                        {(() => {
                            const sim = destDeskSim;
                            return (
-                             <div className="mt-2 text-2xs text-white/50 space-y-1">
-                               <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
-                               <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
-                               <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
-                               <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-warn font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
+                             <div className="mt-2 text-2xs text-muted space-y-1">
+                               <div className="flex justify-between"><span className="uppercase tracking-label flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-bad font-semibold' : 'text-ink'}>{sim.load.toFixed(1)}%</span></div>
+                               <div className="flex justify-between"><span className="uppercase tracking-label">Weekly Seats:</span><span className="text-ink">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
+                               <div className="w-full h-1 bg-surface overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-bad' : 'bg-accent'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
+                               <div className="flex justify-between"><span className="uppercase tracking-label">SAT Impact:</span><span className={sim.sat < 0 ? 'text-bad font-semibold' : 'text-accent'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                              </div>
                            );
                        })()}
@@ -2290,13 +2290,13 @@ function RoutePlannerInner({
 
           {/* Step 1 Snug Footer Action Bar. The step buttons are flatter on a
               phone held sideways (short:py-2), where height is scarce. */}
-          <div className="p-4 bar:p-2 short:p-2 tiny:p-1.5 mt-3 bar:mt-2 short:mt-2 tiny:mt-1 border border-white/10 bg-white/[0.01] flex shrink-0 rounded-sm w-full">
+          <div className="p-4 bar:p-2 short:p-2 tiny:p-1.5 mt-3 bar:mt-2 short:mt-2 tiny:mt-1 border border-line bg-surface flex shrink-0 rounded-sm w-full">
              <div className="flex gap-4 w-full">
-                <button onClick={onClose} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Cancel</button>
+                <button onClick={onClose} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-rule text-muted font-semibold text-sm py-4 px-6 rounded-sm hover:text-ink hover:bg-raised transition-all">Cancel</button>
                 <button 
                   disabled={!selectedOrigin || !selectedAircraft || !selectedDest || (destMgtLvl < 1)}
                   onClick={() => setStep(2)} 
-                  className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
+                  className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm hover:bg-ink hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
                 >
                   Next Step: Timetable <ChevronRight size={16} />
                 </button>
@@ -2310,25 +2310,25 @@ function RoutePlannerInner({
              timetable keeps its own scroll area at most of the screen height. */
           <div className="w-full flex flex-col md:flex-row gap-4 h-full overflow-y-auto md:overflow-visible">
             {/* Left Column: Form */}
-            <div className="w-full md:w-80 shrink-0 border border-white/10 bg-black/40 flex flex-col md:overflow-y-auto">
-              <div className="p-4 bg-aero-yellow/10 border-b border-aero-yellow/20 text-center uppercase tracking-[0.2em] font-black text-aero-yellow text-sm">Timetable Configuration</div>
+            <div className="w-full md:w-80 shrink-0 border border-line bg-ground/40 flex flex-col md:overflow-y-auto">
+              <div className="p-4 bg-accent/10 border-b border-accent/20 text-center font-semibold text-accent text-sm">Timetable Configuration</div>
               
               <div className="p-4 space-y-8">
                 {/* Slot Status */}
-                <div className="bg-white/5 border border-white/10 p-4 space-y-2 mb-2 rounded-sm border-t-2 border-t-aero-yellow">
-                   <div className="text-2xs uppercase font-black tracking-widest text-aero-yellow mb-2 flex justify-between">
+                <div className="bg-surface border border-line p-4 space-y-2 mb-2 rounded-sm border-t-2 border-t-accent">
+                   <div className="text-2xs uppercase font-semibold tracking-label text-accent mb-2 flex justify-between">
                      <span>Required Slots</span>
                      <span>({selectedAircraft.class})</span>
                    </div>
-                   <div className="flex justify-between font-mono text-xs text-white/70">
+                   <div className="flex justify-between font-mono text-xs text-muted">
                      <span>{selectedOrigin.id}</span>
-                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
                         {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
-                   <div className="flex justify-between font-mono text-xs text-white/70">
+                   <div className="flex justify-between font-mono text-xs text-muted">
                      <span>{selectedDest.id}</span>
-                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
                         {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
@@ -2337,13 +2337,13 @@ function RoutePlannerInner({
                 {/* Flight Number */}
                 <div className="flex gap-2">
                   <div className="flex flex-col flex-[0.8] min-w-0">
-                    <label className="block text-3xs uppercase tracking-widest text-white/50 mb-2 font-bold">
+                    <label className="block text-2xs uppercase tracking-label text-muted mb-2 font-semibold">
                        Code
                     </label>
-                    <div className="h-10 bg-white/5 border border-white/10 font-black text-aero-yellow text-center select-none uppercase tracking-widest flex items-center justify-center truncate px-1">{airlineCode}</div>
+                    <div className="h-10 bg-surface border border-line font-semibold text-accent text-center select-none uppercase tracking-label flex items-center justify-center truncate px-1">{airlineCode}</div>
                   </div>
                   <div className="flex flex-col flex-1">
-                    <label className="block text-3xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight Out</label>
+                    <label className="block text-2xs uppercase tracking-label text-muted mb-2 font-semibold">Flight Out</label>
                     <input
                       type="text"
                       value={flightNumberOutbound}
@@ -2353,25 +2353,25 @@ function RoutePlannerInner({
                         // An empty field used to produce "NaN" here and on every flight.
                         setFlightNumberInbound(val ? (parseInt(val, 10) + 1).toString() : "");
                       }}
-                      className="h-10 w-full bg-white/5 border border-white/10 px-1 outline-none focus:border-aero-yellow font-mono text-sm text-center"
+                      className="h-10 w-full bg-surface border border-line px-1 outline-none focus:border-accent font-mono text-sm text-center"
                       placeholder="Out"
                     />
                   </div>
                   <div className="flex flex-col flex-1">
-                    <label className="block text-3xs uppercase tracking-widest text-white/50 mb-2 font-bold">Flight In</label>
+                    <label className="block text-2xs uppercase tracking-label text-muted mb-2 font-semibold">Flight In</label>
                     <input
                       type="text"
                       value={flightNumberInbound}
                       onChange={e => setFlightNumberInbound(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="h-10 w-full bg-white/5 border border-white/10 px-1 outline-none focus:border-aero-yellow font-mono text-sm text-center"
+                      className="h-10 w-full bg-surface border border-line px-1 outline-none focus:border-accent font-mono text-sm text-center"
                       placeholder="In"
                     />
                   </div>
                   <div className="flex flex-col flex-[0.8]">
-                    <label className="block text-3xs uppercase tracking-widest text-transparent mb-2 font-bold select-none">Action</label>
+                    <label className="block text-2xs uppercase tracking-label text-transparent mb-2 font-semibold select-none">Action</label>
                     <button
                       onClick={generateFlightNumber}
-                      className="h-10 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors uppercase tracking-widest text-4xs font-black italic text-center text-white/50 hover:text-white leading-tight flex items-center justify-center"
+                      className="h-10 bg-surface hover:bg-raised border border-line transition-colors uppercase tracking-label text-2xs font-semibold text-center text-muted hover:text-ink leading-tight flex items-center justify-center"
                     >
                       RANDOM
                     </button>
@@ -2380,31 +2380,31 @@ function RoutePlannerInner({
 
                 <div>
                   {/* Inline settings */}
-                  <div className={`flex items-center justify-between bg-black/40 border border-white/10 p-2 mb-2 transition-opacity ${schedule.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className={`flex items-center justify-between bg-ground/40 border border-line p-2 mb-2 transition-opacity ${schedule.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                     <div className="flex items-center gap-2">
-                       <label className="text-3xs font-black uppercase tracking-widest text-white/50">Multiple Ops:</label>
+                       <label className="text-2xs font-semibold uppercase tracking-label text-muted">Multiple Ops:</label>
                        <div className="flex items-center gap-1">
                          <button 
                            onClick={() => setMultipleOps(Math.max(1, multipleOps - 1))} 
-                           className="w-5 h-5 flex items-center justify-center bg-white/5 border border-white/10 text-white hover:border-aero-yellow"
+                           className="w-5 h-5 flex items-center justify-center bg-surface border border-line text-ink hover:border-accent"
                          >
                            <Minus className="w-2 h-2" />
                          </button>
-                         <div className="w-6 h-5 flex items-center justify-center bg-black border border-white/20 font-mono text-2xs text-aero-yellow font-bold">
+                         <div className="w-6 h-5 flex items-center justify-center bg-ground border border-rule font-mono text-2xs text-accent font-semibold">
                            {Math.min(multipleOps, maxMultipleOps)}
                          </div>
                          <button
                            onClick={() => setMultipleOps(Math.min(maxMultipleOps, multipleOps + 1))}
                            disabled={multipleOps >= maxMultipleOps}
-                           className="w-5 h-5 flex items-center justify-center bg-white/5 border border-white/10 text-white hover:border-aero-yellow disabled:opacity-20"
+                           className="w-5 h-5 flex items-center justify-center bg-surface border border-line text-ink hover:border-accent disabled:opacity-20"
                          >
                            <Plus className="w-2 h-2" />
                          </button>
                        </div>
                     </div>
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => setMaximizeFlights(!maximizeFlights)}>
-                       <span className="text-3xs font-black uppercase tracking-widest text-white/50 hover:text-white transition-colors">Max Flights</span>
-                       <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                       <span className="text-2xs font-semibold uppercase tracking-label text-muted hover:text-ink transition-colors">Max Flights</span>
+                       <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-accent border-accent text-on-accent' : 'border-rule'}`}>
                          {maximizeFlights && <Check className="w-2 h-2" />}
                        </div>
                     </div>
@@ -2689,7 +2689,7 @@ function RoutePlannerInner({
                           else { setSchedule(newTrips); setValidationMsg(null); }
                         }
                       }}
-                      className={`flex-1 h-8 text-2xs uppercase font-bold border transition-colors px-2 py-0.5 ${schedule.length > 0 ? 'border-white/10 text-aero-yellow/60 hover:bg-aero-panel-2 hover:text-white' : 'bg-aero-yellow border-aero-yellow text-black hover:bg-aero-yellow/80'}`}
+                      className={`flex-1 h-8 text-2xs uppercase font-semibold border transition-colors px-2 py-0.5 ${schedule.length > 0 ? 'border-line text-accent hover:bg-raised hover:text-ink' : 'bg-accent border-accent text-on-accent hover:bg-accent/80'}`}
                     >
                       {schedule.length > 0 ? 'Clear All' : (maximizeFlights ? 'Apply' : 'Select All')}
                     </button>
@@ -2703,9 +2703,9 @@ function RoutePlannerInner({
                           key={day.id}
                           disabled={maximizeFlights}
                           onClick={() => handleToggleDay(day.id)}
-                          className={`h-9 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl' : 'bg-black/40 text-white/30 border-white/10 hover:border-white/40 hover:text-white'}`}
+                          className={`h-9 flex flex-col items-center justify-center border font-semibold transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-accent text-on-accent border-accent' : 'bg-ground/40 text-muted border-line hover:border-rule hover:text-ink'}`}
                         >
-                          <span className="text-[8px] leading-none">{day.label}</span>
+                          <span className="text-2xs leading-none">{day.label}</span>
                         </button>
                       )
                     })}
@@ -2714,29 +2714,29 @@ function RoutePlannerInner({
 
                 {/* Time Selection */}
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-white/50 mb-2 font-bold">Starting Time</label>
-                  <div className={`flex items-center justify-center gap-2 bg-black/60 border border-white/10 p-2 font-mono rounded-sm shadow-inner transition-all ${maximizeFlights ? 'opacity-30 pointer-events-none grayscale' : ''}`}>
+                  <label className="block text-xs uppercase tracking-label text-muted mb-2 font-semibold">Starting Time</label>
+                  <div className={`flex items-center justify-center gap-2 bg-ground/60 border border-line p-2 font-mono rounded-sm transition-all ${maximizeFlights ? 'opacity-30 pointer-events-none grayscale' : ''}`}>
                     <div className="flex flex-col items-center">
-                      <button onClick={() => handleClockChange(60)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▲</button>
-                      <div className="text-2xl font-black tracking-widest">{maximizeFlights ? '--' : flightHour.toString().padStart(2, '0')}</div>
-                      <button onClick={() => handleClockChange(-60)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▼</button>
+                      <button onClick={() => handleClockChange(60)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all text-xs leading-none">▲</button>
+                      <div className="text-2xl font-semibold">{maximizeFlights ? '--' : flightHour.toString().padStart(2, '0')}</div>
+                      <button onClick={() => handleClockChange(-60)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all text-xs leading-none">▼</button>
                     </div>
-                    <div className="text-xl text-white/30 mb-1 shrink-0">:</div>
+                    <div className="text-xl text-muted mb-1 shrink-0">:</div>
                     <div className="flex flex-col items-center">
-                      <button onClick={() => handleClockChange(5)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▲</button>
-                      <div className="text-2xl font-black tracking-widest">{maximizeFlights ? '--' : flightMinute.toString().padStart(2, '0')}</div>
-                      <button onClick={() => handleClockChange(-5)} className="p-0.5 text-white/50 hover:text-aero-yellow hover:scale-125 transition-all text-xs leading-none">▼</button>
+                      <button onClick={() => handleClockChange(5)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all text-xs leading-none">▲</button>
+                      <div className="text-2xl font-semibold">{maximizeFlights ? '--' : flightMinute.toString().padStart(2, '0')}</div>
+                      <button onClick={() => handleClockChange(-5)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all text-xs leading-none">▼</button>
                     </div>
                   </div>
                 </div>
 
                 {/* Flightplan Details output */}
-                <div className="bg-white/5 border border-white/10 p-4 space-y-2 text-xs font-mono">
-                    <div className="text-2xs uppercase tracking-widest font-black text-aero-yellow border-b border-white/10 pb-2 mb-2 font-sans">Flightplan</div>
+                <div className="bg-surface border border-line p-4 space-y-2 text-xs font-mono">
+                    <div className="text-2xs uppercase tracking-label font-semibold text-accent border-b border-line pb-2 mb-2 font-sans">Flightplan</div>
                     
                     {(() => {
                       if (schedule.length === 0) {
-                        return <div className="text-white/30 italic pb-2 text-2xs">No flights scheduled.</div>;
+                        return <div className="text-muted pb-2 text-2xs">No flights scheduled.</div>;
                       }
 
                       const durMin = getFlightDurationMinutes();
@@ -2768,9 +2768,9 @@ function RoutePlannerInner({
 
                       return (
                         <div className="space-y-4">
-                          <div className="grid grid-cols-[1fr,auto] gap-x-4 gap-y-1 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-                             <span className="text-white/30 uppercase text-3xs font-black">Operation</span>
-                             <span className="text-white/30 uppercase text-3xs font-black text-right">Schedule</span>
+                          <div className="grid grid-cols-[1fr,auto] gap-x-4 gap-y-1 max-h-64 overflow-y-auto pr-2">
+                             <span className="text-muted uppercase text-2xs font-semibold">Operation</span>
+                             <span className="text-muted uppercase text-2xs font-semibold text-right">Schedule</span>
                              
                              {uniqueFlights.map((s: any) => {
                                const base = s.startHour * 60 + s.startMin;
@@ -2783,30 +2783,30 @@ function RoutePlannerInner({
                                return (
                                  <React.Fragment key={s.flightNumOut}>
                                     <div className="flex flex-col">
-                                      <span className="text-aero-yellow font-bold text-2xs">{airlineCode}{s.flightNumOut}</span>
-                                      <span className="text-4xs text-white/50">{selectedOrigin.id} → {selectedDest.id}</span>
-                                      <span className="text-4xs text-white/30 mt-0.5">{daysStr}</span>
+                                      <span className="text-accent font-semibold text-2xs">{airlineCode}{s.flightNumOut}</span>
+                                      <span className="text-2xs text-muted">{selectedOrigin.id} → {selectedDest.id}</span>
+                                      <span className="text-2xs text-muted mt-0.5">{daysStr}</span>
                                     </div>
-                                    <span className="text-white font-mono text-2xs text-right">{dep1} → {arr1}</span>
+                                    <span className="text-ink font-mono text-2xs text-right">{dep1} → {arr1}</span>
                                     
                                     {!(s as any).isOneWay && (
                                       <>
                                         <div className="flex flex-col">
-                                          <span className="text-aero-yellow font-bold text-2xs opacity-70">{airlineCode}{s.flightNumIn}</span>
-                                          <span className="text-4xs text-white/50 opacity-70">{selectedDest.id} → {selectedOrigin.id}</span>
+                                          <span className="text-accent font-semibold text-2xs opacity-70">{airlineCode}{s.flightNumIn}</span>
+                                          <span className="text-2xs text-muted opacity-70">{selectedDest.id} → {selectedOrigin.id}</span>
                                         </div>
-                                        <span className="text-white font-mono text-2xs text-right opacity-70">{dep2} → {arr2}</span>
+                                        <span className="text-ink font-mono text-2xs text-right opacity-70">{dep2} → {arr2}</span>
                                        </>
                                      )}
-                                     <div className="col-span-2 h-[1px] bg-white/5 my-1"></div>
+                                     <div className="col-span-2 h-[1px] bg-surface my-1"></div>
           </React.Fragment>
                                );
                              })}
                           </div>
                           
-                          <div className="flex justify-between font-black text-white/50 font-sans text-2xs uppercase tracking-wider">
+                          <div className="flex justify-between font-semibold text-muted font-sans text-2xs uppercase tracking-label">
                             <span>Total Flights:</span>
-                            <span className="text-white">{schedule.length} ({schedule.length * (schedule[0]?.isOneWay ? 1 : 2)} Legs)</span>
+                            <span className="text-ink">{schedule.length} ({schedule.length * (schedule[0]?.isOneWay ? 1 : 2)} Legs)</span>
                           </div>
                         </div>
                       );
@@ -2816,47 +2816,47 @@ function RoutePlannerInner({
             </div>
 
             {/* Right Column: Timetable */}
-            <div className="flex-none md:flex-1 h-[75dvh] md:h-auto border border-white/10 bg-black/60 flex flex-col overflow-hidden relative">
+            <div className="flex-none md:flex-1 h-[75dvh] md:h-auto border border-line bg-ground/60 flex flex-col overflow-hidden relative">
               
               {/* Header Days */}
               <div className="flex shrink-0 z-30">
-                <div className="w-14 border-r border-white/10 bg-black"></div>
-                <div className="flex-1 flex border-b border-white/20">
+                <div className="w-14 border-r border-line bg-ground"></div>
+                <div className="flex-1 flex border-b border-rule">
                    {daysOfWeek.map(day => (
-                      <div key={day.id} className="flex-1 text-center text-2xs uppercase font-bold text-white/50 py-3 bg-black relative">
+                      <div key={day.id} className="flex-1 text-center text-2xs uppercase font-semibold text-muted py-3 bg-ground relative">
                         {day.label}
                       </div>
                    ))}
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-auto flex relative custom-scrollbar bg-black/40 pt-7">
+              <div className="flex-1 min-h-0 overflow-auto flex relative bg-ground/40 pt-7">
                 {/* Time Indicators */}
-                <div className="w-16 shrink-0 border-r border-white/30 relative bg-black/95 z-20 shadow-2xl">
+                <div className="w-16 shrink-0 border-r border-rule relative bg-ground/95 z-20">
                   {Array.from({ length: 24 }).map((_, i) => (
-                    <div key={i} className="h-[30px] text-3xs text-white/40 text-right pr-2 font-mono flex items-start justify-end relative group">
+                    <div key={i} className="h-[30px] text-2xs text-muted text-right pr-2 font-mono flex items-start justify-end relative group">
                       {/* Hour mark (Full line) */}
-                      <div className="w-4 h-[1px] bg-white/30 absolute right-0 top-0"></div>
+                      <div className="w-4 h-[1px] bg-rule absolute right-0 top-0"></div>
                       
                       {i % 2 === 0 ? (
-                        <span className="absolute font-black text-aero-yellow top-0 -translate-y-1/2 mr-[-4px] transition-all hover:scale-110 z-30 tracking-tighter">
+                        <span className="absolute font-semibold text-accent top-0 -translate-y-1/2 mr-[-4px] transition-all hover:scale-110 z-30">
                           {i.toString().padStart(2, '0')}:00
                         </span>
                       ) : (
-                        <span className="opacity-0 group-hover:opacity-100 absolute font-bold text-white/60 top-0 -translate-y-1/2 mr-[-4px] text-4xs z-30 transition-all">
+                        <span className="opacity-0 group-hover:opacity-100 absolute font-semibold text-muted top-0 -translate-y-1/2 mr-[-4px] text-2xs z-30 transition-all">
                           {i.toString().padStart(2, '0')}:00
                         </span>
                       )}
                       
                       {/* Half hour tick (Single tick) */}
-                      <div className="absolute top-1/2 right-0 w-2 h-[1px] bg-white/10"></div>
+                      <div className="absolute top-1/2 right-0 w-2 h-[1px] bg-raised"></div>
                     </div>
                   ))}
-                  <div className="h-0 text-2xs text-white/50 text-right pr-2 font-mono flex items-start justify-end relative">
-                    <span className="absolute font-black text-aero-yellow top-0 -translate-y-1/2 mr-[-4px] z-30 tracking-tighter">
+                  <div className="h-0 text-2xs text-muted text-right pr-2 font-mono flex items-start justify-end relative">
+                    <span className="absolute font-semibold text-accent top-0 -translate-y-1/2 mr-[-4px] z-30">
                       24:00
                     </span>
-                    <div className="w-4 h-[1px] bg-white/30 absolute right-0 top-0"></div>
+                    <div className="w-4 h-[1px] bg-rule absolute right-0 top-0"></div>
                   </div>
                 </div>
 
@@ -2865,12 +2865,12 @@ function RoutePlannerInner({
                     aligned with them. */}
                 <div className="flex-1 flex md:min-w-[700px] short:min-w-0">
                   {daysOfWeek.map(day => (
-                    <div key={day.id} className="flex-1 min-w-0 border-r border-white/5 relative bg-gradient-to-b from-white/[0.02] to-transparent">
-                       <div className="relative h-[720px] border-y border-aero-yellow/30 shadow-2xl"> {/* 24 * 30px */}
+                    <div key={day.id} className="flex-1 min-w-0 border-r border-line relative bg-gradient-to-b from-ink to-transparent">
+                       <div className="relative h-[720px] border-y border-accent/30"> {/* 24 * 30px */}
                           <div className="absolute inset-0 grid grid-rows-[repeat(24,minmax(0,1fr))] pointer-events-none opacity-20">
                             {Array.from({ length: 24 }).map((_, i) => (
-                              <div key={i} className="border-b border-white/10 flex flex-col">
-                                <div className="flex-1 border-b border-white/5 border-dashed"></div>
+                              <div key={i} className="border-b border-line flex flex-col">
+                                <div className="flex-1 border-b border-line border-dashed"></div>
                                 <div className="flex-1"></div>
                               </div>
                             ))}
@@ -2892,40 +2892,40 @@ function RoutePlannerInner({
                                 <div 
                                   key={b.id} 
                                   onPointerDown={!b.isBusy ? (e) => handleDragStart(e, b.s) : undefined}
-                                  className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono shadow-2xl backdrop-blur-md z-10 flex flex-col overflow-hidden transition-all ${
+                                  className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono z-10 flex flex-col overflow-hidden transition-all ${
                                     b.isBusy 
-                                      ? 'bg-white/10 border-l-2 border-white/30 cursor-default grayscale opacity-60' 
-                                      : 'bg-aero-yellow/30 border-l-2 border-aero-yellow cursor-ns-resize touch-none hover:bg-aero-yellow/40 hover:scale-[1.01] hover:z-20'
+                                      ? 'bg-raised border-l-2 border-rule cursor-default grayscale opacity-60' 
+                                      : 'bg-accent/30 border-l-2 border-accent cursor-ns-resize touch-none hover:bg-accent/40 hover:scale-[1.01] hover:z-20'
                                   }`}
                                   style={{ top: b.top, height: b.height, zIndex: b.isBusy ? 5 : 10 }}
                                 >
                                    <div className="flex flex-col h-full relative">
                                      {b.isFirst && (
-                                       <div className="text-white font-black absolute top-[-2px] left-0 bg-black/80 px-1 py-0.5 rounded-sm z-20 text-3xs border border-white/10 leading-none">
+                                       <div className="text-ink font-semibold absolute top-[-2px] left-0 bg-ground/80 px-1 py-0.5 rounded-sm z-20 text-2xs border border-line leading-none">
                                          {formatT(startAbs)}
                                        </div>
                                      )}
                                      
-                                     <div className={`font-black tracking-tight leading-none truncate ${b.isBusy ? 'text-white/70' : 'text-aero-yellow'} ${b.isFirst ? 'mt-4 mb-1 text-2xs' : 'mb-0.5 text-2xs'}`}>
+                                     <div className={`font-semibold leading-none truncate ${b.isBusy ? 'text-muted' : 'text-accent'} ${b.isFirst ? 'mt-4 mb-1 text-2xs' : 'mb-0.5 text-2xs'}`}>
                                        {b.isBusy ? (b.s.isOneWay ? `${airlineCode}${b.s.flightNumOut}` : `${airlineCode}${b.s.flightNumOut} & ${airlineCode}${b.s.flightNumIn}`) : (b.s.isOneWay ? `${airlineCode}${b.s.flightNumOut}` : `${airlineCode}${b.s.flightNumOut} & ${airlineCode}${b.s.flightNumIn}`)}
                                      </div>
                                      
-                                     <div className={`font-bold leading-none truncate ${b.isBusy ? 'text-white/40' : 'text-white'} ${b.isFirst ? 'mb-1 text-2xs' : 'text-3xs'}`}>
+                                     <div className={`font-semibold leading-none truncate ${b.isBusy ? 'text-muted' : 'text-ink'} ${b.isFirst ? 'mb-1 text-2xs' : 'text-2xs'}`}>
                                        {b.orig} {b.s.isOneWay ? '→' : '⇄'} {b.dest}
                                      </div>
                                      
                                      {b.isLast && (
-                                       <div className="mt-auto text-white font-black text-right bg-black/80 px-1 py-0.5 rounded-sm self-end text-3xs border border-white/10 leading-none">
+                                       <div className="mt-auto text-ink font-semibold text-right bg-ground/80 px-1 py-0.5 rounded-sm self-end text-2xs border border-line leading-none">
                                          {formatT(endAbs)}
                                        </div>
                                      )}
                                      
                                      {!b.isLast && (
-                                       <div className="mt-auto text-white/30 text-4xs font-black italic uppercase truncate">Cont...</div>
+                                       <div className="mt-auto text-muted text-2xs font-semibold uppercase truncate">Cont...</div>
                                      )}
                                      
                                      {b.isContinues && !b.isFirst && (
-                                       <div className="absolute top-0 right-0 text-white/30 text-4xs font-black italic uppercase">Part 2</div>
+                                       <div className="absolute top-0 right-0 text-muted text-2xs font-semibold uppercase">Part 2</div>
                                      )}
                                    </div>
                                 </div>
@@ -2937,9 +2937,9 @@ function RoutePlannerInner({
                  </div>
               </div>
               
-              <div className="p-4 bar:p-2 short:p-2 tiny:p-1.5 border-t border-white/10 bg-white/[0.01] flex gap-4 shrink-0 rounded-sm w-full">
+              <div className="p-4 bar:p-2 short:p-2 tiny:p-1.5 border-t border-line bg-surface flex gap-4 shrink-0 rounded-sm w-full">
                   {!initialRouteId && (
-                    <button onClick={() => setStep(1)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>
+                    <button onClick={() => setStep(1)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-rule text-muted font-semibold text-sm px-6 rounded-sm hover:text-ink hover:bg-raised transition-all">Back</button>
                   )}
                   {initialRouteId ? (
                     <button 
@@ -2973,7 +2973,7 @@ function RoutePlannerInner({
                           onClose();
                         }, 2000);
                       }} 
-                      className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
+                      className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm hover:bg-ink transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
                     >
                       {isFinalizing ? 'Saving...' : 'Save Changes'} <Check size={16} />
                     </button>
@@ -2981,7 +2981,7 @@ function RoutePlannerInner({
                     <button 
                       onClick={() => setStep(3)} 
                       disabled={schedule.length === 0}
-                      className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
+                      className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm hover:bg-ink hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans flex items-center justify-center gap-2"
                     >
                       Proceed to Cabin Services <ChevronRight size={16} />
                     </button>
@@ -3005,26 +3005,26 @@ function RoutePlannerInner({
           const signed = (v: number, digits = 0) => `${v > 0 ? '+' : ''}${formatNumber(v, digits)}`;
 
           return (
-          <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto custom-scrollbar animate-in fade-in duration-500 bg-black/25">
+          <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto animate-appear fade-in duration-500 bg-ground/25">
              <div className="flex-1 w-full max-w-[1800px] mx-auto p-4 flex flex-col lg:flex-row gap-4">
                 {/* Left Area: Class Selection Boxes */}
                 <div className="flex-1 flex flex-col gap-3">
                    {/* Upright phones: the Load/Save buttons drop below the heading. */}
-                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0 bg-white/[0.03] border border-white/10 p-4 rounded-sm">
+                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0 bg-surface border border-line p-4 rounded-sm">
                       <div className="flex flex-col">
-                         <h3 className="text-2xl font-black uppercase tracking-tighter text-white leading-none">In-Flight Configuration</h3>
-                         <span className="text-2xs text-white/40 uppercase tracking-widest mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
+                         <h3 className="text-2xl font-semibold text-ink leading-none">In-Flight Configuration</h3>
+                         <span className="text-2xs text-muted uppercase tracking-label mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
                       </div>
                       <div className="flex gap-2 shrink-0 md:shrink">
                         <button 
                           onClick={() => setShowConfigLoadModal(true)}
-                          className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 hover:border-aero-yellow transition-all uppercase text-2xs font-black tracking-widest"
+                          className="flex items-center gap-2 px-4 py-2 bg-surface border border-line text-muted hover:text-ink hover:bg-raised hover:border-accent transition-all uppercase text-2xs font-semibold tracking-label"
                         >
                           <FolderOpen size={14} /> Load Config
                         </button>
                         <button 
                           onClick={() => setShowConfigSaveModal(true)}
-                          className="flex items-center gap-2 px-4 py-2 bg-aero-yellow text-black hover:bg-white hover:scale-105 transition-all uppercase text-2xs font-black tracking-widest"
+                          className="flex items-center gap-2 px-4 py-2 bg-accent text-on-accent hover:bg-ink hover:scale-105 transition-all uppercase text-2xs font-semibold tracking-label"
                         >
                           <Save size={14} /> Save Config
                         </button>
@@ -3047,31 +3047,31 @@ function RoutePlannerInner({
                                onClick={() => setActiveConfigClass(c)}
                                className={`group relative flex flex-col items-center justify-center p-4 border transition-all cursor-pointer min-h-[220px] overflow-hidden rounded-sm ${
                                   activeConfigClass === c 
-                                     ? 'bg-aero-yellow border-aero-yellow text-black scale-[1.02] z-10 shadow-2xl' 
-                                     : 'bg-white/[0.02] border-white/10 text-white hover:border-aero-yellow/50 hover:bg-white/[0.05]'
+                                     ? 'bg-accent border-accent text-on-accent scale-[1.02] z-10' 
+                                     : 'bg-surface border-line text-ink hover:border-accent/50 hover:bg-raised'
                                }`}
                              >
                                 {/* Decorative background class name */}
-                                <div className={`absolute -bottom-4 -right-2 text-7xl font-black opacity-[0.03] select-none pointer-events-none uppercase italic tracking-tighter group-hover:opacity-[0.1] transition-opacity ${activeConfigClass === c ? 'text-black' : 'text-white'}`}>
+                                <div className={`absolute -bottom-4 -right-2 text-3xl font-semibold opacity-[0.03] select-none pointer-events-none group-hover:opacity-[0.1] transition-opacity ${activeConfigClass === c ? 'text-on-accent' : 'text-ink'}`}>
                                    {c === 'general' ? 'general' : c}
                                 </div>
 
-                                <div className={`text-2xs font-black uppercase tracking-[0.25em] mb-10 ${activeConfigClass === c ? 'text-black/60' : 'text-white/40'}`}>
+                                <div className={`text-2xs font-semibold uppercase tracking-label mb-10 ${activeConfigClass === c ? 'text-on-accent' : 'text-muted'}`}>
                                    {c === 'general' ? 'General Standards' : c}
                                 </div>
 
                                 <div className="flex flex-col items-center">
-                                   <div className="text-7xl font-black tracking-tighter mb-2 flex items-start">
+                                   <div className="text-3xl font-semibold mb-2 flex items-start">
                                       {Math.round(displaySatVal)}
                                       <span className="text-sm mt-2 ml-1 opacity-50">%</span>
                                    </div>
-                                   <div className={`text-2xs font-bold uppercase tracking-widest py-1 px-4 border rounded-full ${activeConfigClass === c ? 'border-black/20 text-black/60' : 'border-white/10 text-white/40'}`}>
+                                   <div className={`text-2xs font-semibold uppercase tracking-label py-1 px-4 border rounded-full ${activeConfigClass === c ? 'border-ground text-on-accent' : 'border-line text-muted'}`}>
                                       {c === 'general' ? 'Global' : `${seats} Seats`}
                                    </div>
                                 </div>
 
                                  {/* Summary Footer */}
-                                 <div className={`mt-auto pt-10 flex flex-col items-center gap-2 text-3xs font-black uppercase tracking-widest ${activeConfigClass === c ? 'text-black/70' : 'text-white/30'}`}>
+                                 <div className={`mt-auto pt-10 flex flex-col items-center gap-2 text-2xs font-semibold uppercase tracking-label ${activeConfigClass === c ? 'text-on-accent' : 'text-muted'}`}>
                                     <div className="flex gap-3 justify-center items-center">
                                        <span>{getCateringOpt(config.catering).label.split(',')[0]}</span>
                                        <span className="opacity-30">|</span>
@@ -3079,7 +3079,7 @@ function RoutePlannerInner({
                                     </div>
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-current/10 bg-current/5">
                                        <span className="opacity-60">Service quality:</span>
-                                       <span className={activeConfigClass === c ? 'text-black font-black' : 'text-aero-yellow font-black'}>{Math.round(serviceQuality)} pts</span>
+                                       <span className={activeConfigClass === c ? 'text-on-accent font-semibold' : 'text-accent font-semibold'}>{Math.round(serviceQuality)} pts</span>
                                     </div>
                                  </div>
                               </div>
@@ -3091,24 +3091,24 @@ function RoutePlannerInner({
           </div>
 
              {/* Right Sidebar: Satisfaction Breakdown spreadsheet */}
-             <div className="w-full lg:w-[450px] min-h-0 shrink-0 border border-white/10 bg-black/40 flex flex-col overflow-y-auto custom-scrollbar rounded-sm font-mono shadow-2xl relative z-20">
-                <div className="p-4 border-b border-white/10 bg-white/[0.04]">
-                   <div className="text-2xs text-white/30 uppercase font-black tracking-[0.2em] leading-none mb-3">Cabin Services Budget</div>
+             <div className="w-full lg:w-[450px] min-h-0 shrink-0 border border-line bg-ground/40 flex flex-col overflow-y-auto rounded-sm font-mono relative z-20">
+                <div className="p-4 border-b border-line bg-surface">
+                   <div className="text-2xs text-muted uppercase font-semibold tracking-label leading-none mb-3">Cabin Services Budget</div>
                    {/* What the economy charges: per-passenger cost times the passengers
                        expected on every leg. It used to price one full flight. */}
-                   <div className="text-4xl font-black text-aero-yellow italic leading-none tracking-tighter">
-                      {formatCurrency(saveFinancials?.costsBreakdown.catering ?? 0)} <span className="text-sm font-bold opacity-40">/ wk</span>
+                   <div className="text-3xl font-semibold text-accent leading-none">
+                      {formatCurrency(saveFinancials?.costsBreakdown.catering ?? 0)} <span className="text-sm font-semibold opacity-40">/ wk</span>
                    </div>
-                   <div className="text-3xs text-white/30 uppercase tracking-widest mt-2">At {formatNumber(saveFinancials?.paxPerWeek ?? 0)} expected passengers per week</div>
+                   <div className="text-2xs text-muted uppercase tracking-label mt-2">At {formatNumber(saveFinancials?.paxPerWeek ?? 0)} expected passengers per week</div>
                 </div>
 
-                <div className="p-4 border-b border-white/10 bg-white/[0.02]">
+                <div className="p-4 border-b border-line bg-surface">
                    <div className="flex justify-between items-end mb-3">
                       <div>
-                         <h3 className="text-2xl font-black uppercase tracking-tighter text-white mb-1">Route Satisfaction</h3>
-                         <div className="text-2xs text-white/40 uppercase tracking-widest font-bold">Average over all seats</div>
+                         <h3 className="text-2xl font-semibold text-ink mb-1">Route Satisfaction</h3>
+                         <div className="text-2xs text-muted uppercase tracking-label font-semibold">Average over all seats</div>
                       </div>
-                      <div className="text-5xl font-black italic text-aero-yellow tracking-tighter leading-none">
+                      <div className="text-3xl font-semibold text-accent leading-none">
                          {Math.round(weighted(d => d.satisfactionPercentage))}%
                       </div>
                    </div>
@@ -3119,27 +3119,27 @@ function RoutePlannerInner({
                          if (seats <= 0) return null;
                          const cSatVal = details[c]?.satisfactionPercentage ?? 0;
                          return (
-                            <div key={c} className="bg-white/[0.03] p-3 border border-white/5 flex flex-col gap-1 transition-all hover:bg-white/[0.06] hover:border-aero-yellow/20">
-                               <span className="text-4xs font-black uppercase tracking-widest text-white/40">{c}</span>
-                               <span className="text-lg font-black italic text-aero-yellow leading-none">{Math.round(Math.max(0, cSatVal))}%</span>
+                            <div key={c} className="bg-surface p-3 border border-line flex flex-col gap-1 transition-all hover:bg-raised hover:border-accent/20">
+                               <span className="text-2xs font-semibold uppercase tracking-label text-muted">{c}</span>
+                               <span className="text-lg font-semibold text-accent leading-none">{Math.round(Math.max(0, cSatVal))}%</span>
                             </div>
                          );
                       })}
                    </div>
                 </div>
 
-                <div className="flex-1 divide-y divide-white/10">
+                <div className="flex-1 divide-y divide-line">
                    {/* Combined Plane SAT Row */}
                    <div className="flex flex-col">
                       {/* The info icon is itself a button, and a button inside a
                           button is invalid HTML, so it sits between two halves. */}
-                      <div className="flex items-center hover:bg-white/5 transition-colors group">
+                      <div className="flex items-center hover:bg-raised transition-colors group">
                         <button
                           onClick={() => setExpandedSections(prev => ({ ...prev, plane: !prev.plane }))}
                           className="flex items-center gap-4 p-4 pr-0"
                         >
-                           <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
-                           <span className="text-2xs font-black uppercase tracking-widest">Combined Plane SAT</span>
+                           <div className="w-1.5 h-1.5 rounded-full bg-raised"></div>
+                           <span className="text-2xs font-semibold uppercase tracking-label">Combined Plane SAT</span>
                         </button>
                         <InfoTooltip size={11} {...GLOSSARY.sat} />
                         <button
@@ -3147,28 +3147,28 @@ function RoutePlannerInner({
                           className="flex-1 flex items-center justify-end gap-4 p-4"
                           aria-label="Toggle plane satisfaction details"
                         >
-                           <span className="text-sm font-black italic">{planeSat}%</span>
-                           <ChevronDown size={16} className={`text-white/20 group-hover:text-white transition-transform ${expandedSections.plane ? 'rotate-180' : ''}`} />
+                           <span className="text-sm font-semibold">{planeSat}%</span>
+                           <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.plane ? 'rotate-180' : ''}`} />
                         </button>
                       </div>
                       <AnimatePresence>
                          {expandedSections.plane && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-black/60 border-b border-white/10">
-                               <div className="p-4 pt-0 space-y-3 text-2xs uppercase font-bold tracking-[0.2em] text-white/50">
-                                  <div className="flex justify-between items-center bg-white/[0.03] p-3 border border-white/5">
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-ground/60 border-b border-line">
+                               <div className="p-4 pt-0 space-y-3 text-2xs uppercase font-semibold tracking-label text-muted">
+                                  <div className="flex justify-between items-center bg-surface p-3 border border-line">
                                      <span>Condition Weighted</span>
-                                     <span className="text-white font-mono">{planeSat}%</span>
+                                     <span className="text-ink font-mono">{planeSat}%</span>
                                   </div>
                                   
-                                  <div className="border-t border-white/5 pt-3 mt-3">
-                                     <div className="text-4xs text-white/20 mb-3 px-1 font-black tracking-widest">BY CABIN CLASS</div>
+                                  <div className="border-t border-line pt-3 mt-3">
+                                     <div className="text-2xs text-muted mb-3 px-1 font-semibold">BY CABIN CLASS</div>
                                      {['economy', 'premium', 'business', 'first'].map(c => {
                                         const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                                         if (seats <= 0) return null;
                                         return (
-                                           <div key={c} className="flex justify-between items-center p-3 border border-white/5 bg-white/[0.02] mb-1">
-                                              <span className="text-2xs text-white/70 font-black uppercase">{c}</span>
-                                              <span className="text-white font-black italic text-xs">{planeSat}%</span>
+                                           <div key={c} className="flex justify-between items-center p-3 border border-line bg-surface mb-1">
+                                              <span className="text-2xs text-muted font-semibold uppercase">{c}</span>
+                                              <span className="text-ink font-semibold text-xs">{planeSat}%</span>
                                            </div>
                                         );
                                      })}
@@ -3183,29 +3183,29 @@ function RoutePlannerInner({
                    <div className="flex flex-col">
                       <button 
                         onClick={() => setExpandedSections(prev => ({ ...prev, sce: !prev.sce }))}
-                        className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"
+                        className="flex items-center justify-between p-4 hover:bg-raised transition-colors group"
                       >
                          <div className="flex items-center gap-4">
-                            <div className="w-1.5 h-1.5 rounded-full bg-aero-yellow shadow-2xl"></div>
-                            <span className="text-2xs font-black uppercase tracking-widest">Cabin SAT (before check-in load)</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-accent"></div>
+                            <span className="text-2xs font-semibold uppercase tracking-label">Cabin SAT (before check-in load)</span>
                          </div>
                          <div className="flex items-center gap-4">
-                            <span className="text-sm font-black italic">{Math.round(weighted(d => d.baseSatisfaction))}%</span>
-                            <ChevronDown size={16} className={`text-white/20 group-hover:text-white transition-transform ${expandedSections.sce ? 'rotate-180' : ''}`} />
+                            <span className="text-sm font-semibold">{Math.round(weighted(d => d.baseSatisfaction))}%</span>
+                            <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.sce ? 'rotate-180' : ''}`} />
                          </div>
                       </button>
                       <AnimatePresence>
                          {expandedSections.sce && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-black/60 border-b border-white/10">
-                               <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-bold tracking-[0.2em] text-white/50">
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-ground/60 border-b border-line">
+                               <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-semibold tracking-label text-muted">
                                   {['economy', 'premium', 'business', 'first'].map(c => {
                                      const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                                      if (seats <= 0) return null;
                                      const sce = details[c]?.baseSatisfaction ?? 0;
                                      return (
-                                        <div key={c} className="flex justify-between items-center bg-white/[0.03] p-3 border border-white/5 mb-1 group-hover:border-aero-yellow/20 transition-all">
-                                           <span className="text-2xs text-white/70 font-black">{c}</span>
-                                           <span className="text-white font-mono text-xs">{Math.round(sce)}%</span>
+                                        <div key={c} className="flex justify-between items-center bg-surface p-3 border border-line mb-1 group-hover:border-accent/20 transition-all">
+                                           <span className="text-2xs text-muted font-semibold">{c}</span>
+                                           <span className="text-ink font-mono text-xs">{Math.round(sce)}%</span>
                                         </div>
                                      );
                                   })}
@@ -3219,41 +3219,41 @@ function RoutePlannerInner({
                    <div className="flex flex-col">
                       <button 
                         onClick={() => setExpandedSections(prev => ({ ...prev, airport: !prev.airport }))}
-                        className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"
+                        className="flex items-center justify-between p-4 hover:bg-raised transition-colors group"
                       >
                          <div className="flex items-center gap-4">
-                            <div className="w-1.5 h-1.5 rounded-full bg-aero-yellow shadow-2xl"></div>
-                            <span className="text-2xs font-black uppercase tracking-widest">Ground Services & Bonuses</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-accent"></div>
+                            <span className="text-2xs font-semibold uppercase tracking-label">Ground Services & Bonuses</span>
                          </div>
                          <div className="flex items-center gap-4">
                             {/* Only the check-in load changes SAT directly; stands, lounges
                                 and desk types are quality points inside each class score. */}
-                            <span className="text-sm font-black italic text-aero-yellow">
+                            <span className="text-sm font-semibold text-accent">
                                {signed(classSat.overloadPenalty, 1)}%
                             </span>
-                            <ChevronDown size={16} className={`text-white/20 group-hover:text-white transition-transform ${expandedSections.airport ? 'rotate-180' : ''}`} />
+                            <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.airport ? 'rotate-180' : ''}`} />
                          </div>
                       </button>
                       <AnimatePresence>
                          {expandedSections.airport && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-black/60 border-b border-white/10">
-                               <div className="p-4 pt-0 space-y-2 text-3xs uppercase font-bold tracking-[0.2em] text-white/40">
-                                  <div className="text-white/20 mb-2 border-b border-white/5 pb-2 font-black tracking-[0.3em]">Operational Metrics</div>
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-ground/60 border-b border-line">
+                               <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-semibold tracking-label text-muted">
+                                  <div className="text-muted mb-2 border-b border-line pb-2 font-semibold">Operational Metrics</div>
                                   <div className="flex justify-between items-center px-2 py-1">
-                                     <span className="italic">Origin Check-In ({formatNumber(originDeskSim.load)}% load)</span>
-                                     <span className={originDeskSim.sat < 0 ? 'text-aero-warn' : 'text-aero-yellow'}>{signed(originDeskSim.sat, 1)}%</span>
+                                     <span className="">Origin Check-In ({formatNumber(originDeskSim.load)}% load)</span>
+                                     <span className={originDeskSim.sat < 0 ? 'text-bad' : 'text-accent'}>{signed(originDeskSim.sat, 1)}%</span>
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
-                                     <span className="italic">Dest Check-In ({formatNumber(destDeskSim.load)}% load)</span>
-                                     <span className={destDeskSim.sat < 0 ? 'text-aero-warn' : 'text-aero-yellow'}>{signed(destDeskSim.sat, 1)}%</span>
+                                     <span className="">Dest Check-In ({formatNumber(destDeskSim.load)}% load)</span>
+                                     <span className={destDeskSim.sat < 0 ? 'text-bad' : 'text-accent'}>{signed(destDeskSim.sat, 1)}%</span>
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
-                                     <span className="italic">Stand Priority (both ends)</span>
-                                     <span className="text-aero-yellow">{signed(standBonus, 1)} quality pts</span>
+                                     <span className="">Stand Priority (both ends)</span>
+                                     <span className="text-accent">{signed(standBonus, 1)} quality pts</span>
                                   </div>
                                   
-                                  <div className="border-t border-white/5 pt-4 mt-4">
-                                     <div className="text-white/20 mb-3 px-2 font-black tracking-[0.3em]">ROUTE SAT PER CLASS</div>
+                                  <div className="border-t border-line pt-4 mt-4">
+                                     <div className="text-muted mb-3 px-2 font-semibold">ROUTE SAT PER CLASS</div>
                                      {['economy', 'premium', 'business', 'first'].map(c => {
                                         const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                                         if (seats <= 0) return null;
@@ -3262,12 +3262,12 @@ function RoutePlannerInner({
                                         const overloadPenalty = sceData.overloadPenalty;
                                         const classRouteSat = sceData.satisfactionPercentage;
                                         return (
-                                           <div key={c} className="flex justify-between items-center p-3 border border-white/5 bg-white/[0.02] mb-1">
+                                           <div key={c} className="flex justify-between items-center p-3 border border-line bg-surface mb-1">
                                               <div className="flex flex-col">
-                                                 <span className="text-2xs text-white/70 font-black">{c}</span>
-                                                 <span className="text-4xs text-white/30">Target: {sceData.expectationTarget} | Quality: {sceData.providedQuality} | Lounge: {signed(sceData.loungeBonus)} | Desks: {signed(sceData.deskPenalty, 1)}{overloadPenalty < 0 ? ` | Check-in load: ${formatNumber(overloadPenalty, 1)}%` : ''}</span>
+                                                 <span className="text-2xs text-muted font-semibold">{c}</span>
+                                                 <span className="text-2xs text-muted">Target: {sceData.expectationTarget} | Quality: {sceData.providedQuality} | Lounge: {signed(sceData.loungeBonus)} | Desks: {signed(sceData.deskPenalty, 1)}{overloadPenalty < 0 ? ` | Check-in load: ${formatNumber(overloadPenalty, 1)}%` : ''}</span>
                                               </div>
-                                              <span className="text-aero-yellow font-black italic text-xs">{Math.round(Math.max(0, classRouteSat))}%</span>
+                                              <span className="text-accent font-semibold text-xs">{Math.round(Math.max(0, classRouteSat))}%</span>
                                            </div>
                                         );
                                      })}
@@ -3279,16 +3279,16 @@ function RoutePlannerInner({
                    </div>
                 </div>
 
-                <div className="p-4 border-t border-white/10 flex flex-col gap-3 bg-white/[0.01]">
-                   <p className="text-2xs text-white/30 leading-relaxed italic border-l-3 border-aero-yellow/30 pl-6 mb-2 font-bold uppercase tracking-widest">
+                <div className="p-4 border-t border-line flex flex-col gap-3 bg-surface">
+                   <p className="text-2xs text-muted leading-relaxed border-l-3 border-accent/30 pl-6 mb-2 font-semibold uppercase tracking-label">
                       SAT is what this cabin scores against what passengers expect for the class and
                       the flight length. 100% meets expectations; above that they tolerate a higher
                       fare, below it they only book at a discount. Expectations rise with distance,
                       so the same cabin scores lower on a long haul.
                    </p>
                    <div className="flex gap-4 mt-auto">
-                      {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
-                      {!isEditingCabinOnly && <button onClick={() => setStep(4)} className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-aero-yellow text-black font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:bg-white transition-all shadow-2xl disabled:opacity-50">Next: Pricing</button>}
+                      {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-rule text-muted font-semibold text-sm py-4 px-6 rounded-sm hover:text-ink hover:bg-raised transition-all">Back</button>}
+                      {!isEditingCabinOnly && <button onClick={() => setStep(4)} className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm py-4 px-6 rounded-sm hover:bg-ink transition-all disabled:opacity-50">Next: Pricing</button>}
                       {isEditingCabinOnly && (
                         <button 
                           disabled={isFinalizing}
@@ -3337,7 +3337,7 @@ function RoutePlannerInner({
                                onClose();
                              }, 1500);
                           }}
-                          className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl font-sans">
+                          className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm hover:bg-ink transition-all font-sans">
                           {isFinalizing ? 'Saving Cabin Configuration...' : 'Save Cabin Services'}
                         </button>
                       )}
@@ -3404,140 +3404,140 @@ function RoutePlannerInner({
            const totalEstPaxMax = finalCapacity * flightLegs;
 
            return (
-              <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto custom-scrollbar animate-in bg-black/25">
+              <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto animate-appear bg-ground/25">
                 <div className="flex-1 w-full max-w-[1800px] mx-auto p-4 flex flex-col lg:flex-row gap-4">
                   {/* Left Area: Financial Summary */}
                   <div className="flex-[1] flex flex-col gap-3">
-                     <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm shrink-0 sticky top-4 w-full lg:w-[350px]">
+                     <div className="bg-surface border border-line p-4 rounded-sm shrink-0 sticky top-4 w-full lg:w-[350px]">
                         <div className="mb-4 flex flex-col gap-1.5 pointer-events-none">
-                           <h3 className="text-xl font-black uppercase tracking-widest text-white leading-tight">
+                           <h3 className="text-xl font-semibold text-ink leading-tight">
                               Financial Summary
                            </h3>
                            {/* Everything below this line is the full-aircraft ceiling
                                (the realistic figure on Easy). The expected result at
                                today's demand is shown at the bottom. */}
-                           <span className="text-2xs text-white/40 tracking-widest font-mono font-bold uppercase">{formatNumber(paxPerWeek)} / {formatNumber(totalEstPaxMax)} Weekly PAX {difficulty !== 'Easy' ? '(full aircraft)' : ''}</span>
+                           <span className="text-2xs text-muted tracking-label font-label font-semibold uppercase">{formatNumber(paxPerWeek)} / {formatNumber(totalEstPaxMax)} Weekly PAX {difficulty !== 'Easy' ? '(full aircraft)' : ''}</span>
                         </div>
                         
                         <div className="space-y-4 mb-4">
-                           <div className="flex justify-between items-end border-b border-white/5 pb-2">
-                             <span className="text-2xs uppercase font-bold tracking-widest text-white/60">Est. Weekly Revenue</span>
-                             <span className="text-lg font-mono text-aero-yellow">+{formatCurrency(maxRevenue)}</span>
+                           <div className="flex justify-between items-end border-b border-line pb-2">
+                             <span className="text-2xs uppercase font-semibold tracking-label text-muted">Est. Weekly Revenue</span>
+                             <span className="text-lg font-mono text-accent">+{formatCurrency(maxRevenue)}</span>
                            </div>
-                           <div className="flex flex-col border-b border-white/5 pb-2">
+                           <div className="flex flex-col border-b border-line pb-2">
                              <div 
                                className="flex justify-between items-end cursor-pointer group"
                                onClick={() => setExpandedSections(prev => ({ ...prev, fuel4: !prev.fuel4 }))}
                              >
-                               <span className="text-2xs uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
+                               <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
                                  Opx: Fuel Cost {expandedSections.fuel4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                </span>
-                               <span className="text-sm font-mono text-white/40 group-hover:text-white transition-colors">-{formatCurrency(weeklyFuelCost)}</span>
+                               <span className="text-sm font-mono text-muted group-hover:text-ink transition-colors">-{formatCurrency(weeklyFuelCost)}</span>
                              </div>
                              {expandedSections.fuel4 && (
                                <div className="pl-4 mt-2 space-y-1">
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Fuel Price</span>
-                                   <span className="text-2xs font-mono text-white/30">${formatNumber(displayFinancials.costsBreakdown.fuelPriceL, 3)}/L</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Fuel Price</span>
+                                   <span className="text-2xs font-mono text-muted">${formatNumber(displayFinancials.costsBreakdown.fuelPriceL, 3)}/L</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Seats (type capacity, fuel basis)</span>
-                                   <span className="text-2xs font-mono text-white/30">{finalCapacity} ({selectedAircraft.capacity})</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Seats (type capacity, fuel basis)</span>
+                                   <span className="text-2xs font-mono text-muted">{finalCapacity} ({selectedAircraft.capacity})</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Oneway Distance</span>
-                                   <span className="text-2xs font-mono text-white/30">{dist.toFixed(0)} km</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Oneway Distance</span>
+                                   <span className="text-2xs font-mono text-muted">{dist.toFixed(0)} km</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Formula Divider</span>
-                                   <span className="text-2xs font-mono text-white/30">{(0.75 + (selectedAircraft.efficiency / 70)).toFixed(2)}</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Formula Divider</span>
+                                   <span className="text-2xs font-mono text-muted">{(0.75 + (selectedAircraft.efficiency / 70)).toFixed(2)}</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Weekly Flight Legs</span>
-                                   <span className="text-2xs font-mono text-white/30">{flightLegs}x</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Weekly Flight Legs</span>
+                                   <span className="text-2xs font-mono text-muted">{flightLegs}x</span>
                                  </div>
                                </div>
                              )}
                            </div>
-                           <div className="flex justify-between items-end border-b border-white/5 pb-2">
-                             <span className="text-2xs uppercase font-bold tracking-widest text-white/60">Opx: Cabin & Catering</span>
-                             <span className="text-sm font-mono text-white/40">-{formatCurrency(displayFinancials.costsBreakdown.catering)}</span>
+                           <div className="flex justify-between items-end border-b border-line pb-2">
+                             <span className="text-2xs uppercase font-semibold tracking-label text-muted">Opx: Cabin & Catering</span>
+                             <span className="text-sm font-mono text-muted">-{formatCurrency(displayFinancials.costsBreakdown.catering)}</span>
                            </div>
                              <div 
                                className="flex justify-between items-end cursor-pointer group"
                                onClick={() => setExpandedSections(prev => ({ ...prev, crew4: !prev.crew4 }))}
                              >
-                                <span className="text-2xs uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
+                                <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
                                  Opx: Crew Costs {expandedSections.crew4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                </span>
-                               <span className="text-sm font-mono text-white/40 group-hover:text-white transition-colors">-{formatCurrency(weeklyCrewCost)}</span>
+                               <span className="text-sm font-mono text-muted group-hover:text-ink transition-colors">-{formatCurrency(weeklyCrewCost)}</span>
                              </div>
                              {expandedSections.crew4 && (
                                <div className="pl-4 mt-2 space-y-1">
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Hourly Rate</span>
-                                   <span className="text-2xs font-mono text-white/30">${((2 * 100) + (Math.ceil(selectedAircraft.capacity / 50) * 40)).toFixed(2)}</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Hourly Rate</span>
+                                   <span className="text-2xs font-mono text-muted">${((2 * 100) + (Math.ceil(selectedAircraft.capacity / 50) * 40)).toFixed(2)}</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Pilots / FAs</span>
-                                   <span className="text-2xs font-mono text-white/30">2 / {Math.ceil(selectedAircraft.capacity / 50)}</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Pilots / FAs</span>
+                                   <span className="text-2xs font-mono text-muted">2 / {Math.ceil(selectedAircraft.capacity / 50)}</span>
                                  </div>
                                  <div className="flex justify-between items-end">
-                                   <span className="text-3xs uppercase tracking-widest text-white/30">Weekly Flight Hours</span>
-                                   <span className="text-2xs font-mono text-white/30">{(schedule.reduce((acc, s) => acc + (s.durMin * (s.isOneWay ? 1 : 2)), 0) / 60).toFixed(2)}h</span>
+                                   <span className="text-2xs uppercase tracking-label text-muted">Weekly Flight Hours</span>
+                                   <span className="text-2xs font-mono text-muted">{(schedule.reduce((acc, s) => acc + (s.durMin * (s.isOneWay ? 1 : 2)), 0) / 60).toFixed(2)}h</span>
                                  </div>
                                </div>
                              )}
-                           <div className="flex flex-col border-b border-white/5 pb-2">
+                           <div className="flex flex-col border-b border-line pb-2">
                              <div 
                                className="flex justify-between items-end cursor-pointer group"
                                onClick={() => setExpandedSections(prev => ({ ...prev, infra4: !prev.infra4 }))}
                              >
-                               <span className="text-2xs uppercase font-bold tracking-widest text-white/60 hover:text-aero-yellow transition-colors flex items-center gap-1">
+                               <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
                                  Opx: Infrastructure {expandedSections.infra4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                </span>
-                               <span className="text-sm font-mono text-white/40 group-hover:text-white transition-colors">-{formatCurrency(weeklyInfraCost)}</span>
+                               <span className="text-sm font-mono text-muted group-hover:text-ink transition-colors">-{formatCurrency(weeklyInfraCost)}</span>
                              </div>
                              {expandedSections.infra4 && (
-                               <div className="pl-4 mt-2 space-y-2 border-l border-white/10 ml-1">
+                               <div className="pl-4 mt-2 space-y-2 border-l border-line ml-1">
                                  <div className="space-y-1">
-                                   <h4 className="text-4xs font-black uppercase tracking-widest text-aero-yellow/50 mb-1">Landing Fees</h4>
+                                   <h4 className="text-2xs font-semibold uppercase tracking-label text-accent mb-1">Landing Fees</h4>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedOrigin.id} ({originDepartures}x landings)</span>
-                                     <span className="text-2xs font-mono text-white/30">-{formatCurrency(originLandingFees)}</span>
+                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} ({originDepartures}x landings)</span>
+                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(originLandingFees)}</span>
                                    </div>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedDest.id} ({destDepartures}x landings)</span>
-                                     <span className="text-2xs font-mono text-white/30">-{formatCurrency(destLandingFees)}</span>
-                                   </div>
-                                 </div>
-
-                                 <div className="space-y-1 pt-1 border-t border-white/5">
-                                   <h4 className="text-4xs font-black uppercase tracking-widest text-aero-yellow/50 mb-1">Check-in Desk Costs</h4>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedOrigin.id} (${formatNumber(originCheckInUnit, 3)}/pax)</span>
-                                     <span className="text-2xs font-mono text-white/30">-{formatCurrency(originCheckInFees)}</span>
-                                   </div>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedDest.id} (${formatNumber(destCheckInUnit, 3)}/pax)</span>
-                                     <span className="text-2xs font-mono text-white/30">-{formatCurrency(destCheckInFees)}</span>
+                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedDest.id} ({destDepartures}x landings)</span>
+                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(destLandingFees)}</span>
                                    </div>
                                  </div>
 
-                                 <div className="space-y-1 pt-1 border-t border-white/5">
-                                   <h4 className="text-4xs font-black uppercase tracking-widest text-aero-yellow/50 mb-1">PAX Handling Fees (Security/Baggage)</h4>
+                                 <div className="space-y-1 pt-1 border-t border-line">
+                                   <h4 className="text-2xs font-semibold uppercase tracking-label text-accent mb-1">Check-in Desk Costs</h4>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedOrigin.id} (L{selectedOrigin.level}: ${originPaxFeeUnit}/pax)</span>
-                                     <span className="text-2xs font-mono text-white/30">-{formatCurrency(originPaxHandlingFees)}</span>
+                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} (${formatNumber(originCheckInUnit, 3)}/pax)</span>
+                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(originCheckInFees)}</span>
                                    </div>
                                    <div className="flex justify-between items-end">
-                                     <span className="text-3xs uppercase tracking-widest text-white/30">{selectedDest.id} (L{selectedDest.level}: ${destPaxFeeUnit}/pax)</span>
-                                     <span className="text-2xs font-mono text-white/30">-{formatCurrency(destPaxHandlingFees)}</span>
+                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedDest.id} (${formatNumber(destCheckInUnit, 3)}/pax)</span>
+                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(destCheckInFees)}</span>
                                    </div>
                                  </div>
 
-                                 <div className="pt-1 border-t border-white/5">
-                                    <p className="text-4xs text-white/20 uppercase font-bold leading-tight">
+                                 <div className="space-y-1 pt-1 border-t border-line">
+                                   <h4 className="text-2xs font-semibold uppercase tracking-label text-accent mb-1">PAX Handling Fees (Security/Baggage)</h4>
+                                   <div className="flex justify-between items-end">
+                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} (L{selectedOrigin.level}: ${originPaxFeeUnit}/pax)</span>
+                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(originPaxHandlingFees)}</span>
+                                   </div>
+                                   <div className="flex justify-between items-end">
+                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedDest.id} (L{selectedDest.level}: ${destPaxFeeUnit}/pax)</span>
+                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(destPaxHandlingFees)}</span>
+                                   </div>
+                                 </div>
+
+                                 <div className="pt-1 border-t border-line">
+                                    <p className="text-2xs text-muted uppercase font-semibold leading-tight">
                                       * Costs include slot license, check-in desk personnel, terminal usage fees, and baggage handling systems per departure.
                                     </p>
                                  </div>
@@ -3550,20 +3550,20 @@ function RoutePlannerInner({
                             and what it could earn with every seat sold. The screen used to
                             show only the second, under the same label on every difficulty. */}
                         {saveFinancials && difficulty !== 'Easy' && (
-                          <div className={`p-4 mb-2 border ${saveFinancials.estWeeklyProfit >= 0 ? 'bg-aero-good/10 border-aero-good/30' : 'bg-aero-warn/10 border-aero-warn/30'} flex flex-col items-center justify-center`}>
-                             <span className="text-2xs uppercase font-black tracking-widest text-white/50 mb-1">Expected Weekly Profit (current demand)</span>
-                             <span className={`text-3xl font-black italic tracking-tighter ${saveFinancials.estWeeklyProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
+                          <div className={`p-4 mb-2 border ${saveFinancials.estWeeklyProfit >= 0 ? 'bg-good/10 border-good/30' : 'bg-bad/10 border-bad/30'} flex flex-col items-center justify-center`}>
+                             <span className="text-2xs uppercase font-semibold tracking-label text-muted mb-1">Expected Weekly Profit (current demand)</span>
+                             <span className={`text-3xl font-semibold ${saveFinancials.estWeeklyProfit >= 0 ? 'text-good' : 'text-bad'}`}>
                                {formatSignedCurrency(saveFinancials.estWeeklyProfit)}
                              </span>
-                             <span className="text-3xs text-white/40 font-mono mt-1">
+                             <span className="text-2xs text-muted font-mono mt-1">
                                {formatNumber(saveFinancials.paxPerWeek)} / {formatNumber(totalEstPaxMax)} pax per week
                                {saveFinancials.transferPax > 0 && ` · incl. ${formatNumber(saveFinancials.transferPax)} transfer`}
                              </span>
                           </div>
                         )}
-                        <div className={`p-4 border ${estProfit >= 0 ? 'bg-aero-yellow/10 border-aero-yellow/30' : 'bg-aero-panel border-white/20'} flex flex-col items-center justify-center`}>
-                            <span className="text-2xs uppercase font-black tracking-widest text-white/50 mb-1">{difficulty !== 'Easy' ? 'Max Weekly Profit (full aircraft)' : 'Expected Weekly Profit'}</span>
-                           <span className={`text-4xl font-black italic tracking-tighter ${estProfit >= 0 ? 'text-aero-yellow' : 'text-aero-warn'}`}>
+                        <div className={`p-4 border ${estProfit >= 0 ? 'bg-accent/10 border-accent/30' : 'bg-surface border-rule'} flex flex-col items-center justify-center`}>
+                            <span className="text-2xs uppercase font-semibold tracking-label text-muted mb-1">{difficulty !== 'Easy' ? 'Max Weekly Profit (full aircraft)' : 'Expected Weekly Profit'}</span>
+                           <span className={`text-3xl font-semibold ${estProfit >= 0 ? 'text-accent' : 'text-bad'}`}>
                              {formatSignedCurrency(estProfit)}
                            </span>
                         </div>
@@ -3572,22 +3572,22 @@ function RoutePlannerInner({
 
                   {/* Right Area: Sliders */}
                   <div className="flex-[2] flex flex-col">
-                     <div className="bg-white/[0.03] border border-white/10 p-4 rounded-sm mb-3 flex-1 flex flex-col">
+                     <div className="bg-surface border border-line p-4 rounded-sm mb-3 flex-1 flex flex-col">
                         <div className="flex justify-between items-center mb-3">
-                           <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2">Configure Pricing</h3>
+                           <h3 className="text-xl font-semibold text-ink mb-2">Configure Pricing</h3>
                            {debugMode && (
                              <div 
-                                className="text-white/50 text-2xs font-black uppercase tracking-widest flex items-center gap-2 cursor-pointer border border-white/10 px-2 py-1 bg-black/40 hover:bg-white/10"
+                                className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2 cursor-pointer border border-line px-2 py-1 bg-ground/40 hover:bg-raised"
                                 onClick={() => setShowPricingDebug(!showPricingDebug)}
                              >
-                                <Search size={12} /> Base P. <span className="text-4xs bg-white/10 px-1 py-0.5 rounded-sm">DEBUG</span>
+                                <Search size={12} /> Base P. <span className="text-2xs bg-raised px-1 py-0.5 rounded-sm">DEBUG</span>
                              </div>
                            )}
                         </div>
 
                         {showPricingDebug && debugMode && (
-                          <div className="mb-4 p-4 border border-white/10 bg-black/60 rounded-sm font-mono text-2xs text-white/60 space-y-2">
-                             <div className="text-white font-bold mb-2 uppercase tracking-widest">SAT base price &amp; demand (expected load)</div>
+                          <div className="mb-4 p-4 border border-line bg-ground/60 rounded-sm font-mono text-2xs text-muted space-y-2">
+                             <div className="text-ink font-semibold mb-2 uppercase tracking-label">SAT base price &amp; demand (expected load)</div>
                              {saveFinancials && (() => {
                                 // Everything here is read from the engine result the route is
                                 // saved with, so the debug view cannot drift from the model.
@@ -3607,31 +3607,31 @@ function RoutePlannerInner({
                                    const demMult = getPriceDemandMultiplier(currentPrice, fare, sat);
                                    const pax = saveFinancials.paxByClass[c];
                                    return (
-                                      <div key={c} className="flex flex-col py-2 border-b border-white/5 last:border-0 gap-1">
-                                         <div className="flex justify-between text-white">
-                                           <span className="uppercase font-bold">{c}</span>
-                                           <span>Base: ${base} &times; SAT mult: {formatNumber(satMultiplier, 3)} ({sat}%) &rarr; <strong className="text-aero-yellow">SAT base: ${satBase}</strong></span>
+                                      <div key={c} className="flex flex-col py-2 border-b border-line last:border-0 gap-1">
+                                         <div className="flex justify-between text-ink">
+                                           <span className="uppercase font-semibold">{c}</span>
+                                           <span>Base: ${base} &times; SAT mult: {formatNumber(satMultiplier, 3)} ({sat}%) &rarr; <strong className="text-accent">SAT base: ${satBase}</strong></span>
                                          </div>
                                          {sat > 100 && (
-                                            <div className="pl-4 text-4xs text-white/30 italic">
+                                            <div className="pl-4 text-2xs text-muted">
                                                SAT &gt; 100%: {sat <= 200 ? `1.0 + (0.008 * ${sat-100}) - (0.000035 * ${Math.pow(sat-100, 2).toFixed(0)})` : `1.45 + (0.001 * ${sat-200})`}
                                             </div>
                                          )}
-                                         <div className="flex justify-between pl-4 text-3xs">
+                                         <div className="flex justify-between pl-4 text-2xs">
                                            <span>Scarcity premium (demand over seats, at most +{Math.round(MAX_SCARCITY_PREMIUM * 100)}%): &times;{formatNumber(fare / Math.max(1, satBase), 3)} &rarr; market fare ${fare}</span>
                                          </div>
-                                         <div className="flex justify-between pl-4 text-3xs">
+                                         <div className="flex justify-between pl-4 text-2xs">
                                            <span>Price ratio: market fare / price = {formatNumber(fare / currentPrice, 2)}</span>
                                          </div>
-                                         <div className="flex justify-between pl-4 text-3xs">
+                                         <div className="flex justify-between pl-4 text-2xs">
                                            <span>Demand mult: {currentPrice <= fare ? `min(1.5, ratio^${formatNumber(elasticity, 2)})` : `${formatNumber(1 - PRICE_INSENSITIVE_SHARE, 2)} × ratio^${formatNumber(elasticity * 3, 2)} + ${formatNumber(PRICE_INSENSITIVE_SHARE, 2)} × ratio`}</span>
                                            <span>{formatNumber(demMult * 100, 1)}%</span>
                                          </div>
-                                         <div className="flex justify-between pl-4 text-3xs text-aero-yellow">
+                                         <div className="flex justify-between pl-4 text-2xs text-accent">
                                            <span>Market demand {formatNumber(maxDemand)} / wk, before competitors and seat cap</span>
                                            <span>Expected pax: {formatNumber(pax?.actual ?? 0)}{pax?.transfer ? ` + ${formatNumber(pax.transfer)} transfer` : ''} / {formatNumber(pax?.max ?? 0)}</span>
                                          </div>
-                                         <div className="flex justify-between pl-4 text-3xs text-white/40">
+                                         <div className="flex justify-between pl-4 text-2xs text-muted">
                                             <span>Seats on aircraft:</span>
                                             <span>{seats}</span>
                                          </div>
@@ -3643,12 +3643,12 @@ function RoutePlannerInner({
                         )}
 
                         <div className="space-y-8 max-w-2xl">
-                                                      <div className="flex flex-col gap-4 bg-black/40 p-4 border border-white/5 group hover:border-white/20 transition-all mb-4 shadow-2xl relative overflow-hidden">
-                              <div className="absolute inset-0 bg-gradient-to-r from-aero-yellow/10 to-transparent pointer-events-none" />
+                                                      <div className="flex flex-col gap-4 bg-ground/40 p-4 border border-line group hover:border-rule transition-all mb-4 relative overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-r from-accent/10 to-transparent pointer-events-none" />
                               <div className="flex justify-between items-center relative z-10">
                                  <div className="flex flex-col">
-                                    <span className="text-sm uppercase font-black tracking-widest text-aero-yellow">General Settings</span>
-                                    <span className="text-2xs text-white/40 uppercase tracking-widest mt-1">Adjust All Prices</span>
+                                    <span className="text-sm font-semibold text-accent">General Settings</span>
+                                    <span className="text-2xs text-muted uppercase tracking-label mt-1">Adjust All Prices</span>
                                  </div>
                               </div>
                               <div className="relative pt-4 z-10">
@@ -3668,34 +3668,34 @@ function RoutePlannerInner({
                                        });
                                        setTicketPrices(newPrices);
                                     }}
-                                    className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
+                                    className="w-full h-2 bg-raised rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer cursor-pointer relative z-10"
                                  />
                                  <div
-                                    className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm"
+                                    className="absolute top-[20px] h-4 w-1 bg-accent/70 pointer-events-none z-0 rounded-b-sm"
                                     style={{ left: `calc(${tickPct(basePriceBE75, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE75, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                  />
                                  <div
-                                    className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                    className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
                                     title={`Break-even at 99% full: $${Math.round(basePriceBE99)}`}
                                     style={{ left: `calc(${tickPct(basePriceBE99, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE99, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                  />
                                  {marketFare.economy > 0 && (
                                    <div
-                                      className="absolute top-[20px] h-4 w-0.5 bg-emerald-400/80 pointer-events-none z-0"
+                                      className="absolute top-[20px] h-4 w-0.5 bg-good/80 pointer-events-none z-0"
                                       title={`Economy market fare: $${marketFare.economy}. Above it, passengers stay away.`}
                                       style={{ left: `calc(${tickPct(marketFare.economy, sliderMin, sliderMax)}% + ${8 - tickPct(marketFare.economy, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                    />
                                  )}
                                  <div
-                                    className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                    className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
                                     title={`Break-even at 35% full: $${Math.round(basePriceBE35)}`}
                                     style={{ left: `calc(${tickPct(basePriceBE35, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE35, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                  />
                                  <div className="flex justify-between mt-2 px-1">
-                                    <span className="text-2xs text-white/40 font-mono">${Math.round(sliderMin)}</span>
-                                    <span className="text-2xs text-white/40 font-mono">${Math.round(sliderMax)}</span>
+                                    <span className="text-2xs text-muted font-mono">${Math.round(sliderMin)}</span>
+                                    <span className="text-2xs text-muted font-mono">${Math.round(sliderMax)}</span>
                                  </div>
-                                 <p className="text-2xs text-white/30 leading-relaxed mt-1">
+                                 <p className="text-2xs text-muted leading-relaxed mt-1">
                                    The notch is break-even at 75% full, a realistic year-round average; the two thin
                                    ticks mark break-even at 99% and 35% full. The green tick is the market fare: what
                                    passengers pay for this cabin, up to {Math.round(MAX_SCARCITY_PREMIUM * 100)}% more when they want far more seats than
@@ -3730,13 +3730,13 @@ function RoutePlannerInner({
                                : 0;
 
                              return (
-                               <div key={c} className="flex flex-col gap-4 bg-black/40 p-4 border border-white/5 group hover:border-white/20 transition-all">
+                               <div key={c} className="flex flex-col gap-4 bg-ground/40 p-4 border border-line group hover:border-rule transition-all">
                                   <div className="flex justify-between items-center">
                                      <div className="flex flex-col">
-                                        <span className="text-sm uppercase font-black tracking-widest text-aero-yellow">{c} Class</span>
-                                        <span className="text-2xs text-white/40 uppercase tracking-widest mt-1">{classSeatCount[c]} Seats</span>
+                                        <span className="text-sm font-semibold text-accent">{c} Class</span>
+                                        <span className="text-2xs text-muted uppercase tracking-label mt-1">{classSeatCount[c]} Seats</span>
                                         {cabinLoad && (
-                                          <span className="text-2xs text-white/40 font-mono mt-1">
+                                          <span className="text-2xs text-muted font-mono mt-1">
                                             Expected {formatNumber(cabinLoad.actual)} local
                                             {cabinTransfer > 0 && ` + ${formatNumber(cabinTransfer)} transfer`}
                                             {' '}/ {formatNumber(cabinLoad.max)} pax per week ({cabinLf}% LF)
@@ -3744,9 +3744,9 @@ function RoutePlannerInner({
                                         )}
                                      </div>
                                      <div className="flex flex-col items-end">
-                                        <span className="text-2xl font-mono text-white font-bold">${currentPrice}</span>
+                                        <span className="text-2xl font-mono text-ink font-semibold">${currentPrice}</span>
                                         {classFare > 0 && (
-                                          <span className="text-2xs font-mono text-emerald-400/80 mt-1">Market fare ${classFare}</span>
+                                          <span className="text-2xs font-mono text-good mt-1">Market fare ${classFare}</span>
                                         )}
                                      </div>
                                   </div>
@@ -3758,32 +3758,32 @@ function RoutePlannerInner({
                                         max={maxPossiblePrice}
                                         value={currentPrice}
                                         onChange={(e) => setTicketPrices(prev => ({ ...prev, [c]: parseInt(e.target.value) }))}
-                                        className="w-full h-2 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-aero-yellow [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg cursor-pointer relative z-10"
+                                        className="w-full h-2 bg-raised rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer cursor-pointer relative z-10"
                                      />
                                      <div
-                                        className="absolute top-[20px] h-4 w-1 bg-aero-yellow/70 pointer-events-none z-0 rounded-b-sm"
+                                        className="absolute top-[20px] h-4 w-1 bg-accent/70 pointer-events-none z-0 rounded-b-sm"
                                         style={{ left: `calc(${tickPct(breakEvenPrice, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(breakEvenPrice, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                      />
                                      <div
-                                        className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                        className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
                                         title={`Break-Even at 99% LF: $${be99Price}`}
                                         style={{ left: `calc(${tickPct(be99Price, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(be99Price, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                      />
                                      <div
-                                        className="absolute top-[20px] h-3 w-0.5 bg-white/30 pointer-events-none z-0"
+                                        className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
                                         title={`Break-Even at 35% LF: $${be35Price}`}
                                         style={{ left: `calc(${tickPct(be35Price, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(be35Price, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                      />
                                      {classFare > 0 && (
                                        <div
-                                          className="absolute top-[20px] h-4 w-0.5 bg-emerald-400/80 pointer-events-none z-0"
+                                          className="absolute top-[20px] h-4 w-0.5 bg-good/80 pointer-events-none z-0"
                                           title={`Market fare: $${classFare}. Above it, passengers stay away.`}
                                           style={{ left: `calc(${tickPct(classFare, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(classFare, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
                                        />
                                      )}
                                      <div className="flex justify-between mt-2 px-1">
-                                        <span className="text-2xs text-white/30 font-mono">${minPossiblePrice}</span>
-                                        <span className="text-2xs text-white/30 font-mono">${maxPossiblePrice}</span>
+                                        <span className="text-2xs text-muted font-mono">${minPossiblePrice}</span>
+                                        <span className="text-2xs text-muted font-mono">${maxPossiblePrice}</span>
                                      </div>
                                   </div>
                                </div>
@@ -3792,7 +3792,7 @@ function RoutePlannerInner({
 </div>
                      </div>
                      <div className="flex gap-4">
-                        {!isEditingPricingOnly && <button onClick={() => setStep(3)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-white/20 text-white/60 font-black uppercase text-sm tracking-widest py-4 px-6 rounded-sm hover:text-white hover:bg-white/10 transition-all">Back</button>}
+                        {!isEditingPricingOnly && <button onClick={() => setStep(3)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-rule text-muted font-semibold text-sm py-4 px-6 rounded-sm hover:text-ink hover:bg-raised transition-all">Back</button>}
                         {!isEditingPricingOnly && (
                         <button
                           disabled={isFinalizing || schedule.length === 0}
@@ -3830,7 +3830,7 @@ function RoutePlannerInner({
                               setFlightNumberInbound((nextBase + 1).toString());
                             }, 2000);
                           }}
-                          className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white hover:shadow-2xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans"
+                          className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm hover:bg-ink hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-sans"
                         >
                           {isFinalizing ? 'Finalizing...' : 'Finalize Route'}
                         </button>
@@ -3857,7 +3857,7 @@ function RoutePlannerInner({
                               onClose();
                             }, 1500);
                           }}
-                          className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl font-sans"
+                          className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm hover:bg-ink transition-all font-sans"
                         >
                           {isFinalizing ? 'Saving Pricing...' : 'Save Pricing'}
                         </button>

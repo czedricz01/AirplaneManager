@@ -18,18 +18,18 @@ export function OverwritePicker({ items, value, onChange }: OverwritePickerProps
   if (items.length === 0) return null;
 
   const row = (selected: boolean) =>
-    `w-full text-left px-3 py-2 border text-2xs font-mono uppercase tracking-widest transition-colors ${
+    `w-full text-left px-3 py-2 border text-2xs font-label uppercase tracking-label transition-colors ${
       selected
-        ? 'bg-aero-yellow/10 border-aero-yellow text-aero-yellow'
-        : 'bg-white/5 border-white/10 text-white/60 hover:border-aero-yellow/40 hover:text-white'
+        ? 'bg-accent/10 border-accent text-accent'
+        : 'bg-surface border-line text-muted hover:border-accent/40 hover:text-ink'
     }`;
 
   return (
     <div role="radiogroup" aria-label="Overwrite an existing save">
-      <label className="text-2xs uppercase tracking-widest text-white/70 mb-2 block font-bold">
+      <label className="text-2xs uppercase tracking-label text-muted mb-2 block font-semibold">
         Overwrite Existing Save (optional)
       </label>
-      <div className="flex flex-col gap-1 max-h-40 overflow-y-auto custom-scrollbar">
+      <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
         <button
           type="button"
           role="radio"

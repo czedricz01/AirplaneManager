@@ -44,10 +44,10 @@ export function Modal({
   children,
   footer,
 }: ModalProps) {
-  const borderClass = accent === 'warn' ? 'border-aero-warn/40' : 'border-white/10';
-  const titleClass = accent === 'warn' ? 'text-aero-warn' : 'text-aero-yellow';
+  const borderClass = accent === 'warn' ? 'border-bad/40' : 'border-line';
+  const titleClass = accent === 'warn' ? 'text-bad' : 'text-accent';
   const zClass = layer === 'top' ? 'z-[5000]' : layer === 'critical' ? 'z-[110]' : 'z-[100]';
-  const bgOpacity = layer === 'default' ? 'bg-black/80' : 'bg-black/85';
+  const bgOpacity = layer === 'default' ? 'bg-ground/80' : 'bg-ground/85';
 
   return (
     <AnimatePresence>
@@ -56,7 +56,7 @@ export function Modal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={`absolute inset-0 ${zClass} flex items-center justify-center ${bgOpacity} backdrop-blur-sm p-4 short:p-2`}
+          className={`absolute inset-0 ${zClass} flex items-center justify-center ${bgOpacity} p-4 short:p-2`}
         >
           <motion.div
             role="dialog"
@@ -64,12 +64,12 @@ export function Modal({
             initial={{ y: 20, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 10, opacity: 0, scale: 0.97 }}
-            className={`bg-aero-carbon border ${borderClass} shadow-2xl w-full ${SIZE_CLASSES[size]} rounded-sm overflow-hidden max-h-[90dvh] flex flex-col`}
+            className={`bg-raised border ${borderClass} w-full ${SIZE_CLASSES[size]} rounded-sm overflow-hidden max-h-[90dvh] flex flex-col`}
           >
             {(title || onClose) && (
-              <div className="px-4 py-3 short:py-2 bg-black/40 border-b border-white/5 flex items-center justify-between shrink-0">
+              <div className="px-4 py-3 short:py-2 bg-ground/40 border-b border-line flex items-center justify-between shrink-0">
                 {title ? (
-                  <h3 className={`font-black uppercase tracking-widest text-lg short:text-base flex items-center gap-2 ${titleClass}`}>
+                  <h3 className={`font-semibold text-lg short:text-base flex items-center gap-2 ${titleClass}`}>
                     {icon}
                     {title}
                   </h3>
@@ -77,14 +77,14 @@ export function Modal({
                   <span />
                 )}
                 {onClose && (
-                  <button type="button" onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+                  <button type="button" onClick={onClose} className="text-muted hover:text-ink transition-colors">
                     <X size={22} />
                   </button>
                 )}
               </div>
             )}
-            <div className="p-4 short:p-3 overflow-y-auto custom-scrollbar">{children}</div>
-            {footer && <div className="px-4 py-3 short:py-2 border-t border-white/5 flex justify-end gap-2 shrink-0">{footer}</div>}
+            <div className="p-4 short:p-3 overflow-y-auto">{children}</div>
+            {footer && <div className="px-4 py-3 short:py-2 border-t border-line flex justify-end gap-2 shrink-0">{footer}</div>}
           </motion.div>
         </motion.div>
       )}

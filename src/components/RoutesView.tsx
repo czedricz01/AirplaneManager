@@ -97,7 +97,7 @@ export function CancellationBadge({ cancellation }: { cancellation?: RouteCancel
   return (
     <span
       title={`${pct}% of this month's flights cancelled: ${cancellation.reasons.join(', ')}`}
-      className="inline-block ml-2 px-1 py-px border border-aero-warn/40 bg-aero-warn/10 text-aero-warn text-3xs font-bold uppercase tracking-wider whitespace-nowrap"
+      className="inline-block ml-2 px-1 py-px border border-bad/40 bg-bad/10 text-bad text-2xs font-semibold uppercase tracking-label whitespace-nowrap"
     >
       −{pct}%
     </span>
@@ -110,8 +110,8 @@ function ClassLine({ items }: { items: { cls: string; text: string; color?: stri
     <div className="flex gap-1">
       {items.map((it, i) => (
         <React.Fragment key={it.cls}>
-          {i > 0 && <span className="text-white/20">/</span>}
-          <span className={it.color || 'text-white/25'}>{it.text}</span>
+          {i > 0 && <span className="text-muted">/</span>}
+          <span className={it.color || 'text-muted'}>{it.text}</span>
         </React.Fragment>
       ))}
     </div>
@@ -143,14 +143,14 @@ const RouteRow = React.memo(function RouteRow({
     if (!cd || cd.max <= 0) return { cls, text: '-' };
     // Connecting passengers sit in their own cabin and count towards its load.
     const lf = Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100);
-    return { cls, text: `${lf}%`, color: lf >= 85 ? 'text-aero-good' : lf >= 60 ? 'text-aero-yellow' : 'text-aero-warn' };
+    return { cls, text: `${lf}%`, color: lf >= 85 ? 'text-good' : lf >= 60 ? 'text-accent' : 'text-bad' };
   });
 
   const priceLine = CABIN_CLASSES.map(cls => {
     const cd = financials?.paxByClass?.[cls];
     if (!cd || cd.max <= 0) return { cls, text: '-' };
     const price = route.ticketPrices?.[cls];
-    return { cls, text: price ? `$${price}` : '?', color: price ? 'text-white/60' : undefined };
+    return { cls, text: price ? `$${price}` : '?', color: price ? 'text-muted' : undefined };
   });
 
   const quickAdjustPrice = (pct: number) => {
@@ -166,17 +166,17 @@ const RouteRow = React.memo(function RouteRow({
   return (
     <tr
       onClick={() => onSelect(route)}
-      className="border-b border-white/5 hover:bg-white/5 transition-colors text-white/70 cursor-pointer"
+      className="border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer"
     >
-      <Td className="pl-4 font-bold text-white/90 tracking-widest hover:text-aero-yellow transition-colors underline decoration-white/20 underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
-      <Td className="font-bold text-aero-yellow">{route.origin}</Td>
-      <Td className="font-bold text-aero-yellow">{route.destination}</Td>
+      <Td className="pl-4 font-semibold text-ink hover:text-accent transition-colors underline decoration-muted underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
+      <Td className="font-semibold text-accent">{route.origin}</Td>
+      <Td className="font-semibold text-accent">{route.destination}</Td>
       <Td className="text-xs font-mono">{route.distance} km</Td>
       <Td className="text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
-      <Td className="text-xs font-mono">{route.durMin ? <span className="border border-white/20 px-2 py-0.5 rounded-sm bg-white/5">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
+      <Td className="text-xs font-mono">{route.durMin ? <span className="border border-rule px-2 py-0.5 rounded-sm bg-surface">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
       <Td>
         <div>{route.aircraft}</div>
-        {aircraft && <div className="text-2xs text-white/40">{aircraft.manufacturer} {aircraft.type}</div>}
+        {aircraft && <div className="text-2xs text-muted">{aircraft.manufacturer} {aircraft.type}</div>}
       </Td>
       <Td className="text-xs font-mono">{route.weeklyFlights}<CancellationBadge cancellation={cancellation} /></Td>
       <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
@@ -191,7 +191,7 @@ const RouteRow = React.memo(function RouteRow({
                   key={pct}
                   onClick={() => quickAdjustPrice(pct)}
                   title={`${pct > 0 ? '+' : ''}${Math.round(pct * 100)}% on all classes`}
-                  className="px-1.5 py-0.5 bg-black/40 border border-white/10 hover:border-aero-yellow/50 text-3xs font-bold text-white/60 hover:text-aero-yellow transition-all"
+                  className="px-1.5 py-0.5 bg-ground/40 border border-line hover:border-accent/50 text-2xs font-semibold text-muted hover:text-accent transition-all"
                 >
                   {pct > 0 ? '+' : ''}{Math.round(pct * 100)}%
                 </button>
@@ -199,16 +199,16 @@ const RouteRow = React.memo(function RouteRow({
             </div>
           </div>
         ) : (
-          <span className="text-white/25">-</span>
+          <span className="text-muted">-</span>
         )}
       </Td>
       <Td className="pr-4 text-right text-xs font-mono">
         {routeProfit !== undefined ? (
-          <span className={routeProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'}>
+          <span className={routeProfit >= 0 ? 'text-good' : 'text-bad'}>
             {routeProfit >= 0 ? '+' : ''}{formatMoneyCompact(routeProfit)}
           </span>
         ) : (
-          <span className="text-white/25" title="No closed month for this route yet">-</span>
+          <span className="text-muted" title="No closed month for this route yet">-</span>
         )}
       </Td>
     </tr>
@@ -289,7 +289,7 @@ function RoutesViewImpl({
   const fleetByRegistration = useMemo(() => new Map(fleet.map(f => [f.registration, f])), [fleet]);
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         title={
           <>
@@ -305,11 +305,11 @@ function RoutesViewImpl({
           <div className="flex gap-2 md:gap-4 items-center relative z-20">
             <div className="relative flex-1 min-w-0 md:flex-none md:w-48">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Navigation size={16} className="text-white/40" />
+                <Navigation size={16} className="text-muted" />
               </div>
               <input
                 type="text"
-                className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors uppercase"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors"
                 placeholder="Airport, e.g. FRA"
                 title="Show only routes touching this airport (IATA code)"
                 value={airportFilter}
@@ -320,11 +320,11 @@ function RoutesViewImpl({
 
             <div className="relative flex-1 min-w-0 md:flex-none md:w-64">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={16} className="text-white/40" />
+                <Search size={16} className="text-muted" />
               </div>
               <input
                 type="text"
-                className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors"
                 placeholder="Search aircraft..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -357,11 +357,11 @@ function RoutesViewImpl({
           <tbody>
             {filteredAndSortedRoutes.length === 0 ? (
               <tr>
-                 <td colSpan={12} className="text-center py-16 text-white/40 uppercase tracking-widest">
+                 <td colSpan={12} className="text-center py-16 text-muted uppercase tracking-label">
                    {routes.length === 0 ? (
                      <div className="flex flex-col items-center gap-2">
                        <span>No routes yet</span>
-                       <span className="text-2xs normal-case tracking-normal text-white/30 font-mono">
+                       <span className="text-2xs normal-case text-muted font-mono">
                          Buy an aircraft, then plan your first route from your hub.
                        </span>
                      </div>

@@ -1,6 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
+
+/*
+ * Typefaces, served from this repository (see src/assets/fonts/LICENSE.md).
+ * `swap` shows text in the fallback at once and exchanges it when the file is in.
+ */
+@font-face { font-family: "Barlow"; font-weight: 400; font-style: normal; font-display: swap; src: url("./assets/fonts/barlow-400.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-style: normal; font-display: swap; src: url("./assets/fonts/barlow-500.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-style: normal; font-display: swap; src: url("./assets/fonts/barlow-600.woff2") format("woff2"); }
+@font-face { font-family: "Barlow Semi Condensed"; font-weight: 600; font-style: normal; font-display: swap; src: url("./assets/fonts/barlow-semi-condensed-600.woff2") format("woff2"); }
+@font-face { font-family: "Barlow Semi Condensed"; font-weight: 700; font-style: normal; font-display: swap; src: url("./assets/fonts/barlow-semi-condensed-700.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400 500; font-style: normal; font-display: swap; src: url("./assets/fonts/jetbrains-mono.woff2") format("woff2"); }
 
 /*
  * Layout variants for the app frame (navigation, top bar), kept in step with
@@ -27,41 +37,80 @@
  */
 @custom-variant tiny (@media (orientation: landscape) and (max-height: 340px));
 
+/*
+ * Design tokens. This block is the one place colours, type, radii and the
+ * shadow are defined; every component uses these names and nothing else.
+ * See docs/DESIGN_SYSTEM.md.
+ *
+ * `--color-*: initial` removes Tailwind's own palette (red-500, slate-400 and
+ * so on), so a colour outside the system does not compile into a class.
+ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-*: initial;
+
+  /* Surfaces, darkest first. Depth comes from these three steps, not from shadows. */
+  --color-ground: #14171A;   /* the page, and what lies under the map */
+  --color-surface: #1C2024;  /* panels, the navigation, dialogs */
+  --color-raised: #252A2F;   /* the selected row, hover, a panel inside a panel */
+
+  /* Text. Both clear 4.5:1 on all three surfaces. */
+  --color-ink: #E8E6E1;
+  --color-muted: #9AA1A8;
+
+  /* Lines. `line` separates content; `rule` outlines controls (3:1 on ground). */
+  --color-line: #33393F;
+  --color-rule: #6B747D;
+
+  /* The one accent: selection and the main action of a screen. */
+  --color-accent: #F2B233;
+  --color-on-accent: #14171A;
+
+  /* Result colours, for profit and loss, good and bad condition. Nothing else. */
+  --color-good: #5CC98B;
+  --color-bad: #F0766B;
+
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Type. Body, labels and headings, and figures. */
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-label: "Barlow Semi Condensed", "Barlow", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  
-  --color-aero-yellow: #FACC15;
-  --color-aero-black: #0F0F0F;
-  --color-aero-carbon: #1A1A1A;
 
-  /*
-   * Status colours. The interface previously signalled good and bad with two
-   * opacities of the same yellow, and had it backwards: a critical condition bar
-   * was #1a1a1a on black, i.e. invisible, while a healthy one was bright. These
-   * two are chosen to sit in the existing palette while staying legible on
-   * #0F0F0F — both clear 4.5:1 against it.
-   */
-  --color-aero-warn: #F87171;
-  --color-aero-good: #4ADE80;
+  /* Scale: 11.5 (labels) - 13 - 14 - 15 (body) - 18 - 22 - 26 - 32 px. */
+  --text-2xs: 0.71875rem;
+  --text-2xs--line-height: 1.3;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.4;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.45;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.3;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.2;
+  --text-2xl: 1.625rem;
+  --text-2xl--line-height: 1.15;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 1.1;
 
-  /*
-   * Surface ramp. Consolidates the ad hoc near-blacks scattered across the
-   * app (#111, #121212, #0a0a0a, #141414, #0f0f0f, #050505 — all meant to be
-   * "one darker panel tone") into two named steps between aero-black and
-   * aero-carbon, so nested panels read as a hierarchy instead of drifting.
-   */
-  --color-aero-panel: #141414;
-  --color-aero-panel-2: #1c1c1c;
+  /* Letter spacing for the small upper-case labels; nothing else is spaced. */
+  --tracking-label: 0.08em;
 
-  /*
-   * Type scale for the sizes below Tailwind's built-in text-xs (12px). Was
-   * previously ad hoc text-[Npx] values (7-11px, 600+ call sites) that
-   * fragmented what should be a handful of label/body steps.
-   */
-  --text-2xs: 0.625rem;   /* 10px */
-  --text-3xs: 0.5625rem;  /* 9px */
-  --text-4xs: 0.5rem;     /* 8px */
+  /* Radii: 3px on controls, panels square. */
+  --radius-sm: 3px;
+  --radius-md: 3px;
+
+  /* The one shadow, for what floats above the page: dialogs and menus. */
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5);
+
+  /* Fade for what appears: dialogs, menus, a newly opened screen. */
+  --animate-appear: appear 140ms ease-out;
+  @keyframes appear {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 }
 
 html {
@@ -71,8 +120,11 @@ html {
 }
 
 body {
-  background-color: var(--color-aero-black, #0F0F0F);
-  color: white;
+  background-color: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.45;
   margin: 0;
   overflow: hidden;
 }
@@ -84,6 +136,11 @@ body {
   height: 100dvh;
   overflow: hidden;
   position: relative;
+}
+
+/* Figures line up in columns wherever the figure typeface is used. */
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }
 
 /* No double-tap zoom, and so no tap delay, on anything that is clicked. */
@@ -118,85 +175,85 @@ a,
   }
 }
 
-/* Custom scrollbar for technical look */
+/* Thin scrollbars in the surface tones. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule) transparent;
+}
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0F0F0F;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1A1A1A;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-line);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #FACC15;
+  background: var(--color-rule);
 }
 
-.slider-thumb-aero::-webkit-slider-thumb {
+/* The thumb of a range slider: a square in the accent colour. */
+.slider-thumb::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
   height: 20px;
-  background: #facc15;
+  background: var(--color-accent);
   cursor: pointer;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
 }
-
-.slider-thumb-aero::-moz-range-thumb {
+.slider-thumb::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  background: #facc15;
+  background: var(--color-accent);
   cursor: pointer;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
 }
 
-/* Custom Leaflet Popup Overrides */
+/* The map library's popups and controls, in the system's surfaces. */
+.leaflet-container {
+  background: var(--color-ground);
+  font-family: var(--font-sans);
+}
 .leaflet-popup-content-wrapper {
-  background: var(--color-aero-panel-2) !important;
-  color: #ffffff !important;
-  border: 1px solid #FACC15 !important;
-  border-radius: 0px !important;
-  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.95) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-ink) !important;
+  border: 1px solid var(--color-rule) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-pop) !important;
 }
-
 .leaflet-popup-content {
   margin: 0 !important;
   padding: 0 !important;
 }
-
 .leaflet-popup-tip {
-  background: var(--color-aero-panel-2) !important;
-  border: 1px solid #FACC15 !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-rule) !important;
 }
-
 .leaflet-popup-close-button {
-  color: rgba(255, 255, 255, 0.6) !important;
+  color: var(--color-muted) !important;
   padding: 4px !important;
 }
 .leaflet-popup-close-button:hover {
-  color: #FACC15 !important;
+  color: var(--color-ink) !important;
   background: transparent !important;
 }
 
-
 /*
- * Focus. Thirteen elements carried `focus:outline-none` with nothing in its
- * place, and not one <button> in the project had a focus style, so keyboard
- * users had no idea where they were. This is the baseline; components may
- * override it, but they no longer start from invisible.
+ * Focus. Every control shows where the keyboard is; components may restyle
+ * the ring but never remove it.
  */
 :focus-visible {
-  outline: 2px solid var(--color-aero-yellow, #FACC15);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 /*
- * Several critical states use `animate-pulse` as their emphasis. Honour the
- * system setting for people who do not want that motion -- the colour carries
- * the meaning on its own now.
+ * Honour the system setting for people who do not want motion. Colour and
+ * text carry the meaning on their own.
  */
 @media (prefers-reduced-motion: reduce) {
   *,

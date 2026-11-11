@@ -48,14 +48,14 @@ export function CheckDetails({ check }: { check: AssignmentCheck }) {
   return (
     <div className="flex flex-col gap-2">
       {check.issues.map((issue, i) => (
-        <div key={`i${i}`} className="flex gap-2 items-start text-2xs font-mono text-aero-warn leading-snug">
+        <div key={`i${i}`} className="flex gap-2 items-start text-2xs font-mono text-bad leading-snug">
           <AlertTriangle size={12} className="shrink-0 mt-0.5" />
           <span>{issue.message}</span>
         </div>
       ))}
       {check.notes.map((note, i) => (
-        <div key={`n${i}`} className="flex gap-2 items-start text-2xs font-mono text-white/60 leading-snug">
-          <Info size={12} className="shrink-0 mt-0.5 text-white/40" />
+        <div key={`n${i}`} className="flex gap-2 items-start text-2xs font-mono text-muted leading-snug">
+          <Info size={12} className="shrink-0 mt-0.5 text-muted" />
           <span>{note.message}</span>
         </div>
       ))}
@@ -86,15 +86,15 @@ function PlaneRow({
       onClick={onClick}
       disabled={!onClick}
       className={`w-full text-left px-3 py-2 border rounded-sm flex items-center gap-3 transition-colors ${
-        selected ? 'border-aero-yellow bg-aero-yellow/10' : 'border-white/10 bg-black/30 hover:border-white/30'
-      } disabled:cursor-default disabled:hover:border-white/10`}
+        selected ? 'border-accent bg-accent/10' : 'border-line bg-ground/30 hover:border-rule'
+      } disabled:cursor-default disabled:hover:border-line`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono font-bold text-white">{plane.registration}</span>
-          <span className="text-2xs text-white/50 truncate">{plane.manufacturer} {plane.type}</span>
+          <span className="font-mono font-semibold text-ink">{plane.registration}</span>
+          <span className="text-2xs text-muted truncate">{plane.manufacturer} {plane.type}</span>
         </div>
-        <div className="text-3xs font-mono uppercase tracking-widest text-white/40 mt-0.5 flex flex-wrap gap-x-3">
+        <div className="text-2xs font-label uppercase tracking-label text-muted mt-0.5 flex flex-wrap gap-x-3">
           <span>{plane.class}</span>
           <span>{seatCount(plane)} seats</span>
           <span>{formatNumber(plane.maxRange)} km</span>
@@ -135,14 +135,14 @@ export function AircraftSwapPanel(props: SwapProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-2xs text-white/60 leading-relaxed">
+      <p className="text-2xs text-muted leading-relaxed">
         Pick an idle aircraft to take over all {moving.length} route{moving.length === 1 ? '' : 's'} of{' '}
-        <span className="font-mono text-white">{plane.registration}</span>. The flights keep their times;
+        <span className="font-mono text-ink">{plane.registration}</span>. The flights keep their times;
         leg time and turnaround follow the new aircraft. {plane.registration} is idle afterwards.
       </p>
 
       {candidates.length === 0 ? (
-        <div className="p-4 border border-white/10 bg-black/30 text-2xs text-white/50 uppercase tracking-widest text-center">
+        <div className="p-4 border border-line bg-ground/30 text-2xs text-muted uppercase tracking-label text-center">
           No idle aircraft. Every other aircraft in your fleet already flies a route.
         </div>
       ) : (
@@ -162,9 +162,9 @@ export function AircraftSwapPanel(props: SwapProps) {
                 }
               />
               {p.registration === selectedReg && (
-                <div className="ml-3 pl-3 border-l border-white/10 flex flex-col gap-3 py-1">
+                <div className="ml-3 pl-3 border-l border-line flex flex-col gap-3 py-1">
                   {check.issues.length === 0 && check.notes.length === 0 ? (
-                    <div className="text-2xs font-mono text-aero-good">No problems found.</div>
+                    <div className="text-2xs font-mono text-good">No problems found.</div>
                   ) : (
                     <CheckDetails check={check} />
                   )}
@@ -178,7 +178,7 @@ export function AircraftSwapPanel(props: SwapProps) {
                       Swap to {p.registration}
                     </Button>
                   ) : (
-                    <div className="text-3xs font-mono uppercase tracking-widest text-white/40">
+                    <div className="text-2xs font-label uppercase tracking-label text-muted">
                       {p.registration} cannot take over these routes.
                     </div>
                   )}
@@ -226,14 +226,14 @@ export function RouteAircraftPicker(props: PickerProps) {
   return (
     <Modal open onClose={onClose} size="xl" title="Change Aircraft" icon={<ArrowLeftRight size={18} />}>
       <div className="flex flex-col gap-3">
-        <p className="text-2xs text-white/60 leading-relaxed">
+        <p className="text-2xs text-muted leading-relaxed">
           Aircraft that can fly {route.origin}-{route.destination}, are based at {route.origin} or have no hub yet,
           and have room for all {route.schedule?.length || 0} weekly flights. After picking one you choose the
           new time slot in its timetable.
         </p>
 
         {suitable.length === 0 ? (
-          <div className="p-4 border border-white/10 bg-black/30 text-2xs text-white/50 uppercase tracking-widest text-center">
+          <div className="p-4 border border-line bg-ground/30 text-2xs text-muted uppercase tracking-label text-center">
             No aircraft in your fleet can take this route.
           </div>
         ) : (
@@ -247,7 +247,7 @@ export function RouteAircraftPicker(props: PickerProps) {
                 verdict={
                   <span className="flex items-center gap-2">
                     {check.notes.length > 0 && (
-                      <span className="text-3xs font-mono text-white/40" title={check.notes.map(n => n.message).join('\n')}>
+                      <span className="text-2xs font-mono text-muted" title={check.notes.map(n => n.message).join('\n')}>
                         {check.notes.length} note{check.notes.length === 1 ? '' : 's'}
                       </span>
                     )}
@@ -264,14 +264,14 @@ export function RouteAircraftPicker(props: PickerProps) {
             <button
               type="button"
               onClick={() => setShowUnsuitable(v => !v)}
-              className="self-start text-3xs font-mono uppercase tracking-widest text-white/40 hover:text-white"
+              className="self-start text-2xs font-label uppercase tracking-label text-muted hover:text-ink"
             >
               {showUnsuitable ? 'Hide' : 'Show'} {unsuitable.length} aircraft that cannot take it
             </button>
             {showUnsuitable && unsuitable.map(({ plane, check }) => (
               <div key={plane.registration} className="opacity-70 flex flex-col gap-1">
                 <PlaneRow plane={plane} routes={routes} verdict={<Badge tone="warn">Not possible</Badge>} />
-                <div className="ml-3 pl-3 border-l border-white/10">
+                <div className="ml-3 pl-3 border-l border-line">
                   <CheckDetails check={{ ...check, notes: [] }} />
                 </div>
               </div>

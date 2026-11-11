@@ -22,7 +22,7 @@ interface ViewFrameProps {
 
 export function ViewFrame({ children, contentClassName = 'w-full h-full', label = 'View', onReset }: ViewFrameProps) {
   return (
-    <div className="absolute inset-0 z-40 bg-aero-black flex">
+    <div className="absolute inset-0 z-40 bg-ground flex">
       <div className={`relative z-10 ${contentClassName}`}>
         <ErrorBoundary label={label} onReset={onReset} resetLabel="BACK TO MAP">
           {children}

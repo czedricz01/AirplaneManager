@@ -18,15 +18,15 @@ export function conditionTone(value: number): 'warn' | 'yellow' | 'neutral' {
 }
 
 export const CONDITION_TEXT_CLASS: Record<ReturnType<typeof conditionTone>, string> = {
-  warn: 'text-aero-warn font-black animate-pulse',
-  yellow: 'text-yellow-400 font-bold',
-  neutral: 'text-white font-bold',
+  warn: 'text-bad font-semibold animate-pulse',
+  yellow: 'text-accent font-semibold',
+  neutral: 'text-ink font-semibold',
 };
 
 export const CONDITION_BAR_CLASS: Record<ReturnType<typeof conditionTone>, string> = {
-  warn: 'bg-aero-warn animate-pulse',
-  yellow: 'bg-yellow-400',
-  neutral: 'bg-aero-yellow/20',
+  warn: 'bg-bad animate-pulse',
+  yellow: 'bg-accent',
+  neutral: 'bg-accent/20',
 };
 
 /** Single source for the map yellow — Leaflet/canvas paints are JS strings, not Tailwind classes. */

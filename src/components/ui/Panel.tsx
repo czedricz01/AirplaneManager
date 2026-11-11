@@ -20,7 +20,7 @@ interface PanelProps extends HTMLAttributes<HTMLDivElement> {
 export function Panel({ padding = 'md', bordered = true, inset = false, className = '', children, ...rest }: PanelProps) {
   return (
     <div
-      className={`${inset ? 'bg-aero-panel-2' : 'bg-aero-panel'} ${bordered ? 'border border-white/10' : ''} rounded-sm ${PADDING_CLASSES[padding]} ${className}`}
+      className={`${inset ? 'bg-raised' : 'bg-surface'} ${bordered ? 'border border-line' : ''} rounded-sm ${PADDING_CLASSES[padding]} ${className}`}
       {...rest}
     >
       {children}

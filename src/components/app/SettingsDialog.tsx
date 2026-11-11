@@ -29,22 +29,22 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   return (
     <>
-        <div className="fixed inset-0 z-[1001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 short:p-2">
+        <div className="fixed inset-0 z-[1001] bg-ground/80 flex items-center justify-center p-4 short:p-2">
           {/* Scrolls when taller than the screen, as on a phone held sideways;
               otherwise its top was cut off with no way to reach it. There the
               settings also go into two columns, so most of them fit at once. */}
-          <div className="bg-aero-carbon border border-white/10 shadow-2xl p-4 short:p-3 max-w-lg short:max-w-3xl w-full max-h-full overflow-y-auto custom-scrollbar short:relative">
-            <h2 className="text-2xl short:text-lg font-mono text-aero-yellow uppercase tracking-[0.2em] font-black drop-shadow-md mb-3 short:mb-2">System Settings</h2>
+          <div className="bg-raised border border-line p-4 short:p-3 max-w-lg short:max-w-3xl w-full max-h-full overflow-y-auto short:relative">
+            <h2 className="text-2xl short:text-lg font-mono text-accent font-semibold mb-3 short:mb-2">System Settings</h2>
             
             <div className="flex flex-col gap-4 short:grid short:grid-cols-2 short:grid-rows-[repeat(3,auto)] short:grid-flow-col short:gap-x-5 short:gap-y-2">
               <div className="space-y-4 short:space-y-2">
-                <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Number Format (Decimal Separator)</label>
+                <label className="block text-2xs font-semibold uppercase tracking-label text-muted">Number Format (Decimal Separator)</label>
                 <div className="flex gap-4 short:gap-2">
                   {[".", ","].map((symbol) => (
                     <button
                       key={symbol}
                       onClick={() => setDecimalSymbol(symbol as DecimalSymbol)}
-                      className={`flex-1 p-4 short:p-2 font-mono text-xl short:text-base border uppercase tracking-widest transition-colors ${decimalSymbol === symbol ? 'bg-aero-yellow text-black border-aero-yellow font-black' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
+                      className={`flex-1 p-4 short:p-2 font-mono text-xl short:text-base border transition-colors ${decimalSymbol === symbol ? 'bg-accent text-on-accent border-accent font-semibold' : 'bg-raised border-line text-ink hover:border-accent'}`}
                     >
                       {symbol === "." ? "1.234" : "1,234"}
                     </button>
@@ -53,9 +53,9 @@ export function SettingsDialog({
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-widest text-white/50 font-bold flex justify-between">
+                <label className="text-xs uppercase tracking-label text-muted font-semibold flex justify-between">
                   <span>UI Scale Factor</span>
-                  <span className="text-aero-yellow">{uiScaleSetting.toFixed(2)}x</span>
+                  <span className="text-accent">{uiScaleSetting.toFixed(2)}x</span>
                 </label>
                 <input 
                   type="range" 
@@ -64,16 +64,16 @@ export function SettingsDialog({
                   step="0.05" 
                   value={uiScaleSetting}
                   onChange={(e) => setUiScaleSetting(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
+                  className="w-full h-2 bg-raised rounded-full appearance-none cursor-pointer"
                 />
-                <span className="text-2xs text-white/30 font-mono">Adjusts the scale of the user interface. Auto-scaling is also active for small screens.</span>
+                <span className="text-2xs text-muted font-mono">Adjusts the scale of the user interface. Auto-scaling is also active for small screens.</span>
               </div>
 
-              <div className="flex flex-col gap-4 pt-4 border-t border-white/10 short:contents">
+              <div className="flex flex-col gap-4 pt-4 border-t border-line short:contents">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-widest text-white/50 font-bold flex justify-between">
+                  <label className="text-xs uppercase tracking-label text-muted font-semibold flex justify-between">
                     <span>Autosave Interval (Months)</span>
-                    <span className="text-aero-yellow">{autosaveInterval} Months</span>
+                    <span className="text-accent">{autosaveInterval} Months</span>
                   </label>
                   <input 
                     type="range" 
@@ -82,39 +82,39 @@ export function SettingsDialog({
                     step="1" 
                     value={autosaveInterval}
                     onChange={(e) => setAutosaveInterval(parseInt(e.target.value))}
-                    className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-aero-yellow"
+                    className="w-full h-2 bg-raised rounded-full appearance-none cursor-pointer accent-accent"
                   />
-                  <div className="flex justify-between text-2xs text-white/30 uppercase tracking-widest">
+                  <div className="flex justify-between text-2xs text-muted uppercase tracking-label">
                     <span>1 Month</span>
                     <span>12 Months</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white/5 p-4 short:p-2.5 select-none cursor-pointer border border-transparent hover:border-white/10 transition-colors" onClick={() => setAutosaveOverwrite(!autosaveOverwrite)}>
-                  <div className={`w-5 h-5 flex items-center justify-center border ${autosaveOverwrite ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                <div className="flex items-center gap-3 bg-surface p-4 short:p-2.5 select-none cursor-pointer border border-transparent hover:border-line transition-colors" onClick={() => setAutosaveOverwrite(!autosaveOverwrite)}>
+                  <div className={`w-5 h-5 flex items-center justify-center border ${autosaveOverwrite ? 'bg-accent border-accent text-on-accent' : 'border-rule'}`}>
                     {autosaveOverwrite && <Check size={14} />}
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Overwrite Save File</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
+                    <span className="text-xs text-ink uppercase tracking-label font-semibold">Overwrite Save File</span>
+                    <span className="text-2xs text-muted max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/10 short:pt-0 short:border-t-0">
+              <div className="pt-4 border-t border-line short:pt-0 short:border-t-0">
                 <button
                   type="button"
                   role="switch"
                   aria-checked={gameSettings.newspaper}
                   onClick={() => setGameSettings(prev => ({ ...prev, newspaper: !prev.newspaper }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                  className="w-full flex items-center gap-3 bg-surface p-4 short:p-2.5 text-left select-none border border-transparent hover:border-line transition-colors"
                 >
-                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.newspaper ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.newspaper ? 'bg-accent border-accent text-on-accent' : 'border-rule'}`}>
                     {gameSettings.newspaper && <Check size={14} />}
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Monthly Newspaper</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Show The Aviation Times after every month. When off, the latest edition is still under Messages and on the monthly report.</span>
+                    <span className="text-xs text-ink uppercase tracking-label font-semibold">Monthly Newspaper</span>
+                    <span className="text-2xs text-muted max-w-sm leading-tight mt-1">Show The Aviation Times after every month. When off, the latest edition is still under Messages and on the monthly report.</span>
                   </div>
                 </button>
               </div>
@@ -125,14 +125,14 @@ export function SettingsDialog({
                   role="switch"
                   aria-checked={gameSettings.tutorial}
                   onClick={() => setGameSettings(prev => ({ ...prev, tutorial: !prev.tutorial }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
+                  className="w-full flex items-center gap-3 bg-surface p-4 short:p-2.5 text-left select-none border border-transparent hover:border-line transition-colors"
                 >
-                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.tutorial ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.tutorial ? 'bg-accent border-accent text-on-accent' : 'border-rule'}`}>
                     {gameSettings.tutorial && <Check size={14} />}
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Tutorial for New Games</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Start every new game with the guided tour of the first steps. Skipping it ends the tour for that game only.</span>
+                    <span className="text-xs text-ink uppercase tracking-label font-semibold">Tutorial for New Games</span>
+                    <span className="text-2xs text-muted max-w-sm leading-tight mt-1">Start every new game with the guided tour of the first steps. Skipping it ends the tour for that game only.</span>
                   </div>
                 </button>
                 {(view === 'game' || view === 'monthly-overview') && (
@@ -144,7 +144,7 @@ export function SettingsDialog({
                       if (view === 'monthly-overview') setView('game');
                       openWindow('map');
                     }}
-                    className="self-start flex items-center gap-2 px-3 py-2 border border-white/10 text-white/70 hover:text-aero-yellow hover:border-aero-yellow/50 font-mono text-2xs uppercase tracking-widest transition-colors"
+                    className="self-start flex items-center gap-2 px-3 py-2 border border-line text-muted hover:text-accent hover:border-accent/50 font-label text-2xs uppercase tracking-label transition-colors"
                   >
                     <RotateCcw size={12} aria-hidden="true" /> Restart tutorial in this game
                   </button>
@@ -156,7 +156,7 @@ export function SettingsDialog({
             <div className="mt-8 flex justify-end short:mt-0 short:absolute short:top-3 short:right-3">
               <button 
                 onClick={() => setIsSettingsOpen(false)}
-                className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-2 short:py-1 font-mono text-sm tracking-widest uppercase transition-all"
+                className="bg-surface hover:bg-raised text-ink border border-line px-3 py-2 short:py-1 font-mono text-sm transition-all"
               >
                 Close
               </button>

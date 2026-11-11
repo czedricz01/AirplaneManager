@@ -12,7 +12,7 @@ export const TableScrollContainer = forwardRef<HTMLDivElement, { children: React
     return (
       // overflow-auto, not overflow-y-auto: on a phone the columns are wider than
       // the screen and have to scroll sideways instead of being cut off.
-      <div ref={ref} className={`flex-1 overflow-auto pr-2 md:pr-4 custom-scrollbar bg-black/20 border border-white/5 rounded-sm p-2 md:p-4 ${className}`}>
+      <div ref={ref} className={`flex-1 overflow-auto pr-2 md:pr-4 bg-ground/20 border border-line rounded-sm p-2 md:p-4 ${className}`}>
         {children}
       </div>
     );
@@ -26,7 +26,7 @@ export function Table({ children, className = '' }: { children: ReactNode; class
 export function Thead({ children }: { children: ReactNode }) {
   return (
     <thead>
-      <tr className="border-b border-aero-yellow/30 text-aero-yellow/80 uppercase tracking-widest text-2xs">
+      <tr className="border-b border-accent/30 text-accent uppercase tracking-label text-2xs">
         {children}
       </tr>
     </thead>
@@ -43,7 +43,7 @@ interface ThProps extends ThHTMLAttributes<HTMLTableCellElement> {
 export function Th({ sortable = true, first = false, className = '', children, ...rest }: ThProps) {
   return (
     <th
-      className={`py-4 sticky top-0 bg-aero-panel-2 z-10 ${first ? 'pl-4' : ''} ${sortable ? 'cursor-pointer hover:text-aero-yellow' : 'text-white/40 cursor-default'} ${className}`}
+      className={`py-4 sticky top-0 bg-raised z-10 ${first ? 'pl-4' : ''} ${sortable ? 'cursor-pointer hover:text-accent' : 'text-muted cursor-default'} ${className}`}
       {...rest}
     >
       {children}

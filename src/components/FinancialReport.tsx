@@ -11,8 +11,8 @@ function signedAmount(variant: 'expense' | 'net' | undefined, value: number): st
 
 /** Colour for the same figure: deductions stay neutral, net results are signed. */
 function signedClass(variant: 'expense' | 'net' | undefined, value: number): string {
-  if (variant !== 'net') return 'text-aero-yellow/60';
-  return value >= 0 ? 'text-aero-good' : 'text-aero-warn';
+  if (variant !== 'net') return 'text-accent';
+  return value >= 0 ? 'text-good' : 'text-bad';
 }
 
 export interface FinancialItem {
@@ -53,17 +53,17 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
   };
 
   return (
-    <div className="bg-black/40 border border-white/10 rounded-sm overflow-hidden flex flex-col font-mono text-xs">
+    <div className="bg-ground/40 border border-line rounded-sm overflow-hidden flex flex-col font-mono text-xs">
       <button 
         onClick={() => setMainOpen(!mainOpen)}
-        className="flex justify-between items-center p-3 bg-white/5 hover:bg-white/10 transition-colors border-b border-white/5"
+        className="flex justify-between items-center p-3 bg-surface hover:bg-raised transition-colors border-b border-line"
       >
-        <span className="font-bold uppercase tracking-widest text-aero-yellow">{title}</span>
+        <span className="font-semibold uppercase tracking-label text-accent">{title}</span>
         <div className="flex items-center gap-3">
-           <span className={`font-black text-sm ${netProfit >= 0 ? "text-aero-good" : "text-aero-warn"}`}>
+           <span className={`font-semibold text-sm ${netProfit >= 0 ? "text-good" : "text-bad"}`}>
              {netProfit >= 0 ? "+" : ""}{formatCurrency(netProfit)}
            </span>
-           <ChevronDown size={14} className={`text-white/40 transition-transform ${mainOpen ? 'rotate-180' : ''}`} />
+           <ChevronDown size={14} className={`text-muted transition-transform ${mainOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
@@ -78,16 +78,16 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
             <div className="p-3 flex flex-col gap-3">
                {/* Revenues Section */}
                {(totalRevenue !== undefined || revenues) && (
-                 <div className="border border-white/5 bg-white/5 rounded-sm">
+                 <div className="border border-line bg-surface rounded-sm">
                     <button 
                       onClick={() => toggleCategory('rev')}
-                      className="w-full flex justify-between items-center p-2 hover:bg-white/5 transition-colors"
+                      className="w-full flex justify-between items-center p-2 hover:bg-raised transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-white/60 uppercase tracking-wider md:tracking-widest font-bold text-left">Revenue</span>
-                        <ChevronDown size={12} className={`text-white/40 transition-transform ${openCategories.includes('rev') ? 'rotate-180' : ''}`} />
+                        <span className="text-muted uppercase tracking-label md:tracking-label font-semibold text-left">Revenue</span>
+                        <ChevronDown size={12} className={`text-muted transition-transform ${openCategories.includes('rev') ? 'rotate-180' : ''}`} />
                       </div>
-                      <span className="text-aero-yellow font-bold">
+                      <span className="text-accent font-semibold">
                         +{formatCurrency(totalRevenue || (revenues?.reduce((a, b) => a + b.amount, 0) || 0))}
                       </span>
                     </button>
@@ -95,13 +95,13 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                       {openCategories.includes('rev') && revenues && (
                         <motion.div 
                           initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                          className="overflow-hidden bg-black/20"
+                          className="overflow-hidden bg-ground/20"
                         >
-                          <div className="p-2 flex flex-col gap-2 border-t border-white/5">
+                          <div className="p-2 flex flex-col gap-2 border-t border-line">
                             {revenues.map((r, idx) => (
                               <div key={idx} className="flex justify-between">
-                                <span className="text-white/40">{r.label}</span>
-                                <span className="text-white/80">{formatCurrency(r.amount)}</span>
+                                <span className="text-muted">{r.label}</span>
+                                <span className="text-ink">{formatCurrency(r.amount)}</span>
                               </div>
                             ))}
                           </div>
@@ -113,16 +113,16 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
 
                {/* Expenses Section */}
                {expenses.map(cat => (
-                 <div key={cat.id} className="border border-white/5 bg-white/5 rounded-sm">
+                 <div key={cat.id} className="border border-line bg-surface rounded-sm">
                     <button
                       onClick={() => toggleCategory(cat.id)}
-                      className="w-full flex justify-between items-center p-2 hover:bg-white/5 transition-colors"
+                      className="w-full flex justify-between items-center p-2 hover:bg-raised transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-white/60 uppercase tracking-wider md:tracking-widest font-bold text-left">{cat.label}</span>
-                        <ChevronDown size={12} className={`text-white/40 transition-transform ${openCategories.includes(cat.id) ? 'rotate-180' : ''}`} />
+                        <span className="text-muted uppercase tracking-label md:tracking-label font-semibold text-left">{cat.label}</span>
+                        <ChevronDown size={12} className={`text-muted transition-transform ${openCategories.includes(cat.id) ? 'rotate-180' : ''}`} />
                       </div>
-                      <span className={`font-bold ${signedClass(cat.variant, cat.total)}`}>
+                      <span className={`font-semibold ${signedClass(cat.variant, cat.total)}`}>
                         {signedAmount(cat.variant, cat.total)}
                       </span>
                     </button>
@@ -130,13 +130,13 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                       {openCategories.includes(cat.id) && cat.items.length > 0 && (
                         <motion.div 
                           initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                          className="overflow-hidden bg-black/20"
+                          className="overflow-hidden bg-ground/20"
                         >
-                          <div className="p-2 flex flex-col gap-2 border-t border-white/5">
+                          <div className="p-2 flex flex-col gap-2 border-t border-line">
                             {cat.items.map((item, idx) => (
                               <div key={idx} className="flex justify-between gap-4">
-                                <span className="text-white/40">{item.label}</span>
-                                <span className={cat.variant === 'net' ? signedClass('net', item.amount) : 'text-white/80'}>
+                                <span className="text-muted">{item.label}</span>
+                                <span className={cat.variant === 'net' ? signedClass('net', item.amount) : 'text-ink'}>
                                   {cat.variant === 'net' ? signedAmount('net', item.amount) : formatCurrency(item.amount)}
                                 </span>
                               </div>
@@ -150,9 +150,9 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                
                {/* Total Costs Row if needed */}
                {totalCosts !== undefined && expenses.length === 0 && (
-                 <div className="flex justify-between items-center p-2 bg-white/5 rounded-sm border border-white/5">
-                   <span className="text-white/60 uppercase tracking-wider md:tracking-widest font-bold text-left">Total Costs</span>
-                   <span className="text-aero-yellow/60 font-bold">-{formatCurrency(totalCosts)}</span>
+                 <div className="flex justify-between items-center p-2 bg-surface rounded-sm border border-line">
+                   <span className="text-muted uppercase tracking-label md:tracking-label font-semibold text-left">Total Costs</span>
+                   <span className="text-accent font-semibold">-{formatCurrency(totalCosts)}</span>
                  </div>
                )}
             </div>

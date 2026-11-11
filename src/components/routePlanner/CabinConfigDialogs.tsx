@@ -73,7 +73,7 @@ export function CabinConfigDialogs() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[3000] flex items-center justify-center bg-ground/90 p-4"
           >
             <motion.div 
               role="dialog"
@@ -81,9 +81,9 @@ export function CabinConfigDialogs() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md bg-aero-panel-2 border border-white/10 p-4 rounded-sm shadow-2xl"
+              className="w-full max-w-md bg-raised border border-line p-4 rounded-sm"
             >
-              <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow mb-3">Save Configuration</h3>
+              <h3 className="text-xl font-semibold text-accent mb-3">Save Configuration</h3>
               <div className="space-y-6">
                 <OverwritePicker
                   items={savedCabinConfigs}
@@ -94,12 +94,12 @@ export function CabinConfigDialogs() {
                   }}
                 />
                 <div>
-                  <label className="text-2xs uppercase font-bold text-white/40 tracking-widest block mb-2">Configuration Name</label>
+                  <label className="text-2xs uppercase font-semibold text-muted tracking-label block mb-2">Configuration Name</label>
                   <input 
                     type="text" 
                     value={newConfigName}
                     onChange={(e) => setNewConfigName(e.target.value)}
-                    className="w-full bg-black border border-white/10 p-4 text-white font-mono focus:border-aero-yellow outline-none transition-all"
+                    className="w-full bg-ground border border-line p-4 text-ink font-mono focus:border-accent outline-none transition-all"
                     placeholder="e.g. Premium Short-Haul"
                     autoFocus
                   />
@@ -107,13 +107,13 @@ export function CabinConfigDialogs() {
                 <div className="flex gap-4 pt-4">
                   <button 
                     onClick={() => setShowConfigSaveModal(false)}
-                    className="flex-1 py-4 border border-white/10 text-white/50 uppercase text-2xs font-black tracking-widest hover:text-white hover:bg-white/5 transition-all"
+                    className="flex-1 py-4 border border-line text-muted uppercase text-2xs font-semibold tracking-label hover:text-ink hover:bg-raised transition-all"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={saveCabinConfig}
-                    className="flex-1 py-4 bg-aero-yellow text-black uppercase text-2xs font-black tracking-widest hover:bg-white transition-all"
+                    className="flex-1 py-4 bg-accent text-on-accent uppercase text-2xs font-semibold tracking-label hover:bg-ink transition-all"
                   >
                     {overwriteId ? 'Overwrite' : 'Save'}
                   </button>
@@ -130,7 +130,7 @@ export function CabinConfigDialogs() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[3000] flex items-center justify-center bg-ground/90 p-4"
           >
             <motion.div 
               role="dialog"
@@ -138,18 +138,18 @@ export function CabinConfigDialogs() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-2xl bg-aero-panel-2 border border-white/10 p-4 rounded-sm shadow-2xl max-h-[80vh] flex flex-col"
+              className="w-full max-w-2xl bg-raised border border-line p-4 rounded-sm max-h-[80vh] flex flex-col"
             >
                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-xl font-black uppercase tracking-widest text-aero-yellow">Load Configuration</h3>
-                  <button onClick={() => setShowConfigLoadModal(false)} className="text-white/40 hover:text-white transition-colors">
+                  <h3 className="text-xl font-semibold text-accent">Load Configuration</h3>
+                  <button onClick={() => setShowConfigLoadModal(false)} className="text-muted hover:text-ink transition-colors">
                      <Plus size={24} className="rotate-45" />
                   </button>
                </div>
                
-               <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+               <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                   {savedCabinConfigs.length === 0 ? (
-                     <div className="py-12 text-center text-white/20 uppercase text-xs font-black tracking-widest italic">
+                     <div className="py-12 text-center text-muted uppercase text-xs font-semibold tracking-label">
                         No saved configurations found.
                      </div>
                   ) : (
@@ -157,17 +157,17 @@ export function CabinConfigDialogs() {
                         <div key={cfg.id} className="group flex items-center gap-2">
                            <button 
                               onClick={() => loadCabinConfig(cfg)}
-                              className="flex-1 flex justify-between items-center bg-white/5 border border-white/10 p-4 hover:bg-white/10 hover:border-aero-yellow transition-all text-left"
+                              className="flex-1 flex justify-between items-center bg-surface border border-line p-4 hover:bg-raised hover:border-accent transition-all text-left"
                            >
-                              <span className="text-sm font-black uppercase tracking-widest text-white">{cfg.name}</span>
-                              <div className="flex items-center gap-4 text-2xs text-white/40 uppercase font-bold">
+                              <span className="text-sm font-semibold text-ink">{cfg.name}</span>
+                              <div className="flex items-center gap-4 text-2xs text-muted uppercase font-semibold">
                                  <span>{Object.keys(cfg.configs).filter(k => k !== 'general').length} Classes</span>
                                  <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                            </button>
                            <button 
                               onClick={() => deleteSavedConfig(cfg.id)}
-                              className="w-12 h-14 flex items-center justify-center bg-aero-panel border border-white/20 text-aero-yellow/60 hover:bg-aero-panel-2 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                              className="w-12 h-14 flex items-center justify-center bg-surface border border-rule text-accent hover:bg-raised hover:text-ink transition-all opacity-0 group-hover:opacity-100"
                            >
                               <Plus size={20} className="rotate-45" />
                            </button>
@@ -178,7 +178,7 @@ export function CabinConfigDialogs() {
                
                <button 
                   onClick={() => setShowConfigLoadModal(false)}
-                  className="mt-6 w-full py-4 border border-white/10 text-white/50 uppercase text-2xs font-black tracking-widest hover:text-white hover:bg-white/5 transition-all text-center"
+                  className="mt-6 w-full py-4 border border-line text-muted uppercase text-2xs font-semibold tracking-label hover:text-ink hover:bg-raised transition-all text-center"
                >
                   Close
                </button>
