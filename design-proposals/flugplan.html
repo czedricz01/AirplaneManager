@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Designvorschlag: A · Flugplan</title>
+<!-- Vorschau: Schriften kommen hier von Google Fonts. In der App würden die Schriftdateien selbst ausgeliefert. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+table{border-collapse:collapse;width:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* ---- the sheet around the previews (not part of the design itself) ---- */
+.sheet{font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c1c1c;background:#e9e9e6;padding:32px 24px 64px}
+.sheet > header, .sheet > section{max-width:1320px;margin:0 auto}
+.sheet h1{font-size:28px;line-height:1.2;margin:0 0 6px;letter-spacing:-.01em}
+.sheet .lead{max-width:70ch;margin:0 0 24px;color:#3a3a3a}
+.sheet h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#555;margin:36px 0 12px;font-weight:600}
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.spec > div{background:#fff;border:1px solid #cfcfca;padding:16px 18px}
+.spec h3{font-size:14px;margin:0 0 8px}
+.spec ul{margin:0;padding-left:18px}
+.spec li{margin:2px 0}
+.spec code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:#f1f1ee;padding:1px 4px}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.sw li{border:1px solid #cfcfca;background:#fff;margin:0}
+.sw i{display:block;height:36px}
+.sw span{display:block;padding:5px 7px;font:12px/1.3 ui-monospace,Menlo,Consolas,monospace}
+.sw b{display:block;font:600 12px/1.3 system-ui,sans-serif}
+.frames{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame{border:1px solid #9a9a95;background:#fff;box-shadow:0 1px 0 #bdbdb8}
+.frame.desktop{width:1280px;max-width:100%;overflow:auto}
+.frame.desktop > .app{width:1280px;height:760px}
+.frame.mobile{width:362px}
+.frame.mobile > .app{width:360px;height:740px}
+.cap{font-size:12px;color:#555;margin:0 0 6px}
+.app{position:relative;overflow:hidden}
+
+.A{--paper:#F4F1EA;--surface:#FBFAF6;--ink:#16181A;--muted:#565B61;--line:#D5D0C4;--rule:#8C8676;--accent:#B42A18;--good:#1F6B3A;--bad:#B42A18;--focus:#B42A18;
+  background:var(--paper);color:var(--ink);font:15px/1.4 "IBM Plex Sans",system-ui,sans-serif}
+.A .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.A .cond{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif}
+.A .good{color:var(--good)} .A .bad{color:var(--bad)}
+/* masthead */
+.A .mast{display:flex;align-items:baseline;gap:20px;padding:14px 28px 10px;border-bottom:3px solid var(--ink)}
+.A .mast .brand{font:700 22px/1 "IBM Plex Sans Condensed",sans-serif;letter-spacing:.02em;text-transform:uppercase}
+.A .mast .brand small{font:400 13px/1 "IBM Plex Sans",sans-serif;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:8px}
+.A .mast .date{margin-left:auto;font-size:15px}
+.A .btn{border:1px solid var(--ink);background:transparent;padding:8px 14px;font:600 14px/1 "IBM Plex Sans Condensed",sans-serif;letter-spacing:.04em;text-transform:uppercase;border-radius:2px;min-height:36px}
+.A .btn.primary{background:var(--ink);color:var(--paper)}
+.A .btn.quiet{border-color:var(--rule)}
+/* nav: a row of words, the current one underlined in the signal colour */
+.A nav.top{display:flex;gap:0;padding:0 28px;border-bottom:1px solid var(--rule)}
+.A nav.top a{padding:11px 14px 9px;color:var(--muted);text-decoration:none;font:500 15px/1 "IBM Plex Sans Condensed",sans-serif;letter-spacing:.02em;border-bottom:3px solid transparent;margin-bottom:-1px}
+.A nav.top a:first-child{padding-left:0}
+.A nav.top a[aria-current]{color:var(--ink);border-bottom-color:var(--accent);font-weight:700}
+/* figures: one line, separated by rules, no boxes */
+.A .figs{display:grid;grid-template-columns:1.5fr repeat(5,1fr);border-bottom:1px solid var(--rule)}
+.A .figs div{padding:12px 16px 12px 0;margin-left:28px;border-right:1px solid var(--line)}
+.A .figs div:last-child{border-right:0}
+.A .figs dt{font:500 12px/1 "IBM Plex Sans Condensed",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.A .figs dd{margin:6px 0 0;font-size:22px;line-height:1}
+.A .figs dd small{display:block;font-size:12.5px;margin-top:5px;color:var(--muted)}
+.A .figs dd small.good{color:var(--good)} .A .figs dd small.bad{color:var(--bad)}
+.A .figs div:first-child dd{font-size:30px}
+.A dl{margin:0}
+/* body */
+.A .body{padding:18px 28px 0}
+.A .head{display:flex;align-items:flex-end;gap:16px;margin-bottom:10px}
+.A h1.t{font:700 26px/1 "IBM Plex Sans Condensed",sans-serif;margin:0;letter-spacing:.01em}
+.A .head p{margin:0;color:var(--muted);font-size:14px}
+.A .head .sp{margin-left:auto;display:flex;gap:8px;align-items:center}
+.A .field{border:1px solid var(--rule);background:var(--surface);padding:0 10px;height:36px;font:inherit;font-size:14px;border-radius:2px;color:var(--ink);min-width:200px}
+.A table.tt{font-size:14px}
+.A .tt th{font:600 12px/1.2 "IBM Plex Sans Condensed",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px 7px;border-top:2px solid var(--ink);border-bottom:1px solid var(--ink);white-space:nowrap}
+.A .tt td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:baseline;white-space:nowrap}
+.A .tt th.r,.A .tt td.r{text-align:right}
+.A .tt th:first-child,.A .tt td:first-child{padding-left:0}
+.A .tt th:last-child,.A .tt td:last-child{padding-right:0}
+.A .tt tr.sel td{background:var(--surface)}
+.A .tt tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent);padding-left:10px}
+.A .tt .city{color:var(--muted)}
+.A .tt .pair b{font:700 15px/1 "IBM Plex Mono",monospace}
+.A .bar{display:inline-block;width:54px;height:6px;background:var(--line);vertical-align:middle;margin-right:8px}
+.A .bar i{display:block;height:100%;background:var(--ink)}
+.A .bar.low i{background:var(--bad)}
+.A .foot{display:flex;gap:24px;padding:10px 0;color:var(--muted);font-size:13px;border-top:1px solid var(--ink);margin-top:-1px}
+.A .foot b{color:var(--ink)}
+/* mobile */
+.A.m{font-size:15px;display:flex;flex-direction:column}
+.A.m .mast{padding:12px 16px 10px;gap:10px;align-items:center}
+.A.m .mast .brand{font-size:18px}
+.A.m .figs{grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--rule)}
+.A.m .figs div{margin-left:16px;padding:9px 8px 9px 0}
+.A.m .figs div:nth-child(3n){border-right:0}
+.A.m .figs div:nth-child(-n+3){border-bottom:1px solid var(--line)}
+.A.m .figs dd,.A.m .figs div:first-child dd{font-size:17px}
+.A.m .figs dd small{font-size:12px;margin-top:3px}
+.A.m .body{padding:14px 16px 0;flex:1;overflow:hidden}
+.A.m h1.t{font-size:22px}
+.A.m .head{margin-bottom:8px}
+.A.m ul.rows{list-style:none;margin:0;padding:0;border-top:2px solid var(--ink)}
+.A.m ul.rows li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 0;border-bottom:1px solid var(--line);min-height:56px}
+.A.m ul.rows .pair b{font:700 16px/1.2 "IBM Plex Mono",monospace}
+.A.m ul.rows .sub{color:var(--muted);font-size:13px}
+.A.m ul.rows .p{text-align:right;font-size:15px}
+.A.m ul.rows .l{text-align:right;color:var(--muted);font-size:13px}
+.A.m nav.bot{display:grid;grid-template-columns:repeat(5,1fr);border-top:2px solid var(--ink);background:var(--paper)}
+.A.m nav.bot a{display:flex;align-items:center;justify-content:center;min-height:52px;color:var(--muted);text-decoration:none;font:600 13px/1 "IBM Plex Sans Condensed",sans-serif;letter-spacing:.04em;text-transform:uppercase;border-top:3px solid transparent;margin-top:-2px}
+.A.m nav.bot a[aria-current]{color:var(--ink);border-top-color:var(--accent)}
+.A.m .next{margin:0 16px 10px;height:48px;width:calc(100% - 32px)}
+
+</style>
+</head>
+<body>
+<div class="sheet">
+<header>
+<h1>A · Flugplan</h1>
+<p class="lead">Hell, wie ein gedruckter Flugplan: Papierton, schwarze Schrift, eine einzige Signalfarbe. Die Daten stehen in dichten Tabellen mit feinen Linien statt in Karten. Die Navigation ist eine Zeile aus Wörtern; nichts ist nur Dekoration.</p>
+</header>
+<section>
+<h2>System</h2>
+<div class="spec">
+<div style="grid-column:1/-1"><h3>Farbpalette</h3><ul class="sw"><li><i style="background:#F4F1EA"></i><span><b>Papier (Grund)</b>#F4F1EA</span></li><li><i style="background:#FBFAF6"></i><span><b>Fläche</b>#FBFAF6</span></li><li><i style="background:#16181A"></i><span><b>Tinte (Text)</b>#16181A</span></li><li><i style="background:#565B61"></i><span><b>Grau (Nebentext)</b>#565B61</span></li><li><i style="background:#D5D0C4"></i><span><b>Linie fein</b>#D5D0C4</span></li><li><i style="background:#8C8676"></i><span><b>Linie Bedienelement</b>#8C8676</span></li><li><i style="background:#B42A18"></i><span><b>Signal / Verlust</b>#B42A18</span></li><li><i style="background:#1F6B3A"></i><span><b>Gewinn</b>#1F6B3A</span></li></ul></div>
+<div><h3>Typografie</h3><ul><li>Überschriften und Beschriftungen: <b>IBM Plex Sans Condensed</b> (schmal, spart Breite in Tabellen)</li><li>Fließtext: <b>IBM Plex Sans</b></li><li>Zahlen, Codes, Flugnummern: <b>IBM Plex Mono</b> mit Tabellenziffern</li><li>Skala: 12 · 13 · 15 (Basis) · 22 · 26 · 30 px</li><li>Großbuchstaben nur in Spaltenköpfen und Buttons</li></ul></div>
+<div><h3>Abstände und Radien</h3><ul><li>Raster: 4 px; verwendet werden 4 · 8 · 12 · 16 · 28 px</li><li>Seitenrand Desktop 28 px, Mobile 16 px</li><li>Radius 2 px für Buttons und Felder, sonst 0</li><li>Keine Schatten. Hierarchie über Linienstärke: 3 px (Kopf), 2 px (Tabellenkopf), 1 px (Zeilen)</li></ul></div>
+<div><h3>Komponenten</h3><ul><li><b>Tabellen:</b> Linien statt Zebra, Zahlen rechtsbündig, Auswahl mit rotem Randstrich</li><li><b>Listen (Mobile):</b> zwei Zeilen je Route, Gewinn rechts</li><li><b>Buttons:</b> gefüllt schwarz (Hauptaktion), Umriss (Nebenaktion)</li><li><b>Formulare:</b> Felder mit Umriss, 36 px hoch (Mobile 44 px)</li><li><b>Navigation:</b> Desktop Wortzeile oben, Mobile 5 Wörter unten</li></ul></div>
+<div><h3>Vorteile für diese App</h3><ul><li>Höchste Datendichte: 8 Routen mit 9 Spalten ohne Scrollen</li><li>Sehr gut lesbar, auch bei Tageslicht; Kontrast Text 15,8 : 1</li><li>Passt thematisch (Flugplan, Kursbuch) und sieht nicht nach Standard-Dashboard aus</li><li>Leicht umzusetzen: wenige Farben, keine Effekte</li></ul></div>
+<div><h3>Nachteile</h3><ul><li>Deutlichster Bruch mit dem jetzigen dunklen Aussehen</li><li>Die Weltkarte (Satellitenbild) wirkt auf hellem Grund als Fremdkörper und braucht einen eigenen Rahmen</li><li>Keine Icons in der Navigation: auf dem Handy passen nur 5 Wörter, der Rest liegt unter „More"</li><li>Hell blendet beim Spielen im Dunkeln stärker</li></ul></div>
+</div>
+</section>
+<section>
+<h2>Vorschau: Routenübersicht im Spiel</h2>
+<div class="frames">
+<div><p class="cap">Desktop, 1280 × 760 px</p><div class="frame desktop"><div class="app A">
+<div class="mast"><span class="brand">Neo Airlines<small>NE · Frankfurt</small></span><span class="date num">03 / 1967</span><button class="btn quiet">Messages 3</button><button class="btn quiet">Menu</button><button class="btn primary">Close month</button></div>
+<nav class="top" aria-label="Main"><a href="#">Map</a><a href="#">Buy aircraft</a><a href="#">My fleet</a><a href="#" aria-current="page">Routes</a><a href="#">Airports</a><a href="#">My company</a><a href="#">Career</a><a href="#">Rivals</a></nav>
+<dl class="figs"><div><dt>Capital</dt><dd class="num">$38.42M<small class="good">+$1.07M</small></dd></div><div><dt>Fleet</dt><dd class="num">9<small class="">1 idle</small></dd></div><div><dt>Routes</dt><dd class="num">8<small class="bad">2 at a loss</small></dd></div><div><dt>Reputation</dt><dd class="num">64<small class="good">+2</small></dd></div><div><dt>Demand</dt><dd class="num">103%<small class="good">+4.1%</small></dd></div><div><dt>Fuel</dt><dd class="num">$0.031/L<small class="bad">+6.2%</small></dd></div></dl>
+<div class="body">
+<div class="head"><h1 class="t">Routes</h1><p>8 routes · 16,176 passengers a week · last month <b class="num good">+$970,200</b></p><div class="sp"><input class="field" placeholder="Filter by airport" aria-label="Filter by airport"><button class="btn primary">New route</button></div></div>
+<table class="tt"><thead><tr><th>Flight</th><th>City pair</th><th class="r">Distance</th><th>Aircraft</th><th class="r">Flights / wk</th><th class="r">Pax / wk</th><th>Load</th><th class="r">Fare</th><th class="r">Profit / month</th></tr></thead><tbody><tr><td class="num">NE 400</td><td class="pair"><b>FRA – JFK</b> <span class="city">New York</span></td><td class="r num">6,204 km</td><td>Boeing 707-320B <span class="city num">D-ABOC</span></td><td class="r num">14</td><td class="r num">2,212</td><td class="num"><span class="bar"><i style="width:84%"></i></span>84%</td><td class="r num">$412</td><td class="r num good">+$486,300</td></tr><tr class="sel"><td class="num">NE 112</td><td class="pair"><b>FRA – LHR</b> <span class="city">London</span></td><td class="r num">655 km</td><td>Caravelle III <span class="city num">D-ACAB</span></td><td class="r num">28</td><td class="r num">2,016</td><td class="num"><span class="bar"><i style="width:90%"></i></span>90%</td><td class="r num">$96</td><td class="r num good">+$212,900</td></tr><tr><td class="num">NE 130</td><td class="pair"><b>FRA – CDG</b> <span class="city">Paris</span></td><td class="r num">448 km</td><td>Caravelle III <span class="city num">D-ACAD</span></td><td class="r num">28</td><td class="r num">1,904</td><td class="num"><span class="bar"><i style="width:85%"></i></span>85%</td><td class="r num">$78</td><td class="r num good">+$148,400</td></tr><tr><td class="num">NE 236</td><td class="pair"><b>FRA – IST</b> <span class="city">Istanbul</span></td><td class="r num">1,862 km</td><td>Boeing 727-100 <span class="city num">D-ABIB</span></td><td class="r num">14</td><td class="r num">1,428</td><td class="num"><span class="bar"><i style="width:78%"></i></span>78%</td><td class="r num">$164</td><td class="r num good">+$96,700</td></tr><tr><td class="num">NE 318</td><td class="pair"><b>FRA – CAI</b> <span class="city">Cairo</span></td><td class="r num">2,921 km</td><td>Boeing 727-100 <span class="city num">D-ABIF</span></td><td class="r num">7</td><td class="r num">612</td><td class="num"><span class="bar low"><i style="width:67%"></i></span>67%</td><td class="r num">$221</td><td class="r num good">+$18,200</td></tr><tr><td class="num">NE 150</td><td class="pair"><b>FRA – MAD</b> <span class="city">Madrid</span></td><td class="r num">1,421 km</td><td>Caravelle III <span class="city num">D-ACAF</span></td><td class="r num">14</td><td class="r num">742</td><td class="num"><span class="bar low"><i style="width:66%"></i></span>66%</td><td class="r num">$139</td><td class="r num bad">−$4,600</td></tr><tr><td class="num">NE 172</td><td class="pair"><b>FRA – ARN</b> <span class="city">Stockholm</span></td><td class="r num">1,222 km</td><td>Fokker F27-100 <span class="city num">D-BAKI</span></td><td class="r num">14</td><td class="r num">398</td><td class="num"><span class="bar low"><i style="width:59%"></i></span>59%</td><td class="r num">$118</td><td class="r num bad">−$31,800</td></tr><tr><td class="num">NE 104</td><td class="pair"><b>FRA – VIE</b> <span class="city">Vienna</span></td><td class="r num">620 km</td><td>Fokker F27-100 <span class="city num">D-BAKO</span></td><td class="r num">21</td><td class="r num">864</td><td class="num"><span class="bar"><i style="width:86%"></i></span>86%</td><td class="r num">$71</td><td class="r num good">+$44,100</td></tr></tbody></table>
+<div class="foot"><span>Sorted by <b>profit</b></span><span>Selected: <b>NE 112 Frankfurt – London</b></span><span style="margin-left:auto">Enter opens the route · ↑ ↓ moves the selection</span></div>
+</div></div></div></div>
+<div><p class="cap">Mobile, 360 × 740 px</p><div class="frame mobile"><div class="app A m">
+<div class="mast"><span class="brand">Neo Airlines</span><span class="date num">03 / 1967</span><button class="btn quiet" style="min-height:44px">Menu</button></div>
+<dl class="figs"><div><dt>Capital</dt><dd class="num">$38.42M<small class="good">+$1.07M</small></dd></div><div><dt>Fleet</dt><dd class="num">9<small class="">1 idle</small></dd></div><div><dt>Routes</dt><dd class="num">8<small class="bad">2 at a loss</small></dd></div><div><dt>Reputation</dt><dd class="num">64<small class="good">+2</small></dd></div><div><dt>Demand</dt><dd class="num">103%<small class="good">+4.1%</small></dd></div><div><dt>Fuel</dt><dd class="num">$0.031/L<small class="bad">+6.2%</small></dd></div></dl>
+<div class="body"><div class="head"><h1 class="t">Routes</h1><div class="sp"><button class="btn primary" style="min-height:44px">New route</button></div></div>
+<ul class="rows"><li><span class="pair"><b>FRA – JFK</b> <span class="sub">New York</span></span><span class="p num good">+$486,300</span><span class="sub">NE 400 · Boeing 707-320B</span><span class="l num">84% load</span></li><li><span class="pair"><b>FRA – LHR</b> <span class="sub">London</span></span><span class="p num good">+$212,900</span><span class="sub">NE 112 · Caravelle III</span><span class="l num">90% load</span></li><li><span class="pair"><b>FRA – CDG</b> <span class="sub">Paris</span></span><span class="p num good">+$148,400</span><span class="sub">NE 130 · Caravelle III</span><span class="l num">85% load</span></li><li><span class="pair"><b>FRA – IST</b> <span class="sub">Istanbul</span></span><span class="p num good">+$96,700</span><span class="sub">NE 236 · Boeing 727-100</span><span class="l num">78% load</span></li><li><span class="pair"><b>FRA – CAI</b> <span class="sub">Cairo</span></span><span class="p num good">+$18,200</span><span class="sub">NE 318 · Boeing 727-100</span><span class="l num">67% load</span></li></ul></div>
+<button class="btn primary next">Close month</button>
+<nav class="bot" aria-label="Main"><a href="#">Map</a><a href="#">Fleet</a><a href="#" aria-current="page">Routes</a><a href="#">Company</a><a href="#">More</a></nav>
+</div></div></div>
+</div>
+</section>
+</div>
+</body>
+</html>
