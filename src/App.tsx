@@ -2977,7 +2977,7 @@ export default function App() {
                 </button>
               </div>
               
-              <div className="text-sm text-ink font-sans leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto no-scrollbar pt-2 font-medium">
+              <div className="text-sm text-ink font-sans leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto pt-2 font-medium">
                 {selectedMessage.details?.content || selectedMessage.text}
               </div>
 

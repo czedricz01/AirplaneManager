@@ -156,7 +156,7 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
           <button 
             disabled={disabled}
             onClick={(e) => onBuy(1, e.shiftKey)}
-            className="w-5 h-5 flex items-center justify-center bg-ink text-on-accent font-semibold hover:bg-accent transition-all text-2xs"
+            className="w-5 h-5 flex items-center justify-center bg-accent text-on-accent font-semibold hover:bg-ink transition-all text-2xs"
           >
             +
           </button>
@@ -2858,7 +2858,7 @@ function RoutePlannerInner({
                 {/* No minimum width on phones, upright or sideways: the day headers
                     above do not scroll sideways, so seven narrow columns stay
                     aligned with them. */}
-                <div className="flex-1 flex md:min-w-[700px] short:min-w-0">
+                <div className="flex-1 flex md:min-w-[640px] short:min-w-0">
                   {daysOfWeek.map(day => (
                     <div key={day.id} className="flex-1 min-w-0 border-r border-line relative">
                        <div className="relative h-[720px] border-y border-accent/30"> {/* 24 * 30px */}

@@ -759,7 +759,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               {/* Grid content. No minimum width on phones, upright or sideways:
                   the day headers above do not scroll sideways, so seven narrow
                   columns stay aligned with them. */}
-              <div className="flex-1 flex md:min-w-[700px] short:min-w-0">
+              <div className="flex-1 flex md:min-w-[640px] short:min-w-0">
                  {daysOfWeek.map(day => (
                    <div key={day.id} className="flex-1 min-w-0 border-r border-line relative">
                       <div className="relative h-[720px]">

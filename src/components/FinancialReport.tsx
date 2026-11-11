@@ -10,7 +10,7 @@ function signedAmount(variant: 'expense' | 'net' | undefined, value: number): st
 
 /** Colour for the same figure: deductions stay neutral, net results are signed. */
 function signedClass(variant: 'expense' | 'net' | undefined, value: number): string {
-  if (variant !== 'net') return 'text-accent';
+  if (variant !== 'net') return 'text-ink';
   return value >= 0 ? 'text-good' : 'text-bad';
 }
 
@@ -83,7 +83,7 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                         <span className="text-muted uppercase tracking-label md:tracking-label font-semibold text-left">Revenue</span>
                         <ChevronDown size={12} className={`text-muted transition-transform ${openCategories.includes('rev') ? 'rotate-180' : ''}`} />
                       </div>
-                      <span className="text-accent font-semibold">
+                      <span className="text-ink font-mono">
                         +{formatCurrency(totalRevenue || (revenues?.reduce((a, b) => a + b.amount, 0) || 0))}
                       </span>
                     </button>
@@ -146,7 +146,7 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                {totalCosts !== undefined && expenses.length === 0 && (
                  <div className="flex justify-between items-center p-2 bg-surface rounded-sm border border-line">
                    <span className="text-muted uppercase tracking-label md:tracking-label font-semibold text-left">Total Costs</span>
-                   <span className="text-accent font-semibold">-{formatCurrency(totalCosts)}</span>
+                   <span className="text-ink font-mono">-{formatCurrency(totalCosts)}</span>
                  </div>
                )}
             </div>

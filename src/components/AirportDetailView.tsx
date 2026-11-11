@@ -288,7 +288,7 @@ export function AirportDetailView({
 
 
         {/* Main Interface */}
-        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto no-scrollbar">
+        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto overflow-x-hidden">
           {/* Left Column: Operations Dashboard */}
           <div className="flex flex-col gap-3">
             <div className="bg-raised border border-line p-4 flex flex-col gap-4">
@@ -398,7 +398,7 @@ export function AirportDetailView({
                   <button 
                     onClick={() => onBuyManagement(1)}
                     disabled={!!gates?.airport}
-                    className="px-4 py-3 bg-ink text-on-accent font-semibold text-xs uppercase tracking-label hover:bg-accent transition-all disabled:bg-surface disabled:text-muted disabled:cursor-not-allowed"
+                    className="px-4 py-3 bg-accent text-on-accent font-semibold text-xs uppercase tracking-label hover:bg-ink transition-all disabled:bg-surface disabled:text-muted disabled:cursor-not-allowed"
                   >
                     {gates?.airport ? 'Locked: Rank' : 'Initiate Setup'}
                   </button>
@@ -441,7 +441,7 @@ export function AirportDetailView({
                             }
                           }}
                           disabled={capital < 250000}
-                          className="px-4 py-2 bg-ink text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-accent transition-all disabled:opacity-50"
+                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
                         >
                           Construct - {formatCurrency(250000)}
                         </button>
@@ -511,7 +511,7 @@ export function AirportDetailView({
                             }
                           }}
                           disabled={capital < 1000000 || !!gates?.vipLounge}
-                          className="px-4 py-2 bg-ink text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-accent transition-all disabled:opacity-50"
+                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
                         >
                           {gates?.vipLounge ? 'Locked' : `Construct - ${formatCurrency(1000000)}`}
                         </button>
@@ -540,7 +540,7 @@ export function AirportDetailView({
                             }
                           }}
                           disabled={capital < 250000}
-                          className="px-4 py-2 bg-ink text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-accent transition-all disabled:opacity-50"
+                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
                         >
                           Construct - {formatCurrency(250000)}
                         </button>
@@ -731,7 +731,7 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
             <button 
               disabled={disabled} 
               onClick={(e) => onBuy(1, e.shiftKey)}
-              className="w-10 h-10 flex items-center justify-center bg-ink text-on-accent font-semibold hover:bg-accent transition-all"
+              className="w-10 h-10 flex items-center justify-center bg-accent text-on-accent font-semibold hover:bg-ink transition-all"
             >
               <Plus size={14} />
             </button>
@@ -786,7 +786,7 @@ function ManagementTierCard({ tier, activeTier, label, cost, onUpgrade, icon, fe
         <button 
           onClick={onUpgrade}
           disabled={isLocked || !!gate}
-          className={`w-full py-4 font-semibold transition-all text-xs uppercase tracking-label ${isLocked || gate ? 'bg-surface text-muted cursor-not-allowed border border-line' : 'bg-ink text-on-accent hover:bg-accent'}`}
+          className={`w-full py-4 font-semibold transition-all text-xs uppercase tracking-label ${isLocked || gate ? 'bg-surface text-muted cursor-not-allowed border border-line' : 'bg-accent text-on-accent hover:bg-ink'}`}
         >
           {isLocked ? 'LOCKED: PRE-REQUISITE REQ.' : gate ? 'LOCKED: RANK' : `ACQUIRE ACCESS - ${formatCurrency(cost)}`}
         </button>

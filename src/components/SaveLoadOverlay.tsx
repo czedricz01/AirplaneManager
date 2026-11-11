@@ -60,7 +60,7 @@ export function SaveLoadOverlay({
            <button onClick={onClose} className="text-muted hover:text-ink"><X size={20}/></button>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto no-scrollbar max-h-[60vh]">
+        <div className="flex-1 p-4 overflow-y-auto max-h-[60vh]">
           <div className="grid gap-2 mb-3">
             {saves.length === 0 ? (
               <div className="text-muted font-label text-xs p-12 text-center border border-dashed border-line uppercase tracking-label">

@@ -138,7 +138,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
         <div className="flex items-center gap-4 w-full md:w-auto">
           <button 
             onClick={() => setActiveConfigClass(null)} 
-            className="w-full md:w-auto px-10 py-4 short:py-2.5 bg-ink text-on-accent font-semibold uppercase text-xs tracking-label hover:bg-accent transition-all active:scale-95"
+            className="w-full md:w-auto px-10 py-4 short:py-2.5 bg-accent text-on-accent font-semibold uppercase text-xs tracking-label hover:bg-ink transition-all active:scale-95"
           >
             Confirm & Apply
           </button>
