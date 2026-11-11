@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
 
     return (
-      <div className="p-6 bg-ground text-bad font-mono text-xs flex flex-col gap-3 items-start">
+      <div className="p-6 bg-ground text-bad text-xs flex flex-col gap-3 items-start">
         <div className="text-xs font-semibold">
           {this.props.label ? `${this.props.label} could not be displayed` : 'Something went wrong'}
         </div>

@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database, Lock } from 'lucide-react';
-import { motion } from 'motion/react';
 import { setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { ViewHeader } from './ui/ViewHeader';
@@ -414,7 +413,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
   return (
     <div className="w-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans h-full overflow-hidden">
       <ViewHeader
-        title="BUY AIRCRAFT"
+        title="Buy aircraft"
         right={
           <div className="relative w-full lg:w-80">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -422,7 +421,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             </div>
             <input
               type="text"
-              className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors"
+              className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 transition-colors"
               placeholder="Search Type, Manufacturer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -461,7 +460,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
           <div className="bg-ground border border-dashed border-accent/20 rounded-sm p-4 shrink-0 transition-all hover:border-accent/40 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-semibold font-mono text-accent flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-accent flex items-center gap-2">
                   <Database size={16} />
                   Supabase Storage Bucket (Permanent Images)
                   <Badge tone="warn">Debug</Badge>
@@ -482,7 +481,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               <input
                 type="text"
                 placeholder="e.g. https://xxxx.supabase.co/storage/v1/object/public/your-bucket-name"
-                className="flex-1 bg-ground/60 border border-line rounded-sm px-3 py-2 text-xs font-mono text-ink focus:outline-none focus:border-accent/60 transition-colors placeholder:text-muted"
+                className="flex-1 bg-ground/60 border border-line rounded-sm px-3 py-2 text-xs text-ink focus:outline-none focus:border-accent/60 transition-colors placeholder:text-muted"
                 value={getSupabaseBucketUrl()}
                 onChange={(e) => {
                   setSupabaseBucketUrl(e.target.value);
@@ -491,7 +490,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               />
               <button
                 type="button"
-                className="bg-surface hover:bg-raised text-ink font-mono text-xs px-4 py-2 border border-line rounded-sm transition-colors whitespace-nowrap"
+                className="bg-surface hover:bg-raised text-ink text-xs px-4 py-2 border border-line rounded-sm transition-colors whitespace-nowrap"
                 onClick={() => {
                   setSupabaseBucketUrl('');
                   setSearchTerm(prev => prev);
@@ -512,7 +511,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
                 <div>
-                  <h3 className="text-sm font-semibold font-mono text-accent flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-accent flex items-center gap-2">
                     <Archive size={16} />
                     Planes Image ZIP customizer (SAT APPROVED)
                     <Badge tone="warn">Debug</Badge>
@@ -556,7 +555,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                 
                 <UploadCloud size={32} className={`mb-2 transition-colors ${dragActive ? 'text-accent' : 'text-muted'}`} />
                 
-                <p className="text-xs font-mono text-muted text-center">
+                <p className="text-xs text-muted text-center">
                   {uploading ? (
                     <span className="text-accent animate-pulse">Analysing and extracting the ZIP file... please wait.</span>
                   ) : (
@@ -572,14 +571,14 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                   <input
                     type="text"
                     placeholder="https://drive.google.com/file/d/.../view"
-                    className="flex-1 bg-ground/50 border border-line rounded-sm px-3 py-2 text-xs font-mono text-ink focus:outline-none focus:border-accent/50 placeholder:text-muted"
+                    className="flex-1 bg-ground/50 border border-line rounded-sm px-3 py-2 text-xs text-ink focus:outline-none focus:border-accent/50 placeholder:text-muted"
                     value={zipUrl}
                     onChange={e => setZipUrl(e.target.value)}
                     disabled={fetchingUrl}
                   />
                   <button
                     type="button"
-                    className="bg-surface hover:bg-raised text-ink font-mono text-xs px-4 py-2 border border-line rounded-sm transition-colors whitespace-nowrap disabled:opacity-50"
+                    className="bg-surface hover:bg-raised text-ink text-xs px-4 py-2 border border-line rounded-sm transition-colors whitespace-nowrap disabled:opacity-50"
                     onClick={handleZipUrlSubmit}
                     disabled={!zipUrl || fetchingUrl}
                   >
@@ -599,7 +598,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     <>
                       <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-accent" />
                       <div>
-                        <div className="font-semibold uppercase tracking-label">ZIP-EXTRAKTION ERFOLGREICH</div>
+                        <div className="font-semibold uppercase tracking-label">Zip-extraktion erfolgreich</div>
                         <div className="mt-1 leading-relaxed">
                           <strong className="text-ink">{uploadResult.extractedCount} images</strong> were extracted and assigned to <strong className="text-ink">{uploadResult.matchedPlanesCount} aircraft models</strong>.
                         </div>
@@ -609,7 +608,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     <>
                       <AlertCircle size={16} className="shrink-0 mt-0.5 text-accent" />
                       <div>
-                        <div className="font-semibold uppercase tracking-label">FEHLER BEI EXTRAKTION</div>
+                        <div className="font-semibold uppercase tracking-label">Fehler BEI extraktion</div>
                         <div className="mt-1 leading-relaxed">{uploadResult.error}</div>
                       </div>
                     </>
@@ -624,7 +623,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             {/* Part 2: Dynamic Single Image Search, Filter and Direct Uploader */}
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold font-mono text-accent flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-accent flex items-center gap-2">
                   <Plane size={16} />
                   Single Aircraft Image Uploader (SAT APPROVED)
                 </h3>
@@ -645,7 +644,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                         <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
                         <input
                           type="text"
-                          className="w-full bg-ground/50 border border-line rounded-sm py-1.5 pl-8 pr-3 text-xs text-ink focus:outline-none focus:border-accent/40 font-mono"
+                          className="w-full bg-ground/50 border border-line rounded-sm py-1.5 pl-8 pr-3 text-xs text-ink focus:outline-none focus:border-accent/40"
                           placeholder="Search model (e.g. A320)..."
                           value={singleSearchTerm}
                           onChange={(e) => setSingleSearchTerm(e.target.value)}
@@ -671,7 +670,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                   {/* Scrollable container with unique ID */}
                   <div 
                     id="aircraft-debug-picker-list"
-                    className="border border-line bg-ground/50 rounded-sm max-h-48 overflow-y-auto font-mono text-xs divide-y divide-line"
+                    className="border border-line bg-ground/50 rounded-sm max-h-48 overflow-y-auto text-xs divide-y divide-line"
                   >
                     {singleImageFilteredAircraft.length === 0 ? (
                       <div className="p-4 text-center text-muted uppercase tracking-label text-2xs">No matching models</div>
@@ -704,7 +703,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                       })
                     )}
                   </div>
-                  <div className="mt-1 text-2xs font-mono text-muted flex justify-between">
+                  <div className="mt-1 text-2xs text-muted flex justify-between">
                     <span>{singleImageFilteredAircraft.length} models found</span>
                     <span>{Object.keys(imagesMap).length} uploaded images in total</span>
                   </div>
@@ -716,7 +715,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     <span className="text-2xs font-label uppercase tracking-label text-muted font-semibold block">2. Choose an image and upload</span>
                     
                     {selectedAircraft ? (
-                      <div className="bg-ground/40 border border-line rounded-sm p-3 font-mono text-xs text-ink space-y-2">
+                      <div className="bg-ground/40 border border-line rounded-sm p-3 text-xs text-ink space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-2xs text-accent uppercase tracking-label font-semibold">Selected model:</span>
                           <button
@@ -768,13 +767,13 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                             <div className="text-center text-muted space-y-1 py-1">
                               <UploadCloud size={18} className="mx-auto text-muted" />
                               <span className="text-2xs block text-accent font-semibold underline">Choose image file</span>
-                              <span className="text-2xs block">PNG, JPG or WEBP</span>
+                              <span className="text-2xs block">Png, JPG or webp</span>
                             </div>
                           )}
                         </div>
                       </div>
                     ) : (
-                      <div className="border border-line bg-ground/20 rounded-sm py-4 px-4 text-center text-muted font-mono text-xs flex flex-col items-center justify-center h-[122px]">
+                      <div className="border border-line bg-ground/20 rounded-sm py-4 px-4 text-center text-muted text-xs flex flex-col items-center justify-center h-[122px]">
                         <Plane size={20} className="mb-1.5 text-muted animate-pulse" />
                         <span>Pick an aircraft model on the left to set its image (this replaces any existing one).</span>
                       </div>
@@ -821,7 +820,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
         )}
 
         {/* Filters: purchasable first, then range, capacity and price */}
-        <div className="flex flex-wrap items-end gap-3 bg-ground/40 border border-line rounded-sm p-3 shrink-0 font-mono">
+        <div className="flex flex-wrap items-end gap-3 bg-ground/40 border border-line rounded-sm p-3 shrink-0">
           <button
             type="button"
             aria-pressed={onlyPurchasable}
@@ -862,7 +861,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
         </div>
 
         {manufacturers.length === 0 ? (
-          <div className="text-muted text-center uppercase tracking-label mt-12 w-full">NO AIRCRAFT AVAILABLE IN THIS ERA.</div>
+          <div className="text-muted text-center uppercase tracking-label mt-12 w-full">No aircraft available in this ERA.</div>
         ) : manufacturers.map(mfg => {
           const familiesMap = grouped.get(mfg)!;
           const families = Array.from(familiesMap.keys()).sort();
@@ -918,13 +917,13 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                 </div>
 
                                 {expandedPlaneId === plane.id && (
-                                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mb-4 text-xs font-mono text-muted leading-relaxed bg-ground/40 p-3 rounded-sm border border-line">
+                                  <div className="mb-4 text-xs text-muted leading-relaxed bg-ground/40 p-3 rounded-sm border border-line animate-appear">
                                     {generateSummary(plane)}
-                                  </motion.div>
+                                  </div>
                                 )}
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4 text-xs font-mono text-muted mb-4">
-                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">PLANE TYPE SAT</span><span className="text-ink font-semibold">{plane.popularity}%</span></div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4 text-xs text-muted mb-4">
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Plane type SAT</span><span className="text-ink font-semibold">{plane.popularity}%</span></div>
                                   <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Efficiency</span><span className="text-ink font-semibold">{plane.efficiency}/100</span></div>
                                   <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Max Range</span><span className="text-ink font-semibold">{plane.maxRange} km</span></div>
                                   <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Capacity</span><span className="text-ink font-semibold">{plane.capacity} pax</span></div>
@@ -937,7 +936,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                     const gate = classGateMessage(plane, classesOpen);
                                     return gate ? (
                                       <>
-                                        <span className="flex items-center gap-2 text-2xs font-mono text-bad mr-auto">
+                                        <span className="flex items-center gap-2 text-2xs text-bad mr-auto">
                                           <Lock size={12} aria-hidden="true" /> {gate}
                                         </span>
                                         <Button variant="secondary" size="md" disabled>Locked</Button>

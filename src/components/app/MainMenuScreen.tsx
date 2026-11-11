@@ -2,7 +2,6 @@
 import React from 'react';
 import type { SaveMetadata } from '../../lib/cloudSaves';
 import type { ViewState } from '../../lib/gameTypes';
-import { motion } from 'motion/react';
 import { Bird, LogOut, Maximize2, Minimize2 } from 'lucide-react';
 import { ThemeMenuButton } from './AppChrome';
 
@@ -30,19 +29,16 @@ export function MainMenuScreen({
 }: MainMenuScreenProps) {
   return (
     <>
-              <motion.div
+              <div
                 key="main-menu"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start p-4 pt-14 md:pt-4 short:pt-14 bg-ground relative"
+                className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start p-4 pt-14 md:pt-4 short:pt-14 bg-ground relative animate-appear"
               >
                 {/* The menu card is centred with auto margins instead of
                     justify-center, which would push its top out of reach whenever it
                     is taller than the screen, as on phones; on those pt-14 keeps it
                     clear of this bar. */}
                 <div className="absolute top-4 right-4 md:right-8 z-50 flex items-center gap-3 md:gap-4">
-                  <div className="text-muted font-mono text-xs flex items-center gap-2">
+                  <div className="text-muted text-xs flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${userId ? (cloudOnline ? 'bg-accent animate-pulse' : 'bg-rule') : 'bg-raised'}`}></div>
                     {user || 'UNKNOWN_USER'}
                   </div>
@@ -94,7 +90,7 @@ export function MainMenuScreen({
                       <div className="text-2xs font-label uppercase tracking-label text-accent font-semibold">
                         {legacySaveCount} savegame{legacySaveCount === 1 ? '' : 's'} found from before accounts existed
                       </div>
-                      <p className="text-2xs font-mono text-muted leading-relaxed">
+                      <p className="text-2xs text-muted leading-relaxed">
                         They are still stored in this browser. Import them into your account to
                         reach them from any device. The originals are left untouched.
                       </p>
@@ -148,7 +144,7 @@ export function MainMenuScreen({
 
                   </div>
                 </div>
-              </motion.div>
+              </div>
     </>
   );
 }

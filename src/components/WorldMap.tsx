@@ -151,7 +151,7 @@ const pairKey = (a: string, b: string) => (a < b ? `${a}-${b}` : `${b}-${a}`);
  */
 function HeatmapLegend() {
   return (
-    <div className="absolute bottom-4 left-4 z-[800] pointer-events-none bg-ground/85 border border-line px-3 py-2 w-56 font-mono">
+    <div className="absolute bottom-4 left-4 z-[800] pointer-events-none bg-ground/85 border border-line px-3 py-2 w-56">
       <div className="text-2xs font-semibold uppercase tracking-label text-muted mb-1.5">Profit heatmap</div>
       <div
         className="h-2 w-full"

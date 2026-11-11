@@ -98,7 +98,7 @@ function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankSt
             <span className="text-xl font-semibold text-accent">Free Mode</span>
             <Badge tone="yellow">Global Player</Badge>
           </div>
-          <p className="text-2xs font-mono text-muted leading-relaxed max-w-2xl">
+          <p className="text-2xs text-muted leading-relaxed max-w-2xl">
             There is no rank to earn in Free Mode: every airport, every aircraft class and every development project is
             open from the first month, and the number of hubs is not limited. Start a game in Normal Mode to climb
             the ten ranks instead.
@@ -121,7 +121,7 @@ function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankSt
               <Bar fraction={progress.fraction} />
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mt-3">
                 {progress.lines.map(line => (
-                  <li key={line.label} className="flex items-center justify-between text-2xs font-mono">
+                  <li key={line.label} className="flex items-center justify-between text-2xs">
                     <span className={line.met ? 'text-good' : 'text-muted'}>
                       {line.met ? '✓ ' : '○ '}{line.label}
                     </span>
@@ -177,7 +177,7 @@ export function GoalCard({ goal, onChoose }: { goal: AnnualGoal; onChoose?: () =
     <div className="flex flex-col gap-2 p-3 border border-line bg-surface rounded-sm">
       <Badge tone={tone} className="self-start">{tagLabel}</Badge>
       <div className="text-sm font-semibold leading-snug">{describeGoal(goal, formatCurrency, countLabel)}</div>
-      <div className="text-2xs font-mono text-muted leading-relaxed">
+      <div className="text-2xs text-muted leading-relaxed">
         Met: reputation +{goal.reward.reputation}{goal.reward.cash > 0 ? `, bonus ${compact(goal.reward.cash)}` : ''}.
         <br />
         Missed: reputation {goal.penalty > 0 ? `−${goal.penalty}` : 'unchanged'}.
@@ -199,7 +199,7 @@ function GoalSection({ annualGoal, goalOffer, goalSnapshot, onChooseGoal }: Pick
 
       {goalOffer ? (
         <>
-          <p className="text-2xs font-mono text-muted leading-relaxed mb-3 max-w-2xl">
+          <p className="text-2xs text-muted leading-relaxed mb-3 max-w-2xl">
             The board offers three goals for {goalOffer.year}. A harder goal pays more and costs more to miss.
             Without a choice, the first is taken when {goalOffer.year} begins.
           </p>
@@ -280,7 +280,7 @@ function ProjectCard({
         {done ? <Badge tone="good">Done</Badge> : running ? <Badge tone="yellow">Running</Badge> : <Badge>{project.months} months</Badge>}
       </div>
       {isClass && <Badge tone="yellow" className="self-start">Aircraft class</Badge>}
-      <p className="text-2xs font-mono text-muted leading-relaxed">{project.detail}</p>
+      <p className="text-2xs text-muted leading-relaxed">{project.detail}</p>
       {progress && (
         <div>
           <div className="flex justify-between text-2xs font-label uppercase tracking-label text-muted mb-1">
@@ -324,7 +324,7 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
           {research.done.length} / {PROJECTS.length} done · {research.active.length} / {limit} running
         </span>
       </div>
-      <p className="text-2xs font-mono text-muted leading-relaxed mb-3 max-w-2xl">
+      <p className="text-2xs text-muted leading-relaxed mb-3 max-w-2xl">
         A tree that opens with the rank. Its main points are the aircraft classes: a class has to be developed before its
         aircraft can be bought. In between sit small bonuses, a percent at a time. Each project costs money at once and
         takes months; {free ? 'every project is open in Free Mode' : 'more can run at once with every third rank'}.
@@ -339,7 +339,7 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
       </div>
 
       {lines.length > 0 && (
-        <p className="text-2xs font-mono text-good leading-relaxed mb-4">
+        <p className="text-2xs text-good leading-relaxed mb-4">
           In effect: {lines.join(' · ')}
         </p>
       )}
@@ -410,7 +410,7 @@ function ScoreSection({ score, hall, onRetire }: Pick<CareerPanelProps, 'score' 
         ))}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-2xs font-mono text-muted leading-relaxed max-w-xl">
+        <p className="text-2xs text-muted leading-relaxed max-w-xl">
           The game has no end. Retire whenever you like: the career is filed in the hall of fame and you can play on.
         </p>
         <Button variant="secondary" onClick={onRetire}>Retire and file the career</Button>
@@ -420,7 +420,7 @@ function ScoreSection({ score, hall, onRetire }: Pick<CareerPanelProps, 'score' 
           <div className="text-2xs uppercase tracking-label text-muted font-semibold mb-1">Hall of fame</div>
           <ol className="flex flex-col gap-1">
             {hall.map((e, i) => (
-              <li key={e.id} className="flex items-center justify-between gap-3 text-2xs font-mono border-b border-line py-1">
+              <li key={e.id} className="flex items-center justify-between gap-3 text-2xs border-b border-line py-1">
                 <span className="truncate"><span className="text-muted">{i + 1}.</span> {e.airline}{e.code ? ` (${e.code})` : ''}</span>
                 <span className="text-muted shrink-0">{e.years} yrs · {e.mode === 'free' ? 'Free Mode' : rankDef(e.rank).title.replace(' Airline', '')}</span>
                 <span className="text-accent tabular-nums shrink-0">{formatNumber(e.score)}</span>

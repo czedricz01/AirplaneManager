@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { Plane, ChevronRight, Map as MapIcon, Search, Plus, Minus, Check, ChevronDown, ChevronUp, Save, FolderOpen, AlertTriangle, Eye, EyeOff, SlidersHorizontal, RotateCcw } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
 import type { AirportInfrastructure, ManagementLevel } from '../lib/gameTypes';
@@ -726,7 +725,7 @@ function RoutePlannerInner({
               </button>
             </div>
           </div>
-          <div className="text-2xs flex justify-between text-muted font-mono">
+          <div className="text-2xs flex justify-between text-muted">
             <span>{ac.type} • {formatNumber(ac.maxRange)} km</span>
             <span>{ac.capacity} pax</span>
           </div>
@@ -1588,13 +1587,10 @@ function RoutePlannerInner({
        style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98))' }}
     >
       {/* Success Message Overlay */}
-      <AnimatePresence>
+      <>
         {showSuccess && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
-            className="absolute inset-0 z-[200] bg-ground/80 flex items-center justify-center p-4"
+          <div
+            className="absolute inset-0 z-[200] bg-ground/80 flex items-center justify-center p-4 animate-appear"
           >
              <div className="bg-accent text-on-accent px-12 py-4 rounded-sm flex flex-col items-center gap-4 text-center">
                 <div className="w-20 h-20 bg-ground/10 rounded-full flex items-center justify-center">
@@ -1605,9 +1601,9 @@ function RoutePlannerInner({
                    <p className="text-xs uppercase tracking-label font-semibold opacity-70 mt-1">Changes saved successfully</p>
                 </div>
              </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
 
       {/* 1. SHARED UNIFIED HEADER WITH DYNAMIC ROUTE INFO BADGES */}
       <div className="flex flex-col gap-2 mb-2 short:mb-1 shrink-0 relative bg-ground/60 border-b border-line px-4 bar:px-3 py-2 short:py-1">
@@ -1700,7 +1696,7 @@ function RoutePlannerInner({
                     <input 
                       type="text" 
                       placeholder="Search Hub..." 
-                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs font-mono focus:border-accent"
+                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs focus:border-accent"
                       value={originSearch}
                       onChange={e => setOriginSearch(e.target.value)}
                     />
@@ -1726,7 +1722,7 @@ function RoutePlannerInner({
                               <div className="text-2xs font-mono text-muted">
                                 SLOTS: {available}/{totalSlots}
                               </div>
-                              <div className="flex gap-2 text-2xs font-mono">
+                              <div className="flex gap-2 text-2xs">
                                 <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
                                 <span className="text-ink">B: {getAirportStats(a, currentYear).business}</span>
                               </div>
@@ -1761,7 +1757,7 @@ function RoutePlannerInner({
                         <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                            <MapIcon size={12} /> Strategic Slots
                         </div>
-                        <span className="text-2xs text-muted font-mono">STOCK / COST / ACTION</span>
+                        <span className="text-2xs text-muted font-mono">Stock / cost / action</span>
                      </div>
                      <div className="space-y-2">
                         <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedOrigin.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'regional', n, shift)} />
@@ -1829,7 +1825,7 @@ function RoutePlannerInner({
                     <input 
                       type="text" 
                       placeholder="Search Registration or Type..." 
-                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs font-mono focus:border-accent"
+                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs focus:border-accent"
                       value={aircraftSearch}
                       onChange={e => setAircraftSearch(e.target.value)}
                     />
@@ -1841,7 +1837,7 @@ function RoutePlannerInner({
                          aircraft based at another hub and aircraft too large for
                          either airport, which looked identical to owning none. */}
                      {validAircraft.length === 0 && (
-                       <div className="border border-line bg-surface p-4 text-2xs font-mono text-muted leading-relaxed space-y-2">
+                       <div className="border border-line bg-surface p-4 text-2xs text-muted leading-relaxed space-y-2">
                          {fleet.length === 0 ? (
                            <>
                              <p className="text-accent font-semibold uppercase tracking-label text-2xs">No aircraft yet</p>
@@ -1863,7 +1859,7 @@ function RoutePlannerInner({
                        </div>
                      )}
                      {shownAircraft.length === 0 && hiddenAircraft.length > 0 && (
-                       <div className="border border-line bg-surface p-3 text-2xs font-mono text-muted leading-relaxed">
+                       <div className="border border-line bg-surface p-3 text-2xs text-muted leading-relaxed">
                          All fitting aircraft are hidden. Open Hidden Aircraft below to show them again.
                        </div>
                      )}
@@ -1902,7 +1898,7 @@ function RoutePlannerInner({
                       <button onClick={() => setSelectedReg(null)} className="text-2xs text-accent py-1.5 px-2 border border-accent/20 hover:bg-accent hover:text-on-accent">CHG</button>
                     </div>
                     
-                    <div className="p-4 space-y-4 font-mono text-2xs flex-1 overflow-y-auto pb-32 bar:pb-3 short:pb-3">
+                    <div className="p-4 space-y-4 text-2xs flex-1 overflow-y-auto pb-32 bar:pb-3 short:pb-3">
                        {/* Picture */}
                        <div className="relative w-full aspect-[16/9] max-h-[180px] bg-ground/60 border border-line rounded-sm overflow-hidden">
                           <AircraftImage
@@ -1948,7 +1944,7 @@ function RoutePlannerInner({
                     <input 
                       type="text" 
                       placeholder="Search Destination..." 
-                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs font-mono focus:border-accent"
+                      className="w-full bg-surface border border-line p-2 pl-9 outline-none text-xs focus:border-accent"
                       value={destSearch}
                       onChange={e => setDestSearch(e.target.value)}
                     />
@@ -2045,7 +2041,7 @@ function RoutePlannerInner({
                                   disabled={row.disabled}
                                   value={destFilters[row.key][bound]}
                                   onChange={e => setDestRange(row.key, bound, e.target.value)}
-                                  className="w-full min-w-0 bg-surface border border-line p-1 text-2xs font-mono outline-none focus:border-accent disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  className="w-full min-w-0 bg-surface border border-line p-1 text-2xs outline-none focus:border-accent disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                 />
                               </React.Fragment>
                             ))}
@@ -2064,7 +2060,7 @@ function RoutePlannerInner({
 
                   <div className="flex-1 min-h-0 overflow-y-auto space-y-1 bg-ground/20 p-2 border border-line pb-32 bar:pb-3 short:pb-3">
                     {validDestinations.length === 0 && (
-                      <div className="p-3 text-2xs font-mono text-muted leading-relaxed">
+                      <div className="p-3 text-2xs text-muted leading-relaxed">
                         No airport matches the search and filters.
                       </div>
                     )}
@@ -2091,7 +2087,7 @@ function RoutePlannerInner({
                           <div>
                             <div className="font-semibold flex items-center gap-1">
                               {a.id} 
-                              {mgtLvl >= 1 && <span className="text-2xs bg-accent/20 text-accent px-1 rounded-sm">UNLOCKED</span>}
+                              {mgtLvl >= 1 && <span className="text-2xs bg-accent/20 text-accent px-1 rounded-sm">Unlocked</span>}
                               {mgtLvl < 1 && airportLock?.(a) && <span className="text-2xs bg-bad/20 text-bad px-1 rounded-sm" title={airportLock(a) ?? undefined}>RANK</span>}
                             </div>
                             <div className="text-2xs text-muted">{a.name}</div>
@@ -2119,7 +2115,7 @@ function RoutePlannerInner({
                              <div className="text-2xs font-mono text-muted">
                                 SLOTS: {availableDestSlots}/{totalSlots}
                              </div>
-                             <div className="flex gap-2 text-2xs font-mono">
+                             <div className="flex gap-2 text-2xs">
                                <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
                                <span className="text-ink">B: {getAirportStats(a, currentYear).business}</span>
                              </div>
@@ -2157,7 +2153,7 @@ function RoutePlannerInner({
                         onClick={() => debugMode && setShowDemandDebug(!showDemandDebug)}
                       >
                         <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-1.5">
-                          <Search size={12} /> Demand Forecast {debugMode && <span className="text-2xs bg-accent/20 px-1 py-0.5 rounded-sm text-accent ml-1">DEBUG</span>}
+                          <Search size={12} /> Demand Forecast {debugMode && <span className="text-2xs bg-accent/20 px-1 py-0.5 rounded-sm text-accent ml-1">Debug</span>}
                         </div>
                         <div className="text-ink font-mono text-xs font-semibold">
                           {demandPreview ? `${formatNumber(demandPreview.d.total)} / WK MARKET` : ''}
@@ -2168,7 +2164,7 @@ function RoutePlannerInner({
                       )}
 
                       {showDemandDebug && debugMode && demandPreview && (
-                        <div className="mt-4 pt-4 border-t border-line space-y-2 text-2xs font-mono text-muted bg-ground/60 p-4 rounded-sm">
+                        <div className="mt-4 pt-4 border-t border-line space-y-2 text-2xs text-muted bg-ground/60 p-4 rounded-sm">
                           {(() => {
                              const { d, tc, basePrices } = demandPreview;
                              return (
@@ -2189,16 +2185,16 @@ function RoutePlannerInner({
                                    Interaction: {formatNumber(d.formulaVars.totalInteraction)}
                                  </div>
                                  <div className="flex justify-between items-center text-accent">
-                                   <span>ECONOMY:</span> <span>{formatNumber(d.economy)} | BASE: ${basePrices.economy}</span>
+                                   <span>Economy:</span> <span>{formatNumber(d.economy)} | BASE: ${basePrices.economy}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-accent">
-                                   <span>PREMIUM:</span> <span>{formatNumber(d.premium)} | BASE: ${basePrices.premium}</span>
+                                   <span>Premium:</span> <span>{formatNumber(d.premium)} | BASE: ${basePrices.premium}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-ink">
-                                   <span>BUSINESS:</span> <span>{formatNumber(d.business)} | BASE: ${basePrices.business}</span>
+                                   <span>Business:</span> <span>{formatNumber(d.business)} | BASE: ${basePrices.business}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-ink font-semibold border-b border-line pb-1 mb-1">
-                                   <span>FIRST:</span> <span>{formatNumber(d.first)} | BASE: ${basePrices.first}</span>
+                                   <span>First:</span> <span>{formatNumber(d.first)} | BASE: ${basePrices.first}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-ink font-semibold text-sm pt-1">
                                    <span>MARKET DEMAND / WK (all airlines):</span> <span>{formatNumber(d.total)}</span>
@@ -2233,7 +2229,7 @@ function RoutePlannerInner({
                           <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                              <MapIcon size={12} /> Strategic Slots
                           </div>
-                          <span className="text-2xs text-muted font-mono">STOCK / COST / ACTION</span>
+                          <span className="text-2xs text-muted font-mono">Stock / cost / action</span>
                        </div>
                        <div className="space-y-2">
                           <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedDest.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedDest.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'regional', n, shift)} />
@@ -2320,13 +2316,13 @@ function RoutePlannerInner({
                      <span>Required Slots</span>
                      <span>({selectedAircraft.class})</span>
                    </div>
-                   <div className="flex justify-between font-mono text-xs text-muted">
+                   <div className="flex justify-between text-xs text-muted">
                      <span>{selectedOrigin.id}</span>
                      <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
                         {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
-                   <div className="flex justify-between font-mono text-xs text-muted">
+                   <div className="flex justify-between text-xs text-muted">
                      <span>{selectedDest.id}</span>
                      <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
                         {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
@@ -2353,7 +2349,7 @@ function RoutePlannerInner({
                         // An empty field used to produce "NaN" here and on every flight.
                         setFlightNumberInbound(val ? (parseInt(val, 10) + 1).toString() : "");
                       }}
-                      className="h-10 w-full bg-surface border border-line px-1 outline-none focus:border-accent font-mono text-sm text-center"
+                      className="h-10 w-full bg-surface border border-line px-1 outline-none focus:border-accent text-sm text-center"
                       placeholder="Out"
                     />
                   </div>
@@ -2363,7 +2359,7 @@ function RoutePlannerInner({
                       type="text"
                       value={flightNumberInbound}
                       onChange={e => setFlightNumberInbound(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="h-10 w-full bg-surface border border-line px-1 outline-none focus:border-accent font-mono text-sm text-center"
+                      className="h-10 w-full bg-surface border border-line px-1 outline-none focus:border-accent text-sm text-center"
                       placeholder="In"
                     />
                   </div>
@@ -2390,7 +2386,7 @@ function RoutePlannerInner({
                          >
                            <Minus className="w-2 h-2" />
                          </button>
-                         <div className="w-6 h-5 flex items-center justify-center bg-ground border border-rule font-mono text-2xs text-accent font-semibold">
+                         <div className="w-6 h-5 flex items-center justify-center bg-ground border border-rule text-2xs text-accent font-semibold">
                            {Math.min(multipleOps, maxMultipleOps)}
                          </div>
                          <button
@@ -2731,7 +2727,7 @@ function RoutePlannerInner({
                 </div>
 
                 {/* Flightplan Details output */}
-                <div className="bg-surface border border-line p-4 space-y-2 text-xs font-mono">
+                <div className="bg-surface border border-line p-4 space-y-2 text-xs">
                     <div className="text-2xs uppercase tracking-label font-semibold text-accent border-b border-line pb-2 mb-2 font-sans">Flightplan</div>
                     
                     {(() => {
@@ -2834,7 +2830,7 @@ function RoutePlannerInner({
                 {/* Time Indicators */}
                 <div className="w-16 shrink-0 border-r border-rule relative bg-ground/95 z-20">
                   {Array.from({ length: 24 }).map((_, i) => (
-                    <div key={i} className="h-[30px] text-2xs text-muted text-right pr-2 font-mono flex items-start justify-end relative group">
+                    <div key={i} className="h-[30px] text-2xs text-muted text-right pr-2 flex items-start justify-end relative group">
                       {/* Hour mark (Full line) */}
                       <div className="w-4 h-[1px] bg-rule absolute right-0 top-0"></div>
                       
@@ -2852,7 +2848,7 @@ function RoutePlannerInner({
                       <div className="absolute top-1/2 right-0 w-2 h-[1px] bg-raised"></div>
                     </div>
                   ))}
-                  <div className="h-0 text-2xs text-muted text-right pr-2 font-mono flex items-start justify-end relative">
+                  <div className="h-0 text-2xs text-muted text-right pr-2 flex items-start justify-end relative">
                     <span className="absolute font-semibold text-accent top-0 -translate-y-1/2 mr-[-4px] z-30">
                       24:00
                     </span>
@@ -3091,7 +3087,7 @@ function RoutePlannerInner({
           </div>
 
              {/* Right Sidebar: Satisfaction Breakdown spreadsheet */}
-             <div className="w-full lg:w-[450px] min-h-0 shrink-0 border border-line bg-ground/40 flex flex-col overflow-y-auto rounded-sm font-mono relative z-20">
+             <div className="w-full lg:w-[450px] min-h-0 shrink-0 border border-line bg-ground/40 flex flex-col overflow-y-auto rounded-sm relative z-20">
                 <div className="p-4 border-b border-line bg-surface">
                    <div className="text-2xs text-muted uppercase font-semibold tracking-label leading-none mb-3">Cabin Services Budget</div>
                    {/* What the economy charges: per-passenger cost times the passengers
@@ -3151,9 +3147,9 @@ function RoutePlannerInner({
                            <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.plane ? 'rotate-180' : ''}`} />
                         </button>
                       </div>
-                      <AnimatePresence>
+                      <>
                          {expandedSections.plane && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-ground/60 border-b border-line">
+                            <div className="overflow-hidden bg-ground/60 border-b border-line animate-appear">
                                <div className="p-4 pt-0 space-y-3 text-2xs uppercase font-semibold tracking-label text-muted">
                                   <div className="flex justify-between items-center bg-surface p-3 border border-line">
                                      <span>Condition Weighted</span>
@@ -3161,7 +3157,7 @@ function RoutePlannerInner({
                                   </div>
                                   
                                   <div className="border-t border-line pt-3 mt-3">
-                                     <div className="text-2xs text-muted mb-3 px-1 font-semibold">BY CABIN CLASS</div>
+                                     <div className="text-2xs text-muted mb-3 px-1 font-semibold">By cabin class</div>
                                      {['economy', 'premium', 'business', 'first'].map(c => {
                                         const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                                         if (seats <= 0) return null;
@@ -3174,9 +3170,9 @@ function RoutePlannerInner({
                                      })}
                                   </div>
                                </div>
-                            </motion.div>
+                            </div>
                          )}
-                      </AnimatePresence>
+                      </>
                    </div>
 
                    {/* SCE-SAT Row */}
@@ -3194,9 +3190,9 @@ function RoutePlannerInner({
                             <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.sce ? 'rotate-180' : ''}`} />
                          </div>
                       </button>
-                      <AnimatePresence>
+                      <>
                          {expandedSections.sce && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-ground/60 border-b border-line">
+                            <div className="overflow-hidden bg-ground/60 border-b border-line animate-appear">
                                <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-semibold tracking-label text-muted">
                                   {['economy', 'premium', 'business', 'first'].map(c => {
                                      const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
@@ -3210,9 +3206,9 @@ function RoutePlannerInner({
                                      );
                                   })}
                                </div>
-                            </motion.div>
+                            </div>
                          )}
-                      </AnimatePresence>
+                      </>
                    </div>
 
                    {/* Airport Details Row */}
@@ -3234,9 +3230,9 @@ function RoutePlannerInner({
                             <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.airport ? 'rotate-180' : ''}`} />
                          </div>
                       </button>
-                      <AnimatePresence>
+                      <>
                          {expandedSections.airport && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-ground/60 border-b border-line">
+                            <div className="overflow-hidden bg-ground/60 border-b border-line animate-appear">
                                <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-semibold tracking-label text-muted">
                                   <div className="text-muted mb-2 border-b border-line pb-2 font-semibold">Operational Metrics</div>
                                   <div className="flex justify-between items-center px-2 py-1">
@@ -3253,7 +3249,7 @@ function RoutePlannerInner({
                                   </div>
                                   
                                   <div className="border-t border-line pt-4 mt-4">
-                                     <div className="text-muted mb-3 px-2 font-semibold">ROUTE SAT PER CLASS</div>
+                                     <div className="text-muted mb-3 px-2 font-semibold">Route SAT per class</div>
                                      {['economy', 'premium', 'business', 'first'].map(c => {
                                         const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                                         if (seats <= 0) return null;
@@ -3273,9 +3269,9 @@ function RoutePlannerInner({
                                      })}
                                   </div>
                                </div>
-                            </motion.div>
+                            </div>
                          )}
-                      </AnimatePresence>
+                      </>
                    </div>
                 </div>
 
@@ -3580,13 +3576,13 @@ function RoutePlannerInner({
                                 className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2 cursor-pointer border border-line px-2 py-1 bg-ground/40 hover:bg-raised"
                                 onClick={() => setShowPricingDebug(!showPricingDebug)}
                              >
-                                <Search size={12} /> Base P. <span className="text-2xs bg-raised px-1 py-0.5 rounded-sm">DEBUG</span>
+                                <Search size={12} /> Base P. <span className="text-2xs bg-raised px-1 py-0.5 rounded-sm">Debug</span>
                              </div>
                            )}
                         </div>
 
                         {showPricingDebug && debugMode && (
-                          <div className="mb-4 p-4 border border-line bg-ground/60 rounded-sm font-mono text-2xs text-muted space-y-2">
+                          <div className="mb-4 p-4 border border-line bg-ground/60 rounded-sm text-2xs text-muted space-y-2">
                              <div className="text-ink font-semibold mb-2 uppercase tracking-label">SAT base price &amp; demand (expected load)</div>
                              {saveFinancials && (() => {
                                 // Everything here is read from the engine result the route is

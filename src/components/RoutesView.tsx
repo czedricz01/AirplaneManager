@@ -7,7 +7,6 @@ import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers, type RouteCancellation 
 import type { RouteTransfer } from '../lib/transferUtils';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
-import { AnimatePresence } from 'motion/react';
 import type { OwnedAircraft } from './MyFleetView';
 import { ViewHeader } from './ui/ViewHeader';
 import { TableScrollContainer, Table, Thead, Th, Td } from './ui/Table';
@@ -309,7 +308,7 @@ function RoutesViewImpl({
               </div>
               <input
                 type="text"
-                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 transition-colors"
                 placeholder="Airport, e.g. FRA"
                 title="Show only routes touching this airport (IATA code)"
                 value={airportFilter}
@@ -324,7 +323,7 @@ function RoutesViewImpl({
               </div>
               <input
                 type="text"
-                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 transition-colors"
                 placeholder="Search aircraft..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -395,7 +394,7 @@ function RoutesViewImpl({
         </Table>
       </TableScrollContainer>
 
-      <AnimatePresence>
+      <>
         {activeRoute && (
           <RouteDetailView 
              routes={routes}
@@ -448,7 +447,7 @@ function RoutesViewImpl({
             }}
           />
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

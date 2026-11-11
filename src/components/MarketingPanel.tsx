@@ -110,7 +110,7 @@ export function MarketingPanel({
     <div className="grid grid-cols-1 gap-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatTile size="md" label="Marketing this month" value={formatCurrency(monthCost.total)}>
-          <span className="block text-2xs font-mono text-muted mt-1">
+          <span className="block text-2xs text-muted mt-1">
             charged at month end · {running.length} campaign{running.length === 1 ? '' : 's'}
             {marketing.ffpActive ? ' + loyalty' : ''}
           </span>
@@ -121,7 +121,7 @@ export function MarketingPanel({
           value={reputationGain > 0 ? `+${formatNumber(reputationGain, 1)}` : '0'}
           valueClassName={reputationGain > 0 ? 'text-good' : ''}
         >
-          <span className="block text-2xs font-mono text-muted mt-1">points per month</span>
+          <span className="block text-2xs text-muted mt-1">points per month</span>
         </StatTile>
         <StatTile
           size="md"
@@ -129,7 +129,7 @@ export function MarketingPanel({
           value={loyalty > 0 ? `+${Math.round(loyalty * 100)}%` : 'none'}
           valueClassName={loyalty > 0 ? 'text-good' : 'text-muted'}
         >
-          <span className="block text-2xs font-mono text-muted mt-1">appeal against rivals on shared routes</span>
+          <span className="block text-2xs text-muted mt-1">appeal against rivals on shared routes</span>
         </StatTile>
       </div>
 
@@ -145,7 +145,7 @@ export function MarketingPanel({
                   ? <Badge tone="good">Running since {monthLabel(marketing.ffpSinceOffset ?? offset)}</Badge>
                   : <Badge>Not running</Badge>}
               </div>
-              <p className="text-2xs font-mono text-muted leading-relaxed max-w-xl">
+              <p className="text-2xs text-muted leading-relaxed max-w-xl">
                 Members stick with you where a rival flies the same city pair: your appeal rises
                 by {Math.round(FFP_LOYALTY_START * 100)}% in the first month and {Math.round(FFP_LOYALTY_PER_MONTH * 100)} point
                 more each month, up to {Math.round(FFP_LOYALTY_MAX * 100)}%. Reputation +{FFP_REPUTATION_PER_MONTH} a month.
@@ -246,7 +246,7 @@ export function MarketingPanel({
         })}
       </div>
 
-      <p className="text-2xs font-mono text-muted leading-relaxed">
+      <p className="text-2xs text-muted leading-relaxed">
         A route takes the mean of its two ends: a campaign lifts routes inside its region fully and
         routes leaving it by half. Campaigns in one region add up to at most +{Math.round((MAX_REGION_DEMAND - 1) * 100)}%.
         Prices rise {Math.round(MARKETING_INFLATION * 100)}% a year with inflation; each month is charged at
@@ -330,7 +330,7 @@ function LaunchDialog({ marketing, offset, capital, region, tier, months, routes
         </div>
       }
     >
-      <div className="flex flex-col gap-4 font-mono">
+      <div className="flex flex-col gap-4">
         <div>
           <span className="text-2xs uppercase tracking-label text-muted font-semibold block mb-2">Reach</span>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

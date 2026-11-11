@@ -121,7 +121,7 @@ export function AircraftDetailsModal({
                  <div className="text-xs uppercase tracking-label text-muted">{plane.class}</div>
                </div>
                
-               <div className="flex flex-col items-end gap-1 font-mono text-xs">
+               <div className="flex flex-col items-end gap-1 text-xs">
                  <div className="text-2xs uppercase font-sans tracking-label text-muted mb-1">Status</div>
                  {aircraftRoutes && aircraftRoutes.length > 0 ? (
                    <div className="text-ink border border-line bg-surface px-2 py-0.5 rounded-sm uppercase tracking-label">
@@ -173,20 +173,20 @@ export function AircraftDetailsModal({
               
               <div className="flex flex-col gap-3">
                 <h3 className="text-sm font-semibold border-b border-line pb-2 mb-2 text-ink">Layout & Quality</h3>
-                <div className="flex justify-between font-mono text-xs text-muted">
+                <div className="flex justify-between text-xs text-muted">
                   <span>First</span> <span>{plane.config.first}</span>
                 </div>
-                <div className="flex justify-between font-mono text-xs text-muted">
+                <div className="flex justify-between text-xs text-muted">
                   <span>Business</span> <span>{plane.config.business}</span>
                 </div>
-                <div className="flex justify-between font-mono text-xs text-muted">
+                <div className="flex justify-between text-xs text-muted">
                   <span>Premium</span> <span>{plane.config.premium}</span>
                 </div>
-                <div className="flex justify-between font-mono text-xs text-muted">
+                <div className="flex justify-between text-xs text-muted">
                   <span>Economy</span> <span>{plane.config.economy}</span>
                 </div>
                 
-                <div className="flex justify-between items-center mt-2 pt-2 border-t border-line font-mono text-xs">
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-line text-xs">
                   <span className="text-2xs uppercase tracking-label text-muted">Overall Satisfaction</span>
                   <span className="text-accent">{combinedPopularity}/100</span>
                 </div>
@@ -203,7 +203,7 @@ export function AircraftDetailsModal({
                 </h3>
 
                 <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-xs font-mono">
+                  <div className="flex justify-between text-xs">
                     <span className="text-muted">Interior Condition</span>
                     <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionInterior)]}>
                       {Math.round(plane.conditionInterior)}%
@@ -218,7 +218,7 @@ export function AircraftDetailsModal({
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-xs font-mono">
+                  <div className="flex justify-between text-xs">
                     <span className="text-muted">General Condition</span>
                     <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionGeneral)]}>
                       {Math.round(plane.conditionGeneral)}%

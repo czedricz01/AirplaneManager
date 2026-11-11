@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Utensils, Wifi, Users } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Airport } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
 import type { AirportInfrastructure } from '../lib/gameTypes';
@@ -171,7 +170,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             {(!isUpgradeActive && selectedAircraft.class !== 'Regional' && selectedAircraft.class !== 'Narrowbody' && selectedAircraft.class !== 'Widebody') ? null : (
               <div className="p-3 bg-surface border border-line text-2xs uppercase font-semibold relative overflow-hidden group">
                 <div className="flex flex-col gap-1 z-10 relative">
-                  <span className="opacity-60">NEXT LEVEL CATERING:</span>
+                  <span className="opacity-60">Next level catering:</span>
                   {isUpgradeActive ? (
                     <span className="text-accent">ACTIVE - Next tier unlocked</span>
                   ) : (
@@ -239,9 +238,9 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                         <span className="text-2xs font-semibold uppercase tracking-label text-ink">{catName} Class</span>
                         <ChevronDown size={14} className={`text-muted group-hover:text-ink transition-transform ${expandedMealCats[catName] ? 'rotate-180' : ''}`} />
                       </button>
-                      <AnimatePresence>
+                      <>
                         {expandedMealCats[catName] && (
-                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden grid grid-cols-2 gap-1.5 pt-1.5">
+                          <div className="overflow-hidden grid grid-cols-2 gap-1.5 pt-1.5 animate-appear">
                             {[...MEAL_DATA[catName]].sort((a,b) => a.cost - b.cost).map(meal => {
                               const mealIds = classConfigs[activeConfigClass!].catering[activeMealIndex] || [];
                               const isSelected = mealIds.includes(meal.id);
@@ -278,9 +277,9 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                                 </button>
                               );
                             })}
-                          </motion.div>
+                          </div>
                         )}
-                      </AnimatePresence>
+                      </>
                     </div>
                   ));
                 })()}
@@ -350,8 +349,8 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">
                       <span className={`text-2xs font-semibold uppercase tracking-label mb-1 ${isSelected ? 'text-on-accent' : 'text-muted'}`}>{opt.label}</span>
-                      {isWifiDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold font-mono">REQ. WIFI</span>}
-                      {isGalleyDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold font-mono">REQ. PREM. GALLEY</span>}
+                      {isWifiDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold">Req. wifi</span>}
+                      {isGalleyDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold">Req. prem. galley</span>}
                     </div>
                     <span className="text-xs font-semibold font-mono">${opt.cost} / PAX</span>
                   </div>

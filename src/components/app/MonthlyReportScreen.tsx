@@ -1,5 +1,4 @@
 /** The screen after a month closes: the financial report, incidents and the way back to the game. */
-import { motion } from 'motion/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import React from 'react';
 import type { Edition } from '../../lib/newspaper';
@@ -28,11 +27,9 @@ export function MonthlyReportScreen({
 }: MonthlyReportScreenProps) {
   return (
     <>
-              <motion.div
+              <div
                 key="monthly-overview"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start bg-ground relative p-12 bar:p-3 short:p-3"
+                className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start bg-ground relative p-12 bar:p-3 short:p-3 animate-appear"
               >
                 {/* Centred with auto margins, not justify-center, which cut the top
                     off whenever the report was taller than the screen. On phones
@@ -52,7 +49,7 @@ export function MonthlyReportScreen({
                   </div>
                   
                   <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible pr-4 bar:pr-0 short:pr-0">
-                   <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="CONTINUE">
+                   <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="Continue">
                     <React.Suspense fallback={<LazyFallback label="Monthly Report" />}>
                     {latestReport ? (
                       <>
@@ -171,7 +168,7 @@ export function MonthlyReportScreen({
                       {/* Operating profit and the change in the bank balance are
                           different numbers whenever anything was bought. Stating
                           both, next to each other, is what makes the report add up. */}
-                      <div className="mt-4 flex items-center justify-between border border-line bg-ground/30 px-4 py-3 font-mono text-xs">
+                      <div className="mt-4 flex items-center justify-between border border-line bg-ground/30 px-4 py-3 text-xs">
                         <span className="uppercase tracking-label text-muted font-semibold">Cash change this month</span>
                         <span className={(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? 'text-good font-semibold' : 'text-bad font-semibold'}>
                           {(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? '+' : ''}
@@ -207,7 +204,7 @@ export function MonthlyReportScreen({
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
     </>
   );
 }

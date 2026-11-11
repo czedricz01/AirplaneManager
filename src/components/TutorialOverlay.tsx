@@ -1,5 +1,4 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, ChevronRight, GraduationCap, Minus, X } from 'lucide-react';
 import {
   MODAL_SELECTOR,
@@ -135,7 +134,6 @@ function useTargetBox(selector: string, layoutKey: string, own: RefObject<HTMLEl
  */
 export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, onNavigate }: TutorialOverlayProps) {
   const def = TUTORIAL_STEPS[step];
-  const reduceMotion = useReducedMotion();
   const titleId = useId();
   const maskId = `tutorial-mask-${useId().replace(/:/g, '')}`;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -177,7 +175,6 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
     height: box.height + PAD * 2
   };
   const placement = placeTooltip(spot ?? null, tipSize, viewport, def.corner);
-  const move = reduceMotion ? { duration: 0 } : { type: 'spring' as const, stiffness: 380, damping: 36 };
 
   const arrowStyle = (() => {
     if (placement.arrow === undefined) return null;
@@ -198,25 +195,17 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
           <defs>
             <mask id={maskId}>
               <rect x="0" y="0" width="100%" height="100%" fill="white" />
-              <motion.rect
-                initial={false}
-                animate={{ x: spot.x, y: spot.y, width: spot.width, height: spot.height }}
-                transition={move}
-                rx="4"
-                fill="black"
-              />
+              <rect x={spot.x} y={spot.y} width={spot.width} height={spot.height} rx="4" fill="black" />
             </mask>
           </defs>
           <rect x="0" y="0" width="100%" height="100%" fill="rgba(0, 0, 0, 0.55)" mask={`url(#${maskId})`} />
         </svg>
       )}
       {spot && !blocked && (
-        <motion.div
+        <div
           aria-hidden="true"
-          initial={false}
-          animate={{ left: spot.x, top: spot.y, width: spot.width, height: spot.height }}
-          transition={move}
-          className="absolute rounded-sm border-2 border-accent motion-safe:animate-pulse"
+          style={{ left: spot.x, top: spot.y, width: spot.width, height: spot.height }}
+          className="absolute rounded-sm border-2 border-accent transition-all duration-150"
         />
       )}
 
@@ -224,33 +213,26 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
         {`Tutorial step ${step + 1} of ${total}: ${def.title}`}
       </div>
 
-      <AnimatePresence initial={false}>
+      <>
         {blocked ? null : collapsed ? (
-          <motion.button
+          <button
             key="pill"
             type="button"
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
             onClick={() => setCollapsed(false)}
-            className="absolute bottom-4 left-20 pointer-events-auto flex items-center gap-2 bg-raised border border-accent/60 px-3 py-2 text-2xs font-label uppercase tracking-label text-ink hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            className="absolute bottom-20 left-4 rail:bottom-4 rail:left-48 pointer-events-auto flex items-center gap-2 bg-surface border border-rule shadow-pop rounded-sm px-3 min-h-11 text-sm text-ink hover:border-ink animate-appear"
           >
             <GraduationCap size={14} className="text-accent" aria-hidden="true" />
             Tutorial {step + 1}/{total}: {def.title}
-          </motion.button>
+          </button>
         ) : (
-          <motion.div
+          <div
             key="card"
             ref={tipRef}
             role="dialog"
             aria-modal="false"
             aria-labelledby={titleId}
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1, left: placement.x, top: placement.y }}
-            exit={{ opacity: 0 }}
-            transition={move}
             style={{ left: placement.x, top: placement.y }}
-            className="absolute w-80 max-w-[calc(100vw-24px)] pointer-events-auto bg-raised border border-accent/50 text-left"
+            className="absolute w-80 max-w-[calc(100vw-24px)] pointer-events-auto bg-surface border border-rule shadow-pop rounded-sm text-left animate-appear"
           >
             {arrowStyle && (
               <span
@@ -286,7 +268,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
               <p className="text-xs text-muted leading-relaxed">{def.text}</p>
               {!box && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <p className="text-2xs font-mono text-accent leading-relaxed">{def.hint}</p>
+                  <p className="text-2xs text-accent leading-relaxed">{def.hint}</p>
                   {def.view && def.view !== currentView && (
                     <button
                       type="button"
@@ -331,9 +313,9 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

@@ -63,7 +63,7 @@ export function GameDialogs({
               <h3 className="text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                 <AlertTriangle size={22} /> {pendingDecision.title}
               </h3>
-              <p className="text-2xs font-mono text-muted mb-4 leading-relaxed">
+              <p className="text-2xs text-muted mb-4 leading-relaxed">
                 {pendingDecision.description} Running for {pendingDecision.duration} months.
               </p>
 
@@ -88,7 +88,7 @@ export function GameDialogs({
                           {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
                         </span>
                       </div>
-                      <p className="text-2xs font-mono text-muted leading-relaxed">{choice.detail}</p>
+                      <p className="text-2xs text-muted leading-relaxed">{choice.detail}</p>
                       {!affordable && (
                         <p className="text-2xs font-mono text-bad mt-1">
                           {formatCurrency(choice.cost - capital)} short.
@@ -118,7 +118,7 @@ export function GameDialogs({
                 <h3 className="text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                   <AlertTriangle size={22} /> {decision.title}
                 </h3>
-                <p className="text-2xs font-mono text-muted mb-4 leading-relaxed">
+                <p className="text-2xs text-muted mb-4 leading-relaxed">
                   {decision.description}
                 </p>
 
@@ -139,7 +139,7 @@ export function GameDialogs({
                             {option.cost > 0 ? formatCurrency(option.cost) : 'No cost'}
                           </span>
                         </div>
-                        <p className="text-2xs font-mono text-muted leading-relaxed">{option.detail}</p>
+                        <p className="text-2xs text-muted leading-relaxed">{option.detail}</p>
                         {!affordable && (
                           <p className="text-2xs font-mono text-bad mt-1">
                             {formatCurrency(option.cost - capital)} short.
@@ -183,7 +183,7 @@ export function GameDialogs({
                     <Bird size={22} aria-hidden="true" /> Bird strike
                   </h3>
                   <p className="text-3xl font-mono font-semibold text-bad tabular-nums my-3">{formatCurrency(-strike.cost)}</p>
-                  <p id="bird-strike-detail" className="text-2xs font-mono text-muted mb-4 leading-relaxed">
+                  <p id="bird-strike-detail" className="text-2xs text-muted mb-4 leading-relaxed">
                     {strike.registration}{plane ? ` (${plane.manufacturer} ${plane.type})` : ''} hit a flock of birds{route ? ` on ${route.origin}-${route.destination}` : ''}.
                     The repair bill was deducted from your balance.
                   </p>
@@ -236,7 +236,7 @@ export function GameDialogs({
                       </div>
                     ))}
                   </div>
-                  <p className="text-2xs font-mono text-muted mb-4 leading-relaxed">
+                  <p className="text-2xs text-muted mb-4 leading-relaxed">
                     {won
                       ? 'The result is written into your chronicle. Fly on without the scenario, or leave for the main menu.'
                       : 'The airline still flies: carry on without the scenario, or start it over.'}
@@ -291,7 +291,7 @@ export function GameDialogs({
             <div
               role="status"
               aria-live="polite"
-              className="fixed top-16 left-1/2 -translate-x-1/2 z-[4000] flex items-center gap-2 bg-raised border border-good/40 px-4 py-2 text-xs font-mono text-ink pointer-events-none"
+              className="fixed top-16 left-1/2 -translate-x-1/2 z-[4000] flex items-center gap-2 bg-raised border border-good/40 px-4 py-2 text-xs text-ink pointer-events-none"
             >
               <CheckCircle2 size={14} className="text-good shrink-0" />
               {toast}

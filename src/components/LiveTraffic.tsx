@@ -319,7 +319,7 @@ function LiveTrafficImpl({ routes, aiRoutes, airports, offsets = [0], fleet = []
             icon={getPlaneIcon(f.aircraftId, f.planeClass, f.icaoCode, f.size, f.heading, f.color)}
           >
             <Popup>
-              <div className="bg-raised border-l-2 border-accent p-3 rounded-sm text-2xs font-mono leading-relaxed text-ink min-w-[260px] select-none">
+              <div className="bg-raised border-l-2 border-accent p-3 rounded-sm text-2xs leading-relaxed text-ink min-w-[260px] select-none">
                 {/* Carrier & Callsign Banner */}
                 <div className="flex justify-between items-center border-b border-line pb-2 mb-2">
                   <span className="text-accent font-semibold uppercase tracking-label text-2xs flex items-center gap-2">

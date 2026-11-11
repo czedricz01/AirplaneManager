@@ -152,14 +152,14 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
   return (
     <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
-        title="AIRPORTS"
+        title="Airports"
         right={
           <div className="flex gap-2 md:gap-4 items-center">
             <div className="relative w-32 md:w-40 shrink-0">
               <select
                 value={icaoFilter}
                 onChange={(e) => setIcaoFilter(e.target.value)}
-                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-4 pr-8 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors appearance-none cursor-pointer"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-4 pr-8 text-sm text-ink focus:outline-none focus:border-accent/50 transition-colors appearance-none cursor-pointer"
               >
                 <option value="All">All ICAO</option>
                 {['A', 'B', 'C', 'D', 'E', 'F'].map(cls => (
@@ -176,7 +176,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
               </div>
               <input
                 type="text"
-                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 font-mono transition-colors"
+                className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 transition-colors"
                 placeholder="Search IATA or name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

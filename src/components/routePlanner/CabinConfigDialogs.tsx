@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Plus, ChevronRight } from 'lucide-react';
 import { usePlanner } from './RoutePlannerContext';
 import { useCloudConfigs } from '../../lib/useCloudConfigs';
@@ -67,21 +66,15 @@ export function CabinConfigDialogs() {
 
   return (
     <>
-      <AnimatePresence>
+      <>
         {showConfigSaveModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[3000] flex items-center justify-center bg-ground/90 p-4"
+          <div
+            className="fixed inset-0 z-[3000] flex items-center justify-center bg-ground/90 p-4 animate-appear"
           >
-            <motion.div 
+            <div 
               role="dialog"
               aria-modal="true"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md bg-raised border border-line p-4 rounded-sm"
+              className="w-full max-w-md bg-raised border border-line p-4 rounded-sm animate-appear"
             >
               <h3 className="text-xl font-semibold text-accent mb-3">Save Configuration</h3>
               <div className="space-y-6">
@@ -99,7 +92,7 @@ export function CabinConfigDialogs() {
                     type="text" 
                     value={newConfigName}
                     onChange={(e) => setNewConfigName(e.target.value)}
-                    className="w-full bg-ground border border-line p-4 text-ink font-mono focus:border-accent outline-none transition-all"
+                    className="w-full bg-ground border border-line p-4 text-ink focus:border-accent outline-none transition-all"
                     placeholder="e.g. Premium Short-Haul"
                     autoFocus
                   />
@@ -119,26 +112,20 @@ export function CabinConfigDialogs() {
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
 
-      <AnimatePresence>
+      <>
         {showConfigLoadModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[3000] flex items-center justify-center bg-ground/90 p-4"
+          <div
+            className="fixed inset-0 z-[3000] flex items-center justify-center bg-ground/90 p-4 animate-appear"
           >
-            <motion.div 
+            <div 
               role="dialog"
               aria-modal="true"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-2xl bg-raised border border-line p-4 rounded-sm max-h-[80vh] flex flex-col"
+              className="w-full max-w-2xl bg-raised border border-line p-4 rounded-sm max-h-[80vh] flex flex-col animate-appear"
             >
                <div className="flex justify-between items-center mb-3">
                   <h3 className="text-xl font-semibold text-accent">Load Configuration</h3>
@@ -182,10 +169,10 @@ export function CabinConfigDialogs() {
                >
                   Close
                </button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </>
   );
 }

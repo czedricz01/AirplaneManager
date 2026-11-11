@@ -43,7 +43,7 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
           <span className="text-2xs font-mono text-muted">{orders.length} open order{orders.length === 1 ? '' : 's'}</span>
         </div>
         {orders.length === 0 ? (
-          <p className="text-2xs font-mono text-muted leading-relaxed max-w-2xl">
+          <p className="text-2xs text-muted leading-relaxed max-w-2xl">
             No open orders. Types announced for the next {ORDER_HORIZON} months can be ordered ahead of delivery: a fifth up front,
             a discount that grows with the size of the order, and the balance when the aircraft arrive. Without the cash on delivery
             the aircraft slips a month, up to three times; after that the order is cancelled and the deposit is gone.
@@ -55,7 +55,7 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
               if (!spec) return null;
               return (
                 <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-3 py-2 rounded-sm">
-                  <div className="font-mono text-2xs leading-relaxed">
+                  <div className="text-2xs leading-relaxed">
                     <div className="font-semibold text-xs">{o.quantity} &times; {name(spec)}</div>
                     <div className="text-muted">
                       Delivery {formatMonthOffset(o.deliveryOffset)}{o.postponed > 0 && <span className="text-bad"> (slipped {o.postponed}&times;, cash was short)</span>}
@@ -88,7 +88,7 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
               const affordable = capital >= quote.deposit;
               return (
                 <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-3 py-2 rounded-sm">
-                  <div className="font-mono text-2xs leading-relaxed min-w-0">
+                  <div className="text-2xs leading-relaxed min-w-0">
                     <div className="font-semibold text-xs">{name(a)} <Badge>{a.class}</Badge></div>
                     <div className="text-muted">
                       {a.capacity} seats · {formatNumber(a.maxRange)} km · first delivery {formatMonthOffset(a.firstDeliveryOffset)}
@@ -107,7 +107,7 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
                         max={MAX_ORDER_SIZE}
                         value={qty}
                         onChange={e => setQuantities(prev => ({ ...prev, [a.id]: Math.max(1, Math.min(MAX_ORDER_SIZE, Number(e.target.value) || 1)) }))}
-                        className="w-14 bg-ground/40 border border-line rounded-sm px-2 py-1 text-xs font-mono"
+                        className="w-14 bg-ground/40 border border-line rounded-sm px-2 py-1 text-xs"
                       />
                     </label>
                     <Button variant="primary" disabled={!!gate || !affordable} onClick={() => onOrder(a, qty)}>
@@ -119,7 +119,7 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
             })}
           </ul>
         )}
-        <p className="text-2xs font-mono text-muted mt-3 leading-relaxed">
+        <p className="text-2xs text-muted mt-3 leading-relaxed">
           Orders arrive with the standard economy cabin; refit them afterwards. A launch customer's aircraft are the talk of the
           industry: popularity +5 for two years.
         </p>
@@ -148,7 +148,7 @@ function UsedTab({ currentDateOffset, capital, classesOpen, soldUsedIds, rivalNa
             const years = l.ageMonths / 12;
             return (
               <li key={l.id} className={`flex flex-wrap items-center justify-between gap-3 border border-line px-3 py-2 rounded-sm ${sold ? 'opacity-40' : 'bg-surface'}`}>
-                <div className="font-mono text-2xs leading-relaxed min-w-0">
+                <div className="text-2xs leading-relaxed min-w-0">
                   <div className="font-semibold text-xs">{name(spec)} <Badge>{spec.class}</Badge></div>
                   <div className="text-muted">
                     {years.toFixed(1)} years old · airframe {l.conditionGeneral}% · cabin {l.conditionInterior}% · {spec.capacity} seats · {formatNumber(spec.maxRange)} km
@@ -171,7 +171,7 @@ function UsedTab({ currentDateOffset, capital, classesOpen, soldUsedIds, rivalNa
           })}
         </ul>
       )}
-      <p className="text-2xs font-mono text-muted mt-3 leading-relaxed">
+      <p className="text-2xs text-muted mt-3 leading-relaxed">
         Cheaper than new, but worn: older aircraft cost more to maintain, fetch less when sold and are less liked by passengers.
         They arrive with the standard economy cabin.
       </p>

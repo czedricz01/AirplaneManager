@@ -57,7 +57,7 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   if (!currentSrc || candidateIndex >= candidates.length) {
     if (fallback) return <>{fallback}</>;
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-muted font-mono text-center px-4 bg-ground/60 border border-line rounded-sm">
+      <div className="w-full h-full flex flex-col items-center justify-center text-muted text-center px-4 bg-ground/60 border border-line rounded-sm">
         <Plane size={36} className="mb-2 text-accent" />
         <span className="uppercase tracking-label text-xs font-semibold text-muted">
           {manufacturer || ''} {type || safeName}

@@ -1,6 +1,5 @@
 /** The save and load dialog: the list of savegames, with overwrite and delete confirmations. */
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, ChevronRight, Trash2, X } from 'lucide-react';
 import type { SaveMetadata } from '../lib/cloudSaves';
 
@@ -53,10 +52,8 @@ export function SaveLoadOverlay({
 
   return (
     <div className="fixed inset-0 z-[10000] bg-ground/90 flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-surface border border-line w-full max-w-lg overflow-hidden flex flex-col"
+      <div
+        className="bg-surface border border-line w-full max-w-lg overflow-hidden flex flex-col animate-appear"
       >
         <div className="p-4 border-b border-line flex justify-between items-center bg-ground/40">
            <h2 className="text-accent font-semibold uppercase tracking-label text-2xs">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
@@ -101,13 +98,13 @@ export function SaveLoadOverlay({
             <div className="space-y-4">
               <div className="h-px bg-raised"></div>
               <div className="space-y-2">
-                <label className="text-2xs uppercase font-semibold tracking-label text-muted">ARCHIVE_NAME_INPUT</label>
+                <label className="text-2xs uppercase font-semibold tracking-label text-muted">Archive_name_input</label>
                 <input 
                   type="text" 
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
                   placeholder="Designate save archive..."
-                  className="w-full bg-ground border border-line p-4 text-ink font-mono text-sm focus:outline-none focus:border-accent/50 transition-all placeholder:text-muted"
+                  className="w-full bg-ground border border-line p-4 text-ink text-sm focus:outline-none focus:border-accent/50 transition-all placeholder:text-muted"
                 />
               </div>
             </div>
@@ -130,13 +127,10 @@ export function SaveLoadOverlay({
           </button>
         </div>
 
-        <AnimatePresence>
+        <>
           {showOverwriteConfirm && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-ground/95 flex items-center justify-center p-4 z-[100]"
+            <div
+              className="absolute inset-0 bg-ground/95 flex items-center justify-center p-4 z-[100] animate-appear"
             >
               <div className="text-center space-y-6 max-w-sm">
                  <div className="flex justify-center">
@@ -161,15 +155,12 @@ export function SaveLoadOverlay({
                    </button>
                  </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {showDeleteConfirm && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-ground/95 flex items-center justify-center p-4 z-[100]"
+            <div
+              className="absolute inset-0 bg-ground/95 flex items-center justify-center p-4 z-[100] animate-appear"
             >
               <div className="text-center space-y-6 max-w-sm">
                  <div className="flex justify-center">
@@ -194,10 +185,10 @@ export function SaveLoadOverlay({
                    </button>
                  </div>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-      </motion.div>
+        </>
+      </div>
     </div>
   );
 }

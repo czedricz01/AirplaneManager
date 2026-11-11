@@ -48,13 +48,13 @@ export function CheckDetails({ check }: { check: AssignmentCheck }) {
   return (
     <div className="flex flex-col gap-2">
       {check.issues.map((issue, i) => (
-        <div key={`i${i}`} className="flex gap-2 items-start text-2xs font-mono text-bad leading-snug">
+        <div key={`i${i}`} className="flex gap-2 items-start text-2xs text-bad leading-snug">
           <AlertTriangle size={12} className="shrink-0 mt-0.5" />
           <span>{issue.message}</span>
         </div>
       ))}
       {check.notes.map((note, i) => (
-        <div key={`n${i}`} className="flex gap-2 items-start text-2xs font-mono text-muted leading-snug">
+        <div key={`n${i}`} className="flex gap-2 items-start text-2xs text-muted leading-snug">
           <Info size={12} className="shrink-0 mt-0.5 text-muted" />
           <span>{note.message}</span>
         </div>

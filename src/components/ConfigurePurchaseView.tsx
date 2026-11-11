@@ -4,7 +4,6 @@ import { getPlaneSat } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
 import type { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, Info, Settings, X, Download, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
 // The shared version of what used to be a local SeatInfoTooltip here; the rest of
 // the interface needs the same affordance, so it now lives in its own module.
 import { InfoTooltip as SeatInfoTooltip } from './InfoTooltip';
@@ -689,7 +688,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({firstPitch} cm)</label>
               <input type="range" min="150" max="220" value={firstPitch} onChange={(e) => setFirstPitch(parseInt(e.target.value))} className="w-full accent-accent" />
-              <div className="flex justify-between text-2xs font-mono text-muted">
+              <div className="flex justify-between text-2xs text-muted">
                 <span>150 cm</span><span>220 cm</span>
               </div>
             </div>
@@ -768,7 +767,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({bizPitch} cm)</label>
               <input type="range" min="100" max="180" value={bizPitch} onChange={(e) => setBizPitch(parseInt(e.target.value))} className="w-full accent-accent" />
-              <div className="flex justify-between text-2xs font-mono text-muted">
+              <div className="flex justify-between text-2xs text-muted">
                 <span>100 cm</span><span>180 cm</span>
               </div>
             </div>
@@ -847,7 +846,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({premPitch} cm)</label>
               <input type="range" min="85" max="105" value={premPitch} onChange={(e) => setPremPitch(parseInt(e.target.value))} className="w-full accent-accent" />
-              <div className="flex justify-between text-2xs font-mono text-muted">
+              <div className="flex justify-between text-2xs text-muted">
                 <span>85 cm</span><span>105 cm</span>
               </div>
             </div>
@@ -926,7 +925,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({ecoPitch} cm)</label>
               <input type="range" min="74" max="90" value={ecoPitch} onChange={(e) => setEcoPitch(parseInt(e.target.value))} className="w-full accent-accent" />
-              <div className="flex justify-between text-2xs font-mono text-muted">
+              <div className="flex justify-between text-2xs text-muted">
                 <span>74 cm</span><span>90 cm</span>
               </div>
             </div>
@@ -1071,28 +1070,28 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       {/* Zones container */}
                       <div className="relative flex-1 flex ml-[12%] sm:ml-[13%] mr-[12%] sm:mr-[15%] my-0 rounded-none overflow-hidden bg-ground/5 border border-ground">
                          {pFirst > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pFirst}%` }} className="group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors" onClick={() => setSelectedClass('first')} {...zonePointer('first')}>
+                           <div style={{ width: `${pFirst}%` }} className="group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors" onClick={() => setSelectedClass('first')} {...zonePointer('first')}>
                               <SeatBlock count={firstSeats} cls="first" type={firstType} acClass={aircraft.class} />
-                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'first' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>FIRST</span>
-                           </motion.div>
+                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'first' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>First</span>
+                           </div>
                          )}
                          {pBiz > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pBiz}%` }} className={`group bg-surface relative overflow-visible flex items-center justify-center border-r border-line cursor-pointer hover:bg-raised transition-colors`} onClick={() => setSelectedClass('business')} {...zonePointer('business')}>
+                           <div style={{ width: `${pBiz}%` }} className={`group bg-surface relative overflow-visible flex items-center justify-center border-r border-line cursor-pointer hover:bg-raised transition-colors`} onClick={() => setSelectedClass('business')} {...zonePointer('business')}>
                               <SeatBlock count={bizSeats} cls="business" type={bizType} acClass={aircraft.class} />
-                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'business' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>BUSINESS</span>
-                           </motion.div>
+                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'business' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>Business</span>
+                           </div>
                          )}
                          {pPrem > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pPrem}%` }} className={`group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors`} onClick={() => setSelectedClass('premium')} {...zonePointer('premium')}>
+                           <div style={{ width: `${pPrem}%` }} className={`group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors`} onClick={() => setSelectedClass('premium')} {...zonePointer('premium')}>
                               <SeatBlock count={premSeats} cls="premium" type={premType} acClass={aircraft.class} />
-                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'premium' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>PREMIUM</span>
-                           </motion.div>
+                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'premium' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>Premium</span>
+                           </div>
                          )}
                          {pEco > 0 && (
-                           <motion.div initial={false} animate={{ width: `${pEco}%` }} className={`group bg-raised/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-raised/40 transition-colors`} onClick={() => setSelectedClass('economy')} {...zonePointer('economy')}>
+                           <div style={{ width: `${pEco}%` }} className={`group bg-raised/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-raised/40 transition-colors`} onClick={() => setSelectedClass('economy')} {...zonePointer('economy')}>
                               <SeatBlock count={ecoSeats} cls="economy" type={ecoType} acClass={aircraft.class} />
-                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'economy' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>ECONOMY</span>
-                           </motion.div>
+                              <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'economy' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>Economy</span>
+                           </div>
                          )}
                       </div>
                    </div>
@@ -1241,7 +1240,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
             </div>
             
-            <div className="flex flex-col gap-3 font-mono">
+            <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between text-2xs uppercase tracking-label">
                   <span className="text-accent font-semibold">First</span>
@@ -1347,7 +1346,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
               <div className="flex flex-col border-b border-line pb-2 pt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-2xs font-label text-accent uppercase tracking-label">GENERAL PLANE SAT</span>
+                  <span className="text-2xs font-label text-accent uppercase tracking-label">General plane SAT</span>
                   <div className="flex items-center gap-2">
                      <span className="text-sm font-semibold text-accent font-mono">{totalPopularity}%</span>
                   </div>
@@ -1393,7 +1392,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 >
                   <Minus size={16} />
                 </button>
-                <div className="font-mono text-xl font-semibold w-12 text-center text-accent">{quantity}</div>
+                <div className="text-xl font-semibold w-12 text-center text-accent">{quantity}</div>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
                   className="w-10 h-10 bar:w-9 bar:h-9 short:w-8 short:h-8 flex items-center justify-center bg-ground/40 hover:bg-raised transition-colors"
@@ -1460,7 +1459,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                   value={savePresetName}
                   onChange={(e) => setSavePresetName(e.target.value)}
                   placeholder="e.g. High Density Eco"
-                  className="w-full bg-ground/40 border border-line p-3 text-sm font-mono text-ink focus:border-accent/50 outline-none"
+                  className="w-full bg-ground/40 border border-line p-3 text-sm text-ink focus:border-accent/50 outline-none"
                   autoFocus
                 />
               </div>
@@ -1499,7 +1498,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                             {preset.name}
                             <span className="font-label text-2xs uppercase font-normal text-muted border border-line px-1 rounded-sm">{totalSeats} SEATS</span>
                           </div>
-                          <div className="flex gap-4 text-xs font-mono font-semibold">
+                          <div className="flex gap-4 text-xs font-semibold">
                             {c.first > 0 && <span className="text-accent">F{c.first}</span>}
                             {c.business > 0 && <span className="text-ink">J{c.business}</span>}
                             {c.premium > 0 && <span className="text-accent">W{c.premium}</span>}
@@ -1540,7 +1539,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         {plane.registration}
                         <span className="font-label text-2xs uppercase font-normal text-muted border border-line px-1 rounded-sm">{totalSeats} SEATS</span>
                       </div>
-                      <div className="flex gap-4 text-xs font-mono font-semibold">
+                      <div className="flex gap-4 text-xs font-semibold">
                         {c.first > 0 && <span className="text-accent">F{c.first}</span>}
                         {c.business > 0 && <span className="text-ink">J{c.business}</span>}
                         {c.premium > 0 && <span className="text-accent">W{c.premium}</span>}

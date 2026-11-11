@@ -3,7 +3,6 @@ import { FinancialReport } from "./FinancialReport";
 import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
 import { useState, useMemo } from 'react';
 import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info, AlertTriangle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Airport } from '../data/airports';
 
 import {
@@ -118,15 +117,12 @@ export function RouteDetailView({
   const actualCapacity = actualConfigSeats > 0 ? actualConfigSeats : (assignedAircraft?.capacity || 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 50 }}
-      className="absolute inset-0 z-50 bg-ground/95 flex flex-col font-sans p-4 bar:p-3 short:p-2.5 overflow-y-auto"
+    <div
+      className="absolute inset-0 z-50 bg-ground/95 flex flex-col font-sans p-4 bar:p-3 short:p-2.5 overflow-y-auto animate-appear"
     >
       {/* Upright phones: smaller title, buttons below it. Sideways: one slim row. */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bar:gap-2 mb-4 bar:mb-3 short:mb-2 shrink-0">
-        <h2 className="text-2xl md:text-3xl bar:text-xl short:text-lg font-mono text-accent font-semibold flex flex-wrap items-center gap-x-4 bar:gap-x-3">
+        <h2 className="text-2xl md:text-3xl bar:text-xl short:text-lg text-accent font-semibold flex flex-wrap items-center gap-x-4 bar:gap-x-3">
           Route Detail
           <span className="text-muted text-2xl bar:text-xl short:text-lg">|</span>
           <span className="text-ink">{flightNo}</span>
@@ -166,7 +162,7 @@ export function RouteDetailView({
 
       <div className="flex flex-col flex-1 shrink-0 gap-3">
         {cancellation && cancellation.share > 0 && (
-          <div className="flex items-center gap-3 border border-bad/40 bg-bad/10 px-4 py-2 rounded-sm font-mono text-xs">
+          <div className="flex items-center gap-3 border border-bad/40 bg-bad/10 px-4 py-2 rounded-sm text-xs">
             <AlertTriangle size={16} className="text-bad shrink-0" />
             <span>
               <span className="text-bad font-semibold uppercase tracking-label">
@@ -223,7 +219,7 @@ export function RouteDetailView({
                     you {route.schedule?.length || 0}x / week
                   </span>
                 </div>
-                <p className="text-2xs font-mono text-muted mt-2 leading-relaxed">
+                <p className="text-2xs text-muted mt-2 leading-relaxed">
                   Your share of this market grows with frequency, a lower fare and higher
                   satisfaction. Fare matters most.
                 </p>
@@ -271,7 +267,7 @@ export function RouteDetailView({
             <div className="mt-4 bar:mt-3 short:mt-2 flex items-center justify-between">
               {route.durMin && (
                 <div className="flex items-center gap-3">
-                  <span className="text-accent font-mono border border-accent/30 px-2 py-0.5 bg-accent/10 rounded-sm text-2xs">TIME-CLASS: {getFlightTimeClass(route.durMin)}</span>
+                  <span className="text-accent border border-accent/30 px-2 py-0.5 bg-accent/10 rounded-sm text-2xs">TIME-CLASS: {getFlightTimeClass(route.durMin)}</span>
                   <span className="text-muted text-2xs font-label uppercase">
                       Flight Time: {Math.floor(route.durMin / 60)}h {(route.durMin % 60).toString().padStart(2, '0')}m
                   </span>
@@ -547,7 +543,7 @@ export function RouteDetailView({
       </div>
 
 
-      <AnimatePresence>
+      <>
          {showAircraftDetails && assignedAircraft && (
            <AircraftDetailsModal 
              plane={assignedAircraft}
@@ -558,7 +554,7 @@ export function RouteDetailView({
              airlineCode={codePrefix}
            />
          )}
-      </AnimatePresence>
+      </>
       {isPickingAircraft && onReassignAircraft && (
         <RouteAircraftPicker
           route={route}
@@ -573,6 +569,6 @@ export function RouteDetailView({
           }}
         />
       )}
-    </motion.div>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   Calendar,
@@ -565,7 +564,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                 <span>({aircraft.class})</span>
               </div>
               {slotInfo.map(a => (
-                <div key={a.id} className="flex justify-between font-mono text-2xs text-muted">
+                <div key={a.id} className="flex justify-between text-2xs text-muted">
                   <span>{a.id}</span>
                   <span className={a.used + schedule.length > a.cap ? 'text-bad' : 'text-accent font-semibold'}>
                     {a.used + schedule.length} / {a.cap}
@@ -586,7 +585,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                   >
                     <Minus className="w-2 h-2" />
                   </button>
-                  <div className="w-6 h-5 flex items-center justify-center bg-ground border border-rule font-mono text-2xs text-accent font-semibold">{ops}</div>
+                  <div className="w-6 h-5 flex items-center justify-center bg-ground border border-rule text-2xs text-accent font-semibold">{ops}</div>
                   <button
                     onClick={() => setMultipleOps(Math.min(maxMultipleOps, ops + 1))}
                     disabled={ops >= maxMultipleOps}
@@ -657,7 +656,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                 Takeoff: {fmtClock(takeoffMin)}
               </div>
             </div>
-            <div className="flex items-center justify-center gap-2 bg-ground/80 border border-line p-2 font-mono rounded-sm relative overflow-hidden group">
+            <div className="flex items-center justify-center gap-2 bg-ground/80 border border-line p-2 rounded-sm relative overflow-hidden group">
                <div className="absolute inset-0 bg-accent/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                <div className="flex flex-col items-center">
                  <button onClick={() => updateFromDisplay((displayH + 1) % 24, displayM)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-90" /></button>
@@ -754,7 +753,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               <div className="w-16 shrink-0 border-r border-rule bg-ground/90 relative z-20">
                 {Array.from({ length: 24 }).map((_, i) => (
                   <div key={i} className="h-[30px] border-b border-line flex items-start justify-end pr-2 relative">
-                    <span className="text-2xs font-mono text-muted absolute top-[-6px]">{i.toString().padStart(2, '0')}:00</span>
+                    <span className="text-2xs text-muted absolute top-[-6px]">{i.toString().padStart(2, '0')}:00</span>
                   </div>
                 ))}
               </div>
@@ -802,33 +801,28 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       </div>
 
       {/* Success Animation Overlay */}
-      <AnimatePresence>
+      <>
         {showSuccess && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[200] bg-ground/90 flex items-center justify-center p-4"
+          <div
+            className="absolute inset-0 z-[200] bg-ground/90 flex items-center justify-center p-4 animate-appear"
           >
-             <motion.div 
-                initial={{ scale: 0.8, rotateX: 45 }}
-                animate={{ scale: 1, rotateX: 0 }}
-                className="bg-accent text-on-accent p-12 rounded-sm flex flex-col items-center gap-3 text-center border-t-8 border-ink"
+             <div
+                className="bg-accent text-on-accent p-12 rounded-sm flex flex-col items-center gap-3 text-center border-t-8 border-ink animate-appear"
              >
                 <div className="w-24 h-24 bg-ground rounded-full flex items-center justify-center">
-                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }}>
+                   <div className="animate-appear">
                       <Check size={64} className="text-accent" strokeWidth={4} />
-                   </motion.div>
+                   </div>
                 </div>
                 <div>
                    <h3 className="text-3xl font-semibold">{isReassign ? 'Aircraft Changed' : 'Schedule Updated'}</h3>
                    <div className="h-1 w-12 bg-ground mx-auto my-3"></div>
                    <p className="text-xs uppercase tracking-label font-semibold opacity-80">Synchronizing fleet data...</p>
                 </div>
-             </motion.div>
-          </motion.div>
+             </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 };

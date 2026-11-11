@@ -40,7 +40,7 @@ export function ScenarioProgressPanel({ scenario, goals, monthsLeft }: ScenarioP
   return (
     <section
       aria-label={`Scenario: ${scenario.title}`}
-      className="w-72 max-w-[calc(100vw-7rem)] bg-ground/90 border border-line font-mono pointer-events-auto"
+      className="w-72 max-w-[calc(100vw-7rem)] bg-ground/90 border border-line pointer-events-auto"
     >
       <button
         type="button"

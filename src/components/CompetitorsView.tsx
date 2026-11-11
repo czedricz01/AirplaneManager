@@ -363,7 +363,7 @@ function CompetitorsViewImpl({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 font-mono text-xs bar:hidden short:shrink-0">
+            <div className="flex items-center gap-3 text-xs bar:hidden short:shrink-0">
               <span className="text-white/30 lowercase short:hidden">alliance status:</span>
               <span className={`px-2.5 py-1 text-2xs font-semibold uppercase tracking-label rounded-sm ${
                 selectedAirline.isPlayer 
@@ -389,7 +389,7 @@ function CompetitorsViewImpl({
                 </div>
                 <div>
                   <div className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-ink">{formatCurrency(selectedAirline.capital)}</div>
-                  <div className="text-2xs text-accent font-mono flex items-center gap-1 mt-1">
+                  <div className="text-2xs text-accent flex items-center gap-1 mt-1">
                     <TrendingUp size={10} /> Active Liquidity Index
                   </div>
                 </div>
@@ -439,7 +439,7 @@ function CompetitorsViewImpl({
                     {selectedAirline.hub}
                     {!selectedAirline.isPlayer && selectedAirline.secondHub && <span className="text-base text-muted"> + {selectedAirline.secondHub}</span>}
                   </div>
-                  <div className="text-2xs text-muted font-mono mt-1 flex items-center gap-1.5">
+                  <div className="text-2xs text-muted mt-1 flex items-center gap-1.5">
                     <Shield size={10} className="text-muted" /> Operating Tier: {selectedAirline.isPlayer ? 'Player' : selectedAirline.aiDifficulty}
                   </div>
                 </div>
@@ -455,7 +455,7 @@ function CompetitorsViewImpl({
                 : null;
               return (
                 <div className={`border p-4 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${forSale ? 'border-accent/40 bg-accent/5' : 'border-line bg-surface'}`}>
-                  <div className="font-mono text-2xs leading-relaxed max-w-xl">
+                  <div className="text-2xs leading-relaxed max-w-xl">
                     <div className={`font-semibold uppercase tracking-label text-xs mb-1 ${forSale ? 'text-accent' : 'text-muted'}`}>
                       {forSale ? 'For sale: insolvent' : 'Takeover bid'}
                     </div>
@@ -499,7 +499,7 @@ function CompetitorsViewImpl({
                     </span>
                   </div>
 
-                  <div className="space-y-3 font-mono">
+                  <div className="space-y-3">
                     {selectedAirline.routes.length === 0 ? (
                       <div className="p-12 text-center bg-ground/25 border border-line rounded-sm text-muted uppercase tracking-label text-xs">
                         This airline is restructuring its flight routes. No active routes currently scheduled.
@@ -572,7 +572,7 @@ function CompetitorsViewImpl({
                     </span>
                   </div>
 
-                  <div className="space-y-2 font-mono">
+                  <div className="space-y-2">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {selectedAirline.fleet.map((plane, pIdx) => {
                         const airframe = Number.isFinite(plane.conditionGeneral) ? Math.round(plane.conditionGeneral as number) : null;
@@ -593,7 +593,7 @@ function CompetitorsViewImpl({
                                 </span>
                               </div>
 
-                              <div className="mt-4 space-y-1.5 font-mono text-2xs text-muted border-t border-line pt-3">
+                              <div className="mt-4 space-y-1.5 text-2xs text-muted border-t border-line pt-3">
                                 <div className="flex justify-between">
                                   <span>Seats Capacity:</span>
                                   <strong className="text-ink">{plane.capacity ? `${plane.capacity} seats` : dash}</strong>
@@ -612,7 +612,7 @@ function CompetitorsViewImpl({
                                 </div>
                               </div>
                             </div>
-                            <div className="mt-4 border-t border-line pt-2.5 flex justify-between items-center text-2xs text-muted font-mono">
+                            <div className="mt-4 border-t border-line pt-2.5 flex justify-between items-center text-2xs text-muted">
                               <span>Airframe condition</span>
                               <span className={`font-semibold ${airframe === null ? 'text-muted' : airframe < 40 ? 'text-bad' : 'text-accent'}`}>{airframe === null ? dash : `${airframe}%`}</span>
                             </div>
@@ -635,7 +635,7 @@ function CompetitorsViewImpl({
                   </h4>
 
                   {/* Dynamic Custom Bars in the exact Yellow and Anthracite colorway */}
-                  <div className="space-y-4 font-mono text-xs">
+                  <div className="space-y-4 text-xs">
                     <div>
                       <div className="flex justify-between text-2xs mb-1">
                         <span className="text-muted">Widebody Transcontinental</span>
@@ -683,7 +683,7 @@ function CompetitorsViewImpl({
                     <Activity size={14} /> Yield & Profit Trends
                   </h4>
 
-                  <div className="space-y-4 font-mono">
+                  <div className="space-y-4">
                     <div className="text-2xs text-muted mb-2 uppercase leading-snug">
                       Recent timeline of net monthly operation margins:
                     </div>
@@ -751,16 +751,16 @@ function CompetitorsViewImpl({
                   </h4>
 
                   {!selectedAirline.isPlayer && (
-                    <div className="space-y-4 font-mono text-2xs border-b border-line pb-4">
+                    <div className="space-y-4 text-2xs border-b border-line pb-4">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-surface p-2 rounded-sm border border-line text-center">
-                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">STRATEGY GROUP</span>
+                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">Strategy group</span>
                           <strong className="text-accent uppercase text-xs">
                             {selectedAirline.personality ? PERSONALITY_META[selectedAirline.personality].description : 'Independent'}
                           </strong>
                         </div>
                         <div className="bg-surface p-2 rounded-sm border border-line text-center">
-                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">AGGRESSION RATING</span>
+                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">Aggression rating</span>
                           <strong className="text-accent text-xs">
                             {selectedAirline.aggression || 5} / 10
                           </strong>
@@ -834,7 +834,7 @@ function CompetitorsViewImpl({
                 </div>
                 <input
                   type="text"
-                  className="w-full bg-ground/40 border border-line rounded-sm py-2.5 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent text-accent font-mono transition-colors"
+                  className="w-full bg-ground/40 border border-line rounded-sm py-2.5 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent text-accent transition-colors"
                   placeholder="Search airlines, codes, hubs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -883,7 +883,7 @@ function CompetitorsViewImpl({
                       {/* Row Summary */}
                       <div className="grid grid-cols-1 md:grid-cols-12 items-center px-3 py-4 gap-y-2 md:gap-y-0 text-sm">
                         {/* Rank */}
-                        <div className="col-span-1 font-mono font-semibold flex items-center gap-2">
+                        <div className="col-span-1 font-semibold flex items-center gap-2">
                           <span className="text-muted text-xs md:hidden font-semibold">RANK</span>
                           <span className={`text-base font-semibold ${
                             rank === 1 ? 'text-accent scale-110 flex items-center' : rank === 2 ? 'text-ink' : rank === 3 ? 'text-muted' : 'text-muted'
@@ -912,7 +912,7 @@ function CompetitorsViewImpl({
                                 <span className="px-2 py-0.5 bg-accent text-on-accent text-2xs font-semibold uppercase tracking-label rounded-sm">YOU</span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap font-mono text-xs">
+                            <div className="flex items-center gap-2 flex-wrap text-xs">
                               <span className="text-muted">IATA: <span className="font-semibold text-accent">{airline.code}</span></span>
                               {!airline.isPlayer && airline.personality && (
                                 <Badge tone={PERSONALITY_META[airline.personality].tone}>
@@ -925,7 +925,7 @@ function CompetitorsViewImpl({
 
                         {/* Hub Base */}
                         <div className="col-span-2 text-left md:text-center">
-                          <div className="inline-block md:block font-mono text-xs text-muted bg-surface px-2 py-1 border border-line">
+                          <div className="inline-block md:block text-xs text-muted bg-surface px-2 py-1 border border-line">
                             {airline.hub}
                           </div>
                         </div>
@@ -947,7 +947,7 @@ function CompetitorsViewImpl({
 
                         {/* Capital */}
                         <div className="col-span-2 text-left md:text-right font-mono font-semibold text-ink">
-                          <span className="text-muted text-xs md:hidden pr-2">CAPITAL</span>
+                          <span className="text-muted text-xs md:hidden pr-2">Capital</span>
                           {formatCurrency(airline.capital)}
                           {lastProfit !== 0 && (
                             <span className={`block text-2xs ${lastProfit >= 0 ? 'text-good' : 'text-bad'} font-normal mt-0.5`}>
@@ -959,13 +959,13 @@ function CompetitorsViewImpl({
 
                         {/* Fleet Size */}
                         <div className="col-span-1 text-left md:text-right font-mono">
-                          <span className="text-muted text-xs md:hidden pr-2">FLEET</span>
+                          <span className="text-muted text-xs md:hidden pr-2">Fleet</span>
                           <span className="font-semibold text-ink">{airline.fleet.length}</span>
                         </div>
 
                         {/* Routes Size */}
                         <div className="col-span-1 text-left md:text-right font-mono">
-                          <span className="text-muted text-xs md:hidden pr-2">ROUTES</span>
+                          <span className="text-muted text-xs md:hidden pr-2">Routes</span>
                           <span className="font-semibold text-ink">{airline.routes.length}</span>
                         </div>
 

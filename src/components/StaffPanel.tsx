@@ -62,7 +62,7 @@ function MoraleBar({ morale, target }: { morale: number; target: number }) {
           title={`Target ${Math.round(target)}`}
         />
       </div>
-      <div className="relative h-4 mt-1 text-2xs font-mono text-muted">
+      <div className="relative h-4 mt-1 text-2xs text-muted">
         <span className="absolute left-0">0</span>
         <span className="absolute -translate-x-1/2 text-bad" style={{ left: `${STRIKE_MORALE_THRESHOLD}%` }}>{STRIKE_MORALE_THRESHOLD}<span className="hidden sm:inline"> strike</span></span>
         <span className="absolute -translate-x-1/2" style={{ left: `${NEUTRAL_MORALE}%` }}>{NEUTRAL_MORALE}<span className="hidden sm:inline"> neutral</span></span>
@@ -99,7 +99,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
       {striking && (
         <div className="flex items-start gap-3 border border-bad/40 bg-bad/10 px-4 py-3 rounded-sm">
           <AlertTriangle size={18} className="text-bad shrink-0 mt-0.5" />
-          <div className="text-2xs font-mono leading-relaxed">
+          <div className="text-2xs leading-relaxed">
             <span className="block text-bad font-semibold uppercase tracking-label mb-0.5">
               Strike this month · {Math.round(strikeShare * 100)}% of flights grounded
             </span>
@@ -118,7 +118,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
       {(() => {
         const premium = labourMarketPremium(offset);
         return (
-          <div className="text-2xs font-mono text-muted leading-relaxed">
+          <div className="text-2xs text-muted leading-relaxed">
             Labour market: <span className={premium >= 4 ? 'text-bad' : premium <= -4 ? 'text-good' : 'text-muted'}>{labourMarketLabel(premium)}</span>.
             {premium !== 0 && (
               <> Crews expect {premium > 0 ? `${premium} points more` : `${-premium} points less`} than the going wage, so market pay
@@ -135,7 +135,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           value={Math.round(staff.morale)}
           valueClassName={staff.morale < STRIKE_MORALE_THRESHOLD ? 'text-bad' : staff.morale >= NEUTRAL_MORALE ? 'text-good' : ''}
         >
-          <span className="flex items-center gap-1 text-2xs font-mono text-muted mt-1">
+          <span className="flex items-center gap-1 text-2xs text-muted mt-1">
             <TrendIcon size={10} className={trend > 0.05 ? 'text-good' : trend < -0.05 ? 'text-bad' : ''} />
             {Math.round(outlook.nextMorale)} next month · target {Math.round(outlook.target)}
           </span>
@@ -146,7 +146,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           value={`${formatNumber(outlook.strikeChance * 100, 1)}%`}
           valueClassName={outlook.strikeChance > 0 ? 'text-bad' : 'text-good'}
         >
-          <span className="block text-2xs font-mono text-muted mt-1">
+          <span className="block text-2xs text-muted mt-1">
             {strikePending
               ? 'none while a strike awaits your answer'
               : noRoutes
@@ -159,7 +159,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           </span>
         </StatTile>
         <StatTile size="md" label="Satisfaction effect" value={signed(satNow)} valueClassName={satNow > 0 ? 'text-good' : satNow < 0 ? 'text-bad' : ''}>
-          <span className="block text-2xs font-mono text-muted mt-1">points in every cabin, from morale</span>
+          <span className="block text-2xs text-muted mt-1">points in every cabin, from morale</span>
         </StatTile>
       </div>
 
@@ -170,14 +170,14 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
             <Users size={18} className="text-accent shrink-0 mt-0.5" />
             <div className="min-w-0">
               <span className="text-2xs uppercase tracking-label text-muted font-semibold block mb-1">Pay</span>
-              <p className="text-2xs font-mono text-muted leading-relaxed max-w-xl">
+              <p className="text-2xs text-muted leading-relaxed max-w-xl">
                 Crew and ground staff are paid a share of the market wage. The bill changes at once;
                 morale follows over the coming months.
               </p>
             </div>
           </div>
           <div className="text-right">
-            <span className="block text-2xl font-mono font-semibold text-ink">{Math.round(staff.salaryPct)}%</span>
+            <span className="block text-2xl font-semibold text-ink">{Math.round(staff.salaryPct)}%</span>
             <span className="text-2xs font-label text-muted uppercase tracking-label">of market wage</span>
           </div>
         </div>
@@ -194,19 +194,19 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
             className="w-full accent-accent cursor-pointer"
           />
         </label>
-        <div className="flex justify-between text-2xs font-mono text-muted mt-0.5">
+        <div className="flex justify-between text-2xs text-muted mt-0.5">
           <span>{SALARY_PCT_MIN}%</span>
           <span>100% market</span>
           <span>{SALARY_PCT_MAX}%</span>
         </div>
         {floor > SALARY_PCT_MIN && staff.strike && (
-          <p className="text-2xs font-mono text-accent leading-relaxed mt-2">
+          <p className="text-2xs text-accent leading-relaxed mt-2">
             Agreed with the unions to end the strike: pay cannot drop below {Math.round(floor)}% through{' '}
             {formatMonthOffset(staff.strike.startOffset + STRIKE_MEMORY_MONTHS)}.
           </p>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-line text-2xs font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-line text-2xs">
           <div>
             <span className="block text-muted uppercase tracking-label">Crew &amp; ground staff this month</span>
             <span className="text-base font-semibold text-ink">{formatCurrency(monthlyCrewCost)}</span>
@@ -236,7 +236,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           </div>
         </div>
         <MoraleBar morale={staff.morale} target={outlook.target} />
-        <p className="text-2xs font-mono text-muted leading-relaxed mt-3">
+        <p className="text-2xs text-muted leading-relaxed mt-3">
           Morale moves {Math.round(MORALE_INERTIA * 100)}% of the way to its target each month. The target is {BASE_MORALE} at market pay,
           {' '}{MORALE_PER_PAY_POINT} points for every percent of pay above or below it, +{PROFIT_STREAK_MORALE} after more
           than {PROFIT_STREAK_MONTHS} profitable months in a row and −{STRIKE_MORALE_PENALTY} for {STRIKE_MEMORY_MONTHS} months

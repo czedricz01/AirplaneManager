@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronRight,
   X
@@ -144,6 +143,7 @@ import {
 } from "./lib/gameState";
 import { nextMessageId, reserveMessageIds, createWelcomeMessage } from "./lib/messages";
 import { SaveLoadOverlay } from "./components/SaveLoadOverlay";
+import { Button } from "./components/ui/Button";
 import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
@@ -2210,7 +2210,7 @@ export default function App() {
         )}
 
         <div className="flex-1 flex flex-col relative overflow-hidden">
-          <AnimatePresence mode="wait">
+          <>
             {view === 'login' && (
               <AuthGate onLocalOnly={handleLocalOnly} />
             )}
@@ -2291,11 +2291,9 @@ export default function App() {
             )}
 
             {view === 'game' && (
-              <motion.div
+              <div
                 key="game"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex-1 flex flex-col bg-ground relative"
+                className="flex-1 flex flex-col bg-ground relative animate-appear"
               >
                 <GameTopBar
                   capital={capital}
@@ -2344,7 +2342,7 @@ export default function App() {
                   {/* The tutorial's "map" only while the map is what is on screen: under
                       a window it is not there to point at. */}
                   <div className="absolute inset-0 z-0 bg-surface" data-tour={activeWindow === 'map' && !isPlanningRoute ? 'map' : undefined}>
-                     <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
+                     <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="Reload map">
                       <React.Suspense fallback={<LazyFallback label="World Map" />}>
                       <WorldMap
                         sessionKey={sessionKey}
@@ -2550,7 +2548,7 @@ export default function App() {
                     const editAircraft = editRoute ? fleet.find(a => a.registration === editRoute.aircraft) : undefined;
                     if (!editRoute || !editAircraft) return null;
                     return (
-                     <ErrorBoundary label="Schedule Editor" onReset={() => setIsEditingSchedule(false)} resetLabel="CLOSE EDITOR">
+                     <ErrorBoundary label="Schedule Editor" onReset={() => setIsEditingSchedule(false)} resetLabel="Close editor">
                       <React.Suspense fallback={<LazyFallback label="Schedule Editor" />}>
                       <RouteScheduleEditView
                         route={editRoute}
@@ -2589,7 +2587,7 @@ export default function App() {
                     // Sold while the timetable was open: nothing left to move to.
                     if (!fleet.some(p => p.registration === plane.registration)) return null;
                     return (
-                     <ErrorBoundary label="Change Aircraft" onReset={() => setReassigning(null)} resetLabel="CLOSE EDITOR">
+                     <ErrorBoundary label="Change Aircraft" onReset={() => setReassigning(null)} resetLabel="Close editor">
                       <React.Suspense fallback={<LazyFallback label="Change Aircraft" />}>
                       <RouteScheduleEditView
                         route={draftRoute}
@@ -2623,7 +2621,7 @@ export default function App() {
 
                   {editingCabinRouteId && (
                     <div className="absolute inset-0 z-[60] flex">
-                     <ErrorBoundary label="Cabin Editor" onReset={() => setEditingCabinRouteId(null)} resetLabel="CLOSE EDITOR">
+                     <ErrorBoundary label="Cabin Editor" onReset={() => setEditingCabinRouteId(null)} resetLabel="Close editor">
                       <React.Suspense fallback={<LazyFallback label="Cabin Editor" />}>
                       <RoutePlannerView
                         debugMode={debugMode}
@@ -2657,7 +2655,7 @@ export default function App() {
 
                   {editingPricingRouteId && (
                     <div className="absolute inset-0 z-[60] flex">
-                     <ErrorBoundary label="Pricing Editor" onReset={() => setEditingPricingRouteId(null)} resetLabel="CLOSE EDITOR">
+                     <ErrorBoundary label="Pricing Editor" onReset={() => setEditingPricingRouteId(null)} resetLabel="Close editor">
                       <React.Suspense fallback={<LazyFallback label="Pricing Editor" />}>
                       <RoutePlannerView
                         debugMode={debugMode}
@@ -2691,7 +2689,7 @@ export default function App() {
 
                   {isPlanningRoute && (
                     <div className="absolute inset-0 z-[45] flex" data-tour="route-planner">
-                     <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="CLOSE PLANNER">
+                     <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="Close planner">
                       <React.Suspense fallback={<LazyFallback label="Route Planner" />}>
                       <RoutePlannerView
                         debugMode={debugMode}
@@ -2770,7 +2768,7 @@ export default function App() {
                   {/* Airport Selection Window - Rendered inside the main view layout so sidebars remain visible */}
                   {selectedAirport && (
                     <div className="absolute inset-0 z-[2000]">
-                     <ErrorBoundary label="Airport" onReset={() => setSelectedAirport(null)} resetLabel="CLOSE AIRPORT">
+                     <ErrorBoundary label="Airport" onReset={() => setSelectedAirport(null)} resetLabel="Close airport">
                       <React.Suspense fallback={<LazyFallback label="Airport" />}>
                       <AirportDetailView
                         airport={selectedAirport}
@@ -2857,21 +2855,16 @@ export default function App() {
                       navigation. */}
                   {activeWindow === 'map' && !isPlanningRoute && !editingCabinRouteId && !editingPricingRouteId && (
                     <div className="absolute bottom-4 right-4 rail:bottom-6 rail:right-6 short:bottom-3 short:right-3 z-[1000] pointer-events-auto">
-                      <button
-                        onClick={handleAdvanceMonth}
-                        data-tour="next-month"
-                        className="flex items-center gap-3 bg-accent text-on-accent px-3 py-3 font-semibold uppercase tracking-label text-xs border-2 border-accent hover:bg-ink hover:border-ink transition-all transform hover:scale-105 group font-sans"
-                        title="Advance to next month"
-                      >
-                        Next Month
-                        <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                      </button>
+                      <Button variant="primary" size="lg" onClick={handleAdvanceMonth} data-tour="next-month" title="Close this month and move to the next">
+                        Next month
+                        <ChevronRight size={16} aria-hidden="true" />
+                      </Button>
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </>
         </div>
       </div>
 
@@ -2942,7 +2935,7 @@ export default function App() {
         );
       })()}
 
-      <AnimatePresence>
+      <>
         {showSaveMenu && (
           <SaveLoadOverlay 
             mode="save"
@@ -2962,17 +2955,11 @@ export default function App() {
           />
         )}
         {selectedMessage && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ground/85 z-[9999] flex items-center justify-center p-4"
+          <div
+            className="fixed inset-0 bg-ground/85 z-[9999] flex items-center justify-center p-4 animate-appear"
           >
-            <motion.div 
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              className="bg-surface border-2 border-accent/40 max-w-lg w-full p-4 relative text-left"
+            <div
+              className="bg-surface border-2 border-accent/40 max-w-lg w-full p-4 relative text-left animate-appear"
             >
               <div className="flex justify-between items-start border-b border-line pb-4 mb-4">
                 <div>
@@ -3003,11 +2990,11 @@ export default function App() {
                   Acknowledge Dispatch
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
 
-      </AnimatePresence>
+      </>
       </div>
     </div>
       {/* Outside the scaled root: the tutorial measures and draws in screen pixels. */}

@@ -1,5 +1,4 @@
 /** The new-game screen: airline, scenario or mode, hub, difficulty, rivals and the save name. */
-import { motion } from 'motion/react';
 import { ScenarioPicker } from '../ScenarioPicker';
 import { BrandingPicker } from '../BrandingPicker';
 import { ScenarioLock } from './AppChrome';
@@ -60,11 +59,9 @@ export function NewGameScreen({
 }: NewGameScreenProps) {
   return (
     <>
-              <motion.div
+              <div
                 key="start-menu"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex-1 min-h-0 p-4 lg:p-12 short:pt-2 bar:pb-0 short:pb-0 overflow-y-auto"
+                className="flex-1 min-h-0 p-4 lg:p-12 short:pt-2 bar:pb-0 short:pb-0 overflow-y-auto animate-appear"
               >
                 <div className="max-w-4xl mx-auto space-y-12 bar:space-y-5 short:space-y-3 pb-20 bar:pb-0 short:pb-0">
                   <div className="flex items-end short:items-center justify-between gap-4 border-b border-line pb-6 bar:pb-3 short:pb-2">
@@ -101,7 +98,7 @@ export function NewGameScreen({
                           value={airlineName}
                           onChange={(e) => setAirlineName(e.target.value)}
                           placeholder="Neo Airlines"
-                          className="w-full bg-raised border border-line p-4 short:p-2.5 font-mono text-sm outline-none focus:border-accent text-accent placeholder:text-muted"
+                          className="w-full bg-raised border border-line p-4 short:p-2.5 text-sm outline-none focus:border-accent text-accent placeholder:text-muted"
                         />
                       </div>
                       <div className="space-y-4 short:space-y-2">
@@ -111,7 +108,7 @@ export function NewGameScreen({
                           value={airlineCode}
                           onChange={handleAirlineCodeChange}
                           placeholder="NX"
-                          className="w-full bg-raised border border-line p-4 short:p-2.5 font-mono text-sm outline-none focus:border-accent text-accent placeholder:text-muted"
+                          className="w-full bg-raised border border-line p-4 short:p-2.5 text-sm outline-none focus:border-accent text-accent placeholder:text-muted"
                         />
                       </div>
                     </div>
@@ -139,7 +136,7 @@ export function NewGameScreen({
                         type="button"
                         disabled={!!newGameScenario}
                         onClick={() => setHubPickerOpen(true)}
-                        className="relative w-full text-left bg-raised border border-line p-4 short:py-2.5 pl-4 pr-10 font-mono text-sm text-ink hover:border-accent/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-line"
+                        className="relative w-full text-left bg-raised border border-line p-4 short:py-2.5 pl-4 pr-10 text-sm text-ink hover:border-accent/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-line"
                       >
                         {(() => {
                           const hubAirport = airportsMapAdjusted.get(selectedHub);
@@ -249,7 +246,7 @@ export function NewGameScreen({
                           onChange={(e) => setAiAirlinesCount(parseInt(e.target.value))}
                           className="w-full appearance-none bg-raised h-2 outline-none slider-thumb disabled:opacity-40 disabled:cursor-not-allowed"
                         />
-                        <div className="flex justify-between text-2xs font-mono text-muted">
+                        <div className="flex justify-between text-2xs text-muted">
                           <span>0</span>
                           <span>12</span>
                         </div>
@@ -264,7 +261,7 @@ export function NewGameScreen({
                           value={aiDifficulty}
                           disabled={!!newGameScenario}
                           onChange={(e) => setAiDifficulty(e.target.value)}
-                          className="w-full bg-raised border border-line p-4 short:p-2.5 font-mono text-sm outline-none focus:border-accent text-ink disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full bg-raised border border-line p-4 short:p-2.5 text-sm outline-none focus:border-accent text-ink disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option>Easy</option>
                           <option>Normal</option>
@@ -291,7 +288,7 @@ export function NewGameScreen({
                         onChange={(e) => setStartDateOffset(parseInt(e.target.value))}
                         className="w-full appearance-none bg-raised h-2 outline-none slider-thumb disabled:opacity-40 disabled:cursor-not-allowed"
                       />
-                      <div className="flex justify-between text-2xs font-mono text-muted">
+                      <div className="flex justify-between text-2xs text-muted">
                         <span>01/1960</span>
                         <span>12/2020</span>
                       </div>
@@ -304,7 +301,7 @@ export function NewGameScreen({
                         value={initialSaveFileName}
                         onChange={(e) => setInitialSaveFileName(e.target.value)}
                         placeholder="My Airline Save 1"
-                        className="w-full bg-raised border border-accent/30 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-accent text-accent placeholder:text-muted"
+                        className="w-full bg-raised border border-accent/30 p-4 short:p-2.5 text-sm outline-none focus:border-accent text-accent placeholder:text-muted"
                       />
                       <p className="text-2xs text-muted mt-2">A save file name must be provided to initialize the system.</p>
                     </div>
@@ -328,7 +325,7 @@ export function NewGameScreen({
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
     </>
   );
 }

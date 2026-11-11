@@ -271,7 +271,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
                   <div key={series.id} className="text-right">
                     {chart.series.length > 1 && <span className="block text-2xs uppercase tracking-label text-muted">{series.label}</span>}
                     <span className="text-base font-mono font-semibold text-ink">{chart.formatValue(span[1])}</span>
-                    <span className="block text-2xs font-mono text-muted">
+                    <span className="block text-2xs text-muted">
                       {chart.delta(span[1] - span[0])} over the period
                     </span>
                   </div>
@@ -294,7 +294,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
                 Show as table
               </summary>
               <div className="mt-2 max-h-56 overflow-y-auto border border-line">
-                <table className="w-full text-2xs font-mono">
+                <table className="w-full text-2xs">
                   <thead className="sticky top-0 bg-raised text-muted">
                     <tr>
                       <th className="text-left font-normal px-2 py-1">Month</th>
@@ -331,7 +331,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
           <span className="text-2xs font-mono text-muted">{chronicle.length} entr{chronicle.length === 1 ? 'y' : 'ies'}</span>
         </div>
         {years.length === 0 ? (
-          <p className="text-2xs font-mono text-muted leading-relaxed">
+          <p className="text-2xs text-muted leading-relaxed">
             Nothing written yet. Milestones, records, world events, strikes and other turning points are recorded here as they happen.
           </p>
         ) : (

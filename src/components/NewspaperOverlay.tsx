@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { X } from 'lucide-react';
 import type { Edition } from '../lib/newspaper';
 
@@ -18,10 +17,9 @@ export interface NewspaperOverlayProps {
 /**
  * The month's newspaper, spun onto the screen the way old films showed the
  * headlines. Closes on the button, on Escape and on a click beside the page.
- * With reduced motion it simply fades in.
+ * It fades in.
  */
 export function NewspaperOverlay({ edition, open, onClose }: NewspaperOverlayProps) {
-  const reduceMotion = useReducedMotion();
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -37,29 +35,16 @@ export function NewspaperOverlay({ edition, open, onClose }: NewspaperOverlayPro
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  const spin = reduceMotion
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.2 } }
-    : {
-        initial: { opacity: 0, scale: 0.15, rotate: -540 },
-        animate: { opacity: 1, scale: 1, rotate: 0 },
-        exit: { opacity: 0, scale: 0.9, rotate: 0 },
-        transition: { duration: 0.85, ease: [0.2, 0.8, 0.25, 1] as const }
-      };
-
   return (
-    <AnimatePresence>
+    <>
       {open && edition && (
-        <motion.div
+        <div
           key="newspaper"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
           // Below the app's alerts (z-[5000]), so an alert raised meanwhile stays on top.
-          className="absolute inset-0 z-[4900] bg-ground/75 flex items-center justify-center p-4 overflow-hidden"
+          className="absolute inset-0 z-[4900] bg-ground/75 flex items-center justify-center p-4 overflow-hidden animate-appear"
           onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
         >
-          <motion.article
-            {...spin}
+          <article
             role="dialog"
             aria-modal="true"
             aria-labelledby="newspaper-headline"
@@ -134,9 +119,9 @@ export function NewspaperOverlay({ edition, open, onClose }: NewspaperOverlayPro
                 ))}
               </footer>
             )}
-          </motion.article>
-        </motion.div>
+          </article>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

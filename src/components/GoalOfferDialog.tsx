@@ -26,7 +26,7 @@ export function GoalOfferDialog({ offer, open, onChoose, onLater }: Props) {
     >
       {offer && (
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-mono text-muted leading-relaxed">
+          <p className="text-xs text-muted leading-relaxed">
             Pick one goal for {offer.year}. A harder goal pays more and costs more to miss.
             If you decide later, you find the offer under My Company &rsaquo; Career; without a choice
             the first goal is taken when {offer.year} begins.

@@ -125,6 +125,8 @@ body {
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: 1.45;
+  /* Figures line up in columns in every typeface, not only the figure one. */
+  font-variant-numeric: tabular-nums;
   margin: 0;
   overflow: hidden;
 }

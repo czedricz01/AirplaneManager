@@ -198,7 +198,7 @@ export function AirportDetailView({
   };
 
   return (
-    <div className="absolute inset-0 z-[2000] flex flex-col bg-ground overflow-hidden pointer-events-auto font-mono">
+    <div className="absolute inset-0 z-[2000] flex flex-col bg-ground overflow-hidden pointer-events-auto">
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
@@ -299,9 +299,9 @@ export function AirportDetailView({
                   <span className="text-sm font-semibold">Infrastructure Controls</span>
                 </div>
                 {infrastructure.level >= 1 ? (
-                  <span className="text-2xs bg-accent/20 text-on-accent px-2 py-0.5 font-semibold rounded-sm animate-pulse">SYSTEMS ONLINE</span>
+                  <span className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Systems online</span>
                 ) : (
-                  <span className="text-2xs bg-raised text-muted px-2 py-0.5 rounded-sm">OFFLINE</span>
+                  <span className="text-2xs bg-raised text-muted px-2 py-0.5 rounded-sm">Offline</span>
                 )}
               </div>
 
@@ -393,7 +393,7 @@ export function AirportDetailView({
                     <div className="text-xl font-semibold text-ink">Access Protocol Locked</div>
                     <div className="text-2xs text-muted uppercase tracking-label">Require Level 1 Management Permit: {formatCurrency(unlockCost(1))}</div>
                     {gates?.airport && (
-                      <div className="text-2xs text-bad font-mono normal-case max-w-md mx-auto leading-relaxed">{gates.airport}</div>
+                      <div className="text-2xs text-bad normal-case max-w-md mx-auto leading-relaxed">{gates.airport}</div>
                     )}
                   </div>
                   <button 
@@ -433,7 +433,7 @@ export function AirportDetailView({
                         <div className="text-2xs text-muted mt-1 uppercase tracking-label w-64">Allows general checks at this hub</div>
                       </div>
                       {infrastructure.hubFacilities?.hangar ? (
-                        <div className="text-2xs bg-accent/20 text-on-accent px-2 py-1 font-semibold rounded-sm animate-pulse">ACTIVE</div>
+                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
                       ) : (
                         <button 
                           onClick={() => {
@@ -459,7 +459,7 @@ export function AirportDetailView({
                         </div>
                         <div className="flex gap-2">
                           <select 
-                            className="flex-1 bg-ground/40 border border-line text-ink text-xs p-2 outline-none font-mono"
+                            className="flex-1 bg-ground/40 border border-line text-ink text-xs p-2 outline-none"
                             value={selectedAircraftForCheck}
                             onChange={(e) => setSelectedAircraftForCheck(e.target.value)}
                           >
@@ -495,11 +495,11 @@ export function AirportDetailView({
                         <div className="text-ink font-semibold text-sm">VIP Lounge</div>
                         <div className="text-2xs text-muted mt-1 uppercase tracking-label">+4 quality pts (Bus/First), +1 (PE)</div>
                         {gates?.vipLounge && !infrastructure.hubFacilities?.vipLounge && (
-                          <div className="text-2xs text-bad mt-2 font-mono normal-case max-w-xs">{gates.vipLounge}</div>
+                          <div className="text-2xs text-bad mt-2 normal-case max-w-xs">{gates.vipLounge}</div>
                         )}
                       </div>
                       {infrastructure.hubFacilities?.vipLounge ? (
-                        <div className="text-2xs bg-accent/20 text-on-accent px-2 py-1 font-semibold rounded-sm animate-pulse">ACTIVE</div>
+                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
                       ) : (
                         <button 
                           onClick={() => {
@@ -532,7 +532,7 @@ export function AirportDetailView({
                         <div className="text-2xs text-muted mt-1 uppercase tracking-label">Enables high-end meal prep</div>
                       </div>
                       {infrastructure.hubFacilities?.catering ? (
-                        <div className="text-2xs bg-accent/20 text-on-accent px-2 py-1 font-semibold rounded-sm animate-pulse">ACTIVE</div>
+                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
                       ) : (
                         <button 
                           onClick={() => {
@@ -785,7 +785,7 @@ function ManagementTierCard({ tier, activeTier, label, cost, onUpgrade, icon, fe
       </div>
 
       {!isAcquired && !isLocked && gate && (
-        <div className="text-2xs font-mono text-bad leading-relaxed">{gate}</div>
+        <div className="text-2xs text-bad leading-relaxed">{gate}</div>
       )}
       {!isAcquired && (
         <button 

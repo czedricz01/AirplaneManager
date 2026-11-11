@@ -74,9 +74,10 @@ export function GameStat(
 
 export function GameMenuOption({ label, onClick }: { label: string, onClick: () => void }) {
   return (
-    <button 
+    <button
+      type="button"
       onClick={onClick}
-      className="text-left px-4 py-3 text-2xs font-label uppercase tracking-label text-muted hover:text-accent hover:bg-raised transition-all outline-none"
+      className="text-left px-3.5 min-h-10 bar:min-h-11 text-sm text-ink hover:bg-raised transition-colors"
     >
       {label}
     </button>

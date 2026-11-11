@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
 
@@ -53,7 +52,7 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
   };
 
   return (
-    <div className="bg-ground/40 border border-line rounded-sm overflow-hidden flex flex-col font-mono text-xs">
+    <div className="bg-ground/40 border border-line rounded-sm overflow-hidden flex flex-col text-xs">
       <button 
         onClick={() => setMainOpen(!mainOpen)}
         className="flex justify-between items-center p-3 bg-surface hover:bg-raised transition-colors border-b border-line"
@@ -67,13 +66,10 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
         </div>
       </button>
 
-      <AnimatePresence>
+      <>
         {mainOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+          <div
+            className="overflow-hidden animate-appear"
           >
             <div className="p-3 flex flex-col gap-3">
                {/* Revenues Section */}
@@ -91,11 +87,10 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                         +{formatCurrency(totalRevenue || (revenues?.reduce((a, b) => a + b.amount, 0) || 0))}
                       </span>
                     </button>
-                    <AnimatePresence>
+                    <>
                       {openCategories.includes('rev') && revenues && (
-                        <motion.div 
-                          initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                          className="overflow-hidden bg-ground/20"
+                        <div
+                          className="overflow-hidden bg-ground/20 animate-appear"
                         >
                           <div className="p-2 flex flex-col gap-2 border-t border-line">
                             {revenues.map((r, idx) => (
@@ -105,9 +100,9 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                               </div>
                             ))}
                           </div>
-                        </motion.div>
+                        </div>
                       )}
-                    </AnimatePresence>
+                    </>
                  </div>
                )}
 
@@ -126,11 +121,10 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                         {signedAmount(cat.variant, cat.total)}
                       </span>
                     </button>
-                    <AnimatePresence>
+                    <>
                       {openCategories.includes(cat.id) && cat.items.length > 0 && (
-                        <motion.div 
-                          initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                          className="overflow-hidden bg-ground/20"
+                        <div
+                          className="overflow-hidden bg-ground/20 animate-appear"
                         >
                           <div className="p-2 flex flex-col gap-2 border-t border-line">
                             {cat.items.map((item, idx) => (
@@ -142,9 +136,9 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                               </div>
                             ))}
                           </div>
-                        </motion.div>
+                        </div>
                       )}
-                    </AnimatePresence>
+                    </>
                  </div>
                ))}
                
@@ -156,9 +150,9 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
                  </div>
                )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

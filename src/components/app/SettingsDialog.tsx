@@ -156,7 +156,7 @@ export function SettingsDialog({
             <div className="mt-8 flex justify-end short:mt-0 short:absolute short:top-3 short:right-3">
               <button 
                 onClick={() => setIsSettingsOpen(false)}
-                className="bg-surface hover:bg-raised text-ink border border-line px-3 py-2 short:py-1 font-mono text-sm transition-all"
+                className="bg-surface hover:bg-raised text-ink border border-line px-3 py-2 short:py-1 text-sm transition-all"
               >
                 Close
               </button>

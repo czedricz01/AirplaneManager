@@ -111,7 +111,7 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
   const diff = current - previous;
   if (diff === 0) {
     return (
-      <span className="flex items-center gap-1 text-2xs font-mono text-muted">
+      <span className="flex items-center gap-1 text-2xs text-muted">
         <Minus size={10} /> unchanged
       </span>
     );
@@ -237,10 +237,10 @@ function MyCompanyViewImpl({
           <div className="grid grid-cols-2 lg:grid-cols-4 short:grid-cols-4 gap-3 short:gap-2">
             <StatTile size="md" label="Cash" value={formatCurrency(capital)} valueClassName="text-accent" />
             <StatTile size="md" label="Fleet value" value={formatCurrency(fleetValue)}>
-              <span className="block text-2xs font-mono text-muted mt-1">{fleetCount} aircraft, at resale</span>
+              <span className="block text-2xs text-muted mt-1">{fleetCount} aircraft, at resale</span>
             </StatTile>
             <StatTile size="md" label="Net worth" value={formatCurrency(netWorth)}>
-              <span className="block text-2xs font-mono text-muted mt-1">cash + fleet</span>
+              <span className="block text-2xs text-muted mt-1">cash + fleet</span>
             </StatTile>
             <StatTile
               size="md"
@@ -248,7 +248,7 @@ function MyCompanyViewImpl({
               value={Math.round(reputation)}
               valueClassName={reputation >= 65 ? 'text-good' : reputation < 40 ? 'text-bad' : ''}
             >
-              <span className="block text-2xs font-mono text-muted mt-1">
+              <span className="block text-2xs text-muted mt-1">
                 demand {reputation >= 50 ? '+' : ''}{Math.round((reputation - 50) * 0.2)}%
               </span>
               <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
@@ -259,7 +259,7 @@ function MyCompanyViewImpl({
               </div>
             </StatTile>
             <StatTile size="md" label="Rank" value={rankDef(rank).title.replace(' Airline', '')}>
-              <span className="block text-2xs font-mono text-muted mt-1">
+              <span className="block text-2xs text-muted mt-1">
                 <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-label text-accent hover:text-ink">
                   Career &rarr;
                 </button>
@@ -267,7 +267,7 @@ function MyCompanyViewImpl({
             </StatTile>
             {goalOffer ? (
               <StatTile size="md" label={`${goalOffer.year} goal`} value="Choose">
-                <span className="block text-2xs font-mono text-muted mt-1">
+                <span className="block text-2xs text-muted mt-1">
                   <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-label text-accent hover:text-ink">
                     The board waits &rarr;
                   </button>
@@ -283,7 +283,7 @@ function MyCompanyViewImpl({
                   value={annualGoal.kind === 'profit' ? compact(value) : annualGoal.kind === 'noLoss' ? (value === 0 ? 'Clean' : `${value} loss`) : Math.round(value)}
                   valueClassName={fraction >= 1 ? 'text-good' : ''}
                 >
-                  <span className="block text-2xs font-mono text-muted mt-1">
+                  <span className="block text-2xs text-muted mt-1">
                     {describeGoal(annualGoal, compact, n => String(Math.round(n)))}
                   </span>
                   <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
@@ -293,7 +293,7 @@ function MyCompanyViewImpl({
               );
             })()}
             <StatTile size="md" label="Network" value={routeCount}>
-              <span className="block text-2xs font-mono text-muted mt-1">active routes</span>
+              <span className="block text-2xs text-muted mt-1">active routes</span>
             </StatTile>
           </div>
 
@@ -307,13 +307,13 @@ function MyCompanyViewImpl({
               </div>
               <div className="flex flex-wrap gap-2 mb-2">
                 {commonality.families.slice(0, 8).map(f => (
-                  <span key={f.family} className="text-2xs font-mono border border-line bg-surface px-2 py-1 rounded-sm">
+                  <span key={f.family} className="text-2xs border border-line bg-surface px-2 py-1 rounded-sm">
                     {f.family} &times;{f.count}{f.discount > 0 && <span className="text-good"> &minus;{Math.round(f.discount * 100)}%</span>}
                   </span>
                 ))}
-                {commonality.families.length > 8 && <span className="text-2xs font-mono text-muted py-1">+{commonality.families.length - 8} more</span>}
+                {commonality.families.length > 8 && <span className="text-2xs text-muted py-1">+{commonality.families.length - 8} more</span>}
               </div>
-              <p className="text-2xs font-mono text-muted leading-relaxed">
+              <p className="text-2xs text-muted leading-relaxed">
                 Aircraft of one family share crews and spare parts: three of a kind save 4% on their maintenance, six 8%, twelve 12%.
                 Running more than three families costs 3% on every aircraft for each one beyond.
                 {commonality.penalty > 0 && <span className="text-bad"> Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</span>}
@@ -355,7 +355,7 @@ function MyCompanyViewImpl({
                     <span className={`font-mono text-lg ${(latest!.cashChange ?? latest!.totalProfit) >= 0 ? 'text-good' : 'text-bad'}`}>
                       {formatCurrency(latest!.cashChange ?? latest!.totalProfit)}
                     </span>
-                    <span className="block text-2xs font-mono text-muted">
+                    <span className="block text-2xs text-muted">
                       profit minus {formatCurrency(latest!.capex ?? 0)} capex
                     </span>
                   </div>
@@ -382,7 +382,7 @@ function MyCompanyViewImpl({
                   height={160}
                   ariaLabel="Operating profit per month over the last two years"
                 />
-                <p className="text-2xs font-mono text-muted mt-3 leading-relaxed">
+                <p className="text-2xs text-muted mt-3 leading-relaxed">
                   {reportHistory.length} month{reportHistory.length === 1 ? '' : 's'} on record.
                   History is kept for the last ten years and travels with the savegame.
                 </p>
@@ -391,7 +391,7 @@ function MyCompanyViewImpl({
               {/* Glossary */}
               <div className="p-4 bg-surface border border-line rounded-sm flex gap-4">
                 <Info className="text-muted shrink-0 mt-0.5" size={16} />
-                <div className="text-2xs text-muted leading-relaxed font-mono space-y-1.5">
+                <div className="text-2xs text-muted leading-relaxed space-y-1.5">
                   <p><strong className="text-ink">Flight revenue</strong> — ticket sales on your active routes.</p>
                   <p><strong className="text-ink">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
                   <p><strong className="text-ink">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>

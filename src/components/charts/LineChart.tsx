@@ -116,7 +116,7 @@ export function LineChart({
 
   if (empty) {
     return (
-      <div ref={wrapRef} className="w-full flex items-center justify-center text-2xs font-mono text-muted border border-line bg-ground/20" style={{ height }}>
+      <div ref={wrapRef} className="w-full flex items-center justify-center text-2xs text-muted border border-line bg-ground/20" style={{ height }}>
         No data for this period
       </div>
     );
@@ -130,7 +130,7 @@ export function LineChart({
   return (
     <div ref={wrapRef} className="w-full">
       {series.length > 1 && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-2xs font-mono text-muted">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-2xs text-muted">
           {series.map(s => (
             <span key={s.id} className="flex items-center gap-1.5">
               <span className="inline-block w-3 h-0.5 rounded-full" style={{ background: s.color }} />
@@ -248,7 +248,7 @@ export function LineChart({
 
         {hover !== null && (
           <div
-            className="absolute pointer-events-none z-10 bg-raised border border-line px-2.5 py-2 text-2xs font-mono min-w-[9rem]"
+            className="absolute pointer-events-none z-10 bg-raised border border-line px-2.5 py-2 text-2xs min-w-[9rem]"
             style={{
               left: hoverX,
               top: MARGIN.top,

@@ -121,7 +121,7 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
             <button
               disabled={pickedLocked}
               onClick={() => { onSelect(picked.id); onClose(); }}
-              className="px-6 py-3 short:py-1.5 bg-accent text-on-accent font-mono text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-6 py-3 short:py-1.5 bg-accent text-on-accent text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Choose as hub
             </button>

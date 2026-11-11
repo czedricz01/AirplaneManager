@@ -245,7 +245,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
     <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
         icon={<Plane className="text-accent" size={28} />}
-        title="MY FLEET"
+        title="My fleet"
         right={
           <div className="flex flex-wrap short:flex-nowrap short:min-w-0 items-center gap-2 lg:gap-3">
             {/* Search Input */}
@@ -255,7 +255,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
               </div>
               <input
                 type="text"
-                className="w-full bg-ground/50 border border-line rounded-sm py-1.5 pl-9 pr-3 text-xs text-ink focus:outline-none focus:border-accent font-mono transition-colors placeholder:text-muted"
+                className="w-full bg-ground/50 border border-line rounded-sm py-1.5 pl-9 pr-3 text-xs text-ink focus:outline-none focus:border-accent transition-colors placeholder:text-muted"
                 placeholder="Search reg, type, family..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -284,7 +284,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
             {/* Grouping Selector (only relevant for grid/table) */}
             {viewMode !== 'models' && (
-              <div className="flex items-center bg-ground/60 border border-line rounded-sm p-0.5 font-mono text-xs">
+              <div className="flex items-center bg-ground/60 border border-line rounded-sm p-0.5 text-xs">
                 <span className="px-2 text-2xs text-muted uppercase tracking-label font-semibold hidden sm:inline short:hidden flex items-center gap-1">
                   <Layers size={12} /> Group:
                 </span>
@@ -305,7 +305,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             )}
 
             {/* View Mode Toggle (Grid | Table | Models) */}
-            <div className="flex items-center bg-ground/60 border border-line rounded-sm p-0.5 font-mono">
+            <div className="flex items-center bg-ground/60 border border-line rounded-sm p-0.5">
               <button
                 onClick={() => setViewMode('models')}
                 title="Model Summary View"
@@ -347,7 +347,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
       {/* Summary KPI Bar. On phones a slim strip (three a row upright, all six
           sideways) with one-line labels, so the aircraft below get the room. */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 bar:grid-cols-3 gap-2 bar:gap-1.5 short:gap-1.5 mb-4 bar:mb-2 short:mb-2 shrink-0 font-mono">
+      <div className="grid grid-cols-2 sm:grid-cols-6 bar:grid-cols-3 gap-2 bar:gap-1.5 short:gap-1.5 mb-4 bar:mb-2 short:mb-2 shrink-0">
         <div className="bg-surface border border-line px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm">
           <StatTile size="sm" labelClassName={KPI_LABEL} label="Aircraft Types" value={summaryStats.modelCount} valueClassName="text-accent" />
         </div>
@@ -407,7 +407,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto pr-1 sm:pr-2 space-y-6">
         {fleet.length === 0 ? (
-          <div className="bg-ground/40 border border-line rounded-sm p-12 text-center font-mono">
+          <div className="bg-ground/40 border border-line rounded-sm p-12 text-center">
             <Plane size={48} className="mx-auto text-muted mb-4" />
             <h3 className="text-lg text-accent font-semibold mb-2">No Aircraft in Fleet</h3>
             <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
@@ -415,7 +415,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
             </p>
           </div>
         ) : filteredAndSortedFleet.length === 0 ? (
-          <div className="bg-ground/40 border border-line rounded-sm p-12 text-center font-mono">
+          <div className="bg-ground/40 border border-line rounded-sm p-12 text-center">
             <Search size={40} className="mx-auto text-muted mb-3" />
             <p className="text-sm text-muted">No aircraft match your current search query.</p>
           </div>
@@ -453,7 +453,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                       <div className="absolute inset-0 bg-gradient-to-t from-ground via-transparent to-transparent opacity-80 pointer-events-none" />
 
                       {/* Count Badge */}
-                      <div className="absolute top-2 left-2 bg-ground/80 border border-accent px-2.5 py-1 rounded-sm font-mono text-xs font-semibold text-accent flex items-center gap-1.5">
+                      <div className="absolute top-2 left-2 bg-ground/80 border border-accent px-2.5 py-1 rounded-sm text-xs font-semibold text-accent flex items-center gap-1.5">
                         <Plane size={13} />
                         <span>{m.count} {m.count === 1 ? 'Plane' : 'Planes'}</span>
                       </div>
@@ -465,7 +465,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                       {/* Alert badge if any plane in model < 40% */}
                       {hasAlert && (
-                        <div className="absolute bottom-2 right-2 bg-bad text-on-accent px-2 py-0.5 rounded-sm font-mono text-2xs font-semibold flex items-center gap-1 animate-pulse">
+                        <div className="absolute bottom-2 right-2 bg-bad text-on-accent px-2 py-0.5 rounded-sm text-2xs font-semibold flex items-center gap-1 animate-pulse">
                           <ShieldAlert size={12} />
                           <span>{m.alertCount} Alert{m.alertCount > 1 ? 's' : ''} (&lt;40%)</span>
                         </div>
@@ -473,7 +473,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                     </div>
 
                     {/* Card Content Body */}
-                    <div className="p-3.5 font-mono flex-1 flex flex-col justify-between space-y-3">
+                    <div className="p-3.5 flex-1 flex flex-col justify-between space-y-3">
                       <div>
                         <div className="text-2xs text-accent uppercase tracking-label font-semibold flex items-center justify-between">
                           <span>{m.manufacturer}</span>
@@ -557,7 +557,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
           groupedFleet.map(({ groupName, items }) => (
             <div key={groupName} className="space-y-3">
               {/* Group Header */}
-              <div className="flex items-center justify-between border-b border-accent/30 pb-2 pt-1 font-mono">
+              <div className="flex items-center justify-between border-b border-accent/30 pb-2 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-label text-accent">
                     {groupName}
@@ -599,7 +599,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                           <div className="absolute inset-0 bg-gradient-to-t from-ground via-transparent to-transparent opacity-80 pointer-events-none" />
 
                           {/* Registration Badge */}
-                          <div className="absolute top-2 left-2 bg-ground/80 border border-accent/50 px-2 py-0.5 rounded-sm font-mono text-2xs font-semibold text-accent">
+                          <div className="absolute top-2 left-2 bg-ground/80 border border-accent/50 px-2 py-0.5 rounded-sm text-2xs font-semibold text-accent">
                             {plane.registration}
                           </div>
 
@@ -626,7 +626,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                           {/* Hub Overlay (bottom left of image) */}
                           {plane.hubId && (
-                            <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-ground/70 border border-rule px-1.5 py-0.5 rounded-sm text-2xs font-mono text-ink">
+                            <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-ground/70 border border-rule px-1.5 py-0.5 rounded-sm text-2xs text-ink">
                               <MapPin size={10} className="text-accent" />
                               <span>{plane.hubId}</span>
                             </div>
@@ -634,7 +634,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                         </div>
 
                         {/* Card Info Body */}
-                        <div className="p-3 font-mono flex-1 flex flex-col justify-between space-y-3">
+                        <div className="p-3 flex-1 flex flex-col justify-between space-y-3">
                           <div>
                             <div className="text-2xs text-muted uppercase tracking-label font-semibold">
                               {plane.manufacturer}
@@ -716,7 +716,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
               ) : (
                 /* TABLE VIEW MODE */
                 <div className="overflow-x-auto w-full bg-ground/30 border border-line rounded-sm">
-                  <table className="w-full text-left font-mono text-xs border-collapse min-w-[1000px]">
+                  <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
                     <thead>
                       <tr className="border-b border-accent/30 text-accent uppercase tracking-label text-2xs bg-surface">
                         <th className="py-3 pl-3 w-16">Image</th>
@@ -831,7 +831,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       {/* Model Aircraft List Modal */}
       {selectedModel && (
         <div className="fixed inset-0 bg-ground/80 z-50 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" className="bg-surface border border-accent/40 rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col font-mono overflow-hidden animate-appear fade-in zoom-in-95 duration-200">
+          <div role="dialog" aria-modal="true" className="bg-surface border border-accent/40 rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-appear fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="p-4 bg-ground/60 border-b border-line flex items-center justify-between">
               <div className="flex items-center gap-3">

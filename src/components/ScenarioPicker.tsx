@@ -50,7 +50,7 @@ export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPi
           <Compass size={16} className={selectedId === null && mode === 'normal' ? 'text-accent' : 'text-muted'} aria-hidden="true" />
           <span className="font-semibold text-sm text-ink">Normal Mode</span>
         </div>
-        <p className="text-2xs font-mono text-muted leading-relaxed">
+        <p className="text-2xs text-muted leading-relaxed">
           Start as a Startup and earn your way up ten ranks, from Local Airline to Global Player. Bigger airports,
           more hubs and new aircraft classes open step by step. Any hub, any year from 1960, no deadline. The climb
           takes years, so a late start leaves less time for it: Free Mode skips it.
@@ -62,7 +62,7 @@ export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPi
           <Infinity size={16} className={selectedId === null && mode === 'free' ? 'text-accent' : 'text-muted'} aria-hidden="true" />
           <span className="font-semibold text-sm text-ink">Free Mode</span>
         </div>
-        <p className="text-2xs font-mono text-muted leading-relaxed">
+        <p className="text-2xs text-muted leading-relaxed">
           Start as a Global Player: no rank to earn. Every airport, every aircraft class and every development
           project is open from the first month, and the number of hubs is not limited. Build what you like.
         </p>
@@ -86,7 +86,7 @@ export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPi
             className={`${card(selected)} ${open ? '' : 'opacity-50 cursor-not-allowed'}`}
           >
             {!open && (
-              <div className="flex items-center gap-1.5 text-2xs font-mono text-bad mb-2">
+              <div className="flex items-center gap-1.5 text-2xs text-bad mb-2">
                 <Lock size={12} aria-hidden="true" /> Win {previous?.title ?? 'the scenario before'} first
               </div>
             )}
@@ -109,7 +109,7 @@ export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPi
             <div className="text-2xs font-label uppercase tracking-label text-muted mb-2">
               {hub?.name || sc.hub} ({sc.hub}) · {formatMonthOffset(sc.startOffset)} – {formatMonthOffset(sc.deadlineOffset)}
             </div>
-            <p className="text-2xs font-mono text-muted leading-relaxed mb-3">{sc.blurb}</p>
+            <p className="text-2xs text-muted leading-relaxed mb-3">{sc.blurb}</p>
             <ul className="space-y-1 mb-3">
               {sc.win.map(g => (
                 <li key={g.id} className="text-2xs font-semibold text-ink flex gap-1.5">
@@ -118,7 +118,7 @@ export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPi
                 </li>
               ))}
             </ul>
-            <div className="grid grid-cols-1 gap-1 text-2xs font-mono text-muted">
+            <div className="grid grid-cols-1 gap-1 text-2xs text-muted">
               <span className="flex items-center gap-1.5"><Wallet size={11} aria-hidden="true" /> {formatMoneyCompact(sc.capital)} cash, no loans</span>
               <span className="flex items-center gap-1.5"><Plane size={11} aria-hidden="true" /> {fleetLine(sc)}</span>
               <span className="flex items-center gap-1.5"><Users size={11} aria-hidden="true" /> {sc.rivals.count} rivals ({sc.rivals.difficulty})</span>

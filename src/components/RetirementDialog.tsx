@@ -42,7 +42,7 @@ export function RetirementDialog({ open, airline, score, entry, position, hall, 
               {rankDef(entry.rank).title} · {entry.years} year{entry.years === 1 ? '' : 's'} · net worth {formatMoneyCompact(entry.netWorth)}
             </div>
           </div>
-          <p className="text-xs font-mono text-muted leading-relaxed">
+          <p className="text-xs text-muted leading-relaxed">
             {position !== null
               ? `Filed in the hall of fame at position ${position}.`
               : 'Not enough for the hall of fame this time: the ten best careers are kept.'}
