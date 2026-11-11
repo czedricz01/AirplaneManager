@@ -65,7 +65,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     text:
       'Open Buy Aircraft, pick a model whose range suits the routes you have in mind and confirm the purchase. ' +
       'A cabin with some business seats earns far more than one that is all economy.',
-    target: '[data-tour="nav-buy-aircraft"]',
+    target: '[data-tour="nav-buy-aircraft"], [data-tour="nav-more"]',
     hint: 'Buy Aircraft is in the sidebar on the left.',
     view: 'buy-aircraft',
     busyIn: 'buy-aircraft',
@@ -77,7 +77,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     text:
       'Click New Route. Pick your hub and a destination, then the aircraft to fly it. Every airport you fly to needs T1 ' +
       'management, and every weekly departure a slot at both ends: the planner sells both.',
-    target: '[data-tour="nav-new-route"]',
+    target: '[data-tour="nav-new-route"], [data-tour="nav-more"]',
     hint: 'New Route is at the bottom of the sidebar.',
     view: 'new-route',
     done: s => s.planning || s.routeCount > 0

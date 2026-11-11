@@ -2203,6 +2203,9 @@ export default function App() {
             isPlanningRoute={isPlanningRoute}
             openWindow={openWindow}
             openPlanner={openPlanner}
+            airlineName={airlineName}
+            airlineCode={airlineCode}
+            hub={selectedHub}
           />
         )}
 

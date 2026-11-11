@@ -156,7 +156,6 @@ function MyCompanyViewImpl({
   return (
     <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
-        eyebrow={[airlineName, airlineCode].filter(Boolean).join(' · ') || undefined}
         title={progression ? 'CAREER' : 'MY COMPANY'}
         icon={<BrandBadge branding={branding} code={airlineCode} name={airlineName} size={36} className="mr-2" />}
         right={progression ? undefined : <LiveryEditor branding={branding} airlineName={airlineName} airlineCode={airlineCode} onBrandingChange={onBrandingChange} />}

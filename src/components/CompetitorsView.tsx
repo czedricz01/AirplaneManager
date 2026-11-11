@@ -826,7 +826,6 @@ function CompetitorsViewImpl({
         /* The Global Competitor Leaderboard Board Main Screen */
         <React.Fragment>
           <ViewHeader
-            eyebrow="Global Aviation Intelligence"
             title="Rival Airlines"
             right={
               <div className="relative w-full lg:w-80">

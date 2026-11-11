@@ -72,7 +72,10 @@ function useTargetBox(selector: string, layoutKey: string, own: RefObject<HTMLEl
       frame = 0;
       let el: Element | null = null;
       try {
-        el = selector ? document.querySelector(selector) : null;
+        // The first match that is actually laid out: a control can exist in the
+        // page and be hidden in this layout (the phone's bar hides some screens
+        // under "More"), and a selector may then name a second place to point at.
+        el = selector ? (Array.from(document.querySelectorAll(selector)).find(hasSize) ?? null) : null;
       } catch {
         el = null; // not a valid selector: treated as a target not on screen
       }

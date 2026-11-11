@@ -1,8 +1,7 @@
 /**
- * Small pieces of the application frame: menu buttons, the navigation button,
- * the top bar's figures. They hold no state and were part of App.tsx.
+ * Small pieces of the application frame: menu buttons and the top bar's
+ * figures. They hold no state and were part of App.tsx.
  */
-import type { ReactNode } from 'react';
 import { Lock } from 'lucide-react';
 import type { Scenario } from '../../data/scenarios';
 import { StatTile } from '../ui/StatTile';
@@ -55,41 +54,6 @@ export function ThemeMenuButton({
       </span>
       <span className={`pr-6 opacity-0 group-hover:opacity-100 transition-all ${primary ? 'text-on-accent' : 'text-accent'}`}>
         →
-      </span>
-    </button>
-  );
-}
-
-/**
- * A real <button>, not a clickable <div>. The whole primary navigation used to
- * be unreachable by keyboard, and the 7.5px label was the smallest type in the
- * interface.
- *
- * On upright phones all eight buttons share one row of the bottom bar, and on
- * sideways phones one short column, so both use `shortLabel` (when given),
- * smaller icons and tighter letter spacing. With the browser's address bar
- * also showing (tiny) even that column is too tall, so the labels move to
- * the tooltip and screen readers and only the icons remain.
- */
-export function SidebarIcon({ icon, label, shortLabel, active = false, onClick, tour }: { icon: ReactNode, label: string, shortLabel?: string, active?: boolean, onClick?: () => void, tour?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-tour={tour}
-      title={label}
-      aria-current={active ? 'page' : undefined}
-      className={`
- py-1.5 short:py-1 tiny:py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all flex-auto rail:flex-none rail:w-full select-none bg-transparent border-0
- focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
- ${active ? 'text-accent opacity-100' : 'text-ink opacity-40 hover:opacity-100 hover:text-ink'}
-    `}>
-      <div className={`p-1 rail:p-1.5 short:p-0.5 rounded-sm border border-transparent [&_svg]:size-6 rail:[&_svg]:size-7 short:[&_svg]:size-5 ${active ? 'bg-accent/10 border-accent/20' : 'bg-transparent'}`}>
-        {icon}
-      </div>
-      <span className="text-2xs font-semibold text-center px-0.5 rail:px-1 short:px-0.5 leading-[1.2] tiny:sr-only">
-        <span className="rail:hidden short:inline">{shortLabel ?? label}</span>
-        <span className="hidden rail:inline short:hidden">{label}</span>
       </span>
     </button>
   );
