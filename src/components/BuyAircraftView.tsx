@@ -566,7 +566,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
 
               {/* URL Fetching Area */}
               <div className="mt-3 bg-ground/20 p-3 border border-line rounded-sm">
-                <div className="text-2xs font-label uppercase tracking-label text-muted font-semibold mb-2">Or load a ZIP straight from a link (e.g. Google Drive)</div>
+                <div className="text-2xs text-muted font-semibold mb-2">Or load a ZIP straight from a link (e.g. Google Drive)</div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"

@@ -1023,7 +1023,6 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
           
           {/* Main Work Area */}
           <div className="flex-none md:flex-1 md:min-h-0 min-w-0 flex flex-col items-center justify-start p-3 md:p-4 short:p-2 relative md:overflow-y-auto border-b md:border-b-0 md:border-r border-line">
-             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center opacity-5 pointer-events-none mix-blend-screen" />
             
              {/* Plane Schematic Container */}
              {/* Raised above the mode switcher (z-10) only while the zone details

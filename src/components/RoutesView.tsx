@@ -346,7 +346,7 @@ function RoutesViewImpl({
         {/* A phone held upright gets a list: each row is the city pair with a
             line of detail, and the load and profit on the right. A phone held
             sideways keeps the columns and scrolls them. */}
-        <Table className="rail:min-w-[1100px] lg:rail:min-w-0">
+        <Table className="short:min-w-[1100px]">
           <Thead className="hidden rail:table-header-group">
             <Th first sortable={false}>Flight No.</Th>
             <Th sortable onClick={() => toggleSort('origin')}>From {getSortIcon('origin')}</Th>

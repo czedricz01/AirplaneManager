@@ -142,7 +142,7 @@ export function AircraftSwapPanel(props: SwapProps) {
       </p>
 
       {candidates.length === 0 ? (
-        <div className="p-4 border border-line bg-ground/30 text-2xs text-muted uppercase tracking-label text-center">
+        <div className="p-4 border border-line bg-ground/30 text-2xs text-muted text-center">
           No idle aircraft. Every other aircraft in your fleet already flies a route.
         </div>
       ) : (
@@ -233,7 +233,7 @@ export function RouteAircraftPicker(props: PickerProps) {
         </p>
 
         {suitable.length === 0 ? (
-          <div className="p-4 border border-line bg-ground/30 text-2xs text-muted uppercase tracking-label text-center">
+          <div className="p-4 border border-line bg-ground/30 text-2xs text-muted text-center">
             No aircraft in your fleet can take this route.
           </div>
         ) : (

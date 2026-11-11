@@ -13,6 +13,7 @@ import {
   HEATMAP_COLORS,
   BRAND_PRESETS,
   MAP_YELLOW,
+  TOKENS,
   RIVAL_PALETTE
 } from './theme';
 
@@ -121,4 +122,14 @@ test('a new player colour moves only the rivals it clashes with', () => {
 
   // Nothing to do when nobody clashes.
   assert.deepEqual(recolorClashingRivals(rivals, MAP_YELLOW), rivals.map(r => r.color));
+});
+
+test('the colour tokens used from JS are the ones index.css defines', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
+  for (const [name, value] of Object.entries(TOKENS)) {
+    const match = css.match(new RegExp(`--color-${name}:\\s*(#[0-9A-Fa-f]{6})`));
+    assert.ok(match, `index.css defines --color-${name}`);
+    assert.equal(match![1].toUpperCase(), value.toUpperCase(), `--color-${name}`);
+  }
 });

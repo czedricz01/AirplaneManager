@@ -2159,7 +2159,7 @@ function RoutePlannerInner({
                         </div>
                       </div>
                       {demandPreview?.assumedAircraft && (
-                        <div className="text-2xs text-muted uppercase tracking-label mt-1">Flight time assumed at 800 km/h until an aircraft is chosen</div>
+                        <div className="text-2xs text-muted mt-1">Flight time assumed at 800 km/h until an aircraft is chosen</div>
                       )}
 
                       {showDemandDebug && debugMode && demandPreview && (
@@ -3008,7 +3008,7 @@ function RoutePlannerInner({
                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0 bg-surface border border-line p-4 rounded-sm">
                       <div className="flex flex-col">
                          <h3 className="font-label text-2xl font-semibold text-ink leading-none">In-Flight Configuration</h3>
-                         <span className="text-2xs text-muted uppercase tracking-label mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
+                         <span className="text-2xs text-muted mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
                       </div>
                       <div className="flex gap-2 shrink-0 md:shrink">
                         <button 
@@ -3271,7 +3271,7 @@ function RoutePlannerInner({
                 </div>
 
                 <div className="p-4 border-t border-line flex flex-col gap-3 bg-surface">
-                   <p className="text-2xs text-muted leading-relaxed border-l-3 border-accent/30 pl-6 mb-2 font-semibold uppercase tracking-label">
+                   <p className="text-2xs text-muted leading-relaxed border-l-3 border-accent/30 pl-6 mb-2 font-semibold">
                       SAT is what this cabin scores against what passengers expect for the class and
                       the flight length. 100% meets expectations; above that they tolerate a higher
                       fare, below it they only book at a discount. Expectations rise with distance,
@@ -3528,7 +3528,7 @@ function RoutePlannerInner({
                                  </div>
 
                                  <div className="pt-1 border-t border-line">
-                                    <p className="text-2xs text-muted uppercase font-semibold leading-tight">
+                                    <p className="text-2xs text-muted font-semibold leading-tight">
                                       * Costs include slot license, check-in desk personnel, terminal usage fees, and baggage handling systems per departure.
                                     </p>
                                  </div>
@@ -3578,7 +3578,7 @@ function RoutePlannerInner({
 
                         {showPricingDebug && debugMode && (
                           <div className="mb-4 p-4 border border-line bg-ground/60 rounded-sm text-2xs text-muted space-y-2">
-                             <div className="text-ink font-semibold mb-2 uppercase tracking-label">SAT base price &amp; demand (expected load)</div>
+                             <div className="text-ink font-semibold mb-2">SAT base price &amp; demand (expected load)</div>
                              {saveFinancials && (() => {
                                 // Everything here is read from the engine result the route is
                                 // saved with, so the debug view cannot drift from the model.
@@ -3862,7 +3862,7 @@ function RoutePlannerInner({
          })()}
 
         {/* The save and load dialogs are rendered once, below, inside
-            AnimatePresence. A second, non-animated copy used to live here and
+            the planner's wrapper. A second, non-animated copy used to live here and
             was bound to the same two flags, so opening either one stacked two
             identical dialogs on top of each other. */}
 

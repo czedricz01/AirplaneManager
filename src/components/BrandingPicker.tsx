@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { Branding } from '../lib/gameState';
-import { BRAND_PRESETS, isHexColor, readableTextColor } from '../lib/theme';
+import { BRAND_PRESETS, MAP_YELLOW, isHexColor, readableTextColor } from '../lib/theme';
 import { BrandBadge, BRAND_ICONS, brandInitials } from './BrandBadge';
 
 interface BrandingPickerProps {
@@ -80,7 +80,7 @@ export function BrandingPicker({ value, onChange, code, name }: BrandingPickerPr
             >
               <input
                 type="color"
-                value={isHexColor(value.color) ? current : '#facc15'}
+                value={isHexColor(value.color) ? current : MAP_YELLOW}
                 onChange={(e) => {
                   if (isHexColor(e.target.value)) onChange({ ...value, color: e.target.value.toUpperCase() });
                 }}

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import { Lock, X } from 'lucide-react';
 import { Airport, getAirportStats } from '../data/airports';
 import { formatNumber } from '../lib/format';
-import { MAP_CONGESTION_COLORS, MAP_YELLOW } from '../lib/theme';
+import { MAP_CONGESTION_COLORS, MAP_YELLOW, TOKENS } from '../lib/theme';
 
 interface HubPickerModalProps {
   /** Every airport shown on the map. */
@@ -59,7 +59,7 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
           preferCanvas
           worldCopyJump
           className="w-full h-full"
-          style={{ backgroundColor: '#131517' }}
+          style={{ backgroundColor: TOKENS.ground }}
           zoomControl={false}
         >
           <TileLayer

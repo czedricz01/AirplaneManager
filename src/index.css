@@ -201,8 +201,7 @@ a,
 
 /*
  * Scrollable without a visible scrollbar, for the swipeable rows on phones.
- * Deliberately not `no-scrollbar`: that class is already on several lists and
- * has never been defined, so defining it would hide their desktop scrollbars.
+ * Used where a row scrolls sideways under the finger and a bar would only add noise.
  */
 @utility scrollbar-hidden {
   scrollbar-width: none;

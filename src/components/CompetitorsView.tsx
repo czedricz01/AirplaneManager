@@ -501,7 +501,7 @@ function CompetitorsViewImpl({
 
                   <div className="space-y-3">
                     {selectedAirline.routes.length === 0 ? (
-                      <div className="p-12 text-center bg-ground/25 border border-line rounded-sm text-muted uppercase tracking-label text-xs">
+                      <div className="p-12 text-center bg-ground/25 border border-line rounded-sm text-muted text-xs">
                         This airline is restructuring its flight routes. No active routes currently scheduled.
                       </div>
                     ) : (
@@ -684,7 +684,7 @@ function CompetitorsViewImpl({
                   </h4>
 
                   <div className="space-y-4">
-                    <div className="text-2xs text-muted mb-2 uppercase leading-snug">
+                    <div className="text-2xs text-muted mb-2 leading-snug">
                       Recent timeline of net monthly operation margins:
                     </div>
                     
@@ -720,7 +720,7 @@ function CompetitorsViewImpl({
                     )}
 
                     {!selectedAirline.isPlayer && (
-                      <div className="text-2xs text-muted uppercase leading-snug">
+                      <div className="text-2xs text-muted leading-snug">
                         AI results include a fixed operating subsidy of {formatCurrency(aiMonthlySubsidy(currentDateOffset))} per month.
                       </div>
                     )}

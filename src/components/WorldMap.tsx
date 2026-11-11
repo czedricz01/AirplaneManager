@@ -5,7 +5,7 @@ import { Airport } from '../data/airportTypes';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { LiveTraffic } from './LiveTraffic';
 import type { OwnedAircraft } from './MyFleetView';
-import { MAP_YELLOW, MAP_CONGESTION_COLORS, HEATMAP_COLORS, heatmapScale, profitColor, paxWeight } from '../lib/theme';
+import { MAP_YELLOW, MAP_CONGESTION_COLORS, HEATMAP_COLORS, TOKENS, heatmapScale, profitColor, paxWeight } from '../lib/theme';
 import { formatNumber, formatSignedCurrency } from '../lib/format';
 
 /**
@@ -448,7 +448,7 @@ function WorldMapImpl({
             maxBounds={[[-85, -5000], [85, 5000]]}
             maxBoundsViscosity={0.8}
             className="w-full h-full"
-            style={{ backgroundColor: '#131517' }}
+            style={{ backgroundColor: TOKENS.ground }}
             zoomControl={false}
           >
             {/* Low-resolution world backdrop that fills gaps while the detail

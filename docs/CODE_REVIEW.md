@@ -209,3 +209,10 @@ der Unterschied ist dort nicht aussagekräftig.
 - Nr. 16 (Schriften) und der Rest von Nr. 13: Phase 2.
 - Nr. 29 (Planer in Dateien aufteilen) und der Rest von Nr. 35 (`any` im Planer): Phase 2c.
 - `App.tsx` hat noch 3 026 Zeilen. Der größte verbleibende Block ist die Verdrahtung der Ansichten im Spiel (rund 500 Zeilen JSX mit vielen Handlern); er wird in Phase 2c mit der neuen Navigation neu aufgebaut.
+
+## Nachtrag nach Phase 2 (11.11.2026)
+
+- Nr. 13 erledigt: Das Paket `motion` ist entfernt; Einblendungen laufen über eine CSS-Animation.
+- Nr. 16 erledigt: Die Schriften liegen in `src/assets/fonts/` und werden mit der App ausgeliefert; Google Fonts wird nicht mehr geladen.
+- Ein viertes Unsplash-Hintergrundbild (`ConfigurePurchaseView.tsx`) war in Nr. 15 übersehen worden und ist jetzt ebenfalls entfernt.
+- Offen bleiben Nr. 29 (Routenplaner in Dateien aufteilen) und der Rest von Nr. 35 (`any`).

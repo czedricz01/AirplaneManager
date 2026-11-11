@@ -619,7 +619,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               )}
               
               <div className="p-3 bg-surface border border-line rounded-sm">
-                <p className="text-2xs text-muted leading-relaxed uppercase tracking-label text-center">
+                <p className="text-2xs text-muted leading-relaxed text-center">
                   Click a day to add {ops} flight{ops > 1 ? 's' : ''} at the starting time (or the next free time), or to remove its flights. Drag flights in the timetable to shift the schedule.
                 </p>
               </div>

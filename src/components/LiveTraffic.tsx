@@ -3,7 +3,7 @@ import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { getRoutePath } from '../lib/geoUtils';
 import { aircraftList } from "../data/aircraft";
-import { MAP_YELLOW, MAP_CONGESTION_COLORS, isHexColor } from '../lib/theme';
+import { MAP_YELLOW, MAP_CONGESTION_COLORS, TOKENS, isHexColor } from '../lib/theme';
 
 interface LiveTrafficProps {
   routes: any[];
@@ -16,7 +16,7 @@ interface LiveTrafficProps {
   playerColor?: string;
 }
 
-const PLANE_STROKE = "#121212";
+const PLANE_STROKE = TOKENS.ground;
 
 // Plain SVG strings rather than react-dom/server: this used to run a full React
 // server render for every marker on every tick.

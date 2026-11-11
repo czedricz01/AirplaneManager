@@ -192,7 +192,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
             scroll sideways instead of being squeezed into each other. Between
             md and lg the desktop layout is scaled from 1280px (lib/layout.ts),
             which is wider than this minimum, so only phones are affected. */}
-        <Table className="rail:min-w-[720px] lg:rail:min-w-0 table-fixed rail:table-auto">
+        <Table className="short:min-w-[720px] table-fixed rail:table-auto">
           <Thead>
             <Th first className="w-14 rail:w-auto" sortable onClick={() => toggleSort('id')}>IATA {getSortIcon('id')}</Th>
             <Th sortable onClick={() => toggleSort('name')}>Name {getSortIcon('name')}</Th>
