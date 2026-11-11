@@ -1596,7 +1596,7 @@ function RoutePlannerInner({
                    <Check size={48} strokeWidth={3} />
                 </div>
                 <div>
-                   <h3 className="text-3xl font-semibold">Route Updated</h3>
+                   <h3 className="font-label text-3xl font-semibold">Route Updated</h3>
                    <p className="text-xs uppercase tracking-label font-semibold opacity-70 mt-1">Changes saved successfully</p>
                 </div>
              </div>
@@ -1611,7 +1611,7 @@ function RoutePlannerInner({
               step buttons take the full row below (the title group is display:
               contents there, so its children are ordered with the close button). */}
           <div className="contents md:flex md:flex-nowrap md:items-center md:gap-x-3 md:w-auto">
-             <h2 className="order-1 md:order-none text-sm font-semibold text-accent whitespace-nowrap">
+             <h2 className="font-label order-1 md:order-none text-sm font-semibold text-ink whitespace-nowrap">
                 {isEditingCabinOnly ? "Cabin Editor" : isEditingPricingOnly ? "Pricing Editor" : "Route Planner"}
              </h2>
              <span className="hidden md:inline text-muted text-xs font-normal">|</span>
@@ -1753,10 +1753,10 @@ function RoutePlannerInner({
                   {/* Strategic Infrastructure Dashboard */}
                   <div className="flex-1 min-h-0 overflow-y-auto bg-ground/40 p-2.5 flex flex-col gap-4 pb-32 bar:pb-3 short:pb-3">
                      <div className="flex justify-between items-center border-b border-line pb-2">
-                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+                        <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                            <MapIcon size={12} /> Strategic Slots
                         </div>
-                        <span className="text-2xs text-muted font-mono">Stock / cost / action</span>
+                        <span className="text-2xs text-muted">Stock / cost / action</span>
                      </div>
                      <div className="space-y-2">
                         <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedOrigin.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'regional', n, shift)} />
@@ -1765,7 +1765,7 @@ function RoutePlannerInner({
                      </div>
 
                      <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+                        <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                            <Plane size={12} /> Stand Upgrades
                         </div>
                         {(airportManagement[selectedOrigin.id]?.level || 0) < 2 && (
@@ -1783,7 +1783,7 @@ function RoutePlannerInner({
                      </div>
 
                      <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+                        <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                            <ChevronRight size={12} /> Passenger Processing
                         </div>
                      </div>
@@ -1809,7 +1809,7 @@ function RoutePlannerInner({
 
             {/* Aircraft */}
             <div className="w-full lg:w-1/3 short:w-1/3 short:min-w-0 border-y border-line flex flex-col h-full bg-ground/60 relative z-10 px-2 lg:px-3 short:px-1.5">
-              <div className="py-2.5 short:py-1.5 px-3 bg-accent/10 border-b border-accent/20 text-center uppercase tracking-label font-semibold text-accent text-xs">Aircraft Selection</div>
+              <div className="py-2.5 short:py-1.5 px-3 bg-accent/10 border-b border-accent/20 text-center uppercase tracking-label font-semibold text-muted text-xs">Aircraft Selection</div>
               
               {!selectedAircraft ? (
                 <div className="p-2.5 flex flex-col flex-1 overflow-hidden">
@@ -1839,12 +1839,12 @@ function RoutePlannerInner({
                        <div className="border border-line bg-surface p-4 text-2xs text-muted leading-relaxed space-y-2">
                          {fleet.length === 0 ? (
                            <>
-                             <p className="text-accent font-semibold uppercase tracking-label text-2xs">No aircraft yet</p>
+                             <p className="text-muted font-semibold uppercase tracking-label text-2xs">No aircraft yet</p>
                              <p>Your fleet is empty. Visit Buy Aircraft in the sidebar and purchase one first — a route needs an aircraft assigned to it.</p>
                            </>
                          ) : (
                            <>
-                             <p className="text-accent font-semibold uppercase tracking-label text-2xs">None of your aircraft fit</p>
+                             <p className="text-muted font-semibold uppercase tracking-label text-2xs">None of your aircraft fit</p>
                              <p>You own {fleet.length} aircraft, but none can serve this pairing. Usually one of:</p>
                              <ul className="list-disc pl-4 space-y-1 text-muted">
                                <li>it is based at a different hub</li>
@@ -1910,9 +1910,9 @@ function RoutePlannerInner({
                        {/* Config */}
                        <div className="grid grid-cols-4 gap-2 text-center text-2xs">
                           <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-muted uppercase mb-1">ECO</div><div className="font-semibold">{selectedAircraft.config?.economy || 0}</div></div>
-                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-accent uppercase mb-1">PRE</div><div className="font-semibold text-accent">{selectedAircraft.config?.premium || 0}</div></div>
+                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-muted uppercase mb-1">PRE</div><div className="font-semibold text-accent">{selectedAircraft.config?.premium || 0}</div></div>
                           <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-ink uppercase mb-1">BUS</div><div className="font-semibold text-ink">{selectedAircraft.config?.business || 0}</div></div>
-                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-accent uppercase mb-1">FST</div><div className="font-semibold text-accent">{selectedAircraft.config?.first || 0}</div></div>
+                          <div className="bg-surface py-2 border border-line rounded-sm"><div className="text-2xs text-muted uppercase mb-1">FST</div><div className="font-semibold text-accent">{selectedAircraft.config?.first || 0}</div></div>
                        </div>
                        {/* Stats */}
                        <div className="grid grid-cols-2 gap-2 text-2xs">
@@ -2094,7 +2094,7 @@ function RoutePlannerInner({
                             {/* Simple Hints */}
                             <div className="flex gap-2 mt-1">
                               {myRoutesCount > 0 && (
-                                <div className="text-2xs font-semibold text-accent uppercase">
+                                <div className="text-2xs font-semibold text-muted uppercase">
                                   YOU: {myRoutesCount}
                                 </div>
                               )}
@@ -2151,7 +2151,7 @@ function RoutePlannerInner({
                         className={`flex justify-between items-center ${debugMode ? 'cursor-pointer' : ''}`}
                         onClick={() => debugMode && setShowDemandDebug(!showDemandDebug)}
                       >
-                        <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-1.5">
+                        <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-1.5">
                           <Search size={12} /> Demand Forecast {debugMode && <span className="text-2xs bg-accent/20 px-1 py-0.5 rounded-sm text-accent ml-1">Debug</span>}
                         </div>
                         <div className="text-ink font-mono text-xs font-semibold">
@@ -2225,10 +2225,10 @@ function RoutePlannerInner({
                     /* Strategic Infrastructure Dashboard */
                     <div className="flex flex-col gap-4 mt-2 pb-16 bar:pb-3 short:pb-3">
                        <div className="flex justify-between items-center border-b border-line pb-2">
-                          <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+                          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                              <MapIcon size={12} /> Strategic Slots
                           </div>
-                          <span className="text-2xs text-muted font-mono">Stock / cost / action</span>
+                          <span className="text-2xs text-muted">Stock / cost / action</span>
                        </div>
                        <div className="space-y-2">
                           <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedDest.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedDest.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'regional', n, shift)} />
@@ -2237,7 +2237,7 @@ function RoutePlannerInner({
                        </div>
 
                        <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                          <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+                          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                              <Plane size={12} /> Stand Upgrades
                           </div>
                           {(airportManagement[selectedDest.id]?.level || 0) < 2 && (
@@ -2255,7 +2255,7 @@ function RoutePlannerInner({
                        </div>
 
                        <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                          <div className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+                          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
                              <ChevronRight size={12} /> Passenger Processing
                           </div>
                        </div>
@@ -2311,7 +2311,7 @@ function RoutePlannerInner({
               <div className="p-4 space-y-8">
                 {/* Slot Status */}
                 <div className="bg-surface border border-line p-4 space-y-2 mb-2 rounded-sm border-t-2 border-t-accent">
-                   <div className="text-2xs uppercase font-semibold tracking-label text-accent mb-2 flex justify-between">
+                   <div className="text-2xs uppercase font-semibold tracking-label text-muted mb-2 flex justify-between">
                      <span>Required Slots</span>
                      <span>({selectedAircraft.class})</span>
                    </div>
@@ -2335,7 +2335,7 @@ function RoutePlannerInner({
                     <label className="block text-2xs uppercase tracking-label text-muted mb-2 font-semibold">
                        Code
                     </label>
-                    <div className="h-10 bg-surface border border-line font-semibold text-accent text-center select-none uppercase tracking-label flex items-center justify-center truncate px-1">{airlineCode}</div>
+                    <div className="h-10 bg-surface border border-line font-semibold text-muted text-center select-none uppercase tracking-label flex items-center justify-center truncate px-1">{airlineCode}</div>
                   </div>
                   <div className="flex flex-col flex-1">
                     <label className="block text-2xs uppercase tracking-label text-muted mb-2 font-semibold">Flight Out</label>
@@ -2727,7 +2727,7 @@ function RoutePlannerInner({
 
                 {/* Flightplan Details output */}
                 <div className="bg-surface border border-line p-4 space-y-2 text-xs">
-                    <div className="text-2xs uppercase tracking-label font-semibold text-accent border-b border-line pb-2 mb-2 font-sans">Flightplan</div>
+                    <div className="text-2xs uppercase tracking-label font-semibold text-muted border-b border-line pb-2 mb-2 font-sans">Flightplan</div>
                     
                     {(() => {
                       if (schedule.length === 0) {
@@ -3007,7 +3007,7 @@ function RoutePlannerInner({
                    {/* Upright phones: the Load/Save buttons drop below the heading. */}
                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0 bg-surface border border-line p-4 rounded-sm">
                       <div className="flex flex-col">
-                         <h3 className="text-2xl font-semibold text-ink leading-none">In-Flight Configuration</h3>
+                         <h3 className="font-label text-2xl font-semibold text-ink leading-none">In-Flight Configuration</h3>
                          <span className="text-2xs text-muted uppercase tracking-label mt-2 block">Select a category to customize service levels. Use "General" to apply settings to all classes simultaneously.</span>
                       </div>
                       <div className="flex gap-2 shrink-0 md:shrink">
@@ -3096,7 +3096,7 @@ function RoutePlannerInner({
                 <div className="p-4 border-b border-line bg-surface">
                    <div className="flex justify-between items-end mb-3">
                       <div>
-                         <h3 className="text-2xl font-semibold text-ink mb-1">Route Satisfaction</h3>
+                         <h3 className="font-label text-2xl font-semibold text-ink mb-1">Route Satisfaction</h3>
                          <div className="text-2xs text-muted uppercase tracking-label font-semibold">Average over all seats</div>
                       </div>
                       <div className="text-3xl font-semibold text-accent leading-none">
@@ -3401,7 +3401,7 @@ function RoutePlannerInner({
                   <div className="flex-[1] flex flex-col gap-3">
                      <div className="bg-surface border border-line p-4 rounded-sm shrink-0 sticky top-4 w-full lg:w-[350px]">
                         <div className="mb-4 flex flex-col gap-1.5 pointer-events-none">
-                           <h3 className="text-xl font-semibold text-ink leading-tight">
+                           <h3 className="font-label text-xl font-semibold text-ink leading-tight">
                               Financial Summary
                            </h3>
                            {/* Everything below this line is the full-aircraft ceiling
@@ -3492,7 +3492,7 @@ function RoutePlannerInner({
                              {expandedSections.infra4 && (
                                <div className="pl-4 mt-2 space-y-2 border-l border-line ml-1">
                                  <div className="space-y-1">
-                                   <h4 className="text-2xs font-semibold uppercase tracking-label text-accent mb-1">Landing Fees</h4>
+                                   <h4 className="font-label text-2xs font-semibold uppercase tracking-label text-ink mb-1">Landing Fees</h4>
                                    <div className="flex justify-between items-end">
                                      <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} ({originDepartures}x landings)</span>
                                      <span className="text-2xs font-mono text-muted">-{formatCurrency(originLandingFees)}</span>
@@ -3504,7 +3504,7 @@ function RoutePlannerInner({
                                  </div>
 
                                  <div className="space-y-1 pt-1 border-t border-line">
-                                   <h4 className="text-2xs font-semibold uppercase tracking-label text-accent mb-1">Check-in Desk Costs</h4>
+                                   <h4 className="font-label text-2xs font-semibold uppercase tracking-label text-ink mb-1">Check-in Desk Costs</h4>
                                    <div className="flex justify-between items-end">
                                      <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} (${formatNumber(originCheckInUnit, 3)}/pax)</span>
                                      <span className="text-2xs font-mono text-muted">-{formatCurrency(originCheckInFees)}</span>
@@ -3516,7 +3516,7 @@ function RoutePlannerInner({
                                  </div>
 
                                  <div className="space-y-1 pt-1 border-t border-line">
-                                   <h4 className="text-2xs font-semibold uppercase tracking-label text-accent mb-1">PAX Handling Fees (Security/Baggage)</h4>
+                                   <h4 className="font-label text-2xs font-semibold uppercase tracking-label text-ink mb-1">PAX Handling Fees (Security/Baggage)</h4>
                                    <div className="flex justify-between items-end">
                                      <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} (L{selectedOrigin.level}: ${originPaxFeeUnit}/pax)</span>
                                      <span className="text-2xs font-mono text-muted">-{formatCurrency(originPaxHandlingFees)}</span>
@@ -3546,7 +3546,7 @@ function RoutePlannerInner({
                              <span className={`text-3xl font-semibold ${saveFinancials.estWeeklyProfit >= 0 ? 'text-good' : 'text-bad'}`}>
                                {formatSignedCurrency(saveFinancials.estWeeklyProfit)}
                              </span>
-                             <span className="text-2xs text-muted font-mono mt-1">
+                             <span className="text-2xs text-muted mt-1">
                                {formatNumber(saveFinancials.paxPerWeek)} / {formatNumber(totalEstPaxMax)} pax per week
                                {saveFinancials.transferPax > 0 && ` · incl. ${formatNumber(saveFinancials.transferPax)} transfer`}
                              </span>
@@ -3565,7 +3565,7 @@ function RoutePlannerInner({
                   <div className="flex-[2] flex flex-col">
                      <div className="bg-surface border border-line p-4 rounded-sm mb-3 flex-1 flex flex-col">
                         <div className="flex justify-between items-center mb-3">
-                           <h3 className="text-xl font-semibold text-ink mb-2">Configure Pricing</h3>
+                           <h3 className="font-label text-xl font-semibold text-ink mb-2">Configure Pricing</h3>
                            {debugMode && (
                              <div 
                                 className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2 cursor-pointer border border-line px-2 py-1 bg-ground/40 hover:bg-raised"
@@ -3726,7 +3726,7 @@ function RoutePlannerInner({
                                         <span className="text-sm font-semibold text-accent">{c} Class</span>
                                         <span className="text-2xs text-muted uppercase tracking-label mt-1">{classSeatCount[c]} Seats</span>
                                         {cabinLoad && (
-                                          <span className="text-2xs text-muted font-mono mt-1">
+                                          <span className="text-2xs text-muted mt-1">
                                             Expected {formatNumber(cabinLoad.actual)} local
                                             {cabinTransfer > 0 && ` + ${formatNumber(cabinTransfer)} transfer`}
                                             {' '}/ {formatNumber(cabinLoad.max)} pax per week ({cabinLf}% LF)

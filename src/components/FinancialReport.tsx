@@ -57,7 +57,7 @@ export function FinancialReport({ title, netProfit, totalRevenue, revenues, tota
         onClick={() => setMainOpen(!mainOpen)}
         className="flex justify-between items-center p-3 bg-surface hover:bg-raised transition-colors border-b border-line"
       >
-        <span className="font-semibold uppercase tracking-label text-accent">{title}</span>
+        <span className="font-semibold uppercase tracking-label text-muted">{title}</span>
         <div className="flex items-center gap-3">
            <span className={`font-semibold text-sm ${netProfit >= 0 ? "text-good" : "text-bad"}`}>
              {netProfit >= 0 ? "+" : ""}{formatCurrency(netProfit)}

@@ -131,10 +131,10 @@ function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankSt
                   </li>
                 ))}
               </ul>
-              <p className="text-2xs font-mono text-muted mt-2">Every figure has to be met at once; the years in business cannot be bought.</p>
+              <p className="text-2xs text-muted mt-2">Every figure has to be met at once; the years in business cannot be bought.</p>
             </div>
           ) : (
-            <p className="text-2xs font-mono text-muted mb-4">The highest rank there is. Nothing is left to unlock.</p>
+            <p className="text-2xs text-muted mb-4">The highest rank there is. Nothing is left to unlock.</p>
           )}
 
           <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -228,7 +228,7 @@ function GoalSection({ annualGoal, goalOffer, goalSnapshot, onChooseGoal }: Pick
           })()}
         </div>
       ) : (
-        <p className="text-2xs font-mono text-muted">
+        <p className="text-2xs text-muted">
           No goal yet. The board sets its first once a full year has been closed in December.
         </p>
       )}

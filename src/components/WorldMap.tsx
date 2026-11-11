@@ -281,7 +281,7 @@ const RouteLayer = React.memo(function RouteLayer({
               smoothFactor={1}
             >
               <Tooltip sticky>
-                <div className="bg-ground/95 border border-line text-accent px-3 py-1.5 font-label text-2xs uppercase tracking-label">
+                <div className="bg-ground/95 border border-line text-muted px-3 py-1.5 font-label text-2xs uppercase tracking-label">
                   <div className="text-xs leading-none mb-1 text-ink font-sans font-semibold flex items-center gap-1.5">
                     <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
                     {airline.name}

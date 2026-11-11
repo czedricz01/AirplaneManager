@@ -72,7 +72,7 @@ function LiveryEditor({ branding, airlineName, airlineCode, onBrandingChange }: 
       {draft && (
         <div className="absolute left-0 lg:left-auto lg:right-0 top-full mt-2 z-50 w-[min(92vw,28rem)] bg-surface border border-accent/20 p-4">
           <BrandingPicker value={draft} onChange={setDraft} code={airlineCode} name={airlineName} />
-          <p className="text-2xs font-mono text-muted mt-3">
+          <p className="text-2xs text-muted mt-3">
             Rivals whose colour would look too much like yours are given a new one.
           </p>
           <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-line">
@@ -324,7 +324,7 @@ function MyCompanyViewImpl({
           {reportHistory.length === 0 ? (
             <div className="h-48 border border-line bg-ground/20 rounded-sm flex flex-col items-center justify-center gap-2 text-muted uppercase tracking-label text-xs font-semibold">
               No month closed yet
-              <span className="text-2xs normal-case text-muted font-mono">
+              <span className="text-2xs normal-case text-muted">
                 Plan a route, then advance the month to produce your first report.
               </span>
             </div>

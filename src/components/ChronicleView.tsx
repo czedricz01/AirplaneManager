@@ -260,7 +260,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
         {reportHistory.length === 0 ? (
           <div className="h-48 flex flex-col items-center justify-center gap-2 text-muted uppercase tracking-label text-xs font-semibold border border-line bg-ground/20">
             No month closed yet
-            <span className="text-2xs normal-case text-muted font-mono">The charts fill in as months close.</span>
+            <span className="text-2xs normal-case text-muted">The charts fill in as months close.</span>
           </div>
         ) : (
           <>
@@ -316,7 +316,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
               </div>
             </details>
             {reports.some(r => r.reputation === undefined) && metric !== 'capital' && metric !== 'profit' && metric !== 'revenue' && (
-              <p className="text-2xs font-mono text-muted mt-2">
+              <p className="text-2xs text-muted mt-2">
                 Months closed before this figure was recorded are left out.
               </p>
             )}
@@ -338,7 +338,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
           <ol className="space-y-5">
             {years.map(group => (
               <li key={group.year}>
-                <h4 className="text-sm font-semibold font-mono text-muted mb-2">{group.year}</h4>
+                <h4 className="text-sm font-semibold font-label text-muted mb-2">{group.year}</h4>
                 <ol className="relative ml-3 border-l border-line space-y-3">
                   {group.entries.map((entry, i) => {
                     const meta = KIND_META[entry.kind];

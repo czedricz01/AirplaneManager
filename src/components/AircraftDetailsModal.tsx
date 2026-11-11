@@ -128,7 +128,7 @@ export function AircraftDetailsModal({
                      Assigned ({aircraftRoutes.length} route{aircraftRoutes.length > 1 ? 's' : ''})
                    </div>
                  ) : (
-                   <div className="text-accent border border-accent/20 bg-accent/10 px-2 py-0.5 rounded-sm uppercase tracking-label">
+                   <div className="text-muted border border-accent/20 bg-accent/10 px-2 py-0.5 rounded-sm uppercase tracking-label">
                      Idle (No Route Assigned)
                    </div>
                  )}
@@ -172,7 +172,7 @@ export function AircraftDetailsModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
               <div className="flex flex-col gap-3">
-                <h3 className="text-sm font-semibold border-b border-line pb-2 mb-2 text-ink">Layout & Quality</h3>
+                <h3 className="font-label text-sm font-semibold border-b border-line pb-2 mb-2 text-ink">Layout & Quality</h3>
                 <div className="flex justify-between text-xs text-muted">
                   <span>First</span> <span>{plane.config.first}</span>
                 </div>
@@ -193,10 +193,10 @@ export function AircraftDetailsModal({
               </div>
 
               <div className="flex flex-col gap-4">
-                <h3 className="text-sm font-semibold border-b border-line pb-2 mb-2 text-ink flex items-center justify-between">
+                <h3 className="font-label text-sm font-semibold border-b border-line pb-2 mb-2 text-ink flex items-center justify-between">
                   <span>Maintenance</span>
                   {(plane.conditionInterior < 40 || plane.conditionGeneral < 40) && (
-                    <span className="text-accent text-2xs font-semibold uppercase tracking-label flex items-center gap-1">
+                    <span className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-1">
                       <ShieldAlert size={12} /> CRITICAL COND. (&lt;40%)
                     </span>
                   )}
@@ -256,7 +256,7 @@ export function AircraftDetailsModal({
               return (
                 <div className="bg-ground/40 border border-line p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
                   <div className="flex flex-col gap-1 w-full sm:w-auto">
-                    <h3 className="text-xs font-label font-semibold uppercase tracking-label text-accent">Market Liquidation Value</h3>
+                    <h3 className="text-xs font-label font-semibold uppercase tracking-label text-ink">Market Liquidation Value</h3>
                     <p className="text-2xs text-muted lowercase font-sans max-w-sm">
                       calculated dynamically from general airframe condition, passenger interior satisfaction and age. residual base value is guaranteed.
                     </p>
@@ -284,7 +284,7 @@ export function AircraftDetailsModal({
             {/* Assigned Routes */}
             <div className="mt-8 flex items-end justify-between">
               <div>
-                <h3 className="text-sm font-semibold border-b border-line pb-2 mb-4 text-ink">Assigned Routes</h3>
+                <h3 className="font-label text-sm font-semibold border-b border-line pb-2 mb-4 text-ink">Assigned Routes</h3>
                 {aircraftRoutes.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {aircraftRoutes.map((r) => (

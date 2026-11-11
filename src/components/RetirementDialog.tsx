@@ -38,7 +38,7 @@ export function RetirementDialog({ open, airline, score, entry, position, hall, 
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div className="text-3xl font-mono font-semibold text-accent tabular-nums">{formatNumber(score.total)} points</div>
-            <div className="text-2xs font-mono text-muted">
+            <div className="text-2xs text-muted">
               {rankDef(entry.rank).title} · {entry.years} year{entry.years === 1 ? '' : 's'} · net worth {formatMoneyCompact(entry.netWorth)}
             </div>
           </div>

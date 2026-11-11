@@ -122,7 +122,7 @@ export function RouteDetailView({
     >
       {/* Upright phones: smaller title, buttons below it. Sideways: one slim row. */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bar:gap-2 mb-4 bar:mb-3 short:mb-2 shrink-0">
-        <h2 className="text-2xl md:text-3xl bar:text-xl short:text-lg text-accent font-semibold flex flex-wrap items-center gap-x-4 bar:gap-x-3">
+        <h2 className="font-label text-2xl md:text-3xl bar:text-xl short:text-lg text-ink font-semibold flex flex-wrap items-center gap-x-4 bar:gap-x-3">
           Route Detail
           <span className="text-muted text-2xl bar:text-xl short:text-lg">|</span>
           <span className="text-ink">{flightNo}</span>
@@ -204,7 +204,7 @@ export function RouteDetailView({
                   <span className="text-bad text-2xs uppercase tracking-label font-semibold">
                     Competing on this route
                   </span>
-                  <span className="text-2xs font-mono text-muted">
+                  <span className="text-2xs text-muted">
                     passengers are shared
                   </span>
                 </div>
@@ -233,7 +233,7 @@ export function RouteDetailView({
                   <span className="text-2xs font-mono text-accent mt-1">{maturityNote(playerMods.maturity?.[route.id])}</span>
                 )}
                 {(financials?.transferPax ?? 0) > 0 && (
-                  <span className="text-2xs font-mono text-muted mt-1">
+                  <span className="text-2xs text-muted mt-1">
                     incl. {formatNumber(financials!.transferPax)} transfer pax/wk ({formatCurrency(financials!.transferRev)})
                   </span>
                 )}
@@ -289,7 +289,7 @@ export function RouteDetailView({
             <div className="p-4 pb-4 border-b border-line flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <Clock className="text-accent" size={20} />
-                <h3 className="text-lg font-semibold text-ink group-hover:text-accent transition-colors">Flightplan</h3>
+                <h3 className="font-label text-lg font-semibold text-ink group-hover:text-accent transition-colors">Flightplan</h3>
               </div>
               <div className="flex flex-col items-end">
                 <span className="text-2xs text-muted uppercase tracking-label font-semibold leading-none mb-1">Weekly Ops</span>
@@ -381,7 +381,7 @@ export function RouteDetailView({
              <div className="flex items-center justify-between mb-4 pb-4 border-b border-line">
               <div className="flex items-center gap-3">
                 <Coffee className="text-accent" size={24} />
-                <h3 className="text-lg font-semibold text-ink group-hover:text-accent transition-colors">Cabin Services</h3>
+                <h3 className="font-label text-lg font-semibold text-ink group-hover:text-accent transition-colors">Cabin Services</h3>
               </div>
               <Settings size={16} className="text-muted group-hover:text-accent transition-colors" />
             </div>
@@ -462,7 +462,7 @@ export function RouteDetailView({
             <div className="flex items-center justify-between mb-2 pb-2 border-b border-line p-4">
               <div className="flex items-center gap-3">
                 <DollarSign className="text-accent" size={20} />
-                <h3 className="text-sm font-semibold text-ink group-hover:text-accent transition-colors">Financials</h3>
+                <h3 className="font-label text-sm font-semibold text-ink group-hover:text-accent transition-colors">Financials</h3>
               </div>
               <Settings size={16} className="text-muted group-hover:text-accent transition-colors" />
             </div>

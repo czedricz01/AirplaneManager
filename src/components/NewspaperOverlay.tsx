@@ -68,7 +68,7 @@ export function NewspaperOverlay({ edition, open, onClose }: NewspaperOverlayPro
                 <span className="hidden sm:inline">Est. 1960</span>
                 <span>{edition.price}</span>
               </div>
-              <h2 className="font-semibold leading-none py-2 text-3xl sm:text-3xl" style={{ fontFamily: SERIF }}>
+              <h2 className="font-label font-semibold leading-none py-2 text-3xl sm:text-3xl" style={{ fontFamily: SERIF }}>
                 {edition.masthead}
               </h2>
               <div className="flex items-center justify-between gap-2 text-2xs uppercase tracking-label py-1" style={{ borderTop: `3px double ${RULE}`, borderBottom: `1px solid ${RULE}` }}>
@@ -80,7 +80,7 @@ export function NewspaperOverlay({ edition, open, onClose }: NewspaperOverlayPro
 
             {/* Front page */}
             <section className="pt-4 pb-3" style={{ borderBottom: `1px solid ${RULE}` }}>
-              <h3 id="newspaper-headline" className="font-semibold leading-[1.05] text-3xl sm:text-3xl text-center" style={{ fontFamily: SERIF }}>
+              <h3 id="newspaper-headline" className="font-label font-semibold leading-[1.05] text-3xl sm:text-3xl text-center" style={{ fontFamily: SERIF }}>
                 {edition.headline}
               </h3>
               <p className="text-center text-base sm:text-lg mt-2 opacity-80">{edition.subhead}</p>
@@ -100,7 +100,7 @@ export function NewspaperOverlay({ edition, open, onClose }: NewspaperOverlayPro
                   className={`text-xs leading-snug ${i % 2 === 1 ? 'sm:border-l sm:pl-5' : i > 0 ? 'lg:border-l lg:pl-5' : ''}`}
                   style={{ borderColor: RULE }}
                 >
-                  <h4 className="font-semibold uppercase tracking-label text-xs pb-1 mb-1.5" style={{ borderBottom: `1px solid ${RULE}` }}>
+                  <h4 className="font-label font-semibold uppercase tracking-label text-xs pb-1 mb-1.5" style={{ borderBottom: `1px solid ${RULE}` }}>
                     {c.title}
                   </h4>
                   <p className="text-justify hyphens-auto">{c.body}</p>

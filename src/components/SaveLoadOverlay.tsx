@@ -56,7 +56,7 @@ export function SaveLoadOverlay({
         className="bg-surface border border-line w-full max-w-lg overflow-hidden flex flex-col animate-appear"
       >
         <div className="p-4 border-b border-line flex justify-between items-center bg-ground/40">
-           <h2 className="text-accent font-semibold uppercase tracking-label text-2xs">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
+           <h2 className="font-label text-ink font-semibold uppercase tracking-label text-2xs">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
            <button onClick={onClose} className="text-muted hover:text-ink"><X size={20}/></button>
         </div>
 
@@ -137,7 +137,7 @@ export function SaveLoadOverlay({
                     <AlertTriangle className="text-accent" size={64} />
                  </div>
                  <div className="space-y-2">
-                   <h3 className="text-ink text-xl font-semibold">Overwrite Archive?</h3>
+                   <h3 className="font-label text-ink text-xl font-semibold">Overwrite Archive?</h3>
                    <p className="text-muted text-sm">Initializing this sequence will permanently erase the prior telemetry state for "{saves.find(s => s.id === selectedSlot)?.name}".</p>
                  </div>
                  <div className="flex gap-4 w-full">
@@ -167,7 +167,7 @@ export function SaveLoadOverlay({
                     <Trash2 className="text-accent" size={64} />
                  </div>
                  <div className="space-y-2">
-                   <h3 className="text-ink text-xl font-semibold">Erase Archive?</h3>
+                   <h3 className="font-label text-ink text-xl font-semibold">Erase Archive?</h3>
                    <p className="text-muted text-sm">Are you sure you want to delete this telemetry archive? This action cannot be undone.</p>
                  </div>
                  <div className="flex gap-4 w-full">

@@ -67,7 +67,7 @@ function CampaignRow({ campaign, offset, onCancel }: { campaign: Campaign; offse
         <div className="text-2xs font-label font-semibold uppercase tracking-label text-good">
           {spec.label} · +{Math.round(spec.demandBoost * 100)}%
         </div>
-        <div className="text-2xs font-mono text-muted">
+        <div className="text-2xs text-muted">
           {left} month{left === 1 ? '' : 's'} left · {compact(campaignMonthlyCost(campaign.tier, offset))}/mo
         </div>
       </div>
@@ -174,7 +174,7 @@ export function MarketingPanel({
               <div className="h-full bg-accent" style={{ width: `${(loyalty / FFP_LOYALTY_MAX) * 100}%` }} />
             </div>
           </div>
-          <div className="text-2xs font-mono text-muted">
+          <div className="text-2xs text-muted">
             <span className="text-ink">{formatCurrency(ffpCost)}</span> a month at the current forecast:
             {' '}{compact(FFP_BASE_MONTHLY_COST)} + ${FFP_COST_PER_PAX.toFixed(2)} × {formatNumber(Math.round(projectedMonthlyPax))} passengers
             {!marketing.ffpActive && capital < ffpCost && (
@@ -191,7 +191,7 @@ export function MarketingPanel({
             <Globe2 size={18} className={global ? 'text-accent shrink-0' : 'text-muted shrink-0'} />
             <div className="min-w-0">
               <span className="text-2xs uppercase tracking-label text-muted font-semibold block">Worldwide</span>
-              <span className="text-2xs font-mono text-muted">
+              <span className="text-2xs text-muted">
                 A global campaign lifts demand in all six regions at once.
               </span>
             </div>
@@ -226,7 +226,7 @@ export function MarketingPanel({
               </span>
               {regional && <CampaignRow campaign={regional} offset={offset} onCancel={onCancelCampaign} />}
               {global && (
-                <span className="text-2xs font-mono text-good">
+                <span className="text-2xs text-good">
                   +{Math.round(CAMPAIGN_SPECS.global.demandBoost * 100)}% from the worldwide campaign
                 </span>
               )}

@@ -684,7 +684,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       return (
         <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-line bg-ground/60 rounded-sm">
           <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-line flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({firstPitch} cm)</label>
               <input type="range" min="150" max="220" value={firstPitch} onChange={(e) => setFirstPitch(parseInt(e.target.value))} className="w-full accent-accent" />
@@ -715,7 +715,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             
           </div>
           <div className="w-full md:w-1/2 p-4 flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
@@ -763,7 +763,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       return (
         <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-line bg-ground/60 rounded-sm">
           <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-line flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({bizPitch} cm)</label>
               <input type="range" min="100" max="180" value={bizPitch} onChange={(e) => setBizPitch(parseInt(e.target.value))} className="w-full accent-accent" />
@@ -794,7 +794,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             
           </div>
           <div className="w-full md:w-1/2 p-4 flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
@@ -842,7 +842,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       return (
         <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-line bg-ground/60 rounded-sm">
           <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-line flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({premPitch} cm)</label>
               <input type="range" min="85" max="105" value={premPitch} onChange={(e) => setPremPitch(parseInt(e.target.value))} className="w-full accent-accent" />
@@ -873,7 +873,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             
           </div>
           <div className="w-full md:w-1/2 p-4 flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
@@ -921,7 +921,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       return (
         <div className="w-full max-w-4xl relative z-10 flex flex-col md:flex-row border border-line bg-ground/60 rounded-sm">
           <div className="w-full md:w-1/2 p-4 border-b md:border-b-0 md:border-r border-line flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Type & Pitch</h3>
             <div className="flex flex-col gap-3 mb-3">
               <label className="text-xs font-label uppercase tracking-label text-muted">Seat Pitch ({ecoPitch} cm)</label>
               <input type="range" min="74" max="90" value={ecoPitch} onChange={(e) => setEcoPitch(parseInt(e.target.value))} className="w-full accent-accent" />
@@ -952,7 +952,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             
           </div>
           <div className="w-full md:w-1/2 p-4 flex flex-col">
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-2 mb-4 text-center">Seat Extras</h3>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
@@ -1005,7 +1005,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         <div className="md:h-16 short:h-auto px-3 md:px-4 py-2 md:py-0 short:py-1.5 bg-ground/40 border-b border-line flex flex-wrap md:flex-nowrap items-center shrink-0 justify-between gap-x-4 gap-y-1">
           <div className="flex items-center gap-4">
             
-            <h2 className="text-base md:text-xl short:text-sm font-semibold text-accent short:whitespace-nowrap">
+            <h2 className="font-label text-base md:text-xl short:text-sm font-semibold text-ink short:whitespace-nowrap">
               {isRenovating ? `Reconfigure / Renovate: ${initialPlane.registration}` : `Configure: ${aircraft.manufacturer} ${aircraft.type}`}
             </h2>
           </div>
@@ -1170,12 +1170,12 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                <div className="w-full max-w-4xl relative z-10 flex flex-col border border-line bg-ground/60 rounded-sm p-4">
                   <div className="flex items-center gap-3 mb-4 border-b border-line pb-4">
                      <Settings className="text-accent" size={24} />
-                     <h3 className="text-xl font-semibold text-ink">General Aircraft Settings</h3>
+                     <h3 className="font-label text-xl font-semibold text-ink">General Aircraft Settings</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 text-ink">
                      <div className="flex flex-col gap-3">
-                        <h4 className="text-2xs uppercase font-semibold tracking-label text-accent mb-2">Service Expansion</h4>
+                        <h4 className="font-label text-2xs uppercase font-semibold tracking-label text-ink mb-2">Service Expansion</h4>
                         {[
                           { id: 'wifi', state: hasWifi, setter: setHasWifi, available: isWifiAvailable, label: 'In-Flight Wi-Fi', sub: isWifiAvailable ? '+$150,000' : 'Avail. 2000' },
                           { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: isAmbientAvailable, label: 'Ambient LED Lighting', sub: isAmbientAvailable ? '+$100,000' : 'Avail. 2005' },
@@ -1194,7 +1194,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                      </div>
 
                      <div className="flex flex-col gap-3">
-                        <h4 className="text-2xs uppercase font-semibold tracking-label text-accent mb-2">Luxury & Efficiency</h4>
+                        <h4 className="font-label text-2xs uppercase font-semibold tracking-label text-ink mb-2">Luxury & Efficiency</h4>
                         {[
                           { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: isBarAvailable, label: 'Onboard Lounge & Bar', sub: isBarAvailable ? '+$500,000' : 'Req. >200 CAP' },
                           { id: 'shower', state: hasShower, setter: setHasShower, available: isShowerAvailable, label: 'Shower Spa & Wellness', sub: isShowerAvailable ? '+$1,000,000' : 'Req. >300 CAP' },
@@ -1220,7 +1220,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
           {/* Right Side: Narrow Regulators & Extras */}
           <div className="w-full md:w-[350px] short:w-[280px] md:min-h-0 shrink-0 bg-ground/20 p-4 short:p-2.5 flex flex-col md:overflow-y-auto">
             <div className="flex items-center justify-between border-b border-line pb-3 mb-3">
-              <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
+              <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
                 <Settings size={16} className="text-accent" />
                 Cabin Layout
               </h3>
@@ -1290,7 +1290,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             </div>
 
             {/* Aircraft-Wide Extras */}
-            <h3 className="text-sm font-semibold text-ink border-b border-line pb-3 mb-4 mt-8 flex justify-between items-center">
+            <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-3 mb-4 mt-8 flex justify-between items-center">
               Aircraft Extras
               {extrasSpace > 0 && <span className="text-2xs text-muted">-{extrasSpace} units</span>}
             </h3>
@@ -1346,7 +1346,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
 
               <div className="flex flex-col border-b border-line pb-2 pt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-2xs font-label text-accent uppercase tracking-label">General plane SAT</span>
+                  <span className="text-2xs font-label text-muted uppercase tracking-label">General plane SAT</span>
                   <div className="flex items-center gap-2">
                      <span className="text-sm font-semibold text-accent font-mono">{totalPopularity}%</span>
                   </div>
@@ -1415,7 +1415,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 </span>
               )}
               {canAfford && isOverbooked && (
-                <span className="text-2xs font-mono text-bad mt-0.5 whitespace-nowrap">
+                <span className="text-2xs text-bad mt-0.5 whitespace-nowrap">
                   Cabin exceeds available space
                 </span>
               )}
@@ -1439,7 +1439,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <button onClick={() => setShowSaveConfig(false)} className="absolute top-4 right-6 text-muted hover:text-ink transition-colors">
               <X size={24} />
             </button>
-            <h3 className="text-xl font-semibold text-accent mb-2 border-b border-line pb-4">Save Preset</h3>
+            <h3 className="font-label text-xl font-semibold text-ink mb-2 border-b border-line pb-4">Save Preset</h3>
             <p className="text-2xs text-muted font-label mb-3 uppercase tracking-label">{aircraft.manufacturer} {aircraft.type}</p>
             
             <div className="flex flex-col gap-4">
@@ -1481,13 +1481,13 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <button onClick={() => setShowLoadConfig(false)} className="absolute top-4 right-6 text-muted hover:text-ink transition-colors">
               <X size={24} />
             </button>
-            <h3 className="text-xl font-semibold text-accent mb-2 border-b border-line pb-4">Load Configuration</h3>
+            <h3 className="font-label text-xl font-semibold text-ink mb-2 border-b border-line pb-4">Load Configuration</h3>
             <p className="text-2xs text-muted font-label mb-3 uppercase tracking-label">{aircraft.manufacturer} {aircraft.type} Configurations</p>
             
             <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
               {savedPresets.filter(p => p.aircraftId === aircraft.id).length > 0 && (
                 <>
-                  <h4 className="text-xs font-semibold text-accent uppercase tracking-label mb-2 mt-4">Global Presets</h4>
+                  <h4 className="font-label text-xs font-semibold text-ink uppercase tracking-label mb-2 mt-4">Global Presets</h4>
                   {savedPresets.filter(p => p.aircraftId === aircraft.id).map(preset => {
                     const c = preset.config;
                     const totalSeats = (c.first || 0) + (c.business || 0) + (c.premium || 0) + (c.economy || 0);
@@ -1513,14 +1513,14 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                           >
                             <Trash2 size={14} />
                           </button>
-                          <div className="px-4 py-2 border border-accent/30 text-accent text-2xs font-label uppercase tracking-label group-hover:bg-accent group-hover:text-on-accent group-hover:border-accent transition-all">
+                          <div className="px-4 py-2 border border-accent/30 text-muted text-2xs font-label uppercase tracking-label group-hover:bg-accent group-hover:text-on-accent group-hover:border-accent transition-all">
                             Load
                           </div>
                         </div>
                       </div>
                     );
                   })}
-                  <h4 className="text-xs font-semibold text-accent uppercase tracking-label mb-2 mt-6">Fleet Configurations</h4>
+                  <h4 className="font-label text-xs font-semibold text-ink uppercase tracking-label mb-2 mt-6">Fleet Configurations</h4>
                 </>
               )}
 

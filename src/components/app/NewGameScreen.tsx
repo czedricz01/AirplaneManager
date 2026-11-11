@@ -181,7 +181,7 @@ export function NewGameScreen({
                         <ScenarioLock scenario={newGameScenario} />
                       </div>
                       {newGameScenario ? (
-                        <div className="p-4 short:p-2.5 font-label text-xs border uppercase tracking-label bg-accent/10 border-accent/40 text-accent">
+                        <div className="p-4 short:p-2.5 font-label text-xs border uppercase tracking-label bg-accent/10 border-accent/40 text-muted">
                           {formatCurrency(newGameScenario.capital)} and the scenario's fleet
                         </div>
                       ) : (
@@ -290,7 +290,7 @@ export function NewGameScreen({
                     </div>
 
                     <div className="space-y-4 short:space-y-2">
-                      <label className="block text-2xs font-semibold uppercase tracking-label text-accent">Initial Save File Name</label>
+                      <label className="block text-2xs font-semibold uppercase tracking-label text-muted">Initial Save File Name</label>
                       <input 
                         type="text" 
                         value={initialSaveFileName}

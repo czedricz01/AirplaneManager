@@ -409,7 +409,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         {fleet.length === 0 ? (
           <div className="bg-ground/40 border border-line rounded-sm p-12 text-center">
             <Plane size={48} className="mx-auto text-muted mb-4" />
-            <h3 className="text-lg text-accent font-semibold mb-2">No Aircraft in Fleet</h3>
+            <h3 className="font-label text-lg text-ink font-semibold mb-2">No Aircraft in Fleet</h3>
             <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
               Your airline fleet is currently empty. Visit the aircraft market to purchase your first aircraft and start building your route network.
             </p>
@@ -475,7 +475,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                     {/* Card Content Body */}
                     <div className="p-3.5 flex-1 flex flex-col justify-between space-y-3">
                       <div>
-                        <div className="text-2xs text-accent uppercase tracking-label font-semibold flex items-center justify-between">
+                        <div className="text-2xs text-muted uppercase tracking-label font-semibold flex items-center justify-between">
                           <span>{m.manufacturer}</span>
                           {hasAlert && (
                             <span className="text-bad text-2xs font-semibold uppercase tracking-label flex items-center gap-0.5">
@@ -559,7 +559,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
               {/* Group Header */}
               <div className="flex items-center justify-between border-b border-accent/30 pb-2 pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-label text-accent">
+                  <span className="text-xs font-semibold uppercase tracking-label text-muted">
                     {groupName}
                   </span>
                   <span className="bg-accent/10 border border-accent/30 text-accent text-2xs px-2 py-0.5 rounded-sm font-semibold">
@@ -617,7 +617,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                                   {assignedRoutes.length} Route{assignedRoutes.length > 1 ? 's' : ''}
                                 </span>
                               ) : (
-                                <span className="bg-accent/10 border border-accent/20 text-accent text-2xs font-label font-semibold px-2 py-0.5 rounded-sm uppercase tracking-label">
+                                <span className="bg-accent/10 border border-accent/20 text-muted text-2xs font-label font-semibold px-2 py-0.5 rounded-sm uppercase tracking-label">
                                   Idle
                                 </span>
                               )}
@@ -718,7 +718,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                 <div className="overflow-x-auto w-full bg-ground/30 border border-line rounded-sm">
                   <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
                     <thead>
-                      <tr className="border-b border-accent/30 text-accent uppercase tracking-label text-2xs bg-surface">
+                      <tr className="border-b border-accent/30 text-muted uppercase tracking-label text-2xs bg-surface">
                         <th className="py-3 pl-3 w-16">Image</th>
                         <th className="py-3 pl-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('registration')}>
                           Reg {getSortIcon('registration')}
@@ -811,7 +811,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                                   {assignedRoutes.length} Active
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-2xs font-semibold bg-accent/10 text-accent border border-accent/20 uppercase tracking-label">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-2xs font-semibold bg-accent/10 text-muted border border-accent/20 uppercase tracking-label">
                                   Idle
                                 </span>
                               )}
@@ -844,7 +844,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                   />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-accent">
+                  <h3 className="font-label text-lg font-semibold text-ink">
                     {selectedModel.manufacturer} {selectedModel.type}
                   </h3>
                   <p className="text-xs text-muted">
@@ -903,7 +903,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             {assignedRoutes.length} Route{assignedRoutes.length > 1 ? 's' : ''}
                           </span>
                         ) : (
-                          <span className="bg-accent/10 text-accent border border-accent/20 text-2xs font-semibold px-2 py-0.5 rounded-sm uppercase">
+                          <span className="bg-accent/10 text-muted border border-accent/20 text-2xs font-semibold px-2 py-0.5 rounded-sm uppercase">
                             Idle
                           </span>
                         )}

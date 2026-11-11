@@ -73,7 +73,7 @@ export const InfoTooltip = ({
               left: pos.x > window.innerWidth - 260 ? Math.max(8, pos.x - 280) : pos.x,
             }}
           >
-            <span className="font-label text-xs text-accent font-semibold uppercase tracking-label leading-tight mb-1">
+            <span className="font-label text-xs text-muted font-semibold uppercase tracking-label leading-tight mb-1">
               {title}
             </span>
             {desc && (

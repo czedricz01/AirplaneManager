@@ -322,7 +322,7 @@ function LiveTrafficImpl({ routes, aiRoutes, airports, offsets = [0], fleet = []
               <div className="bg-raised border-l-2 border-accent p-3 rounded-sm text-2xs leading-relaxed text-ink min-w-[260px] select-none">
                 {/* Carrier & Callsign Banner */}
                 <div className="flex justify-between items-center border-b border-line pb-2 mb-2">
-                  <span className="text-accent font-semibold uppercase tracking-label text-2xs flex items-center gap-2">
+                  <span className="text-muted font-semibold uppercase tracking-label text-2xs flex items-center gap-2">
                     <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
                     {f.carrier}
                   </span>
@@ -359,7 +359,7 @@ function LiveTrafficImpl({ routes, aiRoutes, airports, offsets = [0], fleet = []
                 <div className="grid grid-cols-2 gap-2 text-2xs border-t border-line pt-2">
                   <div className="flex flex-col">
                     <span className="text-muted uppercase">Status</span>
-                    <span className="text-accent uppercase">{f.isReturn ? 'Inbound' : 'Outbound'}</span>
+                    <span className="text-muted uppercase">{f.isReturn ? 'Inbound' : 'Outbound'}</span>
                   </div>
                   <div className="flex flex-col text-right">
                     <span className="text-muted uppercase">Progress</span>

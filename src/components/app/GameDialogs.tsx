@@ -60,7 +60,7 @@ export function GameDialogs({
     <>
           {pendingDecision && !isNewspaperOpen && !scenarioResultOpen && (
             <Modal open size="lg" accent="warn" layer="top">
-              <h3 className="text-bad font-semibold text-lg mb-1 flex items-center gap-2">
+              <h3 className="font-label text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                 <AlertTriangle size={22} /> {pendingDecision.title}
               </h3>
               <p className="text-2xs text-muted mb-4 leading-relaxed">
@@ -115,7 +115,7 @@ export function GameDialogs({
             const decision = pendingDecisions[0];
             return (
               <Modal open size="lg" accent="warn" layer="top">
-                <h3 className="text-bad font-semibold text-lg mb-1 flex items-center gap-2">
+                <h3 className="font-label text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                   <AlertTriangle size={22} /> {decision.title}
                 </h3>
                 <p className="text-2xs text-muted mb-4 leading-relaxed">
@@ -179,7 +179,7 @@ export function GameDialogs({
             return (
               <Modal open size="sm" accent="warn" layer="top" onClose={dismiss}>
                 <div role="alertdialog" aria-labelledby="bird-strike-title" aria-describedby="bird-strike-detail">
-                  <h3 id="bird-strike-title" className="text-bad font-semibold text-lg mb-1 flex items-center gap-2">
+                  <h3 id="bird-strike-title" className="font-label text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                     <Bird size={22} aria-hidden="true" /> Bird strike
                   </h3>
                   <p className="text-3xl font-mono font-semibold text-bad tabular-nums my-3">{formatCurrency(-strike.cost)}</p>
@@ -222,7 +222,7 @@ export function GameDialogs({
                     {won ? <Trophy size={28} aria-hidden="true" /> : <AlertTriangle size={28} aria-hidden="true" />}
                     <div>
                       <div className="text-2xs font-label uppercase tracking-label text-muted">Scenario {won ? 'complete' : 'failed'}</div>
-                      <h3 id="scenario-result-title" className="font-semibold text-xl leading-tight">
+                      <h3 id="scenario-result-title" className="font-label font-semibold text-xl leading-tight">
                         {decided.title}: {won ? 'you did it' : 'out of reach'}
                       </h3>
                     </div>
@@ -299,7 +299,7 @@ export function GameDialogs({
           )}
           {appAlert && (
             <Modal open size="md" layer="top" onClose={() => setAppAlert(null)}>
-              <h3 className="text-accent font-semibold text-lg mb-4 flex items-center gap-2">
+              <h3 className="font-label text-ink font-semibold text-lg mb-4 flex items-center gap-2">
                 <AlertTriangle size={24} /> System Alert
               </h3>
               <p className="text-ink mb-3">{appAlert}</p>

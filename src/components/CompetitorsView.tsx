@@ -350,10 +350,10 @@ function CompetitorsViewImpl({
                       title="Map colour"
                     />
                   )}
-                  <h3 className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-ink leading-none">
+                  <h3 className="text-2xl bar:text-lg short:text-lg font-label font-semibold text-ink leading-none">
                     {selectedAirline.name}
                   </h3>
-                  <span className="text-xs font-label font-semibold text-accent border border-accent/30 bg-accent/5 px-2 py-0.5 rounded-sm uppercase">
+                  <span className="text-xs font-label font-semibold text-muted border border-accent/30 bg-accent/5 px-2 py-0.5 rounded-sm uppercase">
                     IATA: {selectedAirline.code}
                   </span>
                 </div>
@@ -406,7 +406,7 @@ function CompetitorsViewImpl({
                   <div className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-ink">
                     {selectedAirline.fleet.length} <span className="text-xs text-muted font-sans font-normal">Aircraft</span>
                   </div>
-                  <div className="text-2xs text-muted font-mono mt-1">
+                  <div className="text-2xs text-muted mt-1">
                     {selectedAirline.stats.regionalCount} Reg | {selectedAirline.stats.narrowbodyCount} Nb | {selectedAirline.stats.widebodyCount} Wb
                   </div>
                 </div>
@@ -422,7 +422,7 @@ function CompetitorsViewImpl({
                   <div className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-ink">
                     {selectedAirline.routes.length} <span className="text-xs text-muted font-sans font-normal">Routes</span>
                   </div>
-                  <div className="text-2xs text-muted font-mono mt-1">
+                  <div className="text-2xs text-muted mt-1">
                     {selectedAirline.stats.totalWeeklyDepartures} Departures per week
                   </div>
                 </div>
@@ -491,7 +491,7 @@ function CompetitorsViewImpl({
                 {/* Visual Section: Strategic Connections list */}
                 <div className="bg-surface border border-line rounded-sm p-4">
                   <div className="flex items-center justify-between border-b border-line pb-4 mb-4">
-                    <h4 className="text-xs font-label font-semibold text-accent uppercase tracking-label flex items-center gap-2">
+                    <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label flex items-center gap-2">
                       <Waypoints size={14} /> Global Route Intelligence Network
                     </h4>
                     <span className="text-2xs text-muted font-mono">
@@ -564,10 +564,10 @@ function CompetitorsViewImpl({
                 {/* Aircraft Fleet registry details */}
                 <div className="bg-surface border border-line rounded-sm p-4">
                   <div className="flex items-center justify-between border-b border-line pb-4 mb-4">
-                    <h4 className="text-xs font-label font-semibold text-accent uppercase tracking-label flex items-center gap-2">
+                    <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label flex items-center gap-2">
                       <Plane size={14} /> Strategic Aircraft Registry
                     </h4>
-                    <span className="text-2xs text-muted font-mono">
+                    <span className="text-2xs text-muted">
                       Active Fleet Size: <strong className="text-ink">{selectedAirline.fleet.length}</strong>
                     </span>
                   </div>
@@ -584,11 +584,11 @@ function CompetitorsViewImpl({
                                   <strong className="text-sm font-semibold text-ink block leading-none">
                                     {plane.manufacturer || ''} {plane.model}
                                   </strong>
-                                  <span className="font-label text-2xs text-accent mt-1.5 inline-block uppercase tracking-label">
+                                  <span className="font-label text-2xs text-muted mt-1.5 inline-block uppercase tracking-label">
                                     {plane.class} specs
                                   </span>
                                 </div>
-                                <span className="font-label text-2xs text-accent bg-accent/10 px-2 py-0.5 border border-accent/20 rounded-sm font-semibold uppercase tracking-label">
+                                <span className="font-label text-2xs text-muted bg-accent/10 px-2 py-0.5 border border-accent/20 rounded-sm font-semibold uppercase tracking-label">
                                   {plane.reg}
                                 </span>
                               </div>
@@ -630,7 +630,7 @@ function CompetitorsViewImpl({
                 
                 {/* Fleet Class Market distribution */}
                 <div className="bg-surface border border-line rounded-sm p-4">
-                  <h4 className="text-xs font-label font-semibold text-accent uppercase tracking-label border-b border-line pb-4 mb-5 flex items-center gap-2">
+                  <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label border-b border-line pb-4 mb-5 flex items-center gap-2">
                     <PieChart size={14} /> Capacity Distribution
                   </h4>
 
@@ -679,7 +679,7 @@ function CompetitorsViewImpl({
 
                 {/* Quaterly simulated performance timeline overview */}
                 <div className="bg-surface border border-line rounded-sm p-4">
-                  <h4 className="text-xs font-label font-semibold text-accent uppercase tracking-label border-b border-line pb-4 mb-4 flex items-center gap-2">
+                  <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label border-b border-line pb-4 mb-4 flex items-center gap-2">
                     <Activity size={14} /> Yield & Profit Trends
                   </h4>
 
@@ -755,7 +755,7 @@ function CompetitorsViewImpl({
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-surface p-2 rounded-sm border border-line text-center">
                           <span className="text-muted text-2xs block uppercase tracking-label mb-1">Strategy group</span>
-                          <strong className="text-accent uppercase text-xs">
+                          <strong className="text-muted uppercase text-xs">
                             {selectedAirline.personality ? PERSONALITY_META[selectedAirline.personality].description : 'Independent'}
                           </strong>
                         </div>
@@ -845,7 +845,7 @@ function CompetitorsViewImpl({
 
           <div className="flex-1 overflow-y-auto pr-2 bg-ground/20 border border-line rounded-sm p-4 space-y-4">
             {/* Header Board columns */}
-            <div className="hidden md:grid grid-cols-12 px-3 py-4 sticky top-0 z-10 bg-raised border-b border-accent/30 font-label text-2xs uppercase tracking-label text-accent font-semibold">
+            <div className="hidden md:grid grid-cols-12 px-3 py-4 sticky top-0 z-10 bg-raised border-b border-accent/30 font-label text-2xs uppercase tracking-label text-muted font-semibold">
               <div className="col-span-1 text-muted cursor-default">Rank</div>
               <div className="col-span-3 cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
               <div className="col-span-2 text-center text-muted cursor-default">Hub Base</div>
@@ -906,7 +906,7 @@ function CompetitorsViewImpl({
                               )}
                               <span className="font-sans font-semibold text-ink">{airline.name}</span>
                               {!airline.isPlayer && (airline as { forSale?: boolean }).forSale && (
-                                <span className="ml-2 text-2xs font-label font-semibold uppercase tracking-label text-accent border border-accent/40 px-1 py-0.5 rounded-sm">For sale</span>
+                                <span className="ml-2 text-2xs font-label font-semibold uppercase tracking-label text-muted border border-accent/40 px-1 py-0.5 rounded-sm">For sale</span>
                               )}
                               {airline.isPlayer && (
                                 <span className="px-2 py-0.5 bg-accent text-on-accent text-2xs font-semibold uppercase tracking-label rounded-sm">YOU</span>

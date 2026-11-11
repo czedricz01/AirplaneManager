@@ -76,7 +76,7 @@ export function CabinConfigDialogs() {
               aria-modal="true"
               className="w-full max-w-md bg-raised border border-line p-4 rounded-sm animate-appear"
             >
-              <h3 className="text-xl font-semibold text-accent mb-3">Save Configuration</h3>
+              <h3 className="font-label text-xl font-semibold text-ink mb-3">Save Configuration</h3>
               <div className="space-y-6">
                 <OverwritePicker
                   items={savedCabinConfigs}
@@ -128,7 +128,7 @@ export function CabinConfigDialogs() {
               className="w-full max-w-2xl bg-raised border border-line p-4 rounded-sm max-h-[80vh] flex flex-col animate-appear"
             >
                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-xl font-semibold text-accent">Load Configuration</h3>
+                  <h3 className="font-label text-xl font-semibold text-ink">Load Configuration</h3>
                   <button onClick={() => setShowConfigLoadModal(false)} className="text-muted hover:text-ink transition-colors">
                      <Plus size={24} className="rotate-45" />
                   </button>

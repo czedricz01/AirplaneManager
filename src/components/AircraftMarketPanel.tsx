@@ -75,10 +75,10 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
       <Panel>
         <div className="flex items-baseline justify-between mb-2">
           <span className="text-2xs uppercase tracking-label text-muted font-semibold">Announced</span>
-          <span className="text-2xs font-mono text-muted">first deliveries within {ORDER_HORIZON} months</span>
+          <span className="text-2xs text-muted">first deliveries within {ORDER_HORIZON} months</span>
         </div>
         {announced.length === 0 ? (
-          <p className="text-2xs font-mono text-muted">Nothing is announced for the coming year.</p>
+          <p className="text-2xs text-muted">Nothing is announced for the coming year.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {announced.map(a => {
@@ -134,10 +134,10 @@ function UsedTab({ currentDateOffset, capital, classesOpen, soldUsedIds, rivalNa
     <Panel>
       <div className="flex items-baseline justify-between mb-2">
         <span className="text-2xs uppercase tracking-label text-muted font-semibold">Used market</span>
-        <span className="text-2xs font-mono text-muted">new listings every month</span>
+        <span className="text-2xs text-muted">new listings every month</span>
       </div>
       {listings.length === 0 ? (
-        <p className="text-2xs font-mono text-muted">The market has nothing second-hand yet: the first jets are still new.</p>
+        <p className="text-2xs text-muted">The market has nothing second-hand yet: the first jets are still new.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {listings.map(l => {

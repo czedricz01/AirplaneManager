@@ -460,12 +460,12 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
           <div className="bg-ground border border-dashed border-accent/20 rounded-sm p-4 shrink-0 transition-all hover:border-accent/40 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-semibold text-accent flex items-center gap-2">
+                <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
                   <Database size={16} />
                   Supabase Storage Bucket (Permanent Images)
                   <Badge tone="warn">Debug</Badge>
                 </h3>
-                <p className="text-xs text-muted font-mono mt-0.5">
+                <p className="text-xs text-muted mt-0.5">
                   Connected Supabase storage bucket URL for permanent aircraft image rendering across all devices.
                 </p>
               </div>
@@ -511,12 +511,12 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-accent flex items-center gap-2">
+                  <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
                     <Archive size={16} />
                     Planes Image ZIP customizer (SAT APPROVED)
                     <Badge tone="warn">Debug</Badge>
                   </h3>
-                  <p className="text-xs text-muted font-mono mt-0.5">
+                  <p className="text-xs text-muted mt-0.5">
                     Upload a ZIP archive of aircraft images (.png, .jpg, .webp). Each image is matched to its aircraft folder automatically.
                   </p>
                 </div>
@@ -623,11 +623,11 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             {/* Part 2: Dynamic Single Image Search, Filter and Direct Uploader */}
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-accent flex items-center gap-2">
+                <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
                   <Plane size={16} />
                   Single Aircraft Image Uploader (SAT APPROVED)
                 </h3>
-                <p className="text-xs text-muted font-mono mt-0.5">
+                <p className="text-xs text-muted mt-0.5">
                   Search for an aircraft type, filter for models without an image and upload a single image. It replaces any previous image.
                 </p>
               </div>
@@ -717,7 +717,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     {selectedAircraft ? (
                       <div className="bg-ground/40 border border-line rounded-sm p-3 text-xs text-ink space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-2xs text-accent uppercase tracking-label font-semibold">Selected model:</span>
+                          <span className="text-2xs text-muted uppercase tracking-label font-semibold">Selected model:</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -884,7 +884,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     const planes = familiesMap.get(fam)!;
                     return (
                       <div key={fam} className="flex flex-col gap-4">
-                        <h4 className="text-lg text-accent font-semibold border-b border-line pb-2">{fam}</h4>
+                        <h4 className="font-label text-lg text-ink font-semibold border-b border-line pb-2">{fam}</h4>
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                           {planes.map(plane => {
                             const imageName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
@@ -913,7 +913,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                     <span className="truncate">{plane.type}</span>
                                     <Info size={16} className={`shrink-0 transition-colors ${expandedPlaneId === plane.id ? 'text-accent' : 'text-muted'}`} />
                                   </h5>
-                                  <div className="text-xs border border-accent/20 text-accent px-2 py-0.5 rounded-sm uppercase tracking-label bg-accent/5 shrink-0 ml-2 whitespace-nowrap">{plane.class}</div>
+                                  <div className="text-xs border border-accent/20 text-muted px-2 py-0.5 rounded-sm uppercase tracking-label bg-accent/5 shrink-0 ml-2 whitespace-nowrap">{plane.class}</div>
                                 </div>
 
                                 {expandedPlaneId === plane.id && (

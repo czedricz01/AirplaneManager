@@ -167,12 +167,12 @@ const RouteRow = React.memo(function RouteRow({
       onClick={() => onSelect(route)}
       className="border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer"
     >
-      <Td className="pl-4 font-semibold text-ink hover:text-accent transition-colors underline decoration-muted underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
-      <Td className="font-semibold text-accent">{route.origin}</Td>
-      <Td className="font-semibold text-accent">{route.destination}</Td>
+      <Td className="pl-3 font-mono font-medium text-ink underline decoration-rule underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
+      <Td className="font-mono font-medium text-ink">{route.origin}</Td>
+      <Td className="font-mono font-medium text-ink">{route.destination}</Td>
       <Td className="text-xs font-mono">{route.distance} km</Td>
       <Td className="text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
-      <Td className="text-xs font-mono">{route.durMin ? <span className="border border-rule px-2 py-0.5 rounded-sm bg-surface">Class {getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
+      <Td className="text-xs font-mono">{route.durMin ? <span title={`Time class ${getFlightTimeClass(route.durMin)}`}>{getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
       <Td>
         <div>{route.aircraft}</div>
         {aircraft && <div className="text-2xs text-muted">{aircraft.manufacturer} {aircraft.type}</div>}
@@ -341,14 +341,14 @@ function RoutesViewImpl({
         <Table className="min-w-[1100px] lg:min-w-0">
           <Thead>
             <Th first sortable={false}>Flight No.</Th>
-            <Th sortable onClick={() => toggleSort('origin')}>Origin {getSortIcon('origin')}</Th>
-            <Th sortable onClick={() => toggleSort('destination')}>Destination {getSortIcon('destination')}</Th>
+            <Th sortable onClick={() => toggleSort('origin')}>From {getSortIcon('origin')}</Th>
+            <Th sortable onClick={() => toggleSort('destination')}>To {getSortIcon('destination')}</Th>
             <Th sortable onClick={() => toggleSort('distance')}>Distance {getSortIcon('distance')}</Th>
-            <Th sortable onClick={() => toggleSort('durMin')}>Flight Time {getSortIcon('durMin')}</Th>
-            <Th sortable={false}>Time-Class<InfoTooltip size={11} {...GLOSSARY.timeClass} /></Th>
+            <Th sortable onClick={() => toggleSort('durMin')}>Time {getSortIcon('durMin')}</Th>
+            <Th sortable={false}>Class<InfoTooltip size={11} {...GLOSSARY.timeClass} /></Th>
             <Th sortable onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</Th>
-            <Th sortable onClick={() => toggleSort('weeklyFlights')}>Weekly Flights {getSortIcon('weeklyFlights')}</Th>
-            <Th sortable onClick={() => toggleSort('paxPerWeek')}>Pax / Week {getSortIcon('paxPerWeek')}</Th>
+            <Th sortable onClick={() => toggleSort('weeklyFlights')}>Flights / wk {getSortIcon('weeklyFlights')}</Th>
+            <Th sortable onClick={() => toggleSort('paxPerWeek')}>Pax / wk {getSortIcon('paxPerWeek')}</Th>
             <Th sortable={false} title="Economy / Premium / Business / First">Load %</Th>
             <Th sortable={false} title="Economy / Premium / Business / First">Price</Th>
             <Th sortable className="pr-4 text-right" onClick={() => toggleSort('profit')}>Profit / Month {getSortIcon('profit')}</Th>
@@ -360,7 +360,7 @@ function RoutesViewImpl({
                    {routes.length === 0 ? (
                      <div className="flex flex-col items-center gap-2">
                        <span>No routes yet</span>
-                       <span className="text-2xs normal-case text-muted font-mono">
+                       <span className="text-2xs normal-case text-muted">
                          Buy an aircraft, then plan your first route from your hub.
                        </span>
                      </div>

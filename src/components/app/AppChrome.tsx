@@ -10,7 +10,7 @@ import { StatTile } from '../ui/StatTile';
 export function ScenarioLock({ scenario }: { scenario?: Scenario }) {
   if (!scenario) return null;
   return (
-    <span className="flex items-center gap-1 text-2xs font-label uppercase tracking-label text-accent whitespace-nowrap">
+    <span className="flex items-center gap-1 text-2xs font-label uppercase tracking-label text-muted whitespace-nowrap">
       <Lock size={10} aria-hidden="true" /> Set by {scenario.title}
     </span>
   );

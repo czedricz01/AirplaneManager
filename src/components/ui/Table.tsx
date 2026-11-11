@@ -46,7 +46,7 @@ interface ThProps extends ThHTMLAttributes<HTMLTableCellElement> {
 export function Th({ sortable = true, first = false, className = '', children, ...rest }: ThProps) {
   return (
     <th
-      className={`h-9 px-2.5 sticky top-0 bg-ground z-10 ${first ? 'pl-3' : ''} ${sortable ? 'cursor-pointer hover:text-ink' : 'cursor-default'} ${className}`}
+      className={`h-9 px-2 sticky top-0 bg-ground z-10 ${first ? 'pl-3' : ''} ${sortable ? 'cursor-pointer hover:text-ink' : 'cursor-default'} ${className}`}
       {...rest}
     >
       {children}
@@ -56,7 +56,7 @@ export function Th({ sortable = true, first = false, className = '', children, .
 
 export function Td({ className = '', children, ...rest }: TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={`h-11 px-2.5 ${className}`} {...rest}>
+    <td className={`h-11 px-2 ${className}`} {...rest}>
       {children}
     </td>
   );

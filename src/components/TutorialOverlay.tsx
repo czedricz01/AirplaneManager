@@ -248,7 +248,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
               />
             )}
             <div className="flex items-center justify-between gap-2 px-4 pt-3">
-              <span className="flex items-center gap-1.5 text-2xs font-label uppercase tracking-label text-accent">
+              <span className="flex items-center gap-1.5 text-2xs font-label uppercase tracking-label text-muted">
                 <GraduationCap size={13} aria-hidden="true" /> Tutorial {step + 1} / {total}
               </span>
               <button
@@ -262,7 +262,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
               </button>
             </div>
             <div className="px-4 pb-3 pt-1">
-              <h2 ref={headingRef} id={titleId} tabIndex={-1} className="text-sm font-semibold text-ink mb-1.5 outline-none">
+              <h2 ref={headingRef} id={titleId} tabIndex={-1} className="font-label text-sm font-semibold text-ink mb-1.5 outline-none">
                 {def.title}
               </h2>
               <p className="text-xs text-muted leading-relaxed">{def.text}</p>

@@ -105,7 +105,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             <ChevronRight className="rotate-180 group-hover:scale-125 transition-transform" />
           </div>
           <div className="flex flex-col">
-            <h4 className="text-2xl md:text-3xl bar:text-xl short:text-lg font-semibold text-ink leading-none">
+            <h4 className="font-label text-2xl md:text-3xl bar:text-xl short:text-lg font-semibold text-ink leading-none">
               Configure <span className="text-accent">{activeConfigClass === 'general' ? 'Global Standards' : activeConfigClass.toUpperCase()}</span>
             </h4>
             <div className="text-2xs text-muted uppercase font-semibold tracking-label short:tracking-label mt-3 bar:mt-2 short:mt-1 flex flex-wrap gap-x-6 short:gap-x-4 items-baseline">

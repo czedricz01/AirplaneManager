@@ -164,7 +164,7 @@ export function AircraftSwapPanel(props: SwapProps) {
               {p.registration === selectedReg && (
                 <div className="ml-3 pl-3 border-l border-line flex flex-col gap-3 py-1">
                   {check.issues.length === 0 && check.notes.length === 0 ? (
-                    <div className="text-2xs font-mono text-good">No problems found.</div>
+                    <div className="text-2xs text-good">No problems found.</div>
                   ) : (
                     <CheckDetails check={check} />
                   )}

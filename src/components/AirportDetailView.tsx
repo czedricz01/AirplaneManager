@@ -206,7 +206,7 @@ export function AirportDetailView({
             slim row without the eyebrow line. */}
         <div className="p-4 pb-4 bar:p-3 short:px-3 short:py-1.5 flex flex-col md:flex-row justify-between items-start short:items-center gap-3 short:gap-2 border-b border-line bg-raised/80">
           <div className="flex flex-col min-w-0">
-            <h1 className="text-3xl md:text-3xl bar:text-2xl short:text-2xl font-semibold text-ink flex flex-wrap items-center gap-x-4 short:gap-x-3 gap-y-1">
+            <h1 className="font-label text-3xl md:text-3xl bar:text-2xl short:text-2xl font-semibold text-ink flex flex-wrap items-center gap-x-4 short:gap-x-3 gap-y-1">
               {airport.name} <span className="text-accent font-normal not-italic opacity-50">[{airport.id}] <span className="text-2xl bar:text-lg short:text-lg ml-4 bar:ml-2 short:ml-2 font-semibold text-accent">L{airport.level}</span></span>
             </h1>
           </div>
@@ -590,7 +590,7 @@ export function AirportDetailView({
       {showMgmtModal && (
         <div className="fixed inset-0 z-[100] bg-ground/80 flex items-center justify-center p-4">
           <div role="dialog" aria-modal="true" className="bg-raised p-4 border border-line max-w-md w-full relative z-[101]">
-            <h3 className="text-xl font-semibold text-accent mb-2">Management Required</h3>
+            <h3 className="font-label text-xl font-semibold text-ink mb-2">Management Required</h3>
             <p className="text-muted mb-4 text-sm">
               Level-1 management is required to create a route. Do you want to buy it now?
             </p>

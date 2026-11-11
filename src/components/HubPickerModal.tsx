@@ -42,7 +42,7 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-raised" role="dialog" aria-label="Select hub">
       <div className="flex items-center justify-between gap-4 border-b border-line p-4 short:p-2">
-        <h3 className="text-lg font-semibold">
+        <h3 className="font-label text-lg font-semibold">
           Select <span className="text-accent">Hub</span>
         </h3>
         <button onClick={onClose} aria-label="Close" className="text-muted hover:text-accent transition-colors">
@@ -127,7 +127,7 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
             </button>
           </div>
         ) : (
-          <p className="text-sm text-muted font-mono">Click an airport on the map.</p>
+          <p className="text-sm text-muted">Click an airport on the map.</p>
         )}
       </div>
     </div>

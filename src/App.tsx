@@ -2897,7 +2897,7 @@ export default function App() {
         return (
           <div className="fixed inset-0 z-[1001] bg-ground/80 flex items-center justify-center p-4">
             <div role="dialog" aria-modal="true" aria-labelledby="exit-save-title" className="bg-raised border border-line p-4 max-w-md w-full">
-              <h2 id="exit-save-title" className="text-lg font-mono text-accent font-semibold mb-3">Save before leaving?</h2>
+              <h2 id="exit-save-title" className="text-lg font-label text-ink font-semibold mb-3">Save before leaving?</h2>
               <p className="text-sm text-ink mb-4">
                 {existing
                   ? <>This overwrites <span className="text-ink font-semibold">"{existing.name}"</span> (last saved {new Date(existing.timestamp).toLocaleString()}).</>
@@ -2965,7 +2965,7 @@ export default function App() {
                   <span className="text-2xs font-label text-muted block mb-1 uppercase tracking-label font-semibold">
                     {selectedMessage.details?.source || "Neo Airlines Dispatch"} • {selectedMessage.dateStr}
                   </span>
-                  <h3 className="text-accent font-sans font-semibold text-lg leading-tight">
+                  <h3 className="text-ink font-sans font-semibold text-lg leading-tight">
                     {selectedMessage.details?.title || "Inbox Transmission"}
                   </h3>
                 </div>

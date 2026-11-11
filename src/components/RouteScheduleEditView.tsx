@@ -524,7 +524,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       {/* Header */}
       <div className="relative z-10 px-4 py-3 short:py-1.5 border-b border-line flex justify-between items-center bg-ground/40">
         <div className="flex flex-col short:flex-row short:items-baseline short:gap-4">
-          <h2 className="text-xl md:text-3xl short:text-lg font-semibold text-accent">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
+          <h2 className="font-label text-xl md:text-3xl short:text-lg font-semibold text-ink">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs font-semibold text-muted uppercase tracking-label">{selectedOrigin?.id}</span>
             <span className="text-accent">→</span>
@@ -650,7 +650,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
           <div className="transition-opacity">
             <div className="flex justify-between items-end mb-3">
               <label className="block text-2xs uppercase tracking-label text-muted font-semibold">Starting Time</label>
-              <div className="text-2xs font-label text-accent bg-accent/10 px-2 py-0.5 border border-accent/20 uppercase">
+              <div className="text-2xs font-label text-muted bg-accent/10 px-2 py-0.5 border border-accent/20 uppercase">
                 Takeoff: {fmtClock(takeoffMin)}
               </div>
             </div>
@@ -813,7 +813,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                    </div>
                 </div>
                 <div>
-                   <h3 className="text-3xl font-semibold">{isReassign ? 'Aircraft Changed' : 'Schedule Updated'}</h3>
+                   <h3 className="font-label text-3xl font-semibold">{isReassign ? 'Aircraft Changed' : 'Schedule Updated'}</h3>
                    <div className="h-1 w-12 bg-ground mx-auto my-3"></div>
                    <p className="text-xs uppercase tracking-label font-semibold opacity-80">Synchronizing fleet data...</p>
                 </div>
