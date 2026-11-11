@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import { takeoverQuote } from '../lib/takeover';
 import { SALE_TO_LIQUIDATION_MONTHS } from '../lib/aiSimulation';
 import { Button } from './ui/Button';
@@ -847,12 +848,12 @@ function CompetitorsViewImpl({
             {/* Header Board columns */}
             <div className="hidden md:grid grid-cols-12 px-3 py-4 sticky top-0 z-10 bg-raised border-b border-accent/30 font-label text-2xs uppercase tracking-label text-muted font-semibold">
               <div className="col-span-1 text-muted cursor-default">Rank</div>
-              <div className="col-span-3 cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
+              <div className="col-span-3 cursor-pointer select-none hover:text-accent" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
               <div className="col-span-2 text-center text-muted cursor-default">Hub Base</div>
               <div className="col-span-1 text-center text-muted cursor-default">Tier</div>
-              <div className="col-span-2 text-right cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('capital')}>Capital {getSortIcon('capital')}</div>
-              <div className="col-span-1 text-right cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('fleet')}>Fleet {getSortIcon('fleet')}</div>
-              <div className="col-span-1 text-right cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('routes')}>Routes {getSortIcon('routes')}</div>
+              <div className="col-span-2 text-right cursor-pointer select-none hover:text-accent" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('capital')}>Capital {getSortIcon('capital')}</div>
+              <div className="col-span-1 text-right cursor-pointer select-none hover:text-accent" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('fleet')}>Fleet {getSortIcon('fleet')}</div>
+              <div className="col-span-1 text-right cursor-pointer select-none hover:text-accent" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('routes')}>Routes {getSortIcon('routes')}</div>
               <div className="col-span-1 text-right text-muted cursor-default">Action</div>
             </div>
 
@@ -877,7 +878,7 @@ function CompetitorsViewImpl({
                         airline.isPlayer
                           ? 'bg-accent/5 border-l-2 border-l-accent'
                           : 'hover:bg-raised'
-                      }`}
+                      }`} role="button" tabIndex={0} onKeyDown={clickOnKey}
                       onClick={() => setSelectedAirlineId(airline.id)}
                     >
                       {/* Row Summary */}

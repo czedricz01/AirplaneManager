@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo } from 'react';
 import { Airport, getAirportStats } from '../data/airports';
 // One shared list. This module used to build its own, letting moreAirports
@@ -229,7 +230,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
                   <tr
                     key={`${airport.id}-${firstVisible + idx}`}
                     title={lock ?? undefined}
-                    className={`border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer ${lock ? 'opacity-60' : ''}`}
+                    className={`border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer ${lock ? 'opacity-60' : ''}`} tabIndex={0} onKeyDown={clickOnKey}
                     onClick={() => onSelectAirport?.(airport)}
                   >
                     <Td className="pl-3 font-mono font-medium text-ink">

@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useMemo, useState, useEffect } from 'react';
 import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
@@ -681,7 +682,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                         const hasCustom = !!imagesMap[safeName];
                         return (
                           <div
-                            key={a.id}
+                            key={a.id} role="button" tabIndex={0} onKeyDown={clickOnKey}
                             onClick={() => {
                               setSelectedAircraft(a);
                               setSingleImageFile(null);
@@ -736,7 +737,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                         
                         {/* Area triggers local upload picker */}
                         <div 
-                          id="single-image-drag-area"
+                          id="single-image-drag-area" role="button" tabIndex={0} onKeyDown={clickOnKey}
                           onClick={() => {
                             const el = document.getElementById('single-image-file-input');
                             if (el) el.click();
@@ -906,7 +907,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                 <div className="flex-1 flex flex-col min-w-0">
                                 <div className="flex justify-between items-start mb-2">
                                   <h5 
-                                    className="font-semibold text-xl cursor-pointer hover:text-accent flex items-center gap-2 transition-colors truncate"
+                                    className="font-semibold text-xl cursor-pointer hover:text-accent flex items-center gap-2 transition-colors truncate" role="button" tabIndex={0} onKeyDown={clickOnKey}
                                     onClick={() => setExpandedPlaneId(expandedPlaneId === plane.id ? null : plane.id)}
                                     title="Click to view details"
                                   >

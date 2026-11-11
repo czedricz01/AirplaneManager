@@ -2986,7 +2986,7 @@ export default function App() {
                   onClick={() => setSelectedMessage(null)}
                   className="bg-accent text-on-accent hover:bg-ink hover:text-on-accent px-3 py-2.5 text-xs uppercase font-semibold tracking-label transition-all"
                 >
-                  Acknowledge Dispatch
+                  OK
                 </button>
               </div>
             </div>

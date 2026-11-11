@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useMemo } from 'react';
 import { formatCurrency, formatNumber, yearOf } from '../lib/format';
 import { Airport, getAirportStats } from '../data/airports';
@@ -245,7 +246,7 @@ export function AirportDetailView({
           <Metric label="Tourism" value={formatNumber(getAirportStats(airport, currentYear).tourism)} />
           <Metric label="Weekly Seats" value={formatNumber(passengerData.total)} />
           <div className="flex flex-col relative group min-w-[100px]">
-            <span className="text-muted text-2xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-ink transition-colors" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>
+            <span className="text-muted text-2xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-ink transition-colors" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setShowCostBreakdown(!showCostBreakdown)}>
               Weekly Costs <Info size={8} />
             </span>
             <span className="text-xs font-semibold text-accent">{formatCurrency(weeklyExpenses)}</span>

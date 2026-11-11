@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { Plane, ChevronRight, Map as MapIcon, Search, Plus, Minus, Check, ChevronDown, ChevronUp, Save, FolderOpen, AlertTriangle, Eye, EyeOff, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
@@ -692,7 +693,7 @@ function RoutePlannerInner({
 
     return (
       <div 
-        key={ac.registration}
+        key={ac.registration} role="button" tabIndex={0} onKeyDown={clickOnKey}
         onClick={() => setSelectedReg(ac.registration)}
         className={`p-3 border border-line bg-ground/40 hover:bg-accent/20 hover:border-accent/50 cursor-pointer flex gap-4 ${isHidden ? 'opacity-60 hover:opacity-100' : ''}`}
       >
@@ -1709,7 +1710,7 @@ function RoutePlannerInner({
                         const available = Math.max(0, totalSlots - rentedSlots - aiSlotsUsed);
                         return (
                           <div 
-                            key={a.id} 
+                            key={a.id} role="button" tabIndex={0} onKeyDown={clickOnKey} 
                             onClick={() => setOriginId(a.id)}
                             className="p-3 border border-line bg-surface hover:bg-accent/10 hover:border-accent/50 cursor-pointer flex justify-between items-center"
                           >
@@ -2079,7 +2080,7 @@ function RoutePlannerInner({
 
                       return (
                         <div 
-                          key={a.id} 
+                          key={a.id} role="button" tabIndex={0} onKeyDown={clickOnKey} 
                           onClick={() => setDestId(a.id)}
                           className="p-3 border border-line bg-surface hover:bg-accent/10 hover:border-accent/50 cursor-pointer flex justify-between items-center group"
                         >
@@ -2148,7 +2149,7 @@ function RoutePlannerInner({
                   {selectedOrigin && selectedDest && (
                     <div className="mb-2 p-3 border border-accent/20 bg-accent/5 rounded-sm">
                       <div 
-                        className={`flex justify-between items-center ${debugMode ? 'cursor-pointer' : ''}`}
+                        className={`flex justify-between items-center ${debugMode ? 'cursor-pointer' : ''}`} role="button" tabIndex={0} onKeyDown={clickOnKey}
                         onClick={() => debugMode && setShowDemandDebug(!showDemandDebug)}
                       >
                         <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-1.5">
@@ -2397,7 +2398,7 @@ function RoutePlannerInner({
                          </button>
                        </div>
                     </div>
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => setMaximizeFlights(!maximizeFlights)}>
+                    <div className="flex items-center gap-2 cursor-pointer bar:min-h-11 short:min-h-11" role="switch" aria-checked={maximizeFlights} tabIndex={0} onKeyDown={clickOnKey} onClick={() => setMaximizeFlights(!maximizeFlights)}>
                        <span className="text-2xs font-semibold uppercase tracking-label text-muted hover:text-ink transition-colors">Max Flights</span>
                        <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-accent border-accent text-on-accent' : 'border-rule'}`}>
                          {maximizeFlights && <Check className="w-2 h-2" />}
@@ -3038,9 +3039,9 @@ function RoutePlannerInner({
 
                           return (
                              <div 
-                               key={c}
+                               key={c} role="button" tabIndex={0} onKeyDown={clickOnKey}
                                onClick={() => setActiveConfigClass(c)}
-                               className={`group relative flex flex-col items-center justify-center p-4 border transition-all cursor-pointer min-h-[220px] overflow-hidden rounded-sm ${
+                               className={`group relative flex flex-col items-center justify-center p-3 border transition-all cursor-pointer min-h-[220px] min-w-[136px] overflow-hidden rounded-sm ${
                                   activeConfigClass === c 
                                      ? 'bg-accent border-accent text-on-accent scale-[1.02] z-10' 
                                      : 'bg-surface border-line text-ink hover:border-accent/50 hover:bg-raised'
@@ -3417,7 +3418,7 @@ function RoutePlannerInner({
                            </div>
                            <div className="flex flex-col border-b border-line pb-2">
                              <div 
-                               className="flex justify-between items-end cursor-pointer group"
+                               className="flex justify-between items-end bar:items-center cursor-pointer group bar:min-h-11 short:min-h-11" role="button" tabIndex={0} onKeyDown={clickOnKey}
                                onClick={() => setExpandedSections(prev => ({ ...prev, fuel4: !prev.fuel4 }))}
                              >
                                <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
@@ -3455,7 +3456,7 @@ function RoutePlannerInner({
                              <span className="text-sm font-mono text-muted">-{formatCurrency(displayFinancials.costsBreakdown.catering)}</span>
                            </div>
                              <div 
-                               className="flex justify-between items-end cursor-pointer group"
+                               className="flex justify-between items-end bar:items-center cursor-pointer group bar:min-h-11 short:min-h-11" role="button" tabIndex={0} onKeyDown={clickOnKey}
                                onClick={() => setExpandedSections(prev => ({ ...prev, crew4: !prev.crew4 }))}
                              >
                                 <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
@@ -3481,7 +3482,7 @@ function RoutePlannerInner({
                              )}
                            <div className="flex flex-col border-b border-line pb-2">
                              <div 
-                               className="flex justify-between items-end cursor-pointer group"
+                               className="flex justify-between items-end bar:items-center cursor-pointer group bar:min-h-11 short:min-h-11" role="button" tabIndex={0} onKeyDown={clickOnKey}
                                onClick={() => setExpandedSections(prev => ({ ...prev, infra4: !prev.infra4 }))}
                              >
                                <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
@@ -3568,7 +3569,7 @@ function RoutePlannerInner({
                            <h3 className="font-label text-xl font-semibold text-ink mb-2">Configure Pricing</h3>
                            {debugMode && (
                              <div 
-                                className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2 cursor-pointer border border-line px-2 py-1 bg-ground/40 hover:bg-raised"
+                                className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2 cursor-pointer border border-line px-2 py-1 bg-ground/40 hover:bg-raised" role="button" tabIndex={0} onKeyDown={clickOnKey}
                                 onClick={() => setShowPricingDebug(!showPricingDebug)}
                              >
                                 <Search size={12} /> Base P. <span className="text-2xs bg-raised px-1 py-0.5 rounded-sm">Debug</span>

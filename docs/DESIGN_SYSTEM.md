@@ -116,7 +116,7 @@ keine Laufzeitfehler, kein horizontales Scrollen der Seite, am Handy keine Bedie
 | 1 | Anmeldung (`AuthGate`) | ✔ neu gebaut | ✔ | ✔ | ✔ |
 | 2 | Hauptmenü | ✔ neu gebaut | ✔ | ✔ | ✔ |
 | 3 | Neues Spiel (mit Szenario-, Farb- und Hub-Auswahl) | ✔ | ✔ | ✔ | ✔ |
-| 4 | Speichern / Laden | ✔ | Tokens | Tokens | Tokens |
+| 4 | Speichern / Laden | ✔ | ✔ Speichern | ✔ Speichern | ✔ Speichern |
 | 5 | Einstellungen | ✔ neu gebaut | ✔ | ✔ | ✔ |
 | 6 | Karte mit oberer Leiste und Navigation | ✔ neu gebaut | ✔ | ✔ | ✔ |
 | 7 | Buy aircraft (Katalog, Bestellbuch, Gebrauchtmarkt) | ✔ | ✔ Ablauf | ✔ Ablauf | ✔ Ablauf |
@@ -130,20 +130,31 @@ keine Laufzeitfehler, kein horizontales Scrollen der Seite, am Handy keine Bedie
 | 15 | Career | ✔ | ✔ | ✔ | ✔ |
 | 16 | Rivals | ✔ | ✔ | ✔ | ✔ |
 | 17 | Route planner, Schritte 1–4 | ✔ | ✔ Ablauf | ✔ Ablauf | ✔ Ablauf |
-| 18 | Schedule-Editor | ✔ | Tokens | Tokens | Tokens |
-| 19 | Kabinen- und Preis-Editor | ✔ | Tokens | Tokens | Tokens |
-| 20 | Change aircraft | ✔ | Tokens | Tokens | Tokens |
+| 18 | Schedule-Editor | ✔ | ✔ | ✔ | ✔ |
+| 19 | Kabinen- und Preis-Editor | ✔ | ✔ | ✔ | ✔ |
+| 20 | Change aircraft | ✔ | ✔ | ✔ | ✔ |
 | 21 | Monatsbericht | ✔ | ✔ Ablauf | ✔ Ablauf | ✔ Ablauf |
 | 22 | Zeitung | ✔ (eigenes Papier-Design bleibt) | ✔ Ablauf | ✔ Ablauf | ✔ Ablauf |
 | 23 | Tutorial | ✔ | ✔ erster Schritt | ✔ | ✔ |
-| 24 | Dialoge (Entscheidungen, Hinweise, Ruhestand, Jahresziele, Szenario-Ergebnis) | ✔ | Tokens | Tokens | Tokens |
-| 25 | Nachrichten, Kartenoptionen, Spielmenü | ✔ neu gebaut | Tokens | Tokens | Tokens |
+| 24 | Dialoge (Entscheidungen, Hinweise, Ruhestand, Jahresziele, Szenario-Ergebnis) | ✔ | ✔ Hinweis, Nachricht | ✔ Hinweis, Nachricht | ✔ Hinweis, Nachricht |
+| 25 | Nachrichten, Kartenoptionen, Spielmenü | ✔ neu gebaut | ✔ | ✔ | ✔ |
 | 26 | Lade- und Fehlerzustand, Leerzustand | ✔ | ✔ | ✔ | ✔ |
 
-„Tokens" heißt: Die Ansicht ist vollständig auf Tokens und Basis-Komponenten umgestellt und baut fehlerfrei,
-wurde im Browser aber nicht eigens geöffnet, weil ihr Auslöser im automatischen Ablauf nicht vorkommt
-(z. B. ein Streik, ein Flugzeugtausch, das Bearbeiten eines bestehenden Flugplans).
-Diese Ansichten sind der Rest, der noch von Hand angesehen werden sollte.
+Wo eine Zelle nur einen Teil nennt, wurde nur dieser Teil im Browser geöffnet. Nicht geöffnet wurden:
+der Laden-Dialog (gleiche Komponente wie Speichern), die Tabs Marketing, Staff und History in My company und
+die Dialoge, deren Auslöser im automatischen Ablauf nicht vorkommt (Streik, Betriebsstörung, Weltereignis,
+Ruhestand, Jahresziele, Szenario-Ergebnis). Sie verwenden dieselben Tokens und dieselbe `Modal`-Komponente
+und bauen fehlerfrei, sollten aber einmal von Hand angesehen werden.
+
+## Tastatur
+
+- Jede klickbare Fläche, die kein `<button>` ist (Karten, Tabellenzeilen, aufklappbare Zeilen, Zeitplan-Blöcke),
+  ist mit der Tabulatortaste erreichbar und reagiert auf Enter und Leertaste (`clickOnKey` in `src/lib/a11y.ts`).
+- Der Fokus ist überall sichtbar (2 px Akzent-Umriss, `:focus-visible` in `index.css`).
+- Dialoge schließen mit Escape.
+
+Ausnahme bei den Touch-Zielen: Die Flugblöcke im Wochen-Zeitplan sind am Handy rund 37 px breit, weil sieben
+Tagesspalten auf 360 px passen müssen. Ihre Höhe folgt der Flugdauer.
 
 ## Reste des alten Designs
 

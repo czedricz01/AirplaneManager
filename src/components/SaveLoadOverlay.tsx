@@ -1,4 +1,5 @@
 /** The save and load dialog: the list of savegames, with overwrite and delete confirmations. */
+import { clickOnKey } from '../lib/a11y';
 import { useState } from 'react';
 import { AlertTriangle, ChevronRight, Trash2, X } from 'lucide-react';
 import type { SaveMetadata } from '../lib/cloudSaves';
@@ -56,7 +57,7 @@ export function SaveLoadOverlay({
         className="bg-surface border border-line w-full max-w-lg overflow-hidden flex flex-col animate-appear"
       >
         <div className="p-4 border-b border-line flex justify-between items-center bg-ground/40">
-           <h2 className="font-label text-ink font-semibold uppercase tracking-label text-2xs">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
+           <h2 className="font-label text-ink font-semibold text-lg">{mode === 'save' ? 'Save game' : 'Load game'}</h2>
            <button onClick={onClose} className="text-muted hover:text-ink"><X size={20}/></button>
         </div>
 
@@ -64,12 +65,12 @@ export function SaveLoadOverlay({
           <div className="grid gap-2 mb-3">
             {saves.length === 0 ? (
               <div className="text-muted font-label text-xs p-12 text-center border border-dashed border-line uppercase tracking-label">
-                No telemetry archives discovered
+                No savegames yet
               </div>
             ) : (
               [...saves].sort((a, b) => b.timestamp - a.timestamp).map(slot => (
                 <div 
-                  key={slot.id}
+                  key={slot.id} role="button" tabIndex={0} onKeyDown={clickOnKey}
                   onClick={() => {
                     setSelectedSlot(slot.id);
                     if (mode === 'save') setSaveName(slot.name);
@@ -98,12 +99,12 @@ export function SaveLoadOverlay({
             <div className="space-y-4">
               <div className="h-px bg-raised"></div>
               <div className="space-y-2">
-                <label className="text-2xs uppercase font-semibold tracking-label text-muted">Archive_name_input</label>
+                <label className="text-2xs uppercase font-semibold tracking-label text-muted">Name</label>
                 <input 
                   type="text" 
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
-                  placeholder="Designate save archive..."
+                  placeholder="Name of the savegame"
                   className="w-full bg-ground border border-line p-4 text-ink text-sm focus:outline-none focus:border-accent/50 transition-all placeholder:text-muted"
                 />
               </div>
@@ -137,8 +138,8 @@ export function SaveLoadOverlay({
                     <AlertTriangle className="text-accent" size={64} />
                  </div>
                  <div className="space-y-2">
-                   <h3 className="font-label text-ink text-xl font-semibold">Overwrite Archive?</h3>
-                   <p className="text-muted text-sm">Initializing this sequence will permanently erase the prior telemetry state for "{saves.find(s => s.id === selectedSlot)?.name}".</p>
+                   <h3 className="font-label text-ink text-xl font-semibold">Overwrite this savegame?</h3>
+                   <p className="text-muted text-sm">This replaces the savegame "{saves.find(s => s.id === selectedSlot)?.name}".</p>
                  </div>
                  <div className="flex gap-4 w-full">
                    <button 
@@ -167,8 +168,8 @@ export function SaveLoadOverlay({
                     <Trash2 className="text-accent" size={64} />
                  </div>
                  <div className="space-y-2">
-                   <h3 className="font-label text-ink text-xl font-semibold">Erase Archive?</h3>
-                   <p className="text-muted text-sm">Are you sure you want to delete this telemetry archive? This action cannot be undone.</p>
+                   <h3 className="font-label text-ink text-xl font-semibold">Delete this savegame?</h3>
+                   <p className="text-muted text-sm">It is deleted for good and cannot be restored.</p>
                  </div>
                  <div className="flex gap-4 w-full">
                    <button 

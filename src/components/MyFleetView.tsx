@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo } from 'react';
 import { Aircraft } from '../data/aircraft';
 import { Search, ChevronDown, ChevronUp, LayoutGrid, List, Plane, Layers, MapPin, Wrench, ShieldAlert, Boxes, X, ChevronRight } from 'lucide-react';
@@ -365,7 +366,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         </div>
 
         {/* Condition Alert KPI Card */}
-        <div
+        <div role="button" tabIndex={0} onKeyDown={clickOnKey}
           onClick={() => setFilterAlertsOnly(!filterAlertsOnly)}
           className={`px-3 py-2 bar:px-2 short:px-2 bar:py-1.5 short:py-1 rounded-sm cursor-pointer transition-all ${
             summaryStats.alertsCount > 0
@@ -434,7 +435,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                 return (
                   <div
-                    key={m.modelKey}
+                    key={m.modelKey} role="button" tabIndex={0} onKeyDown={clickOnKey}
                     onClick={() => setSelectedModel({ modelKey: m.modelKey, manufacturer: m.manufacturer, type: m.type, items: m.items })}
                     className={`border rounded-sm overflow-hidden flex flex-col hover:border-accent transition-all duration-300 group cursor-pointer relative ${
                       hasAlert
@@ -580,7 +581,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                     return (
                       <div
-                        key={plane.registration}
+                        key={plane.registration} role="button" tabIndex={0} onKeyDown={clickOnKey}
                         onClick={() => setSelectedPlane(plane)}
                         className={`rounded-sm overflow-hidden flex flex-col hover:border-accent/60 transition-all duration-300 group cursor-pointer relative ${
                           critical
@@ -720,27 +721,27 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                     <thead>
                       <tr className="border-b border-accent/30 text-muted uppercase tracking-label text-2xs bg-surface">
                         <th className="py-3 pl-3 w-16">Image</th>
-                        <th className="py-3 pl-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('registration')}>
+                        <th className="py-3 pl-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('registration')}>
                           Reg {getSortIcon('registration')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('type')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('type')}>
                           Type {getSortIcon('type')}
                         </th>
                         <th className="py-3">Hub</th>
-                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('maxRange')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('maxRange')}>
                           Range {getSortIcon('maxRange')}
                         </th>
                         <th className="py-3">Pax Config</th>
-                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('efficiency')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('efficiency')}>
                           Eff.<InfoTooltip size={11} {...GLOSSARY.efficiency} /> {getSortIcon('efficiency')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('popularity')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('popularity')}>
                           Comb. Sat<InfoTooltip size={11} {...GLOSSARY.sat} /> {getSortIcon('popularity')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('conditionInterior')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('conditionInterior')}>
                           Int. Cond<InfoTooltip size={11} {...GLOSSARY.conditionInterior} /> {getSortIcon('conditionInterior')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-accent" onClick={() => toggleSort('conditionGeneral')}>
+                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('conditionGeneral')}>
                           Gen. Cond<InfoTooltip size={11} {...GLOSSARY.conditionGeneral} /> {getSortIcon('conditionGeneral')}
                         </th>
                         <th className="py-3">Status</th>
@@ -756,7 +757,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                         return (
                           <tr
-                            key={plane.registration}
+                            key={plane.registration} tabIndex={0} onKeyDown={clickOnKey}
                             onClick={() => setSelectedPlane(plane)}
                             className={`border-b transition-colors cursor-pointer ${
                               critical
@@ -871,7 +872,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
                   return (
                     <div
-                      key={plane.registration}
+                      key={plane.registration} role="button" tabIndex={0} onKeyDown={clickOnKey}
                       onClick={() => setSelectedPlane(plane)}
                       className={`border rounded-sm p-3 flex flex-col justify-between cursor-pointer transition-all group ${
                         critical

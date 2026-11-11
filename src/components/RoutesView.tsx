@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo } from 'react';
 import { formatMoneyCompact, routeFlightNumber } from '../lib/format';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
@@ -163,7 +164,7 @@ const RouteRow = React.memo(function RouteRow({
   };
 
   return (
-    <tr
+    <tr tabIndex={0} onKeyDown={clickOnKey}
       onClick={() => onSelect(route)}
       className="border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer"
     >

@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo, useEffect } from 'react';
 import { formatCurrency, formatNumber, yearOf } from '../lib/format';
 import { getPlaneSat } from '../lib/financeUtils';
@@ -1069,25 +1070,25 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                       {/* Zones container */}
                       <div className="relative flex-1 flex ml-[12%] sm:ml-[13%] mr-[12%] sm:mr-[15%] my-0 rounded-none overflow-hidden bg-ground/5 border border-ground">
                          {pFirst > 0 && (
-                           <div style={{ width: `${pFirst}%` }} className="group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors" onClick={() => setSelectedClass('first')} {...zonePointer('first')}>
+                           <div style={{ width: `${pFirst}%` }} className="group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('first')} {...zonePointer('first')}>
                               <SeatBlock count={firstSeats} cls="first" type={firstType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'first' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>First</span>
                            </div>
                          )}
                          {pBiz > 0 && (
-                           <div style={{ width: `${pBiz}%` }} className={`group bg-surface relative overflow-visible flex items-center justify-center border-r border-line cursor-pointer hover:bg-raised transition-colors`} onClick={() => setSelectedClass('business')} {...zonePointer('business')}>
+                           <div style={{ width: `${pBiz}%` }} className={`group bg-surface relative overflow-visible flex items-center justify-center border-r border-line cursor-pointer hover:bg-raised transition-colors`} role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('business')} {...zonePointer('business')}>
                               <SeatBlock count={bizSeats} cls="business" type={bizType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'business' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>Business</span>
                            </div>
                          )}
                          {pPrem > 0 && (
-                           <div style={{ width: `${pPrem}%` }} className={`group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors`} onClick={() => setSelectedClass('premium')} {...zonePointer('premium')}>
+                           <div style={{ width: `${pPrem}%` }} className={`group bg-accent/20 relative overflow-visible flex items-center justify-center border-r border-accent/50 cursor-pointer hover:bg-accent/40 transition-colors`} role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('premium')} {...zonePointer('premium')}>
                               <SeatBlock count={premSeats} cls="premium" type={premType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'premium' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>Premium</span>
                            </div>
                          )}
                          {pEco > 0 && (
-                           <div style={{ width: `${pEco}%` }} className={`group bg-raised/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-raised/40 transition-colors`} onClick={() => setSelectedClass('economy')} {...zonePointer('economy')}>
+                           <div style={{ width: `${pEco}%` }} className={`group bg-raised/20 relative overflow-visible flex items-center justify-center cursor-pointer hover:bg-raised/40 transition-colors`} role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('economy')} {...zonePointer('economy')}>
                               <SeatBlock count={ecoSeats} cls="economy" type={ecoType} acClass={aircraft.class} />
                               <span className={`font-mono text-xs font-semibold text-ink absolute ${shownZone === 'economy' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity mix-blend-overlay z-10 pointer-events-none`}>Economy</span>
                            </div>
@@ -1121,14 +1122,14 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
              {/* Configuration Mode Switcher */}
              <div className="flex gap-2 md:gap-4 w-full max-w-4xl relative z-10 mb-3 short:mb-2 shrink-0 justify-center">
                 <div 
-                  id="general-settings-btn"
+                  id="general-settings-btn" role="button" tabIndex={0} onKeyDown={clickOnKey}
                   onClick={() => setActiveConfigTab('general')} 
                   className={`px-4 py-3 rounded-sm font-semibold uppercase tracking-label text-2xs cursor-pointer transition-all border ${activeConfigTab === 'general' ? 'bg-accent text-on-accent border-accent' : 'bg-ground/40 text-muted border-line hover:border-rule'}`}
                 >
                    General Settings
                 </div>
                 <div 
-                  id="class-settings-btn"
+                  id="class-settings-btn" role="button" tabIndex={0} onKeyDown={clickOnKey}
                   onClick={() => setActiveConfigTab('classes')} 
                   className={`px-4 py-3 rounded-sm font-semibold uppercase tracking-label text-2xs cursor-pointer transition-all border ${activeConfigTab === 'classes' ? 'bg-accent text-on-accent border-accent' : 'bg-ground/40 text-muted border-line hover:border-rule'}`}
                 >
@@ -1140,22 +1141,22 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                <>
                  {/* Clickable Stats Grid */}
              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 short:gap-1.5 w-full max-w-4xl relative z-10 mb-4 short:mb-2 shrink-0">
-                <div onClick={() => setSelectedClass('first')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'first' ? 'border-accent bg-accent/10' : 'border-accent/20 hover:border-accent/50'}`}>
+                <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('first')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'first' ? 'border-accent bg-accent/10' : 'border-accent/20 hover:border-accent/50'}`}>
                   <div className="text-accent text-2xl short:text-lg font-semibold">{firstSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">First Class</div>
                   <div className="text-2xs bg-accent/20 text-accent px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getFirstPop())}%</div>
                 </div>
-                <div onClick={() => setSelectedClass('business')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'business' ? 'border-rule bg-surface' : 'border-line hover:border-line'}`}>
+                <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('business')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'business' ? 'border-rule bg-surface' : 'border-line hover:border-line'}`}>
                   <div className="text-ink text-2xl short:text-lg font-semibold">{bizSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">Business</div>
                   <div className="text-2xs bg-surface text-ink px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getBizPop())}%</div>
                 </div>
-                <div onClick={() => setSelectedClass('premium')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'premium' ? 'border-accent bg-accent/10' : 'border-accent/20 hover:border-accent/50'}`}>
+                <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('premium')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'premium' ? 'border-accent bg-accent/10' : 'border-accent/20 hover:border-accent/50'}`}>
                   <div className="text-accent text-2xl short:text-lg font-semibold">{premSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">Premium Eco</div>
                   <div className="text-2xs bg-accent/20 text-accent px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getPremPop())}%</div>
                 </div>
-                <div onClick={() => setSelectedClass('economy')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-rule bg-raised/10' : 'border-rule hover:border-rule'}`}>
+                <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('economy')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-rule bg-raised/10' : 'border-rule hover:border-rule'}`}>
                   <div className="text-muted text-2xl short:text-lg font-semibold">{ecoSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">Economy</div>
                   <div className="text-2xs bg-raised/20 text-muted px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getEcoPop())}%</div>
@@ -1491,7 +1492,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                     const c = preset.config;
                     const totalSeats = (c.first || 0) + (c.business || 0) + (c.premium || 0) + (c.economy || 0);
                     return (
-                      <div key={preset.id} className="bg-accent/5 border border-accent/20 p-4 flex justify-between items-center hover:bg-accent/10 transition-colors cursor-pointer group" onClick={() => handleLoadConfig(preset)}>
+                      <div key={preset.id} className="bg-accent/5 border border-accent/20 p-4 flex justify-between items-center hover:bg-accent/10 transition-colors cursor-pointer group" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => handleLoadConfig(preset)}>
                         <div>
                           <div className="font-semibold text-ink mb-1 uppercase tracking-label flex items-center gap-2">
                             {preset.name}
@@ -1532,7 +1533,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 const c = plane.config;
                 const totalSeats = (c.first || 0) + (c.business || 0) + (c.premium || 0) + (c.economy || 0);
                 return (
-                  <div key={plane.id + index} className="bg-surface border border-line p-4 flex justify-between items-center hover:border-accent/50 hover:bg-raised transition-colors cursor-pointer group" onClick={() => handleLoadConfig(plane)}>
+                  <div key={plane.id + index} className="bg-surface border border-line p-4 flex justify-between items-center hover:border-accent/50 hover:bg-raised transition-colors cursor-pointer group" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => handleLoadConfig(plane)}>
                     <div>
                       <div className="font-semibold text-ink mb-1 uppercase tracking-label flex items-center gap-2">
                         {plane.registration}

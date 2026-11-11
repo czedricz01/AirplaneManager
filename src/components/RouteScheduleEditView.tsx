@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
@@ -593,7 +594,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setMaximizeFlights(!maximizeFlights)} title="Fill the aircraft's free week with as many round trips as the slots allow">
+              <div className="flex items-center gap-2 cursor-pointer bar:min-h-11 short:min-h-11" role="switch" aria-checked={maximizeFlights} tabIndex={0} onKeyDown={clickOnKey} onClick={() => setMaximizeFlights(!maximizeFlights)} title="Fill the aircraft's free week with as many round trips as the slots allow">
                 <span className="text-2xs font-semibold text-muted hover:text-ink transition-colors whitespace-nowrap">Max Flights</span>
                 <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-accent border-accent text-on-accent' : 'border-rule'}`}>
                   {maximizeFlights && <Check className="w-2 h-2" />}
@@ -770,7 +771,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                                  if (!b.isBusy) {
                                      handleDragStart(e);
                                  }
-                              }}
+                              }} role="button" tabIndex={0} onKeyDown={clickOnKey}
                               onClick={(e) => {
                                  if (!b.isBusy && e.ctrlKey) removeTrips(runOf(b.s, schedule));
                               }}
