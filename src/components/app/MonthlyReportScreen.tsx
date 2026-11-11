@@ -1,5 +1,4 @@
 /** The screen after a month closes: the financial report, incidents and the way back to the game. */
-import { motion } from 'motion/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import React from 'react';
 import type { Edition } from '../../lib/newspaper';
@@ -28,31 +27,28 @@ export function MonthlyReportScreen({
 }: MonthlyReportScreenProps) {
   return (
     <>
-              <motion.div
+              <div
                 key="monthly-overview"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start bg-aero-black relative p-12 bar:p-3 short:p-3"
+                className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start bg-ground relative p-12 bar:p-3 short:p-3 animate-appear"
               >
                 {/* Centred with auto margins, not justify-center, which cut the top
                     off whenever the report was taller than the screen. On phones
                     the whole page scrolls as one, rather than the report scrolling
                     inside it, and the buttons stay pinned to the bottom. */}
                 <div className="max-w-4xl w-full my-auto" data-tour="monthly-report">
-                  <div className="border-b border-white/10 pb-6 mb-6 bar:pb-3 bar:mb-3 short:pb-2 short:mb-2">
-                    <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2 short:hidden">Operation: Execution</span>
-                    <h2 className="text-5xl bar:text-3xl short:text-2xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
+                  <div className="border-b border-line pb-6 mb-6 bar:pb-3 bar:mb-3 short:pb-2 short:mb-2">
+                    <h2 className="font-label text-2xl short:text-xl font-semibold">Monthly report</h2>
                     {/* The report covers the month that just ended, not the one the clock
                         has already advanced to, so label it from the report itself. */}
-                    <p className="text-white/60 font-mono mt-4 bar:mt-2 short:mt-1 font-bold text-xl bar:text-sm short:text-sm">
+                    <p className="text-muted font-mono mt-4 bar:mt-2 short:mt-1 font-semibold text-xl bar:text-sm short:text-sm">
                       {latestReport
                         ? `${latestReport.month.toString().padStart(2, '0')}/${latestReport.year}`
                         : formatDate(currentDateOffset)} - {airlineName || 'Neo Airlines'} ({airlineCode || 'NX'})
                     </p>
                   </div>
                   
-                  <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible custom-scrollbar pr-4 bar:pr-0 short:pr-0">
-                   <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="CONTINUE">
+                  <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible pr-4 bar:pr-0 short:pr-0">
+                   <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="Continue">
                     <React.Suspense fallback={<LazyFallback label="Monthly Report" />}>
                     {latestReport ? (
                       <>
@@ -171,16 +167,16 @@ export function MonthlyReportScreen({
                       {/* Operating profit and the change in the bank balance are
                           different numbers whenever anything was bought. Stating
                           both, next to each other, is what makes the report add up. */}
-                      <div className="mt-4 flex items-center justify-between border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs">
-                        <span className="uppercase tracking-widest text-white/40 font-bold">Cash change this month</span>
-                        <span className={(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? 'text-aero-good font-bold' : 'text-aero-warn font-bold'}>
+                      <div className="mt-4 flex items-center justify-between border border-line bg-ground/30 px-4 py-3 text-xs">
+                        <span className="uppercase tracking-label text-muted font-semibold">Cash change this month</span>
+                        <span className={(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? 'text-good font-semibold' : 'text-bad font-semibold'}>
                           {(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? '+' : ''}
                           {formatCurrency(latestReport.cashChange ?? latestReport.totalProfit)}
                         </span>
                       </div>
                       </>
                     ) : (
-                      <div className="h-64 flex items-center justify-center text-white/40">
+                      <div className="h-64 flex items-center justify-center text-muted">
                         No financial data available for this month.
                       </div>
                     )}
@@ -188,26 +184,26 @@ export function MonthlyReportScreen({
                    </ErrorBoundary>
                   </div>
 
-                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3 bar:flex-row bar:gap-2 short:gap-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:bg-aero-black short:bg-aero-black bar:py-2 short:py-2 bar:border-t short:border-t border-white/10">
+                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3 bar:flex-row bar:gap-2 short:gap-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:bg-ground short:bg-ground bar:py-2 short:py-2 bar:border-t short:border-t border-line">
                     {edition && (
                       <button
                         type="button"
                         onClick={() => setIsNewspaperOpen(true)}
-                        className="flex items-center justify-center gap-2 border border-white/15 text-white/70 px-4 py-4 bar:py-2.5 short:py-2 bar:px-3 bar:text-xs short:text-xs font-bold uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all w-full md:w-auto"
+                        className="flex items-center justify-center gap-2 border border-line text-muted px-4 py-4 bar:py-2.5 short:py-2 bar:px-3 bar:text-xs short:text-xs font-semibold uppercase tracking-label hover:border-accent hover:text-ink transition-all w-full md:w-auto"
                       >
                         <Newspaper size={18} /> Read the newspaper
                       </button>
                     )}
                     <button 
                       onClick={() => setView('game')}
-                      className="group flex items-center justify-center md:justify-start bg-aero-yellow text-black px-4 py-4 bar:py-2.5 short:py-2 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto bar:flex-1 short:w-auto"
+                      className="group flex items-center justify-center md:justify-start bg-accent text-on-accent px-4 py-4 bar:py-2.5 short:py-2 font-semibold uppercase tracking-label hover:bg-ink transition-all w-full md:w-auto bar:flex-1 short:w-auto"
                     >
                       Continue
                       <ChevronRight size={20} className="ml-4 group-hover:translate-x-1 transition-transform" />
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
     </>
   );
 }

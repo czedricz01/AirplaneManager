@@ -60,10 +60,10 @@ export function GameDialogs({
     <>
           {pendingDecision && !isNewspaperOpen && !scenarioResultOpen && (
             <Modal open size="lg" accent="warn" layer="top">
-              <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+              <h3 className="font-label text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                 <AlertTriangle size={22} /> {pendingDecision.title}
               </h3>
-              <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
+              <p className="text-2xs text-muted mb-4 leading-relaxed">
                 {pendingDecision.description} Running for {pendingDecision.duration} months.
               </p>
 
@@ -80,17 +80,17 @@ export function GameDialogs({
                         setEventChoices(prev => ({ ...prev, [eventKey(pendingDecision)]: choice.id }));
                         setPendingDecision(null);
                       }}
-                      className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
+                      className="w-full text-left p-3 border border-line bg-surface hover:border-accent hover:bg-raised transition-all disabled:opacity-40 disabled:hover:border-line disabled:cursor-not-allowed rounded-sm"
                     >
                       <div className="flex items-baseline justify-between gap-3 mb-1">
-                        <span className="font-black uppercase tracking-widest text-2xs text-white">{choice.label}</span>
-                        <span className={`font-mono text-2xs font-bold shrink-0 ${choice.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
+                        <span className="font-semibold uppercase tracking-label text-2xs text-ink">{choice.label}</span>
+                        <span className={`font-mono text-2xs font-semibold shrink-0 ${choice.cost > 0 ? 'text-accent' : 'text-good'}`}>
                           {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
                         </span>
                       </div>
-                      <p className="text-2xs font-mono text-white/50 leading-relaxed">{choice.detail}</p>
+                      <p className="text-2xs text-muted leading-relaxed">{choice.detail}</p>
                       {!affordable && (
-                        <p className="text-2xs font-mono text-aero-warn mt-1">
+                        <p className="text-2xs font-mono text-bad mt-1">
                           {formatCurrency(choice.cost - capital)} short.
                         </p>
                       )}
@@ -102,7 +102,7 @@ export function GameDialogs({
               <div className="flex justify-end mt-4">
                 <button
                   onClick={() => setPendingDecision(null)}
-                  className="px-3 py-2 text-white/40 hover:text-white text-2xs font-mono uppercase tracking-widest transition-colors bg-transparent border-0"
+                  className="px-3 py-2 text-muted hover:text-ink text-2xs font-label uppercase tracking-label transition-colors bg-transparent border-0"
                 >
                   Decide later (does nothing)
                 </button>
@@ -115,10 +115,10 @@ export function GameDialogs({
             const decision = pendingDecisions[0];
             return (
               <Modal open size="lg" accent="warn" layer="top">
-                <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+                <h3 className="font-label text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                   <AlertTriangle size={22} /> {decision.title}
                 </h3>
-                <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
+                <p className="text-2xs text-muted mb-4 leading-relaxed">
                   {decision.description}
                 </p>
 
@@ -131,17 +131,17 @@ export function GameDialogs({
                         type="button"
                         disabled={!affordable}
                         onClick={() => resolveDecision(decision.id, option.id)}
-                        className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
+                        className="w-full text-left p-3 border border-line bg-surface hover:border-accent hover:bg-raised transition-all disabled:opacity-40 disabled:hover:border-line disabled:cursor-not-allowed rounded-sm"
                       >
                         <div className="flex items-baseline justify-between gap-3 mb-1">
-                          <span className="font-black uppercase tracking-widest text-2xs text-white">{option.label}</span>
-                          <span className={`font-mono text-2xs font-bold shrink-0 ${option.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
+                          <span className="font-semibold uppercase tracking-label text-2xs text-ink">{option.label}</span>
+                          <span className={`font-mono text-2xs font-semibold shrink-0 ${option.cost > 0 ? 'text-accent' : 'text-good'}`}>
                             {option.cost > 0 ? formatCurrency(option.cost) : 'No cost'}
                           </span>
                         </div>
-                        <p className="text-2xs font-mono text-white/50 leading-relaxed">{option.detail}</p>
+                        <p className="text-2xs text-muted leading-relaxed">{option.detail}</p>
                         {!affordable && (
-                          <p className="text-2xs font-mono text-aero-warn mt-1">
+                          <p className="text-2xs font-mono text-bad mt-1">
                             {formatCurrency(option.cost - capital)} short.
                           </p>
                         )}
@@ -179,11 +179,11 @@ export function GameDialogs({
             return (
               <Modal open size="sm" accent="warn" layer="top" onClose={dismiss}>
                 <div role="alertdialog" aria-labelledby="bird-strike-title" aria-describedby="bird-strike-detail">
-                  <h3 id="bird-strike-title" className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
+                  <h3 id="bird-strike-title" className="font-label text-bad font-semibold text-lg mb-1 flex items-center gap-2">
                     <Bird size={22} aria-hidden="true" /> Bird strike
                   </h3>
-                  <p className="text-3xl font-mono font-black text-aero-warn tabular-nums my-3">{formatCurrency(-strike.cost)}</p>
-                  <p id="bird-strike-detail" className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
+                  <p className="text-3xl font-mono font-semibold text-bad tabular-nums my-3">{formatCurrency(-strike.cost)}</p>
+                  <p id="bird-strike-detail" className="text-2xs text-muted mb-4 leading-relaxed">
                     {strike.registration}{plane ? ` (${plane.manufacturer} ${plane.type})` : ''} hit a flock of birds{route ? ` on ${route.origin}-${route.destination}` : ''}.
                     The repair bill was deducted from your balance.
                   </p>
@@ -192,7 +192,7 @@ export function GameDialogs({
                       type="button"
                       autoFocus
                       onClick={dismiss}
-                      className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
+                      className="px-3 py-2 bg-raised hover:bg-raised text-ink font-semibold uppercase tracking-label transition-colors rounded-sm"
                     >
                       OK
                     </button>
@@ -218,25 +218,25 @@ export function GameDialogs({
             return (
               <Modal open size="lg" accent={won ? 'yellow' : 'warn'} layer="top">
                 <div role="alertdialog" aria-labelledby="scenario-result-title" aria-describedby="scenario-result-reason">
-                  <div className={`flex items-center gap-3 mb-2 ${won ? 'text-aero-yellow' : 'text-aero-warn'}`}>
+                  <div className={`flex items-center gap-3 mb-2 ${won ? 'text-accent' : 'text-bad'}`}>
                     {won ? <Trophy size={28} aria-hidden="true" /> : <AlertTriangle size={28} aria-hidden="true" />}
                     <div>
-                      <div className="text-3xs font-mono uppercase tracking-[0.3em] text-white/40">Scenario {won ? 'complete' : 'failed'}</div>
-                      <h3 id="scenario-result-title" className="font-black uppercase tracking-widest text-xl leading-tight">
+                      <div className="text-2xs font-label uppercase tracking-label text-muted">Scenario {won ? 'complete' : 'failed'}</div>
+                      <h3 id="scenario-result-title" className="font-label font-semibold text-xl leading-tight">
                         {decided.title}: {won ? 'you did it' : 'out of reach'}
                       </h3>
                     </div>
                   </div>
-                  <p id="scenario-result-reason" className="text-sm text-white/80 leading-relaxed mb-4">{scenario.result?.reason}</p>
+                  <p id="scenario-result-reason" className="text-sm text-ink leading-relaxed mb-4">{scenario.result?.reason}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
                     {stats.map(st => (
-                      <div key={st.label} className="border border-white/10 bg-white/[0.03] px-2 py-2">
-                        <div className="text-4xs font-mono uppercase tracking-widest text-white/40">{st.label}</div>
-                        <div className="text-sm font-mono font-bold text-white tabular-nums truncate">{st.value}</div>
+                      <div key={st.label} className="border border-line bg-surface px-2 py-2">
+                        <div className="text-2xs font-label uppercase tracking-label text-muted">{st.label}</div>
+                        <div className="text-sm font-mono font-semibold text-ink tabular-nums truncate">{st.value}</div>
                       </div>
                     ))}
                   </div>
-                  <p className="text-2xs font-mono text-white/40 mb-4 leading-relaxed">
+                  <p className="text-2xs text-muted mb-4 leading-relaxed">
                     {won
                       ? 'The result is written into your chronicle. Fly on without the scenario, or leave for the main menu.'
                       : 'The airline still flies: carry on without the scenario, or start it over.'}
@@ -247,7 +247,7 @@ export function GameDialogs({
                         <button
                           type="button"
                           onClick={() => { setScenarioResultOpen(false); setShowExitSavePrompt(true); }}
-                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
+                          className="px-3 py-2 border border-line text-muted hover:text-ink hover:border-rule font-label text-2xs uppercase tracking-label transition-colors"
                         >
                           Main menu
                         </button>
@@ -255,7 +255,7 @@ export function GameDialogs({
                           type="button"
                           autoFocus
                           onClick={() => setScenarioResultOpen(false)}
-                          className="px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
+                          className="px-3 py-2 bg-accent text-on-accent border border-accent hover:bg-ink hover:border-ink font-label text-2xs font-semibold uppercase tracking-label transition-colors"
                         >
                           Continue without the scenario
                         </button>
@@ -265,7 +265,7 @@ export function GameDialogs({
                         <button
                           type="button"
                           onClick={() => setScenarioResultOpen(false)}
-                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
+                          className="px-3 py-2 border border-line text-muted hover:text-ink hover:border-rule font-label text-2xs uppercase tracking-label transition-colors"
                         >
                           Continue without the scenario
                         </button>
@@ -276,7 +276,7 @@ export function GameDialogs({
                             const base = (currentSaveName || decided.title).replace(/\s*\((Autosave.*|retry)\)$/, '');
                             startNewGame(`${base} (retry)`, decided, branding);
                           }}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-accent text-on-accent border border-accent hover:bg-ink hover:border-ink font-label text-2xs font-semibold uppercase tracking-label transition-colors"
                         >
                           <RotateCcw size={14} aria-hidden="true" /> Try again
                         </button>
@@ -291,22 +291,22 @@ export function GameDialogs({
             <div
               role="status"
               aria-live="polite"
-              className="fixed top-16 left-1/2 -translate-x-1/2 z-[4000] flex items-center gap-2 bg-aero-panel-2 border border-aero-good/40 px-4 py-2 text-xs font-mono text-white/90 shadow-2xl pointer-events-none"
+              className="fixed top-16 left-1/2 -translate-x-1/2 z-[4000] flex items-center gap-2 bg-raised border border-good/40 px-4 py-2 text-xs text-ink pointer-events-none"
             >
-              <CheckCircle2 size={14} className="text-aero-good shrink-0" />
+              <CheckCircle2 size={14} className="text-good shrink-0" />
               {toast}
             </div>
           )}
           {appAlert && (
             <Modal open size="md" layer="top" onClose={() => setAppAlert(null)}>
-              <h3 className="text-aero-yellow font-black uppercase tracking-widest text-lg mb-4 flex items-center gap-2">
+              <h3 className="font-label text-ink font-semibold text-lg mb-4 flex items-center gap-2">
                 <AlertTriangle size={24} /> System Alert
               </h3>
-              <p className="text-white/80 mb-3">{appAlert}</p>
+              <p className="text-ink mb-3">{appAlert}</p>
               <div className="flex justify-end">
                 <button
                   onClick={() => setAppAlert(null)}
-                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
+                  className="px-3 py-2 bg-raised hover:bg-raised text-ink font-semibold uppercase tracking-label transition-colors rounded-sm"
                 >
                   OK
                 </button>

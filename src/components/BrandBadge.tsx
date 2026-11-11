@@ -48,7 +48,7 @@ export function BrandBadge({ branding, code, name, size = 32, className = '' }: 
 
   return (
     <span
-      className={`inline-flex items-center justify-center shrink-0 rounded-sm border border-black/40 shadow-lg font-mono font-black leading-none tracking-normal normal-case select-none ${className}`}
+      className={`inline-flex items-center justify-center shrink-0 rounded-sm border border-ground font-mono font-semibold leading-none normal-case select-none ${className}`}
       style={{ width: size, height: size, backgroundColor: bg, color: fg, fontSize: Math.round(size * (initials.length > 2 ? 0.3 : 0.4)) }}
       aria-label={`${initials || 'Airline'} badge`}
     >

@@ -12,15 +12,16 @@ const PADDING_CLASSES: Record<PanelPadding, string> = {
 interface PanelProps extends HTMLAttributes<HTMLDivElement> {
   padding?: PanelPadding;
   bordered?: boolean;
-  /** Nested/inset panel (e.g. a table container inside a view) — one shade lighter than the default surface. */
+  /** A panel inside a panel: one tone lighter than the surface it sits on. */
   inset?: boolean;
   children: ReactNode;
 }
 
+/** A bounded area of a screen. Square corners, a fine line, no shadow. */
 export function Panel({ padding = 'md', bordered = true, inset = false, className = '', children, ...rest }: PanelProps) {
   return (
     <div
-      className={`${inset ? 'bg-aero-panel-2' : 'bg-aero-panel'} ${bordered ? 'border border-white/10' : ''} rounded-sm ${PADDING_CLASSES[padding]} ${className}`}
+      className={`${inset ? 'bg-raised' : 'bg-surface'} ${bordered ? 'border border-line' : ''} ${PADDING_CLASSES[padding]} ${className}`}
       {...rest}
     >
       {children}

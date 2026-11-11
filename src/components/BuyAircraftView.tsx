@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database, Lock } from 'lucide-react';
-import { motion } from 'motion/react';
 import { setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { ViewHeader } from './ui/ViewHeader';
@@ -403,7 +402,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
           href={`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(plane.manufacturer + ' ' + plane.type)}`} 
           target="_blank" 
           rel="noreferrer"
-          className="text-aero-yellow hover:underline mt-2 inline-flex items-center gap-1"
+          className="text-accent hover:underline mt-2 inline-flex items-center gap-1"
         >
           Research on Wikipedia ↗
         </a>
@@ -412,17 +411,17 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
   };
 
   return (
-    <div className="w-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans h-full overflow-hidden">
+    <div className="w-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans h-full overflow-hidden">
       <ViewHeader
-        title="BUY AIRCRAFT"
+        title="Buy aircraft"
         right={
           <div className="relative w-full lg:w-80">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={16} className="text-white/40" />
+              <Search size={16} className="text-muted" />
             </div>
             <input
               type="text"
-              className="w-full bg-black/40 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow/50 font-mono transition-colors"
+              className="w-full bg-ground/40 border border-line rounded-sm py-2 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent/50 transition-colors"
               placeholder="Search Type, Manufacturer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -432,7 +431,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
       />
 
       {market && (
-        <div className="flex gap-2 border-b border-white/5 mb-3 pr-4" role="tablist">
+        <div className="flex gap-2 border-b border-line mb-3 pr-4" role="tablist">
           {([['new', 'New aircraft'], ['orders', market.orders.length > 0 ? `Order book (${market.orders.length})` : 'Order book'], ['used', 'Used market']] as const).map(([id, text]) => (
             <button
               key={id}
@@ -440,8 +439,8 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               role="tab"
               aria-selected={tab === id}
               onClick={() => setTab(id)}
-              className={`px-3 py-2 -mb-px text-2xs uppercase tracking-widest font-black border-b-2 transition-colors ${
-                tab === id ? 'border-aero-yellow text-aero-yellow' : 'border-transparent text-white/40 hover:text-white'
+              className={`px-3 py-2 -mb-px text-2xs uppercase tracking-label font-semibold border-b-2 transition-colors ${
+                tab === id ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-ink'
               }`}
             >
               {text}
@@ -451,22 +450,22 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
       )}
 
       {market && tab !== 'new' ? (
-        <div className="flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar pb-20">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-4 pb-20">
           <AircraftMarketPanel {...market} tab={tab} />
         </div>
       ) : (
-      <div className="flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar space-y-6 pb-20">
+      <div className="flex-1 overflow-y-auto min-h-0 pr-4 space-y-6 pb-20">
         {/* Permanent Supabase Storage Bucket Settings */}
         {debugMode && (
-          <div className="bg-aero-black border border-dashed border-aero-yellow/20 rounded-sm p-4 shrink-0 transition-all hover:border-aero-yellow/40 space-y-3">
+          <div className="bg-ground border border-dashed border-accent/20 rounded-sm p-4 shrink-0 transition-all hover:border-accent/40 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold font-mono uppercase tracking-[0.2em] text-aero-yellow flex items-center gap-2">
+                <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
                   <Database size={16} />
                   Supabase Storage Bucket (Permanent Images)
                   <Badge tone="warn">Debug</Badge>
                 </h3>
-                <p className="text-xs text-white/60 font-mono mt-0.5">
+                <p className="text-xs text-muted mt-0.5">
                   Connected Supabase storage bucket URL for permanent aircraft image rendering across all devices.
                 </p>
               </div>
@@ -482,7 +481,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               <input
                 type="text"
                 placeholder="e.g. https://xxxx.supabase.co/storage/v1/object/public/your-bucket-name"
-                className="flex-1 bg-black/60 border border-white/10 rounded-sm px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-aero-yellow/60 transition-colors placeholder:text-white/20"
+                className="flex-1 bg-ground/60 border border-line rounded-sm px-3 py-2 text-xs text-ink focus:outline-none focus:border-accent/60 transition-colors placeholder:text-muted"
                 value={getSupabaseBucketUrl()}
                 onChange={(e) => {
                   setSupabaseBucketUrl(e.target.value);
@@ -491,7 +490,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               />
               <button
                 type="button"
-                className="bg-white/5 hover:bg-white/10 text-white font-mono text-xs px-4 py-2 border border-white/10 rounded-sm transition-colors whitespace-nowrap"
+                className="bg-surface hover:bg-raised text-ink text-xs px-4 py-2 border border-line rounded-sm transition-colors whitespace-nowrap"
                 onClick={() => {
                   setSupabaseBucketUrl('');
                   setSearchTerm(prev => prev);
@@ -506,18 +505,18 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
         {debugMode && (
           <>
 
-          <div className="bg-aero-black border border-dashed border-white/10 rounded-sm p-4 shrink-0 transition-all hover:border-white/20 space-y-6">
+          <div className="bg-ground border border-dashed border-line rounded-sm p-4 shrink-0 transition-all hover:border-rule space-y-6">
 
             {/* Part 1: ZIP Archive Uploader */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
                 <div>
-                  <h3 className="text-sm font-bold font-mono uppercase tracking-[0.2em] text-aero-yellow flex items-center gap-2">
+                  <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
                     <Archive size={16} />
                     Planes Image ZIP customizer (SAT APPROVED)
                     <Badge tone="warn">Debug</Badge>
                   </h3>
-                  <p className="text-xs text-white/40 font-mono mt-0.5">
+                  <p className="text-xs text-muted mt-0.5">
                     Upload a ZIP archive of aircraft images (.png, .jpg, .webp). Each image is matched to its aircraft folder automatically.
                   </p>
                 </div>
@@ -528,7 +527,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     const el = document.getElementById('zip-file-input');
                     if (el) el.click();
                   }}
-                  className="self-start sm:self-center bg-aero-yellow text-black font-mono font-bold uppercase tracking-widest text-2xs px-4 py-2 hover:bg-white transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+                  className="self-start sm:self-center bg-accent text-on-accent font-label font-semibold uppercase tracking-label text-2xs px-4 py-2 hover:bg-ink transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
                   disabled={uploading}
                 >
                   {uploading ? "Wird verarbeitet..." : "ZIP DATEI HOCHLADEN"}
@@ -542,7 +541,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
                 className={`border-2 border-dashed rounded-sm p-4 flex flex-col items-center justify-center transition-all ${
-                  dragActive ? "border-aero-yellow bg-aero-yellow/5" : "border-white/5 bg-black/20 hover:border-white/10"
+                  dragActive ? "border-accent bg-accent/5" : "border-line bg-ground/20 hover:border-line"
                 }`}
               >
                 <input
@@ -554,32 +553,32 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                   disabled={uploading}
                 />
                 
-                <UploadCloud size={32} className={`mb-2 transition-colors ${dragActive ? 'text-aero-yellow' : 'text-white/20'}`} />
+                <UploadCloud size={32} className={`mb-2 transition-colors ${dragActive ? 'text-accent' : 'text-muted'}`} />
                 
-                <p className="text-xs font-mono text-white/50 text-center">
+                <p className="text-xs text-muted text-center">
                   {uploading ? (
-                    <span className="text-aero-yellow animate-pulse">Analysing and extracting the ZIP file... please wait.</span>
+                    <span className="text-accent animate-pulse">Analysing and extracting the ZIP file... please wait.</span>
                   ) : (
-                    <span>Drop your image .zip here or <span className="text-aero-yellow font-bold cursor-pointer underline">click to browse</span></span>
+                    <span>Drop your image .zip here or <span className="text-accent font-semibold cursor-pointer underline">click to browse</span></span>
                   )}
                 </p>
               </div>
 
               {/* URL Fetching Area */}
-              <div className="mt-3 bg-black/20 p-3 border border-white/5 rounded-sm">
-                <div className="text-2xs font-mono uppercase tracking-widest text-white/40 font-bold mb-2">Or load a ZIP straight from a link (e.g. Google Drive)</div>
+              <div className="mt-3 bg-ground/20 p-3 border border-line rounded-sm">
+                <div className="text-2xs text-muted font-semibold mb-2">Or load a ZIP straight from a link (e.g. Google Drive)</div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     placeholder="https://drive.google.com/file/d/.../view"
-                    className="flex-1 bg-black/50 border border-white/10 rounded-sm px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-aero-yellow/50 placeholder:text-white/20"
+                    className="flex-1 bg-ground/50 border border-line rounded-sm px-3 py-2 text-xs text-ink focus:outline-none focus:border-accent/50 placeholder:text-muted"
                     value={zipUrl}
                     onChange={e => setZipUrl(e.target.value)}
                     disabled={fetchingUrl}
                   />
                   <button
                     type="button"
-                    className="bg-white/5 hover:bg-white/10 text-white font-mono text-xs px-4 py-2 border border-white/10 rounded-sm transition-colors whitespace-nowrap disabled:opacity-50"
+                    className="bg-surface hover:bg-raised text-ink text-xs px-4 py-2 border border-line rounded-sm transition-colors whitespace-nowrap disabled:opacity-50"
                     onClick={handleZipUrlSubmit}
                     disabled={!zipUrl || fetchingUrl}
                   >
@@ -592,24 +591,24 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
               {uploadResult && (
                 <div className={`mt-3 p-3 rounded-sm border font-mono text-xs flex items-start gap-2.5 ${
                   uploadResult.success 
-                    ? "bg-aero-good/10 text-aero-good border-aero-good/30 animate-fade-in" 
-                    : "bg-aero-warn/10 text-aero-warn border-aero-warn/30 animate-fade-in"
+                    ? "bg-good/10 text-good border-good/30 animate-appear" 
+                    : "bg-bad/10 text-bad border-bad/30 animate-appear"
                 }`}>
                   {uploadResult.success ? (
                     <>
-                      <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-aero-yellow" />
+                      <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-accent" />
                       <div>
-                        <div className="font-bold uppercase tracking-wider">ZIP-EXTRAKTION ERFOLGREICH</div>
+                        <div className="font-semibold uppercase tracking-label">Zip-extraktion erfolgreich</div>
                         <div className="mt-1 leading-relaxed">
-                          <strong className="text-white">{uploadResult.extractedCount} images</strong> were extracted and assigned to <strong className="text-white">{uploadResult.matchedPlanesCount} aircraft models</strong>.
+                          <strong className="text-ink">{uploadResult.extractedCount} images</strong> were extracted and assigned to <strong className="text-ink">{uploadResult.matchedPlanesCount} aircraft models</strong>.
                         </div>
                       </div>
                     </>
                   ) : (
                     <>
-                      <AlertCircle size={16} className="shrink-0 mt-0.5 text-aero-yellow/60" />
+                      <AlertCircle size={16} className="shrink-0 mt-0.5 text-accent" />
                       <div>
-                        <div className="font-bold uppercase tracking-wider">FEHLER BEI EXTRAKTION</div>
+                        <div className="font-semibold uppercase tracking-label">Fehler BEI extraktion</div>
                         <div className="mt-1 leading-relaxed">{uploadResult.error}</div>
                       </div>
                     </>
@@ -619,16 +618,16 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             </div>
 
             {/* Elegant separation line */}
-            <div className="h-px bg-white/5 my-5" />
+            <div className="h-px bg-surface my-5" />
 
             {/* Part 2: Dynamic Single Image Search, Filter and Direct Uploader */}
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-bold font-mono uppercase tracking-[0.2em] text-aero-yellow flex items-center gap-2">
+                <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
                   <Plane size={16} />
                   Single Aircraft Image Uploader (SAT APPROVED)
                 </h3>
-                <p className="text-xs text-white/40 font-mono mt-0.5">
+                <p className="text-xs text-muted mt-0.5">
                   Search for an aircraft type, filter for models without an image and upload a single image. It replaces any previous image.
                 </p>
               </div>
@@ -637,15 +636,15 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                 {/* Left Column: Filter and select aircraft type */}
                 <div className="flex flex-col min-w-0">
                   <div className="flex flex-col gap-2 mb-2">
-                    <span className="text-2xs font-mono uppercase tracking-widest text-white/40 font-bold">1. Select or search for a model</span>
+                    <span className="text-2xs font-label uppercase tracking-label text-muted font-semibold">1. Select or search for a model</span>
                     
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       {/* Search tool block */}
                       <div className="relative flex-1">
-                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
                         <input
                           type="text"
-                          className="w-full bg-black/50 border border-white/5 rounded-sm py-1.5 pl-8 pr-3 text-xs text-white focus:outline-none focus:border-aero-yellow/40 font-mono"
+                          className="w-full bg-ground/50 border border-line rounded-sm py-1.5 pl-8 pr-3 text-xs text-ink focus:outline-none focus:border-accent/40"
                           placeholder="Search model (e.g. A320)..."
                           value={singleSearchTerm}
                           onChange={(e) => setSingleSearchTerm(e.target.value)}
@@ -656,13 +655,13 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                       <button
                         type="button"
                         onClick={() => setOnlyMissingImages(!onlyMissingImages)}
-                        className={`px-3 py-1.5 text-2xs font-mono uppercase border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        className={`px-3 py-1.5 text-2xs font-label uppercase border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                           onlyMissingImages 
-                            ? "bg-aero-yellow/10 border-aero-yellow text-aero-yellow font-bold" 
-                            : "bg-black/40 border-white/5 text-white/50 hover:text-white"
+                            ? "bg-accent/10 border-accent text-accent font-semibold" 
+                            : "bg-ground/40 border-line text-muted hover:text-ink"
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${onlyMissingImages ? "bg-aero-yellow animate-pulse" : "bg-white/20"}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${onlyMissingImages ? "bg-accent" : "bg-raised"}`} />
                         Only without image
                       </button>
                     </div>
@@ -671,10 +670,10 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                   {/* Scrollable container with unique ID */}
                   <div 
                     id="aircraft-debug-picker-list"
-                    className="border border-white/5 bg-black/50 rounded-sm max-h-48 overflow-y-auto custom-scrollbar font-mono text-xs divide-y divide-white/5"
+                    className="border border-line bg-ground/50 rounded-sm max-h-48 overflow-y-auto text-xs divide-y divide-line"
                   >
                     {singleImageFilteredAircraft.length === 0 ? (
-                      <div className="p-4 text-center text-white/30 uppercase tracking-widest text-2xs">No matching models</div>
+                      <div className="p-4 text-center text-muted uppercase tracking-label text-2xs">No matching models</div>
                     ) : (
                       singleImageFilteredAircraft.map(a => {
                         const safeName = (a.manufacturer + ' ' + a.type).split('/').join('-').split('\\').join('-');
@@ -690,21 +689,21 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                             }}
                             className={`p-2 flex items-center justify-between cursor-pointer transition-all ${
                               isSelected 
-                                ? "bg-aero-yellow/5 border-l-2 border-aero-yellow text-aero-yellow font-bold" 
-                                : "hover:bg-white/5 text-white/70"
+                                ? "bg-accent/5 border-l-2 border-accent text-accent font-semibold" 
+                                : "hover:bg-raised text-muted"
                             }`}
                           >
                             <span className="truncate pr-1">{a.manufacturer} {a.type}</span>
                             <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                              <span className="text-3xs text-white/30 truncate max-w-[80px]">{a.family}</span>
-                              <span className={`w-1.5 h-1.5 rounded-full ${hasCustom ? "bg-aero-yellow/20" : "bg-yellow-500"}`} title={hasCustom ? "Has image" : "No image"} />
+                              <span className="text-2xs text-muted truncate max-w-[80px]">{a.family}</span>
+                              <span className={`w-1.5 h-1.5 rounded-full ${hasCustom ? "bg-accent/20" : "bg-accent"}`} title={hasCustom ? "Has image" : "No image"} />
                             </div>
                           </div>
                         );
                       })
                     )}
                   </div>
-                  <div className="mt-1 text-3xs font-mono text-white/30 flex justify-between">
+                  <div className="mt-1 text-2xs text-muted flex justify-between">
                     <span>{singleImageFilteredAircraft.length} models found</span>
                     <span>{Object.keys(imagesMap).length} uploaded images in total</span>
                   </div>
@@ -713,12 +712,12 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                 {/* Right Column: Upload action box */}
                 <div className="flex flex-col justify-between min-w-0">
                   <div className="space-y-2">
-                    <span className="text-2xs font-mono uppercase tracking-widest text-white/40 font-bold block">2. Choose an image and upload</span>
+                    <span className="text-2xs font-label uppercase tracking-label text-muted font-semibold block">2. Choose an image and upload</span>
                     
                     {selectedAircraft ? (
-                      <div className="bg-black/40 border border-white/5 rounded-sm p-3 font-mono text-xs text-white/80 space-y-2">
+                      <div className="bg-ground/40 border border-line rounded-sm p-3 text-xs text-ink space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-3xs text-aero-yellow uppercase tracking-wider font-bold">Selected model:</span>
+                          <span className="text-2xs text-muted uppercase tracking-label font-semibold">Selected model:</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -726,12 +725,12 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                               setSingleImageFile(null);
                               setSingleUploadResult(null);
                             }}
-                            className="text-white/40 hover:text-aero-yellow/60 text-3xs uppercase cursor-pointer"
+                            className="text-muted hover:text-accent text-2xs uppercase cursor-pointer"
                           >
                             [Cancel]
                           </button>
                         </div>
-                        <div className="font-bold text-xs text-white uppercase tracking-wider bg-white/5 p-1.5 rounded-sm truncate">
+                        <div className="font-semibold text-xs text-ink uppercase tracking-label bg-surface p-1.5 rounded-sm truncate">
                           {selectedAircraft.manufacturer} {selectedAircraft.type}
                         </div>
                         
@@ -742,7 +741,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                             const el = document.getElementById('single-image-file-input');
                             if (el) el.click();
                           }}
-                          className="border border-dashed border-white/10 hover:border-aero-yellow/40 rounded-sm p-3 flex flex-col items-center justify-center cursor-pointer bg-black/50 transition-colors"
+                          className="border border-dashed border-line hover:border-accent/40 rounded-sm p-3 flex flex-col items-center justify-center cursor-pointer bg-ground/50 transition-colors"
                         >
                           <input
                             id="single-image-file-input"
@@ -757,25 +756,25 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                           />
                           {singleImageFile ? (
                             <div className="text-center">
-                              <span className="text-aero-yellow font-bold block truncate max-w-[200px]" title={singleImageFile.name}>
+                              <span className="text-accent font-semibold block truncate max-w-[200px]" title={singleImageFile.name}>
                                 {singleImageFile.name}
                               </span>
-                              <span className="text-3xs text-white/40 block mt-0.5">
+                              <span className="text-2xs text-muted block mt-0.5">
                                 {(singleImageFile.size / 1024).toFixed(1)} KB
                               </span>
                             </div>
                           ) : (
-                            <div className="text-center text-white/40 space-y-1 py-1">
-                              <UploadCloud size={18} className="mx-auto text-white/20" />
-                              <span className="text-2xs block text-aero-yellow font-bold underline">Choose image file</span>
-                              <span className="text-4xs block">PNG, JPG or WEBP</span>
+                            <div className="text-center text-muted space-y-1 py-1">
+                              <UploadCloud size={18} className="mx-auto text-muted" />
+                              <span className="text-2xs block text-accent font-semibold underline">Choose image file</span>
+                              <span className="text-2xs block">Png, JPG or webp</span>
                             </div>
                           )}
                         </div>
                       </div>
                     ) : (
-                      <div className="border border-white/5 bg-black/20 rounded-sm py-4 px-4 text-center text-white/30 font-mono text-xs flex flex-col items-center justify-center h-[122px]">
-                        <Plane size={20} className="mb-1.5 text-white/10 animate-pulse" />
+                      <div className="border border-line bg-ground/20 rounded-sm py-4 px-4 text-center text-muted text-xs flex flex-col items-center justify-center h-[122px]">
+                        <Plane size={20} className="mb-1.5 text-muted animate-pulse" />
                         <span>Pick an aircraft model on the left to set its image (this replaces any existing one).</span>
                       </div>
                     )}
@@ -787,7 +786,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                       <button
                         type="button"
                         onClick={handleSingleUpload}
-                        className="w-full bg-aero-yellow text-black font-mono font-bold uppercase tracking-widest text-2xs py-2 px-3 hover:bg-white transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+                        className="w-full bg-accent text-on-accent font-label font-semibold uppercase tracking-label text-2xs py-2 px-3 hover:bg-ink transition-all transform hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
                         disabled={singleUploading}
                       >
                         {singleUploading ? "UPLOADING IMAGE..." : "UPLOAD & REPLACE IMAGE"}
@@ -797,16 +796,16 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                     {singleUploadResult && (
                       <div className={`p-2.5 rounded-sm border font-mono text-2xs flex items-start gap-2 ${
                         singleUploadResult.success 
-                          ? "bg-aero-good/10 text-aero-good border-aero-good/30 animate-fade-in" 
-                          : "bg-aero-warn/10 text-aero-warn border-aero-warn/30 animate-fade-in"
+                          ? "bg-good/10 text-good border-good/30 animate-appear" 
+                          : "bg-bad/10 text-bad border-bad/30 animate-appear"
                       }`}>
                         {singleUploadResult.success ? (
-                          <CheckCircle2 size={12} className="shrink-0 mt-0.5 text-aero-yellow" />
+                          <CheckCircle2 size={12} className="shrink-0 mt-0.5 text-accent" />
                         ) : (
-                          <AlertCircle size={12} className="shrink-0 mt-0.5 text-aero-yellow/60" />
+                          <AlertCircle size={12} className="shrink-0 mt-0.5 text-accent" />
                         )}
                         <div>
-                          <span className="font-bold uppercase block">{singleUploadResult.success ? "SATISFACTION COMPLETE" : "FEHLER"}</span>
+                          <span className="font-semibold uppercase block">{singleUploadResult.success ? "SATISFACTION COMPLETE" : "FEHLER"}</span>
                           <span className="leading-relaxed block mt-0.5">{singleUploadResult.success ? singleUploadResult.message : singleUploadResult.error}</span>
                         </div>
                       </div>
@@ -821,13 +820,13 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
         )}
 
         {/* Filters: purchasable first, then range, capacity and price */}
-        <div className="flex flex-wrap items-end gap-3 bg-black/40 border border-white/5 rounded-sm p-3 shrink-0 font-mono">
+        <div className="flex flex-wrap items-end gap-3 bg-ground/40 border border-line rounded-sm p-3 shrink-0">
           <button
             type="button"
             aria-pressed={onlyPurchasable}
             onClick={() => setOnlyPurchasable(v => !v)}
-            className={`px-3 py-2 text-2xs uppercase tracking-widest border transition-colors flex items-center gap-1.5 ${
-              onlyPurchasable ? 'bg-aero-yellow/10 border-aero-yellow text-aero-yellow font-bold' : 'bg-black/40 border-white/10 text-white/50 hover:text-white'
+            className={`px-3 py-2 text-2xs uppercase tracking-label border transition-colors flex items-center gap-1.5 ${
+              onlyPurchasable ? 'bg-accent/10 border-accent text-accent font-semibold' : 'bg-ground/40 border-line text-muted hover:text-ink'
             }`}
           >
             <Lock size={12} aria-hidden="true" /> Only purchasable
@@ -837,7 +836,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             ['Min capacity (pax)', minCapacity, setMinCapacity],
             ['Max price ($)', maxPrice, setMaxPrice],
           ] as const).map(([label, value, set]) => (
-            <label key={label} className="flex flex-col gap-1 text-3xs uppercase tracking-widest text-white/40">
+            <label key={label} className="flex flex-col gap-1 text-2xs uppercase tracking-label text-muted">
               {label}
               <input
                 type="number"
@@ -845,7 +844,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                 inputMode="numeric"
                 value={value}
                 onChange={e => set(e.target.value)}
-                className="w-36 bg-black/50 border border-white/10 rounded-sm px-2 py-1.5 text-xs text-white focus:outline-none focus:border-aero-yellow/50"
+                className="w-36 bg-ground/50 border border-line rounded-sm px-2 py-1.5 text-xs text-ink focus:outline-none focus:border-accent/50"
               />
             </label>
           ))}
@@ -853,48 +852,48 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
             <button
               type="button"
               onClick={() => { setOnlyPurchasable(false); setMinRange(""); setMinCapacity(""); setMaxPrice(""); }}
-              className="px-3 py-2 text-2xs uppercase tracking-widest text-white/50 hover:text-aero-yellow"
+              className="px-3 py-2 text-2xs uppercase tracking-label text-muted hover:text-accent"
             >
               Reset filters
             </button>
           )}
-          <span className="ml-auto text-2xs text-white/40">{availableAircraft.length} aircraft</span>
+          <span className="ml-auto text-2xs text-muted">{availableAircraft.length} aircraft</span>
         </div>
 
         {manufacturers.length === 0 ? (
-          <div className="text-white/50 text-center uppercase tracking-widest mt-12 w-full">NO AIRCRAFT AVAILABLE IN THIS ERA.</div>
+          <div className="text-muted text-center uppercase tracking-label mt-12 w-full">No aircraft available in this ERA.</div>
         ) : manufacturers.map(mfg => {
           const familiesMap = grouped.get(mfg)!;
           const families = Array.from(familiesMap.keys()).sort();
           const isExpanded = expandedMfgs.has(mfg);
           
           return (
-            <div key={mfg} className="flex flex-col bg-black/40 border border-white/5 rounded-sm overflow-hidden shrink-0">
+            <div key={mfg} className="flex flex-col bg-ground/40 border border-line rounded-sm overflow-hidden shrink-0">
               <button 
                 onClick={() => toggleMfg(mfg)} 
-                className={`flex items-center gap-3 p-4 bar:py-3 short:py-2 px-3 w-full text-left transition-colors ${isExpanded ? 'bg-white/5 border-b border-white/10 text-aero-yellow' : 'hover:bg-white/5 hover:text-white text-white/80'}`}
+                className={`flex items-center gap-3 p-4 bar:py-3 short:py-2 px-3 w-full text-left transition-colors ${isExpanded ? 'bg-surface border-b border-line text-accent' : 'hover:bg-raised hover:text-ink text-ink'}`}
               >
                 {isExpanded ? <ChevronDown size={24} /> : <ChevronRight size={24} className="opacity-50" />}
-                <span className="text-2xl bar:text-xl short:text-lg font-black uppercase tracking-widest leading-none">{mfg}</span>
-                <span className="ml-auto text-xs font-mono opacity-50 tracking-widest">{familiesMap.size} Families</span>
+                <span className="text-2xl bar:text-xl short:text-lg font-semibold leading-none">{mfg}</span>
+                <span className="ml-auto text-xs font-mono opacity-50">{familiesMap.size} Families</span>
               </button>
               
               {isExpanded && (
-                <div className="flex flex-col gap-10 bar:gap-6 short:gap-4 p-4 bar:p-3 short:p-2.5 bg-gradient-to-b from-white/[0.02] to-transparent">
+                <div className="flex flex-col gap-10 bar:gap-6 short:gap-4 p-4 bar:p-3 short:p-2.5">
                   {families.map(fam => {
                     const planes = familiesMap.get(fam)!;
                     return (
                       <div key={fam} className="flex flex-col gap-4">
-                        <h4 className="text-lg text-aero-yellow/70 font-bold tracking-[0.2em] uppercase border-b border-white/5 pb-2">{fam}</h4>
+                        <h4 className="font-label text-lg text-ink font-semibold border-b border-line pb-2">{fam}</h4>
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                           {planes.map(plane => {
                             const imageName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
                             return (
-                              <div key={plane.id} className="bg-aero-panel border border-white/10 rounded-sm p-4 bar:p-3 short:p-2.5 flex flex-row gap-3 hover:border-aero-yellow/50 transition-colors group relative overflow-hidden">
+                              <div key={plane.id} className="bg-surface border border-line rounded-sm p-4 bar:p-3 short:p-2.5 flex flex-row gap-3 hover:border-accent/50 transition-colors group relative overflow-hidden">
                                 {/* Aircraft Tech Drawing Blueprint Graphic. On phones a
                                     thumbnail beside the figures; full width it filled
                                     the screen with one aircraft at a time. */}
-                                <div className={`shrink-0 bg-black/40 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center relative transition-all duration-300 self-start ${expandedPlaneId === plane.id ? 'w-24 sm:w-64 short:w-28 aspect-square' : 'w-24 sm:w-48 short:w-28 aspect-square'}`}>
+                                <div className={`shrink-0 bg-ground/40 rounded-sm border border-line overflow-hidden flex items-center justify-center relative transition-all duration-300 self-start ${expandedPlaneId === plane.id ? 'w-24 sm:w-64 short:w-28 aspect-square' : 'w-24 sm:w-48 short:w-28 aspect-square'}`}>
                                   <AircraftImage
                                     safeName={imageName}
                                     manufacturer={plane.manufacturer}
@@ -907,29 +906,29 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                 <div className="flex-1 flex flex-col min-w-0">
                                 <div className="flex justify-between items-start mb-2">
                                   <h5 
-                                    className="font-bold text-xl uppercase tracking-wide cursor-pointer hover:text-aero-yellow flex items-center gap-2 transition-colors truncate"
+                                    className="font-semibold text-xl cursor-pointer hover:text-accent flex items-center gap-2 transition-colors truncate"
                                     onClick={() => setExpandedPlaneId(expandedPlaneId === plane.id ? null : plane.id)}
                                     title="Click to view details"
                                   >
                                     <span className="truncate">{plane.type}</span>
-                                    <Info size={16} className={`shrink-0 transition-colors ${expandedPlaneId === plane.id ? 'text-aero-yellow' : 'text-white/30'}`} />
+                                    <Info size={16} className={`shrink-0 transition-colors ${expandedPlaneId === plane.id ? 'text-accent' : 'text-muted'}`} />
                                   </h5>
-                                  <div className="text-xs border border-aero-yellow/20 text-aero-yellow/80 px-2 py-0.5 rounded-sm uppercase tracking-widest bg-aero-yellow/5 shrink-0 ml-2 whitespace-nowrap">{plane.class}</div>
+                                  <div className="text-xs border border-accent/20 text-muted px-2 py-0.5 rounded-sm uppercase tracking-label bg-accent/5 shrink-0 ml-2 whitespace-nowrap">{plane.class}</div>
                                 </div>
 
                                 {expandedPlaneId === plane.id && (
-                                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mb-4 text-xs font-mono text-white/50 leading-relaxed bg-black/40 p-3 rounded-sm border border-white/10">
+                                  <div className="mb-4 text-xs text-muted leading-relaxed bg-ground/40 p-3 rounded-sm border border-line animate-appear">
                                     {generateSummary(plane)}
-                                  </motion.div>
+                                  </div>
                                 )}
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4 text-xs font-mono text-white/50 mb-4">
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">PLANE TYPE SAT</span><span className="text-white font-bold">{plane.popularity}%</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Efficiency</span><span className="text-white font-bold">{plane.efficiency}/100</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Max Range</span><span className="text-white font-bold">{plane.maxRange} km</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Capacity</span><span className="text-white font-bold">{plane.capacity} pax</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Cruise Speed</span><span className="text-white font-bold">{plane.cruiseSpeed} km/h</span></div>
-                                  <div className="flex flex-col border-b border-white/5 pb-1"><span className="text-3xs uppercase tracking-widest mb-1 opacity-70">Base Price</span><span className="text-aero-yellow font-bold tracking-widest">{formatCurrency(plane.basePrice)}</span></div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4 text-xs text-muted mb-4">
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Plane type SAT</span><span className="text-ink font-semibold">{plane.popularity}%</span></div>
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Efficiency</span><span className="text-ink font-semibold">{plane.efficiency}/100</span></div>
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Max Range</span><span className="text-ink font-semibold">{plane.maxRange} km</span></div>
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Capacity</span><span className="text-ink font-semibold">{plane.capacity} pax</span></div>
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Cruise Speed</span><span className="text-ink font-semibold">{plane.cruiseSpeed} km/h</span></div>
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Base Price</span><span className="text-accent font-semibold">{formatCurrency(plane.basePrice)}</span></div>
                                 </div>
 
                                 <div className="flex flex-wrap items-center justify-end mt-auto pt-2 gap-4">
@@ -937,7 +936,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                     const gate = classGateMessage(plane, classesOpen);
                                     return gate ? (
                                       <>
-                                        <span className="flex items-center gap-2 text-2xs font-mono text-aero-warn mr-auto">
+                                        <span className="flex items-center gap-2 text-2xs text-bad mr-auto">
                                           <Lock size={12} aria-hidden="true" /> {gate}
                                         </span>
                                         <Button variant="secondary" size="md" disabled>Locked</Button>

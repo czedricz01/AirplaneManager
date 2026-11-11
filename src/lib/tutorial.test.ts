@@ -21,7 +21,8 @@ const index = (id: string) => TUTORIAL_STEPS.findIndex(s => s.id === id);
 
 test('the steps point at controls and finish when the game gets there', () => {
   assert.deepEqual(TUTORIAL_STEPS.map(s => s.id), ['welcome', 'buy', 'plan', 'schedule', 'advance', 'report', 'company']);
-  for (const s of TUTORIAL_STEPS) assert.match(s.target, /^\[data-tour="[a-z-]+"\]$/, s.id);
+  // One control, or a second place to point at where the first is hidden (the phone's "More").
+  for (const s of TUTORIAL_STEPS) assert.match(s.target, /^\[data-tour="[a-z-]+"\](, \[data-tour="[a-z-]+"\])?$/, s.id);
 
   assert.equal(settleTutorialStep(index('buy'), fresh), index('buy'), 'nothing bought yet');
   assert.equal(settleTutorialStep(index('buy'), { ...fresh, fleetSize: 1 }), index('plan'), 'an aircraft finishes it');

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import { Lock, X } from 'lucide-react';
 import { Airport, getAirportStats } from '../data/airports';
 import { formatNumber } from '../lib/format';
-import { MAP_CONGESTION_COLORS, MAP_YELLOW } from '../lib/theme';
+import { MAP_CONGESTION_COLORS, MAP_YELLOW, TOKENS } from '../lib/theme';
 
 interface HubPickerModalProps {
   /** Every airport shown on the map. */
@@ -40,12 +40,12 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
   const lockedCount = useMemo(() => airports.filter(a => a.level > maxLevel).length, [airports, maxLevel]);
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-aero-carbon" role="dialog" aria-label="Select hub">
-      <div className="flex items-center justify-between gap-4 border-b border-white/10 p-4 short:p-2">
-        <h3 className="text-lg font-black italic uppercase tracking-tighter">
-          Select <span className="text-aero-yellow">Hub</span>
+    <div className="fixed inset-0 z-[200] flex flex-col bg-raised" role="dialog" aria-label="Select hub">
+      <div className="flex items-center justify-between gap-4 border-b border-line p-4 short:p-2">
+        <h3 className="font-label text-lg font-semibold">
+          Select <span className="text-accent">Hub</span>
         </h3>
-        <button onClick={onClose} aria-label="Close" className="text-white/50 hover:text-aero-yellow transition-colors">
+        <button onClick={onClose} aria-label="Close" className="text-muted hover:text-accent transition-colors">
           <X size={20} />
         </button>
       </div>
@@ -59,7 +59,7 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
           preferCanvas
           worldCopyJump
           className="w-full h-full"
-          style={{ backgroundColor: '#131517' }}
+          style={{ backgroundColor: TOKENS.ground }}
           zoomControl={false}
         >
           <TileLayer
@@ -85,7 +85,7 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
               >
                 <Tooltip>
                   <div className="font-mono text-xs">
-                    <div className="font-bold">{a.name} ({a.id})</div>
+                    <div className="font-semibold">{a.name} ({a.id})</div>
                     <div>Level {a.level}</div>
                     <div>Tourism: {formatNumber(stats.tourism)}</div>
                     <div>Business: {formatNumber(stats.business)}</div>
@@ -98,9 +98,9 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
         </MapContainer>
       </div>
 
-      <div className="border-t border-white/10 p-4 short:p-2 space-y-3 short:space-y-1">
+      <div className="border-t border-line p-4 short:p-2 space-y-3 short:space-y-1">
         {lockedCount > 0 && (
-          <p className="text-2xs text-white/50 flex items-center gap-2">
+          <p className="text-2xs text-muted flex items-center gap-2">
             <Lock size={12} className="shrink-0" />
             Rank restriction: as a {rankTitle} you can start at airports up to level {maxLevel}.
             Grey airports ({lockedCount}) open with a higher rank; Free Mode has no restriction.
@@ -109,25 +109,25 @@ export function HubPickerModal({ airports, maxLevel, rankTitle, year, selectedId
         {picked ? (
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="font-mono text-sm">
-              <div className="font-bold text-white">{picked.name} ({picked.id}) - Level {picked.level}</div>
-              <div className="text-white/70">
-                Tourism: <span className="text-aero-yellow">{formatNumber(pickedStats.tourism)}</span>
+              <div className="font-semibold text-ink">{picked.name} ({picked.id}) - Level {picked.level}</div>
+              <div className="text-muted">
+                Tourism: <span className="text-accent">{formatNumber(pickedStats.tourism)}</span>
                 {' | '}
-                Business: <span className="text-aero-yellow">{formatNumber(pickedStats.business)}</span>
-                <span className="text-white/40"> (year {year})</span>
+                Business: <span className="text-accent">{formatNumber(pickedStats.business)}</span>
+                <span className="text-muted"> (year {year})</span>
               </div>
-              {pickedLocked && <div className="text-aero-warn">Locked at your rank.</div>}
+              {pickedLocked && <div className="text-bad">Locked at your rank.</div>}
             </div>
             <button
               disabled={pickedLocked}
               onClick={() => { onSelect(picked.id); onClose(); }}
-              className="px-6 py-3 short:py-1.5 bg-aero-yellow text-black font-mono text-sm uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-6 py-3 short:py-1.5 bg-accent text-on-accent text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Choose as hub
             </button>
           </div>
         ) : (
-          <p className="text-sm text-white/60 font-mono">Click an airport on the map.</p>
+          <p className="text-sm text-muted">Click an airport on the map.</p>
         )}
       </div>
     </div>

@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   Calendar,
@@ -519,30 +518,28 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-[100] bg-aero-black font-sans flex flex-col overflow-hidden">
+    <div className="absolute inset-0 z-[100] bg-ground font-sans flex flex-col overflow-hidden">
       {/* Background Decor */}
-      <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" 
-           style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
       
       {/* Header */}
-      <div className="relative z-10 px-4 py-3 short:py-1.5 border-b border-white/10 flex justify-between items-center bg-black/40 backdrop-blur-md">
+      <div className="relative z-10 px-4 py-3 short:py-1.5 border-b border-line flex justify-between items-center bg-ground/40">
         <div className="flex flex-col short:flex-row short:items-baseline short:gap-4">
-          <h2 className="text-xl md:text-3xl short:text-lg font-black uppercase tracking-widest text-aero-yellow italic">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
+          <h2 className="font-label text-xl md:text-3xl short:text-lg font-semibold text-ink">{isReassign ? 'Choose Time Slot' : 'Edit Timetable'}</h2>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{selectedOrigin?.id}</span>
-            <span className="text-aero-yellow/50">→</span>
-            <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{selectedDest?.id}</span>
-            <span className="mx-2 text-white/20">|</span>
+            <span className="text-xs font-semibold text-muted uppercase tracking-label">{selectedOrigin?.id}</span>
+            <span className="text-accent">→</span>
+            <span className="text-xs font-semibold text-muted uppercase tracking-label">{selectedDest?.id}</span>
+            <span className="mx-2 text-muted">|</span>
             {isReassign ? (
-              <span className="text-xs font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5">
-                {reassignFrom} <ArrowLeftRight size={12} className="text-aero-yellow/60" /> <span className="text-aero-yellow">{aircraft.registration}</span>
+              <span className="text-xs font-semibold text-muted uppercase tracking-label flex items-center gap-1.5">
+                {reassignFrom} <ArrowLeftRight size={12} className="text-accent" /> <span className="text-accent">{aircraft.registration}</span>
               </span>
             ) : (
-              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{aircraft.registration}</span>
+              <span className="text-xs font-semibold text-muted uppercase tracking-label">{aircraft.registration}</span>
             )}
           </div>
         </div>
-        <button onClick={onClose} className="p-3 short:p-1.5 hover:bg-white/10 rounded-full transition-colors text-white/40 hover:text-white">
+        <button onClick={onClose} className="p-3 short:p-1.5 hover:bg-raised rounded-full transition-colors text-muted hover:text-ink">
           <X size={24} />
         </button>
       </div>
@@ -551,23 +548,23 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
           the timetable keeps its own scroll area at most of the screen height. */}
       <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden relative z-10">
         {/* Left Control Panel */}
-        <div className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-black/60 p-4 flex flex-col gap-3 md:overflow-y-auto custom-scrollbar uppercase">
+        <div className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-line bg-ground/60 p-4 flex flex-col gap-3 md:overflow-y-auto uppercase">
           
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black tracking-widest text-white/40">Timetable Management</span>
+              <span className="text-xs font-semibold text-muted">Timetable Management</span>
             </div>
 
             {/* Slots this route may use, as in the planner */}
-            <div className="bg-white/5 border border-white/10 p-3 space-y-1 rounded-sm border-t-2 border-t-aero-yellow">
-              <div className="text-3xs font-black tracking-widest text-aero-yellow flex justify-between">
+            <div className="bg-surface border border-line p-3 space-y-1 rounded-sm border-t-2 border-t-accent">
+              <div className="text-2xs font-semibold text-accent flex justify-between">
                 <span>Required Slots</span>
                 <span>({aircraft.class})</span>
               </div>
               {slotInfo.map(a => (
-                <div key={a.id} className="flex justify-between font-mono text-2xs text-white/70">
+                <div key={a.id} className="flex justify-between text-2xs text-muted">
                   <span>{a.id}</span>
-                  <span className={a.used + schedule.length > a.cap ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                  <span className={a.used + schedule.length > a.cap ? 'text-bad' : 'text-accent font-semibold'}>
                     {a.used + schedule.length} / {a.cap}
                   </span>
                 </div>
@@ -575,30 +572,30 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
             </div>
 
             {/* Multiple Ops / Max Flights, as in the planner's timetable step */}
-            <div className="flex items-center justify-between gap-2 bg-black/40 border border-white/10 p-2">
+            <div className="flex items-center justify-between gap-2 bg-ground/40 border border-line p-2">
               <div className={`flex items-center gap-2 transition-opacity ${maximizeFlights ? 'opacity-30 pointer-events-none' : ''}`}>
-                <label className="text-3xs font-black tracking-widest text-white/50 whitespace-nowrap" title="Round trips flown back to back on each day you add">Multiple Ops</label>
+                <label className="text-2xs font-semibold text-muted whitespace-nowrap" title="Round trips flown back to back on each day you add">Multiple Ops</label>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setMultipleOps(Math.max(1, ops - 1))}
                     disabled={ops <= 1}
-                    className="w-5 h-5 flex items-center justify-center bg-white/5 border border-white/10 text-white hover:border-aero-yellow disabled:opacity-20"
+                    className="w-5 h-5 flex items-center justify-center bg-surface border border-line text-ink hover:border-accent disabled:opacity-20"
                   >
                     <Minus className="w-2 h-2" />
                   </button>
-                  <div className="w-6 h-5 flex items-center justify-center bg-black border border-white/20 font-mono text-2xs text-aero-yellow font-bold">{ops}</div>
+                  <div className="w-6 h-5 flex items-center justify-center bg-ground border border-rule text-2xs text-accent font-semibold">{ops}</div>
                   <button
                     onClick={() => setMultipleOps(Math.min(maxMultipleOps, ops + 1))}
                     disabled={ops >= maxMultipleOps}
-                    className="w-5 h-5 flex items-center justify-center bg-white/5 border border-white/10 text-white hover:border-aero-yellow disabled:opacity-20"
+                    className="w-5 h-5 flex items-center justify-center bg-surface border border-line text-ink hover:border-accent disabled:opacity-20"
                   >
                     <Plus className="w-2 h-2" />
                   </button>
                 </div>
               </div>
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => setMaximizeFlights(!maximizeFlights)} title="Fill the aircraft's free week with as many round trips as the slots allow">
-                <span className="text-3xs font-black tracking-widest text-white/50 hover:text-white transition-colors whitespace-nowrap">Max Flights</span>
-                <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
+                <span className="text-2xs font-semibold text-muted hover:text-ink transition-colors whitespace-nowrap">Max Flights</span>
+                <div className={`w-4 h-4 border flex items-center justify-center transition-all ${maximizeFlights ? 'bg-accent border-accent text-on-accent' : 'border-rule'}`}>
                   {maximizeFlights && <Check className="w-2 h-2" />}
                 </div>
               </div>
@@ -607,7 +604,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
             <div className="flex flex-col gap-2">
               <button
                 onClick={maximizeFlights ? handleApplyMaxFlights : handleApplyAllDays}
-                className="w-full h-10 text-2xs font-bold border border-aero-yellow bg-aero-yellow text-black hover:bg-aero-yellow/80 transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-widest"
+                className="w-full h-10 text-2xs font-semibold border border-accent bg-accent text-on-accent hover:bg-accent/80 transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-label"
                 title={maximizeFlights ? 'Replace the timetable with the most flights that fit' : `Replace the timetable with ${ops} flight${ops > 1 ? 's' : ''} on every day`}
               >
                 <Calendar size={14} /> {maximizeFlights ? 'Apply Max Flights' : 'Apply to All Days'}
@@ -615,14 +612,14 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               {schedule.length > 0 && (
                 <button 
                   onClick={() => { setSchedule([]); setValidationMsg(null); }}
-                  className="w-full h-10 text-2xs font-bold border border-white/20 text-aero-yellow/60 bg-aero-panel hover:bg-aero-carbon hover:text-white transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-widest"
+                  className="w-full h-10 text-2xs font-semibold border border-rule text-accent bg-surface hover:bg-raised hover:text-ink transition-all rounded-sm flex items-center justify-center gap-2 uppercase tracking-label"
                 >
                   <Trash2 size={14} /> Clear All Flights
                 </button>
               )}
               
-              <div className="p-3 bg-white/5 border border-white/10 rounded-sm">
-                <p className="text-3xs text-white/30 leading-relaxed uppercase tracking-widest text-center">
+              <div className="p-3 bg-surface border border-line rounded-sm">
+                <p className="text-2xs text-muted leading-relaxed text-center">
                   Click a day to add {ops} flight{ops > 1 ? 's' : ''} at the starting time (or the next free time), or to remove its flights. Drag flights in the timetable to shift the schedule.
                 </p>
               </div>
@@ -638,60 +635,60 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                       disabled={maximizeFlights}
                       onClick={() => handleToggleDay(day.id)}
                       title={isSelected ? `Remove the ${day.label} flights` : `Add ${ops} flight${ops > 1 ? 's' : ''} on ${day.label}`}
-                      className={`h-9 flex flex-col items-center justify-center border font-black transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-aero-yellow text-black border-aero-yellow shadow-2xl hover:bg-aero-yellow/80' : 'bg-black/40 text-white/30 border-white/10 hover:border-white/40 hover:text-white'}`}
+                      className={`h-9 flex flex-col items-center justify-center border font-semibold transition-all rounded-sm gap-0.5 ${isSelected ? 'bg-accent text-on-accent border-accent hover:bg-accent/80' : 'bg-ground/40 text-muted border-line hover:border-rule hover:text-ink'}`}
                     >
-                      <span className="text-[8px] leading-none">{day.label}</span>
-                      <span className={`text-4xs font-mono leading-none ${isSelected ? 'text-black/60' : 'text-white/20'}`}>{isSelected ? `${count}x` : '+'}</span>
+                      <span className="text-2xs leading-none">{day.label}</span>
+                      <span className={`text-2xs font-mono leading-none ${isSelected ? 'text-on-accent' : 'text-muted'}`}>{isSelected ? `${count}x` : '+'}</span>
                     </button>
                   )
                 })}
              </div>
           </div>
 
-          <div className="h-px bg-white/10"></div>
+          <div className="h-px bg-raised"></div>
 
           <div className="transition-opacity">
             <div className="flex justify-between items-end mb-3">
-              <label className="block text-2xs uppercase tracking-widest text-white/40 font-black">Starting Time</label>
-              <div className="text-3xs font-mono text-aero-yellow bg-aero-yellow/10 px-2 py-0.5 border border-aero-yellow/20 uppercase">
+              <label className="block text-2xs uppercase tracking-label text-muted font-semibold">Starting Time</label>
+              <div className="text-2xs font-label text-muted bg-accent/10 px-2 py-0.5 border border-accent/20 uppercase">
                 Takeoff: {fmtClock(takeoffMin)}
               </div>
             </div>
-            <div className="flex items-center justify-center gap-2 bg-black/80 border border-white/5 p-2 font-mono rounded-sm shadow-inner relative overflow-hidden group">
-               <div className="absolute inset-0 bg-aero-yellow/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+            <div className="flex items-center justify-center gap-2 bg-ground/80 border border-line p-2 rounded-sm relative overflow-hidden group">
+               <div className="absolute inset-0 bg-accent/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                <div className="flex flex-col items-center">
-                 <button onClick={() => updateFromDisplay((displayH + 1) % 24, displayM)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-90" /></button>
-                 <div className="text-2xl font-black text-white tracking-widest">{displayH.toString().padStart(2, '0')}</div>
-                 <button onClick={() => updateFromDisplay((displayH + 23) % 24, displayM)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-270" /></button>
+                 <button onClick={() => updateFromDisplay((displayH + 1) % 24, displayM)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-90" /></button>
+                 <div className="text-2xl font-semibold text-ink">{displayH.toString().padStart(2, '0')}</div>
+                 <button onClick={() => updateFromDisplay((displayH + 23) % 24, displayM)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-270" /></button>
                </div>
-               <div className="text-xl text-white/10 font-thin mb-1 shrink-0">:</div>
+               <div className="text-xl text-muted font-normal mb-1 shrink-0">:</div>
                <div className="flex flex-col items-center">
-                 <button onClick={() => updateFromDisplay(displayH, (displayM + 5) % 60)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-90" /></button>
-                 <div className="text-2xl font-black text-white tracking-widest">{displayM.toString().padStart(2, '0')}</div>
-                 <button onClick={() => updateFromDisplay(displayH, (displayM + 55) % 60)} className="p-0.5 text-white/20 hover:text-aero-yellow hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-270" /></button>
+                 <button onClick={() => updateFromDisplay(displayH, (displayM + 5) % 60)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-90" /></button>
+                 <div className="text-2xl font-semibold text-ink">{displayM.toString().padStart(2, '0')}</div>
+                 <button onClick={() => updateFromDisplay(displayH, (displayM + 55) % 60)} className="p-0.5 text-muted hover:text-accent hover:scale-125 transition-all"><ChevronLeft size={14} className="rotate-270" /></button>
                </div>
             </div>
-            <div className="mt-2 text-3xs text-center text-white/20 uppercase tracking-[0.2em] font-bold">Block start (boarding) · takeoff {BOARDING_MIN} min later</div>
+            <div className="mt-2 text-2xs text-center text-muted uppercase tracking-label font-semibold">Block start (boarding) · takeoff {BOARDING_MIN} min later</div>
           </div>
 
           {isReassign && (
             <div className="flex flex-col gap-2">
-              <label className="block text-2xs uppercase tracking-widest text-white/40 font-black">Free Time Slots on {aircraft.registration}</label>
-              <p className="text-3xs text-white/30 leading-relaxed normal-case">
+              <label className="block text-2xs uppercase tracking-label text-muted font-semibold">Free Time Slots on {aircraft.registration}</label>
+              <p className="text-2xs text-muted leading-relaxed normal-case">
                 Block start of the first flight. Pick a slot, then fine-tune with the clock or by dragging. Grey blocks are flights {aircraft.registration} already flies.
               </p>
               {freeWindows.length === 0 ? (
-                <div className="text-2xs text-aero-warn font-bold">No free slot for all flights. Remove days to make room.</div>
+                <div className="text-2xs text-bad font-semibold">No free slot for all flights. Remove days to make room.</div>
               ) : (
-                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
                   {freeWindows.map(w => {
                     const isCurrent = w.from <= 0 && 0 <= w.to;
                     return (
                       <button
                         key={w.from}
                         onClick={() => { if (!isCurrent) moveBy(w.from); }}
-                        className={`px-2 py-1 text-3xs font-mono font-bold border rounded-sm transition-colors ${
-                          isCurrent ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-black/40 text-white/70 border-white/15 hover:border-aero-yellow hover:text-aero-yellow'
+                        className={`px-2 py-1 text-2xs font-mono font-semibold border rounded-sm transition-colors ${
+                          isCurrent ? 'bg-accent text-on-accent border-accent' : 'bg-ground/40 text-muted border-line hover:border-accent hover:text-accent'
                         }`}
                         title={isCurrent ? 'The timetable is in this slot' : 'Move the timetable to the start of this slot'}
                       >
@@ -705,33 +702,33 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
           )}
 
           {validationMsg && (
-            <div className="bg-aero-panel border border-white/20 p-3 flex gap-2 items-start">
-               <AlertCircle size={14} className="text-aero-warn shrink-0 mt-0.5" />
-               <span className="text-2xs text-aero-warn font-bold leading-tight">{validationMsg}</span>
+            <div className="bg-surface border border-rule p-3 flex gap-2 items-start">
+               <AlertCircle size={14} className="text-bad shrink-0 mt-0.5" />
+               <span className="text-2xs text-bad font-semibold leading-tight">{validationMsg}</span>
             </div>
           )}
 
           <div className="mt-auto space-y-3">
-             <div className="bg-aero-yellow/10 border border-aero-yellow/20 p-4 rounded-sm">
+             <div className="bg-accent/10 border border-accent/20 p-4 rounded-sm">
                 <div className="flex justify-between items-center mb-1">
-                   <span className="text-3xs uppercase font-black text-white/40">Total Flights</span>
-                   <span className="text-xl font-black text-aero-yellow italic">{schedule.length}</span>
+                   <span className="text-2xs uppercase font-semibold text-muted">Total Flights</span>
+                   <span className="text-xl font-semibold text-accent">{schedule.length}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                   <span className="text-3xs uppercase font-black text-white/40">Daily Average</span>
-                   <span className="text-sm font-bold text-white">{(schedule.length / 7).toFixed(1)}</span>
+                   <span className="text-2xs uppercase font-semibold text-muted">Daily Average</span>
+                   <span className="text-sm font-semibold text-ink">{(schedule.length / 7).toFixed(1)}</span>
                 </div>
              </div>
 
              {isReassign && hasConflict && (
-               <div className="text-2xs text-aero-warn font-bold normal-case">
+               <div className="text-2xs text-bad font-semibold normal-case">
                  The timetable overlaps flights {aircraft.registration} already flies. Pick a free slot.
                </div>
              )}
              <button 
                 onClick={handleSave}
                 disabled={schedule.length === 0 || (isReassign && hasConflict)}
-                className="w-full py-4 px-6 bg-aero-yellow text-black font-black uppercase text-sm tracking-widest hover:bg-white transition-all shadow-2xl disabled:opacity-50 flex items-center justify-center gap-2 rounded-none"
+                className="w-full py-4 px-6 bg-accent text-on-accent font-semibold text-sm hover:bg-ink transition-all disabled:opacity-50 flex items-center justify-center gap-2 rounded-none"
              >
                 {isReassign ? <><ArrowLeftRight size={18} /> Assign to {aircraft.registration}</> : <><Save size={18} /> Update Schedule</>}
              </button>
@@ -739,22 +736,22 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
         </div>
 
         {/* Timetable Grid Area */}
-        <div className="flex-none md:flex-1 h-[75dvh] md:h-auto bg-black flex flex-col overflow-hidden relative">
+        <div className="flex-none md:flex-1 h-[75dvh] md:h-auto bg-ground flex flex-col overflow-hidden relative">
            <div className="flex shrink-0">
-              <div className="w-16 border-r border-white/10 bg-black"></div>
+              <div className="w-16 border-r border-line bg-ground"></div>
               {daysOfWeek.map(day => (
-                <div key={day.id} className="flex-1 text-center text-2xs uppercase font-black text-white/40 py-4 bg-black border-b border-white/10">
+                <div key={day.id} className="flex-1 text-center text-2xs uppercase font-semibold text-muted py-4 bg-ground border-b border-line">
                   {day.label}
                 </div>
               ))}
            </div>
 
-           <div className="flex-1 overflow-auto custom-scrollbar flex relative bg-black/40 pt-4">
+           <div className="flex-1 overflow-auto flex relative bg-ground/40 pt-4">
               {/* Time Indicators */}
-              <div className="w-16 shrink-0 border-r border-white/20 bg-black/90 relative z-20">
+              <div className="w-16 shrink-0 border-r border-rule bg-ground/90 relative z-20">
                 {Array.from({ length: 24 }).map((_, i) => (
-                  <div key={i} className="h-[30px] border-b border-white/5 flex items-start justify-end pr-2 relative">
-                    <span className="text-3xs font-mono text-white/30 absolute top-[-6px]">{i.toString().padStart(2, '0')}:00</span>
+                  <div key={i} className="h-[30px] border-b border-line flex items-start justify-end pr-2 relative">
+                    <span className="text-2xs text-muted absolute top-[-6px]">{i.toString().padStart(2, '0')}:00</span>
                   </div>
                 ))}
               </div>
@@ -762,9 +759,9 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               {/* Grid content. No minimum width on phones, upright or sideways:
                   the day headers above do not scroll sideways, so seven narrow
                   columns stay aligned with them. */}
-              <div className="flex-1 flex md:min-w-[700px] short:min-w-0">
+              <div className="flex-1 flex md:min-w-[640px] short:min-w-0">
                  {daysOfWeek.map(day => (
-                   <div key={day.id} className="flex-1 min-w-0 border-r border-white/5 relative">
+                   <div key={day.id} className="flex-1 min-w-0 border-r border-line relative">
                       <div className="relative h-[720px]">
                          {allBlocks.filter(b => b.dayId === day.id).map(b => (
                            <div 
@@ -778,18 +775,18 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                                  if (!b.isBusy && e.ctrlKey) removeTrips(runOf(b.s, schedule));
                               }}
                               title={b.isBusy ? 'Busy - Cannot edit' : 'Drag to adjust time. Ctrl+Click to delete.'}
-                              className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono shadow-xl transition-all ${
+                              className={`absolute left-0.5 right-0.5 p-1 px-1.5 text-2xs font-mono transition-all ${
                                 b.isBusy 
-                                  ? 'bg-white/10 border-l-2 border-white/20 italic opacity-40 cursor-not-allowed' 
-                                  : 'bg-aero-yellow/20 border-l-2 border-aero-yellow text-aero-yellow cursor-ns-resize touch-none hover:bg-aero-yellow/40 hover:border-white group select-none'
+                                  ? 'bg-raised border-l-2 border-rule opacity-40 cursor-not-allowed' 
+                                  : 'bg-accent/20 border-l-2 border-accent text-accent cursor-ns-resize touch-none hover:bg-accent/40 hover:border-ink group select-none'
                               }`}
                               style={{ top: b.top, height: b.height, zIndex: b.isBusy ? 5 : 10 }}
                            >
                               <div className="flex flex-col h-full overflow-hidden relative">
-                                {b.isFirst && <div className="text-3xs opacity-70 mb-0.5">{b.orig} → {b.dest}</div>}
-                                <div className="font-bold truncate group-hover:text-white transition-colors">{aircraft.registration}</div>
-                                {!b.isBusy && b.isFirst && <div className="text-3xs text-white/40 mt-1 uppercase font-bold tracking-tighter">Adjust Time</div>}
-                                {b.isLast && <div className="mt-auto text-3xs text-right opacity-50 font-bold">End</div>}
+                                {b.isFirst && <div className="text-2xs opacity-70 mb-0.5">{b.orig} → {b.dest}</div>}
+                                <div className="font-semibold truncate group-hover:text-ink transition-colors">{aircraft.registration}</div>
+                                {!b.isBusy && b.isFirst && <div className="text-2xs text-muted mt-1 uppercase font-semibold">Adjust Time</div>}
+                                {b.isLast && <div className="mt-auto text-2xs text-right opacity-50 font-semibold">End</div>}
                               </div>
                            </div>
                          ))}
@@ -802,33 +799,28 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
       </div>
 
       {/* Success Animation Overlay */}
-      <AnimatePresence>
+      <>
         {showSuccess && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[200] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4"
+          <div
+            className="absolute inset-0 z-[200] bg-ground/90 flex items-center justify-center p-4 animate-appear"
           >
-             <motion.div 
-                initial={{ scale: 0.8, rotateX: 45 }}
-                animate={{ scale: 1, rotateX: 0 }}
-                className="bg-aero-yellow text-black p-12 rounded-sm shadow-2xl flex flex-col items-center gap-3 text-center border-t-8 border-white"
+             <div
+                className="bg-accent text-on-accent p-12 rounded-sm flex flex-col items-center gap-3 text-center border-t-8 border-ink animate-appear"
              >
-                <div className="w-24 h-24 bg-black rounded-full flex items-center justify-center shadow-inner">
-                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }}>
-                      <Check size={64} className="text-aero-yellow" strokeWidth={4} />
-                   </motion.div>
+                <div className="w-24 h-24 bg-ground rounded-full flex items-center justify-center">
+                   <div className="animate-appear">
+                      <Check size={64} className="text-accent" strokeWidth={4} />
+                   </div>
                 </div>
                 <div>
-                   <h3 className="text-4xl font-black uppercase italic tracking-tighter">{isReassign ? 'Aircraft Changed' : 'Schedule Updated'}</h3>
-                   <div className="h-1 w-12 bg-black mx-auto my-3"></div>
-                   <p className="text-xs uppercase tracking-[0.3em] font-bold opacity-80">Synchronizing fleet data...</p>
+                   <h3 className="font-label text-3xl font-semibold">{isReassign ? 'Aircraft Changed' : 'Schedule Updated'}</h3>
+                   <div className="h-1 w-12 bg-ground mx-auto my-3"></div>
+                   <p className="text-xs uppercase tracking-label font-semibold opacity-80">Synchronizing fleet data...</p>
                 </div>
-             </motion.div>
-          </motion.div>
+             </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 };

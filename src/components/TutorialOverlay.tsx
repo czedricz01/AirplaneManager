@@ -1,5 +1,4 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, ChevronRight, GraduationCap, Minus, X } from 'lucide-react';
 import {
   MODAL_SELECTOR,
@@ -72,7 +71,10 @@ function useTargetBox(selector: string, layoutKey: string, own: RefObject<HTMLEl
       frame = 0;
       let el: Element | null = null;
       try {
-        el = selector ? document.querySelector(selector) : null;
+        // The first match that is actually laid out: a control can exist in the
+        // page and be hidden in this layout (the phone's bar hides some screens
+        // under "More"), and a selector may then name a second place to point at.
+        el = selector ? (Array.from(document.querySelectorAll(selector)).find(hasSize) ?? null) : null;
       } catch {
         el = null; // not a valid selector: treated as a target not on screen
       }
@@ -132,7 +134,6 @@ function useTargetBox(selector: string, layoutKey: string, own: RefObject<HTMLEl
  */
 export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, onNavigate }: TutorialOverlayProps) {
   const def = TUTORIAL_STEPS[step];
-  const reduceMotion = useReducedMotion();
   const titleId = useId();
   const maskId = `tutorial-mask-${useId().replace(/:/g, '')}`;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -174,7 +175,6 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
     height: box.height + PAD * 2
   };
   const placement = placeTooltip(spot ?? null, tipSize, viewport, def.corner);
-  const move = reduceMotion ? { duration: 0 } : { type: 'spring' as const, stiffness: 380, damping: 36 };
 
   const arrowStyle = (() => {
     if (placement.arrow === undefined) return null;
@@ -195,25 +195,17 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
           <defs>
             <mask id={maskId}>
               <rect x="0" y="0" width="100%" height="100%" fill="white" />
-              <motion.rect
-                initial={false}
-                animate={{ x: spot.x, y: spot.y, width: spot.width, height: spot.height }}
-                transition={move}
-                rx="4"
-                fill="black"
-              />
+              <rect x={spot.x} y={spot.y} width={spot.width} height={spot.height} rx="4" fill="black" />
             </mask>
           </defs>
           <rect x="0" y="0" width="100%" height="100%" fill="rgba(0, 0, 0, 0.55)" mask={`url(#${maskId})`} />
         </svg>
       )}
       {spot && !blocked && (
-        <motion.div
+        <div
           aria-hidden="true"
-          initial={false}
-          animate={{ left: spot.x, top: spot.y, width: spot.width, height: spot.height }}
-          transition={move}
-          className="absolute rounded-[4px] border-2 border-aero-yellow shadow-[0_0_0_4px_rgba(250,204,21,0.2)] motion-safe:animate-pulse"
+          style={{ left: spot.x, top: spot.y, width: spot.width, height: spot.height }}
+          className="absolute rounded-sm border-2 border-accent transition-all duration-150"
         />
       )}
 
@@ -221,38 +213,31 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
         {`Tutorial step ${step + 1} of ${total}: ${def.title}`}
       </div>
 
-      <AnimatePresence initial={false}>
+      <>
         {blocked ? null : collapsed ? (
-          <motion.button
+          <button
             key="pill"
             type="button"
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
             onClick={() => setCollapsed(false)}
-            className="absolute bottom-4 left-20 pointer-events-auto flex items-center gap-2 bg-aero-panel-2 border border-aero-yellow/60 px-3 py-2 text-2xs font-mono uppercase tracking-widest text-white shadow-2xl hover:border-aero-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow"
+            className="absolute bottom-20 left-4 rail:bottom-4 rail:left-48 pointer-events-auto flex items-center gap-2 bg-surface border border-rule shadow-pop rounded-sm px-3 min-h-11 text-sm text-ink hover:border-ink animate-appear"
           >
-            <GraduationCap size={14} className="text-aero-yellow" aria-hidden="true" />
+            <GraduationCap size={14} className="text-accent" aria-hidden="true" />
             Tutorial {step + 1}/{total}: {def.title}
-          </motion.button>
+          </button>
         ) : (
-          <motion.div
+          <div
             key="card"
             ref={tipRef}
             role="dialog"
             aria-modal="false"
             aria-labelledby={titleId}
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1, left: placement.x, top: placement.y }}
-            exit={{ opacity: 0 }}
-            transition={move}
             style={{ left: placement.x, top: placement.y }}
-            className="absolute w-80 max-w-[calc(100vw-24px)] pointer-events-auto bg-aero-panel-2 border border-aero-yellow/50 shadow-[0_18px_50px_rgba(0,0,0,0.6)] text-left"
+            className="absolute w-80 max-w-[calc(100vw-24px)] pointer-events-auto bg-surface border border-rule shadow-pop rounded-sm text-left animate-appear"
           >
             {arrowStyle && (
               <span
                 aria-hidden="true"
-                className="absolute w-3 h-3 rotate-45 bg-aero-panel-2 border-aero-yellow/50 border-l border-b"
+                className="absolute w-3 h-3 rotate-45 bg-raised border-accent/50 border-l border-b"
                 style={{
                   ...arrowStyle,
                   // The two borders that face the target.
@@ -263,7 +248,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
               />
             )}
             <div className="flex items-center justify-between gap-2 px-4 pt-3">
-              <span className="flex items-center gap-1.5 text-3xs font-mono uppercase tracking-[0.25em] text-aero-yellow">
+              <span className="flex items-center gap-1.5 text-2xs font-label uppercase tracking-label text-muted">
                 <GraduationCap size={13} aria-hidden="true" /> Tutorial {step + 1} / {total}
               </span>
               <button
@@ -271,24 +256,24 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
                 onClick={() => setCollapsed(true)}
                 aria-label="Fold the tutorial away"
                 title="Fold away"
-                className="p-1 text-white/40 hover:text-white rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow"
+                className="p-1 text-muted hover:text-ink rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
               >
                 <Minus size={14} />
               </button>
             </div>
             <div className="px-4 pb-3 pt-1">
-              <h2 ref={headingRef} id={titleId} tabIndex={-1} className="text-sm font-black uppercase tracking-widest text-white mb-1.5 outline-none">
+              <h2 ref={headingRef} id={titleId} tabIndex={-1} className="font-label text-sm font-semibold text-ink mb-1.5 outline-none">
                 {def.title}
               </h2>
-              <p className="text-xs text-white/75 leading-relaxed">{def.text}</p>
+              <p className="text-xs text-muted leading-relaxed">{def.text}</p>
               {!box && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <p className="text-2xs font-mono text-aero-yellow/80 leading-relaxed">{def.hint}</p>
+                  <p className="text-2xs text-accent leading-relaxed">{def.hint}</p>
                   {def.view && def.view !== currentView && (
                     <button
                       type="button"
                       onClick={() => onNavigate(def.view!)}
-                      className="px-2 py-1 border border-aero-yellow/50 text-3xs font-mono font-bold uppercase tracking-widest text-aero-yellow hover:bg-aero-yellow hover:text-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow"
+                      className="px-2 py-1 border border-accent/50 text-2xs font-label font-semibold uppercase tracking-label text-accent hover:bg-accent hover:text-on-accent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       Show me
                     </button>
@@ -296,14 +281,14 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
                 </div>
               )}
               {!manual && (
-                <p className="mt-2 text-3xs font-mono uppercase tracking-widest text-white/35">Moves on by itself once done</p>
+                <p className="mt-2 text-2xs font-label uppercase tracking-label text-muted">Moves on by itself once done</p>
               )}
             </div>
-            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t border-white/10">
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t border-line">
               <button
                 type="button"
                 onClick={() => onGoTo(null, true)}
-                className="flex items-center gap-1 text-3xs font-mono uppercase tracking-widest text-white/45 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow"
+                className="flex items-center gap-1 text-2xs font-label uppercase tracking-label text-muted hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
               >
                 <X size={12} aria-hidden="true" /> Skip tutorial
               </button>
@@ -313,7 +298,7 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
                     <button
                       type="button"
                       onClick={() => onGoTo(back)}
-                      className="flex items-center gap-1 px-2 py-1.5 border border-white/15 text-3xs font-mono font-bold uppercase tracking-widest text-white/70 hover:text-white hover:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow"
+                      className="flex items-center gap-1 px-2 py-1.5 border border-line text-2xs font-label font-semibold uppercase tracking-label text-muted hover:text-ink hover:border-rule focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       <ChevronLeft size={12} aria-hidden="true" /> Back
                     </button>
@@ -321,16 +306,16 @@ export function TutorialOverlay({ step, state, currentView, layoutKey, onGoTo, o
                   <button
                     type="button"
                     onClick={() => onGoTo(last ? null : nextTutorialStep(step, state))}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-aero-yellow text-black text-3xs font-mono font-black uppercase tracking-widest hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-accent text-on-accent text-2xs font-label font-semibold uppercase tracking-label hover:bg-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
                   >
                     {last ? 'Finish' : 'Next'} {!last && <ChevronRight size={12} aria-hidden="true" />}
                   </button>
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

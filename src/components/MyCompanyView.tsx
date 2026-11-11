@@ -63,23 +63,23 @@ function LiveryEditor({ branding, airlineName, airlineCode, onBrandingChange }: 
         type="button"
         onClick={() => setDraft(draft ? null : { ...branding })}
         aria-expanded={draft !== null}
-        className={`flex items-center gap-2 px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border transition-colors ${
-          draft ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white/60 border-white/10 hover:text-white hover:border-white/30'
+        className={`flex items-center gap-2 px-3 py-1.5 text-2xs uppercase tracking-label font-semibold border transition-colors ${
+          draft ? 'bg-accent text-on-accent border-accent' : 'bg-surface text-muted border-line hover:text-ink hover:border-rule'
         }`}
       >
         <Palette size={12} /> Edit livery
       </button>
       {draft && (
-        <div className="absolute left-0 lg:left-auto lg:right-0 top-full mt-2 z-50 w-[min(92vw,28rem)] bg-aero-panel border border-aero-yellow/20 shadow-2xl p-4">
+        <div className="absolute left-0 lg:left-auto lg:right-0 top-full mt-2 z-50 w-[min(92vw,28rem)] bg-surface border border-accent/20 p-4">
           <BrandingPicker value={draft} onChange={setDraft} code={airlineCode} name={airlineName} />
-          <p className="text-3xs font-mono text-white/40 mt-3">
+          <p className="text-2xs text-muted mt-3">
             Rivals whose colour would look too much like yours are given a new one.
           </p>
-          <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setDraft(null)}
-              className="px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border border-white/10 text-white/60 hover:text-white hover:border-white/30"
+              className="px-3 py-1.5 text-2xs uppercase tracking-label font-semibold border border-line text-muted hover:text-ink hover:border-rule"
             >
               Cancel
             </button>
@@ -90,7 +90,7 @@ function LiveryEditor({ branding, airlineName, airlineCode, onBrandingChange }: 
                 if (draft) onBrandingChange(draft);
                 setDraft(null);
               }}
-              className="px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border border-aero-yellow bg-aero-yellow text-black hover:bg-white hover:border-white disabled:opacity-40 disabled:pointer-events-none"
+              className="px-3 py-1.5 text-2xs uppercase tracking-label font-semibold border border-accent bg-accent text-on-accent hover:bg-ink hover:border-ink disabled:opacity-40 disabled:pointer-events-none"
             >
               Apply
             </button>
@@ -106,12 +106,12 @@ const label = (r: MonthlyReport) => `${String(r.month).padStart(2, '0')}/${r.yea
 /** A number with its change against the previous month. */
 function Delta({ current, previous }: { current: number; previous?: number }) {
   if (previous === undefined) {
-    return <span className="text-2xs font-mono text-white/30 uppercase tracking-widest">First month</span>;
+    return <span className="text-2xs font-label text-muted uppercase tracking-label">First month</span>;
   }
   const diff = current - previous;
   if (diff === 0) {
     return (
-      <span className="flex items-center gap-1 text-2xs font-mono text-white/40">
+      <span className="flex items-center gap-1 text-2xs text-muted">
         <Minus size={10} /> unchanged
       </span>
     );
@@ -122,7 +122,7 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
   // useful, so only the absolute change is shown there.
   const pct = previous > 0 ? ` (${up ? '+' : ''}${((diff / previous) * 100).toFixed(1)}%)` : '';
   return (
-    <span className={`flex items-center gap-1 text-2xs font-mono ${up ? 'text-aero-good' : 'text-aero-warn'}`}>
+    <span className={`flex items-center gap-1 text-2xs font-mono ${up ? 'text-good' : 'text-bad'}`}>
       <Icon size={10} />
       {up ? '+' : ''}{formatCurrency(diff)}{pct}
     </span>
@@ -154,16 +154,15 @@ function MyCompanyViewImpl({
   const netWorth = capital + fleetValue;
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       <ViewHeader
-        eyebrow={[airlineName, airlineCode].filter(Boolean).join(' · ') || undefined}
         title={progression ? 'CAREER' : 'MY COMPANY'}
         icon={<BrandBadge branding={branding} code={airlineCode} name={airlineName} size={36} className="mr-2" />}
         right={progression ? undefined : <LiveryEditor branding={branding} airlineName={airlineName} airlineCode={airlineCode} onBrandingChange={onBrandingChange} />}
       />
 
       <div className="pr-4 mb-3">
-       <div className="flex gap-2 max-w-4xl mx-auto border-b border-white/5" role="tablist">
+       <div className="flex gap-2 max-w-4xl mx-auto border-b border-line" role="tablist">
         {(progression
           ? ([['rank', 'Rank'], ['development', 'Development'], ['goals', 'Board goals']] as const)
           : ([['overview', 'Overview'], ['marketing', 'Marketing'], ['staff', 'Staff'], ['history', 'History']] as const)
@@ -176,8 +175,8 @@ function MyCompanyViewImpl({
               role="tab"
               aria-selected={active}
               onClick={() => (progression ? setCareerTab(id as CareerPart) : setSection(id as typeof section))}
-              className={`px-2 md:px-4 py-2 -mb-px text-2xs uppercase tracking-wider md:tracking-widest font-black border-b-2 transition-colors ${
-                active ? 'border-aero-yellow text-aero-yellow' : 'border-transparent text-white/40 hover:text-white'
+              className={`px-2 md:px-4 py-2 -mb-px text-2xs uppercase tracking-label md:tracking-label font-semibold border-b-2 transition-colors ${
+                active ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-ink'
               }`}
             >
               {text}
@@ -187,7 +186,7 @@ function MyCompanyViewImpl({
        </div>
       </div>
 
-      <div className="flex-1 overflow-auto pr-4 custom-scrollbar">
+      <div className="flex-1 overflow-auto pr-4">
         {shown === 'history' ? (
           <div className="max-w-4xl mx-auto pb-6">
             <ChronicleView reportHistory={reportHistory} chronicle={chronicle} />
@@ -236,40 +235,40 @@ function MyCompanyViewImpl({
 
           {/* Balance sheet */}
           <div className="grid grid-cols-2 lg:grid-cols-4 short:grid-cols-4 gap-3 short:gap-2">
-            <StatTile size="md" label="Cash" value={formatCurrency(capital)} valueClassName="text-aero-yellow" />
+            <StatTile size="md" label="Cash" value={formatCurrency(capital)} valueClassName="text-accent" />
             <StatTile size="md" label="Fleet value" value={formatCurrency(fleetValue)}>
-              <span className="block text-3xs font-mono text-white/30 mt-1">{fleetCount} aircraft, at resale</span>
+              <span className="block text-2xs text-muted mt-1">{fleetCount} aircraft, at resale</span>
             </StatTile>
             <StatTile size="md" label="Net worth" value={formatCurrency(netWorth)}>
-              <span className="block text-3xs font-mono text-white/30 mt-1">cash + fleet</span>
+              <span className="block text-2xs text-muted mt-1">cash + fleet</span>
             </StatTile>
             <StatTile
               size="md"
               label="Reputation"
               value={Math.round(reputation)}
-              valueClassName={reputation >= 65 ? 'text-aero-good' : reputation < 40 ? 'text-aero-warn' : ''}
+              valueClassName={reputation >= 65 ? 'text-good' : reputation < 40 ? 'text-bad' : ''}
             >
-              <span className="block text-3xs font-mono text-white/30 mt-1">
+              <span className="block text-2xs text-muted mt-1">
                 demand {reputation >= 50 ? '+' : ''}{Math.round((reputation - 50) * 0.2)}%
               </span>
-              <div className="w-full h-1 bg-white/10 mt-2 overflow-hidden">
+              <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
                 <div
-                  className={`h-full ${reputation >= 65 ? 'bg-aero-good' : reputation < 40 ? 'bg-aero-warn' : 'bg-aero-yellow'}`}
+                  className={`h-full ${reputation >= 65 ? 'bg-good' : reputation < 40 ? 'bg-bad' : 'bg-accent'}`}
                   style={{ width: `${Math.max(0, Math.min(100, reputation))}%` }}
                 />
               </div>
             </StatTile>
             <StatTile size="md" label="Rank" value={rankDef(rank).title.replace(' Airline', '')}>
-              <span className="block text-3xs font-mono text-white/30 mt-1">
-                <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+              <span className="block text-2xs text-muted mt-1">
+                <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-label text-accent hover:text-ink">
                   Career &rarr;
                 </button>
               </span>
             </StatTile>
             {goalOffer ? (
               <StatTile size="md" label={`${goalOffer.year} goal`} value="Choose">
-                <span className="block text-3xs font-mono text-white/30 mt-1">
-                  <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-widest text-aero-yellow hover:text-white">
+                <span className="block text-2xs text-muted mt-1">
+                  <button type="button" onClick={() => onOpenProgression?.()} className="uppercase tracking-label text-accent hover:text-ink">
                     The board waits &rarr;
                   </button>
                 </span>
@@ -282,50 +281,50 @@ function MyCompanyViewImpl({
                   size="md"
                   label={`${annualGoal.year} goal`}
                   value={annualGoal.kind === 'profit' ? compact(value) : annualGoal.kind === 'noLoss' ? (value === 0 ? 'Clean' : `${value} loss`) : Math.round(value)}
-                  valueClassName={fraction >= 1 ? 'text-aero-good' : ''}
+                  valueClassName={fraction >= 1 ? 'text-good' : ''}
                 >
-                  <span className="block text-3xs font-mono text-white/30 mt-1">
+                  <span className="block text-2xs text-muted mt-1">
                     {describeGoal(annualGoal, compact, n => String(Math.round(n)))}
                   </span>
-                  <div className="w-full h-1 bg-white/10 mt-2 overflow-hidden">
-                    <div className={`h-full ${fraction >= 1 ? 'bg-aero-good' : 'bg-aero-yellow'}`} style={{ width: `${fraction * 100}%` }} />
+                  <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
+                    <div className={`h-full ${fraction >= 1 ? 'bg-good' : 'bg-accent'}`} style={{ width: `${fraction * 100}%` }} />
                   </div>
                 </StatTile>
               );
             })()}
             <StatTile size="md" label="Network" value={routeCount}>
-              <span className="block text-3xs font-mono text-white/30 mt-1">active routes</span>
+              <span className="block text-2xs text-muted mt-1">active routes</span>
             </StatTile>
           </div>
 
           {fleetCount > 0 && (
             <Panel>
               <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
-                <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Fleet commonality</span>
-                <span className={`text-2xs font-mono ${commonality.meanFactor < 1 ? 'text-aero-good' : commonality.meanFactor > 1 ? 'text-aero-warn' : 'text-white/50'}`}>
+                <span className="text-2xs uppercase tracking-label text-muted font-semibold">Fleet commonality</span>
+                <span className={`text-2xs font-mono ${commonality.meanFactor < 1 ? 'text-good' : commonality.meanFactor > 1 ? 'text-bad' : 'text-muted'}`}>
                   maintenance {commonality.meanFactor === 1 ? 'at the standard rate' : `${commonality.meanFactor < 1 ? '' : '+'}${Math.round((commonality.meanFactor - 1) * 100)}% on average`}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2 mb-2">
                 {commonality.families.slice(0, 8).map(f => (
-                  <span key={f.family} className="text-2xs font-mono border border-white/10 bg-white/[0.03] px-2 py-1 rounded-sm">
-                    {f.family} &times;{f.count}{f.discount > 0 && <span className="text-aero-good"> &minus;{Math.round(f.discount * 100)}%</span>}
+                  <span key={f.family} className="text-2xs border border-line bg-surface px-2 py-1 rounded-sm">
+                    {f.family} &times;{f.count}{f.discount > 0 && <span className="text-good"> &minus;{Math.round(f.discount * 100)}%</span>}
                   </span>
                 ))}
-                {commonality.families.length > 8 && <span className="text-2xs font-mono text-white/40 py-1">+{commonality.families.length - 8} more</span>}
+                {commonality.families.length > 8 && <span className="text-2xs text-muted py-1">+{commonality.families.length - 8} more</span>}
               </div>
-              <p className="text-3xs font-mono text-white/40 leading-relaxed">
+              <p className="text-2xs text-muted leading-relaxed">
                 Aircraft of one family share crews and spare parts: three of a kind save 4% on their maintenance, six 8%, twelve 12%.
                 Running more than three families costs 3% on every aircraft for each one beyond.
-                {commonality.penalty > 0 && <span className="text-aero-warn"> Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</span>}
+                {commonality.penalty > 0 && <span className="text-bad"> Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</span>}
               </p>
             </Panel>
           )}
 
           {reportHistory.length === 0 ? (
-            <div className="h-48 border border-white/5 bg-black/20 rounded-sm flex flex-col items-center justify-center gap-2 text-white/40 uppercase tracking-widest text-xs font-bold">
+            <div className="h-48 border border-line bg-ground/20 rounded-sm flex flex-col items-center justify-center gap-2 text-muted uppercase tracking-label text-xs font-semibold">
               No month closed yet
-              <span className="text-2xs normal-case tracking-normal text-white/30 font-mono">
+              <span className="text-2xs normal-case text-muted">
                 Plan a route, then advance the month to produce your first report.
               </span>
             </div>
@@ -334,29 +333,29 @@ function MyCompanyViewImpl({
               {/* Last month at a glance */}
               <Panel>
                 <div className="flex items-baseline justify-between mb-3">
-                  <span className="text-2xs uppercase tracking-widest text-white/40 font-black">
+                  <span className="text-2xs uppercase tracking-label text-muted font-semibold">
                     {latest && label(latest)} — versus previous month
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <span className="text-2xs uppercase tracking-widest text-white/40 block mb-1">Revenue</span>
+                    <span className="text-2xs uppercase tracking-label text-muted block mb-1">Revenue</span>
                     <span className="font-mono text-lg">{formatCurrency(latest!.routeRevenues)}</span>
                     <Delta current={latest!.routeRevenues} previous={previous?.routeRevenues} />
                   </div>
                   <div>
-                    <span className="text-2xs uppercase tracking-widest text-white/40 block mb-1">Operating profit</span>
-                    <span className={`font-mono text-lg ${latest!.totalProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
+                    <span className="text-2xs uppercase tracking-label text-muted block mb-1">Operating profit</span>
+                    <span className={`font-mono text-lg ${latest!.totalProfit >= 0 ? 'text-good' : 'text-bad'}`}>
                       {formatCurrency(latest!.totalProfit)}
                     </span>
                     <Delta current={latest!.totalProfit} previous={previous?.totalProfit} />
                   </div>
                   <div>
-                    <span className="text-2xs uppercase tracking-widest text-white/40 block mb-1">Cash change</span>
-                    <span className={`font-mono text-lg ${(latest!.cashChange ?? latest!.totalProfit) >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
+                    <span className="text-2xs uppercase tracking-label text-muted block mb-1">Cash change</span>
+                    <span className={`font-mono text-lg ${(latest!.cashChange ?? latest!.totalProfit) >= 0 ? 'text-good' : 'text-bad'}`}>
                       {formatCurrency(latest!.cashChange ?? latest!.totalProfit)}
                     </span>
-                    <span className="block text-2xs font-mono text-white/30">
+                    <span className="block text-2xs text-muted">
                       profit minus {formatCurrency(latest!.capex ?? 0)} capex
                     </span>
                   </div>
@@ -366,11 +365,11 @@ function MyCompanyViewImpl({
               {/* Recent profit; every other figure and the chronicle are under History. */}
               <Panel>
                 <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-                  <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Operating profit, last {recent.length} month{recent.length === 1 ? '' : 's'}</span>
+                  <span className="text-2xs uppercase tracking-label text-muted font-semibold">Operating profit, last {recent.length} month{recent.length === 1 ? '' : 's'}</span>
                   <button
                     type="button"
                     onClick={() => setSection('history')}
-                    className="text-2xs font-mono uppercase tracking-widest text-aero-yellow hover:text-white"
+                    className="text-2xs font-label uppercase tracking-label text-accent hover:text-ink"
                   >
                     Full history &rarr;
                   </button>
@@ -383,23 +382,23 @@ function MyCompanyViewImpl({
                   height={160}
                   ariaLabel="Operating profit per month over the last two years"
                 />
-                <p className="text-2xs font-mono text-white/30 mt-3 leading-relaxed">
+                <p className="text-2xs text-muted mt-3 leading-relaxed">
                   {reportHistory.length} month{reportHistory.length === 1 ? '' : 's'} on record.
                   History is kept for the last ten years and travels with the savegame.
                 </p>
               </Panel>
 
               {/* Glossary */}
-              <div className="p-4 bg-white/5 border border-white/10 rounded-sm flex gap-4">
-                <Info className="text-white/60 shrink-0 mt-0.5" size={16} />
-                <div className="text-2xs text-white/60 leading-relaxed font-mono space-y-1.5">
-                  <p><strong className="text-white/80">Flight revenue</strong> — ticket sales on your active routes.</p>
-                  <p><strong className="text-white/80">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
-                  <p><strong className="text-white/80">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
-                  <p><strong className="text-white/80">Aircraft ownership</strong> — insurance and the maintenance programme for every aircraft in the fleet, flying or parked. A parked aircraft costs half, and the older an aircraft gets the more its upkeep takes.</p>
-                  <p><strong className="text-white/80">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
-                  <p><strong className="text-white/80">Incident repairs &amp; charters</strong> — replacement aircraft chartered to fly cancelled flights (older reports also list repair bills). A bird strike is paid on the spot and shows as capex.</p>
-                  <p><strong className="text-white/80">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers, airport slots. Deducted from cash at once, but not from operating profit, which is why the two differ.</p>
+              <div className="p-4 bg-surface border border-line rounded-sm flex gap-4">
+                <Info className="text-muted shrink-0 mt-0.5" size={16} />
+                <div className="text-2xs text-muted leading-relaxed space-y-1.5">
+                  <p><strong className="text-ink">Flight revenue</strong> — ticket sales on your active routes.</p>
+                  <p><strong className="text-ink">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
+                  <p><strong className="text-ink">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
+                  <p><strong className="text-ink">Aircraft ownership</strong> — insurance and the maintenance programme for every aircraft in the fleet, flying or parked. A parked aircraft costs half, and the older an aircraft gets the more its upkeep takes.</p>
+                  <p><strong className="text-ink">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
+                  <p><strong className="text-ink">Incident repairs &amp; charters</strong> — replacement aircraft chartered to fly cancelled flights (older reports also list repair bills). A bird strike is paid on the spot and shows as capex.</p>
+                  <p><strong className="text-ink">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers, airport slots. Deducted from cash at once, but not from operating profit, which is why the two differ.</p>
                 </div>
               </div>
 

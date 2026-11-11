@@ -18,27 +18,45 @@ export function conditionTone(value: number): 'warn' | 'yellow' | 'neutral' {
 }
 
 export const CONDITION_TEXT_CLASS: Record<ReturnType<typeof conditionTone>, string> = {
-  warn: 'text-aero-warn font-black animate-pulse',
-  yellow: 'text-yellow-400 font-bold',
-  neutral: 'text-white font-bold',
+  warn: 'text-bad font-semibold animate-pulse',
+  yellow: 'text-accent font-semibold',
+  neutral: 'text-ink font-semibold',
 };
 
 export const CONDITION_BAR_CLASS: Record<ReturnType<typeof conditionTone>, string> = {
-  warn: 'bg-aero-warn animate-pulse',
-  yellow: 'bg-yellow-400',
-  neutral: 'bg-aero-yellow/20',
+  warn: 'bg-bad',
+  yellow: 'bg-accent',
+  neutral: 'bg-ink',
 };
 
-/** Single source for the map yellow — Leaflet/canvas paints are JS strings, not Tailwind classes. */
-export const MAP_YELLOW = '#FACC15';
+/**
+ * The design tokens as JS strings, for what cannot use a class: the map
+ * library, canvas and SVG paints. The values are defined in src/index.css;
+ * theme.test.ts fails when the two differ.
+ */
+export const TOKENS = {
+  ground: '#14171A',
+  surface: '#1C2024',
+  raised: '#252A2F',
+  ink: '#E8E6E1',
+  muted: '#9AA1A8',
+  line: '#33393F',
+  rule: '#6B747D',
+  accent: '#F2B233',
+  good: '#5CC98B',
+  bad: '#F0766B',
+} as const;
+
+/** The player's default colour on the map: the accent. */
+export const MAP_YELLOW = TOKENS.accent;
 
 /** Airport/route congestion severity palette used only on the Leaflet map (WorldMap.tsx). */
 export const MAP_CONGESTION_COLORS = {
   low: '#FB923C',
   medium: '#EA580C',
   high: '#DC2626',
-  good: '#10b981',
-  bad: '#ef4444',
+  good: TOKENS.good,
+  bad: TOKENS.bad,
 } as const;
 
 /**
@@ -224,22 +242,22 @@ export function paxWeight(pax: number, maxPax: number): number {
 }
 
 /**
- * The history charts on the dark panels (aero-panel, #141414). Two series at
+ * The history charts on the panels (the surface token). Two series at
  * most, always in this order, so revenue and costs, or all passengers and
  * connecting ones, keep their colours from chart to chart.
  *
  * Both series colours pass the dataviz palette checks against that surface:
  * lightness band, chroma floor, colour-blind separation (worst pair 27 dE)
- * and 3:1 contrast. The first is the amber step of the app's signal yellow;
- * #FACC15 itself is too light to sit in the band beside a second series.
+ * and 3:1 contrast. The first is a darker amber than the accent, which is too
+ * light to sit in the band beside a second series.
  * Grid, axis and muted text are one step off the surface, so the data is the
  * only loud thing on the chart.
  */
 export const CHART_COLORS = {
   series: ['#c98500', '#3987e5'],
-  surface: '#141414',
-  grid: '#2c2c2a',
-  axis: '#383835',
-  muted: '#898781',
-  crosshair: 'rgba(255, 255, 255, 0.35)',
+  surface: TOKENS.surface,
+  grid: TOKENS.line,
+  axis: TOKENS.rule,
+  muted: TOKENS.muted,
+  crosshair: 'rgb(232 230 225 / 0.35)',
 } as const;

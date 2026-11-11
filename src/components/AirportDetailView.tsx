@@ -198,35 +198,34 @@ export function AirportDetailView({
   };
 
   return (
-    <div className="absolute inset-0 z-[2000] flex flex-col bg-aero-black overflow-hidden pointer-events-auto font-mono">
+    <div className="absolute inset-0 z-[2000] flex flex-col bg-ground overflow-hidden pointer-events-auto">
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
         {/* Phones: title above the buttons, and a smaller title. Sideways: one
             slim row without the eyebrow line. */}
-        <div className="p-4 pb-4 bar:p-3 short:px-3 short:py-1.5 flex flex-col md:flex-row justify-between items-start short:items-center gap-3 short:gap-2 border-b border-white/5 bg-aero-carbon/80 backdrop-blur-sm">
+        <div className="p-4 pb-4 bar:p-3 short:px-3 short:py-1.5 flex flex-col md:flex-row justify-between items-start short:items-center gap-3 short:gap-2 border-b border-line bg-raised/80">
           <div className="flex flex-col min-w-0">
-            <div className="text-aero-yellow text-2xs uppercase tracking-[0.4em] mb-2 bar:mb-1 font-black short:hidden">Strategic Operations Console</div>
-            <h1 className="text-3xl md:text-5xl bar:text-2xl short:text-2xl font-black italic uppercase tracking-tighter text-white flex flex-wrap items-center gap-x-4 short:gap-x-3 gap-y-1">
-              {airport.name} <span className="text-aero-yellow font-normal not-italic opacity-50">[{airport.id}] <span className="text-[24px] bar:text-lg short:text-lg ml-4 bar:ml-2 short:ml-2 italic font-black uppercase text-aero-yellow tracking-widest">L{airport.level}</span></span>
+            <h1 className="font-label text-3xl md:text-3xl bar:text-2xl short:text-2xl font-semibold text-ink flex flex-wrap items-center gap-x-4 short:gap-x-3 gap-y-1">
+              {airport.name} <span className="text-accent font-normal not-italic opacity-50">[{airport.id}] <span className="text-2xl bar:text-lg short:text-lg ml-4 bar:ml-2 short:ml-2 font-semibold text-accent">L{airport.level}</span></span>
             </h1>
           </div>
           <div className="flex items-center gap-2 md:gap-4 short:gap-2 short:shrink-0">
             <button
               onClick={handleStartRouteClick}
-              className="px-3 py-3 bar:py-2 short:py-1.5 bg-white/5 text-white font-black italic uppercase tracking-widest hover:bg-aero-yellow hover:text-black transition-all text-xs border border-white/10"
+              className="px-3 py-3 bar:py-2 short:py-1.5 bg-surface text-ink font-semibold uppercase tracking-label hover:bg-accent hover:text-on-accent transition-all text-xs border border-line"
             >
               New Route +
             </button>
             <button
               onClick={onManageRoutes}
-              className="px-3 py-3 bar:py-2 short:py-1.5 bg-aero-yellow text-black font-black italic uppercase tracking-widest hover:bg-white transition-all text-xs border border-transparent"
+              className="px-3 py-3 bar:py-2 short:py-1.5 bg-accent text-on-accent font-semibold uppercase tracking-label hover:bg-ink transition-all text-xs border border-transparent"
             >
               My Routes
             </button>
             <button 
               onClick={onClose}
-              className="p-3 bar:p-2 short:p-1.5 bg-white/5 hover:bg-aero-yellow hover:text-black transition-all border border-white/10"
+              className="p-3 bar:p-2 short:p-1.5 bg-surface hover:bg-accent hover:text-on-accent transition-all border border-line"
             >
               <X size={24} />
             </button>
@@ -235,7 +234,7 @@ export function AirportDetailView({
 
         {/* Infobar */}
         {/* Wraps onto several lines on phones instead of running off the right edge. */}
-        <div className="bg-aero-panel border-b border-white/10 py-2 short:py-1.5 px-4 bar:px-3 short:px-3 flex flex-wrap md:flex-nowrap short:flex-wrap justify-between short:justify-start items-center gap-x-4 gap-y-2 md:gap-2 short:gap-x-5 short:gap-y-1 uppercase tracking-widest text-3xs">
+        <div className="bg-surface border-b border-line py-2 short:py-1.5 px-4 bar:px-3 short:px-3 flex flex-wrap md:flex-nowrap short:flex-wrap justify-between short:justify-start items-center gap-x-4 gap-y-2 md:gap-2 short:gap-x-5 short:gap-y-1 uppercase tracking-label text-2xs">
           <Metric label="Level" value={`L${airport.level}`} highlight />
           <Metric label="Mgmt" value={
             infrastructure.level === 0 ? 'None' : 
@@ -246,18 +245,18 @@ export function AirportDetailView({
           <Metric label="Tourism" value={formatNumber(getAirportStats(airport, currentYear).tourism)} />
           <Metric label="Weekly Seats" value={formatNumber(passengerData.total)} />
           <div className="flex flex-col relative group min-w-[100px]">
-            <span className="text-white/30 text-3xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-white transition-colors" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>
+            <span className="text-muted text-2xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-ink transition-colors" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>
               Weekly Costs <Info size={8} />
             </span>
-            <span className="text-xs font-black text-aero-yellow/60">{formatCurrency(weeklyExpenses)}</span>
+            <span className="text-xs font-semibold text-accent">{formatCurrency(weeklyExpenses)}</span>
             
             {showCostBreakdown && (
-              <div className="absolute top-full left-0 mt-1 w-64 bg-aero-carbon border border-white/10 shadow-2xl p-4 z-50 rounded-sm normal-case tracking-normal">
-                <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/10">
-                  <span className="text-white font-bold text-xs uppercase tracking-widest">Ops Breakdown</span>
-                  <button onClick={() => setShowCostBreakdown(false)} className="text-white/40 hover:text-white"><X size={12}/></button>
+              <div className="absolute top-full left-0 mt-1 w-64 bg-raised border border-line p-4 z-50 rounded-sm normal-case">
+                <div className="flex justify-between items-center mb-2 pb-2 border-b border-line">
+                  <span className="text-ink font-semibold text-xs uppercase tracking-label">Ops Breakdown</span>
+                  <button onClick={() => setShowCostBreakdown(false)} className="text-muted hover:text-ink"><X size={12}/></button>
                 </div>
-                <div className="space-y-1 text-white/70 text-2xs">
+                <div className="space-y-1 text-muted text-2xs">
                   {costBreakdown.slots.regional > 0 && <div className="flex justify-between"><span>Reg Slot Admin:</span> <span>{formatCurrency(costBreakdown.slots.regional)}</span></div>}
                   {costBreakdown.slots.narrowbody > 0 && <div className="flex justify-between"><span>NB Slot Admin:</span> <span>{formatCurrency(costBreakdown.slots.narrowbody)}</span></div>}
                   {costBreakdown.slots.widebody > 0 && <div className="flex justify-between"><span>WB Slot Admin:</span> <span>{formatCurrency(costBreakdown.slots.widebody)}</span></div>}
@@ -266,13 +265,13 @@ export function AirportDetailView({
                   {costBreakdown.stands.widebody > 0 && <div className="flex justify-between"><span>WB Stands:</span> <span>{formatCurrency(costBreakdown.stands.widebody)}</span></div>}
                   {costBreakdown.desks.normal > 0 && <div className="flex justify-between"><span>Check-in:</span> <span>{formatCurrency(costBreakdown.desks.normal)}</span></div>}
                   {costBreakdown.desks.self > 0 && <div className="flex justify-between"><span>Self-Check:</span> <span>{formatCurrency(costBreakdown.desks.self)}</span></div>}
-                  {(costBreakdown.facilities.hangar > 0 || costBreakdown.facilities.vip > 0 || costBreakdown.facilities.catering > 0) && <div className="flex justify-between pt-2 border-t border-white/10"><span>Facilities:</span> <span>{formatCurrency(costBreakdown.facilities.hangar + costBreakdown.facilities.vip + costBreakdown.facilities.catering)}</span></div>}
-                  <div className="flex justify-between pt-2 mt-2 border-t border-white/20 text-white font-bold"><span>Total/wk:</span> <span className="text-aero-yellow/60">{formatCurrency(weeklyExpenses)}</span></div>
+                  {(costBreakdown.facilities.hangar > 0 || costBreakdown.facilities.vip > 0 || costBreakdown.facilities.catering > 0) && <div className="flex justify-between pt-2 border-t border-line"><span>Facilities:</span> <span>{formatCurrency(costBreakdown.facilities.hangar + costBreakdown.facilities.vip + costBreakdown.facilities.catering)}</span></div>}
+                  <div className="flex justify-between pt-2 mt-2 border-t border-rule text-ink font-semibold"><span>Total/wk:</span> <span className="text-accent">{formatCurrency(weeklyExpenses)}</span></div>
                 </div>
               </div>
             )}
           </div>
-          <Metric label="Available Slots" info="slots" value={`${Math.max(0, totalSlots - usedSlots - aiSlotsUsed)} / ${totalSlots}`} color={aiSlotsUsed > 0 ? "text-aero-yellow" : "text-white"} />
+          <Metric label="Available Slots" info="slots" value={`${Math.max(0, totalSlots - usedSlots - aiSlotsUsed)} / ${totalSlots}`} color={aiSlotsUsed > 0 ? "text-accent" : "text-ink"} />
           <Metric label="Max ICAO Code" value={airport.maxIcaoCode} info="icaoCode" />
           {(() => {
              const hubBonus = infrastructure.level >= 2;
@@ -289,19 +288,19 @@ export function AirportDetailView({
 
 
         {/* Main Interface */}
-        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto no-scrollbar">
+        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto overflow-x-hidden">
           {/* Left Column: Operations Dashboard */}
           <div className="flex flex-col gap-3">
-            <div className="bg-aero-carbon border border-white/10 p-4 flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-white/10 pb-4">
+            <div className="bg-raised border border-line p-4 flex flex-col gap-4">
+              <div className="flex justify-between items-center border-b border-line pb-4">
                 <div className="flex items-center gap-3">
-                  <Target className="text-aero-yellow" size={20} />
-                  <span className="text-sm font-black uppercase tracking-[0.2em]">Infrastructure Controls</span>
+                  <Target className="text-accent" size={20} />
+                  <span className="text-sm font-semibold">Infrastructure Controls</span>
                 </div>
                 {infrastructure.level >= 1 ? (
-                  <span className="text-2xs bg-aero-yellow/20 text-black px-2 py-0.5 font-bold rounded-sm animate-pulse">SYSTEMS ONLINE</span>
+                  <span className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Systems online</span>
                 ) : (
-                  <span className="text-2xs bg-white/10 text-white/40 px-2 py-0.5 rounded-sm">OFFLINE</span>
+                  <span className="text-2xs bg-raised text-muted px-2 py-0.5 rounded-sm">Offline</span>
                 )}
               </div>
 
@@ -321,11 +320,11 @@ export function AirportDetailView({
 
                   {/* STANDS SECTION */}
                   {avail.stands && (
-                    <div className="space-y-4 pt-4 border-t border-white/5">
+                    <div className="space-y-4 pt-4 border-t border-line">
                       <div className="flex justify-between items-center">
-                        <SectionLabel icon={<Anchor size={12} className="text-white/80"/>} label="Gate/Stand Upgrades (up to +2 quality pts)" />
+                        <SectionLabel icon={<Anchor size={12} className="text-ink"/>} label="Gate/Stand Upgrades (up to +2 quality pts)" />
                         {hubAutoUpgrade ? (
-                          <span className="text-3xs text-white/80 font-black animate-pulse uppercase tracking-widest">Automatic Hub Upgrade Enabled</span>
+                          <span className="text-2xs text-ink font-semibold uppercase tracking-label">Automatic Hub Upgrade Enabled</span>
                         ) : (
                           <button
                             onClick={() => {
@@ -334,10 +333,10 @@ export function AirportDetailView({
                                 autoBuyStands: !infrastructure.autoBuyStands
                               });
                             }}
-                            className={`px-2 py-1 text-3xs font-black uppercase tracking-widest border transition-all ${
+                            className={`px-2 py-1 text-2xs font-semibold uppercase tracking-label border transition-all ${
                               infrastructure.autoBuyStands 
-                                ? 'bg-aero-yellow text-black border-aero-yellow' 
-                                : 'bg-transparent text-white/50 border-white/10 hover:border-white/30'
+                                ? 'bg-accent text-on-accent border-accent' 
+                                : 'bg-transparent text-muted border-line hover:border-rule'
                             }`}
                           >
                             {infrastructure.autoBuyStands ? "Auto-Buy: ON" : "Auto-Buy: OFF"}
@@ -364,10 +363,10 @@ export function AirportDetailView({
                   )}
 
                   {/* CHECK-IN SECTION */}
-                  <div className="space-y-4 pt-4 border-t border-white/5">
+                  <div className="space-y-4 pt-4 border-t border-line">
                     <div className="flex justify-between items-center">
-                      <SectionLabel icon={<Info size={12} className="text-aero-yellow"/>} label="Passenger Processing" />
-                      <div className={`text-2xs font-bold px-2 py-0.5 rounded-sm ${satDeduction < 0 || (!infrastructure.desks.normal && !infrastructure.desks.self) ? 'bg-aero-warn/10 text-aero-warn' : 'bg-aero-yellow/10 text-aero-yellow'}`}>
+                      <SectionLabel icon={<Info size={12} className="text-accent"/>} label="Passenger Processing" />
+                      <div className={`text-2xs font-semibold px-2 py-0.5 rounded-sm ${satDeduction < 0 || (!infrastructure.desks.normal && !infrastructure.desks.self) ? 'bg-bad/10 text-bad' : 'bg-accent/10 text-accent'}`}>
                          SAT Impact: {hasNoDesks ? '-15 quality pts (No Desks)' : (satDeduction === 0 ? '0.0' : `${formatNumber(satDeduction, 1)}%${deskLoad > 80 ? ' (Load)' : ' (Self-check share)'}`)}{selfServiceOnly ? ' | Premium cabins -10 quality pts (no staffed desk)' : ''}
                       </div>
                     </div>
@@ -377,29 +376,29 @@ export function AirportDetailView({
                          <InfaRow label="Self-Check-In" count={infrastructure.desks.self} cost={deskCosts.self} onBuy={(n, isShift) => buyItem('desks', 'self', n, isShift)} info={`Cap: ${deskCapacities.self} pax/wk | -1 SAT`} />
                        )}
                     </div>
-                    <div className="mt-2 text-2xs text-white/30 space-y-1">
-                       <div className="flex justify-between"><span>Weekly seats (check-in):</span> <span className="text-white">{formatNumber(deskSim.myPax)} / {formatNumber(deskSim.cap)}</span></div>
-                       <div className="flex justify-between"><span>Current Weekly Load:</span> <span className={deskLoad > 90 ? 'text-aero-warn' : 'text-white'}>{formatNumber(deskLoad, 1)}%</span></div>
-                       <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                         <div className={`h-full transition-all ${deskLoad > 100 ? 'bg-aero-warn' : deskLoad > 80 ? 'bg-aero-yellow' : 'bg-aero-yellow/20'}`} style={{ width: `${Math.min(100, deskLoad)}%` }}></div>
+                    <div className="mt-2 text-2xs text-muted space-y-1">
+                       <div className="flex justify-between"><span>Weekly seats (check-in):</span> <span className="text-ink">{formatNumber(deskSim.myPax)} / {formatNumber(deskSim.cap)}</span></div>
+                       <div className="flex justify-between"><span>Current Weekly Load:</span> <span className={deskLoad > 90 ? 'text-bad' : 'text-ink'}>{formatNumber(deskLoad, 1)}%</span></div>
+                       <div className="w-full h-1 bg-surface rounded-full overflow-hidden">
+                         <div className={`h-full transition-all ${deskLoad > 100 ? 'bg-bad' : deskLoad > 80 ? 'bg-accent' : 'bg-accent/20'}`} style={{ width: `${Math.min(100, deskLoad)}%` }}></div>
                        </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="py-20 flex flex-col items-center justify-center text-center gap-3 border-2 border-dashed border-white/5">
-                  <Lock size={48} className="text-white/10" />
+                <div className="py-20 flex flex-col items-center justify-center text-center gap-3 border-2 border-dashed border-line">
+                  <Lock size={48} className="text-muted" />
                   <div className="space-y-2">
-                    <div className="text-xl font-black italic text-white uppercase tracking-widest">Access Protocol Locked</div>
-                    <div className="text-2xs text-white/40 uppercase tracking-widest">Require Level 1 Management Permit: {formatCurrency(unlockCost(1))}</div>
+                    <div className="text-xl font-semibold text-ink">Locked</div>
+                    <div className="text-2xs text-muted uppercase tracking-label">Require Level 1 Management Permit: {formatCurrency(unlockCost(1))}</div>
                     {gates?.airport && (
-                      <div className="text-2xs text-aero-warn font-mono normal-case tracking-normal max-w-md mx-auto leading-relaxed">{gates.airport}</div>
+                      <div className="text-2xs text-bad normal-case max-w-md mx-auto leading-relaxed">{gates.airport}</div>
                     )}
                   </div>
                   <button 
                     onClick={() => onBuyManagement(1)}
                     disabled={!!gates?.airport}
-                    className="px-4 py-3 bg-white text-black font-black text-xs uppercase tracking-[0.2em] hover:bg-aero-yellow transition-all disabled:bg-white/5 disabled:text-white/20 disabled:cursor-not-allowed"
+                    className="px-4 py-3 bg-accent text-on-accent font-semibold text-xs uppercase tracking-label hover:bg-ink transition-all disabled:bg-surface disabled:text-muted disabled:cursor-not-allowed"
                   >
                     {gates?.airport ? 'Locked: Rank' : 'Initiate Setup'}
                   </button>
@@ -412,28 +411,24 @@ export function AirportDetailView({
           <div className="flex flex-col gap-3">
             <TransferHubCard stats={transferHub} quality={hubQuality(infrastructure)} />
             {infrastructure.level >= 2 ? (
-              <div className="bg-aero-carbon border border-aero-yellow p-4 flex flex-col gap-3 relative overflow-hidden">
-                <div className="absolute -top-10 -right-10 text-aero-yellow/5">
-                  <Anchor size={200} />
-                </div>
+              <div className="bg-surface border border-line p-4 flex flex-col gap-3">
                 <div className="relative z-10 flex flex-col">
-                  <div className="text-aero-yellow text-2xs font-black uppercase tracking-[0.3em] mb-1">Active Protocol</div>
-                  <div className="text-2xl font-black italic text-white uppercase tracking-widest flex items-center gap-3">
-                    <Anchor size={24} className="text-aero-yellow" />
+                  <div className="text-2xl font-semibold text-ink flex items-center gap-3">
+                    <Anchor size={24} className="text-accent" />
                     Hub Operations
                   </div>
                 </div>
                 
                 <div className="relative z-10 grid grid-cols-1 gap-4">
                   {/* Maintenance Hangar */}
-                  <div className="bg-white/5 border border-white/10 p-4">
+                  <div className="bg-surface border border-line p-4">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <div className="text-white font-black uppercase tracking-widest text-sm">Maintenance Hangar</div>
-                        <div className="text-2xs text-white/50 mt-1 uppercase tracking-widest w-64">Allows general checks at this hub</div>
+                        <div className="text-ink font-semibold text-sm">Maintenance Hangar</div>
+                        <div className="text-2xs text-muted mt-1 uppercase tracking-label w-64">Allows general checks at this hub</div>
                       </div>
                       {infrastructure.hubFacilities?.hangar ? (
-                        <div className="text-2xs bg-aero-yellow/20 text-black px-2 py-1 font-bold rounded-sm animate-pulse">ACTIVE</div>
+                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
                       ) : (
                         <button 
                           onClick={() => {
@@ -446,20 +441,20 @@ export function AirportDetailView({
                             }
                           }}
                           disabled={capital < 250000}
-                          className="px-4 py-2 bg-white text-black font-black uppercase tracking-widest text-2xs hover:bg-aero-yellow transition-all disabled:opacity-50"
+                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
                         >
                           Construct - {formatCurrency(250000)}
                         </button>
                       )}
                     </div>
                     {infrastructure.hubFacilities?.hangar && (
-                      <div className="mt-4 border-t border-white/10 pt-4 flex flex-col gap-2">
-                        <div className="text-2xs text-white/50 uppercase tracking-widest">
+                      <div className="mt-4 border-t border-line pt-4 flex flex-col gap-2">
+                        <div className="text-2xs text-muted uppercase tracking-label">
                           Perform General Check (200k)
                         </div>
                         <div className="flex gap-2">
                           <select 
-                            className="flex-1 bg-black/40 border border-white/10 text-white text-xs p-2 outline-none font-mono"
+                            className="flex-1 bg-ground/40 border border-line text-ink text-xs p-2 outline-none"
                             value={selectedAircraftForCheck}
                             onChange={(e) => setSelectedAircraftForCheck(e.target.value)}
                           >
@@ -479,7 +474,7 @@ export function AirportDetailView({
                               onPerformGeneralCheck(selectedAircraftForCheck);
                               setSelectedAircraftForCheck("");
                             }}
-                            className="px-4 py-2 bg-aero-yellow text-black font-black uppercase tracking-widest text-2xs hover:bg-white transition-all disabled:opacity-50"
+                            className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
                           >
                             Service
                           </button>
@@ -489,17 +484,17 @@ export function AirportDetailView({
                   </div>
 
                   {/* VIP Lounge */}
-                  <div className="bg-white/5 border border-white/10 p-4">
+                  <div className="bg-surface border border-line p-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="text-white font-black uppercase tracking-widest text-sm">VIP Lounge</div>
-                        <div className="text-2xs text-white/50 mt-1 uppercase tracking-widest">+4 quality pts (Bus/First), +1 (PE)</div>
+                        <div className="text-ink font-semibold text-sm">VIP Lounge</div>
+                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">+4 quality pts (Bus/First), +1 (PE)</div>
                         {gates?.vipLounge && !infrastructure.hubFacilities?.vipLounge && (
-                          <div className="text-2xs text-aero-warn mt-2 font-mono normal-case tracking-normal max-w-xs">{gates.vipLounge}</div>
+                          <div className="text-2xs text-bad mt-2 normal-case max-w-xs">{gates.vipLounge}</div>
                         )}
                       </div>
                       {infrastructure.hubFacilities?.vipLounge ? (
-                        <div className="text-2xs bg-aero-yellow/20 text-black px-2 py-1 font-bold rounded-sm animate-pulse">ACTIVE</div>
+                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
                       ) : (
                         <button 
                           onClick={() => {
@@ -516,7 +511,7 @@ export function AirportDetailView({
                             }
                           }}
                           disabled={capital < 1000000 || !!gates?.vipLounge}
-                          className="px-4 py-2 bg-white text-black font-black uppercase tracking-widest text-2xs hover:bg-aero-yellow transition-all disabled:opacity-50"
+                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
                         >
                           {gates?.vipLounge ? 'Locked' : `Construct - ${formatCurrency(1000000)}`}
                         </button>
@@ -525,14 +520,14 @@ export function AirportDetailView({
                   </div>
 
                   {/* Catering Facility */}
-                  <div className="bg-white/5 border border-white/10 p-4">
+                  <div className="bg-surface border border-line p-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="text-white font-black uppercase tracking-widest text-sm">Advanced Catering</div>
-                        <div className="text-2xs text-white/50 mt-1 uppercase tracking-widest">Enables high-end meal prep</div>
+                        <div className="text-ink font-semibold text-sm">Advanced Catering</div>
+                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">Enables high-end meal prep</div>
                       </div>
                       {infrastructure.hubFacilities?.catering ? (
-                        <div className="text-2xs bg-aero-yellow/20 text-black px-2 py-1 font-bold rounded-sm animate-pulse">ACTIVE</div>
+                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
                       ) : (
                         <button 
                           onClick={() => {
@@ -545,7 +540,7 @@ export function AirportDetailView({
                             }
                           }}
                           disabled={capital < 250000}
-                          className="px-4 py-2 bg-white text-black font-black uppercase tracking-widest text-2xs hover:bg-aero-yellow transition-all disabled:opacity-50"
+                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
                         >
                           Construct - {formatCurrency(250000)}
                         </button>
@@ -593,10 +588,10 @@ export function AirportDetailView({
 
       {/* Management Required Modal */}
       {showMgmtModal && (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" className="bg-aero-carbon p-4 border border-white/10 max-w-md w-full relative z-[101]">
-            <h3 className="text-xl font-black uppercase text-aero-yellow mb-2">Management Required</h3>
-            <p className="text-white/70 mb-4 text-sm">
+        <div className="fixed inset-0 z-[100] bg-ground/80 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" className="bg-raised p-4 border border-line max-w-md w-full relative z-[101]">
+            <h3 className="font-label text-xl font-semibold text-ink mb-2">Management Required</h3>
+            <p className="text-muted mb-4 text-sm">
               Level-1 management is required to create a route. Do you want to buy it now?
             </p>
             <div className="flex gap-4">
@@ -609,13 +604,13 @@ export function AirportDetailView({
                   }
                 }}
                 disabled={capital < unlockCost(1)}
-                className="flex-1 px-4 bg-aero-yellow text-black font-black uppercase text-2xs py-3 hover:bg-white transition-colors disabled:opacity-50"
+                className="flex-1 px-4 bg-accent text-on-accent font-semibold uppercase text-2xs py-3 hover:bg-ink transition-colors disabled:opacity-50"
               >
                 Yes, buy for {formatCurrency(unlockCost(1))}
               </button>
               <button 
                 onClick={() => setShowMgmtModal(false)}
-                className="flex-1 bg-white/5 text-white border border-white/10 font-bold uppercase text-2xs py-3 hover:bg-white/10 transition-colors"
+                className="flex-1 bg-surface text-ink border border-line font-semibold uppercase text-2xs py-3 hover:bg-raised transition-colors"
               >
                 No
               </button>
@@ -630,11 +625,11 @@ export function AirportDetailView({
 function Metric({ label, value, highlight, color, info }: { label: string, value: string, highlight?: boolean, color?: string, info?: keyof typeof GLOSSARY }) {
   return (
     <div className="flex flex-col">
-      <span className="text-3xs text-white/30 uppercase tracking-[0.2em] mb-0.5 flex items-center">
+      <span className="text-2xs text-muted uppercase tracking-label mb-0.5 flex items-center">
         {label}
         {info && <InfoTooltip size={11} {...GLOSSARY[info]} />}
       </span>
-      <span className={`text-xs font-black ${highlight ? 'text-aero-yellow' : color || 'text-white'}`}>{value}</span>
+      <span className={`text-xs font-semibold ${highlight ? 'text-accent' : color || 'text-ink'}`}>{value}</span>
     </div>
   );
 }
@@ -647,11 +642,11 @@ function Metric({ label, value, highlight, color, info }: { label: string, value
 function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality: number }) {
   const pax = stats?.pax ?? 0;
   return (
-    <div className="bg-aero-carbon border border-white/10 p-4 flex flex-col gap-3">
-      <div className="flex justify-between items-center border-b border-white/10 pb-3">
+    <div className="bg-raised border border-line p-4 flex flex-col gap-3">
+      <div className="flex justify-between items-center border-b border-line pb-3">
         <div className="flex items-center gap-3">
-          <ArrowRightLeft className="text-aero-yellow" size={20} />
-          <span className="text-sm font-black uppercase tracking-[0.2em]">Transfer Hub</span>
+          <ArrowRightLeft className="text-accent" size={20} />
+          <span className="text-sm font-semibold">Transfer Hub</span>
         </div>
         <InfoTooltip
           size={12}
@@ -661,26 +656,26 @@ function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col">
-          <span className="text-3xs text-white/30 uppercase tracking-[0.2em] mb-0.5">Transfer pax / week</span>
-          <span className="text-xl font-black text-aero-yellow">{formatNumber(pax)}</span>
+          <span className="text-2xs text-muted uppercase tracking-label mb-0.5">Transfer pax / week</span>
+          <span className="text-xl font-semibold text-accent">{formatNumber(pax)}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-3xs text-white/30 uppercase tracking-[0.2em] mb-0.5">Hub quality factor</span>
-          <span className="text-xl font-black text-white">{Math.round(quality * 100)}%</span>
+          <span className="text-2xs text-muted uppercase tracking-label mb-0.5">Hub quality factor</span>
+          <span className="text-xl font-semibold text-ink">{Math.round(quality * 100)}%</span>
         </div>
       </div>
       {pax > 0 && stats ? (
         <div className="flex flex-col gap-1 text-2xs">
-          <span className="text-3xs text-white/30 uppercase tracking-[0.2em]">Top connections</span>
+          <span className="text-2xs text-muted uppercase tracking-label">Top connections</span>
           {stats.flows.slice(0, 5).map(f => (
-            <div key={`${f.o}>${f.d}`} className="flex justify-between text-white/70">
+            <div key={`${f.o}>${f.d}`} className="flex justify-between text-muted">
               <span>{f.o} → {f.hub} → {f.d}</span>
-              <span className="text-white">{formatNumber(f.pax)}/wk</span>
+              <span className="text-ink">{formatNumber(f.pax)}/wk</span>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-2xs text-white/40 leading-relaxed">
+        <p className="text-2xs text-muted leading-relaxed">
           No passengers connect here yet. Two of your routes meeting at this airport sell connections when the
           change takes {MIN_CONNECTION_MIN} min to {MAX_CONNECTION_MIN / 60} h, the detour is under 60%,
           both flights have empty seats, and you do not already fly the city pair direct.
@@ -692,7 +687,7 @@ function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality
 
 function SectionLabel({ icon, label }: { icon: React.ReactNode, label: string }) {
   return (
-    <div className="flex items-center gap-2 text-2xs uppercase tracking-[0.2em] font-black text-white/60">
+    <div className="flex items-center gap-2 text-2xs uppercase tracking-label font-semibold text-muted">
       {icon}
       {label}
     </div>
@@ -702,12 +697,12 @@ function SectionLabel({ icon, label }: { icon: React.ReactNode, label: string })
 function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, info, showUtilBar = false }: { label: string, count: number, used?: number, cost: number, purchaseCost?: number, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, info?: string, showUtilBar?: boolean }) {
   const utilPercent = count > 0 ? Math.round((used / count) * 100) : 0;
   return (
-    <div className={`p-3 border transition-colors flex flex-col gap-2 ${disabled ? 'bg-white/[0.02] border-white/5 opacity-50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
+    <div className={`p-3 border transition-colors flex flex-col gap-2 ${disabled ? 'bg-surface border-line opacity-50' : 'bg-surface border-line hover:border-rule'}`}>
       <div className="flex items-center justify-between w-full">
         <div className="flex flex-col">
-          <span className="text-xs font-bold text-white uppercase tracking-widest">{label}</span>
-          {info && <span className="text-3xs text-white/30 italic mt-0.5">{info}</span>}
-          <span className="text-3xs text-aero-yellow mt-1 flex items-center">
+          <span className="text-xs font-semibold text-ink uppercase tracking-label">{label}</span>
+          {info && <span className="text-2xs text-muted mt-0.5">{info}</span>}
+          <span className="text-2xs text-accent mt-1 flex items-center">
             {purchaseCost !== undefined ? `${formatCurrency(purchaseCost)} CAPEX` : ''}
             {purchaseCost !== undefined && cost > 0 && " + "}
             {cost > 0 ? `${formatCurrency(cost)} / wk` : (!purchaseCost ? 'FREE / INCLUDED' : '')}
@@ -716,27 +711,27 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
         </div>
         <div className="flex items-center gap-4">
           {showUtilBar && (
-            <div className="text-right flex flex-col items-end border-r border-white/10 pr-4">
-              <div className="text-3xs text-white/20 uppercase mb-0.5">Utilized</div>
-              <div className="text-sm font-black text-white">{used} <span className="text-3xs font-normal text-white/40">/ {count}</span></div>
+            <div className="text-right flex flex-col items-end border-r border-line pr-4">
+              <div className="text-2xs text-muted uppercase mb-0.5">Utilized</div>
+              <div className="text-sm font-semibold text-ink">{used} <span className="text-2xs font-normal text-muted">/ {count}</span></div>
             </div>
           )}
           <div className="text-right">
-            <div className="text-3xs text-white/20 uppercase mb-0.5">Stock</div>
-            <div className="text-lg font-black text-white">{count}</div>
+            <div className="text-2xs text-muted uppercase mb-0.5">Stock</div>
+            <div className="text-lg font-semibold text-ink">{count}</div>
           </div>
           <div className="flex gap-1" title={count > 0 && used > 0 ? `Cannot sell below current flight schedule use of ${used} slots.` : "Shift-Click to add or remove 10 units at once."}>
             <button 
               disabled={disabled || count <= 0 || (showUtilBar && count <= used)} 
               onClick={(e) => onBuy(-1, e.shiftKey)}
-              className="w-10 h-10 flex items-center justify-center bg-black/40 border border-white/5 hover:border-aero-yellow disabled:opacity-30 transition-all text-white/80"
+              className="w-10 h-10 flex items-center justify-center bg-ground/40 border border-line hover:border-accent disabled:opacity-30 transition-all text-ink"
             >
               <Minus size={14} />
             </button>
             <button 
               disabled={disabled} 
               onClick={(e) => onBuy(1, e.shiftKey)}
-              className="w-10 h-10 flex items-center justify-center bg-white text-black font-black hover:bg-aero-yellow transition-all"
+              className="w-10 h-10 flex items-center justify-center bg-accent text-on-accent font-semibold hover:bg-ink transition-all"
             >
               <Plus size={14} />
             </button>
@@ -744,14 +739,14 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
         </div>
       </div>
       {showUtilBar && count > 0 && (
-        <div className="w-full flex flex-col gap-1 mt-1 border-t border-white/5 pt-2">
-          <div className="flex justify-between text-3xs uppercase tracking-widest text-white/30 leading-none">
+        <div className="w-full flex flex-col gap-1 mt-1 border-t border-line pt-2">
+          <div className="flex justify-between text-2xs uppercase tracking-label text-muted leading-none">
             <span>Slot Utilization</span>
-            <span className={utilPercent > 90 ? 'text-aero-yellow font-bold' : 'text-white/40'}>{utilPercent}%</span>
+            <span className={utilPercent > 90 ? 'text-accent font-semibold' : 'text-muted'}>{utilPercent}%</span>
           </div>
-          <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden relative overflow-hidden">
+          <div className="w-full h-1 bg-ground/40 rounded-full overflow-hidden relative overflow-hidden">
             <div 
-              className={`h-full transition-all duration-300 ${utilPercent > 90 ? 'bg-aero-yellow' : 'bg-aero-yellow'}`} 
+              className={`h-full transition-all duration-300 ${utilPercent > 90 ? 'bg-accent' : 'bg-accent'}`} 
               style={{ width: `${Math.min(100, utilPercent)}%` }}
             ></div>
           </div>
@@ -766,39 +761,39 @@ function ManagementTierCard({ tier, activeTier, label, cost, onUpgrade, icon, fe
   const isLocked = activeTier < tier - 1;
 
   return (
-    <div className={`border p-4 shadow-2xl transition-all flex flex-col gap-3 ${isAcquired ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10'}`}>
+    <div className={`border p-4 transition-all flex flex-col gap-3 ${isAcquired ? 'bg-accent text-on-accent border-accent' : 'bg-raised border-line'}`}>
       <div className="flex justify-between items-start">
         <div className="flex flex-col gap-1">
-          <div className={`text-2xs font-black uppercase tracking-[0.4em] ${isAcquired ? 'text-black/60' : 'text-aero-yellow'}`}>T{tier} Management</div>
-          <div className="text-2xl font-black uppercase italic tracking-tighter">{label}</div>
+          <div className={`text-2xs font-semibold uppercase tracking-label ${isAcquired ? 'text-on-accent' : 'text-accent'}`}>T{tier} Management</div>
+          <div className="text-2xl font-semibold">{label}</div>
         </div>
-        <div className={isAcquired ? 'text-black' : 'text-white/20'}>{icon}</div>
+        <div className={isAcquired ? 'text-on-accent' : 'text-muted'}>{icon}</div>
       </div>
 
-      <div className={`grid grid-cols-1 gap-2 ${isAcquired ? 'text-black/80' : 'text-white/50'}`}>
+      <div className={`grid grid-cols-1 gap-2 ${isAcquired ? 'text-on-accent' : 'text-muted'}`}>
          {features.map((f, i) => (
-           <div key={i} className="text-2xs flex gap-2 items-center uppercase tracking-widest font-black">
-             <div className={`w-1.5 h-1.5 rounded-full ${isAcquired ? 'bg-black' : 'bg-white/20'}`}></div>
+           <div key={i} className="text-2xs flex gap-2 items-center uppercase tracking-label font-semibold">
+             <div className={`w-1.5 h-1.5 rounded-full ${isAcquired ? 'bg-ground' : 'bg-raised'}`}></div>
              {f}
            </div>
          ))}
       </div>
 
       {!isAcquired && !isLocked && gate && (
-        <div className="text-2xs font-mono text-aero-warn leading-relaxed">{gate}</div>
+        <div className="text-2xs text-bad leading-relaxed">{gate}</div>
       )}
       {!isAcquired && (
         <button 
           onClick={onUpgrade}
           disabled={isLocked || !!gate}
-          className={`w-full py-4 font-black transition-all text-xs uppercase tracking-[0.3em] ${isLocked || gate ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' : 'bg-white text-black hover:bg-aero-yellow'}`}
+          className={`w-full py-4 font-semibold transition-all text-xs uppercase tracking-label ${isLocked || gate ? 'bg-surface text-muted cursor-not-allowed border border-line' : 'bg-accent text-on-accent hover:bg-ink'}`}
         >
           {isLocked ? 'LOCKED: PRE-REQUISITE REQ.' : gate ? 'LOCKED: RANK' : `ACQUIRE ACCESS - ${formatCurrency(cost)}`}
         </button>
       )}
 
       {isAcquired && (
-        <div className="w-full py-4 border-2 border-black/20 text-center font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-2">
+        <div className="w-full py-4 border-2 border-ground text-center font-semibold text-xs uppercase tracking-label flex items-center justify-center gap-2">
            <Info size={14} /> ACTIVE PROTOCOL
         </div>
       )}

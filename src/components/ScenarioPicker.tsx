@@ -7,9 +7,9 @@ import { SCENARIO_ORDER, scenarioUnlocked, type ScenarioStars } from '../lib/car
 import type { GameMode } from '../lib/airlineRank';
 
 const RATING_TONE: Record<ScenarioRating, string> = {
-  Moderate: 'text-aero-good border-aero-good/40',
-  Hard: 'text-aero-yellow border-aero-yellow/40',
-  Expert: 'text-aero-warn border-aero-warn/40'
+  Moderate: 'text-good border-good/40',
+  Hard: 'text-accent border-accent/40',
+  Expert: 'text-bad border-bad/40'
 };
 
 /** "1× Boeing 707-420, 2× Caravelle III" */
@@ -39,18 +39,18 @@ export interface ScenarioPickerProps {
  */
 export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPickerProps) {
   const card = (selected: boolean) =>
-    `relative w-full h-full flex flex-col items-stretch justify-start text-left p-4 short:p-3 border rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow ${
-      selected ? 'bg-aero-yellow/10 border-aero-yellow' : 'bg-aero-carbon border-white/10 hover:border-aero-yellow/50'
+    `relative w-full h-full flex flex-col items-stretch justify-start text-left p-4 short:p-3 border rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+      selected ? 'bg-accent/10 border-accent' : 'bg-raised border-line hover:border-accent/50'
     }`;
 
   return (
     <div role="radiogroup" aria-label="Game mode" className="grid grid-cols-1 md:grid-cols-2 short:grid-cols-3 gap-3 short:gap-2">
       <button type="button" role="radio" aria-checked={selectedId === null && mode === 'normal'} onClick={() => onSelect(null, 'normal')} className={card(selectedId === null && mode === 'normal')}>
         <div className="flex items-center gap-2 mb-2">
-          <Compass size={16} className={selectedId === null && mode === 'normal' ? 'text-aero-yellow' : 'text-white/50'} aria-hidden="true" />
-          <span className="font-black uppercase tracking-widest text-sm text-white">Normal Mode</span>
+          <Compass size={16} className={selectedId === null && mode === 'normal' ? 'text-accent' : 'text-muted'} aria-hidden="true" />
+          <span className="font-semibold text-sm text-ink">Normal Mode</span>
         </div>
-        <p className="text-2xs font-mono text-white/50 leading-relaxed">
+        <p className="text-2xs text-muted leading-relaxed">
           Start as a Startup and earn your way up ten ranks, from Local Airline to Global Player. Bigger airports,
           more hubs and new aircraft classes open step by step. Any hub, any year from 1960, no deadline. The climb
           takes years, so a late start leaves less time for it: Free Mode skips it.
@@ -59,10 +59,10 @@ export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPi
 
       <button type="button" role="radio" aria-checked={selectedId === null && mode === 'free'} onClick={() => onSelect(null, 'free')} className={card(selectedId === null && mode === 'free')}>
         <div className="flex items-center gap-2 mb-2">
-          <Infinity size={16} className={selectedId === null && mode === 'free' ? 'text-aero-yellow' : 'text-white/50'} aria-hidden="true" />
-          <span className="font-black uppercase tracking-widest text-sm text-white">Free Mode</span>
+          <Infinity size={16} className={selectedId === null && mode === 'free' ? 'text-accent' : 'text-muted'} aria-hidden="true" />
+          <span className="font-semibold text-sm text-ink">Free Mode</span>
         </div>
-        <p className="text-2xs font-mono text-white/50 leading-relaxed">
+        <p className="text-2xs text-muted leading-relaxed">
           Start as a Global Player: no rank to earn. Every airport, every aircraft class and every development
           project is open from the first month, and the number of hubs is not limited. Build what you like.
         </p>
@@ -86,39 +86,39 @@ export function ScenarioPicker({ selectedId, mode, onSelect, stars }: ScenarioPi
             className={`${card(selected)} ${open ? '' : 'opacity-50 cursor-not-allowed'}`}
           >
             {!open && (
-              <div className="flex items-center gap-1.5 text-2xs font-mono text-aero-warn mb-2">
+              <div className="flex items-center gap-1.5 text-2xs text-bad mb-2">
                 <Lock size={12} aria-hidden="true" /> Win {previous?.title ?? 'the scenario before'} first
               </div>
             )}
             {open && stars && (
               <div className="flex items-center gap-0.5 mb-1" aria-label={`${earned} of 3 stars`}>
                 {[1, 2, 3].map(n => (
-                  <Star key={n} size={13} aria-hidden="true" className={n <= earned ? 'text-aero-yellow fill-aero-yellow' : 'text-white/25'} />
+                  <Star key={n} size={13} aria-hidden="true" className={n <= earned ? 'text-accent fill-accent' : 'text-muted'} />
                 ))}
               </div>
             )}
             <div className="flex items-start justify-between gap-2 mb-1">
               <div className="flex items-center gap-2 min-w-0">
-                <Flag size={16} className={selected ? 'text-aero-yellow shrink-0' : 'text-white/50 shrink-0'} aria-hidden="true" />
-                <span className="font-black uppercase tracking-widest text-sm text-white truncate">{sc.title}</span>
+                <Flag size={16} className={selected ? 'text-accent shrink-0' : 'text-muted shrink-0'} aria-hidden="true" />
+                <span className="font-semibold text-sm text-ink truncate">{sc.title}</span>
               </div>
-              <span className={`shrink-0 border px-1.5 py-0.5 text-4xs font-mono font-bold uppercase tracking-widest ${RATING_TONE[sc.rating]}`}>
+              <span className={`shrink-0 border px-1.5 py-0.5 text-2xs font-label font-semibold uppercase tracking-label ${RATING_TONE[sc.rating]}`}>
                 {sc.rating}
               </span>
             </div>
-            <div className="text-3xs font-mono uppercase tracking-widest text-white/40 mb-2">
+            <div className="text-2xs font-label uppercase tracking-label text-muted mb-2">
               {hub?.name || sc.hub} ({sc.hub}) · {formatMonthOffset(sc.startOffset)} – {formatMonthOffset(sc.deadlineOffset)}
             </div>
-            <p className="text-2xs font-mono text-white/50 leading-relaxed mb-3">{sc.blurb}</p>
+            <p className="text-2xs text-muted leading-relaxed mb-3">{sc.blurb}</p>
             <ul className="space-y-1 mb-3">
               {sc.win.map(g => (
-                <li key={g.id} className="text-2xs font-bold text-white/85 flex gap-1.5">
-                  <span className="text-aero-yellow" aria-hidden="true">▸</span>
+                <li key={g.id} className="text-2xs font-semibold text-ink flex gap-1.5">
+                  <span className="text-accent" aria-hidden="true">▸</span>
                   <span>{g.label}{g.atDeadline ? '' : ` by ${formatMonthOffset(sc.deadlineOffset)}`}</span>
                 </li>
               ))}
             </ul>
-            <div className="grid grid-cols-1 gap-1 text-3xs font-mono text-white/45">
+            <div className="grid grid-cols-1 gap-1 text-2xs text-muted">
               <span className="flex items-center gap-1.5"><Wallet size={11} aria-hidden="true" /> {formatMoneyCompact(sc.capital)} cash, no loans</span>
               <span className="flex items-center gap-1.5"><Plane size={11} aria-hidden="true" /> {fleetLine(sc)}</span>
               <span className="flex items-center gap-1.5"><Users size={11} aria-hidden="true" /> {sc.rivals.count} rivals ({sc.rivals.difficulty})</span>

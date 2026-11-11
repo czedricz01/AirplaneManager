@@ -52,7 +52,6 @@ export default defineConfig(() => {
                 // in the browser's cache.
                 if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-vendor';
                 if (/\/node_modules\/(@supabase|iceberg-js|tslib)\//.test(id)) return 'supabase-vendor';
-                if (/\/node_modules\/(motion|motion-dom|motion-utils|framer-motion)\//.test(id)) return 'motion-vendor';
                 return undefined;
               },
             },

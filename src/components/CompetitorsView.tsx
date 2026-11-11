@@ -319,23 +319,23 @@ function CompetitorsViewImpl({
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
-    return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1 text-aero-yellow" /> : <ChevronDown size={12} className="inline ml-1 text-aero-yellow" />;
+    return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1 text-accent" /> : <ChevronDown size={12} className="inline ml-1 text-accent" />;
   };
 
 
   return (
-    <div className="w-full h-full text-white/90 px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
+    <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
       {selectedAirline ? (
         /* Immersive Individual Airline Detail Overview Dashboard */
         <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn">
           {/* Header Action bar */}
           {/* Phones: the subtitle and the alliance badge step aside, the name
               gets the width. */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-5 bar:pb-3 short:pb-2 mb-3 short:mb-2 shrink-0 gap-3">
+          <div className="flex items-center justify-between border-b border-line pb-5 bar:pb-3 short:pb-2 mb-3 short:mb-2 shrink-0 gap-3">
             <div className="flex items-center gap-4 bar:gap-3 min-w-0">
               <button 
                 onClick={() => setSelectedAirlineId(null)}
-                className="p-2.5 rounded-sm border border-white/10 bg-white/5 text-white/70 hover:text-aero-yellow hover:border-aero-yellow/50 transition-all flex items-center justify-center cursor-pointer"
+                className="p-2.5 rounded-sm border border-line bg-surface text-muted hover:text-accent hover:border-accent/50 transition-all flex items-center justify-center cursor-pointer"
                 title="Back to Leaderboard"
                 style={{ width: '44px', height: '44px' }}
               >
@@ -345,30 +345,30 @@ function CompetitorsViewImpl({
                 <div className="flex items-center gap-3">
                   {selectedAirline.color && (
                     <span
-                      className="inline-block w-3.5 h-3.5 rounded-full shrink-0 border border-black/40"
+                      className="inline-block w-3.5 h-3.5 rounded-full shrink-0 border border-ground"
                       style={{ backgroundColor: selectedAirline.color }}
                       title="Map colour"
                     />
                   )}
-                  <h3 className="text-2xl bar:text-lg short:text-lg font-mono uppercase font-black text-white leading-none tracking-wider">
+                  <h3 className="text-2xl bar:text-lg short:text-lg font-label font-semibold text-ink leading-none">
                     {selectedAirline.name}
                   </h3>
-                  <span className="text-xs font-mono font-bold text-aero-yellow border border-aero-yellow/30 bg-aero-yellow/5 px-2 py-0.5 rounded-sm uppercase">
+                  <span className="text-xs font-label font-semibold text-muted border border-accent/30 bg-accent/5 px-2 py-0.5 rounded-sm uppercase">
                     IATA: {selectedAirline.code}
                   </span>
                 </div>
-                <p className="text-xs text-white/40 font-mono uppercase tracking-[0.15em] mt-1 bar:hidden short:hidden">
+                <p className="text-xs text-muted font-label uppercase tracking-label mt-1 bar:hidden short:hidden">
                   Corporate Overview & Strategic Air Intelligence
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 font-mono text-xs bar:hidden short:shrink-0">
+            <div className="flex items-center gap-3 text-xs bar:hidden short:shrink-0">
               <span className="text-white/30 lowercase short:hidden">alliance status:</span>
-              <span className={`px-2.5 py-1 text-2xs font-black uppercase tracking-widest rounded-sm ${
+              <span className={`px-2.5 py-1 text-2xs font-semibold uppercase tracking-label rounded-sm ${
                 selectedAirline.isPlayer 
-                  ? 'bg-aero-yellow text-black' 
-                  : 'bg-white/10 text-white border border-white/20'
+                  ? 'bg-accent text-on-accent' 
+                  : 'bg-raised text-ink border border-rule'
               }`}>
                 {selectedAirline.isPlayer ? 'PROTAGONIST' : 'RIVAL CARRIER'}
               </span>
@@ -376,71 +376,71 @@ function CompetitorsViewImpl({
           </div>
 
           {/* Core Dashboard Workspace */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-6 bar:space-y-3 short:space-y-3">
+          <div className="flex-1 overflow-y-auto pr-2 space-y-6 bar:space-y-3 short:space-y-3">
             
             {/* Top Quick-Glance Bento Grid cards. Phones: two a row upright, all
                 four in one row sideways, each only as tall as its content. */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 bar:grid-cols-2 short:grid-cols-4 gap-4 bar:gap-2 short:gap-2">
               {/* Card 1: Capital valuation */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
+              <div className="bg-surface border border-line p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Capital Reserves</span>
-                  <Coins size={16} className="text-aero-yellow opacity-80" />
+                  <span className="text-muted font-label text-2xs uppercase tracking-label font-semibold">Capital Reserves</span>
+                  <Coins size={16} className="text-accent opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-white">{formatCurrency(selectedAirline.capital)}</div>
-                  <div className="text-2xs text-aero-yellow font-mono flex items-center gap-1 mt-1">
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-ink">{formatCurrency(selectedAirline.capital)}</div>
+                  <div className="text-2xs text-accent flex items-center gap-1 mt-1">
                     <TrendingUp size={10} /> Active Liquidity Index
                   </div>
                 </div>
-                <div className="absolute right-0 bottom-0 w-24 h-24 bg-aero-yellow/[0.01] rounded-full filter blur-xl pointer-events-none" />
+                <div className="absolute right-0 bottom-0 w-24 h-24 bg-accent/[0.01] rounded-full filter pointer-events-none" />
               </div>
 
               {/* Card 2: Fleet capacity */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
+              <div className="bg-surface border border-line p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Appraised Fleet</span>
-                  <Plane size={16} className="text-aero-yellow opacity-80" />
+                  <span className="text-muted font-label text-2xs uppercase tracking-label font-semibold">Appraised Fleet</span>
+                  <Plane size={16} className="text-accent opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-white">
-                    {selectedAirline.fleet.length} <span className="text-xs text-white/30 font-sans font-normal">Aircraft</span>
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-ink">
+                    {selectedAirline.fleet.length} <span className="text-xs text-muted font-sans font-normal">Aircraft</span>
                   </div>
-                  <div className="text-2xs text-white/50 font-mono mt-1">
+                  <div className="text-2xs text-muted mt-1">
                     {selectedAirline.stats.regionalCount} Reg | {selectedAirline.stats.narrowbodyCount} Nb | {selectedAirline.stats.widebodyCount} Wb
                   </div>
                 </div>
               </div>
 
               {/* Card 3: Route network */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
+              <div className="bg-surface border border-line p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Active Connections</span>
-                  <Waypoints size={16} className="text-aero-yellow opacity-80" />
+                  <span className="text-muted font-label text-2xs uppercase tracking-label font-semibold">Active Connections</span>
+                  <Waypoints size={16} className="text-accent opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-white">
-                    {selectedAirline.routes.length} <span className="text-xs text-white/30 font-sans font-normal">Routes</span>
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-ink">
+                    {selectedAirline.routes.length} <span className="text-xs text-muted font-sans font-normal">Routes</span>
                   </div>
-                  <div className="text-2xs text-white/50 font-mono mt-1">
+                  <div className="text-2xs text-muted mt-1">
                     {selectedAirline.stats.totalWeeklyDepartures} Departures per week
                   </div>
                 </div>
               </div>
 
               {/* Card 4: Operating Hub & Level */}
-              <div className="bg-white/[0.02] border border-white/5 p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
+              <div className="bg-surface border border-line p-5 bar:p-3 short:p-2.5 rounded-sm relative overflow-hidden flex flex-col justify-between bar:gap-1.5 short:gap-1 h-[115px] bar:h-auto short:h-auto">
                 <div className="flex justify-between items-start">
-                  <span className="text-white/40 font-mono text-3xs uppercase tracking-[0.2em] font-black">Strategic Hub Base</span>
-                  <MapPin size={16} className="text-aero-yellow opacity-80" />
+                  <span className="text-muted font-label text-2xs uppercase tracking-label font-semibold">Home hub</span>
+                  <MapPin size={16} className="text-accent opacity-80" />
                 </div>
                 <div>
-                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-black text-aero-yellow">
+                  <div className="text-2xl bar:text-lg short:text-lg font-mono font-semibold text-accent">
                     {selectedAirline.hub}
-                    {!selectedAirline.isPlayer && selectedAirline.secondHub && <span className="text-base text-white/60"> + {selectedAirline.secondHub}</span>}
+                    {!selectedAirline.isPlayer && selectedAirline.secondHub && <span className="text-base text-muted"> + {selectedAirline.secondHub}</span>}
                   </div>
-                  <div className="text-2xs text-white/50 font-mono mt-1 flex items-center gap-1.5">
-                    <Shield size={10} className="text-white/40" /> Operating Tier: {selectedAirline.isPlayer ? 'Player' : selectedAirline.aiDifficulty}
+                  <div className="text-2xs text-muted mt-1 flex items-center gap-1.5">
+                    <Shield size={10} className="text-muted" /> Operating Tier: {selectedAirline.isPlayer ? 'Player' : selectedAirline.aiDifficulty}
                   </div>
                 </div>
               </div>
@@ -454,22 +454,22 @@ function CompetitorsViewImpl({
                 ? Math.max(0, SALE_TO_LIQUIDATION_MONTHS - (currentDateOffset - selectedAirline.forSaleSince))
                 : null;
               return (
-                <div className={`border p-4 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${forSale ? 'border-aero-yellow/40 bg-aero-yellow/5' : 'border-white/10 bg-white/[0.02]'}`}>
-                  <div className="font-mono text-2xs leading-relaxed max-w-xl">
-                    <div className={`font-black uppercase tracking-widest text-xs mb-1 ${forSale ? 'text-aero-yellow' : 'text-white/60'}`}>
+                <div className={`border p-4 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${forSale ? 'border-accent/40 bg-accent/5' : 'border-line bg-surface'}`}>
+                  <div className="text-2xs leading-relaxed max-w-xl">
+                    <div className={`font-semibold uppercase tracking-label text-xs mb-1 ${forSale ? 'text-accent' : 'text-muted'}`}>
                       {forSale ? 'For sale: insolvent' : 'Takeover bid'}
                     </div>
-                    <div className="text-white/60">
+                    <div className="text-muted">
                       {forSale
                         ? `Wound up in ${monthsLeft} month${monthsLeft === 1 ? '' : 's'} if nobody buys it. `
                         : 'A healthy airline costs two and a half times as much. '}
                       You get its {quote.aircraft} aircraft and its slots at {selectedAirline.hub}; its {quote.routes} route{quote.routes === 1 ? ' is' : 's are'} not
                       taken over, and the competitor is gone.
                     </div>
-                    {quote.blocked && <div className="text-aero-warn mt-1">{quote.blocked}</div>}
+                    {quote.blocked && <div className="text-bad mt-1">{quote.blocked}</div>}
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="font-mono text-lg font-black">{formatCurrency(quote.price)}</span>
+                    <span className="font-mono text-lg font-semibold">{formatCurrency(quote.price)}</span>
                     <Button
                       variant="primary"
                       disabled={!onTakeover || !!quote.blocked || !affordable}
@@ -489,19 +489,19 @@ function CompetitorsViewImpl({
               <div className="lg:col-span-8 space-y-6">
                 
                 {/* Visual Section: Strategic Connections list */}
-                <div className="bg-white/[0.01] border border-white/5 rounded-sm p-4">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-                    <h4 className="text-xs font-mono font-black text-aero-yellow uppercase tracking-[0.25em] flex items-center gap-2">
+                <div className="bg-surface border border-line rounded-sm p-4">
+                  <div className="flex items-center justify-between border-b border-line pb-4 mb-4">
+                    <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label flex items-center gap-2">
                       <Waypoints size={14} /> Global Route Intelligence Network
                     </h4>
-                    <span className="text-2xs text-white/40 font-mono">
-                      Hub Origin: <strong className="text-white">{selectedAirline.hub}</strong>
+                    <span className="text-2xs text-muted font-mono">
+                      Hub Origin: <strong className="text-ink">{selectedAirline.hub}</strong>
                     </span>
                   </div>
 
-                  <div className="space-y-3 font-mono">
+                  <div className="space-y-3">
                     {selectedAirline.routes.length === 0 ? (
-                      <div className="p-12 text-center bg-black/25 border border-white/5 rounded-sm text-white/30 uppercase tracking-widest text-xs">
+                      <div className="p-12 text-center bg-ground/25 border border-line rounded-sm text-muted text-xs">
                         This airline is restructuring its flight routes. No active routes currently scheduled.
                       </div>
                     ) : (
@@ -513,43 +513,43 @@ function CompetitorsViewImpl({
                             : dash;
                           const profit = route.monthlyProfit;
                           return (
-                            <div key={rIndex} className="bg-black/35 border border-white/5 p-4 rounded-sm hover:border-white/10 transition-all flex flex-col justify-between">
+                            <div key={rIndex} className="bg-ground/35 border border-line p-4 rounded-sm hover:border-line transition-all flex flex-col justify-between">
                               <div>
                                 <div className="flex justify-between items-start mb-2">
-                                  <span className="font-sans font-bold text-base tracking-wide text-white flex items-center gap-2">
-                                    {route.origin} <span className="text-aero-yellow font-black">↔</span> {route.destination}
+                                  <span className="font-sans font-semibold text-base text-ink flex items-center gap-2">
+                                    {route.origin} <span className="text-accent font-semibold">↔</span> {route.destination}
                                   </span>
-                                  <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-3xs rounded-sm font-mono text-white/60 uppercase font-bold">
+                                  <span className="px-2 py-0.5 bg-surface border border-line text-2xs rounded-sm font-label text-muted uppercase font-semibold">
                                     {route.aircraftClass || dash}
                                   </span>
                                 </div>
-                                <div className="text-2xs text-white/40 space-y-1 mt-3">
+                                <div className="text-2xs text-muted space-y-1 mt-3">
                                   <div className="flex justify-between">
                                     <span>Weekly Departures:</span>
-                                    <strong className="text-white font-mono">{route.departures} flights</strong>
+                                    <strong className="text-ink font-mono">{route.departures} flights</strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Sector Distance:</span>
-                                    <strong className="text-white/85 font-mono">{routeDistance}</strong>
+                                    <strong className="text-ink font-mono">{routeDistance}</strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Flight Duration:</span>
-                                    <strong className="text-white/85 font-mono">{routeDuration}</strong>
+                                    <strong className="text-ink font-mono">{routeDuration}</strong>
                                   </div>
                                   {route.aircraftReg && (
                                     <div className="flex justify-between">
                                       <span>Assigned Airframe:</span>
-                                      <strong className="text-aero-yellow font-mono">{route.aircraftReg}</strong>
+                                      <strong className="text-accent font-mono">{route.aircraftReg}</strong>
                                     </div>
                                   )}
                                 </div>
                               </div>
                               
-                              <div className="border-t border-white/5 pt-3 mt-4 flex justify-between items-center bg-white/[0.01] -mx-4 -mb-4 p-4 rounded-b-sm">
-                                <span className="text-3xs uppercase tracking-wider text-white/30 font-semibold font-mono">Last month</span>
+                              <div className="border-t border-line pt-3 mt-4 flex justify-between items-center bg-surface -mx-4 -mb-4 p-4 rounded-b-sm">
+                                <span className="text-2xs uppercase tracking-label text-muted font-semibold font-label">Last month</span>
                                 {/* The real result, with its sign. A missing one used to
                                     become an average or a fixed $380,420, always as a gain. */}
-                                <span className={`font-mono font-bold block text-sm ${profit === undefined || !Number.isFinite(profit) ? 'text-white/30' : profit >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
+                                <span className={`font-mono font-semibold block text-sm ${profit === undefined || !Number.isFinite(profit) ? 'text-muted' : profit >= 0 ? 'text-good' : 'text-bad'}`}>
                                   {profit === undefined || !Number.isFinite(profit) ? dash : `${formatSignedCurrency(profit)}/mo`}
                                 </span>
                               </div>
@@ -562,59 +562,59 @@ function CompetitorsViewImpl({
                 </div>
 
                 {/* Aircraft Fleet registry details */}
-                <div className="bg-white/[0.01] border border-white/5 rounded-sm p-4">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-                    <h4 className="text-xs font-mono font-black text-aero-yellow uppercase tracking-[0.25em] flex items-center gap-2">
+                <div className="bg-surface border border-line rounded-sm p-4">
+                  <div className="flex items-center justify-between border-b border-line pb-4 mb-4">
+                    <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label flex items-center gap-2">
                       <Plane size={14} /> Strategic Aircraft Registry
                     </h4>
-                    <span className="text-2xs text-white/40 font-mono">
-                      Active Fleet Size: <strong className="text-white">{selectedAirline.fleet.length}</strong>
+                    <span className="text-2xs text-muted">
+                      Active Fleet Size: <strong className="text-ink">{selectedAirline.fleet.length}</strong>
                     </span>
                   </div>
 
-                  <div className="space-y-2 font-mono">
+                  <div className="space-y-2">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {selectedAirline.fleet.map((plane, pIdx) => {
                         const airframe = Number.isFinite(plane.conditionGeneral) ? Math.round(plane.conditionGeneral as number) : null;
                         return (
-                          <div key={pIdx} className="bg-black/35 border border-white/5 p-4 rounded-sm flex flex-col justify-between font-sans">
+                          <div key={pIdx} className="bg-ground/35 border border-line p-4 rounded-sm flex flex-col justify-between font-sans">
                             <div>
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <strong className="text-sm font-bold text-white/95 block leading-none">
+                                  <strong className="text-sm font-semibold text-ink block leading-none">
                                     {plane.manufacturer || ''} {plane.model}
                                   </strong>
-                                  <span className="font-mono text-3xs text-aero-yellow mt-1.5 inline-block uppercase tracking-wider">
+                                  <span className="font-label text-2xs text-muted mt-1.5 inline-block uppercase tracking-label">
                                     {plane.class} specs
                                   </span>
                                 </div>
-                                <span className="font-mono text-2xs text-aero-yellow bg-aero-yellow/10 px-2 py-0.5 border border-aero-yellow/20 rounded-sm font-bold uppercase tracking-wider">
+                                <span className="font-label text-2xs text-muted bg-accent/10 px-2 py-0.5 border border-accent/20 rounded-sm font-semibold uppercase tracking-label">
                                   {plane.reg}
                                 </span>
                               </div>
 
-                              <div className="mt-4 space-y-1.5 font-mono text-2xs text-white/50 border-t border-white/5 pt-3">
+                              <div className="mt-4 space-y-1.5 text-2xs text-muted border-t border-line pt-3">
                                 <div className="flex justify-between">
                                   <span>Seats Capacity:</span>
-                                  <strong className="text-white">{plane.capacity ? `${plane.capacity} seats` : dash}</strong>
+                                  <strong className="text-ink">{plane.capacity ? `${plane.capacity} seats` : dash}</strong>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Service Range:</span>
-                                  <strong className="text-white">{plane.maxRange ? `${formatNumber(plane.maxRange)} km` : dash}</strong>
+                                  <strong className="text-ink">{plane.maxRange ? `${formatNumber(plane.maxRange)} km` : dash}</strong>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Fuel efficiency:</span>
-                                  <strong className="text-aero-yellow">{plane.efficiency !== undefined ? `${plane.efficiency} / 100` : dash}</strong>
+                                  <strong className="text-accent">{plane.efficiency !== undefined ? `${plane.efficiency} / 100` : dash}</strong>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Value Appraisal:</span>
-                                  <strong className="text-white/80">{plane.basePrice ? formatCurrency(plane.basePrice) : dash}</strong>
+                                  <strong className="text-ink">{plane.basePrice ? formatCurrency(plane.basePrice) : dash}</strong>
                                 </div>
                               </div>
                             </div>
-                            <div className="mt-4 border-t border-white/5 pt-2.5 flex justify-between items-center text-2xs text-white/40 font-mono">
+                            <div className="mt-4 border-t border-line pt-2.5 flex justify-between items-center text-2xs text-muted">
                               <span>Airframe condition</span>
-                              <span className={`font-black ${airframe === null ? 'text-white/30' : airframe < 40 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{airframe === null ? dash : `${airframe}%`}</span>
+                              <span className={`font-semibold ${airframe === null ? 'text-muted' : airframe < 40 ? 'text-bad' : 'text-accent'}`}>{airframe === null ? dash : `${airframe}%`}</span>
                             </div>
                           </div>
                         );
@@ -629,21 +629,21 @@ function CompetitorsViewImpl({
               <div className="lg:col-span-4 space-y-6">
                 
                 {/* Fleet Class Market distribution */}
-                <div className="bg-white/[0.01] border border-white/5 rounded-sm p-4">
-                  <h4 className="text-xs font-mono font-black text-aero-yellow uppercase tracking-[0.25em] border-b border-white/10 pb-4 mb-5 flex items-center gap-2">
+                <div className="bg-surface border border-line rounded-sm p-4">
+                  <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label border-b border-line pb-4 mb-5 flex items-center gap-2">
                     <PieChart size={14} /> Capacity Distribution
                   </h4>
 
                   {/* Dynamic Custom Bars in the exact Yellow and Anthracite colorway */}
-                  <div className="space-y-4 font-mono text-xs">
+                  <div className="space-y-4 text-xs">
                     <div>
                       <div className="flex justify-between text-2xs mb-1">
-                        <span className="text-white/70">Widebody Transcontinental</span>
-                        <strong className="text-white font-bold">{selectedAirline.stats.widebodyCount}</strong>
+                        <span className="text-muted">Widebody Transcontinental</span>
+                        <strong className="text-ink font-semibold">{selectedAirline.stats.widebodyCount}</strong>
                       </div>
-                      <div className="w-full bg-black/40 h-2 rounded-full border border-white/5 overflow-hidden">
+                      <div className="w-full bg-ground/40 h-2 rounded-full border border-line overflow-hidden">
                         <div 
-                          className="bg-aero-yellow h-full transition-all duration-1000" 
+                          className="bg-accent h-full transition-all duration-1000" 
                           style={{ width: `${selectedAirline.fleet.length > 0 ? (selectedAirline.stats.widebodyCount / selectedAirline.fleet.length) * 100 : 0}%` }}
                         />
                       </div>
@@ -651,12 +651,12 @@ function CompetitorsViewImpl({
 
                     <div>
                       <div className="flex justify-between text-2xs mb-1">
-                        <span className="text-white/70">Narrowbody Medium-Haul</span>
-                        <strong className="text-white font-bold">{selectedAirline.stats.narrowbodyCount}</strong>
+                        <span className="text-muted">Narrowbody Medium-Haul</span>
+                        <strong className="text-ink font-semibold">{selectedAirline.stats.narrowbodyCount}</strong>
                       </div>
-                      <div className="w-full bg-black/40 h-2 rounded-full border border-white/5 overflow-hidden">
+                      <div className="w-full bg-ground/40 h-2 rounded-full border border-line overflow-hidden">
                         <div 
-                          className="bg-aero-yellow/80 h-full transition-all duration-1000" 
+                          className="bg-accent/80 h-full transition-all duration-1000" 
                           style={{ width: `${selectedAirline.fleet.length > 0 ? (selectedAirline.stats.narrowbodyCount / selectedAirline.fleet.length) * 100 : 0}%` }}
                         />
                       </div>
@@ -664,12 +664,12 @@ function CompetitorsViewImpl({
 
                     <div>
                       <div className="flex justify-between text-2xs mb-1">
-                        <span className="text-white/70">Regional Short-Haul</span>
-                        <strong className="text-white font-bold">{selectedAirline.stats.regionalCount}</strong>
+                        <span className="text-muted">Regional Short-Haul</span>
+                        <strong className="text-ink font-semibold">{selectedAirline.stats.regionalCount}</strong>
                       </div>
-                      <div className="w-full bg-black/40 h-2 rounded-full border border-white/5 overflow-hidden">
+                      <div className="w-full bg-ground/40 h-2 rounded-full border border-line overflow-hidden">
                         <div 
-                          className="bg-aero-yellow/30 h-full transition-all duration-1000" 
+                          className="bg-accent/30 h-full transition-all duration-1000" 
                           style={{ width: `${selectedAirline.fleet.length > 0 ? (selectedAirline.stats.regionalCount / selectedAirline.fleet.length) * 100 : 0}%` }}
                         />
                       </div>
@@ -678,24 +678,24 @@ function CompetitorsViewImpl({
                 </div>
 
                 {/* Quaterly simulated performance timeline overview */}
-                <div className="bg-white/[0.01] border border-white/5 rounded-sm p-4">
-                  <h4 className="text-xs font-mono font-black text-aero-yellow uppercase tracking-[0.25em] border-b border-white/10 pb-4 mb-4 flex items-center gap-2">
+                <div className="bg-surface border border-line rounded-sm p-4">
+                  <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label border-b border-line pb-4 mb-4 flex items-center gap-2">
                     <Activity size={14} /> Yield & Profit Trends
                   </h4>
 
-                  <div className="space-y-4 font-mono">
-                    <div className="text-2xs text-white/40 mb-2 uppercase leading-snug">
+                  <div className="space-y-4">
+                    <div className="text-2xs text-muted mb-2 leading-snug">
                       Recent timeline of net monthly operation margins:
                     </div>
                     
                     {/* No invented placeholder series here: an airline that has
                         not closed a month yet simply says so. */}
                     {(selectedAirline.monthlyProfitsHistory || []).length === 0 ? (
-                      <div className="h-28 flex items-center justify-center bg-black/25 border border-white/5 rounded-sm text-2xs uppercase tracking-widest text-white/30">
+                      <div className="h-28 flex items-center justify-center bg-ground/25 border border-line rounded-sm text-2xs uppercase tracking-label text-muted">
                         No month closed yet
                       </div>
                     ) : (
-                    <div className="h-28 flex items-end justify-between gap-2.5 px-2 pt-4 bg-black/25 border border-white/5 rounded-sm">
+                    <div className="h-28 flex items-end justify-between gap-2.5 px-2 pt-4 bg-ground/25 border border-line rounded-sm">
                       {(selectedAirline.monthlyProfitsHistory || []).slice(-12).map((val, idx) => {
                         const shown = (selectedAirline.monthlyProfitsHistory || []).slice(-12);
                         const maxValue = Math.max(...shown.map(Math.abs), 1000000);
@@ -703,16 +703,16 @@ function CompetitorsViewImpl({
                         return (
                           <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end" onPointerUp={onBarTap(idx)}>
                             {/* Value tooltip: on hover, or after a tap on a touch screen. */}
-                            <div className={`absolute bottom-full mb-1 ${tappedBar === idx ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity bg-white text-black text-3xs px-1 rounded-sm pointer-events-none whitespace-nowrap z-10 font-black`}>
+                            <div className={`absolute bottom-full mb-1 ${tappedBar === idx ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity bg-ink text-on-accent text-2xs px-1 rounded-sm pointer-events-none whitespace-nowrap z-10 font-semibold`}>
                               {formatCurrency(val)}
                             </div>
                             <div 
-                              className={`w-full rounded-t-sm transition-all duration-500 hover:bg-aero-yellow cursor-pointer ${
-                                val < 0 ? 'bg-aero-warn/70' : idx === shown.length - 1 ? 'bg-aero-yellow' : 'bg-white/15'
+                              className={`w-full rounded-t-sm transition-all duration-500 hover:bg-accent cursor-pointer ${
+                                val < 0 ? 'bg-bad/70' : idx === shown.length - 1 ? 'bg-accent' : 'bg-raised'
                               }`} 
                               style={{ height: `${progressHeight}%` }}
                             />
-                            <span className="text-4xs text-white/30 font-mono mt-1 mt-1 font-black">M{idx+1}</span>
+                            <span className="text-2xs text-muted font-mono mt-1 mt-1 font-semibold">M{idx+1}</span>
                           </div>
                         );
                       })}
@@ -720,57 +720,57 @@ function CompetitorsViewImpl({
                     )}
 
                     {!selectedAirline.isPlayer && (
-                      <div className="text-3xs text-white/30 uppercase leading-snug">
+                      <div className="text-2xs text-muted leading-snug">
                         AI results include a fixed operating subsidy of {formatCurrency(aiMonthlySubsidy(currentDateOffset))} per month.
                       </div>
                     )}
 
-                    <div className="space-y-1 text-xs border-t border-white/5 pt-3">
+                    <div className="space-y-1 text-xs border-t border-line pt-3">
                       <div className="flex justify-between text-2xs">
-                        <span className="text-white/40">Last month:</span>
+                        <span className="text-muted">Last month:</span>
                         {selectedAirline.stats.lastProfit === null ? (
-                          <span className="text-white/30 font-bold uppercase tracking-wide">No month closed yet</span>
+                          <span className="text-muted font-semibold uppercase tracking-label">No month closed yet</span>
                         ) : (
-                          <span className={`font-bold uppercase tracking-wide ${selectedAirline.stats.lastProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'}`}>
+                          <span className={`font-semibold uppercase tracking-label ${selectedAirline.stats.lastProfit >= 0 ? 'text-good' : 'text-bad'}`}>
                             {selectedAirline.stats.lastProfit >= 0 ? 'Profitable' : 'Loss-making'} ({formatSignedCurrency(selectedAirline.stats.lastProfit)})
                           </span>
                         )}
                       </div>
                       <div className="flex justify-between text-2xs mt-1">
-                        <span className="text-white/40">Share of weekly departures:</span>
-                        <strong className="text-white font-bold">{formatNumber(selectedAirline.stats.marketShare * 100, 1)}%</strong>
+                        <span className="text-muted">Share of weekly departures:</span>
+                        <strong className="text-ink font-semibold">{formatNumber(selectedAirline.stats.marketShare * 100, 1)}%</strong>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Threat assessment Intelligence Report */}
-                <div className="bg-white/[0.01] border border-white/5 rounded-sm p-4 space-y-4">
-                  <h4 className="text-xs font-mono font-black text-white uppercase tracking-[0.25em] border-b border-white/10 pb-4 flex items-center gap-2">
-                    <Shield size={14} className="text-aero-yellow" /> Strategic Assessment
+                <div className="bg-surface border border-line rounded-sm p-4 space-y-4">
+                  <h4 className="text-xs font-label font-semibold text-ink uppercase tracking-label border-b border-line pb-4 flex items-center gap-2">
+                    <Shield size={14} className="text-accent" /> Strategic Assessment
                   </h4>
 
                   {!selectedAirline.isPlayer && (
-                    <div className="space-y-4 font-mono text-2xs border-b border-white/5 pb-4">
+                    <div className="space-y-4 text-2xs border-b border-line pb-4">
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white/5 p-2 rounded-sm border border-white/5 text-center">
-                          <span className="text-white/40 text-3xs block uppercase tracking-wider mb-1">STRATEGY GROUP</span>
-                          <strong className="text-aero-yellow uppercase text-xs">
+                        <div className="bg-surface p-2 rounded-sm border border-line text-center">
+                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">Strategy group</span>
+                          <strong className="text-muted uppercase text-xs">
                             {selectedAirline.personality ? PERSONALITY_META[selectedAirline.personality].description : 'Independent'}
                           </strong>
                         </div>
-                        <div className="bg-white/5 p-2 rounded-sm border border-white/5 text-center">
-                          <span className="text-white/40 text-3xs block uppercase tracking-wider mb-1">AGGRESSION RATING</span>
-                          <strong className="text-aero-yellow/60 text-xs">
+                        <div className="bg-surface p-2 rounded-sm border border-line text-center">
+                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">Aggression rating</span>
+                          <strong className="text-accent text-xs">
                             {selectedAirline.aggression || 5} / 10
                           </strong>
                         </div>
                       </div>
 
-                      <div className="space-y-2 text-white/50 bg-black/25 p-3 rounded-sm border border-white/5 text-2xs">
+                      <div className="space-y-2 text-muted bg-ground/25 p-3 rounded-sm border border-line text-2xs">
                         <div className="flex justify-between">
                           <span>Seating Config Focus:</span>
-                          <strong className="text-white">
+                          <strong className="text-ink">
                             {selectedAirline.personality === 'lcc' ? 'All-Economy Density' :
                              selectedAirline.personality === 'flag' ? 'Premium Triple-Class' :
                              selectedAirline.personality === 'boutique' ? 'Ultra Premium Boutique' :
@@ -779,7 +779,7 @@ function CompetitorsViewImpl({
                         </div>
                         <div className="flex justify-between">
                           <span>Ticket Pricing Strategy:</span>
-                          <strong className="text-white">
+                          <strong className="text-ink">
                             {selectedAirline.personality === 'lcc' ? 'Hyper Discount / High Load' :
                              selectedAirline.personality === 'flag' ? 'Premium Surcharged (+5%)' :
                              selectedAirline.personality === 'boutique' ? 'Elite Surcharged (+25%)' :
@@ -788,7 +788,7 @@ function CompetitorsViewImpl({
                         </div>
                         <div className="flex justify-between">
                           <span>Onboard Catering Level:</span>
-                          <strong className="text-white">
+                          <strong className="text-ink">
                             {selectedAirline.personality === 'lcc' ? 'Buy Onboard (No cost)' :
                              selectedAirline.personality === 'flag' ? 'Hot Meals & Luxury Bar' :
                              selectedAirline.personality === 'boutique' ? 'Five-Star Fine Dining' :
@@ -799,7 +799,7 @@ function CompetitorsViewImpl({
                     </div>
                   )}
 
-                  <p className="text-xs leading-relaxed text-white/60 font-sans">
+                  <p className="text-xs leading-relaxed text-muted font-sans">
                     {selectedAirline.isPlayer ? (
                       `Your airline ranks #${rankById.get(selectedAirline.id) ?? '-'} of ${allAirlines.length} by capital. Expand your fleet and optimise route frequency to outmanoeuvre the competition.`
                     ) : selectedAirline.personality === 'flag' ? (
@@ -826,16 +826,15 @@ function CompetitorsViewImpl({
         /* The Global Competitor Leaderboard Board Main Screen */
         <React.Fragment>
           <ViewHeader
-            eyebrow="Global Aviation Intelligence"
             title="Rival Airlines"
             right={
               <div className="relative w-full lg:w-80">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search size={16} className="text-white/40" />
+                  <Search size={16} className="text-muted" />
                 </div>
                 <input
                   type="text"
-                  className="w-full bg-black/40 border border-white/10 rounded-sm py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-aero-yellow text-aero-yellow font-mono transition-colors"
+                  className="w-full bg-ground/40 border border-line rounded-sm py-2.5 pl-10 pr-4 text-sm text-ink focus:outline-none focus:border-accent text-accent transition-colors"
                   placeholder="Search airlines, codes, hubs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -844,24 +843,24 @@ function CompetitorsViewImpl({
             }
           />
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 bg-black/20 border border-white/5 rounded-sm p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto pr-2 bg-ground/20 border border-line rounded-sm p-4 space-y-4">
             {/* Header Board columns */}
-            <div className="hidden md:grid grid-cols-12 px-3 py-4 sticky top-0 z-10 bg-aero-panel-2 border-b border-aero-yellow/30 font-mono text-2xs uppercase tracking-widest text-aero-yellow/80 font-black">
-              <div className="col-span-1 text-white/40 cursor-default">Rank</div>
-              <div className="col-span-3 cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
-              <div className="col-span-2 text-center text-white/40 cursor-default">Hub Base</div>
-              <div className="col-span-1 text-center text-white/40 cursor-default">Tier</div>
-              <div className="col-span-2 text-right cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('capital')}>Capital {getSortIcon('capital')}</div>
-              <div className="col-span-1 text-right cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('fleet')}>Fleet {getSortIcon('fleet')}</div>
-              <div className="col-span-1 text-right cursor-pointer select-none hover:text-aero-yellow" onClick={() => toggleSort('routes')}>Routes {getSortIcon('routes')}</div>
-              <div className="col-span-1 text-right text-white/40 cursor-default">Action</div>
+            <div className="hidden md:grid grid-cols-12 px-3 py-4 sticky top-0 z-10 bg-raised border-b border-accent/30 font-label text-2xs uppercase tracking-label text-muted font-semibold">
+              <div className="col-span-1 text-muted cursor-default">Rank</div>
+              <div className="col-span-3 cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('name')}>Airline {getSortIcon('name')}</div>
+              <div className="col-span-2 text-center text-muted cursor-default">Hub Base</div>
+              <div className="col-span-1 text-center text-muted cursor-default">Tier</div>
+              <div className="col-span-2 text-right cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('capital')}>Capital {getSortIcon('capital')}</div>
+              <div className="col-span-1 text-right cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('fleet')}>Fleet {getSortIcon('fleet')}</div>
+              <div className="col-span-1 text-right cursor-pointer select-none hover:text-accent" onClick={() => toggleSort('routes')}>Routes {getSortIcon('routes')}</div>
+              <div className="col-span-1 text-right text-muted cursor-default">Action</div>
             </div>
 
             {/* Board Listings */}
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-line">
               {leaderboard.length === 0 ? (
                 <div className="p-12 text-center">
-                  <div className="text-white/30 font-mono uppercase tracking-widest text-xs">No competing airlines found matching query.</div>
+                  <div className="text-muted font-label uppercase tracking-label text-xs">No competing airlines found matching query.</div>
                 </div>
               ) : (
                 leaderboard.map((airline) => {
@@ -874,23 +873,23 @@ function CompetitorsViewImpl({
                     <div 
                       key={airline.id} 
                       id={`rival-row-${airline.id}`}
-                      className={`transition-all duration-200 cursor-pointer text-white/70 ${
+                      className={`transition-all duration-200 cursor-pointer text-muted ${
                         airline.isPlayer
-                          ? 'bg-aero-yellow/5 border-l-2 border-l-aero-yellow'
-                          : 'hover:bg-white/5'
+                          ? 'bg-accent/5 border-l-2 border-l-accent'
+                          : 'hover:bg-raised'
                       }`}
                       onClick={() => setSelectedAirlineId(airline.id)}
                     >
                       {/* Row Summary */}
                       <div className="grid grid-cols-1 md:grid-cols-12 items-center px-3 py-4 gap-y-2 md:gap-y-0 text-sm">
                         {/* Rank */}
-                        <div className="col-span-1 font-mono font-bold flex items-center gap-2">
-                          <span className="text-white/30 text-xs md:hidden tracking-wider font-semibold">RANK</span>
-                          <span className={`text-base font-black ${
-                            rank === 1 ? 'text-aero-yellow scale-110 flex items-center' : rank === 2 ? 'text-white/80' : rank === 3 ? 'text-white/50' : 'text-white/30'
+                        <div className="col-span-1 font-semibold flex items-center gap-2">
+                          <span className="text-muted text-xs md:hidden font-semibold">RANK</span>
+                          <span className={`text-base font-semibold ${
+                            rank === 1 ? 'text-accent scale-110 flex items-center' : rank === 2 ? 'text-ink' : rank === 3 ? 'text-muted' : 'text-muted'
                           }`}>
                             #{rank}
-                            {rank === 1 && <Award size={14} className="ml-1 inline animate-bounce" />}
+                            {rank === 1 && <Award size={14} className="ml-1 inline" />}
                           </span>
                         </div>
 
@@ -900,21 +899,21 @@ function CompetitorsViewImpl({
                             <div className="flex items-center gap-2 flex-wrap">
                               {airline.color && (
                                 <span
-                                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0 border border-black/40"
+                                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0 border border-ground"
                                   style={{ backgroundColor: airline.color }}
                                   title="Map colour"
                                 />
                               )}
-                              <span className="font-sans font-bold text-white tracking-wide">{airline.name}</span>
+                              <span className="font-sans font-semibold text-ink">{airline.name}</span>
                               {!airline.isPlayer && (airline as { forSale?: boolean }).forSale && (
-                                <span className="ml-2 text-3xs font-mono font-black uppercase tracking-widest text-aero-yellow border border-aero-yellow/40 px-1 py-0.5 rounded-sm">For sale</span>
+                                <span className="ml-2 text-2xs font-label font-semibold uppercase tracking-label text-muted border border-accent/40 px-1 py-0.5 rounded-sm">For sale</span>
                               )}
                               {airline.isPlayer && (
-                                <span className="px-2 py-0.5 bg-aero-yellow text-black text-3xs font-black uppercase tracking-widest rounded-sm">YOU</span>
+                                <span className="px-2 py-0.5 bg-accent text-on-accent text-2xs font-semibold uppercase tracking-label rounded-sm">YOU</span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap font-mono text-xs">
-                              <span className="text-white/40">IATA: <span className="font-black text-aero-yellow">{airline.code}</span></span>
+                            <div className="flex items-center gap-2 flex-wrap text-xs">
+                              <span className="text-muted">IATA: <span className="font-semibold text-accent">{airline.code}</span></span>
                               {!airline.isPlayer && airline.personality && (
                                 <Badge tone={PERSONALITY_META[airline.personality].tone}>
                                   {PERSONALITY_META[airline.personality].label}
@@ -926,32 +925,32 @@ function CompetitorsViewImpl({
 
                         {/* Hub Base */}
                         <div className="col-span-2 text-left md:text-center">
-                          <div className="inline-block md:block font-mono text-xs text-white/65 bg-white/5 px-2 py-1 border border-white/5">
+                          <div className="inline-block md:block text-xs text-muted bg-surface px-2 py-1 border border-line">
                             {airline.hub}
                           </div>
                         </div>
 
                         {/* AI Tier Difficulty badge */}
                         <div className="col-span-1 text-left md:text-center">
-                          <span className={`px-2 py-0.5 text-3xs font-black uppercase tracking-wider rounded-sm font-mono inline-block ${
+                          <span className={`px-2 py-0.5 text-2xs font-semibold uppercase tracking-label rounded-sm font-label inline-block ${
                             airline.isPlayer 
-                              ? 'bg-white/10 text-white border border-white/30' 
+                              ? 'bg-raised text-ink border border-rule' 
                               : airline.aiDifficulty === 'Hard' 
-                                ? 'bg-aero-panel text-aero-yellow/60 border border-white/20'
+                                ? 'bg-surface text-accent border border-rule'
                                 : airline.aiDifficulty === 'Normal' 
-                                  ? 'bg-aero-yellow/10 text-aero-yellow border border-aero-yellow/20' 
-                                  : 'bg-aero-yellow/10 text-aero-yellow border border-aero-yellow/25'
+                                  ? 'bg-accent/10 text-accent border border-accent/20' 
+                                  : 'bg-accent/10 text-accent border border-accent/25'
                           }`}>
                             {airline.isPlayer ? 'Player' : airline.aiDifficulty}
                           </span>
                         </div>
 
                         {/* Capital */}
-                        <div className="col-span-2 text-left md:text-right font-mono font-bold text-white/95">
-                          <span className="text-white/30 text-xs md:hidden pr-2 tracking-wider">CAPITAL</span>
+                        <div className="col-span-2 text-left md:text-right font-mono font-semibold text-ink">
+                          <span className="text-muted text-xs md:hidden pr-2">Capital</span>
                           {formatCurrency(airline.capital)}
                           {lastProfit !== 0 && (
-                            <span className={`block text-3xs ${lastProfit >= 0 ? 'text-aero-good' : 'text-aero-warn'} font-normal mt-0.5`}>
+                            <span className={`block text-2xs ${lastProfit >= 0 ? 'text-good' : 'text-bad'} font-normal mt-0.5`}>
                               {lastProfit >= 0 ? <TrendingUp size={10} className="inline mr-1" /> : <TrendingDown size={10} className="inline mr-1" />}
                               {lastProfit >= 0 ? '+' : '-'}{formatCurrency(Math.abs(lastProfit))}
                             </span>
@@ -960,14 +959,14 @@ function CompetitorsViewImpl({
 
                         {/* Fleet Size */}
                         <div className="col-span-1 text-left md:text-right font-mono">
-                          <span className="text-white/30 text-xs md:hidden pr-2 tracking-wider">FLEET</span>
-                          <span className="font-bold text-white/95">{airline.fleet.length}</span>
+                          <span className="text-muted text-xs md:hidden pr-2">Fleet</span>
+                          <span className="font-semibold text-ink">{airline.fleet.length}</span>
                         </div>
 
                         {/* Routes Size */}
                         <div className="col-span-1 text-left md:text-right font-mono">
-                          <span className="text-white/30 text-xs md:hidden pr-2 tracking-wider">ROUTES</span>
-                          <span className="font-bold text-white/95">{airline.routes.length}</span>
+                          <span className="text-muted text-xs md:hidden pr-2">Routes</span>
+                          <span className="font-semibold text-ink">{airline.routes.length}</span>
                         </div>
 
                         {/* Action Trigger button */}
@@ -977,7 +976,7 @@ function CompetitorsViewImpl({
                               e.stopPropagation();
                               setSelectedAirlineId(airline.id);
                             }}
-                            className="px-3 py-2 border border-white/10 rounded-sm font-mono text-3xs uppercase tracking-widest text-white hover:text-black hover:bg-aero-yellow hover:border-aero-yellow transition-all flex items-center justify-center gap-1 w-full md:w-auto font-bold"
+                            className="px-3 py-2 border border-line rounded-sm font-label text-2xs uppercase tracking-label text-ink hover:text-on-accent hover:bg-accent hover:border-accent transition-all flex items-center justify-center gap-1 w-full md:w-auto font-semibold"
                           >
                             Inspect
                           </button>

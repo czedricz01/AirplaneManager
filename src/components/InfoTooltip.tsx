@@ -45,7 +45,7 @@ export const InfoTooltip = ({
       ref={ref}
       type="button"
       aria-label={`What is ${title}?`}
-      className="inline-flex items-center ml-2 cursor-help align-middle bg-transparent border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow"
+      className="inline-flex items-center ml-2 cursor-help align-middle bg-transparent border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
       onMouseEnter={e => showAt(e.clientX, e.clientY)}
       onMouseMove={e => showAt(e.clientX, e.clientY)}
       onMouseLeave={hide}
@@ -60,12 +60,12 @@ export const InfoTooltip = ({
         if (e.key === 'Escape') hide();
       }}
     >
-      <Info size={size} className="text-white/40 hover:text-aero-yellow transition-colors" />
+      <Info size={size} className="text-muted hover:text-accent transition-colors" />
       {pos.show &&
         createPortal(
           <div
             role="tooltip"
-            className="fixed z-[999999] flex flex-col bg-aero-panel border border-white/20 p-3 rounded-sm shadow-2xl w-[250px] pointer-events-none"
+            className="fixed z-[999999] flex flex-col bg-surface border border-rule p-3 rounded-sm w-[250px] pointer-events-none"
             style={{
               top: pos.y > window.innerHeight - 160 ? Math.max(8, pos.y - 170) : pos.y,
               // Clamped: on a phone, flipping 280px to the left of the icon would
@@ -73,11 +73,11 @@ export const InfoTooltip = ({
               left: pos.x > window.innerWidth - 260 ? Math.max(8, pos.x - 280) : pos.x,
             }}
           >
-            <span className="font-mono text-xs text-aero-yellow font-bold uppercase tracking-widest leading-tight mb-1">
+            <span className="font-label text-xs text-muted font-semibold uppercase tracking-label leading-tight mb-1">
               {title}
             </span>
             {desc && (
-              <span className="text-2xs text-white/70 whitespace-pre-wrap leading-relaxed">{desc}</span>
+              <span className="text-2xs text-muted whitespace-pre-wrap leading-relaxed">{desc}</span>
             )}
           </div>,
           document.body

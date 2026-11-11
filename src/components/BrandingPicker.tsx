@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { Branding } from '../lib/gameState';
-import { BRAND_PRESETS, isHexColor, readableTextColor } from '../lib/theme';
+import { BRAND_PRESETS, MAP_YELLOW, isHexColor, readableTextColor } from '../lib/theme';
 import { BrandBadge, BRAND_ICONS, brandInitials } from './BrandBadge';
 
 interface BrandingPickerProps {
@@ -12,7 +12,7 @@ interface BrandingPickerProps {
   name?: string;
 }
 
-const sectionLabel = 'block text-3xs font-black uppercase tracking-[0.3em] text-white/50 mb-2';
+const sectionLabel = 'block text-2xs font-semibold uppercase tracking-label text-muted mb-2';
 
 /**
  * Colour and badge for the player's airline: eight preset colours, a free
@@ -33,8 +33,8 @@ export function BrandingPicker({ value, onChange, code, name }: BrandingPickerPr
         title={title}
         aria-pressed={active}
         onClick={() => onChange({ ...value, icon: id })}
-        className={`w-10 h-10 flex items-center justify-center border font-mono text-xs font-black transition-colors ${
-          active ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white/70 hover:border-aero-yellow hover:text-white'
+        className={`w-10 h-10 flex items-center justify-center border font-mono text-xs font-semibold transition-colors ${
+          active ? 'bg-accent text-on-accent border-accent' : 'bg-raised border-line text-muted hover:border-accent hover:text-ink'
         }`}
       >
         {content}
@@ -46,7 +46,7 @@ export function BrandingPicker({ value, onChange, code, name }: BrandingPickerPr
     <div className="flex flex-col sm:flex-row gap-5 items-start">
       <div className="flex flex-col items-center gap-2 shrink-0">
         <BrandBadge branding={value} code={code} name={name} size={64} />
-        <span className="text-3xs font-mono uppercase tracking-widest text-white/40">Preview</span>
+        <span className="text-2xs font-label uppercase tracking-label text-muted">Preview</span>
       </div>
 
       <div className="flex-1 min-w-0 space-y-4">
@@ -64,7 +64,7 @@ export function BrandingPicker({ value, onChange, code, name }: BrandingPickerPr
                   aria-pressed={active}
                   onClick={() => onChange({ ...value, color: preset.color })}
                   className={`w-8 h-8 flex items-center justify-center border transition-transform hover:scale-110 ${
-                    active ? 'border-white ring-2 ring-white/60' : 'border-black/40'
+                    active ? 'border-ink ring-2 ring-ink' : 'border-ground'
                   }`}
                   style={{ backgroundColor: preset.color, color: readableTextColor(preset.color) }}
                 >
@@ -74,13 +74,13 @@ export function BrandingPicker({ value, onChange, code, name }: BrandingPickerPr
             })}
             <label
               title="Custom colour"
-              className={`relative h-8 flex items-center gap-2 pl-1 pr-2 border cursor-pointer text-3xs font-mono uppercase tracking-widest transition-colors ${
-                !isPreset ? 'border-white text-white' : 'border-white/10 text-white/50 hover:border-aero-yellow hover:text-white'
+              className={`relative h-8 flex items-center gap-2 pl-1 pr-2 border cursor-pointer text-2xs font-label uppercase tracking-label transition-colors ${
+                !isPreset ? 'border-ink text-ink' : 'border-line text-muted hover:border-accent hover:text-ink'
               }`}
             >
               <input
                 type="color"
-                value={isHexColor(value.color) ? current : '#facc15'}
+                value={isHexColor(value.color) ? current : MAP_YELLOW}
                 onChange={(e) => {
                   if (isHexColor(e.target.value)) onChange({ ...value, color: e.target.value.toUpperCase() });
                 }}

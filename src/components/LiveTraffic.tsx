@@ -3,7 +3,7 @@ import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { getRoutePath } from '../lib/geoUtils';
 import { aircraftList } from "../data/aircraft";
-import { MAP_YELLOW, MAP_CONGESTION_COLORS, isHexColor } from '../lib/theme';
+import { MAP_YELLOW, MAP_CONGESTION_COLORS, TOKENS, isHexColor } from '../lib/theme';
 
 interface LiveTrafficProps {
   routes: any[];
@@ -16,7 +16,7 @@ interface LiveTrafficProps {
   playerColor?: string;
 }
 
-const PLANE_STROKE = "#121212";
+const PLANE_STROKE = TOKENS.ground;
 
 // Plain SVG strings rather than react-dom/server: this used to run a full React
 // server render for every marker on every tick.
@@ -319,63 +319,63 @@ function LiveTrafficImpl({ routes, aiRoutes, airports, offsets = [0], fleet = []
             icon={getPlaneIcon(f.aircraftId, f.planeClass, f.icaoCode, f.size, f.heading, f.color)}
           >
             <Popup>
-              <div className="bg-aero-panel-2 border-l-2 border-aero-yellow p-3 rounded-sm text-2xs font-mono leading-relaxed text-white min-w-[260px] shadow-2xl select-none">
+              <div className="bg-raised border-l-2 border-accent p-3 rounded-sm text-2xs leading-relaxed text-ink min-w-[260px] select-none">
                 {/* Carrier & Callsign Banner */}
-                <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
-                  <span className="text-aero-yellow font-black uppercase tracking-widest text-3xs flex items-center gap-2">
+                <div className="flex justify-between items-center border-b border-line pb-2 mb-2">
+                  <span className="text-muted font-semibold uppercase tracking-label text-2xs flex items-center gap-2">
                     <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
                     {f.carrier}
                   </span>
-                  <span className="bg-aero-black border border-white/10 text-white text-4xs px-2 py-0.5 uppercase tracking-wide font-bold">
+                  <span className="bg-ground border border-line text-ink text-2xs px-2 py-0.5 uppercase tracking-label font-semibold">
                     FLIGHT {f.flightRef}
                   </span>
                 </div>
 
                 {/* Aircraft Info */}
-                <div className="mb-3 text-2xs font-bold text-white tracking-wide">
-                  {f.labelName} <span className="text-white/40 font-normal">({f.registration})</span>
+                <div className="mb-3 text-2xs font-semibold text-ink">
+                  {f.labelName} <span className="text-muted font-normal">({f.registration})</span>
                 </div>
 
                 {/* Route Info */}
-                <div className="flex items-center justify-between mb-3 bg-aero-black p-2 border border-white/5">
+                <div className="flex items-center justify-between mb-3 bg-ground p-2 border border-line">
                   <div className="flex flex-col items-start">
-                    <span className="text-white/50 text-4xs uppercase">From</span>
-                    <span className="font-black text-lg text-white">{f.fromId}</span>
+                    <span className="text-muted text-2xs uppercase">From</span>
+                    <span className="font-semibold text-lg text-ink">{f.fromId}</span>
                   </div>
                   <div className="flex-1 px-4 flex flex-col items-center relative">
-                    <div className="w-full h-[1px] bg-white/20 absolute top-1/2 -translate-y-1/2"></div>
+                    <div className="w-full h-[1px] bg-raised absolute top-1/2 -translate-y-1/2"></div>
                     <div
-                      className="absolute h-[3px] w-[3px] bg-aero-yellow rounded-full top-1/2 -translate-y-1/2 transition-all duration-1000"
+                      className="absolute h-[3px] w-[3px] bg-accent rounded-full top-1/2 -translate-y-1/2 transition-all duration-1000"
                       style={{ left: `${f.progress * 100}%` }}
                     ></div>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="text-white/50 text-4xs uppercase">To</span>
-                    <span className="font-black text-lg text-white">{f.toId}</span>
+                    <span className="text-muted text-2xs uppercase">To</span>
+                    <span className="font-semibold text-lg text-ink">{f.toId}</span>
                   </div>
                 </div>
 
                 {/* Flight Details Grid */}
-                <div className="grid grid-cols-2 gap-2 text-3xs border-t border-white/5 pt-2">
+                <div className="grid grid-cols-2 gap-2 text-2xs border-t border-line pt-2">
                   <div className="flex flex-col">
-                    <span className="text-white/40 uppercase">Status</span>
-                    <span className="text-aero-yellow uppercase">{f.isReturn ? 'Inbound' : 'Outbound'}</span>
+                    <span className="text-muted uppercase">Status</span>
+                    <span className="text-muted uppercase">{f.isReturn ? 'Inbound' : 'Outbound'}</span>
                   </div>
                   <div className="flex flex-col text-right">
-                    <span className="text-white/40 uppercase">Progress</span>
-                    <span className="text-white">{(f.progress * 100).toFixed(0)}%</span>
+                    <span className="text-muted uppercase">Progress</span>
+                    <span className="text-ink">{(f.progress * 100).toFixed(0)}%</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-white/40 uppercase">Speed</span>
-                    <span className="text-white">{f.cruiseSpeed} km/h</span>
+                    <span className="text-muted uppercase">Speed</span>
+                    <span className="text-ink">{f.cruiseSpeed} km/h</span>
                   </div>
                   <div className="flex flex-col text-right">
-                    <span className="text-white/40 uppercase">Class</span>
-                    <span className="text-white">{f.planeClass.toUpperCase()}</span>
+                    <span className="text-muted uppercase">Class</span>
+                    <span className="text-ink">{f.planeClass.toUpperCase()}</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-white/40 uppercase">Load</span>
-                    <span className="text-white">{f.loadFactor !== null ? `${f.loadFactor}%` : 'N/A'}</span>
+                    <span className="text-muted uppercase">Load</span>
+                    <span className="text-ink">{f.loadFactor !== null ? `${f.loadFactor}%` : 'N/A'}</span>
                   </div>
                 </div>
               </div>

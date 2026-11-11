@@ -1,6 +1,6 @@
+import { Button } from './ui/Button';
+import { TextInput } from './ui/Field';
 import { useState, FormEvent } from 'react';
-import { motion } from 'motion/react';
-import { Bird, LogIn, AlertTriangle } from 'lucide-react';
 import { supabase, isCloudConfigured, describeAuthError } from '../lib/supabase';
 import { logError } from '../lib/debugLog';
 
@@ -54,125 +54,62 @@ export function AuthGate({ onLocalOnly }: Props) {
     }
   };
 
-  const inputClass =
-    'w-full bg-black border border-white/10 p-3 outline-none focus:border-aero-yellow transition-colors font-mono text-sm text-white disabled:opacity-50';
-  const labelClass =
-    'block text-2xs uppercase tracking-widest text-white/40 mb-2 font-bold font-mono';
-
   return (
-    <motion.div
-      key="login"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center p-4 relative w-full"
-    >
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-aero-yellow rounded-full blur-[120px]" />
-      </div>
+    <div key="login" className="flex-1 min-h-0 overflow-y-auto flex flex-col bg-ground animate-appear">
+      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-10 py-8 short:py-3 flex flex-col short:flex-row short:items-center gap-8 short:gap-10">
+        <div className="short:shrink-0">
+          <h1 className="font-label font-bold text-3xl leading-none uppercase tracking-label text-ink">Airline Manager Neo</h1>
+          <p className="mt-2 text-base text-muted max-w-[40ch]">Start in 1960 with a hub and a budget, and build a route network month by month.</p>
+        </div>
 
-      <div className="z-10 w-full max-w-md">
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col mb-6">
-          <h1 className="text-6xl lg:text-7xl font-black italic tracking-tighter leading-none mb-3 flex flex-col items-start gap-4">
-            <Bird className="text-aero-yellow shrink-0" size={72} strokeWidth={2.5} />
-            {/* One line per word: the name as a single token overflowed the column and wrapped mid-name. */}
-            <div>
-              <span className="text-aero-yellow">AIRLINE</span>
-              <br />
-              <span className="text-white">MANAGER</span>
-              <br />
-              <span className="text-aero-yellow">NEO</span>
+        <div className="w-full max-w-sm">
+          {!isCloudConfigured ? (
+            <div className="bg-surface border border-line p-4 flex flex-col gap-3">
+              <h2 className="font-label font-semibold text-lg text-ink">Play without an account</h2>
+              <p className="text-sm text-muted">
+                This build has no Supabase project attached, so there are no accounts and no
+                cloud savegames. You can still play: progress is kept in this browser only.
+              </p>
+              <Button variant="primary" size="lg" onClick={onLocalOnly}>Continue locally</Button>
             </div>
-          </h1>
-          <p className="text-2xs tracking-[0.4em] font-light text-white/40 pl-2 uppercase">
-            Aviation Management Core
-          </p>
-        </motion.div>
-
-        {!isCloudConfigured ? (
-          <div className="bg-aero-carbon p-4 rounded-sm border border-white/5 space-y-4 shadow-2xl">
-            <div className="flex items-start gap-3 text-aero-yellow">
-              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-              <div className="text-xs font-mono uppercase tracking-widest font-bold">
-                Cloud accounts not configured
-              </div>
-            </div>
-            <p className="text-xs font-mono text-white/50 leading-relaxed">
-              This build has no Supabase project attached, so there are no accounts and no
-              cloud savegames. You can still play — progress is kept in this browser only.
-            </p>
-            <button
-              type="button"
-              onClick={onLocalOnly}
-              className="w-full bg-aero-yellow text-black py-4 font-black uppercase tracking-tighter hover:bg-white transition-all flex items-center justify-center gap-2"
-            >
-              Continue Locally <LogIn size={18} />
-            </button>
-          </div>
-        ) : (
-          <form
-            onSubmit={handleSignIn}
-            className="bg-aero-carbon p-4 rounded-sm border border-white/5 space-y-6 shadow-2xl"
-          >
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="bg-aero-panel border-l-2 border-aero-yellow p-3"
-              >
-                <p className="text-2xs font-mono text-aero-yellow/70 uppercase tracking-widest">
-                  {error}
-                </p>
-              </motion.div>
-            )}
-
-            <div>
-              <label className={labelClass} htmlFor="auth-email">Operator Email</label>
-              <input
+          ) : (
+            <form onSubmit={handleSignIn} className="bg-surface border border-line p-4 flex flex-col gap-4">
+              <h2 className="font-label font-semibold text-lg text-ink">Sign in</h2>
+              {error && (
+                <p role="alert" className="text-sm text-bad border-l-[3px] border-bad pl-3">{error}</p>
+              )}
+              <TextInput
                 id="auth-email"
+                label="Email"
                 type="email"
                 autoComplete="email"
-                placeholder="operator@airline.neo"
+                placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={isBusy}
-                className={inputClass}
                 required
               />
-            </div>
-
-            <div>
-              <label className={labelClass} htmlFor="auth-password">Bio-Key (Password)</label>
-              <input
+              <TextInput
                 id="auth-password"
+                label="Password"
                 type="password"
                 autoComplete="current-password"
-                placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 disabled={isBusy}
-                className={inputClass}
                 required
               />
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <button
-                type="submit"
-                disabled={isBusy}
-                className="w-full bg-white text-black py-4 font-black uppercase tracking-tighter hover:bg-aero-yellow transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isBusy ? 'Processing...' : 'Initialize System'} <LogIn size={18} />
-              </button>
-
-              <p className="text-2xs font-mono text-white/30 leading-relaxed text-center">
+              <Button type="submit" variant="primary" size="lg" disabled={isBusy}>
+                {isBusy ? 'Signing in…' : 'Sign in'}
+              </Button>
+              <p className="text-xs text-muted">
                 Accounts are issued by the operator running this server.
                 There is no self-registration.
               </p>
-            </div>
-          </form>
-        )}
+            </form>
+          )}
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

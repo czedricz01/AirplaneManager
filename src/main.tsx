@@ -70,7 +70,7 @@ createRoot(document.getElementById('root')!).render(
       so this one only catches a fault outside them -- but without it such a fault
       leaves a blank white page with nothing to click and no hint of what happened.
     */}
-    <ErrorBoundary label="Airline Manager" resetLabel="RELOAD" onReset={() => window.location.reload()}>
+    <ErrorBoundary label="Airline Manager" resetLabel="Reload" onReset={() => window.location.reload()}>
       <App />
     </ErrorBoundary>
   </StrictMode>,

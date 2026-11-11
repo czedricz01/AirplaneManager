@@ -171,15 +171,15 @@ const RANGES: { id: RangeId; label: string; months: number }[] = [
 ];
 
 const KIND_META: Record<ChronicleKind, { label: string; icon: ReactNode; tone: string }> = {
-  milestone: { label: 'Milestone', icon: <Trophy size={13} />, tone: 'text-aero-yellow border-aero-yellow/40' },
-  goal: { label: 'Annual target', icon: <Target size={13} />, tone: 'text-white/80 border-white/25' },
-  record: { label: 'Record', icon: <TrendingUp size={13} />, tone: 'text-aero-good border-aero-good/40' },
-  network: { label: 'Network', icon: <Waypoints size={13} />, tone: 'text-sky-300 border-sky-300/40' },
-  crisis: { label: 'World event', icon: <Globe size={13} />, tone: 'text-white/80 border-white/25' },
-  strike: { label: 'Strike', icon: <Megaphone size={13} />, tone: 'text-aero-warn border-aero-warn/40' },
-  disruption: { label: 'Disruption', icon: <AlertTriangle size={13} />, tone: 'text-aero-warn border-aero-warn/40' },
-  finance: { label: 'Finance', icon: <TrendingDown size={13} />, tone: 'text-aero-warn border-aero-warn/40' },
-  scenario: { label: 'Scenario', icon: <Flag size={13} />, tone: 'text-aero-yellow border-aero-yellow/40' }
+  milestone: { label: 'Milestone', icon: <Trophy size={13} />, tone: 'text-accent border-accent/40' },
+  goal: { label: 'Annual target', icon: <Target size={13} />, tone: 'text-ink border-rule' },
+  record: { label: 'Record', icon: <TrendingUp size={13} />, tone: 'text-good border-good/40' },
+  network: { label: 'Network', icon: <Waypoints size={13} />, tone: 'text-ink border-rule' },
+  crisis: { label: 'World event', icon: <Globe size={13} />, tone: 'text-ink border-rule' },
+  strike: { label: 'Strike', icon: <Megaphone size={13} />, tone: 'text-bad border-bad/40' },
+  disruption: { label: 'Disruption', icon: <AlertTriangle size={13} />, tone: 'text-bad border-bad/40' },
+  finance: { label: 'Finance', icon: <TrendingDown size={13} />, tone: 'text-bad border-bad/40' },
+  scenario: { label: 'Scenario', icon: <Flag size={13} />, tone: 'text-accent border-accent/40' }
 };
 
 const offsetOf = (r: { month: number; year: number }) => (r.year - CALENDAR_START_YEAR) * 12 + (r.month - 1);
@@ -224,8 +224,8 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
   }, [chronicle]);
 
   const button = (active: boolean) =>
-    `px-3 py-1.5 text-2xs uppercase tracking-widest font-bold border transition-colors ${
-      active ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white/50 border-white/10 hover:text-white hover:border-white/30'
+    `px-3 py-1.5 text-2xs uppercase tracking-label font-semibold border transition-colors ${
+      active ? 'bg-accent text-on-accent border-accent' : 'bg-surface text-muted border-line hover:text-ink hover:border-rule'
     }`;
 
   return (
@@ -248,7 +248,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
                 aria-pressed={range === r.id}
                 onClick={() => setRange(r.id)}
                 className={`px-2 py-1 text-2xs font-mono border transition-colors ${
-                  range === r.id ? 'border-aero-yellow text-aero-yellow' : 'border-white/10 text-white/40 hover:text-white'
+                  range === r.id ? 'border-accent text-accent' : 'border-line text-muted hover:text-ink'
                 }`}
               >
                 {r.label}
@@ -258,20 +258,20 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
         </div>
 
         {reportHistory.length === 0 ? (
-          <div className="h-48 flex flex-col items-center justify-center gap-2 text-white/40 uppercase tracking-widest text-xs font-bold border border-white/5 bg-black/20">
+          <div className="h-48 flex flex-col items-center justify-center gap-2 text-muted uppercase tracking-label text-xs font-semibold border border-line bg-ground/20">
             No month closed yet
-            <span className="text-2xs normal-case tracking-normal text-white/30 font-mono">The charts fill in as months close.</span>
+            <span className="text-2xs normal-case text-muted">The charts fill in as months close.</span>
           </div>
         ) : (
           <>
             <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 mb-3">
-              <span className="text-2xs uppercase tracking-widest text-white/40 font-black">{chart.title}</span>
+              <span className="text-2xs uppercase tracking-label text-muted font-semibold">{chart.title}</span>
               <div className="flex flex-wrap gap-x-5 gap-y-1">
                 {summary.map(({ series, span }) => span && (
                   <div key={series.id} className="text-right">
-                    {chart.series.length > 1 && <span className="block text-3xs uppercase tracking-widest text-white/40">{series.label}</span>}
-                    <span className="text-base font-mono font-bold text-white">{chart.formatValue(span[1])}</span>
-                    <span className="block text-3xs font-mono text-white/40">
+                    {chart.series.length > 1 && <span className="block text-2xs uppercase tracking-label text-muted">{series.label}</span>}
+                    <span className="text-base font-mono font-semibold text-ink">{chart.formatValue(span[1])}</span>
+                    <span className="block text-2xs text-muted">
                       {chart.delta(span[1] - span[0])} over the period
                     </span>
                   </div>
@@ -290,12 +290,12 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
               ariaLabel={`${chart.title}, ${formatMonthOffset(offsets[0])} to ${formatMonthOffset(offsets[offsets.length - 1])}`}
             />
             <details className="mt-3 group">
-              <summary className="cursor-pointer text-3xs font-mono uppercase tracking-widest text-white/40 hover:text-white">
+              <summary className="cursor-pointer text-2xs font-label uppercase tracking-label text-muted hover:text-ink">
                 Show as table
               </summary>
-              <div className="mt-2 max-h-56 overflow-y-auto custom-scrollbar border border-white/5">
-                <table className="w-full text-2xs font-mono">
-                  <thead className="sticky top-0 bg-aero-panel-2 text-white/40">
+              <div className="mt-2 max-h-56 overflow-y-auto border border-line">
+                <table className="w-full text-2xs">
+                  <thead className="sticky top-0 bg-raised text-muted">
                     <tr>
                       <th className="text-left font-normal px-2 py-1">Month</th>
                       {chart.series.map(s => <th key={s.id} className="text-right font-normal px-2 py-1">{s.label}</th>)}
@@ -303,11 +303,11 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
                   </thead>
                   <tbody className="tabular-nums">
                     {offsets.map((o, i) => ({ o, i })).reverse().map(({ o, i }) => (
-                      <tr key={o} className="border-t border-white/5">
-                        <td className="px-2 py-1 text-white/50">{formatMonthOffset(o)}</td>
+                      <tr key={o} className="border-t border-line">
+                        <td className="px-2 py-1 text-muted">{formatMonthOffset(o)}</td>
                         {chart.series.map(s => {
                           const v = s.values[i];
-                          return <td key={s.id} className="px-2 py-1 text-right text-white/80">{isValue(v) ? chart.formatValue(v) : '—'}</td>;
+                          return <td key={s.id} className="px-2 py-1 text-right text-ink">{isValue(v) ? chart.formatValue(v) : '—'}</td>;
                         })}
                       </tr>
                     ))}
@@ -316,7 +316,7 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
               </div>
             </details>
             {reports.some(r => r.reputation === undefined) && metric !== 'capital' && metric !== 'profit' && metric !== 'revenue' && (
-              <p className="text-3xs font-mono text-white/30 mt-2">
+              <p className="text-2xs text-muted mt-2">
                 Months closed before this figure was recorded are left out.
               </p>
             )}
@@ -327,34 +327,34 @@ export function ChronicleView({ reportHistory, chronicle }: ChronicleViewProps) 
       {/* The chronicle */}
       <Panel>
         <div className="flex items-baseline justify-between mb-3">
-          <span className="text-2xs uppercase tracking-widest text-white/40 font-black">Chronicle</span>
-          <span className="text-2xs font-mono text-white/40">{chronicle.length} entr{chronicle.length === 1 ? 'y' : 'ies'}</span>
+          <span className="text-2xs uppercase tracking-label text-muted font-semibold">Chronicle</span>
+          <span className="text-2xs font-mono text-muted">{chronicle.length} entr{chronicle.length === 1 ? 'y' : 'ies'}</span>
         </div>
         {years.length === 0 ? (
-          <p className="text-2xs font-mono text-white/40 leading-relaxed">
+          <p className="text-2xs text-muted leading-relaxed">
             Nothing written yet. Milestones, records, world events, strikes and other turning points are recorded here as they happen.
           </p>
         ) : (
           <ol className="space-y-5">
             {years.map(group => (
               <li key={group.year}>
-                <h4 className="text-sm font-black font-mono text-white/70 mb-2">{group.year}</h4>
-                <ol className="relative ml-3 border-l border-white/10 space-y-3">
+                <h4 className="text-sm font-semibold font-label text-muted mb-2">{group.year}</h4>
+                <ol className="relative ml-3 border-l border-line space-y-3">
                   {group.entries.map((entry, i) => {
                     const meta = KIND_META[entry.kind];
                     return (
                       <li key={`${entry.offset}-${i}`} className="relative pl-6">
                         <span
-                          className={`absolute -left-[12px] top-0 w-6 h-6 rounded-full border bg-aero-panel flex items-center justify-center ${meta.tone}`}
+                          className={`absolute -left-[12px] top-0 w-6 h-6 rounded-full border bg-surface flex items-center justify-center ${meta.tone}`}
                           aria-hidden="true"
                         >
                           {meta.icon}
                         </span>
-                        <div className="flex flex-wrap items-baseline gap-x-2 text-3xs font-mono uppercase tracking-widest text-white/40">
+                        <div className="flex flex-wrap items-baseline gap-x-2 text-2xs font-label uppercase tracking-label text-muted">
                           <span>{formatMonthOffset(entry.offset)}</span>
                           <span>{meta.label}</span>
                         </div>
-                        <p className="text-xs text-white/85 leading-relaxed">{entry.text}</p>
+                        <p className="text-xs text-ink leading-relaxed">{entry.text}</p>
                       </li>
                     );
                   })}
