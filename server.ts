@@ -90,7 +90,7 @@ async function startServer() {
   });
 
   // Get active images map for all aircrafts
-  app.get("/api/aircraft-images", (req, res) => {
+  app.get("/api/aircraft-images", (_req, res) => {
     try {
       const map: Record<string, string> = {};
 
@@ -395,7 +395,7 @@ async function startServer() {
   });
 
   // Global JSON-based API Error handler to catch all errors in /api routes and prevent html leakage
-  app.use("/api", (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use("/api", (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error("[api] Unhandled error", err);
     res.status(err.status || err.statusCode || 500).json({
       success: false,
@@ -415,13 +415,17 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Server] Listening on http://0.0.0.0:${PORT}`);
+  // The picture upload endpoints have no sign-in, so by default the server is
+  // reachable from this computer only. HOST=0.0.0.0 opens it to the network,
+  // for a container or a trusted LAN.
+  const HOST = process.env.HOST || "127.0.0.1";
+  app.listen(PORT, HOST, () => {
+    console.log(`[Server] Listening on http://${HOST}:${PORT}`);
   });
 }
 

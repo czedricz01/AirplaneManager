@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { plannerReducer as reduce, initialPlannerSelection as init, PlannerSelection } from './plannerState';
-import type { ScheduledTrip } from '../RouteScheduleEditView';
+import type { ScheduledTrip } from '../../lib/gameTypes';
 
 const trip = (id: string): ScheduledTrip => ({
   id, dayId: 1, startHour: 8, startMin: 0, durMin: 95, turnoverMin: 45,

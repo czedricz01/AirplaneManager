@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { Bird, LogIn, AlertTriangle } from 'lucide-react';
 import { supabase, isCloudConfigured, describeAuthError } from '../lib/supabase';

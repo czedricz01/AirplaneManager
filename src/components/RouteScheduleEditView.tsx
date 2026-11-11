@@ -1,15 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, 
-  Clock, 
-  Calendar, 
-  ChevronRight, 
-  ChevronLeft, 
-  Plus, 
-  Minus, 
-  Check, 
-  Info,
+import {
+  X,
+  Calendar,
+  ChevronLeft,
+  Plus,
+  Minus,
+  Check,
   Save,
   Trash2,
   AlertCircle,
@@ -33,23 +30,10 @@ import {
   tripStartMinute
 } from '../lib/scheduleUtils';
 import { getFlightDurationMinutes } from '../lib/financeUtils';
+import { createTimerBag } from '../lib/timerBag';
 import { formatWeekMinute, openShiftWindows, shiftTrips, timetablePeriod } from '../lib/aircraftAssignment';
 import type { OwnedAircraft } from './MyFleetView';
-import { SimulatedRoute, AirportInfrastructure } from '../App';
-
-export type ScheduledTrip = { 
-  id: string;
-  groupId?: string;
-  isGroupLead?: boolean;
-  flightNumOut: string;
-  flightNumIn: string;
-  dayId: number;
-  startHour: number;
-  startMin: number;
-  durMin: number;
-  turnoverMin: number;
-  isOneWay?: boolean;
-};
+import type { AirportInfrastructure, ScheduledTrip, SimulatedRoute } from '../lib/gameTypes';
 
 interface RouteScheduleEditViewProps {
   route: SimulatedRoute;
@@ -59,7 +43,6 @@ interface RouteScheduleEditViewProps {
   /** For the slot count: slots are rented per aircraft class. */
   fleet: OwnedAircraft[];
   airportManagement: Record<string, AirportInfrastructure>;
-  airlineCode: string;
   /**
    * The route is moving to `aircraft` from this registration (the route
    * page's "Change"). The editor then offers the aircraft's free time slots
@@ -80,7 +63,6 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   allRoutes,
   fleet,
   airportManagement,
-  airlineCode,
   reassignFrom,
   onSave,
   onClose
@@ -452,6 +434,12 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   }, [schedule, allRoutes, aircraft, selectedOrigin, selectedDest]);
 
   const [isSaving, setIsSaving] = useState(false);
+  // The pause after a save must end with the editor: left running, its timer
+  // closed whatever editor the player had opened in the meantime.
+  const timers = React.useRef<ReturnType<typeof createTimerBag> | null>(null);
+  if (timers.current === null) timers.current = createTimerBag();
+  const later = timers.current.after;
+  useEffect(() => () => timers.current?.cancelAll(), []);
 
   const handleSave = () => {
     if (isSaving) return;
@@ -467,7 +455,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
     };
     onSave(updatedRoute);
     setShowSuccess(true);
-    setTimeout(() => {
+    later(() => {
       setShowSuccess(false);
       setIsSaving(false);
       onClose();
@@ -477,7 +465,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   // Pointer events rather than mouse events, so a block can be dragged with a
   // finger as well as a mouse; the block itself is touch-none so the drag does
   // not scroll the timetable instead.
-  const handleDragStart = (e: React.PointerEvent, dragTrip: ScheduledTrip) => {
+  const handleDragStart = (e: React.PointerEvent) => {
     e.preventDefault();
     const startY = e.clientY;
     
@@ -783,7 +771,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
                               key={b.id} 
                               onPointerDown={(e) => {
                                  if (!b.isBusy) {
-                                     handleDragStart(e, b.s);
+                                     handleDragStart(e);
                                  }
                               }}
                               onClick={(e) => {

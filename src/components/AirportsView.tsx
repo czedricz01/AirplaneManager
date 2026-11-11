@@ -16,7 +16,7 @@ type SortDir = 'asc' | 'desc';
 interface Props {
   currentYear: number;
   onSelectAirport?: (airport: Airport) => void;
-  airportManagement: Record<string, import('../App').AirportInfrastructure>;
+  airportManagement: Record<string, import('../lib/gameTypes').AirportInfrastructure>;
   aiAirlines?: any[];
   /** Why an airport is closed at the airline's rank, or null when it is open; see airportAccess.ts. */
   airportLock?: (airport: Airport) => string | null;

@@ -1,3 +1,4 @@
+import { LITRES_PER_GALLON } from './format';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
@@ -15,7 +16,6 @@ export function getAirportUpkeep(
   /** The calendar year, for the real growth of airport charges; leave out for 1960 prices. */
   year?: number
 ) {
-  const level = airport.level;
   const hubAutoUpgrade = infrastructure.level >= 2;
   // The development tree's saving on airport charges applies to the upkeep too.
   const idx = (year === undefined ? 1 : realCostIndex(year)) * getFeeFactor();
@@ -194,7 +194,7 @@ export function validateClassConfigs(classConfigs: any, selectedAircraft: any, a
     else allowedCategories.push('Luxury');
   }
 
-  const allowedPrefixes = [];
+  const allowedPrefixes: string[] = [];
   if (allowedCategories.includes('Basic')) allowedPrefixes.push('b');
   if (allowedCategories.includes('Standard')) allowedPrefixes.push('s');
   if (allowedCategories.includes('Premium')) allowedPrefixes.push('p');
@@ -555,8 +555,6 @@ export function calculateDemand(
     const businessRatio = totalInteraction > 0 ? businessInteraction / totalInteraction : 0.5;
     const premiumMultiplier = Math.pow(timeClass / 8, 0.7);
 
-    const firstPct = Math.max(0.01, 0.05 * businessRatio * Math.pow(premiumMultiplier, 1.5));
-    const busPct = Math.max(0.05, 0.15 * businessRatio * premiumMultiplier);
     const prePct = Math.max(0.10, 0.15 * (0.3 + 0.7 * businessRatio) * Math.sqrt(premiumMultiplier));
     
     // Lower premium economy demand by 10%
@@ -1016,7 +1014,7 @@ export function calculateRouteFinancials(
   mods?: PlayerModifiers
 ) {
   const dist = route.distance || 0;
-  const fuelPricePerL = Math.round((fuelPrice / 3.78541) * 1000) / 1000;
+  const fuelPricePerL = Math.round((fuelPrice / LITRES_PER_GALLON) * 1000) / 1000;
   const weeklyFlights = route.schedule?.length || route.weeklyFlights || 0;
   // The share of the timetable that actually operates. Strikes and disruptions
   // cancel the rest: fuel, crew hours, fees and seats all scale with it, while

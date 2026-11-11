@@ -3,13 +3,12 @@ import { ChevronRight, ChevronDown, Utensils, Wifi, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
-import { AirportInfrastructure } from '../App';
+import type { AirportInfrastructure } from '../lib/gameTypes';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 
 import {
   getFlightTimeClass,
   getCateringOpt,
-  getMultiOptionSum,
   seatWeightedSatisfaction,
   TIME_CLASS_SAT_MULTIPLIERS
 } from '../lib/financeUtils';

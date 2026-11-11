@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Aircraft } from '../data/aircraft';
-import { Search, ChevronDown, ChevronUp, LayoutGrid, List, Plane, Layers, Activity, MapPin, Wrench, ShieldAlert, Boxes, X, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, LayoutGrid, List, Plane, Layers, MapPin, Wrench, ShieldAlert, Boxes, X, ChevronRight } from 'lucide-react';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
 import { getPlaneSat } from '../lib/financeUtils';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
@@ -27,13 +27,6 @@ export interface OwnedAircraft extends Aircraft {
   launchBonusUntil?: number;
 }
 
-export interface RouteRef {
-  id: string;
-  origin: string;
-  destination: string;
-  schedule?: { length: number; flightNumOut?: number }[];
-  aircraft: string;
-}
 
 type SortField = 'registration' | 'type' | 'maxRange' | 'efficiency' | 'popularity' | 'conditionInterior' | 'conditionGeneral' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -123,8 +116,10 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
     }
     
     return result.sort((a, b) => {
-      let valA: any = a[sortField];
-      let valB: any = b[sortField];
+      // 'status' is not a field of the aircraft; it sorts as undefined, as it always has.
+      const field = sortField as keyof OwnedAircraft;
+      let valA: any = a[field];
+      let valB: any = b[field];
 
       if (sortField === 'popularity') {
          // The figure the column shows and the economy uses, not a variant of it.

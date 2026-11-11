@@ -5,30 +5,25 @@ import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { useTapReveal } from './ui/useTapReveal';
 import { aiMonthlySubsidy } from '../lib/aiSimulation';
-import { 
-  Search, 
-  ChevronDown, 
-  ChevronUp, 
-  Users, 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Plus, 
-  Plane, 
-  Waypoints, 
-  Award, 
+import {
+  Search,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  Plane,
+  Waypoints,
+  Award,
   ArrowLeft,
   Activity,
   Shield,
   Coins,
   MapPin,
-  Calendar,
-  Briefcase,
   PieChart
 } from 'lucide-react';
 import { ViewHeader } from './ui/ViewHeader';
 import { Badge } from './ui/Badge';
-import { PERSONALITY_META } from '../lib/theme';
+import { PERSONALITY_META, type AiPersonality } from '../lib/theme';
 
 export interface AiAirline {
   id: string;
@@ -104,8 +99,6 @@ export interface AiAirline {
 interface Props {
   aiAirlines: AiAirline[];
   playerCapital: number;
-  playerFleetCount: number;
-  playerRoutesCount: number;
   playerAirlineName: string;
   playerAirlineCode: string;
   playerHub: string;
@@ -136,8 +129,6 @@ type SortDir = 'asc' | 'desc';
 function CompetitorsViewImpl({ 
   aiAirlines, 
   playerCapital, 
-  playerFleetCount, 
-  playerRoutesCount, 
   playerAirlineName, 
   playerAirlineCode, 
   playerHub,
@@ -204,7 +195,7 @@ function CompetitorsViewImpl({
         // The player has no AI strategy profile. Declaring the fields keeps this
         // entry the same shape as the AI ones, so the detail panel can read them
         // off the union and fall back to "Independent" / 5 on its own.
-        personality: undefined as string | undefined,
+        personality: undefined as AiPersonality | undefined,
         aggression: undefined as number | undefined,
         secondHub: undefined as string | undefined,
         forSale: undefined as boolean | undefined,

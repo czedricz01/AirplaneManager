@@ -75,4 +75,5 @@ export const airports: Airport[] = rawAirports.map(a => {
 export const airportsMapAdjusted = new Map<string, Airport>();
 for (const a of airports) airportsMapAdjusted.set(a.id, a);
 
-export const getAirport = (id: string): Airport | undefined => airportsMapAdjusted.get(id);
+/** Every airport sorted by name, for pickers and lists. */
+export const airportsByName: Airport[] = [...airports].sort((a, b) => a.name.localeCompare(b.name));

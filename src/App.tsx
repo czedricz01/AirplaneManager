@@ -3,193 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, ReactNode, useEffect, useRef, useMemo } from "react";
-import { FinancialReport } from "./components/FinancialReport";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  Plane, 
-  Map as MapIcon, 
-  Settings as SettingsIcon, 
-  Save, 
+import {
   ChevronRight,
-  Globe,
-  Navigation,
-  Wind,
-  Bird,
-  Maximize2,
-  Minimize2,
-  Target,
-  X,
-  ShoppingCart,
-  MapPin,
-  Briefcase,
-  TrendingUp,
-  Users,
-  Plus,
-  LogOut,
-  ChevronDown,
-  Bell,
-  AlertTriangle,
-  Trash2,
-  Edit2,
-  Check,
-  CheckCircle2,
-  Newspaper,
-  Lock,
-  Trophy,
-  RotateCcw
+  X
 } from "lucide-react";
 
-import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, Polyline, useMapEvents } from "react-leaflet";
-import L from "leaflet";
+import type L from "leaflet";
 import { Airport, calculateDistance } from "./data/airports";
-import { airports, airportsMapAdjusted } from "./data/airportRegistry";
+import { airports, airportsByName, airportsMapAdjusted } from "./data/airportRegistry";
 export { airportsMapAdjusted };
 
-const offsetToDateStr = (offset: number) =>
-  `${(1 + (offset % 12)).toString().padStart(2, '0')}/${1960 + Math.floor(offset / 12)}`;
-
-const signedPercent = (multiplier: number) => {
-  const pct = Math.round((multiplier - 1.0) * 100);
-  return `${pct >= 0 ? '+' : ''}${pct}%`;
-};
-
-/**
- * Turns an event into the inbox message announcing it.
- *
- * The six scripted historical events used to fire in complete silence: in March
- * 2020 the game multiplied demand by 0.20 and told the player nothing, so an
- * 80% revenue collapse looked like a bug. Only the random events were ever
- * announced, and they had their own copy of this code.
- */
-function buildEventStartMessage(ev: HistoricalEvent, idSeed: number): GameMessage {
-  const dateStr = offsetToDateStr(ev.startOffset);
-  const demand = signedPercent(ev.demandMultiplier);
-  const fuel = signedPercent(ev.fuelMultiplier);
-  return {
-    id: idSeed,
-    text: ev.regions?.length
-      ? `${ev.demandMultiplier < 1 ? 'REGIONAL CRISIS' : 'REGIONAL EVENT'}: "${ev.title}" begins${eventScope(ev)}. Demand ${demand} there, for ${ev.duration} months.`
-      : `GLOBAL EVENT: "${ev.title}" begins. Demand ${demand}, fuel ${fuel}, for ${ev.duration} months.`,
-    isRead: false,
-    dateStr,
-    details: {
-      title: ev.title,
-      source: "Global Intelligence Agency",
-      content:
-        `${ev.description}\n\nActive from ${dateStr} for ${ev.duration} months, ` +
-        `through ${offsetToDateStr(ev.startOffset + ev.duration - 1)}.\n\n` +
-        `Projected impact:\n` +
-        (ev.regions?.length
-          ? `\u2022 Passenger demand${eventScope(ev)}: ${demand}, on routes inside the region; a route with one end there feels half of it\n` +
-            `\u2022 Everywhere else: no change\n\n`
-          : `\u2022 Global passenger demand: ${demand}\n` +
-            `\u2022 Jet fuel market index: ${fuel}\n\n`) +
-        `These multiply with any other event running at the same time.`
-    }
-  };
-}
-
-function buildEventEndMessage(ev: HistoricalEvent, idSeed: number, endOffset: number): GameMessage {
-  return {
-    id: idSeed,
-    text: ev.regions?.length ? `"${ev.title}" has ended${eventScope(ev)}. Demand there returns to normal.` : `"${ev.title}" has ended. Demand and fuel return to normal.`,
-    isRead: false,
-    dateStr: offsetToDateStr(endOffset),
-    details: {
-      title: `${ev.title} - over`,
-      source: "Global Intelligence Agency",
-      content:
-        `${ev.title} ran for ${ev.duration} months and is no longer in effect.\n\n` +
-        `Its ${signedPercent(ev.demandMultiplier)} demand and ${signedPercent(ev.fuelMultiplier)} fuel ` +
-        `adjustments have been lifted.`
-    }
-  };
-}
-
-/**
- * Airline reputation, 0-100.
- *
- * The game had no airline-level number that grew or decayed: after thirty
- * in-game years you had more money and newer aircraft, but nothing that said
- * you had become a better airline. Reputation is that number, and it is
- * deliberately slow -- it cannot be bought, only earned over months, and it
- * falls the same way.
- *
- * It is built only from things the simulation already computes:
- *   - how satisfied passengers were, weighted by how many of them there were
- *   - how worn the cabins of the aircraft actually flying are
- *   - how full the aircraft flew
- *
- * conditionGeneral is deliberately included through condScore's sibling below:
- * until now airframe condition affected nothing but resale value, which made
- * the $200k general check a pure sink.
- */
-
-export const REPUTATION_INERTIA = 0.15;
-
-export function computeReputationTarget(samples: {
-  weightedSat: number;      // pax-weighted mean route satisfaction, in percent
-  meanInterior: number;     // 0-100
-  meanAirframe: number;     // 0-100
-  loadFactor: number;       // 0-1
-}): number {
-  // A route at 130% satisfaction is as good as this scale goes.
-  const satScore = Math.max(0, Math.min(100, (samples.weightedSat / 130) * 100));
-  const condScore = Math.max(0, Math.min(100, samples.meanInterior * 0.6 + samples.meanAirframe * 0.4));
-  const loadScore = Math.max(0, Math.min(100, samples.loadFactor * 100));
-  return 0.5 * satScore + 0.3 * condScore + 0.2 * loadScore;
-}
-
-/** Adds a one-off amount to the month's list, merging items with the same label. */
-function addCapexItem(list: { label: string; amount: number }[], label: string, amount: number) {
-  return list.some(c => c.label === label)
-    ? list.map(c => (c.label === label ? { ...c, amount: c.amount + amount } : c))
-    : [...list, { label, amount }];
-}
-
-/** The month a saved report closed, as an offset from 01/1960. */
-const reportOffset = (r: { year: number; month: number }) => (r.year - 1960) * 12 + (r.month - 1);
-
-/** Capital at the month-ends a scenario has seen so far, oldest first, from the saved reports. */
-function scenarioCapitalHistory(reports: any[], startedOffset: number): number[] {
-  return reports
-    .filter(r => r && reportOffset(r) >= startedOffset && Number.isFinite(r.capitalAfter))
-    .map(r => r.capitalAfter);
-}
-
-/** The player's routes as a scenario's goals count them: by city pair, with their weekly departures. */
-const scenarioRoutes = (routes: SimulatedRoute[]): ScenarioContext['routes'] =>
-  routes.map(r => ({ origin: r.origin, destination: r.destination, weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 }));
-
-/** Every rival departure, as offers the finance engine can split demand by. */
-function buildRivalOffers(ais: any[] | null | undefined) {
-  return (ais || []).flatMap((ai: any) =>
-    (ai.routes || []).map((r: any) => ({
-      origin: r.origin,
-      destination: r.destination,
-      departures: r.departures || 0,
-      airline: ai.name,
-      // A rival cutting fares in a price war is that much more attractive.
-      ...(r.priceCut > 0 ? { priceAppeal: 1 / (1 - Math.min(0.5, r.priceCut)) } : {})
-    }))
-  );
-}
-
-import { WorldMap } from "./components/WorldMap";
-import { HubPickerModal } from "./components/HubPickerModal";
-import { BrandingPicker } from "./components/BrandingPicker";
-import { IncidentList } from "./components/IncidentList";
 import { recolorClashingRivals } from "./lib/theme";
-import { getRoutePath, continentOf, regionOf } from "./lib/geoUtils";
+import { getRoutePath, regionOf } from "./lib/geoUtils";
 
-/**
- * The hub picker's option list. This used to be sorted inline in the start
- * menu's JSX, which copied 562 airports and ran an Intl collator over them on
- * every keystroke in the airline name and code fields. The list never changes,
- * so it is built once.
- */
-const airportsByName: Airport[] = [...airports].sort((a, b) => a.name.localeCompare(b.name));
 
 /** A fresh, empty cabin set-up for the route planner. A factory, so no two plans share objects. */
 const createDefaultPlanningClassConfigs = (): Record<string, any> => ({
@@ -205,12 +33,10 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { AccountScopeContext } from "./lib/accountScope";
 import { syncAllPendingConfigs } from "./lib/configStore";
-import { getAirportUpkeep, getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
-import { computeNetworkFinancials, type NetworkEnv } from "./lib/transferUtils";
-import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from "./lib/chronicle";
-import { buildEdition, rivalMoves, type Edition } from "./lib/newspaper";
-import { NewspaperOverlay } from "./components/NewspaperOverlay";
-import { GoalOfferDialog } from "./components/GoalOfferDialog";
+import { getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
+import { computeNetworkFinancials } from "./lib/transferUtils";
+import { regionsServed } from "./lib/chronicle";
+import { type Edition } from "./lib/newspaper";
 import {
   CAMPAIGN_SPECS,
   REGION_LABELS,
@@ -218,107 +44,69 @@ import {
   campaignMonthlyCost,
   ffpRankGate,
   createCampaign,
-  dropExpiredCampaigns,
   ffpMonthlyCost,
-  marketingMonthCost,
-  marketingReputation,
   routesByRegion,
   startFfp,
   stopFfp
 } from "./lib/marketing";
 import {
-  STRIKE_MORALE_THRESHOLD,
   STRIKE_OPTION_RAISE,
   STRIKE_PAY_RAISE,
   STRIKE_REPUTATION_PENALTY,
-  advanceStaff,
-  buildStrikeDecision,
   setSalary,
   settleStrikeWithPayRise,
   strikeCancelShare
 } from "./lib/staff";
 import {
   DISRUPTION_OPTION_CHARTER,
-  MAJOR_DISRUPTION_SHARE,
   type BirdStrike,
-  buildDisruptionDecision,
   cancelReputationPenalty,
-  charterFeesFor,
   combineCancelShares,
-  describeDisruption,
   describeRouteCancellations,
   disruptionCancelShares,
-  disruptionRoutesLabel,
-  disruptionIncidents,
-  disruptionTitle,
-  disruptionsIn,
-  disruptionsToAsk,
-  dropPastDisruptions,
-  marginalLostRevenue,
-  rollBirdStrikes,
-  rollDisruptions
+  disruptionTitle
 } from "./lib/disruptions";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
-  MILESTONES,
-  describeReward,
-  milestonePerks,
-  newlyEarned as newlyEarnedMilestones,
-  totalReward as totalMilestoneReward,
-  type MilestoneContext
+  milestonePerks
 } from "./lib/milestones";
 import {
   FREE_MODE_RANK,
-  RANKS,
   RANK_NEEDED,
   managementGate,
-  nextRank,
-  rankDef,
   rankGateMessage,
   startingRank,
   type GameMode,
   type RankStats
 } from "./lib/airlineRank";
 import { classGateMessage, classesOfFleet, openClasses, type AircraftClassId } from "./lib/aircraftClasses";
-import { airportGate, exemptAirports, lockedSummary, maxAirportLevel } from "./lib/airportAccess";
+import { airportGate, exemptAirports, maxAirportLevel } from "./lib/airportAccess";
 import {
   buildYearSnapshot,
   describeGoal,
-  generateGoalOffers,
-  settleGoal,
-  type AnnualGoal,
-  type GoalOffer
+  type AnnualGoal
 } from "./lib/annualGoals";
 import { setFeeFactor, setResaleBonus, setSlotPriceFactor } from "./lib/economyContext";
-import { ageYears, agedPopularity, fleetCommonality, fleetOwnershipCost } from "./lib/fleetCosts";
-import { ownerIncome, ownedAirports } from "./lib/hubOwnership";
+import { ageYears, fleetCommonality } from "./lib/fleetCosts";
 import { buildTakeover, takeoverQuote, withTakenSlots } from "./lib/takeover";
 import {
-  LAUNCH_BONUS,
-  LAUNCH_BONUS_MONTHS,
   cancelRefund,
   createOrder,
-  isLaunchDelivery,
-  quoteOrder,
-  settleDeliveries
+  quoteOrder
 } from "./lib/preorders";
 import { type UsedListing } from "./lib/usedMarket";
 import {
-  bestStars,
   careerScore,
   fileCareer,
   hallPosition,
   normalizeHall,
   normalizeStars,
   scenarioUnlocked,
-  starsFor,
   type HallOfFameEntry,
   type ScenarioStars
 } from "./lib/careerScore";
-import { RetirementDialog } from "./components/RetirementDialog";
 import {
   CLASS_PROJECTS,
-  advanceResearch,
   boostedEfficiency,
   boostedPopularity,
   projectById,
@@ -334,7 +122,6 @@ import {
   createGameSystems,
   decisionTargetExists,
   routeCancelShare,
-  ensureFreeOption,
   normalizeGameSettings,
   DEFAULT_BRANDING,
   DEFAULT_MARKETING,
@@ -351,18 +138,17 @@ import {
   type GameDecisionOption,
   type GameSettings,
   type GameSystems,
-  type PlayerModifiers,
-  type ReportIncident,
   type RouteCancellation,
   type ScenarioState,
   type ChronicleEntry
 } from "./lib/gameState";
-import { nextMessageId, reserveMessageIds, capMessages, createWelcomeMessage } from "./lib/messages";
+import { nextMessageId, reserveMessageIds, createWelcomeMessage } from "./lib/messages";
+import { SaveLoadOverlay } from "./components/SaveLoadOverlay";
+import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
-import { findNonFinite } from "./lib/invariants";
-import { formatCurrency, formatMoneyCompact, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol } from "./lib/format";
-import { generateAiAirlines, simulateAiAirlinesTurn } from "./lib/aiSimulation";
-import type { GameMessage } from "./lib/gameTypes";
+import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
+import { generateAiAirlines } from "./lib/aiSimulation";
+import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
 export type { GameMessage };
 import type { OwnedAircraft } from "./components/MyFleetView";
 import type { ConfigOutput } from "./components/ConfigurePurchaseView";
@@ -379,6 +165,12 @@ import type { AiAirline } from "./components/CompetitorsView";
  * `ConfigurePurchaseView` ~1,500 -- between them the two biggest single cuts
  * to the shipped bundle.
  */
+// The map library is only needed once a game is on screen or the hub picker is
+// open, so the sign-in screen and the menus no longer wait for it. The same
+// goes for the newspaper, the tutorial and the monthly report.
+const WorldMap = React.lazy(() => import("./components/WorldMap").then(m => ({ default: m.WorldMap })));
+const NewspaperOverlay = React.lazy(() => import("./components/NewspaperOverlay").then(m => ({ default: m.NewspaperOverlay })));
+const TutorialOverlay = React.lazy(() => import("./components/TutorialOverlay").then(m => ({ default: m.TutorialOverlay })));
 const BuyAircraftView = React.lazy(() => import("./components/BuyAircraftView").then(m => ({ default: m.BuyAircraftView })));
 const MyFleetView = React.lazy(() => import("./components/MyFleetView").then(m => ({ default: m.MyFleetView })));
 const RoutesView = React.lazy(() => import("./components/RoutesView").then(m => ({ default: m.RoutesView })));
@@ -391,15 +183,12 @@ const MyCompanyView = React.lazy(() => import("./components/MyCompanyView").then
 const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").then(m => ({ default: m.CompetitorsView })));
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, EventChoice, eventKey, eventScope, eventRegionLabel, type EventRegion } from "./lib/eventSystem";
-import { isMalusEvent, malusMonthOpen } from "./lib/malus";
+import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, eventKey } from "./lib/eventSystem";
 import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
-import { SCENARIOS, scenarioById, type Scenario } from "./data/scenarios";
-import { evaluateScenario, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
+import { scenarioById, type Scenario } from "./data/scenarios";
+import { monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
-import { ScenarioPicker } from "./components/ScenarioPicker";
-import { TutorialOverlay } from "./components/TutorialOverlay";
-import { restartTutorial, settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
+import { settleTutorialStep, type TutorialDestination, type TutorialState, type TutorialView } from "./lib/tutorial";
 import { checkReassignment, RoutePatch } from "./lib/aircraftAssignment";
 import { autoScaleFor } from "./lib/layout";
 import { useFullscreen } from "./components/ui/useFullscreen";
@@ -407,8 +196,14 @@ import { useHoverAutoClose } from "./components/ui/useHoverAutoClose";
 import { supabase, isCloudConfigured, ensureProfile } from "./lib/supabase";
 import { AuthGate } from "./components/AuthGate";
 import { ViewFrame } from "./components/ui/ViewFrame";
-import { Modal } from "./components/ui/Modal";
-import { StatTile } from "./components/ui/StatTile";
+import { MonthlyReportScreen } from "./components/app/MonthlyReportScreen";
+import { NewGameScreen } from "./components/app/NewGameScreen";
+import { MainMenuScreen } from "./components/app/MainMenuScreen";
+import { SettingsDialog } from "./components/app/SettingsDialog";
+import { GameTopBar } from "./components/app/GameTopBar";
+import { GameNavigation } from "./components/app/GameNavigation";
+import { GameDialogs } from "./components/app/GameDialogs";
+import { addCapexItem, applyMonthClose, buildRivalOffers, closeMonth, offsetToDateStr, reportOffset, scenarioCapitalHistory, scenarioRoutes } from "./lib/monthClose";
 import {
   SaveMetadata,
   listSaves,
@@ -420,136 +215,10 @@ import {
   importLegacyLocalSaves,
 } from "./lib/cloudSaves";
 
-
-
-type ViewState = 'login' | 'main-menu' | 'start-menu' | 'monthly-overview' | 'game';
-type ActiveWindow = 'map' | 'buy-aircraft' | 'my-fleet' | 'routes' | 'airports' | 'my-company' | 'progression' | 'competitors' | 'new-route';
-
-
-export type ManagementLevel = 0 | 1 | 2 | 3; // 0: None, 1: Basic, 2: Hub, 3: Owner
-
-export interface AirportInfrastructure {
-  level: ManagementLevel;
-  slots: { regional: number; narrowbody: number; widebody: number };
-  stands: { regional?: number; narrowbody: number; widebody: number }; // manual upgrades if level < 2
-  autoBuyStands?: boolean;
-  desks: { normal: number; self: number };
-  hubAutoUpgrade?: boolean;
-  hubFacilities?: {
-    hangar?: boolean;
-    vipLounge?: boolean;
-    catering?: boolean;
-  };
-}
-
-export interface SimulatedRoute {
-  id: string;
-  airline: string;
-  origin: string;
-  destination: string;
-  distance: number;
-  aircraft: string;
-  weeklyFlights: number;
-  paxPerWeek: number;
-  paxByClass?: Record<string, { actual: number, max: number, transfer?: number }>;
-  schedule?: any[];
-  classConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
-  ticketPrices?: Record<string, number>;
-  activeTicketPrices?: Record<string, number>;
-  durMin?: number;
-  turnoverMin?: number;
-  routeSat?: Record<string, number>;
-  monthlyProfit?: number;
-  weeklyRevenue?: number;
-  weeklyCost?: number;
-  /** The month offset the route was opened; absent on routes from before ramp-up existed, which count as mature. */
-  openedOffset?: number;
-}
-
-export const randomEventTemplates = [
-  {
-    title: "Volcanic Ash Disruption",
-    description: "An unexpected volcanic eruption has filled key coordinates with ash clouds, forcing flight path redirections and minor booking dips.",
-    demandMin: 0.88, demandMax: 0.92,
-    fuelMin: 1.02, fuelMax: 1.08,
-    durationMin: 2, durationMax: 4
-  },
-  {
-    title: "Summer Vacation Surge",
-    description: "An intense, prolonged heatwave trigger-starts an unprecedented summer flight rush! All routes see major bookings.",
-    demandMin: 1.10, demandMax: 1.15,
-    fuelMin: 1.04, fuelMax: 1.10,
-    durationMin: 2, durationMax: 3
-  },
-  {
-    title: "Global Commerce Summit",
-    description: "Massive international tech and economic summits catalyze a heavy surge in first/business class travelers.",
-    demandMin: 1.05, demandMax: 1.09,
-    fuelMin: 0.96, fuelMax: 1.01,
-    durationMin: 1, durationMax: 2
-  },
-  {
-    title: "Refinery Pipeline Outages",
-    description: "Unplanned pipeline maintenance in major refinery sectors has triggered a sudden hike in immediate jet fuel delivery prices.",
-    demandMin: 0.97, demandMax: 1.01,
-    fuelMin: 1.25, fuelMax: 1.40,
-    durationMin: 2, durationMax: 3
-  },
-  {
-    title: "Biofuel Refinement Breakthrough",
-    description: "Widespread integration of new agricultural synthetic fuel mixtures reduces traditional jet A-1 demand and pushes fuel costs down.",
-    demandMin: 1.00, demandMax: 1.04,
-    fuelMin: 0.82, fuelMax: 0.88,
-    durationMin: 3, durationMax: 5
-  },
-  {
-    title: "Economic Slump",
-    description: "A minor global economic contraction impacts customer confidence. Forward bookings are moderately slowed down.",
-    demandMin: 0.85, demandMax: 0.90,
-    fuelMin: 0.88, fuelMax: 0.95,
-    durationMin: 3, durationMax: 6
-  },
-  {
-    title: "Wanderlust Marketing Campaign",
-    description: "Highly successful global advertising campaigns promote exploration and long-distance holidays.",
-    demandMin: 1.10, demandMax: 1.15,
-    fuelMin: 1.01, fuelMax: 1.05,
-    durationMin: 3, durationMax: 4
-  },
-  {
-    title: "Regional Airspace Closure",
-    description: "A conflict and the airspace restrictions that follow cut the routes into and out of one part of the world.",
-    demandMin: 0.70, demandMax: 0.82,
-    fuelMin: 1.0, fuelMax: 1.0,
-    durationMin: 2, durationMax: 4,
-    regional: true
-  },
-  {
-    title: "Regional Tourism Boom",
-    description: "A destination goes viral and a whole region fills with visitors.",
-    demandMin: 1.12, demandMax: 1.20,
-    fuelMin: 1.0, fuelMax: 1.0,
-    durationMin: 3, durationMax: 6,
-    regional: true
-  },
-  {
-    title: "Regional Aviation Strike Wave",
-    description: "Airport and airline staff across one region take turns to strike; bookings go elsewhere.",
-    demandMin: 0.82, demandMax: 0.90,
-    fuelMin: 1.0, fuelMax: 1.0,
-    durationMin: 2, durationMax: 3,
-    regional: true
-  },
-  {
-    title: "Geopolitical Energy Friction",
-    description: "Temporary political standoffs in major energy regions cause speculators to bid up fuel and hydrocarbon costs.",
-    demandMin: 0.95, demandMax: 0.99,
-    fuelMin: 1.15, fuelMax: 1.25,
-    durationMin: 2, durationMax: 4
-  }
-];
-
 export const GENERAL_CHECK_COST = 200000;
+
+/** One empty list for "nothing sold this month", so the market's props stay equal between renders. */
+const NO_SOLD_IDS: string[] = [];
 
 /** How much airframe condition a general check restores. The fifth and later checks
  *  restore nothing, so the UI must not charge for them. */
@@ -691,15 +360,8 @@ export default function App() {
    * and there was no way to tell whether a decision had worked. The AI airlines
    * have had a monthlyProfitsHistory all along; this is the player's.
    */
-  const [reportHistory, setReportHistory] = useState<any[]>([]);
+  const [reportHistory, setReportHistory] = useState<MonthlyReport[]>([]);
   const latestReport = reportHistory.length > 0 ? reportHistory[reportHistory.length - 1] : null;
-  const [openReportCategories, setOpenReportCategories] = useState<string[]>([]);
-  
-  const toggleReportCategory = (category: string) => {
-    setOpenReportCategories(prev => 
-      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
-    );
-  };
 
   // Routes used to be mirrored to an unscoped `neo_routes` key on every change:
   // a full serialisation per edit, shared between accounts on one browser, and
@@ -746,7 +408,7 @@ export default function App() {
   /** Last closed month's profit per route id, for the route list's money column. */
   const routeProfits = useMemo(() => {
     const map: Record<string, number> = {};
-    (latestReport?.routes || []).forEach((r: any) => { map[r.id] = r.profit; });
+    (latestReport?.routes || []).forEach(r => { if (r.id) map[r.id] = r.profit; });
     return map;
   }, [latestReport]);
 
@@ -773,14 +435,6 @@ export default function App() {
   const spend = (amount: number, label: string) => {
     setCapital(prev => prev - amount);
     setMonthlyCapex(prev => addCapexItem(prev, label, amount));
-  };
-
-  /**
-   * Puts a question to the player. Every system queues through here, so each
-   * decision carries an answer that costs nothing (see ensureFreeOption).
-   */
-  const queueDecision = (decision: GameDecision) => {
-    setPendingDecisions(prev => [...prev, ensureFreeOption(decision)]);
   };
 
   /**
@@ -875,7 +529,9 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Hub Migration: assign a hub to existing aircraft if they have routes
+  // An aircraft without a hub is based where its first route starts. This is
+  // the one place that rule lives: it covers a route saved in the planner, a
+  // route moved to another aircraft, and old savegames without hubs.
   useEffect(() => {
     if (fleet.length > 0 && routes.length > 0) {
       let changed = false;
@@ -961,15 +617,15 @@ export default function App() {
   const finalUiScale = uiScaleSetting * autoScale;
 
   const formatDate = (offset: number) => {
-    const year = 1960 + Math.floor(offset / 12);
-    const month = 1 + (offset % 12);
+    const year = yearOf(offset);
+    const month = monthOf(offset);
     return `${month.toString().padStart(2, '0')}/${year}`;
   };
 
   // Price comes from the shared model; only the month-on-month trend string is
   // computed here, so the top bar can never disagree with what routes are billed.
   const rawPriceAtOffset = (offset: number) =>
-    getJetFuelPrice(1960 + Math.floor(offset / 12), 1 + (offset % 12), difficulty);
+    getJetFuelPrice(yearOf(offset), monthOf(offset), difficulty);
 
   /**
    * The fuel price the PLAYER pays, which is the market price unless a hedge is
@@ -1023,8 +679,8 @@ export default function App() {
   const network = useMemo(() => computeNetworkFinancials(routes, fleet, playerMods, {
     fuelPrice: fuelData.price,
     airportManagement,
-    year: 1960 + Math.floor(currentDateOffset / 12),
-    month: 1 + (currentDateOffset % 12),
+    year: yearOf(currentDateOffset),
+    month: monthOf(currentDateOffset),
     difficulty,
     airportsMap: airportsMapAdjusted,
     rivalOffers
@@ -1118,7 +774,7 @@ export default function App() {
       routes: scenarioRoutes(routes),
       reputation,
       regionsServed: regionsServed(routes, airportsMapAdjusted).size,
-      transferPaxMonth: lastClose ? (Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
+      transferPaxMonth: lastClose ? (typeof lastClose.transferPax === 'number' && Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
       monthlyProfit: lastClose && Number.isFinite(lastClose.totalProfit) ? lastClose.totalProfit : null,
       capitalHistory: scenarioCapitalHistory(reportHistory, scenario.startedOffset)
     };
@@ -1220,7 +876,7 @@ export default function App() {
 
   const getBaseGlobalDemand = (offset: number) => {
     const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
-    const mNum = 1 + (offset % 12);
+    const mNum = monthOf(offset);
     const mFactor = mvValues[mNum - 1] || 1.0;
     const { demandMult } = getEventMultipliers(offset);
     
@@ -1278,7 +934,13 @@ export default function App() {
       setIsAuthResolved(true);
     };
 
-    supabase.auth.getSession().then(({ data }) => adopt(data.session));
+    supabase.auth.getSession()
+      .then(({ data }) => adopt(data.session))
+      .catch(e => {
+        // Without a session the player is simply not signed in; the login screen follows.
+        logError('auth', 'Restoring the session failed', e);
+        adopt(null);
+      });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => adopt(session));
 
     return () => {
@@ -1338,7 +1000,7 @@ export default function App() {
   const [planningDestId, setPlanningDestId] = useState<string | null>(null);
   const [planningReg, setPlanningReg] = useState<string | null>(null);
   const [planningStep, setPlanningStep] = useState<number>(1);
-  const [planningSchedule, setPlanningSchedule] = useState<any[]>([]);
+  const [planningSchedule, setPlanningSchedule] = useState<ScheduledTrip[]>([]);
   const [planningClassConfigs, setPlanningClassConfigs] = useState<Record<string, any>>(createDefaultPlanningClassConfigs);
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
   const [editingCabinRouteId, setEditingCabinRouteId] = useState<string | null>(null);
@@ -1408,21 +1070,21 @@ export default function App() {
     return () => { cancelled = true; };
   }, [isAuthResolved, userId, refreshSaves]);
 
-  const [autosaveInterval, setAutosaveInterval] = useState(6);
-  const [autosaveOverwrite, setAutosaveOverwrite] = useState(true);
+  // Read once, when the state is created. Loading them in an effect let the
+  // effect below write the defaults over them first.
+  const [autosaveInterval, setAutosaveInterval] = useState<number>(() => {
+    const stored = readJson<{ autosaveInterval?: unknown } | null>('neo_autosave_settings', null)?.autosaveInterval;
+    return typeof stored === 'number' && Number.isFinite(stored) ? stored : 6;
+  });
+  const [autosaveOverwrite, setAutosaveOverwrite] = useState<boolean>(() => {
+    const stored = readJson<{ autosaveOverwrite?: unknown } | null>('neo_autosave_settings', null)?.autosaveOverwrite;
+    return typeof stored === 'boolean' ? stored : true;
+  });
   const [currentSaveId, setCurrentSaveId] = useState<string | null>(null);
   const [currentSaveName, setCurrentSaveName] = useState<string | null>(null);
   const [pendingAutosave, setPendingAutosave] = useState(false);
   const [pendingInitialSave, setPendingInitialSave] = useState(false);
   const [initialSaveFileName, setInitialSaveFileName] = useState("");
-
-  useEffect(() => {
-    const parsed = readJson<any>('neo_autosave_settings', null);
-    if (parsed) {
-      if (parsed.autosaveInterval !== undefined) setAutosaveInterval(parsed.autosaveInterval);
-      if (parsed.autosaveOverwrite !== undefined) setAutosaveOverwrite(parsed.autosaveOverwrite);
-    }
-  }, []);
 
   useEffect(() => {
     writeJson('neo_autosave_settings', { autosaveInterval, autosaveOverwrite });
@@ -1436,18 +1098,6 @@ export default function App() {
   useEffect(() => {
     writeJson('neo_game_settings', gameSettings);
   }, [gameSettings]);
-
-
-  // Fix for Leaflet marker icons in React
-  useEffect(() => {
-    // @ts-ignore
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
-  }, []);
 
 
   const visibleAirports = useMemo(() => {
@@ -1530,1119 +1180,14 @@ export default function App() {
     showPlanner();
   };
 
+  /** Ends the month. The work is in lib/monthClose; this hands it the state and applies what it returns. */
   const handleAdvanceMonth = () => {
-    // Generate Report First using CURRENT date
-    // airportsMapAdjusted is the same lookup, built once at module load.
-    const localAirportsMap = airportsMapAdjusted;
-    const currentFuelPrice = getFuelData(currentDateOffset).price;
-    const currentYearNum = 1960 + Math.floor(currentDateOffset / 12);
-    const currentMonthNum = 1 + (currentDateOffset % 12);
-
-    let totalRouteRevenues = 0;
-    let totalRouteCosts = 0;
-    let totalRouteProfit = 0;
-    let fuelCosts = 0;
-    let fuelLitersUsed = 0;
-    let averageFuelPricePerL = 0;
-    let cateringCosts = 0;
-    let staffCosts = 0;
-    let infraCosts = 0;
-    let landingFees = 0;
-    let paxFees = 0;
-    const routeDetails: { id: string, name: string, profit: number, revenue: number, cost: number, paxPerWeek: number, capacity: number, transferPax: number }[] = [];
-    // Samples for the reputation update further down.
-    let repPaxWeek = 0;
-    let repSatTimesPax = 0;
-    let repSeatsWeek = 0;
-    // Passengers flown, connecting ones on each leg, for the frequent-flyer bill.
-    let paxWeek = 0;
-    const flyingRegs = new Set<string>();
-
-    // The same network pricing the route list shows, connecting passengers included.
-    const monthEnv: NetworkEnv = {
-      fuelPrice: currentFuelPrice,
-      airportManagement,
-      year: currentYearNum,
-      month: currentMonthNum,
-      difficulty,
-      airportsMap: localAirportsMap,
-      rivalOffers
-    };
-    const monthNetwork = computeNetworkFinancials(routes, fleet, playerMods, monthEnv);
-    /** Ticket revenue of a priced network in a month. */
-    const revenueOf = (net: { finById: Map<string, { estWeeklyRev?: number }> }) => {
-      let week = 0;
-      net.finById.forEach(fin => { week += fin.estWeeklyRev || 0; });
-      return week * 4;
-    };
-    /** Ticket revenue of a whole network in a month, for pricing what a disruption costs. */
-    const networkRevenue = (list: SimulatedRoute[], mods: PlayerModifiers, env: NetworkEnv) =>
-      revenueOf(computeNetworkFinancials(list, fleet, mods, env));
-
-    routes.forEach(r => {
-      const fin = monthNetwork.finById.get(r.id);
-      if (fin) {
-        // `|| 0` below would hide a NaN as a zero; name the field instead.
-        const nonFinite = findNonFinite(fin);
-        if (nonFinite.length > 0) {
-          logWarn('month', `Route ${r.id} (${r.origin}-${r.destination}) produced non-finite numbers`, nonFinite);
-        }
-        const mRev = (fin.estWeeklyRev || 0) * 4;
-        const mCost = (fin.estWeeklyCosts || 0) * 4;
-        const mProfit = (fin.estWeeklyProfit || 0) * 4;
-
-        totalRouteRevenues += mRev;
-        totalRouteCosts += mCost;
-        totalRouteProfit += mProfit;
-
-        if (fin.costsBreakdown) {
-          fuelCosts += fin.costsBreakdown.fuel * 4;
-          fuelLitersUsed += (fin.costsBreakdown.fuelLiters || 0) * 4;
-          averageFuelPricePerL = fin.costsBreakdown.fuelPriceL || Math.round((currentFuelPrice / 3.78541) * 1000) / 1000;
-          cateringCosts += fin.costsBreakdown.catering * 4;
-          staffCosts += fin.costsBreakdown.crew * 4;
-          infraCosts += fin.costsBreakdown.infra * 4;
-          landingFees += (fin.costsBreakdown.landingFees || 0) * 4;
-          paxFees += (fin.costsBreakdown.paxFees || 0) * 4;
-        }
-
-        // routeSat is per cabin class, so weight it by the passengers who
-        // actually travelled in each before folding it into the airline figure.
-        Object.entries(fin.paxByClass || {}).forEach(([cls, pax]: [string, any]) => {
-          const actual = pax?.actual || 0;
-          if (actual > 0) {
-            repSatTimesPax += (fin.routeSat?.[cls] || 0) * actual;
-            repPaxWeek += actual;
-          }
-        });
-        repSeatsWeek += fin.weightedSeatsPerWeek || 0;
-        paxWeek += fin.paxPerWeek || 0;
-        flyingRegs.add(r.aircraft);
-
-        const weeklySeats = Object.values(fin.paxByClass || {}).reduce((sum: number, pax: any) => sum + (pax?.max || 0), 0);
-
-        routeDetails.push({
-          id: r.id,
-          name: `${r.origin}-${r.destination} (${r.aircraft})`,
-          profit: mProfit,
-          revenue: mRev,
-          cost: mCost,
-          paxPerWeek: fin.paxPerWeek || 0,
-          capacity: weeklySeats,
-          transferPax: fin.transferPax || 0
-        });
-      } else {
-        logWarn('month', `Route ${r.id} has no aircraft ${r.aircraft}; it earned nothing this month`);
-      }
+    const commands = closeMonth({
+      getFuelData, currentDateOffset, airportManagement, difficulty, rivalOffers, routes, fleet, playerMods, researchFx, aiAirlines, marketing, disruptions, reputation, eventChoices, staff, profitStreak, career, capital, milestones, yearsInBusiness, randomEvents, pendingDecisions, monthlyCapex, selectedHub, aiAirlinesCount, aiDifficulty, airlineCode, branding, annualGoal, reportHistory, startDateOffset, fleetValue, freeMode, airlineName, chronicle, homeRegion, scenario, scenarioStars, userId, getBaseGlobalDemand, latestReport, gameSettings, autosaveInterval
     });
-
-    let managementCosts = 0;
-    let deskCosts = 0;
-    
-    Object.entries(airportManagement).forEach(([airportId, mgt]) => {
-      const airport = localAirportsMap.get(airportId);
-      if (airport) {
-         const monthlyUpkeepObj = getAirportUpkeep(airport, mgt, routes, fleet, currentYearNum);
-         
-         const monthSlots = monthlyUpkeepObj.slots.regional + monthlyUpkeepObj.slots.narrowbody + monthlyUpkeepObj.slots.widebody;
-         const monthStands = monthlyUpkeepObj.stands.regional + monthlyUpkeepObj.stands.narrowbody + monthlyUpkeepObj.stands.widebody;
-         const monthFacs = monthlyUpkeepObj.facilities.hangar + monthlyUpkeepObj.facilities.vip + monthlyUpkeepObj.facilities.catering;
-         managementCosts += (monthSlots + monthStands + monthFacs) * 4;
-
-         const monthDesks = monthlyUpkeepObj.desks.normal + monthlyUpkeepObj.desks.self;
-         deskCosts += (monthDesks) * 4;
-      }
+    applyMonthClose(commands, {
+      setProfitStreak, setMilestones, setStaff, setCapital, setMonthlyCapex, setAiAirlines, setRandomEventsState, setDisruptions, setBirdStrikeAlerts, setAnnualGoal, setGoalOfferOpen, setReputation, setCareer, setPendingDecision, setReportHistory, setScenarioStars, setScenario, setScenarioResultOpen, setChronicle, setEdition, setIsNewspaperOpen, setMarketing, setMessages, setPendingAutosave, setCurrentDateOffset, setRoutes, setView, setFleet, setPendingDecisions
     });
-
-    const totalAirportUpkeep = managementCosts + deskCosts;
-
-    // Every aircraft is insured and kept airworthy whether it flies or not, and
-    // more so as it ages; see fleetCosts.ts.
-    const ownership = fleetOwnershipCost(fleet, flyingRegs, currentDateOffset, researchFx.maintenanceFactor);
-    // The airports owned outright (management tier 3) collect from the rivals
-    // that land there; see hubOwnership.ts.
-    const hubIncome = ownerIncome(airportManagement, id => localAirportsMap.get(id)?.level ?? 1, aiAirlines);
-
-    // Campaigns running this month and the frequent-flyer programme. Their
-    // demand and loyalty are already in this month's route figures above,
-    // through playerMods; here they are paid for.
-    const marketingCost = marketingMonthCost(marketing, currentDateOffset, paxWeek * 4);
-    // Replacement aircraft chartered for this month, billed as an operating
-    // cost: 90% of the tickets each one saved, with every other cause -- a
-    // strike above all -- applied. The routes' figures above already fly
-    // those flights, through playerMods.
-    // Charters sharing a route share what they save. The month as it is has
-    // been priced already, above: monthNetwork is that very network.
-    const charterFees = charterFeesFor(
-      disruptions,
-      currentDateOffset,
-      list => networkRevenue(routes, buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions: list, routes, research: researchFx }, currentDateOffset), monthEnv),
-      revenueOf(monthNetwork)
-    );
-    const charterCosts = Object.values(charterFees).reduce((sum, fee) => sum + fee, 0);
-    const totalMonthlyProfit = totalRouteProfit - totalAirportUpkeep - marketingCost.total - charterCosts - ownership.total + hubIncome.total;
-
-    // Inbox messages produced by this tick. Declared here because the
-    // milestone check below already writes into it.
-    const additionalMessages: GameMessage[] = [];
-    /** Aircraft delivered this close; they join the fleet after the month's wear. */
-    let deliveredPlanes: OwnedAircraft[] = [];
-
-    // --- Reputation -------------------------------------------------------
-    // Only updated when something actually flew. An airline with no routes is
-    // not judged one way or the other, so its reputation simply holds.
-    let nextReputation = reputation;
-    if (repPaxWeek > 0 && flyingRegs.size > 0) {
-      const flying = fleet.filter(f => flyingRegs.has(f.registration));
-      const meanInterior = flying.reduce((a, f) => a + (f.conditionInterior ?? 100), 0) / flying.length;
-      const meanAirframe = flying.reduce((a, f) => a + (f.conditionGeneral ?? 100), 0) / flying.length;
-      const target = computeReputationTarget({
-        weightedSat: repSatTimesPax / repPaxWeek,
-        meanInterior,
-        meanAirframe,
-        loadFactor: repSeatsWeek > 0 ? repPaxWeek / repSeatsWeek : 0
-      });
-      nextReputation = reputation + (target - reputation) * REPUTATION_INERTIA;
-    }
-    // Advertising and a loyalty scheme build the brand whether or not
-    // anything flew; ahead of the milestones, which may reward the result.
-    nextReputation = Math.max(0, Math.min(100, nextReputation + marketingReputation(marketing, currentDateOffset)));
-
-    // --- Milestones -------------------------------------------------------
-    // A month without a single route is not a profitable month; it neither
-    // extends the streak nor breaks it unless it lost money.
-    const nextStreak = totalMonthlyProfit < 0 ? 0 : routes.length > 0 ? profitStreak + 1 : profitStreak;
-    setProfitStreak(nextStreak);
-
-    const servedContinents = new Set<string>();
-    let longestKm = 0;
-    routes.forEach(r => {
-      longestKm = Math.max(longestKm, r.distance || 0);
-      [r.origin, r.destination].forEach(id => {
-        const ap = localAirportsMap.get(id);
-        if (ap) servedContinents.add(continentOf(ap.coords));
-      });
-    });
-
-    // Passengers flown this month, every leg counted, and what the career
-    // has added up to. The rank and the passenger milestones read these.
-    const monthlyPax = Math.round(paxWeek * 4);
-    const careerPaxNow = career.careerPax + monthlyPax;
-    const regionCountNow = regionsServed(routes, localAirportsMap).size;
-    const transferPaxMonth = Math.round(
-      Object.values(monthNetwork.hubStats).reduce((sum, h) => sum + (h.pax > 0 ? h.pax * 4 : 0), 0)
-    );
-    // Money the board and the sponsors pay out this close; settled once, below.
-    let awardsCash = 0;
-    const awardLines: string[] = [];
-
-    const mctx: MilestoneContext = {
-      routeCount: routes.length,
-      fleetSize: fleet.length,
-      capital: capital + totalMonthlyProfit,
-      longestRouteKm: longestKm,
-      continents: servedContinents.size,
-      profitableMonthStreak: nextStreak,
-      reputation: nextReputation,
-      careerPax: careerPaxNow,
-      transferPaxMonth,
-      hasWidebody: fleet.some(p => p.class === 'Widebody'),
-      hasSupersonic: fleet.some(p => (p.cruiseSpeed ?? 0) > 1000),
-      takeovers: career.takeovers
-    };
-
-    const newlyEarned = newlyEarnedMilestones(milestones, mctx);
-    if (newlyEarned.length > 0) {
-      setMilestones(prev => [...prev, ...newlyEarned.map(m => m.id)]);
-      const reward = totalMilestoneReward(newlyEarned);
-      nextReputation = Math.min(100, nextReputation + reward.reputation);
-      awardsCash += reward.cash;
-      newlyEarned.forEach(m => {
-        additionalMessages.push({
-          id: nextMessageId(),
-          text: `MILESTONE: ${m.title}`,
-          isRead: false,
-          dateStr: offsetToDateStr(currentDateOffset),
-          details: {
-            title: m.title,
-            source: 'Board of Directors',
-            content: `${m.detail}\n\nReward: ${describeReward(m.reward, formatCurrency)}.`
-          }
-        });
-      });
-    }
-
-    // --- Rank -------------------------------------------------------------------
-    // Judged on the month's final reputation, after the milestone bonuses. A
-    // rank is never lost, so this only ever moves up.
-    const rankStats: RankStats = { routes: routes.length, monthlyPax, reputation: nextReputation, regions: regionCountNow, years: yearsInBusiness };
-    const newRank = nextRank(career.rank, rankStats);
-    const rankUps: { title: string; detail: string }[] = [];
-    for (let r = career.rank + 1; r <= newRank; r++) {
-      const def = rankDef(r);
-      rankUps.push({ title: `Promoted to ${def.title}`, detail: `Now open: ${def.unlocks.join(', ')}.` });
-      nextReputation = Math.min(100, nextReputation + 3);
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `RANK: your airline is now a ${def.title}.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: `Promoted to ${def.title}`,
-          source: 'Aviation Authority',
-          content:
-            `Your network, your passengers and your reputation have earned the rank ${def.title}.\n\n` +
-            `Now open to you:\n${def.unlocks.map(u => `• ${u}`).join('\n')}\n\nReputation +3.`
-        }
-      });
-    }
-    const nextCareer: Career = { ...career, rank: newRank, careerPax: careerPaxNow };
-
-
-    // Bad luck is capped at half the months (see malus.ts). Whether the coming
-    // month may take on a new malus event is settled once, here, for the strike,
-    // the random event and the disruptions below alike.
-    const malusOpen = malusMonthOpen(randomEvents, disruptions, staff, currentDateOffset + 1);
-
-    // --- Staff ------------------------------------------------------------
-    // Morale takes its monthly step towards what pay and the run of results
-    // justify. At the new morale the staff may call a strike for the month
-    // about to start, which grounds every flight until the player answers.
-    const staffMonth = advanceStaff(staff, {
-      profitStreak: nextStreak,
-      nextOffset: currentDateOffset + 1,
-      strikePending: pendingDecisions.some(d => d.kind === 'strike'),
-      noRoutes: routes.length === 0,
-      malusBlocked: !malusOpen,
-      moraleBonus: researchFx.moraleBonus
-    }, Math.random);
-    const nextStaff = staffMonth.staff;
-    setStaff(nextStaff);
-    if (staff.morale >= STRIKE_MORALE_THRESHOLD && nextStaff.morale < STRIKE_MORALE_THRESHOLD && !staffMonth.strikeCalled) {
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `STAFF UNREST: morale has fallen to ${Math.round(nextStaff.morale)}.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: 'Staff unrest',
-          source: 'Human resources',
-          content:
-            `Morale among crew and ground staff is down to ${Math.round(nextStaff.morale)}. Below ${STRIKE_MORALE_THRESHOLD} the unions ` +
-            `may call a strike at any month's end, and the lower it goes the likelier that becomes.\n\n` +
-            `Pay is set under My Company > Staff. Morale follows it slowly, a fifth of the way each month.`
-        }
-      });
-    }
-    if (staffMonth.strikeCalled) {
-      const strikeMonth = offsetToDateStr(currentDateOffset + 1);
-      queueDecision(buildStrikeDecision(nextStaff, currentDateOffset + 1, strikeMonth, totalRouteRevenues));
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `STRIKE: your staff walk out in ${strikeMonth}.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: 'Strike called',
-          source: 'Human resources',
-          content:
-            `With morale at ${Math.round(nextStaff.morale)} and pay at ${Math.round(nextStaff.salaryPct)}% of the market wage, ` +
-            `the unions have called a strike for ${strikeMonth}.\n\n` +
-            `Raising pay by ${STRIKE_PAY_RAISE} points gets half the flights back in the air; sitting it out grounds all of them ` +
-            `and costs ${STRIKE_REPUTATION_PENALTY} reputation. The route list already shows the month without them.`
-        }
-      });
-    }
-
-    // What cost the airline flights this month, for the report.
-    const incidents: ReportIncident[] = [];
-    const strikeShare = strikeCancelShare(staff, currentDateOffset);
-    if (strikeShare > 0 && routes.length > 0) {
-      incidents.push({
-        kind: 'strike',
-        title: 'Staff strike',
-        detail: strikeShare >= 1
-          ? 'Sat out: every route grounded'
-          : `Settled with a pay rise: ${Math.round((1 - strikeShare) * 100)}% of flights operated`,
-        cancelShare: strikeShare,
-        routeCount: routes.length
-      });
-    }
-    const routeLabel = (id: string) => {
-      const r = routes.find(x => x.id === id);
-      return r ? `${r.origin}-${r.destination}` : 'a closed route';
-    };
-    incidents.push(...disruptionIncidents(disruptions, currentDateOffset, routeLabel, charterFees));
-
-    const capexTotal = monthlyCapex.reduce((sum, c) => sum + c.amount, 0);
-
-    const report = {
-      month: currentMonthNum,
-      year: currentYearNum,
-      routeRevenues: totalRouteRevenues,
-      routeCosts: totalRouteCosts,
-      airportUpkeep: totalAirportUpkeep,
-      totalProfit: totalMonthlyProfit,
-      // Operating result minus the one-off spending, i.e. what actually moved
-      // the bank balance this month.
-      capex: capexTotal,
-      capexItems: monthlyCapex,
-      cashChange: totalMonthlyProfit - capexTotal,
-      capitalAfter: capital + totalMonthlyProfit,
-      routes: routeDetails,
-      breakdown: {
-        fuel: fuelCosts,
-        fuelLiters: fuelLitersUsed,
-        fuelPriceL: averageFuelPricePerL,
-        catering: cateringCosts,
-        staff: staffCosts,
-        routeInfra: infraCosts,
-        landingFees: landingFees,
-        paxFees: paxFees,
-        mgt: managementCosts,
-        desks: deskCosts,
-        marketing: marketingCost.total,
-        marketingCampaigns: marketingCost.campaigns,
-        ffp: marketingCost.ffp,
-        // Charters, as the report lists them per incident (older reports add repair bills).
-        incidents: charterCosts,
-        charters: charterCosts,
-        // Insurance and maintenance of the whole fleet, and what of it was
-        // spent on aircraft with no route; income from rivals at owned airports.
-        fleetOwnership: ownership.total,
-        fleetParked: ownership.parked,
-        fleetParkedCount: ownership.parkedCount,
-        hubIncome: hubIncome.total
-      },
-      ...(hubIncome.items.length > 0
-        ? { hubIncomeItems: hubIncome.items.map(i => ({ label: `${localAirportsMap.get(i.airportId)?.name || i.airportId}: ${formatNumber(i.landings)} rival landings a week`, amount: i.amount })) }
-        : {}),
-      marketingItems: marketingCost.items,
-      // Only in months that had any; older reports have none.
-      ...(incidents.length > 0 ? { incidents } : {})
-    };
-
-    // Apply Financials
-    setCapital(prev => prev + totalMonthlyProfit);
-    setMonthlyCapex([]);
-
-    // Simulate AI Controlled Airlines
-    const nextOffsetForRivals = currentDateOffset + 1;
-    let aiMessages: GameMessage[] = [];
-    let aisAfterTurn = aiAirlines;
-    if (aiAirlines.length > 0) {
-      const { updatedAis, newMessages } = simulateAiAirlinesTurn(
-        aiAirlines,
-        airports,
-        currentDateOffset,
-        selectedHub,
-        routes,
-        { blocked: ownedAirports(airportManagement) }
-      );
-      // A rival wound up is eventually replaced by a new one, so the market
-      // does not empty over the decades; the game's rival count is the target.
-      let afterTurn = updatedAis;
-      if (updatedAis.length < aiAirlinesCount && Math.random() < 0.15) {
-        const fresh = generateAiAirlines(1, aiDifficulty, selectedHub, nextOffsetForRivals, airlineCode, branding.color, updatedAis);
-        if (fresh.length > 0) {
-          afterTurn = [...updatedAis, ...fresh];
-          newMessages.push({
-            id: nextMessageId(),
-            text: `NEW RIVAL: ${fresh[0].name} (${fresh[0].code}) starts flying from ${fresh[0].hub}.`,
-            isRead: false,
-            dateStr: offsetToDateStr(currentDateOffset)
-          });
-        }
-      }
-      setAiAirlines(afterTurn);
-      aiMessages = newMessages;
-      aisAfterTurn = afterTurn;
-    }
-
-    const nextOffset = currentDateOffset + 1;
-    const isNextJanuary = nextOffset % 12 === 0;
-
-    // Which world events are running right now. Compared against the same list
-    // for next month further below, this is what tells the player an event
-    // started or ended -- for scripted history as well as random events.
-    const activeBefore = new Set(getActiveEvents(currentDateOffset).map(eventKey));
-
-    // 1. Check January Forecast News
-    if (isNextJanuary) {
-      const forecastYear = 1960 + Math.floor(nextOffset / 12);
-      const debutingAircraft = aircraftList.filter(
-        ac => ac.firstDeliveryOffset >= nextOffset && ac.firstDeliveryOffset <= nextOffset + 11
-      );
-
-      if (debutingAircraft.length > 0) {
-        const textList = debutingAircraft.map(ac => {
-          const relMonth = 1 + (ac.firstDeliveryOffset % 12);
-          const relMonthStr = relMonth.toString().padStart(2, '0');
-          return `• ${ac.manufacturer} ${ac.type} (${ac.class}, Range: ${ac.maxRange}km, Pax: ${ac.capacity}) - Expected debut: ${relMonthStr}/${forecastYear}`;
-        }).join("\n");
-
-        additionalMessages.push({
-          id: nextMessageId(),
-          text: `LAUNCH PREVIEW ${forecastYear}: ${debutingAircraft.length} new aircraft models scheduled to debut this year (including ${debutingAircraft[0].manufacturer} ${debutingAircraft[0].type}). Click for full forecast.`,
-          isRead: false,
-          dateStr: `01/${forecastYear}`,
-          details: {
-            title: `Aviation Forecast ${forecastYear}`,
-            source: "Aerospace Forecast Gazette",
-            content: `AEROSPACE FORECAST FOR ${forecastYear}\n\nThe world aviation industry expects several landmark aircraft introductions during this upcoming calendar year. Plan your fleet and base configurations accordingly:\n\n${textList}\n\nNote: These aircraft will become purchasable in their launch month offsets inside your hangar. Make sure you upgrade your stands and slots to support their specific configurations!`
-          }
-        });
-      } else {
-        additionalMessages.push({
-          id: nextMessageId(),
-          text: `LAUNCH PREVIEW ${forecastYear}: No major aircraft releases are scheduled to hit the commercial markets this year.`,
-          isRead: false,
-          dateStr: `01/${forecastYear}`,
-          details: {
-            title: `Aviation Forecast ${forecastYear}`,
-            source: "Aerospace Forecast Gazette",
-            content: `AEROSPACE FORECAST FOR ${forecastYear}\n\nOur analysts report that no major commercial aircraft models are scheduled to make their maiden deliveries during this upcoming calendar year.\n\nAircraft models currently in production will remain the primary pathways for fleet growth worldwide. Use this period of aerospace stability to optimize your routes, build customer satisfaction, and acquire strategically vital airport slot bundles.`
-          }
-        });
-      }
-    }
-
-    // 2. Roll for a random event: average 0.6 per year -> 0.05 probability per month (1 / 20).
-    // One that only hurts is dropped when the malus ceiling holds the month clear.
-    if (Math.random() < 0.05) {
-      const template = randomEventTemplates[Math.floor(Math.random() * randomEventTemplates.length)];
-      const duration = Math.floor(Math.random() * (template.durationMax - template.durationMin + 1)) + template.durationMin;
-      const demandMultiplier = Math.round((template.demandMin + Math.random() * (template.demandMax - template.demandMin)) * 100) / 100;
-      const fuelMultiplier = Math.round((template.fuelMin + Math.random() * (template.fuelMax - template.fuelMin)) * 100) / 100;
-
-      const regionPool: EventRegion[] = ['EU', 'NA', 'SA', 'AF', 'AS', 'OC'];
-      const newEv: HistoricalEvent = {
-        startOffset: nextOffset,
-        duration,
-        title: template.title,
-        description: template.description,
-        demandMultiplier,
-        fuelMultiplier,
-        // A regional template picks where it happens; the other templates are worldwide.
-        ...((template as { regional?: boolean }).regional ? { regions: [regionPool[Math.floor(Math.random() * regionPool.length)]] } : {})
-      };
-
-      if (malusOpen || !isMalusEvent(newEv)) {
-        const updatedRandomEvents = [...randomEvents, newEv];
-        setRandomEventsState(updatedRandomEvents);
-        setRuntimeRandomEvents(updatedRandomEvents);
-      }
-    }
-
-    // 2b. Roll next month's operational disruptions. They are known for the
-    // whole month they hit, so the forecast below and every screen in it
-    // already leave the cancelled flights out; the month's close books that.
-    // A month the malus ceiling holds clear is not rolled for at all.
-    const rolledDisruptions = malusOpen
-      ? rollDisruptions(routes, fleet, airportManagement, nextOffset, Math.random, localAirportsMap, researchFx.defectFactor)
-      : [];
-    const nextDisruptions = [...dropPastDisruptions(disruptions, nextOffset), ...rolledDisruptions];
-    if (nextDisruptions.length !== disruptions.length || rolledDisruptions.length > 0) setDisruptions(nextDisruptions);
-    if (rolledDisruptions.length > 0) {
-      const monthStr = offsetToDateStr(nextOffset);
-      const lines = rolledDisruptions.map(d => describeDisruption(d, routeLabel));
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: rolledDisruptions.length === 1
-          ? `OPERATIONS: ${disruptionTitle(rolledDisruptions[0])} in ${monthStr}.`
-          : `OPERATIONS: ${rolledDisruptions.length} disruptions in ${monthStr}.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: `Operations outlook ${monthStr}`,
-          source: 'Operations control',
-          content:
-            `The following will cost flights in ${monthStr}:\n\n${lines.join('\n')}\n\n` +
-            `The route list marks the routes hit and its figures already leave the cancelled flights out. ` +
-            `A hangar at a route's origin halves the chance of a technical defect; worn and old aircraft break more often.`
-        }
-      });
-    }
-
-    // 2c. Bird strikes hit next month's flights at once and are done with:
-    // the repair bill comes off the bank balance now (and shows as capex in
-    // next month's report), a pop-up says so, and nothing is cancelled.
-    const birdStrikes = rollBirdStrikes(routes, fleet, nextOffset, Math.random);
-    if (birdStrikes.length > 0) {
-      setBirdStrikeAlerts(prev => [...prev, ...birdStrikes]);
-      for (const b of birdStrikes) {
-        spend(b.cost, `Bird strike: ${b.registration}`);
-        additionalMessages.push({
-          id: nextMessageId(),
-          text: `BIRD STRIKE: ${b.registration}, ${formatCurrency(-b.cost)}.`,
-          isRead: false,
-          dateStr: offsetToDateStr(currentDateOffset),
-          details: {
-            title: `Bird strike: ${b.registration}`,
-            source: 'Operations control',
-            content:
-              `${b.registration} flew into a flock of birds on ${routeLabel(b.routeId)} in ${offsetToDateStr(nextOffset)}. ` +
-              `The repair bill of ${formatCurrency(b.cost)} was paid on the spot; no flights were cancelled.`
-          }
-        });
-      }
-    }
-
-    // --- Annual goal -------------------------------------------------------
-    // Each December the board settles the goal the player picked for the year
-    // and puts three goals for the next one. An offer still unanswered when the
-    // next year's first month closes is settled by taking the steady goal.
-    const closingYear = currentYearNum;
-    const isDecember = currentMonthNum === 12;
-    const nowFigures = { routes: routes.length, regions: regionCountNow, reputation: nextReputation };
-    let goalResult: { year: number; target: number; achieved: number; met: boolean; text?: string } | null = null;
-    let activeGoal = annualGoal;
-    if (nextCareer.goalOffer && nextCareer.goalOffer.year <= closingYear && (!activeGoal || activeGoal.year < nextCareer.goalOffer.year)) {
-      const fallback = nextCareer.goalOffer.options[0];
-      activeGoal = fallback;
-      setAnnualGoal(fallback);
-      nextCareer.goalOffer = null;
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `TARGET FOR ${fallback.year}: the board set the standard goal, ${describeGoal(fallback, formatCurrency, formatNumber)}.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: `${fallback.year} target`,
-          source: 'Board of Directors',
-          content:
-            `The board waited for your choice and, having none, set the standard goal for ${fallback.year}: ` +
-            `${describeGoal(fallback, formatCurrency, formatNumber)}.\n\nMeeting it is worth ${fallback.reward.reputation} reputation.`
-        }
-      });
-    }
-    if (isDecember) {
-      const yearSnap = buildYearSnapshot(
-        [...reportHistory, { ...report, paxTotal: monthlyPax }],
-        closingYear,
-        nowFigures
-      );
-
-      if (activeGoal && activeGoal.year === closingYear) {
-        const settled = settleGoal(activeGoal, yearSnap);
-        const summary = describeGoal(activeGoal, formatCurrency, formatNumber);
-        goalResult = {
-          year: closingYear,
-          target: activeGoal.target,
-          achieved: settled.achieved,
-          met: settled.met,
-          text: settled.met
-            ? `${closingYear} goal met: ${summary}.`
-            : `${closingYear} goal missed: ${summary}.`
-        };
-        nextReputation = Math.max(0, Math.min(100, nextReputation + settled.reputation));
-        awardsCash += settled.cash;
-        additionalMessages.push({
-          id: nextMessageId(),
-          text: settled.met ? `GOAL MET: ${summary}.` : `GOAL MISSED: ${summary}.`,
-          isRead: false,
-          dateStr: offsetToDateStr(currentDateOffset),
-          details: {
-            title: `${closingYear} annual result`,
-            source: 'Board of Directors',
-            content:
-              `Goal for ${closingYear}: ${summary}\n\n` +
-              (settled.met
-                ? `The board is satisfied. Reputation +${settled.reputation}` +
-                  (settled.cash > 0 ? ` and a bonus of ${formatCurrency(settled.cash)}.` : '.')
-                : `The board expected more. Reputation ${settled.reputation}.`)
-          }
-        });
-      }
-
-      const options = generateGoalOffers(closingYear + 1, {
-        lastYearProfit: yearSnap.profit,
-        lastYearPax: yearSnap.pax,
-        routes: routes.length,
-        regions: regionCountNow,
-        reputation: nextReputation
-      });
-      nextCareer.goalOffer = { year: closingYear + 1, options };
-      setAnnualGoal(null);
-      setGoalOfferOpen(true);
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `GOALS FOR ${closingYear + 1}: the board asks you to choose one.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: `${closingYear + 1} goals`,
-          source: 'Board of Directors',
-          content:
-            `The board offers three goals for ${closingYear + 1}:\n\n` +
-            options.map(o => `• ${describeGoal(o, formatCurrency, formatNumber)} -- reputation +${o.reward.reputation}` +
-              (o.reward.cash > 0 ? `, bonus ${formatCurrency(o.reward.cash)}` : '') +
-              `; missing it costs ${o.penalty} reputation`).join('\n') +
-            `\n\nChoose one under My Company > Overview. Without a choice the first is taken when ${closingYear + 1} begins.`
-        }
-      });
-    }
-
-    // --- Anniversaries ------------------------------------------------------------
-    // Every ten years the board takes stock and points out that the airline may
-    // retire at any time.
-    if (currentDateOffset + 1 > startDateOffset && (currentDateOffset + 1 - startDateOffset) % 120 === 0) {
-      const years = (currentDateOffset + 1 - startDateOffset) / 12;
-      const snapshot = careerScore({
-        netWorth: capital + totalMonthlyProfit + fleetValue,
-        rank: nextCareer.rank,
-        milestones: milestones.length + newlyEarned.length,
-        reputation: nextReputation,
-        takeovers: nextCareer.takeovers,
-        projectsDone: nextCareer.research.done.length,
-        years
-      });
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `ANNIVERSARY: ${years} years of ${airlineName || 'Neo Airlines'}. Career score ${formatNumber(snapshot.total)}.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: `${years} years`,
-          source: 'Board of Directors',
-          content:
-            `The board looks back on ${years} years: career score ${formatNumber(snapshot.total)}.\n\n` +
-            `You may retire at any time under Career: the career is filed in the hall of fame, and you can play on.`
-        }
-      });
-    }
-
-    // --- Development --------------------------------------------------------------
-    const research = advanceResearch(nextCareer.research, currentDateOffset + 1);
-    nextCareer.research = research.state;
-    // What the development tree has finished by now, this month's completions
-    // included, already acts on the month that starts.
-    const fxAfter = researchEffects(nextCareer.research.done);
-    const boost = (p: OwnedAircraft): OwnedAircraft => ({
-      ...p,
-      efficiency: boostedEfficiency(p.efficiency, fxAfter),
-      popularity: boostedPopularity(p.popularity, fxAfter)
-    });
-    for (const project of research.completed) {
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `DEVELOPMENT: "${project.title}" is complete.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: { title: project.title, source: 'Development department', content: project.kind === 'class'
-          ? `${project.detail}\n\nThese aircraft can be bought, ordered and found second-hand from now on.`
-          : `${project.detail}\n\nThe effect is in place from next month.` }
-      });
-    }
-
-    // --- Deliveries ---------------------------------------------------------------
-    // Ordered aircraft arrive when their month comes, paid for from the cash
-    // the month leaves; see preorders.ts. They join the fleet after the month's
-    // wear is applied, so a new aircraft is not worn on arrival.
-    const deliveryMonth = currentDateOffset + 1;
-    const book = settleDeliveries(nextCareer.orders, deliveryMonth, capital + totalMonthlyProfit);
-    nextCareer.orders = book.remaining;
-    deliveredPlanes = [];
-    for (const o of book.delivered) {
-      const spec = aircraftList.find(a => a.id === o.aircraftId);
-      if (!spec) continue;
-      const { config, baseInteriorPop } = defaultCabin(spec);
-      const made = createOwnedAircraft(spec, o.quantity, {
-        config,
-        baseInteriorPop,
-        hub: selectedHub || 'FRA',
-        existingRegistrations: [...fleet.map(p => p.registration), ...deliveredPlanes.map(p => p.registration)],
-        purchasedAt: deliveryMonth
-      });
-      const launch = isLaunchDelivery(spec, deliveryMonth);
-      deliveredPlanes.push(...made.map(p => boost(launch ? { ...p, popularity: p.popularity + LAUNCH_BONUS, launchBonusUntil: deliveryMonth + LAUNCH_BONUS_MONTHS } : p)));
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `DELIVERY: ${o.quantity} \u00d7 ${spec.manufacturer} ${spec.type} have arrived.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset),
-        details: {
-          title: 'Aircraft delivered',
-          source: 'Manufacturer',
-          content:
-            `${o.quantity} \u00d7 ${spec.manufacturer} ${spec.type} joined your fleet at ${selectedHub || 'FRA'}, with the standard economy cabin. ` +
-            `The balance of ${formatCurrency(o.unitPrice * o.quantity - o.deposit)} was paid on delivery.` +
-            (launch ? ` As a launch customer you get +${LAUNCH_BONUS} popularity on them for ${LAUNCH_BONUS_MONTHS} months.` : '')
-        }
-      });
-    }
-    for (const o of book.postponed) {
-      const spec = aircraftList.find(a => a.id === o.aircraftId);
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `DELIVERY DELAYED: ${spec ? `${spec.manufacturer} ${spec.type}` : 'an order'} slips a month; the balance could not be paid.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset)
-      });
-    }
-    for (const o of book.cancelled) {
-      const spec = aircraftList.find(a => a.id === o.aircraftId);
-      additionalMessages.push({
-        id: nextMessageId(),
-        text: `ORDER CANCELLED: the manufacturer gave up on your order of ${spec ? `${spec.manufacturer} ${spec.type}` : 'aircraft'}; the deposit of ${formatCurrency(o.deposit)} is lost.`,
-        isRead: false,
-        dateStr: offsetToDateStr(currentDateOffset)
-      });
-    }
-    if (book.charged > 0) {
-      setCapital(prev => prev - book.charged);
-      setMonthlyCapex(prev => addCapexItem(prev, 'Aircraft Deliveries', book.charged));
-    }
-
-    // Written once, after the milestone, rank and annual-goal bonuses have all
-    // had their say. Setting it earlier silently dropped the December bonus.
-    setReputation(nextReputation);
-    setCareer(nextCareer);
-
-    // 3. Announce every event that starts or ends with this tick.
-    const afterEvents = getActiveEvents(nextOffset);
-    const activeAfter = new Set(afterEvents.map(eventKey));
-
-    const eventsStarted: HistoricalEvent[] = [];
-    const eventsEnded: HistoricalEvent[] = [];
-    for (const ev of afterEvents) {
-      if (!activeBefore.has(eventKey(ev))) {
-        eventsStarted.push(ev);
-        additionalMessages.push(buildEventStartMessage(ev, nextMessageId()));
-        // An event that offers a decision puts it to the player now, once. If
-        // they close the dialog without choosing, the default is to do nothing.
-        if (ev.choices && ev.choices.length > 0 && !eventChoices[eventKey(ev)]) {
-          setPendingDecision(ev);
-        }
-      }
-    }
-    for (const ev of getActiveEvents(currentDateOffset)) {
-      if (!activeAfter.has(eventKey(ev))) {
-        eventsEnded.push(ev);
-        additionalMessages.push(buildEventEndMessage(ev, nextMessageId(), nextOffset));
-      }
-    }
-
-    // --- History ------------------------------------------------------------
-    // The report gains the figures the history charts plot, taken once
-    // everything above has had its say: reputation after the milestone and
-    // annual-goal bonuses, morale after this month's step.
-    const regionsNow = regionsServed(routes, localAirportsMap);
-    const hubsNow = Object.entries(monthNetwork.hubStats)
-      .filter(([, h]) => h.pax > 0)
-      .map(([id, h]) => ({ id, name: localAirportsMap.get(id)?.name || id, pax: h.pax * 4 }));
-    // Prizes and bonuses paid at this close enter the report as negative
-    // one-off spending, so cash change and capital still reconcile.
-    const awardedCash = awardsCash;
-    const awardedItems = awardedCash > 0 ? [{ label: 'Board prizes & bonuses', amount: -awardedCash }] : [];
-    if (awardedCash > 0) setCapital(prev => prev + awardedCash);
-    const fullReport = {
-      ...report,
-      capex: report.capex - awardedCash,
-      capexItems: [...report.capexItems, ...awardedItems],
-      cashChange: report.cashChange + awardedCash,
-      capitalAfter: report.capitalAfter + awardedCash,
-      reputation: nextReputation,
-      morale: nextStaff.morale,
-      paxTotal: Math.round(paxWeek * 4),
-      transferPax: Math.round(hubsNow.reduce((sum, h) => sum + h.pax, 0)),
-      fleetSize: fleet.length,
-      routeCount: routes.length,
-      marketShare: departureMarketShare(routes, rivalOffers),
-      regions: [...regionsNow.keys()],
-      transferHubs: hubsNow.map(h => h.id)
-    };
-    // Keep ten years. Long enough for any chart the game shows, short enough
-    // that the savegame does not grow without bound over a sixty-year run.
-    setReportHistory(prev => [...prev, fullReport].slice(-120));
-
-    const monthChronicle = chronicleEntriesForMonth(chronicle, {
-      offset: currentDateOffset,
-      profit: totalMonthlyProfit,
-      capitalAfter: capital + totalMonthlyProfit + awardedCash,
-      reputation: nextReputation,
-      reputationBefore: reputation,
-      history: reportHistory,
-      milestones: [...newlyEarned, ...rankUps],
-      goal: goalResult,
-      eventsStarted,
-      eventsEnded: eventsEnded.map(ev => ({ title: ev.title, endOffset: nextOffset })),
-      strike: staffMonth.strikeCalled ? { offset: currentDateOffset + 1, morale: nextStaff.morale } : null,
-      // What hit the month just closed, now that any charter is known.
-      disruptions: disruptionsIn(disruptions, currentDateOffset).map(d => ({
-        offset: d.offset,
-        cancelShare: d.cancelShare,
-        routeCount: d.routeIds.length,
-        mitigated: d.mitigated,
-        title: disruptionTitle(d),
-        where: disruptionRoutesLabel(d, routeLabel, 3)
-      })),
-      regions: regionsNow,
-      homeRegion,
-      hubs: hubsNow
-    });
-
-    // --- The scenario -----------------------------------------------------------
-    // Judged on the month's final figures. Once won or lost it stays so and
-    // the game carries on as free play, no longer judged.
-    const runningScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
-    let scenarioDecided: { title: string; won: boolean; reason: string } | null = null;
-    let earnedStars = 0;
-    if (scenario && runningScenario) {
-      const closingCapital = capital + totalMonthlyProfit;
-      const evaluation = evaluateScenario(runningScenario, {
-        offset: currentDateOffset,
-        capital: closingCapital,
-        routes: scenarioRoutes(routes),
-        reputation: nextReputation,
-        regionsServed: regionsNow.size,
-        transferPaxMonth: fullReport.transferPax,
-        monthlyProfit: totalMonthlyProfit,
-        capitalHistory: [...scenarioCapitalHistory(reportHistory, scenario.startedOffset), closingCapital]
-      });
-      if (evaluation.status !== 'running') {
-        const won = evaluation.status === 'won';
-        const reason = evaluation.reason || '';
-        scenarioDecided = { title: runningScenario.title, won, reason };
-        // Stars for how fast it was won; the best of every try is kept.
-        earnedStars = starsFor(
-          won,
-          currentDateOffset - scenario.startedOffset + 1,
-          runningScenario.deadlineOffset - scenario.startedOffset + 1
-        );
-        if (earnedStars > 0) {
-          const nextStars = bestStars(scenarioStars, runningScenario.id, earnedStars);
-          if (nextStars !== scenarioStars) {
-            setScenarioStars(nextStars);
-            writeJson(`neo_scenario_stars:${userId || 'local'}`, nextStars);
-          }
-        }
-        setScenario({ ...scenario, status: evaluation.status, result: { offset: currentDateOffset, reason } });
-        setScenarioResultOpen(true);
-        monthChronicle.push({
-          offset: currentDateOffset,
-          kind: 'scenario',
-          key: 'scenario:result',
-          text: `Scenario "${runningScenario.title}" ${won ? `won with ${earnedStars} star${earnedStars === 1 ? '' : 's'}` : 'lost'}. ${reason}`
-        });
-        additionalMessages.push({
-          id: nextMessageId(),
-          text: won ? `SCENARIO WON: ${runningScenario.title} (${'\u2605'.repeat(earnedStars)}${'\u2606'.repeat(3 - earnedStars)}).` : `SCENARIO LOST: ${runningScenario.title}.`,
-          isRead: false,
-          dateStr: offsetToDateStr(currentDateOffset),
-          details: {
-            title: `${runningScenario.title}: ${won ? 'scenario won' : 'scenario lost'}`,
-            source: 'Board of Directors',
-            content:
-              `${reason}\n\n` +
-              (won ? `Stars: ${earnedStars} of 3. Two for winning within three quarters of the time, three within half.\n\n` : '') +
-              `Capital ${formatCurrency(closingCapital)}, ${routes.length} route${routes.length === 1 ? '' : 's'}, ` +
-              `${fleet.length} aircraft, reputation ${Math.round(nextReputation)}.\n\n` +
-              `The airline is yours to fly on without the scenario; it is no longer judged.`
-          }
-        });
-      }
-    }
-    if (monthChronicle.length > 0) setChronicle(appendChronicle(chronicle, monthChronicle));
-
-    // --- The newspaper --------------------------------------------------------
-    // Written from the same facts as the chronicle, plus what the rivals did
-    // in their turn and where the markets stand for the coming month.
-    const capitalAfterMonth = capital + totalMonthlyProfit;
-    const nextFuel = getFuelData(nextOffset);
-    const nextDemand = getBaseGlobalDemand(nextOffset);
-    setEdition(buildEdition({
-      offset: currentDateOffset,
-      airlineName,
-      report: fullReport,
-      prevReport: latestReport,
-      profitHistory: reportHistory.map(r => r.totalProfit),
-      chronicle: monthChronicle,
-      milestones: [...newlyEarned, ...rankUps],
-      eventsStarted,
-      eventsEnded,
-      eventsRunning: afterEvents,
-      strike: staffMonth.strikeCalled ? { morale: nextStaff.morale } : null,
-      disruptions: rolledDisruptions.map(d => ({
-        kind: d.kind,
-        title: disruptionTitle(d),
-        text: describeDisruption(d, routeLabel).replace(/^\u2022\s*/, ''),
-        cancelShare: d.cancelShare,
-        routeCount: d.routeIds.length,
-        ref: d.ref
-      })),
-      rivalMoves: rivalMoves(aiAirlines, aisAfterTurn),
-      launches: marketing.campaigns
-        .filter(c => c.startOffset === currentDateOffset)
-        .map(c => ({ tier: CAMPAIGN_SPECS[c.tier].label, region: c.tier === 'global' ? 'global' as const : c.region })),
-      ffpStarted: marketing.ffpActive && marketing.ffpSinceOffset === currentDateOffset,
-      scenario: scenarioDecided,
-      airportName: id => localAirportsMap.get(id)?.name || id,
-      ticker: {
-        fuelPerLitre: nextFuel.price / 3.78541,
-        fuelTrend: nextFuel.trend,
-        demand: nextDemand.value,
-        demandTrend: nextDemand.trend,
-        rank: 1 + aisAfterTurn.filter(ai => (ai.capital || 0) > capitalAfterMonth).length,
-        airlines: aisAfterTurn.length + 1
-      }
-    }));
-    if (gameSettings.newspaper) setIsNewspaperOpen(true);
-
-    // Campaigns whose last month just closed come off the books. Next
-    // month's forecast below prices without them, and with any still running.
-    const nextMarketing = dropExpiredCampaigns(marketing, nextOffset);
-    if (nextMarketing !== marketing) {
-      setMarketing(nextMarketing);
-      for (const c of marketing.campaigns) {
-        if (nextMarketing.campaigns.includes(c)) continue;
-        const where = c.tier === 'global' ? 'worldwide' : `in ${REGION_LABELS[c.region]}`;
-        additionalMessages.push({
-          id: nextMessageId(),
-          text: `CAMPAIGN ENDED: ${CAMPAIGN_SPECS[c.tier].label} campaign ${where}.`,
-          isRead: false,
-          dateStr: offsetToDateStr(currentDateOffset),
-          details: {
-            title: 'Campaign ended',
-            source: 'Marketing department',
-            content:
-              `The ${CAMPAIGN_SPECS[c.tier].label.toLowerCase()} campaign ${where} has run its ${c.duration} months. ` +
-              `Its demand boost ends with this month.\n\nA new one can be booked under My Company > Marketing.`
-          }
-        });
-      }
-    }
-
-    if (aiMessages.length > 0 || additionalMessages.length > 0) {
-      setMessages(prev => capMessages([...additionalMessages, ...aiMessages, ...prev]));
-    }
-    
-    // Advance time and update view. The autosave decision is made here rather than
-    // inside the state updater: updaters must be pure, and StrictMode runs them twice.
-    const monthsPassed = nextOffset - startDateOffset;
-    if (autosaveInterval >= 1 && autosaveInterval <= 12 && monthsPassed > 0 && monthsPassed % autosaveInterval === 0) {
-      setPendingAutosave(true);
-    }
-    setCurrentDateOffset(nextOffset);
-
-    // The figures stored on each route are next month's forecast. They used to
-    // leave out reputation, crisis relief and every rival, so the route list and
-    // the map disagreed with the report the same route then produced.
-    const nextMods = buildPlayerModifiers({
-      reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: nextStaff, disruptions: nextDisruptions, routes, research: researchFx
-    }, nextOffset);
-    const nextRivalOffers = buildRivalOffers(aisAfterTurn);
-    const nextEnv = {
-      fuelPrice: getFuelData(nextOffset).price,
-      airportManagement,
-      year: 1960 + Math.floor(nextOffset / 12),
-      month: 1 + (nextOffset % 12),
-      difficulty,
-      airportsMap: localAirportsMap,
-      rivalOffers: nextRivalOffers
-    };
-    const repriceForNextMonth = (list: SimulatedRoute[]) => list.map(r => {
-      const activePrices = r.ticketPrices || { economy: 100 };
-      return { ...r, activeTicketPrices: activePrices, ticketPrices: activePrices };
-    });
-    // Next month priced once, as it stands: the forecast stored on the
-    // routes below, and the starting point for pricing the questions.
-    const repricedNext = repriceForNextMonth(routes);
-    const nextNetwork = computeNetworkFinancials(repricedNext, fleet, nextMods, nextEnv);
-
-    // The bigger disruptions are put to the player: charter a replacement or
-    // cancel. What is at stake is the revenue each one takes from next
-    // month's forecast, every other disruption applied. A strike called at
-    // this close is left out: its answer is still to come, and the charter
-    // is billed at the month's close on what it actually saved anyway.
-    // Every candidate is still cancelling in nextDisruptions, so the month
-    // with it cancelling is the same network for all of them: priced once,
-    // and without a strike called at this close it is nextNetwork itself.
-    const majorCandidates = rolledDisruptions.filter(d => d.cancelShare >= MAJOR_DISRUPTION_SHARE);
-    if (majorCandidates.length > 0) {
-      const staffBeforeStrike: Staff = { ...nextStaff, strike: staffMonth.strikeCalled ? null : nextStaff.strike };
-      const revenueWith = (list: Disruption[]) => networkRevenue(repricedNext, buildPlayerModifiers({
-        reputation: nextReputation, eventChoices, marketing: nextMarketing, staff: staffBeforeStrike, disruptions: list, routes, research: researchFx
-      }, nextOffset), nextEnv);
-      const allCancelling = staffMonth.strikeCalled ? revenueWith(nextDisruptions) : revenueOf(nextNetwork);
-      const lostBy = new Map(majorCandidates.map(d => [d.id, marginalLostRevenue(d, nextDisruptions, revenueWith, allCancelling)]));
-      const monthStr = offsetToDateStr(nextOffset);
-      for (const d of disruptionsToAsk(majorCandidates, x => lostBy.get(x.id) ?? 0)) {
-        queueDecision(buildDisruptionDecision(d, monthStr, lostBy.get(d.id) ?? 0, routeLabel));
-      }
-    }
-
-    setRoutes(prevRoutes => repriceForNextMonth(prevRoutes).map(r => {
-      const fin = nextNetwork.finById.get(r.id);
-      return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
-    }));
-
-    setView('monthly-overview');
-
-    const routesByAircraft: Record<string, SimulatedRoute[]> = {};
-    routes.forEach(r => {
-      if (!routesByAircraft[r.aircraft]) routesByAircraft[r.aircraft] = [];
-      routesByAircraft[r.aircraft].push(r);
-    });
-
-    // Process month effects
-    setFleet(prevFleet => prevFleet.map(plane => {
-      // Calculate weekly flight hours dynamically
-      const aircraftRoutes = routesByAircraft[plane.registration] || [];
-      let weeklyFlightMinutes = 0;
-      aircraftRoutes.forEach(r => {
-        if (!r.schedule) return;
-        r.schedule.forEach(s => {
-          const dur = Number(s.durMin) || 0;
-          const turn = Number(s.turnoverMin) || 0;
-          weeklyFlightMinutes += s.isOneWay ? (30 + dur + 30) : (30 + dur + turn + dur + 30);
-        });
-      });
-      // Rough monthly logic: 4 weeks per month
-      const monthlyFlightHours = isNaN(weeklyFlightMinutes) ? 0 : (weeklyFlightMinutes / 60) * 4;
-
-      // Wear rates, capped so a year (12 calls to handleAdvanceMonth) can never lose
-      // more than 12% interior / 8% general condition, however many hours are flown.
-      // The small constant term makes parked aircraft age too, slowly.
-      const INTERIOR_WEAR_PER_HOUR = 0.0012;
-      const AIRFRAME_WEAR_PER_HOUR = 0.00076;
-      const IDLE_WEAR_PER_MONTH = 0.1;
-      const IC_MONTHLY_CAP = 12 / 12;
-      const GC_MONTHLY_CAP = 8 / 12;
-
-      // Protective materials (development) make both wear more slowly.
-      const interiorDecay = fxAfter.wearFactor * Math.min(
-        monthlyFlightHours * INTERIOR_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH,
-        IC_MONTHLY_CAP
-      );
-      // conditionGeneral previously never decreased at all, which made the general
-      // check a pure money sink and the "< 40 %" fleet warning unreachable.
-      const airframeDecay = fxAfter.wearFactor * Math.min(
-        monthlyFlightHours * AIRFRAME_WEAR_PER_HOUR + IDLE_WEAR_PER_MONTH,
-        GC_MONTHLY_CAP
-      );
-
-      // Passengers like an old aircraft less, whatever its condition: the
-      // type's popularity from the catalogue, less what its age takes.
-      // The development tree adds points to both the type's popularity and the
-      // aircraft's efficiency, always counted from the catalogue so they never
-      // add up on themselves.
-      const spec = aircraftList.find(a => a.id === plane.id);
-      const launchBonus = plane.launchBonusUntil !== undefined && nextOffset < plane.launchBonusUntil ? LAUNCH_BONUS : 0;
-      const popularity = spec === undefined
-        ? plane.popularity
-        : boostedPopularity(agedPopularity(spec.popularity, ageYears(plane, nextOffset)) + launchBonus, fxAfter);
-      const efficiency = spec === undefined ? plane.efficiency : boostedEfficiency(spec.efficiency, fxAfter);
-
-      return {
-        ...plane,
-        popularity,
-        efficiency,
-        conditionInterior: Math.max(0, plane.conditionInterior - interiorDecay),
-        conditionGeneral: Math.max(0, plane.conditionGeneral - airframeDecay)
-      };
-    }));
-    if (deliveredPlanes.length > 0) setFleet(prev => [...prev, ...deliveredPlanes]);
   };
 
   const [sessionKey, setSessionKey] = useState(Date.now());
@@ -3143,7 +1688,10 @@ export default function App() {
 
   const deleteSave = async (id: string) => {
     setSaves(prev => prev.filter(s => s.id !== id));
-    await deleteSaveSlot(userId, id);
+    const cloudOk = await deleteSaveSlot(userId, id);
+    if (!cloudOk) {
+      setAppAlert('The savegame was deleted in this browser, but not in your account: the server could not be reached. It will be listed again until it is deleted while online.');
+    }
   };
 
   // Handlers handed to the memoised views. They only use state setters, so they
@@ -3209,7 +1757,7 @@ export default function App() {
   const handleStartResearch = (projectId: string) => {
     const project = projectById(projectId);
     if (!project) return;
-    const year = 1960 + Math.floor(currentDateOffset / 12);
+    const year = yearOf(currentDateOffset);
     const blocker = researchBlocker(career.research, project, career.rank, capital, year);
     if (blocker) {
       setAppAlert(blocker);
@@ -3339,13 +1887,6 @@ export default function App() {
       const p = byId.get(r.id);
       return p ? ({ ...r, ...p } as SimulatedRoute) : r;
     }));
-    // The same rule as a route saved in the planner: an aircraft without a hub
-    // is based where its route starts.
-    setFleet(prev => prev.map(plane => {
-      if (plane.hubId) return plane;
-      const first = patches.find(p => p.aircraft === plane.registration);
-      return first ? { ...plane, hubId: first.origin } : plane;
-    }));
     setToast(note);
   }, []);
 
@@ -3394,7 +1935,7 @@ export default function App() {
     baseInteriorPop: number,
     totalCost: number
   ) => {
-    let isRenovating = 'registration' in aircraft;
+    const isRenovating = 'registration' in aircraft;
     if (!isRenovating) {
       const gate = classGateMessage(aircraft, aircraftClassesOpen);
       if (gate) {
@@ -3409,68 +1950,56 @@ export default function App() {
       );
       return;
     }
-    if (capital >= totalCost) {
-      spend(totalCost, isRenovating ? 'Cabin Refits' : 'Aircraft Purchases');
-      
-      if (isRenovating) {
-         setFleet(prev => prev.map(p => {
-           if (p.registration === (aircraft as any).registration) {
-             const refits = p.refitsDone || 0;
-             let restorePercent = 90 - (refits * 10);
-             restorePercent = Math.max(30, restorePercent); // floor at 30% or maybe 0, assuming 30
-             return {
-               ...p,
-               config,
-               baseInteriorPop,
-               refitsDone: refits + 1,
-               conditionInterior: Math.min(100, Math.max(p.conditionInterior, restorePercent))
-             };
-           }
-           return p;
-         }));
-      } else {
-         const newPlanes = createOwnedAircraft(aircraft, quantity, {
-           config,
-           baseInteriorPop,
-           hub: selectedHub || 'FRA',
-           existingRegistrations: fleet.map(p => p.registration),
-           purchasedAt: currentDateOffset
-         });
-         setFleet(prev => [...prev, ...newPlanes.map(withDevelopment)]);
+    spend(totalCost, isRenovating ? 'Cabin Refits' : 'Aircraft Purchases');
 
-         if (isPurchasingForRoute) {
-           const newReg = newPlanes[0].registration;
-           if (planningOriginId && planningDestId) {
-             const origin = airportsMapAdjusted.get(planningOriginId);
-             const dest = airportsMapAdjusted.get(planningDestId);
-             if (origin && dest) {
-               const dist = calculateDistance(origin.coords[0], origin.coords[1], dest.coords[0], dest.coords[1]);
-               if (dist > aircraft.maxRange) {
-                 setAppAlert(`Warning: The aircraft ${newReg} (${aircraft.type}) was purchased, but with ${aircraft.maxRange.toLocaleString()}km it does not have enough range for the planned route (${Math.round(dist).toLocaleString()}km).`);
-                 setIsPurchasingForRoute(false);
-                 setSelectedPurchasingAircraft(null);
-                 return;
-               } else {
-                 setPlanningReg(newReg);
-                 setIsPlanningRoute(true);
-               }
-             } else {
-               setPlanningReg(newReg);
-               setIsPlanningRoute(true);
-             }
-           } else {
-             setPlanningReg(newReg);
-             setIsPlanningRoute(true);
-           }
-           setIsPurchasingForRoute(false);
-           setSelectedPurchasingAircraft(null);
-           setActiveWindow('map');
-           return;
-         }
+    if (isRenovating) {
+      const registration = (aircraft as OwnedAircraft).registration;
+      setFleet(prev => prev.map(p => {
+        if (p.registration !== registration) return p;
+        // Each refit restores less than the one before: 90%, 80%, ... never under 30%.
+        const refits = p.refitsDone || 0;
+        const restorePercent = Math.max(30, 90 - refits * 10);
+        return {
+          ...p,
+          config,
+          baseInteriorPop,
+          refitsDone: refits + 1,
+          conditionInterior: Math.min(100, Math.max(p.conditionInterior, restorePercent))
+        };
+      }));
+    } else {
+      const newPlanes = createOwnedAircraft(aircraft, quantity, {
+        config,
+        baseInteriorPop,
+        hub: selectedHub || 'FRA',
+        existingRegistrations: fleet.map(p => p.registration),
+        purchasedAt: currentDateOffset
+      });
+      setFleet(prev => [...prev, ...newPlanes.map(withDevelopment)]);
+
+      if (isPurchasingForRoute) {
+        // Bought from the planner: go back to it with the new aircraft, unless
+        // it cannot fly the route that was being planned.
+        const newReg = newPlanes[0].registration;
+        const origin = planningOriginId ? airportsMapAdjusted.get(planningOriginId) : undefined;
+        const dest = planningDestId ? airportsMapAdjusted.get(planningDestId) : undefined;
+        const dist = origin && dest
+          ? calculateDistance(origin.coords[0], origin.coords[1], dest.coords[0], dest.coords[1])
+          : 0;
+        setIsPurchasingForRoute(false);
+        setSelectedPurchasingAircraft(null);
+        if (dist > aircraft.maxRange) {
+          setAppAlert(`Warning: The aircraft ${newReg} (${aircraft.type}) was purchased, but with ${formatNumber(aircraft.maxRange)}km it does not have enough range for the planned route (${formatNumber(Math.round(dist))}km).`);
+          return;
+        }
+        setPlanningReg(newReg);
+        setIsPlanningRoute(true);
+        setActiveWindow('map');
+        return;
       }
-      setSelectedPurchasingAircraft(null);
-      setActiveWindow('map');
     }
+    setSelectedPurchasingAircraft(null);
+    setActiveWindow('map');
   };
 
   /** The way out of a tab whose screen failed to render. */
@@ -3576,6 +2105,29 @@ export default function App() {
     return () => { delete (window as any).__amneo; };
   }, [debugMode]);
 
+  // Handlers and objects handed to the memoised views, kept at one identity so
+  // those views re-render for their own data only (see useStableCallback).
+  const onPlaceOrder = useStableCallback(handlePlaceOrder);
+  const onCancelOrder = useStableCallback(handleCancelOrder);
+  const onBuyUsed = useStableCallback(handleBuyUsed);
+  const onStartResearch = useStableCallback(handleStartResearch);
+  const onRetire = useStableCallback(handleRetire);
+  const onTakeover = useStableCallback(handleTakeover);
+  const onOpenProgression = useStableCallback(() => openWindow('progression'));
+  const soldUsedIds = career.usedSold.offset === currentDateOffset ? career.usedSold.ids : NO_SOLD_IDS;
+  const rivalNames = useMemo(() => aiAirlines.map(a => a.name), [aiAirlines]);
+  const market = useMemo(() => ({
+    currentDateOffset,
+    capital,
+    classesOpen: aircraftClassesOpen,
+    orders: career.orders,
+    soldUsedIds,
+    rivalNames,
+    onOrder: onPlaceOrder,
+    onCancelOrder,
+    onBuyUsed
+  }), [currentDateOffset, capital, aircraftClassesOpen, career.orders, soldUsedIds, rivalNames, onPlaceOrder, onCancelOrder, onBuyUsed]);
+
   return (
     <AccountScopeContext.Provider value={userId}>
     <div className="absolute inset-0 overflow-hidden bg-aero-black">
@@ -3594,262 +2146,47 @@ export default function App() {
           {/* The month's newspaper comes before any question: the paper tells
               what happened, the dialogs below ask what to do about it. It can
               always be closed, so no question ever waits on it for long. */}
-          <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
-          {pendingDecision && !isNewspaperOpen && !scenarioResultOpen && (
-            <Modal open size="lg" accent="warn" layer="top">
-              <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
-                <AlertTriangle size={22} /> {pendingDecision.title}
-              </h3>
-              <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
-                {pendingDecision.description} Running for {pendingDecision.duration} months.
-              </p>
-
-              <div className="space-y-2">
-                {pendingDecision.choices?.map((choice: EventChoice) => {
-                  const affordable = capital >= choice.cost;
-                  return (
-                    <button
-                      key={choice.id}
-                      type="button"
-                      disabled={!affordable}
-                      onClick={() => {
-                        if (choice.cost > 0) spend(choice.cost, `Crisis response: ${pendingDecision.title}`);
-                        setEventChoices(prev => ({ ...prev, [eventKey(pendingDecision)]: choice.id }));
-                        setPendingDecision(null);
-                      }}
-                      className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
-                    >
-                      <div className="flex items-baseline justify-between gap-3 mb-1">
-                        <span className="font-black uppercase tracking-widest text-2xs text-white">{choice.label}</span>
-                        <span className={`font-mono text-2xs font-bold shrink-0 ${choice.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
-                          {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
-                        </span>
-                      </div>
-                      <p className="text-2xs font-mono text-white/50 leading-relaxed">{choice.detail}</p>
-                      {!affordable && (
-                        <p className="text-2xs font-mono text-aero-warn mt-1">
-                          {formatCurrency(choice.cost - capital)} short.
-                        </p>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={() => setPendingDecision(null)}
-                  className="px-3 py-2 text-white/40 hover:text-white text-2xs font-mono uppercase tracking-widest transition-colors bg-transparent border-0"
-                >
-                  Decide later (does nothing)
-                </button>
-              </div>
-            </Modal>
+          {edition && (
+            <React.Suspense fallback={null}>
+              <NewspaperOverlay edition={edition} open={isNewspaperOpen} onClose={closeNewspaper} />
+            </React.Suspense>
           )}
-          {/* Any other question for the player, one at a time. Waits while a
-              world event decision or the newspaper is open, so none stack. */}
-          {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length > 0 && (() => {
-            const decision = pendingDecisions[0];
-            return (
-              <Modal open size="lg" accent="warn" layer="top">
-                <h3 className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
-                  <AlertTriangle size={22} /> {decision.title}
-                </h3>
-                <p className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
-                  {decision.description}
-                </p>
-
-                <div className="space-y-2">
-                  {decision.options.map(option => {
-                    const affordable = option.cost <= 0 || capital >= option.cost;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        disabled={!affordable}
-                        onClick={() => resolveDecision(decision.id, option.id)}
-                        className="w-full text-left p-3 border border-white/10 bg-white/[0.03] hover:border-aero-yellow hover:bg-white/[0.06] transition-all disabled:opacity-40 disabled:hover:border-white/10 disabled:cursor-not-allowed rounded-sm"
-                      >
-                        <div className="flex items-baseline justify-between gap-3 mb-1">
-                          <span className="font-black uppercase tracking-widest text-2xs text-white">{option.label}</span>
-                          <span className={`font-mono text-2xs font-bold shrink-0 ${option.cost > 0 ? 'text-aero-yellow' : 'text-aero-good'}`}>
-                            {option.cost > 0 ? formatCurrency(option.cost) : 'No cost'}
-                          </span>
-                        </div>
-                        <p className="text-2xs font-mono text-white/50 leading-relaxed">{option.detail}</p>
-                        {!affordable && (
-                          <p className="text-2xs font-mono text-aero-warn mt-1">
-                            {formatCurrency(option.cost - capital)} short.
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </Modal>
-            );
-          })()}
-          <RetirementDialog
-            open={!!retirement}
-            airline={airlineName}
+          <GameDialogs
+            pendingDecision={pendingDecision}
+            isNewspaperOpen={isNewspaperOpen}
+            scenarioResultOpen={scenarioResultOpen}
+            capital={capital}
+            spend={spend}
+            setEventChoices={setEventChoices}
+            setPendingDecision={setPendingDecision}
+            pendingDecisions={pendingDecisions}
+            resolveDecision={resolveDecision}
+            retirement={retirement}
+            airlineName={airlineName}
             score={score}
-            entry={retirement?.entry ?? null}
-            position={retirement?.position ?? null}
             hall={hall}
-            onKeepPlaying={() => setRetirement(null)}
-            onMainMenu={() => { setRetirement(null); returnToMainMenu(); }}
+            setRetirement={setRetirement}
+            returnToMainMenu={returnToMainMenu}
+            career={career}
+            goalOfferOpen={goalOfferOpen}
+            handleChooseGoal={handleChooseGoal}
+            setGoalOfferOpen={setGoalOfferOpen}
+            birdStrikeAlerts={birdStrikeAlerts}
+            fleet={fleet}
+            routes={routes}
+            setBirdStrikeAlerts={setBirdStrikeAlerts}
+            scenario={scenario}
+            currentDateOffset={currentDateOffset}
+            reputation={reputation}
+            setScenarioResultOpen={setScenarioResultOpen}
+            setShowExitSavePrompt={setShowExitSavePrompt}
+            currentSaveName={currentSaveName}
+            startNewGame={startNewGame}
+            branding={branding}
+            toast={toast}
+            appAlert={appAlert}
+            setAppAlert={setAppAlert}
           />
-          {/* The board's goals for the coming year, after the December close. */}
-          <GoalOfferDialog
-            offer={career.goalOffer}
-            open={goalOfferOpen && !pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0}
-            onChoose={handleChooseGoal}
-            onLater={() => setGoalOfferOpen(false)}
-          />
-          {/* A bird strike: the bill is paid already, this only says so. Waits
-              for the newspaper and any question, like they wait for each other. */}
-          {!pendingDecision && !isNewspaperOpen && !scenarioResultOpen && pendingDecisions.length === 0 && birdStrikeAlerts.length > 0 && (() => {
-            const strike = birdStrikeAlerts[0];
-            const plane = fleet.find(f => f.registration === strike.registration);
-            const route = routes.find(r => r.id === strike.routeId);
-            const dismiss = () => setBirdStrikeAlerts(prev => prev.slice(1));
-            return (
-              <Modal open size="sm" accent="warn" layer="top" onClose={dismiss}>
-                <div role="alertdialog" aria-labelledby="bird-strike-title" aria-describedby="bird-strike-detail">
-                  <h3 id="bird-strike-title" className="text-aero-warn font-black uppercase tracking-widest text-lg mb-1 flex items-center gap-2">
-                    <Bird size={22} aria-hidden="true" /> Bird strike
-                  </h3>
-                  <p className="text-3xl font-mono font-black text-aero-warn tabular-nums my-3">{formatCurrency(-strike.cost)}</p>
-                  <p id="bird-strike-detail" className="text-2xs font-mono text-white/50 mb-4 leading-relaxed">
-                    {strike.registration}{plane ? ` (${plane.manufacturer} ${plane.type})` : ''} hit a flock of birds{route ? ` on ${route.origin}-${route.destination}` : ''}.
-                    The repair bill was deducted from your balance.
-                  </p>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      autoFocus
-                      onClick={dismiss}
-                      className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
-                    >
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </Modal>
-            );
-          })()}
-          {/* The scenario's verdict, once, after the newspaper that reports it.
-              Any question the same close raised waits until it is closed. */}
-          {scenarioResultOpen && !isNewspaperOpen && scenario && scenario.status !== 'running' && (() => {
-            const decided = scenarioById(scenario.id);
-            if (!decided) return null;
-            const won = scenario.status === 'won';
-            const months = (scenario.result?.offset ?? currentDateOffset) - scenario.startedOffset + 1;
-            const stats = [
-              { label: 'Capital', value: formatMoneyCompact(capital) },
-              { label: 'Routes', value: String(routes.length) },
-              { label: 'Fleet', value: String(fleet.length) },
-              { label: 'Reputation', value: String(Math.round(reputation)) },
-              { label: 'Months played', value: String(months) }
-            ];
-            return (
-              <Modal open size="lg" accent={won ? 'yellow' : 'warn'} layer="top">
-                <div role="alertdialog" aria-labelledby="scenario-result-title" aria-describedby="scenario-result-reason">
-                  <div className={`flex items-center gap-3 mb-2 ${won ? 'text-aero-yellow' : 'text-aero-warn'}`}>
-                    {won ? <Trophy size={28} aria-hidden="true" /> : <AlertTriangle size={28} aria-hidden="true" />}
-                    <div>
-                      <div className="text-3xs font-mono uppercase tracking-[0.3em] text-white/40">Scenario {won ? 'complete' : 'failed'}</div>
-                      <h3 id="scenario-result-title" className="font-black uppercase tracking-widest text-xl leading-tight">
-                        {decided.title}: {won ? 'you did it' : 'out of reach'}
-                      </h3>
-                    </div>
-                  </div>
-                  <p id="scenario-result-reason" className="text-sm text-white/80 leading-relaxed mb-4">{scenario.result?.reason}</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
-                    {stats.map(st => (
-                      <div key={st.label} className="border border-white/10 bg-white/[0.03] px-2 py-2">
-                        <div className="text-4xs font-mono uppercase tracking-widest text-white/40">{st.label}</div>
-                        <div className="text-sm font-mono font-bold text-white tabular-nums truncate">{st.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-2xs font-mono text-white/40 mb-4 leading-relaxed">
-                    {won
-                      ? 'The result is written into your chronicle. Fly on without the scenario, or leave for the main menu.'
-                      : 'The airline still flies: carry on without the scenario, or start it over.'}
-                  </p>
-                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-                    {won ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => { setScenarioResultOpen(false); setShowExitSavePrompt(true); }}
-                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
-                        >
-                          Main menu
-                        </button>
-                        <button
-                          type="button"
-                          autoFocus
-                          onClick={() => setScenarioResultOpen(false)}
-                          className="px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
-                        >
-                          Continue without the scenario
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setScenarioResultOpen(false)}
-                          className="px-3 py-2 border border-white/15 text-white/70 hover:text-white hover:border-white/40 font-mono text-2xs uppercase tracking-widest transition-colors"
-                        >
-                          Continue without the scenario
-                        </button>
-                        <button
-                          type="button"
-                          autoFocus
-                          onClick={() => {
-                            const base = (currentSaveName || decided.title).replace(/\s*\((Autosave.*|retry)\)$/, '');
-                            startNewGame(`${base} (retry)`, decided, branding);
-                          }}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-aero-yellow text-black border border-aero-yellow hover:bg-white hover:border-white font-mono text-2xs font-black uppercase tracking-widest transition-colors"
-                        >
-                          <RotateCcw size={14} aria-hidden="true" /> Try again
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </Modal>
-            );
-          })()}
-          {toast && (
-            <div
-              role="status"
-              aria-live="polite"
-              className="fixed top-16 left-1/2 -translate-x-1/2 z-[4000] flex items-center gap-2 bg-aero-panel-2 border border-aero-good/40 px-4 py-2 text-xs font-mono text-white/90 shadow-2xl pointer-events-none"
-            >
-              <CheckCircle2 size={14} className="text-aero-good shrink-0" />
-              {toast}
-            </div>
-          )}
-          {appAlert && (
-            <Modal open size="md" layer="top" onClose={() => setAppAlert(null)}>
-              <h3 className="text-aero-yellow font-black uppercase tracking-widest text-lg mb-4 flex items-center gap-2">
-                <AlertTriangle size={24} /> System Alert
-              </h3>
-              <p className="text-white/80 mb-3">{appAlert}</p>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setAppAlert(null)}
-                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-wider transition-colors rounded-sm"
-                >
-                  OK
-                </button>
-              </div>
-            </Modal>
-          )}
           {/* Upright phones stack the content above a bottom navigation bar; in
               the rail layout (md and up, or a phone held sideways) the navigation
               is the left-hand column. See the variants in index.css. */}
@@ -3861,39 +2198,12 @@ export default function App() {
                 screens. Sideways phones get a slightly wider, compact rail with
                 no spacer, since height is what they lack. */}
         {view === 'game' && (
-          <div className="order-last rail:order-none w-full rail:w-14 lg:rail:w-16 short:w-16 tiny:w-12 bg-aero-panel border-t rail:border-t-0 rail:border-r border-white/10 flex flex-row rail:flex-col items-stretch rail:items-center rail:pb-4 short:pb-0 shrink-0 z-50 rail:h-full overflow-auto no-scrollbar bar:scrollbar-hidden short:scrollbar-hidden">
-            {/* Spacer corresponding to the h-14 height of the Game Stats Bar */}
-            <div className="hidden rail:block short:hidden h-14 shrink-0 w-full" />
-            <div className="flex flex-row rail:flex-col w-full">
-              {/* Fleet & Ops */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5">
-                <SidebarIcon icon={<MapIcon size={28} />} label="MAP" tour="nav-map" active={activeWindow === 'map' && !isPlanningRoute} onClick={() => openWindow('map')} />
-                <SidebarIcon icon={<ShoppingCart size={28} />} label="BUY AIRCRAFT" shortLabel="BUY" tour="nav-buy-aircraft" active={activeWindow === 'buy-aircraft' && !isPlanningRoute} onClick={() => openWindow('buy-aircraft')} />
-                <SidebarIcon icon={<Plane size={28} />} label="MY FLEET" shortLabel="FLEET" tour="nav-my-fleet" active={activeWindow === 'my-fleet' && !isPlanningRoute} onClick={() => openWindow('my-fleet')} />
-              </div>
-
-              {/* Network */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
-                <SidebarIcon icon={<Navigation size={28} />} label="ROUTES" tour="nav-routes" active={activeWindow === 'routes' && !isPlanningRoute} onClick={() => openWindow('routes')} />
-                <SidebarIcon icon={<MapPin size={28} />} label="AIRPORTS" tour="nav-airports" active={activeWindow === 'airports' && !isPlanningRoute} onClick={() => openWindow('airports')} />
-              </div>
-
-              {/* Business */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none divide-x rail:divide-x-0 rail:divide-y divide-white/5 border-l rail:border-l-0 rail:border-t border-white/10">
-                <SidebarIcon icon={<Briefcase size={28} />} label="MY COMPANY" shortLabel="COMPANY" tour="nav-my-company" active={activeWindow === 'my-company' && !isPlanningRoute} onClick={() => openWindow('my-company')} />
-                <SidebarIcon icon={<TrendingUp size={28} />} label="CAREER" shortLabel="CAREER" tour="nav-progression" active={activeWindow === 'progression' && !isPlanningRoute} onClick={() => openWindow('progression')} />
-                <SidebarIcon icon={<Users size={28} />} label="RIVALS" tour="nav-rivals" active={activeWindow === 'competitors' && !isPlanningRoute} onClick={() => openWindow('competitors')} />
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-row rail:flex-col flex-auto rail:flex-none border-l rail:border-l-0 rail:border-t border-white/10 bg-aero-yellow/5">
-                <SidebarIcon icon={<Plus size={28} />} label="NEW ROUTE" shortLabel="NEW" tour="nav-new-route" active={isPlanningRoute} onClick={openPlanner} />
-              </div>
-            </div>
-            <div className="hidden rail:block short:hidden mt-4 pb-4 shrink-0 w-full mb-3">
-
-            </div>
-          </div>
+          <GameNavigation
+            activeWindow={activeWindow}
+            isPlanningRoute={isPlanningRoute}
+            openWindow={openWindow}
+            openPlanner={openPlanner}
+          />
         )}
 
         <div className="flex-1 flex flex-col relative overflow-hidden">
@@ -3903,576 +2213,78 @@ export default function App() {
             )}
 
             {view === 'main-menu' && (
-              <motion.div
+              <MainMenuScreen
                 key="main-menu"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start p-4 pt-14 md:pt-4 short:pt-14 bg-aero-black relative"
-              >
-                {/* The menu card is centred with auto margins instead of
-                    justify-center, which would push its top out of reach whenever it
-                    is taller than the screen, as on phones; on those pt-14 keeps it
-                    clear of this bar. */}
-                <div className="absolute top-4 right-4 md:right-8 z-50 flex items-center gap-3 md:gap-4">
-                  <div className="text-white/40 font-mono text-xs tracking-widest flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full shadow-2xl ${userId ? (cloudOnline ? 'bg-aero-yellow animate-pulse' : 'bg-white/30') : 'bg-white/20'}`}></div>
-                    {user || 'UNKNOWN_USER'}
-                  </div>
-                  <div className="hidden sm:block h-4 w-px bg-white/10"></div>
-                  <span className="hidden sm:inline text-white/25 font-mono text-2xs uppercase tracking-widest">{cloudStatusLabel}</span>
-                  <div className="h-4 w-px bg-white/10"></div>
-                  {fullscreen.supported && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={fullscreen.toggle}
-                        aria-label={fullscreen.active ? 'Exit full screen' : 'Full screen'}
-                        className="text-white/40 hover:text-white font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
-                      >
-                        {fullscreen.active ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                        <span className="hidden sm:inline">{fullscreen.active ? 'Exit full screen' : 'Full screen'}</span>
-                      </button>
-                      <div className="h-4 w-px bg-white/10"></div>
-                    </>
-                  )}
-                  <button 
-                    onClick={handleDisconnect}
-                    className="text-white/40 hover:text-white font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
-                  >
-                    <LogOut size={14} /> Logout
-                  </button>
-                </div>
-                {/* Background Decor */}
-                <svg className="absolute inset-0 w-full h-full opacity-5 pointer-events-none" viewBox="0 0 800 400">
-                  <path d="M150,100 Q200,80 250,120 T400,100 T550,150 T700,80" fill="none" stroke="#FACC15" strokeWidth="1" strokeDasharray="4" />
-                  <circle cx="150" cy="100" r="3" fill="#FACC15" />
-                  <circle cx="700" cy="80" r="3" fill="#FACC15" />
-                </svg>
-
-                {/* On a phone held sideways the logo and the menu sit side by side,
-                    so the whole card fits the short screen without scrolling. */}
-                <div className="w-full max-w-2xl short:max-w-3xl z-10 flex flex-col short:flex-row short:items-center gap-8 sm:gap-12 short:gap-8 border border-white/5 bg-aero-panel/30 rounded-sm p-5 sm:p-8 lg:p-14 short:p-5 my-auto">
-                  <div className="space-y-4 short:space-y-2 short:shrink-0">
-                    <Bird className="text-aero-yellow short:w-12 short:h-12" size={64} strokeWidth={2.5} />
-                    <h1 className="text-6xl sm:text-8xl short:text-6xl tiny:text-5xl font-black italic tracking-tighter leading-none">
-                      <span className="text-aero-yellow">AM</span><br/>
-                      <span className="text-white">NEO</span>
-                    </h1>
-                    <p className="text-2xs tracking-[0.4em] font-light text-white/40 pl-2">COMMAND INTERFACE v4.2</p>
-                  </div>
-
-                  {legacySaveCount > 0 && (
-                    <div className="bg-aero-yellow/5 border border-aero-yellow/30 rounded-sm p-4 flex flex-col gap-3">
-                      <div className="text-2xs font-mono uppercase tracking-widest text-aero-yellow font-bold">
-                        {legacySaveCount} savegame{legacySaveCount === 1 ? '' : 's'} found from before accounts existed
-                      </div>
-                      <p className="text-2xs font-mono text-white/40 leading-relaxed">
-                        They are still stored in this browser. Import them into your account to
-                        reach them from any device. The originals are left untouched.
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={handleImportLegacySaves}
-                          disabled={isImportingLegacy}
-                          className="px-4 py-2 bg-aero-yellow text-black font-black uppercase tracking-widest text-2xs hover:bg-white transition-colors disabled:opacity-50 rounded-sm"
-                        >
-                          {isImportingLegacy ? 'Importing...' : 'Import into my account'}
-                        </button>
-                        <button
-                          onClick={() => setLegacySaveCount(0)}
-                          className="px-4 py-2 border border-white/20 text-white/50 font-black uppercase tracking-widest text-2xs hover:text-white transition-colors rounded-sm"
-                        >
-                          Not now
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-3 short:gap-2 short:flex-1 short:min-w-0">
-                    <ThemeMenuButton
-                      index="01"
-                      label="Resume Game"
-                      onClick={() => {
-                        if (saves.length > 0) {
-                          const latest = [...saves].sort((a, b) => b.timestamp - a.timestamp)[0];
-                          handleLoadGame(latest.id);
-                        } else {
-                          setAppAlert("No telemetry archives discovered to resume from.");
-                        }
-                      }}
-                    />
-                    <ThemeMenuButton
-                      index="02"
-                      label="Load Game"
-                      onClick={() => setShowLoadMenu(true)}
-                    />
-                    <ThemeMenuButton
-                      index="03"
-                      label="Start Game"
-                      onClick={() => setView('start-menu')}
-                      primary
-                    />
-                    <ThemeMenuButton
-                      index="04"
-                      label="Settings"
-                      onClick={() => setIsSettingsOpen(true)}
-                    />
-
-                  </div>
-                </div>
-              </motion.div>
+                userId={userId}
+                cloudOnline={cloudOnline}
+                user={user}
+                cloudStatusLabel={cloudStatusLabel}
+                fullscreen={fullscreen}
+                handleDisconnect={handleDisconnect}
+                legacySaveCount={legacySaveCount}
+                handleImportLegacySaves={handleImportLegacySaves}
+                isImportingLegacy={isImportingLegacy}
+                setLegacySaveCount={setLegacySaveCount}
+                saves={saves}
+                handleLoadGame={handleLoadGame}
+                setAppAlert={setAppAlert}
+                setShowLoadMenu={setShowLoadMenu}
+                setView={setView}
+                setIsSettingsOpen={setIsSettingsOpen}
+              />
             )}
 
             {view === 'start-menu' && (
-              <motion.div
+              <NewGameScreen
                 key="start-menu"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex-1 min-h-0 p-4 lg:p-12 short:pt-2 bar:pb-0 short:pb-0 overflow-y-auto custom-scrollbar"
-              >
-                <div className="max-w-4xl mx-auto space-y-12 bar:space-y-5 short:space-y-3 pb-20 bar:pb-0 short:pb-0">
-                  <div className="flex items-end short:items-center justify-between gap-4 border-b border-white/10 pb-6 bar:pb-3 short:pb-2">
-                    <div>
-                      <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2 bar:hidden short:hidden">Operation: Initialize</span>
-                      <h2 className="text-4xl sm:text-5xl bar:text-3xl short:text-3xl tiny:text-2xl font-black italic uppercase tracking-tighter leading-none">Pre-Flight <span className="text-aero-yellow">Config</span></h2>
-                    </div>
-                    <button 
-                      onClick={() => setView('main-menu')}
-                      className="shrink-0 whitespace-nowrap text-xs font-mono uppercase tracking-widest text-white/40 hover:text-aero-yellow transition-colors"
-                    >
-                      [ Abort_Mission ]
-                    </button>
-                  </div>
-
-                  {/* On a phone held sideways the settings go into two columns. */}
-                  <div className="space-y-8 bar:space-y-5 max-w-2xl mx-auto short:max-w-none short:space-y-0 short:grid short:grid-cols-2 short:gap-x-6 short:gap-y-3">
-                    <div className="space-y-4 short:space-y-2 short:col-span-2">
-                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Game Mode</div>
-                      <ScenarioPicker selectedId={newGameScenarioId} mode={newGameMode} onSelect={pickNewGameScenario} stars={scenarioStars} />
-                      {newGameScenario && (
-                        <p className="text-2xs text-white/40 italic">
-                          {newGameScenario.title} sets the hub, start date, budget, difficulty and rivals below, so every
-                          player faces the same challenge. Name, code, livery and debug mode are yours to choose.
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-4 short:space-y-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Name</label>
-                        <input 
-                          type="text" 
-                          value={airlineName}
-                          onChange={(e) => setAirlineName(e.target.value)}
-                          placeholder="Neo Airlines"
-                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
-                        />
-                      </div>
-                      <div className="space-y-4 short:space-y-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Airline Code</label>
-                        <input 
-                          type="text" 
-                          value={airlineCode}
-                          onChange={handleAirlineCodeChange}
-                          placeholder="NX"
-                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow uppercase placeholder:text-white/20"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Livery</div>
-                      <div className="bg-aero-carbon border border-white/10 p-4 short:p-2.5">
-                        <BrandingPicker
-                          value={newGameBranding}
-                          onChange={setNewGameBranding}
-                          code={airlineCode}
-                          name={airlineName}
-                        />
-                      </div>
-                      <p className="text-2xs text-white/40 italic">Your routes and aircraft are drawn in this colour; rivals get colours clearly apart from it.</p>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label htmlFor="new-game-hub" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Select Hub</label>
-                        <ScenarioLock scenario={newGameScenario} />
-                      </div>
-                      <button
-                        id="new-game-hub"
-                        type="button"
-                        disabled={!!newGameScenario}
-                        onClick={() => setHubPickerOpen(true)}
-                        className="relative w-full text-left bg-aero-carbon border border-white/10 p-4 short:py-2.5 pl-4 pr-10 font-mono text-sm text-white hover:border-aero-yellow/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-white/10"
-                      >
-                        {(() => {
-                          const hubAirport = airportsMapAdjusted.get(selectedHub);
-                          return hubAirport ? `${hubAirport.name} (${hubAirport.id}) - Level ${hubAirport.level}` : selectedHub;
-                        })()}
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
-                          <ChevronDown size={16} />
-                        </span>
-                      </button>
-                      {hubPickerOpen && !newGameScenario && (
-                        <HubPickerModal
-                          airports={airportsByName}
-                          maxLevel={newGameMode === 'normal' ? maxAirportLevel(0) : 7}
-                          rankTitle={rankDef(0).title}
-                          year={1960 + Math.floor(startDateOffset / 12)}
-                          selectedId={selectedHub}
-                          onSelect={setSelectedHub}
-                          onClose={() => setHubPickerOpen(false)}
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Difficulty</label>
-                        <ScenarioLock scenario={newGameScenario} />
-                      </div>
-                      <div className="flex gap-4">
-                        {['Easy', 'Normal', 'Hard'].map((diff) => (
-                          <button
-                            key={diff}
-                            disabled={!!newGameScenario}
-                            onClick={() => setDifficulty(diff)}
-                            className={`flex-1 p-4 short:p-2.5 font-mono text-sm border uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${difficulty === diff ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow disabled:opacity-40 disabled:hover:border-white/10'}`}
-                          >
-                            {diff}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Starting Budget</label>
-                        <ScenarioLock scenario={newGameScenario} />
-                      </div>
-                      {newGameScenario ? (
-                        <div className="p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest bg-aero-yellow/10 border-aero-yellow/40 text-aero-yellow">
-                          {formatCurrency(newGameScenario.capital)} and the scenario's fleet
-                        </div>
-                      ) : (
-                      <div className="flex flex-wrap gap-4">
-                        {['$25M', '$50M', '$100M', '$200M'].map((budget) => (
-                          <button
-                            key={budget}
-                            onClick={() => setStartingBudget(budget)}
-                            className={`flex-1 min-w-[100px] p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest transition-colors ${startingBudget === budget ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
-                          >
-                            {budget}
-                          </button>
-                        ))}
-                      </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Debug Mode</label>
-                      <div className="flex gap-4">
-                        {[
-                          { label: 'Deactivated (Normal Play)', value: false },
-                          { label: 'Activated (Debug Info)', value: true }
-                        ].map((opt) => (
-                          <button
-                            key={opt.label}
-                            type="button"
-                            onClick={() => {
-                              setDebugMode(opt.value);
-                              writeString('airline_debug_mode', String(opt.value));
-                            }}
-                            className={`flex-1 p-4 short:p-2.5 font-mono text-xs border uppercase tracking-widest transition-all ${debugMode === opt.value ? 'bg-aero-yellow text-black border-aero-yellow font-black shadow-2xl' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow/50'}`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-2xs text-white/40 italic">When activated, real-time demand calculation and pricing base debug tools are enabled.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-4 short:space-y-2">
-                        <div className="flex justify-between items-end">
-                          <label htmlFor="new-game-rivals" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">AI-Controlled Airlines</label>
-                          <span className="flex items-center gap-3">
-                            <ScenarioLock scenario={newGameScenario} />
-                            <span className="text-xl font-mono text-aero-yellow">{aiAirlinesCount}</span>
-                          </span>
-                        </div>
-                        <input 
-                          id="new-game-rivals"
-                          type="range"
-                          min="0"
-                          max="12"
-                          value={aiAirlinesCount}
-                          disabled={!!newGameScenario}
-                          onChange={(e) => setAiAirlinesCount(parseInt(e.target.value))}
-                          className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
-                        />
-                        <div className="flex justify-between text-2xs font-mono text-white/40">
-                          <span>0</span>
-                          <span>12</span>
-                        </div>
-                      </div>
-                      <div className="space-y-4 short:space-y-2">
-                        <div className="flex justify-between items-end gap-2">
-                          <label htmlFor="new-game-rival-difficulty" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Opponent Difficulty</label>
-                          <ScenarioLock scenario={newGameScenario} />
-                        </div>
-                        <select 
-                          id="new-game-rival-difficulty"
-                          value={aiDifficulty}
-                          disabled={!!newGameScenario}
-                          onChange={(e) => setAiDifficulty(e.target.value)}
-                          className="w-full bg-aero-carbon border border-white/10 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <option>Easy</option>
-                          <option>Normal</option>
-                          <option>Hard</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <div className="flex justify-between items-end gap-2">
-                        <label htmlFor="new-game-start" className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Start Date</label>
-                        <span className="flex items-center gap-3">
-                          <ScenarioLock scenario={newGameScenario} />
-                          <span className="text-xl font-mono text-aero-yellow">{formatDate(startDateOffset)}</span>
-                        </span>
-                      </div>
-                      <input 
-                        id="new-game-start"
-                        type="range"
-                        min="0"
-                        max="731"
-                        value={startDateOffset}
-                        disabled={!!newGameScenario}
-                        onChange={(e) => setStartDateOffset(parseInt(e.target.value))}
-                        className="w-full appearance-none bg-white/10 h-2 outline-none slider-thumb-aero disabled:opacity-40 disabled:cursor-not-allowed"
-                      />
-                      <div className="flex justify-between text-2xs font-mono text-white/40">
-                        <span>01/1960</span>
-                        <span>12/2020</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 short:space-y-2">
-                      <label className="block text-2xs font-black uppercase tracking-[0.3em] text-aero-yellow">Initial Save File Name</label>
-                      <input 
-                        type="text" 
-                        value={initialSaveFileName}
-                        onChange={(e) => setInitialSaveFileName(e.target.value)}
-                        placeholder="My Airline Save 1"
-                        className="w-full bg-aero-carbon border border-aero-yellow/30 p-4 short:p-2.5 font-mono text-sm outline-none focus:border-aero-yellow text-aero-yellow placeholder:text-white/20"
-                      />
-                      <p className="text-2xs text-white/40 italic mt-2">A save file name must be provided to initialize the system.</p>
-                    </div>
-                    
-                    {/* Kept in reach at the foot of the screen on phones, rather than
-                        at the end of the whole form. */}
-                    <div className="pt-8 flex justify-end short:col-span-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:z-10 short:z-10 bar:pt-2 short:pt-2 bar:pb-1 short:pb-1 bar:bg-aero-black short:bg-aero-black">
-                      <button 
-                        onClick={() => {
-                          if (!initialSaveFileName.trim()) {
-                            setAppAlert("You must provide a save file name to begin.");
-                            return;
-                          }
-                          startNewGame(initialSaveFileName.trim(), newGameScenario);
-                        }}
-                        className="group flex items-center bg-aero-yellow text-black px-4 py-4 short:py-2.5 tiny:py-2 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto"
-                      >
-                        Start Game
-                        <ChevronRight size={20} className="ml-4 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                setView={setView}
+                newGameScenarioId={newGameScenarioId}
+                newGameMode={newGameMode}
+                pickNewGameScenario={pickNewGameScenario}
+                scenarioStars={scenarioStars}
+                newGameScenario={newGameScenario}
+                airlineName={airlineName}
+                setAirlineName={setAirlineName}
+                airlineCode={airlineCode}
+                handleAirlineCodeChange={handleAirlineCodeChange}
+                newGameBranding={newGameBranding}
+                setNewGameBranding={setNewGameBranding}
+                setHubPickerOpen={setHubPickerOpen}
+                selectedHub={selectedHub}
+                hubPickerOpen={hubPickerOpen}
+                startDateOffset={startDateOffset}
+                setSelectedHub={setSelectedHub}
+                setDifficulty={setDifficulty}
+                difficulty={difficulty}
+                setStartingBudget={setStartingBudget}
+                startingBudget={startingBudget}
+                setDebugMode={setDebugMode}
+                debugMode={debugMode}
+                aiAirlinesCount={aiAirlinesCount}
+                setAiAirlinesCount={setAiAirlinesCount}
+                aiDifficulty={aiDifficulty}
+                setAiDifficulty={setAiDifficulty}
+                formatDate={formatDate}
+                setStartDateOffset={setStartDateOffset}
+                initialSaveFileName={initialSaveFileName}
+                setInitialSaveFileName={setInitialSaveFileName}
+                setAppAlert={setAppAlert}
+                startNewGame={startNewGame}
+              />
             )}
 
             {view === 'monthly-overview' && (
-              <motion.div
+              <MonthlyReportScreen
                 key="monthly-overview"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start bg-aero-black relative p-12 bar:p-3 short:p-3"
-              >
-                {/* Centred with auto margins, not justify-center, which cut the top
-                    off whenever the report was taller than the screen. On phones
-                    the whole page scrolls as one, rather than the report scrolling
-                    inside it, and the buttons stay pinned to the bottom. */}
-                <div className="max-w-4xl w-full my-auto" data-tour="monthly-report">
-                  <div className="border-b border-white/10 pb-6 mb-6 bar:pb-3 bar:mb-3 short:pb-2 short:mb-2">
-                    <span className="text-aero-yellow font-mono text-xs tracking-widest uppercase block mb-2 short:hidden">Operation: Execution</span>
-                    <h2 className="text-5xl bar:text-3xl short:text-2xl font-black italic uppercase tracking-tighter leading-none">Monthly <span className="text-aero-yellow">Report</span></h2>
-                    {/* The report covers the month that just ended, not the one the clock
-                        has already advanced to, so label it from the report itself. */}
-                    <p className="text-white/60 font-mono mt-4 bar:mt-2 short:mt-1 font-bold text-xl bar:text-sm short:text-sm">
-                      {latestReport
-                        ? `${latestReport.month.toString().padStart(2, '0')}/${latestReport.year}`
-                        : formatDate(currentDateOffset)} - {airlineName || 'Neo Airlines'} ({airlineCode || 'NX'})
-                    </p>
-                  </div>
-                  
-                  <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible custom-scrollbar pr-4 bar:pr-0 short:pr-0">
-                   <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="CONTINUE">
-                    {latestReport ? (
-                      <>
-                      <FinancialReport
-                         title="Monthly Financial Overview"
-                         netProfit={latestReport.totalProfit}
-                         totalRevenue={latestReport.routeRevenues}
-                         revenues={(latestReport.routes || []).map((r: any) => ({
-                           label: `${r.name}${r.capacity > 0 ? ` (${Math.round((r.paxPerWeek / r.capacity) * 100)}% LF)` : ''}${r.transferPax > 0 ? ` incl. ${formatNumber(r.transferPax)} transfer pax/wk` : ''}`,
-                           amount: r.revenue
-                         }))}
-                         expenses={[
-                           {
-                             id: 'routeCosts',
-                             label: 'Route Operational Costs',
-                             total: latestReport.routeCosts,
-                             items: [
-                               { label: `Jet Fuel (${formatNumber(latestReport.breakdown.fuelLiters || 0)} L @ $${(latestReport.breakdown.fuelPriceL || 0).toFixed(3)})`, amount: latestReport.breakdown.fuel },
-                               { label: 'In-Flight Catering & Amenities', amount: latestReport.breakdown.catering },
-                               { label: 'Flight Crew & Ground Staff Salaries', amount: latestReport.breakdown.staff },
-                               { label: 'Landing & passenger fees', amount: latestReport.breakdown.routeInfra }
-                             ]
-                           },
-                           {
-                             id: 'airportCosts',
-                             label: 'Airport & Hub Upkeep',
-                             total: latestReport.airportUpkeep,
-                             items: [
-                               { label: 'Base Management & Slot Maintenance', amount: latestReport.breakdown.mgt },
-                               { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
-                             ]
-                           },
-                           // Insurance and maintenance of every aircraft, flying or parked.
-                           ...((latestReport.breakdown.fleetOwnership || 0) > 0 ? [{
-                             id: 'fleetOwnership',
-                             label: 'Aircraft Ownership',
-                             total: latestReport.breakdown.fleetOwnership,
-                             items: [
-                               { label: 'Insurance & maintenance programme', amount: latestReport.breakdown.fleetOwnership - (latestReport.breakdown.fleetParked || 0) },
-                               ...((latestReport.breakdown.fleetParked || 0) > 0
-                                 ? [{ label: `Parked aircraft (${latestReport.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latestReport.breakdown.fleetParked }]
-                                 : [])
-                             ]
-                           }] : []),
-                           // What the rivals landing at an airport owned outright pay the airline.
-                           ...((latestReport.breakdown.hubIncome || 0) > 0 ? [{
-                             id: 'hubIncome',
-                             label: 'Airport Ownership Income',
-                             variant: 'net' as const,
-                             total: latestReport.breakdown.hubIncome,
-                             items: latestReport.hubIncomeItems || []
-                           }] : []),
-                           // Only in months with campaigns or the frequent-flyer
-                           // programme running; older reports have no such line.
-                           ...((latestReport.breakdown.marketing || 0) > 0 ? [{
-                             id: 'marketing',
-                             label: 'Marketing & Loyalty',
-                             total: latestReport.breakdown.marketing,
-                             items: latestReport.marketingItems || [
-                               { label: 'Advertising campaigns', amount: latestReport.breakdown.marketingCampaigns || 0 },
-                               { label: 'Frequent flyer programme', amount: latestReport.breakdown.ffp || 0 }
-                             ]
-                           }] : []),
-                           // Only in months with a charter (older reports: also repair bills).
-                           ...((latestReport.breakdown.incidents || 0) > 0 ? [{
-                             id: 'incidents',
-                             label: 'Incident repairs & charters',
-                             total: latestReport.breakdown.incidents,
-                             items: (latestReport.incidents || [])
-                               .filter((i: ReportIncident) => (i.cost || 0) > 0)
-                               .map((i: ReportIncident) => ({ label: i.title, amount: i.cost || 0 }))
-                           }] : []),
-                           // Only in reports closed before slots were paid for on the
-                           // spot: they were billed into that month's result then.
-                           // Slots bought since are a capex item ('Airport Slots').
-                           // Signed: selling slots back refunds money.
-                           ...((latestReport.breakdown.purchasedSlots || 0) !== 0 ? [{
-                             id: 'slots',
-                             label: 'Slot purchases & refunds',
-                             variant: 'net' as const,
-                             total: -latestReport.breakdown.purchasedSlots,
-                             items: [{
-                               label: latestReport.breakdown.purchasedSlots > 0 ? 'Slot rights bought this month' : 'Slot rights sold back this month',
-                               amount: -latestReport.breakdown.purchasedSlots
-                             }]
-                           }] : []),
-                           // These left the bank account but are not part of the
-                           // operating profit above — without them the profit and
-                           // the change in capital never reconcile.
-                           // Signed as well: aircraft sales come in here.
-                           ...((latestReport.capexItems || []).some((i: any) => i.amount !== 0) ? [{
-                             id: 'capex',
-                             label: 'One-off investments & sales (below the line)',
-                             variant: 'net' as const,
-                             total: -(latestReport.capex || 0),
-                             items: (latestReport.capexItems || [])
-                               .filter((i: any) => i.amount !== 0)
-                               .map((i: any) => ({ label: i.label, amount: -i.amount }))
-                           }] : []),
-                           ...(latestReport.routes && latestReport.routes.length > 0 ? [{
-                             id: 'routeBreakdown',
-                             label: 'Route Breakdown',
-                             // Profits and losses per route, not deductions — see
-                             // the 'net' variant in FinancialReport.
-                             variant: 'net' as const,
-                             total: latestReport.routes.reduce((sum: number, r: any) => sum + r.profit, 0),
-                             items: latestReport.routes.map((r: any) => ({
-                               label: `${r.name} (Rev: ${formatCurrency(r.revenue)}, Exp: ${formatCurrency(r.cost)})`,
-                               amount: r.profit
-                             }))
-                           }] : [])
-                         ]}
-                         defaultOpen={true}
-                      />
-                      <IncidentList incidents={latestReport.incidents} className="mt-4" />
-                      {/* Operating profit and the change in the bank balance are
-                          different numbers whenever anything was bought. Stating
-                          both, next to each other, is what makes the report add up. */}
-                      <div className="mt-4 flex items-center justify-between border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs">
-                        <span className="uppercase tracking-widest text-white/40 font-bold">Cash change this month</span>
-                        <span className={(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? 'text-aero-good font-bold' : 'text-aero-warn font-bold'}>
-                          {(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? '+' : ''}
-                          {formatCurrency(latestReport.cashChange ?? latestReport.totalProfit)}
-                        </span>
-                      </div>
-                      </>
-                    ) : (
-                      <div className="h-64 flex items-center justify-center text-white/40">
-                        No financial data available for this month.
-                      </div>
-                    )}
-                   </ErrorBoundary>
-                  </div>
-
-                  <div className="flex flex-col-reverse md:flex-row justify-end gap-3 bar:flex-row bar:gap-2 short:gap-2 bar:sticky short:sticky bar:bottom-0 short:bottom-0 bar:bg-aero-black short:bg-aero-black bar:py-2 short:py-2 bar:border-t short:border-t border-white/10">
-                    {edition && (
-                      <button
-                        type="button"
-                        onClick={() => setIsNewspaperOpen(true)}
-                        className="flex items-center justify-center gap-2 border border-white/15 text-white/70 px-4 py-4 bar:py-2.5 short:py-2 bar:px-3 bar:text-xs short:text-xs font-bold uppercase tracking-widest hover:border-aero-yellow hover:text-white transition-all w-full md:w-auto"
-                      >
-                        <Newspaper size={18} /> Read the newspaper
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => setView('game')}
-                      className="group flex items-center justify-center md:justify-start bg-aero-yellow text-black px-4 py-4 bar:py-2.5 short:py-2 font-bold uppercase tracking-widest hover:bg-white transition-all w-full md:w-auto bar:flex-1 short:w-auto"
-                    >
-                      Continue
-                      <ChevronRight size={20} className="ml-4 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
+                latestReport={latestReport}
+                formatDate={formatDate}
+                currentDateOffset={currentDateOffset}
+                airlineName={airlineName}
+                airlineCode={airlineCode}
+                setView={setView}
+                edition={edition}
+                setIsNewspaperOpen={setIsNewspaperOpen}
+              />
             )}
 
             {view === 'game' && (
@@ -4482,189 +2294,45 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="flex-1 flex flex-col bg-aero-black relative"
               >
-                {/* Game Stats Bar. On upright phones it has two rows: date and
-                    buttons on top, then the stats as a 3x2 grid so every figure
-                    stays visible. The dropdowns below are anchored to this bar there
-                    (their wrappers are only `relative` in the rail layout), so they
-                    open below it at the right edge instead of running off the left
-                    of the screen. Sideways phones keep one lower row, and the stats
-                    scroll sideways when they do not all fit. */}
-                <div className="rail:h-14 short:h-8 bg-aero-carbon border-b border-white/5 flex flex-col rail:flex-row rail:items-center rail:justify-between gap-1.5 rail:gap-0 short:gap-3 px-3 rail:px-4 short:px-2 py-1.5 rail:py-0 shrink-0 relative z-50">
-                  <div className="order-last rail:order-none grid grid-cols-3 gap-x-2 gap-y-1.5 rail:flex rail:gap-5 rail:items-center short:gap-3 short:min-w-0 short:overflow-x-auto short:scrollbar-hidden">
-                    <GameStat label="Capital" value={formatCurrency(capital)} />
-                    <GameStat label="Fleet" value={fleet.length.toString()} />
-                    <GameStat label="Routes" value={routes.length.toString()} />
-                    <GameStat label="Reputation" value={`${Math.round(reputation)}`} />
-                    <GameStat label="Global Demand" value={`${Math.round(globalDemandData.value * 100)}%`} trend={globalDemandData.trend} />
-                    <GameStat label="Fuel" value={`$${formatNumber(fuelData.price / 3.78541, 3)}`} trend={fuelData.trend} goodDirection="down" />
-                  </div>
-                  <div className="flex items-center gap-3 short:gap-2 short:shrink-0 rail:relative">
-                    <div className="flex items-center gap-4 mr-auto rail:mr-0">
-                      <div className="text-aero-yellow font-mono text-sm short:text-xs font-bold tracking-widest short:tracking-wider">{formatDate(currentDateOffset)}</div>
-                    </div>
-
-                    <div className="rail:relative" {...messagesHover}>
-                       <button
-                         onClick={() => {
-                           setIsMessagesOpen(!isMessagesOpen);
-                           if (!isMessagesOpen) {
-                             setMessages(messages.map(m => ({ ...m, isRead: true })));
-                           }
-                         }}
-                         aria-label={unreadMessagesCount > 0 ? `Messages, ${unreadMessagesCount} unread` : 'Messages'}
-                         className={`flex items-center gap-2 px-3 py-1 border text-2xs uppercase font-bold tracking-widest transition-all rounded-sm ${unreadMessagesCount > 0 ? 'bg-aero-yellow text-black border-aero-yellow' : 'bg-white/5 text-white hover:bg-white/10 border-white/10'}`}
-                       >
-                         <Bell size={12} />
-                         <span className="hidden sm:inline short:hidden">Messages</span>
-                         {unreadMessagesCount > 0 && (
-                           <span className="ml-1 bg-black text-aero-yellow px-1.5 py-0.5 text-4xs rounded-sm">{unreadMessagesCount}</span>
-                         )}
-                       </button>
-                       
-                       {isMessagesOpen && (
-                         <div className="absolute top-full right-2 rail:right-0 mt-2 w-[min(20rem,calc(100vw-1rem))] bg-aero-panel border border-aero-yellow/20 shadow-2xl z-[3000] flex flex-col">
-                           <div className="p-3 border-b border-white/10 flex justify-between items-center">
-                             <span className="text-aero-yellow text-2xs uppercase tracking-widest font-bold">Communications</span>
-                             <div className="flex items-center gap-2">
-                               {edition && (
-                                 <button
-                                   type="button"
-                                   onClick={() => { setIsMessagesOpen(false); setIsNewspaperOpen(true); }}
-                                   className="flex items-center gap-1 px-2 py-0.5 border border-white/10 text-3xs uppercase tracking-widest font-bold text-white/60 hover:text-aero-yellow hover:border-aero-yellow/40 transition-colors"
-                                   title={`Read The Aviation Times, ${edition.date}`}
-                                 >
-                                   <Newspaper size={11} /> Latest newspaper
-                                 </button>
-                               )}
-                               <button onClick={() => setIsMessagesOpen(false)} className="text-white/40 hover:text-white" aria-label="Close messages"><X size={14}/></button>
-                             </div>
-                           </div>
-                           <div className="max-h-64 overflow-y-auto no-scrollbar">
-                             {messages.length === 0 ? (
-                               <div className="p-4 text-center text-white/30 text-xs font-mono">No new messages</div>
-                             ) : (
-                               messages.map(msg => (
-                                 <div 
-                                   key={msg.id} 
-                                   onClick={() => {
-                                     setSelectedMessage(msg);
-                                     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isRead: true } : m));
-                                   }}
-                                   className="p-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group flex flex-col gap-1 text-left"
-                                 >
-                                   <div className="text-3xs text-white/40 font-mono flex justify-between items-center w-full"><span>{msg.dateStr}</span><span className="text-3xs opacity-0 group-hover:opacity-100 text-aero-yellow font-bold uppercase transition-opacity">Read Dispatch</span></div>
-                                   <div className={`text-xs ${msg.isRead ? 'text-white/60' : 'text-white font-semibold'} group-hover:text-aero-yellow transition-colors line-clamp-3`}>{msg.text}</div>
-                                 </div>
-                               ))
-                             )}
-                           </div>
-                         </div>
-                       )}
-                    </div>
-                    
-                    <div className="rail:relative" {...mapSettingsHover}>
-                      <button
-                         onClick={() => setIsMapSettingsOpen(!isMapSettingsOpen)}
-                         className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all mr-1 rail:mr-2"
-                      >
-                        [ Map ]
-                      </button>
-                      {isMapSettingsOpen && (
-                        <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-64 bg-aero-panel border border-aero-yellow/20 shadow-2xl flex flex-col z-[3000] p-4 gap-4">
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showYourRoutes} onChange={(e) => setShowYourRoutes(e.target.checked)} className="accent-aero-yellow w-4 h-4 cursor-pointer" />
-                            Your Routes
-                          </label>
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-aero-yellow/60 cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showRivalRoutes} onChange={(e) => setShowRivalRoutes(e.target.checked)} className="accent-red-500 w-4 h-4 cursor-pointer" />
-                            Rival Routes
-                          </label>
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-white/80 cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input type="checkbox" checked={showLiveTraffic} onChange={(e) => setShowLiveTraffic(e.target.checked)} className="accent-blue-400 w-4 h-4 cursor-pointer" />
-                            Live Traffic
-                          </label>
-                          <label className="flex items-center gap-3 text-xs uppercase font-bold tracking-widest text-white/80 cursor-pointer hover:bg-white/5 p-2 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={gameSettings.heatmap}
-                              onChange={(e) => {
-                                const heatmap = e.target.checked;
-                                setGameSettings(prev => ({ ...prev, heatmap }));
-                              }}
-                              className="accent-emerald-500 w-4 h-4 cursor-pointer"
-                            />
-                            Profit Heatmap
-                          </label>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="rail:relative" {...gameMenuHover}>
-                      <button
-                         onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
-                         className="px-2 rail:px-3 py-1.5 rail:py-2 short:py-1 whitespace-nowrap border border-white/10 text-white/40 text-2xs font-black uppercase tracking-wider rail:tracking-widest hover:border-aero-yellow hover:text-white transition-all"
-                      >
-                        [ Menu ]
-                      </button>
-                      {isGameMenuOpen && (
-                        <div className="absolute top-full rail:top-12 right-2 rail:right-0 mt-2 w-56 bg-aero-carbon border border-white/10 shadow-2xl flex flex-col z-[100] py-2">
-                          <GameMenuOption label="Continue" onClick={() => setIsGameMenuOpen(false)} />
-                          <GameMenuOption label="Save Game" onClick={() => { setShowSaveMenu(true); setIsGameMenuOpen(false); }} />
-                          <GameMenuOption label="Settings" onClick={() => { setIsSettingsOpen(true); setIsGameMenuOpen(false); }} />
-                          {fullscreen.supported && (
-                            <GameMenuOption label={fullscreen.active ? 'Exit Full Screen' : 'Full Screen'} onClick={() => { fullscreen.toggle(); setIsGameMenuOpen(false); }} />
-                          )}
-                          <div className="h-px bg-white/10 my-2"></div>
-                          <GameMenuOption label="Return to Main Menu" onClick={() => { setIsGameMenuOpen(false); setShowExitSavePrompt(true); }} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Active Events Banner. The banner itself already existed; what it
-                    never said was how much longer the event runs, which is the one
-                    thing a player needs in order to decide whether to ride it out. */}
-                {activeWorldEvents.map((ev, i) => (
-                   <div key={`idx-${i}`} className="bg-aero-warn/10 border-b border-aero-warn/40 text-white/80 px-4 py-2.5 flex items-center gap-4 z-40 shrink-0 shadow-2xl">
-                      <AlertTriangle className="text-aero-warn shrink-0" size={16} />
-                      <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-4 min-w-0">
-                         <span className="font-black uppercase tracking-widest text-aero-warn text-2xs shrink-0">{ev.title}</span>
-                         <span className="text-2xs md:text-xs font-bold text-white/70 shrink-0 whitespace-nowrap">
-                            {ev.monthsLeft} {ev.monthsLeft === 1 ? 'month' : 'months'} left
-                         </span>
-                         {ev.chosen && ev.chosen.cost > 0 && (
-                            <span className="text-2xs font-mono font-bold text-aero-good shrink-0 whitespace-nowrap border border-aero-good/40 px-1.5 py-0.5">
-                               {ev.chosen.label}
-                            </span>
-                         )}
-                         {!ev.chosen && ev.choices && ev.choices.length > 0 && (
-                            <button
-                               type="button"
-                               onClick={() => setPendingDecision(ev)}
-                               className="text-2xs font-mono font-bold text-black bg-aero-yellow hover:bg-white shrink-0 whitespace-nowrap px-1.5 py-0.5 border-0 cursor-pointer transition-colors"
-                            >
-                               Decision pending
-                            </button>
-                         )}
-                         <span className="text-2xs md:text-xs opacity-70 truncate font-mono">{ev.description}</span>
-                         <span className="text-2xs md:text-xs font-bold text-aero-warn ml-auto whitespace-nowrap">
-                            {/* What the player actually gets: bought relief softens the
-                                event's demand hit (see eventReliefFactor). The banner
-                                used to show the raw hit even after paying for relief. */}
-                            {(() => {
-                              const softens = ev.chosen?.softensDemand;
-                              const effective = softens && ev.demandMultiplier < 1
-                                ? ev.demandMultiplier + (1 - ev.demandMultiplier) * softens
-                                : ev.demandMultiplier;
-                              const pct = (m: number) => `${m >= 1 ? '+' : ''}${((m - 1) * 100).toFixed(0)}%`;
-                              return `PAX${eventRegionLabel(ev) ? ` (${eventRegionLabel(ev)})` : ''}: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''}${ev.regions?.length ? '' : ` | FUEL: ${pct(ev.fuelMultiplier)}`}`;
-                            })()}
-                         </span>
-                      </div>
-                   </div>
-                ))}
-
+                <GameTopBar
+                  capital={capital}
+                  fleet={fleet}
+                  routes={routes}
+                  reputation={reputation}
+                  globalDemandData={globalDemandData}
+                  fuelData={fuelData}
+                  formatDate={formatDate}
+                  currentDateOffset={currentDateOffset}
+                  messagesHover={messagesHover}
+                  setIsMessagesOpen={setIsMessagesOpen}
+                  isMessagesOpen={isMessagesOpen}
+                  setMessages={setMessages}
+                  messages={messages}
+                  unreadMessagesCount={unreadMessagesCount}
+                  edition={edition}
+                  setIsNewspaperOpen={setIsNewspaperOpen}
+                  setSelectedMessage={setSelectedMessage}
+                  mapSettingsHover={mapSettingsHover}
+                  setIsMapSettingsOpen={setIsMapSettingsOpen}
+                  isMapSettingsOpen={isMapSettingsOpen}
+                  showYourRoutes={showYourRoutes}
+                  setShowYourRoutes={setShowYourRoutes}
+                  showRivalRoutes={showRivalRoutes}
+                  setShowRivalRoutes={setShowRivalRoutes}
+                  showLiveTraffic={showLiveTraffic}
+                  setShowLiveTraffic={setShowLiveTraffic}
+                  gameSettings={gameSettings}
+                  setGameSettings={setGameSettings}
+                  gameMenuHover={gameMenuHover}
+                  setIsGameMenuOpen={setIsGameMenuOpen}
+                  isGameMenuOpen={isGameMenuOpen}
+                  setShowSaveMenu={setShowSaveMenu}
+                  setIsSettingsOpen={setIsSettingsOpen}
+                  fullscreen={fullscreen}
+                  setShowExitSavePrompt={setShowExitSavePrompt}
+                  activeWorldEvents={activeWorldEvents}
+                  setPendingDecision={setPendingDecision}
+                />
                 {/* Main Viewport */}
                 <div className="flex-1 relative bg-aero-panel">
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
@@ -4674,6 +2342,7 @@ export default function App() {
                       a window it is not there to point at. */}
                   <div className="absolute inset-0 z-0 bg-aero-panel" data-tour={activeWindow === 'map' && !isPlanningRoute ? 'map' : undefined}>
                      <ErrorBoundary label="World Map" onReset={() => setSessionKey(Date.now())} resetLabel="RELOAD MAP">
+                      <React.Suspense fallback={<LazyFallback label="World Map" />}>
                       <WorldMap
                         sessionKey={sessionKey}
                         zoom={zoom}
@@ -4699,6 +2368,7 @@ export default function App() {
                         routeProfits={routeHeat.profit}
                         routePax={routeHeat.pax}
                       />
+                      </React.Suspense>
                      </ErrorBoundary>
                   </div>
                   
@@ -4723,17 +2393,7 @@ export default function App() {
                           onSelectAircraft={setSelectedPurchasingAircraft}
                           debugMode={debugMode}
                           classesOpen={aircraftClassesOpen}
-                          market={{
-                            currentDateOffset,
-                            capital,
-                            classesOpen: aircraftClassesOpen,
-                            orders: career.orders,
-                            soldUsedIds: career.usedSold.offset === currentDateOffset ? career.usedSold.ids : [],
-                            rivalNames: aiAirlines.map(a => a.name),
-                            onOrder: handlePlaceOrder,
-                            onCancelOrder: handleCancelOrder,
-                            onBuyUsed: handleBuyUsed
-                          }}
+                          market={market}
                         />
                         {selectedPurchasingAircraft && (
                           <ConfigurePurchaseView
@@ -4788,8 +2448,8 @@ export default function App() {
                           transferFlows={network.flowsByRoute}
                           cancellations={routeCancellations}
                           airportManagement={airportManagement}
-                          currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                          currentMonth={1 + (currentDateOffset % 12)}
+                          currentYear={yearOf(currentDateOffset)}
+                          currentMonth={monthOf(currentDateOffset)}
                           difficulty={difficulty}
                           airlineCode={airlineCode}
                         />
@@ -4799,7 +2459,7 @@ export default function App() {
                     <ViewFrame label="Airports" onReset={backToMap}>
                       <React.Suspense fallback={<LazyFallback label="Airports" />}>
                         <AirportsView
-                          currentYear={1960 + Math.floor(currentDateOffset / 12)}
+                          currentYear={yearOf(currentDateOffset)}
                           onSelectAirport={setSelectedAirport}
                           airportManagement={airportManagement}
                           aiAirlines={aiAirlines}
@@ -4812,7 +2472,7 @@ export default function App() {
                       <React.Suspense fallback={<LazyFallback label="Career" />}>
                         <MyCompanyView
                           page={activeWindow === 'progression' ? 'progression' : 'company'}
-                          onOpenProgression={() => openWindow('progression')}
+                          onOpenProgression={onOpenProgression}
                           capital={capital}
                           reportHistory={reportHistory}
                           reputation={reputation}
@@ -4825,10 +2485,10 @@ export default function App() {
                           goalSnapshot={goalSnapshot}
                           onChooseGoal={handleChooseGoal}
                           research={career.research}
-                          onStartResearch={handleStartResearch}
+                          onStartResearch={onStartResearch}
                           score={score}
                           hall={hall}
-                          onRetire={handleRetire}
+                          onRetire={onRetire}
                           moraleBonus={researchFx.moraleBonus}
                           annualGoal={annualGoal}
                           fleetValue={fleetValue}
@@ -4862,8 +2522,6 @@ export default function App() {
                         <CompetitorsView
                           aiAirlines={aiAirlines}
                           playerCapital={capital}
-                          playerFleetCount={fleet.length}
-                          playerRoutesCount={routes.length}
                           playerAirlineName={airlineName}
                           playerAirlineCode={airlineCode}
                           playerHub={selectedHub}
@@ -4874,20 +2532,11 @@ export default function App() {
                           playerColor={branding.color}
                           currentDateOffset={currentDateOffset}
                           rank={career.rank}
-                          onTakeover={handleTakeover}
+                          onTakeover={onTakeover}
                         />
                       </React.Suspense>
                     </ViewFrame>
-                  ) : activeWindow !== 'map' && (
-                    <ViewFrame contentClassName="w-full h-full flex flex-col items-center p-4 overflow-y-auto pt-8">
-                      <h2 className="text-4xl font-mono text-aero-yellow uppercase tracking-[0.3em] font-black drop-shadow-lg mb-4 relative z-10">{activeWindow.replace('-', ' ')}</h2>
-                      <div className="max-w-4xl w-full text-white/70 text-center uppercase tracking-widest font-mono text-sm leading-relaxed border border-aero-yellow/20 shadow-2xl p-12 bg-black/60 backdrop-blur-xl rounded-sm relative z-10">
-                        <div className="text-aero-yellow mb-4 text-xs font-black tracking-[0.4em]">SYSTEM MODULE [{activeWindow.toUpperCase()}]</div>
-                        <div className="opacity-50">INITIALIZATION STRATEGY DEPLOYED.</div>
-                        <div className="animate-pulse text-aero-yellow/80 mt-4">AWAITING UPLINK...</div>
-                      </div>
-                    </ViewFrame>
-                  )}
+                  ) : null}
                   </React.Fragment>
 
                   {isEditingSchedule && editingRouteId && (() => {
@@ -4907,7 +2556,6 @@ export default function App() {
                         allRoutes={routes}
                         fleet={fleet}
                         airportManagement={airportManagement}
-                        airlineCode={airlineCode}
                         onSave={(updatedRoute) => {
                           setRoutes(prev => prev.map(r => r.id === updatedRoute.id ? updatedRoute : r));
                         }}
@@ -4948,7 +2596,6 @@ export default function App() {
                         allRoutes={routes}
                         fleet={fleet}
                         airportManagement={airportManagement}
-                        airlineCode={airlineCode}
                         onSave={(updatedRoute) => {
                           handleReassignRoutes(
                             [{
@@ -4976,6 +2623,7 @@ export default function App() {
                      <ErrorBoundary label="Cabin Editor" onReset={() => setEditingCabinRouteId(null)} resetLabel="CLOSE EDITOR">
                       <React.Suspense fallback={<LazyFallback label="Cabin Editor" />}>
                       <RoutePlannerView
+                        debugMode={debugMode}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -4986,8 +2634,8 @@ export default function App() {
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
-                        currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                        currentMonth={1 + (currentDateOffset % 12)}
+                        currentYear={yearOf(currentDateOffset)}
+                        currentMonth={monthOf(currentDateOffset)}
                         difficulty={difficulty}
                         initialRouteId={editingCabinRouteId}
                         isEditingCabinOnly={true}
@@ -5009,6 +2657,7 @@ export default function App() {
                      <ErrorBoundary label="Pricing Editor" onReset={() => setEditingPricingRouteId(null)} resetLabel="CLOSE EDITOR">
                       <React.Suspense fallback={<LazyFallback label="Pricing Editor" />}>
                       <RoutePlannerView
+                        debugMode={debugMode}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -5019,8 +2668,8 @@ export default function App() {
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
-                        currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                        currentMonth={1 + (currentDateOffset % 12)}
+                        currentYear={yearOf(currentDateOffset)}
+                        currentMonth={monthOf(currentDateOffset)}
                         difficulty={difficulty}
                         initialRouteId={editingPricingRouteId}
                         isEditingPricingOnly={true}
@@ -5042,6 +2691,7 @@ export default function App() {
                      <ErrorBoundary label="Route Planner" onReset={() => setIsPlanningRoute(false)} resetLabel="CLOSE PLANNER">
                       <React.Suspense fallback={<LazyFallback label="Route Planner" />}>
                       <RoutePlannerView
+                        debugMode={debugMode}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -5074,8 +2724,8 @@ export default function App() {
                         onStepChange={setPlanningStep}
                         onScheduleChange={setPlanningSchedule}
                         onClassConfigsChange={setPlanningClassConfigs}
-                        currentYear={1960 + Math.floor(currentDateOffset / 12)}
-                        currentMonth={1 + (currentDateOffset % 12)}
+                        currentYear={yearOf(currentDateOffset)}
+                        currentMonth={monthOf(currentDateOffset)}
                         difficulty={difficulty}
                         aiAirlines={aiAirlines}
                         airlineCode={airlineCode}
@@ -5097,13 +2747,6 @@ export default function App() {
                           setPlanningClassConfigs(createDefaultPlanningClassConfigs());
                           setEditingRouteId(null);
                           setIsPlanningRoute(false);
-                          // Assign hub to aircraft if not present
-                          setFleet(prev => prev.map(p => {
-                            if (p.registration === route.aircraft && !p.hubId) {
-                              return { ...p, hubId: route.origin };
-                            }
-                            return p;
-                          }));
                         }}
                         onClose={() => {
                           setIsPlanningRoute(false);
@@ -5234,140 +2877,23 @@ export default function App() {
       {/* Settings Modal */}
       {isSettingsOpen && (
         // Above the floating Next Month button (z-[1000]), which otherwise sat on top of the dialog.
-        <div className="fixed inset-0 z-[1001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 short:p-2">
-          {/* Scrolls when taller than the screen, as on a phone held sideways;
-              otherwise its top was cut off with no way to reach it. There the
-              settings also go into two columns, so most of them fit at once. */}
-          <div className="bg-aero-carbon border border-white/10 shadow-2xl p-4 short:p-3 max-w-lg short:max-w-3xl w-full max-h-full overflow-y-auto custom-scrollbar short:relative">
-            <h2 className="text-2xl short:text-lg font-mono text-aero-yellow uppercase tracking-[0.2em] font-black drop-shadow-md mb-3 short:mb-2">System Settings</h2>
-            
-            <div className="flex flex-col gap-4 short:grid short:grid-cols-2 short:grid-rows-[repeat(3,auto)] short:grid-flow-col short:gap-x-5 short:gap-y-2">
-              <div className="space-y-4 short:space-y-2">
-                <label className="block text-2xs font-black uppercase tracking-[0.3em] text-white/60">Number Format (Decimal Separator)</label>
-                <div className="flex gap-4 short:gap-2">
-                  {[".", ","].map((symbol) => (
-                    <button
-                      key={symbol}
-                      onClick={() => setDecimalSymbol(symbol as DecimalSymbol)}
-                      className={`flex-1 p-4 short:p-2 font-mono text-xl short:text-base border uppercase tracking-widest transition-colors ${decimalSymbol === symbol ? 'bg-aero-yellow text-black border-aero-yellow font-black' : 'bg-aero-carbon border-white/10 text-white hover:border-aero-yellow'}`}
-                    >
-                      {symbol === "." ? "1.234" : "1,234"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase tracking-widest text-white/50 font-bold flex justify-between">
-                  <span>UI Scale Factor</span>
-                  <span className="text-aero-yellow">{uiScaleSetting.toFixed(2)}x</span>
-                </label>
-                <input 
-                  type="range" 
-                  min="0.5" 
-                  max="1.5" 
-                  step="0.05" 
-                  value={uiScaleSetting}
-                  onChange={(e) => setUiScaleSetting(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
-                />
-                <span className="text-2xs text-white/30 font-mono">Adjusts the scale of the user interface. Auto-scaling is also active for small screens.</span>
-              </div>
-
-              <div className="flex flex-col gap-4 pt-4 border-t border-white/10 short:contents">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-widest text-white/50 font-bold flex justify-between">
-                    <span>Autosave Interval (Months)</span>
-                    <span className="text-aero-yellow">{autosaveInterval} Months</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="12" 
-                    step="1" 
-                    value={autosaveInterval}
-                    onChange={(e) => setAutosaveInterval(parseInt(e.target.value))}
-                    className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-aero-yellow"
-                  />
-                  <div className="flex justify-between text-2xs text-white/30 uppercase tracking-widest">
-                    <span>1 Month</span>
-                    <span>12 Months</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 bg-white/5 p-4 short:p-2.5 select-none cursor-pointer border border-transparent hover:border-white/10 transition-colors" onClick={() => setAutosaveOverwrite(!autosaveOverwrite)}>
-                  <div className={`w-5 h-5 flex items-center justify-center border ${autosaveOverwrite ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
-                    {autosaveOverwrite && <Check size={14} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Overwrite Save File</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">If active, pending autosaves overwrite the current archive. If disabled, each autosave registers as a new clone.</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-white/10 short:pt-0 short:border-t-0">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={gameSettings.newspaper}
-                  onClick={() => setGameSettings(prev => ({ ...prev, newspaper: !prev.newspaper }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
-                >
-                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.newspaper ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
-                    {gameSettings.newspaper && <Check size={14} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Monthly Newspaper</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Show The Aviation Times after every month. When off, the latest edition is still under Messages and on the monthly report.</span>
-                  </div>
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={gameSettings.tutorial}
-                  onClick={() => setGameSettings(prev => ({ ...prev, tutorial: !prev.tutorial }))}
-                  className="w-full flex items-center gap-3 bg-white/5 p-4 short:p-2.5 text-left select-none border border-transparent hover:border-white/10 transition-colors"
-                >
-                  <div className={`w-5 h-5 shrink-0 flex items-center justify-center border ${gameSettings.tutorial ? 'bg-aero-yellow border-aero-yellow text-black' : 'border-white/20'}`}>
-                    {gameSettings.tutorial && <Check size={14} />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-white uppercase tracking-widest font-black">Tutorial for New Games</span>
-                    <span className="text-2xs text-white/40 max-w-sm leading-tight mt-1">Start every new game with the guided tour of the first steps. Skipping it ends the tour for that game only.</span>
-                  </div>
-                </button>
-                {(view === 'game' || view === 'monthly-overview') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTutorialStep(restartTutorial());
-                      setIsSettingsOpen(false);
-                      if (view === 'monthly-overview') setView('game');
-                      openWindow('map');
-                    }}
-                    className="self-start flex items-center gap-2 px-3 py-2 border border-white/10 text-white/70 hover:text-aero-yellow hover:border-aero-yellow/50 font-mono text-2xs uppercase tracking-widest transition-colors"
-                  >
-                    <RotateCcw size={12} aria-hidden="true" /> Restart tutorial in this game
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Sideways: beside the title rather than below everything. */}
-            <div className="mt-8 flex justify-end short:mt-0 short:absolute short:top-3 short:right-3">
-              <button 
-                onClick={() => setIsSettingsOpen(false)}
-                className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-2 short:py-1 font-mono text-sm tracking-widest uppercase transition-all"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsDialog
+          setDecimalSymbol={setDecimalSymbol}
+          decimalSymbol={decimalSymbol}
+          uiScaleSetting={uiScaleSetting}
+          setUiScaleSetting={setUiScaleSetting}
+          autosaveInterval={autosaveInterval}
+          setAutosaveInterval={setAutosaveInterval}
+          setAutosaveOverwrite={setAutosaveOverwrite}
+          autosaveOverwrite={autosaveOverwrite}
+          gameSettings={gameSettings}
+          setGameSettings={setGameSettings}
+          view={view}
+          setTutorialStep={setTutorialStep}
+          setIsSettingsOpen={setIsSettingsOpen}
+          setView={setView}
+          openWindow={openWindow}
+        />
       )}
 
       {showExitSavePrompt && (() => {
@@ -5483,327 +3009,18 @@ export default function App() {
     </div>
       {/* Outside the scaled root: the tutorial measures and draws in screen pixels. */}
       {tutorialStep !== null && !tutorialHidden && (
+        <React.Suspense fallback={null}>
         <TutorialOverlay
           step={tutorialStep}
           state={tutorialState}
           currentView={tutorialView}
-          layoutKey={`${view}|${activeWindow}|${isPlanningRoute}|${selectedAirport?.id ?? ''}|${isEditingSchedule}|${finalUiScale}`}
+          layoutKey={`${view}|${activeWindow}|${isPlanningRoute}|${isEditingSchedule}|${finalUiScale}`}
           onGoTo={goToTutorialStep}
           onNavigate={showTutorialTarget}
         />
+        </React.Suspense>
       )}
     </div>
     </AccountScopeContext.Provider>
-  );
-}
-
-/** Why a new-game field cannot be changed: the scenario picked above sets it. */
-function ScenarioLock({ scenario }: { scenario?: Scenario }) {
-  if (!scenario) return null;
-  return (
-    <span className="flex items-center gap-1 text-3xs font-mono uppercase tracking-widest text-aero-yellow/70 whitespace-nowrap">
-      <Lock size={10} aria-hidden="true" /> Set by {scenario.title}
-    </span>
-  );
-}
-
-function ThemeMenuButton({ 
-  index, 
-  label, 
-  onClick, 
-  primary = false,
-  disabled = false 
-}: { 
-  index: string, 
-  label: string, 
-  onClick: () => void,
-  primary?: boolean,
-  disabled?: boolean
-}) {
-  return (
-    <button 
-      onClick={disabled ? undefined : onClick}
-      className={`
-        group flex items-center p-1 transition-all
-        ${disabled ? 'opacity-30 cursor-not-allowed grayscale' : 'cursor-pointer'}
-        ${primary 
-          ? 'bg-white text-black hover:bg-aero-yellow' 
-          : 'bg-aero-carbon border border-white/10 text-white hover:border-aero-yellow'}
-      `}
-    >
-      <span className={`
-        px-4 py-3 short:py-2 font-mono text-sm transition-all
-        ${primary 
-          ? 'bg-black text-white group-hover:bg-white group-hover:text-black' 
-          : 'bg-white/10 text-white/40 group-hover:bg-aero-yellow/20 group-hover:text-aero-yellow'}
-      `}>
-        {index}
-      </span>
-      {/* Tighter letter spacing on narrow phones, so "Resume Game" stays on one line. */}
-      <span className="flex-1 text-left px-3 font-black uppercase tracking-wider sm:tracking-widest text-lg italic whitespace-nowrap">
-        {label}
-      </span>
-      <span className={`pr-6 opacity-0 group-hover:opacity-100 transition-all ${primary ? 'text-black' : 'text-aero-yellow'}`}>
-        →
-      </span>
-    </button>
-  );
-}
-
-/**
- * A real <button>, not a clickable <div>. The whole primary navigation used to
- * be unreachable by keyboard, and the 7.5px label was the smallest type in the
- * interface.
- *
- * On upright phones all eight buttons share one row of the bottom bar, and on
- * sideways phones one short column, so both use `shortLabel` (when given),
- * smaller icons and tighter letter spacing. With the browser's address bar
- * also showing (tiny) even that column is too tall, so the labels move to
- * the tooltip and screen readers and only the icons remain.
- */
-function SidebarIcon({ icon, label, shortLabel, active = false, onClick, tour }: { icon: ReactNode, label: string, shortLabel?: string, active?: boolean, onClick?: () => void, tour?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-tour={tour}
-      title={label}
-      aria-current={active ? 'page' : undefined}
-      className={`
-      py-1.5 short:py-1 tiny:py-1.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all flex-auto rail:flex-none rail:w-full select-none bg-transparent border-0
-      focus-visible:outline focus-visible:outline-2 focus-visible:outline-aero-yellow
-      ${active ? 'text-aero-yellow opacity-100' : 'text-white opacity-40 hover:opacity-100 hover:text-white'}
-    `}>
-      <div className={`p-1 rail:p-1.5 short:p-0.5 rounded-sm border border-transparent [&_svg]:size-6 rail:[&_svg]:size-7 short:[&_svg]:size-5 ${active ? 'bg-aero-yellow/10 border-aero-yellow/20' : 'bg-transparent'}`}>
-        {icon}
-      </div>
-      <span className="text-3xs font-black tracking-tight rail:tracking-widest short:tracking-tight text-center px-0.5 rail:px-1 short:px-0.5 leading-[1.2] tiny:sr-only">
-        <span className="rail:hidden short:inline">{shortLabel ?? label}</span>
-        <span className="hidden rail:inline short:hidden">{label}</span>
-      </span>
-    </button>
-  );
-}
-
-/**
- * `goodDirection` says which way is good news for this particular stat, because
- * the sign alone does not: demand falling is bad, the fuel price falling is
- * good. Thin wrapper over the shared StatTile so the top stats bar uses the
- * same tile component as every KPI card elsewhere in the app.
- */
-function GameStat(
-  { label, value, trend, goodDirection = 'up' }:
-  { label: string, value: string, trend?: string, goodDirection?: 'up' | 'down' }
-) {
-  return <StatTile size="sm" compact label={label} value={value} trend={trend} goodDirection={goodDirection} />;
-}
-
-function GameMenuOption({ label, onClick }: { label: string, onClick: () => void }) {
-  return (
-    <button 
-      onClick={onClick}
-      className="text-left px-4 py-3 text-2xs font-mono uppercase tracking-widest text-white/70 hover:text-aero-yellow hover:bg-white/5 transition-all outline-none"
-    >
-      {label}
-    </button>
-  );
-}
-
-
-function SaveLoadOverlay({ 
-  saves, 
-  onSave, 
-  onLoad, 
-  onDelete, 
-  onClose, 
-  mode 
-}: { 
-  saves: SaveMetadata[], 
-  onSave?: (id?: string, name?: string) => void, 
-  onLoad?: (id: string) => void, 
-  onDelete: (id: string) => void, 
-  onClose: () => void,
-  mode: 'save' | 'load'
-}) {
-  const [saveName, setSaveName] = useState("");
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-
-  const handleAction = () => {
-    if (mode === 'save') {
-      if (selectedSlot) {
-        setShowOverwriteConfirm(true);
-      } else {
-        onSave?.(undefined, saveName);
-      }
-    } else {
-      if (selectedSlot) {
-        onLoad?.(selectedSlot);
-      }
-    }
-  };
-
-  const handleConfirmOverwrite = () => {
-    onSave?.(selectedSlot || undefined, saveName);
-    setShowOverwriteConfirm(false);
-  };
-
-  const handleConfirmDelete = () => {
-    if (showDeleteConfirm) {
-      onDelete(showDeleteConfirm);
-      if (selectedSlot === showDeleteConfirm) setSelectedSlot(null);
-      setShowDeleteConfirm(null);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[10000] bg-black/90 flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-aero-panel border border-white/10 w-full max-w-lg overflow-hidden flex flex-col shadow-2xl"
-      >
-        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
-           <h2 className="text-aero-yellow font-black uppercase tracking-[0.2em] text-2xs">{mode === 'save' ? 'Operation: PERSISTENCE' : 'Operation: RESTORATION'}</h2>
-           <button onClick={onClose} className="text-white/40 hover:text-white"><X size={20}/></button>
-        </div>
-
-        <div className="flex-1 p-4 overflow-y-auto no-scrollbar max-h-[60vh]">
-          <div className="grid gap-2 mb-3">
-            {saves.length === 0 ? (
-              <div className="text-white/20 font-mono text-xs p-12 text-center border border-dashed border-white/5 uppercase tracking-widest">
-                No telemetry archives discovered
-              </div>
-            ) : (
-              [...saves].sort((a, b) => b.timestamp - a.timestamp).map(slot => (
-                <div 
-                  key={slot.id}
-                  onClick={() => {
-                    setSelectedSlot(slot.id);
-                    if (mode === 'save') setSaveName(slot.name);
-                  }}
-                  className={`group p-4 border transition-all cursor-pointer flex justify-between items-center ${selectedSlot === slot.id ? 'bg-aero-yellow/10 border-aero-yellow shadow-2xl' : 'bg-white/5 border-white/5 hover:border-white/20'}`}
-                >
-                  <div className="flex flex-col">
-                    <span className={`text-sm font-bold uppercase tracking-tight ${selectedSlot === slot.id ? 'text-aero-yellow' : 'text-white'}`}>{slot.name}</span>
-                    <span className="text-2xs font-mono text-white/30">{new Date(slot.timestamp).toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {mode === 'load' && selectedSlot === slot.id && <ChevronRight className="text-aero-yellow" size={16} />}
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(slot.id); }}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-white/20 border border-transparent hover:text-aero-yellow/60 hover:border-white/20 hover:bg-aero-panel transition-all rounded-sm"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {mode === 'save' && (
-            <div className="space-y-4">
-              <div className="h-px bg-white/10"></div>
-              <div className="space-y-2">
-                <label className="text-2xs uppercase font-bold tracking-[0.2em] text-white/40">ARCHIVE_NAME_INPUT</label>
-                <input 
-                  type="text" 
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  placeholder="Designate save archive..."
-                  className="w-full bg-black border border-white/10 p-4 text-white font-mono text-sm focus:outline-none focus:border-aero-yellow/50 transition-all placeholder:text-white/10"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 bg-black/40 border-t border-white/5 flex gap-4">
-          <button 
-            onClick={onClose}
-            className="flex-1 py-4 border border-white/10 text-white font-black uppercase tracking-widest hover:bg-white/5 transition-all text-xs"
-          >
-            Back
-          </button>
-          <button 
-            onClick={handleAction}
-            disabled={mode === 'save' ? !saveName.trim() : !selectedSlot}
-            className={`flex-1 py-4 font-black uppercase tracking-widest transition-all text-xs ${mode === 'save' ? 'bg-aero-yellow text-black hover:bg-white' : 'bg-aero-yellow text-black hover:bg-white'} disabled:opacity-30`}
-          >
-            {mode === 'save' ? 'Save' : 'Load'}
-          </button>
-        </div>
-
-        <AnimatePresence>
-          {showOverwriteConfirm && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/95 flex items-center justify-center p-4 z-[100]"
-            >
-              <div className="text-center space-y-6 max-w-sm">
-                 <div className="flex justify-center">
-                    <AlertTriangle className="text-aero-yellow/60" size={64} />
-                 </div>
-                 <div className="space-y-2">
-                   <h3 className="text-white text-xl font-bold uppercase tracking-tight">Overwrite Archive?</h3>
-                   <p className="text-white/40 text-sm italic">Initializing this sequence will permanently erase the prior telemetry state for "{saves.find(s => s.id === selectedSlot)?.name}".</p>
-                 </div>
-                 <div className="flex gap-4 w-full">
-                   <button 
-                     onClick={() => setShowOverwriteConfirm(false)}
-                     className="flex-1 py-3 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-xs"
-                   >
-                     Back
-                   </button>
-                   <button 
-                     onClick={handleConfirmOverwrite}
-                     className="flex-1 py-3 bg-aero-carbon text-white font-bold uppercase tracking-widest hover:bg-aero-carbon transition-all text-xs shadow-2xl"
-                   >
-                     Overwrite
-                   </button>
-                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {showDeleteConfirm && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/95 flex items-center justify-center p-4 z-[100]"
-            >
-              <div className="text-center space-y-6 max-w-sm">
-                 <div className="flex justify-center">
-                    <Trash2 className="text-aero-yellow/60" size={64} />
-                 </div>
-                 <div className="space-y-2">
-                   <h3 className="text-white text-xl font-bold uppercase tracking-tight">Erase Archive?</h3>
-                   <p className="text-white/40 text-sm italic">Are you sure you want to delete this telemetry archive? This action cannot be undone.</p>
-                 </div>
-                 <div className="flex gap-4 w-full">
-                   <button 
-                     onClick={() => setShowDeleteConfirm(null)}
-                     className="flex-1 py-3 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-xs"
-                   >
-                     Back
-                   </button>
-                   <button 
-                     onClick={handleConfirmDelete}
-                     className="flex-1 py-3 bg-aero-carbon text-white font-bold uppercase tracking-widest hover:bg-aero-carbon transition-all text-xs shadow-2xl"
-                   >
-                     Delete
-                   </button>
-                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-    </div>
   );
 }

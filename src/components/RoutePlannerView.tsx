@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
-import { Plane, ChevronRight, Map as MapIcon, ArrowRightLeft, Search, Settings, Plus, Minus, Check, ChevronDown, ChevronUp, Utensils, Wifi, Users, Save, FolderOpen, AlertTriangle, Eye, EyeOff, SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { Plane, ChevronRight, Map as MapIcon, Search, Plus, Minus, Check, ChevronDown, ChevronUp, Save, FolderOpen, AlertTriangle, Eye, EyeOff, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
-import { AirportInfrastructure, ManagementLevel } from '../App';
-import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
+import type { AirportInfrastructure, ManagementLevel } from '../lib/gameTypes';
+import { SERVICE_OPTIONS } from '../data/catering';
 import { RouteConfigOverlay } from './RouteConfigOverlay';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
-import { RoutePlannerProvider, usePlanner } from './routePlanner/RoutePlannerContext';
+import { RoutePlannerProvider, usePlanner, type PlannerUiState } from './routePlanner/RoutePlannerContext';
 import type { PlannerSelection } from './routePlanner/plannerState';
 import { CabinConfigDialogs } from './routePlanner/CabinConfigDialogs';
 import { AircraftImage } from './AircraftImage';
@@ -15,8 +15,8 @@ import { loadAircraftImagesMap } from '../lib/imageUtils';
 // The component used to declare a near-identical ScheduledTrip that shadowed
 // this one, differing only in groupId being required. One type now.
 import type { ConfigOutput } from './ConfigurePurchaseView';
-import type { ScheduledTrip } from './RouteScheduleEditView';
-import { readJson, readString, writeJson } from '../lib/safeStorage';
+import type { ScheduledTrip } from '../lib/gameTypes';
+import { readJson, writeJson } from '../lib/safeStorage';
 import {
   NO_DESTINATION_FILTERS,
   activeDestinationFilterCount,
@@ -26,7 +26,7 @@ import {
 } from '../lib/destinationFilter';
 
 const HIDDEN_AIRCRAFT_KEY = 'planner_hidden_aircraft';
-import { dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
+import { blockMinutes, rawBlockMinutes, dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { createTimerBag } from '../lib/timerBag';
 import {
@@ -45,7 +45,6 @@ import {
   getFlightTimeClass,
   getCateringOpt,
   getMultiOptionSum,
-  TIME_CLASS_SAT_MULTIPLIERS,
   calculateDemand,
   calculateBasePrices,
   eventRegionalFactor,
@@ -58,7 +57,7 @@ import {
   toStoredRouteMetrics,
   marketKey,
   buildRivalRoutesByPair,
-  RouteOffer,
+  RouteOffer
 } from '../lib/financeUtils';
 import { NEUTRAL_PLAYER_MODIFIERS, routeDemandFactor, type PlayerModifiers } from '../lib/gameState';
 import { priceDraftInNetwork, type NetworkEnv } from '../lib/transferUtils';
@@ -77,7 +76,7 @@ const flightNumberBase = (value: string, fallback: number) => {
 interface Props {
   airports: Airport[];
   fleet: OwnedAircraft[];
-  routes: import('../App').SimulatedRoute[];
+  routes: import('../lib/gameTypes').SimulatedRoute[];
   airportManagement: Record<string, AirportInfrastructure>;
   capital: number;
   initialOriginId?: string;
@@ -120,6 +119,8 @@ interface Props {
   initialClassConfigs?: Record<string, { catering: string[][], extras: string[], service: string[] }>;
   isEditingCabinOnly?: boolean;
   isEditingPricingOnly?: boolean;
+  /** Shows the demand and pricing breakdowns; the game's debug setting. */
+  debugMode?: boolean;
   currentYear: number;
   currentMonth: number;
   difficulty: string;
@@ -132,7 +133,7 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
     <div className={`py-1.5 px-2 border transition-colors flex items-center justify-between ${disabled ? 'bg-white/[0.02] border-white/5 opacity-50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
       <div className="flex flex-col w-24 shrink-0">
         <span className="text-3xs font-bold text-white uppercase tracking-widest">{label}</span>
-        <span className="text-4xs text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${cost.toLocaleString()}${costSuffix}` : 'FREE'}</span>
+        <span className="text-4xs text-aero-yellow/70 font-mono mt-0.5">{cost > 0 ? `$${formatNumber(cost)}${costSuffix}` : 'FREE'}</span>
       </div>
       <div className="flex items-center gap-2">
         {used !== undefined && (
@@ -165,25 +166,6 @@ function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, dis
     </div>
   );
 }
-
-function ConfigBox({ label, value }: { label: string, value: number }) {
-   return (
-      <div className="bg-black/40 border border-white/10 p-2 flex flex-col items-center justify-center">
-         <span className="text-4xs text-white/30 font-black uppercase tracking-widest mb-1">{label}</span>
-         <span className="text-xs font-black text-white">{value}</span>
-      </div>
-   );
-}
-
-function DetailMetric({ label, value, color }: { label: string, value: string, color?: string }) {
-   return (
-      <div className="flex flex-col gap-0.5">
-         <span className="text-2xs text-white/40 uppercase tracking-widest font-black">{label}</span>
-         <span className={`text-base font-black italic tracking-tighter ${color || 'text-white'}`}>{value}</span>
-      </div>
-   );
-}
-
 
 /**
  * The wizard's state lives in RoutePlannerProvider; see
@@ -225,11 +207,12 @@ const aircraftImageName = (ac: OwnedAircraft) =>
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
   onUnlockManagement, airportLock, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, fuelPrice: playerFuelPrice, rivalOffers = NO_RIVAL_OFFERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
-  initialOriginId, initialDestId, initialSelectedReg, initialStep, initialRouteId,
+  initialOriginId, initialDestId, initialSelectedReg, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
   aiAirlines = NO_AI_AIRLINES,
-  airlineCode = "NE"
+  airlineCode = "NE",
+  debugMode = false
 }: Props) {
   const airportsMap = useMemo(() => {
     const m = new Map<string, Airport>();
@@ -280,14 +263,18 @@ function RoutePlannerInner({
     }, 0);
   };
 
-  const getAirportBonus = (airportId: string | null) => {
-    return 0; // Removed level-based bonus
-  };
-
   // Everything below reads the wizard state from the provider. The local names
   // are unchanged on purpose: the 3,000 lines of JSX further down did not have
   // to be touched, which is what makes this reviewable.
   const { selection, dispatch, ui, setUi } = usePlanner();
+
+  /**
+   * A useState-style setter for one field of the planner's interface state:
+   * it takes the new value, or a function of the current one.
+   */
+  const uiSetter = <K extends keyof PlannerUiState>(key: K) =>
+    (next: PlannerUiState[K] | ((prev: PlannerUiState[K]) => PlannerUiState[K])) =>
+      setUi(key, typeof next === 'function' ? (next as (prev: PlannerUiState[K]) => PlannerUiState[K])(ui[key]) : next);
   const { step, originId, destId, selectedReg, schedule, classConfigs, ticketPrices, validationMsg } = selection;
 
   const setStep = (s: number) => {
@@ -295,17 +282,15 @@ function RoutePlannerInner({
     onStepChange?.(s);
   };
   const showSuccess = ui.showSuccess;
-  const setShowSuccess = (v: any) => setUi('showSuccess', typeof v === 'function' ? v(ui.showSuccess) : v);
+  const setShowSuccess = uiSetter('showSuccess');
   const isFinalizing = ui.isFinalizing;
-  const setIsFinalizing = (v: any) => setUi('isFinalizing', typeof v === 'function' ? v(ui.isFinalizing) : v);
+  const setIsFinalizing = uiSetter('isFinalizing');
   const activeConfigClass = ui.activeConfigClass;
-  const setActiveConfigClass = (v: any) => setUi('activeConfigClass', typeof v === 'function' ? v(ui.activeConfigClass) : v);
+  const setActiveConfigClass = uiSetter('activeConfigClass');
   const expandedSections = ui.expandedSections;
-  const setExpandedSections = (v: any) => setUi('expandedSections', typeof v === 'function' ? v(ui.expandedSections) : v);
+  const setExpandedSections = uiSetter('expandedSections');
   const takeControl = ui.takeControl;
-  const setTakeControl = (v: any) => setUi('takeControl', typeof v === 'function' ? v(ui.takeControl) : v);
-  const expandedMealCats = ui.expandedMealCats;
-  const setExpandedMealCats = (v: any) => setUi('expandedMealCats', typeof v === 'function' ? v(ui.expandedMealCats) : v);
+  const setTakeControl = uiSetter('takeControl');
   const setClassConfigs = (
     next: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)
   ) => {
@@ -316,13 +301,7 @@ function RoutePlannerInner({
   };
 
   useEffect(() => {
-    if (initialRouteId && (!initialClassConfigs || JSON.stringify(initialClassConfigs) === JSON.stringify({
-      general: { catering: [['none']], extras: ['none'], service: ['none'] },
-      economy: { catering: [['none']], extras: ['none'], service: ['none'] },
-      premium: { catering: [['none']], extras: ['none'], service: ['none'] },
-      business: { catering: [['none']], extras: ['none'], service: ['none'] },
-      first: { catering: [['none']], extras: ['none'], service: ['none'] }
-    }))) {
+    if (initialRouteId && (!initialClassConfigs || JSON.stringify(initialClassConfigs) === JSON.stringify(DEFAULT_CLASS_CONFIGS))) {
       const r = routes.find(rt => rt.id === initialRouteId);
       if (r && r.classConfigs) {
         setClassConfigs(r.classConfigs);
@@ -335,20 +314,8 @@ function RoutePlannerInner({
     onClassConfigsChange?.(classConfigs);
   }, [classConfigs, onClassConfigsChange]);
 
-  const showConfigSaveModal = ui.showConfigSaveModal;
-  const setShowConfigSaveModal = (v: any) => setUi('showConfigSaveModal', typeof v === 'function' ? v(ui.showConfigSaveModal) : v);
-  const showConfigLoadModal = ui.showConfigLoadModal;
-  const setShowConfigLoadModal = (v: any) => setUi('showConfigLoadModal', typeof v === 'function' ? v(ui.showConfigLoadModal) : v);
-  const newConfigName = ui.newConfigName;
-  const setNewConfigName = (v: any) => setUi('newConfigName', typeof v === 'function' ? v(ui.newConfigName) : v);
-
-
-
-
-
-
-
-
+  const setShowConfigSaveModal = uiSetter('showConfigSaveModal');
+  const setShowConfigLoadModal = uiSetter('showConfigLoadModal');
 
   const setOriginId = (id: string | null) => {
     dispatch({ type: 'selectOrigin', originId: id });
@@ -389,7 +356,7 @@ function RoutePlannerInner({
     if (incoming && selectedOrigin && selectedDest) {
       adapt = {
         durMin: sharedFlightDurationMinutes(selectedOrigin, selectedDest, incoming),
-        turnoverMin: incoming.class === 'Regional' ? 30 : incoming.class === 'Widebody' ? 90 : 60
+        turnoverMin: turnoverForClass(incoming.class)
       };
 
       const dist = Math.round(calculateDistance(
@@ -397,7 +364,7 @@ function RoutePlannerInner({
         selectedDest.coords[0], selectedDest.coords[1]
       ));
       if (incoming.maxRange < dist) {
-        validationMsg = `AIRCRAFT RANGE VIOLATION: Range is ${incoming.maxRange.toLocaleString()} km but distance is ${dist.toLocaleString()} km.`;
+        validationMsg = `AIRCRAFT RANGE VIOLATION: Range is ${formatNumber(incoming.maxRange)} km but distance is ${formatNumber(dist)} km.`;
       } else if (incoming.icaoCode > selectedDest.maxIcaoCode || incoming.icaoCode > selectedOrigin.maxIcaoCode) {
         validationMsg = 'AIRCRAFT CLASS EXCEEDS PORT CAPACITY';
       }
@@ -454,16 +421,15 @@ function RoutePlannerInner({
   }, [initialRouteId]);
 
   const originSearch = ui.originSearch;
-  const setOriginSearch = (v: any) => setUi('originSearch', typeof v === 'function' ? v(ui.originSearch) : v);
+  const setOriginSearch = uiSetter('originSearch');
   const destSearch = ui.destSearch;
-  const setDestSearch = (v: any) => setUi('destSearch', typeof v === 'function' ? v(ui.destSearch) : v);
-  const debugMode = readString('airline_debug_mode') === 'true';
+  const setDestSearch = uiSetter('destSearch');
   const showDemandDebug = ui.showDemandDebug;
-  const setShowDemandDebug = (v: any) => setUi('showDemandDebug', typeof v === 'function' ? v(ui.showDemandDebug) : v);
+  const setShowDemandDebug = uiSetter('showDemandDebug');
   const showPricingDebug = ui.showPricingDebug;
-  const setShowPricingDebug = (v: any) => setUi('showPricingDebug', typeof v === 'function' ? v(ui.showPricingDebug) : v);
+  const setShowPricingDebug = uiSetter('showPricingDebug');
   const destSortBy = ui.destSortBy;
-  const setDestSortBy = (v: any) => setUi('destSortBy', typeof v === 'function' ? v(ui.destSortBy) : v);
+  const setDestSortBy = uiSetter('destSortBy');
   const destFilters = ui.destFilters;
   const setDestFilters = (v: DestinationFilters) => setUi('destFilters', v);
   const destFiltersOpen = ui.destFiltersOpen;
@@ -471,7 +437,7 @@ function RoutePlannerInner({
   const setDestRange = (key: 'distance' | 'business' | 'tourism', bound: keyof RangeFilter, value: string) =>
     setDestFilters({ ...destFilters, [key]: { ...destFilters[key], [bound]: value } });
   const aircraftSearch = ui.aircraftSearch;
-  const setAircraftSearch = (v: any) => setUi('aircraftSearch', typeof v === 'function' ? v(ui.aircraftSearch) : v);
+  const setAircraftSearch = uiSetter('aircraftSearch');
   const setTicketPrices = (
     next: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)
   ) => {
@@ -507,7 +473,7 @@ function RoutePlannerInner({
   function getLongestFreeBlock(aircraftRegistration: string) {
     const aircraftRoutes = routes.filter(r => r.aircraft === aircraftRegistration && r.id !== initialRouteId);
     const occupied = aircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+      const cycleMin = rawBlockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + Math.ceil(cycleMin / 5) * 5 };
     }) || []).sort((a, b) => a.start - b.start);
@@ -600,22 +566,22 @@ function RoutePlannerInner({
       return blockTime <= longestFree;
     });
 
-    return [...list].sort((a, b) => {
+    // The figure each airport is sorted by, worked out once per airport
+    // rather than twice per comparison. Largest first; the default is tourism
+    // and business combined.
+    const sortValue = (a: Airport) => {
       if (destSortBy === 'distance') {
-        const distA = selectedOrigin ? calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]) : 0;
-        const distB = selectedOrigin ? calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], b.coords[0], b.coords[1]) : 0;
-        return distB - distA; // Large to small
+        return selectedOrigin ? calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], a.coords[0], a.coords[1]) : 0;
       }
-      
-      const statsA = getAirportStats(a, currentYear);
-      const statsB = getAirportStats(b, currentYear);
-      
-      if (destSortBy === 'tourism') return statsB.tourism - statsA.tourism;
-      if (destSortBy === 'business') return statsB.business - statsA.business;
-      
-      // Default: combined
-      return (statsB.tourism + statsB.business) - (statsA.tourism + statsA.business);
-    });
+      const stats = getAirportStats(a, currentYear);
+      if (destSortBy === 'tourism') return stats.tourism;
+      if (destSortBy === 'business') return stats.business;
+      return stats.tourism + stats.business;
+    };
+    return list
+      .map(airport => ({ airport, value: sortValue(airport) }))
+      .sort((a, b) => b.value - a.value)
+      .map(entry => entry.airport);
   }, [airports, destSearch, destFilters, originId, selectedAircraft, selectedOrigin, routes, destSortBy, currentYear, airportLock, airportManagement]);
 
   // How many round trips the selected aircraft can still fly on this city pair:
@@ -623,7 +589,7 @@ function RoutePlannerInner({
   const tripCapacity = useMemo(() => {
     if (!selectedAircraft || !selectedOrigin || !selectedDest) return null;
     const dur = sharedFlightDurationMinutes(selectedOrigin, selectedDest, selectedAircraft);
-    const cycleMin = Math.ceil((30 + dur + turnoverForClass(selectedAircraft.class) + dur + 30) / 5) * 5;
+    const cycleMin = blockMinutes({ durMin: dur, turnoverMin: turnoverForClass(selectedAircraft.class) });
     const occupied = occupiedIntervals(routes, selectedAircraft.registration, initialRouteId);
     const perWeek = Math.max(0, findMaxFlightStarts(occupied, cycleMin, 2100).bestCount);
     const perDay = Math.floor(dailyRunCapacity(occupied, []) / cycleMin);
@@ -674,7 +640,7 @@ function RoutePlannerInner({
       (routesByAircraft.get(ac.registration) || []).forEach(r => {
          if (r.schedule) {
             r.schedule.forEach((s: any) => {
-               const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+               const cycleMin = rawBlockMinutes(s);
                usedMins += Math.ceil(cycleMin / 5) * 5;
             });
          }
@@ -718,7 +684,7 @@ function RoutePlannerInner({
     (routesByAircraft.get(ac.registration) || []).forEach(r => {
        if (r.schedule) {
           r.schedule.forEach((s: any) => {
-             const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+             const cycleMin = rawBlockMinutes(s);
              usedMins += cycleMin;
           });
        }
@@ -761,7 +727,7 @@ function RoutePlannerInner({
             </div>
           </div>
           <div className="text-2xs flex justify-between text-white/50 font-mono">
-            <span>{ac.type} • {ac.maxRange.toLocaleString()} km</span>
+            <span>{ac.type} • {formatNumber(ac.maxRange)} km</span>
             <span>{ac.capacity} pax</span>
           </div>
           <div className="mt-2 w-full bg-black h-1 rounded-sm overflow-hidden relative">
@@ -776,10 +742,8 @@ function RoutePlannerInner({
   const mgt = airportManagement || {};
   const originAvail = getInfraAvailability(selectedOrigin, currentYear);
   const destAvail = getInfraAvailability(selectedDest, currentYear);
-  const originMgtLvl = selectedOrigin ? (mgt[selectedOrigin.id]?.level || 0) : 0;
   const destMgtLvl = selectedDest ? (mgt[selectedDest.id]?.level || 0) : 0;
 
-  const isOneWay = false;
   const [isStopoverMode, setIsStopoverMode] = useState(false);
 
   const initialBase = React.useMemo(() => Math.floor(1000 + Math.random() * 8000), []);
@@ -799,14 +763,14 @@ function RoutePlannerInner({
   const isScheduleValid = (testSchedule: ScheduledTrip[]) => {
     const existingAircraftRoutes = selectedAircraft ? routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId) : [];
     const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+      const c = blockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + c };
     }) || []);
 
     for (const trip of testSchedule) {
       const tempStart = (trip.dayId - 1) * 1440 + trip.startHour * 60 + trip.startMin;
-      const cycle = Math.ceil(((trip as any).isOneWay ? (30 + trip.durMin + 30) : (30 + trip.durMin + trip.turnoverMin + trip.durMin + 30)) / 5) * 5;
+      const cycle = blockMinutes(trip);
       const newEnd = tempStart + cycle;
       for (const occ of occupied) {
         if (checkOverlap(tempStart, newEnd, occ.start, occ.end)) {
@@ -853,17 +817,6 @@ function RoutePlannerInner({
     }
   }
 
-  // Time displayed in clock: Preparation Start (30m before departure)
-  const prepStartHour = Math.floor(((flightHour * 60 + flightMinute - 30 + 1440) % 1440) / 60);
-  const prepStartMin = (flightHour * 60 + flightMinute - 30 + 1440) % 60;
-
-  const handleSetPrepTime = (h: number, m: number) => {
-    // Convert prep start back to departure time
-    const depTotalMin = (h * 60 + m + 30) % 1440;
-    setFlightHour(Math.floor(depTotalMin / 60));
-    setFlightMinute(depTotalMin % 60);
-  };
-
   const daysOfWeek = [
     { id: 1, label: 'Mon' },
     { id: 2, label: 'Tue' },
@@ -896,13 +849,13 @@ function RoutePlannerInner({
     const aircraftRoutes = routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId);
     let totalMinutes = aircraftRoutes.reduce((acc, r) => {
       const tripsMinutes = (r.schedule || []).reduce((sAcc, s) => {
-        const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+        const cycleMin = rawBlockMinutes(s);
         return sAcc + cycleMin;
       }, 0);
       return acc + tripsMinutes;
     }, 0);
     const draftMinutes = schedule.reduce((acc, s) => {
-      const cycleMin = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+      const cycleMin = rawBlockMinutes(s);
       return acc + cycleMin;
     }, 0);
     totalMinutes += draftMinutes;
@@ -1114,7 +1067,7 @@ function RoutePlannerInner({
 
     const existingAircraftRoutes = selectedAircraft ? routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId) : [];
     const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const c = Math.ceil((s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+      const c = blockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + c };
     }) || []);
@@ -1142,7 +1095,7 @@ function RoutePlannerInner({
       for (const trip of nextSchedule) {
         const tempStart = (trip as any)._tempStart;
         if (tempStart !== undefined) {
-          const cycle = Math.ceil(((trip as any).isOneWay ? (30 + trip.durMin + 30) : (30 + trip.durMin + trip.turnoverMin + trip.durMin + 30)) / 5) * 5;
+          const cycle = blockMinutes(trip);
           const newEnd = tempStart + cycle;
           for (const occ of occupied) {
             if (checkOverlap(tempStart, newEnd, occ.start, occ.end)) {
@@ -1228,12 +1181,12 @@ function RoutePlannerInner({
 
     const durMin = getFlightDurationMinutes();
     const turnMin = getTurnoverMinutes();
-    const cycleMin = Math.ceil((30 + durMin + turnMin + durMin + 30) / 5) * 5;
+    const cycleMin = blockMinutes({ durMin, turnoverMin: turnMin });
 
     let bestStartM = (flightHour * 60 + flightMinute);
     const existingAircraftRoutes = routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId);
     const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+      const c = blockMinutes(s);
       const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
       return { start, end: start + c };
     }) || []);
@@ -1269,7 +1222,7 @@ function RoutePlannerInner({
       const allEnds = [
         ...occupied.map(occ => (occ.end % 1440)),
         ...schedule.map(s => {
-          const c = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+          const c = rawBlockMinutes(s);
           return ((s.startHour * 60 + s.startMin) + Math.ceil(c / 5) * 5) % 1440;
         })
       ];
@@ -1419,15 +1372,15 @@ function RoutePlannerInner({
      }
      if (result.cost > 0 && capital < result.cost) {
        onNotify?.(
-         `${result.actualAmount} ${subType} slot${result.actualAmount === 1 ? '' : 's'} at ${airportId} cost $${Math.round(result.cost).toLocaleString('en-US')}, ` +
-         `but you only have $${Math.round(capital).toLocaleString('en-US')}. Nothing was bought.`
+         `${result.actualAmount} ${subType} slot${result.actualAmount === 1 ? '' : 's'} at ${airportId} cost $${formatNumber(Math.round(result.cost))}, ` +
+         `but you only have $${formatNumber(Math.round(capital))}. Nothing was bought.`
        );
        return;
      }
 
      // Paid for on the spot, like every other one-off cost; a sale refunds at once.
      if (result.cost !== 0) onSubtractCapital?.(result.cost, SLOT_CAPEX_LABEL);
-     onUpdateInfrastructure(airportId, result.infra);
+     onUpdateInfrastructure?.(airportId, result.infra);
   };
 
   // Reset and Auto-set optimal start time logic
@@ -1454,13 +1407,13 @@ function RoutePlannerInner({
 
     const durMin = getFlightDurationMinutes();
     const turnMin = getTurnoverMinutes();
-    const totalDurRaw = (30 + durMin + turnMin + durMin + 30);
+    const totalDurRaw = rawBlockMinutes({ durMin, turnoverMin: turnMin });
     const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
 
     const existingTrips = routes
       .filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId)
       .flatMap(r => r.schedule?.map(s => {
-          const exCycleRaw = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+          const exCycleRaw = rawBlockMinutes(s);
           const exCycle = Math.ceil(exCycleRaw / 5) * 5;
           const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
           return { start, end: start + exCycle };
@@ -1479,9 +1432,6 @@ function RoutePlannerInner({
 
     let bestScore = -1;
     let bestResult = { hour: 8, minute: 0, autoSchedule: [] as ScheduledTrip[] };
-
-    // If no existing trips, randomize or pick a set time that works
-    const noExisting = existingTrips.length === 0;
 
     for (let totalMin = 0; totalMin < 1440; totalMin += 5) {
       const h = Math.floor(totalMin / 60);
@@ -1563,8 +1513,6 @@ function RoutePlannerInner({
     return bestResult;
   };
 
-  const [showSuccessMsg, setShowSuccessMsg] = useState(false);
-
   const [multipleOps, setMultipleOps] = useState(1);
   const [maximizeFlights, setMaximizeFlights] = useState(false);
 
@@ -1596,9 +1544,7 @@ function RoutePlannerInner({
     ];
 
     return rawBlocks.flatMap(({ s, isBusy, orig, dest }) => {
-      const durMin = s.durMin;
-      const turnMin = s.turnoverMin;
-      const totalDurRaw = (s as any).isOneWay ? (30 + durMin + 30) : (30 + durMin + turnMin + durMin + 30);
+      const totalDurRaw = rawBlockMinutes(s);
       const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
       const blockStartAbs = s.startHour * 60 + s.startMin; 
       
@@ -1639,7 +1585,7 @@ function RoutePlannerInner({
   return (
     <div 
        className="absolute inset-0 z-50 p-2 lg:p-3 flex flex-col font-sans overflow-hidden bg-aero-panel-2 text-white"
-       style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98)), url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2000&auto=format&fit=crop")' }}
+       style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.98))' }}
     >
       {/* Success Message Overlay */}
       <AnimatePresence>
@@ -1805,7 +1751,7 @@ function RoutePlannerInner({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport(selectedOrigin)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => onGoToAirport?.(selectedOrigin)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
                        <button onClick={() => setOriginId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
                     </div>
                   </div>
@@ -1829,7 +1775,7 @@ function RoutePlannerInner({
                         </div>
                         {(airportManagement[selectedOrigin.id]?.level || 0) < 2 && (
                           <button 
-                             onClick={() => onUpdateInfrastructure(selectedOrigin.id, { ...airportManagement[selectedOrigin.id], autoBuyStands: !(airportManagement[selectedOrigin.id]?.autoBuyStands) })}
+                             onClick={() => onUpdateInfrastructure?.(selectedOrigin.id, { ...airportManagement[selectedOrigin.id], autoBuyStands: !(airportManagement[selectedOrigin.id]?.autoBuyStands) })}
                              className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedOrigin.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
                           >
                              AUTO-BUY: {airportManagement[selectedOrigin.id]?.autoBuyStands ? 'ON' : 'OFF'}
@@ -1855,7 +1801,7 @@ function RoutePlannerInner({
                         return (
                           <div className="mt-2 text-2xs text-white/50 space-y-1">
                             <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
-                            <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
+                            <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
                             <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                             <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-warn font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                           </div>
@@ -1976,7 +1922,7 @@ function RoutePlannerInner({
                        {/* Stats */}
                        <div className="grid grid-cols-2 gap-2 text-3xs">
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Efficiency</span><span className="font-bold">{selectedAircraft.efficiency}/100</span></div>
-                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Max Range</span><span className="font-bold">{selectedAircraft.maxRange.toLocaleString()} km</span></div>
+                          <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Max Range</span><span className="font-bold">{formatNumber(selectedAircraft.maxRange)} km</span></div>
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Gen. Cond</span><span className={`font-bold ${selectedAircraft.conditionGeneral < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionGeneral)}%</span></div>
                           <div className="bg-black/30 p-2 border border-white/5 rounded-sm flex justify-between items-center"><span className="text-white/40 uppercase tracking-widest">Int. Cond</span><span className={`font-bold ${selectedAircraft.conditionInterior < 50 ? 'text-aero-warn' : 'text-aero-yellow'}`}>{Math.floor(selectedAircraft.conditionInterior)}%</span></div>
                        </div>
@@ -2198,7 +2144,7 @@ function RoutePlannerInner({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       <button onClick={() => onGoToAirport(selectedDest)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
+                       <button onClick={() => onGoToAirport?.(selectedDest)} className="text-4xs text-white/50 hover:text-white py-1.5 px-2 border border-white/10" title="Go to Airport"><MapIcon size={10} /></button>
                        <button onClick={() => setDestId(null)} className="text-4xs text-aero-yellow py-1.5 px-2 border border-aero-yellow/20 hover:bg-aero-yellow hover:text-black">CHG</button>
                     </div>
                   </div>
@@ -2243,16 +2189,16 @@ function RoutePlannerInner({
                                    Interaction: {formatNumber(d.formulaVars.totalInteraction)}
                                  </div>
                                  <div className="flex justify-between items-center text-aero-yellow">
-                                   <span>ECONOMY:</span> <span>{d.economy.toLocaleString()} | BASE: ${basePrices.economy}</span>
+                                   <span>ECONOMY:</span> <span>{formatNumber(d.economy)} | BASE: ${basePrices.economy}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-aero-yellow">
-                                   <span>PREMIUM:</span> <span>{d.premium.toLocaleString()} | BASE: ${basePrices.premium}</span>
+                                   <span>PREMIUM:</span> <span>{formatNumber(d.premium)} | BASE: ${basePrices.premium}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-white/80">
-                                   <span>BUSINESS:</span> <span>{d.business.toLocaleString()} | BASE: ${basePrices.business}</span>
+                                   <span>BUSINESS:</span> <span>{formatNumber(d.business)} | BASE: ${basePrices.business}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-purple-400 font-bold border-b border-white/10 pb-1 mb-1">
-                                   <span>FIRST:</span> <span>{d.first.toLocaleString()} | BASE: ${basePrices.first}</span>
+                                   <span>FIRST:</span> <span>{formatNumber(d.first)} | BASE: ${basePrices.first}</span>
                                  </div>
                                  <div className="flex justify-between items-center text-white font-black text-sm pt-1">
                                    <span>MARKET DEMAND / WK (all airlines):</span> <span>{formatNumber(d.total)}</span>
@@ -2273,7 +2219,7 @@ function RoutePlannerInner({
                          <p className="text-xs text-aero-warn mb-3 max-w-sm leading-relaxed">{airportLock(selectedDest)}</p>
                        )}
                        <button
-                         onClick={() => onUnlockManagement(selectedDest.id, 1)}
+                         onClick={() => onUnlockManagement?.(selectedDest.id, 1)}
                          disabled={!!airportLock?.(selectedDest)}
                          className="px-3 py-3 bg-aero-panel-2 text-white font-black uppercase text-sm hover:bg-aero-panel-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                        >
@@ -2301,7 +2247,7 @@ function RoutePlannerInner({
                           </div>
                           {(airportManagement[selectedDest.id]?.level || 0) < 2 && (
                             <button 
-                               onClick={() => onUpdateInfrastructure(selectedDest.id, { ...airportManagement[selectedDest.id], autoBuyStands: !(airportManagement[selectedDest.id]?.autoBuyStands) })}
+                               onClick={() => onUpdateInfrastructure?.(selectedDest.id, { ...airportManagement[selectedDest.id], autoBuyStands: !(airportManagement[selectedDest.id]?.autoBuyStands) })}
                                className={`text-4xs uppercase tracking-widest px-2 py-0.5 border ${airportManagement[selectedDest.id]?.autoBuyStands ? 'border-aero-yellow text-aero-yellow bg-aero-yellow/10' : 'border-white/20 text-white/40'}`}
                             >
                                AUTO-BUY: {airportManagement[selectedDest.id]?.autoBuyStands ? 'ON' : 'OFF'}
@@ -2327,7 +2273,7 @@ function RoutePlannerInner({
                            return (
                              <div className="mt-2 text-2xs text-white/50 space-y-1">
                                <div className="flex justify-between"><span className="uppercase tracking-widest flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-aero-warn font-bold' : 'text-white'}>{sim.load.toFixed(1)}%</span></div>
-                               <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{sim.myPax.toLocaleString()} / {sim.cap.toLocaleString()}</span></div>
+                               <div className="flex justify-between"><span className="uppercase tracking-widest">Weekly Seats:</span><span className="text-white">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
                                <div className="w-full h-1 bg-white/5 overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-aero-warn' : 'bg-aero-yellow'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
                                <div className="flex justify-between"><span className="uppercase tracking-widest">SAT Impact:</span><span className={sim.sat < 0 ? 'text-aero-warn font-bold' : 'text-aero-yellow'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
                              </div>
@@ -2376,14 +2322,14 @@ function RoutePlannerInner({
                    </div>
                    <div className="flex justify-between font-mono text-xs text-white/70">
                      <span>{selectedOrigin.id}</span>
-                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
-                        {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0}
+                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                        {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
                    <div className="flex justify-between font-mono text-xs text-white/70">
                      <span>{selectedDest.id}</span>
-                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
-                        {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as any] || 0}
+                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-aero-warn' : 'text-aero-yellow font-bold'}>
+                        {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
                 </div>
@@ -2484,14 +2430,14 @@ function RoutePlannerInner({
 
                           const durMin = getFlightDurationMinutes();
                           const turnMin = getTurnoverMinutes();
-                          const totalDurRaw = (30 + durMin + turnMin + durMin + 30);
+                          const totalDurRaw = rawBlockMinutes({ durMin, turnoverMin: turnMin });
                           const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
                           
                           const newTrips: ScheduledTrip[] = [];
 
                           const existingAircraftRoutes = routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId);
                           const occupied = existingAircraftRoutes.flatMap(r => r.schedule?.map(s => {
-                            const c = Math.ceil(((s as any).isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+                            const c = blockMinutes(s);
                             const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
                             return { start, end: start + c };
                           }) || []).sort((a, b) => a.start - b.start);
@@ -2634,7 +2580,7 @@ function RoutePlannerInner({
                               const allEnds = [
                                 ...occupied.map(occ => (occ.end % 1440)),
                                 ...schedule.map(s => {
-                                  const c = s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30);
+                                  const c = rawBlockMinutes(s);
                                   return ((s.startHour * 60 + s.startMin) + Math.ceil(c / 5) * 5) % 1440;
                                 })
                               ];
@@ -2654,7 +2600,6 @@ function RoutePlannerInner({
                               }
 
                               for (const testM of testTimes) {
-                                let conflict = false;
                                 let validDays = 0;
                                 for (const d of daysOfWeek) {
                                   let currentAbs = (d.id - 1) * 1440 + testM;
@@ -2701,7 +2646,7 @@ function RoutePlannerInner({
                                   if (!r.schedule) continue;
                                   for (const s of r.schedule) {
                                     const exStart = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
-                                    const exCycle = Math.ceil((s.isOneWay ? (30 + s.durMin + 30) : (30 + s.durMin + s.turnoverMin + s.durMin + 30)) / 5) * 5;
+                                    const exCycle = blockMinutes(s);
                                     if (checkOverlap(newStart, newEnd, exStart, exStart + exCycle)) {
                                       conflict = true; break;
                                     }
@@ -2872,7 +2817,6 @@ function RoutePlannerInner({
 
             {/* Right Column: Timetable */}
             <div className="flex-none md:flex-1 h-[75dvh] md:h-auto border border-white/10 bg-black/60 flex flex-col overflow-hidden relative">
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1600&auto=format&fit=crop')] bg-cover opacity-[0.03] pointer-events-none"></div>
               
               {/* Header Days */}
               <div className="flex shrink-0 z-30">
@@ -2934,7 +2878,7 @@ function RoutePlannerInner({
                           
                           {allBlocks.filter(b => b.dayId === day.id).map(b => {
                               const startAbs = Math.round(b.s.startHour * 60 + b.s.startMin);
-                              const totalDurRaw = ((b.s as any).isOneWay ? (30 + b.s.durMin + 30) : (30 + b.s.durMin + b.s.turnoverMin + b.s.durMin + 30));
+                              const totalDurRaw = rawBlockMinutes(b.s);
                               const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
                               const endAbs = startAbs + cycleMin;
                               
@@ -3404,9 +3348,9 @@ function RoutePlannerInner({
               </div>
         )})()}
 
-        {step === 4 && financials && (() => {
+        {step === 4 && financials && selectedAircraft && selectedOrigin && selectedDest && (() => {
            const { 
-              dist, fuelPrice, flightLegs, weeklyFuelCost, weeklyCrewCost, weeklyInfraCost, 
+              dist, flightLegs, weeklyFuelCost, weeklyCrewCost, weeklyInfraCost, 
               originDepartures, destDepartures, originLandingFees, destLandingFees,
               originCheckInUnit, destCheckInUnit, originCheckInFees, destCheckInFees,
               originPaxFeeUnit, destPaxFeeUnit, originPaxHandlingFees, destPaxHandlingFees
@@ -3417,7 +3361,6 @@ function RoutePlannerInner({
            // block no longer recomputes the model on every keystroke.
            const displayFinancials = financials;
 
-           const totalExpenses = displayFinancials.estWeeklyCosts;
            const estProfit = displayFinancials.estWeeklyProfit;
            const paxPerWeek = displayFinancials.paxPerWeek;
            const maxRevenue = displayFinancials.estWeeklyRev;
@@ -3873,10 +3816,8 @@ function RoutePlannerInner({
                             // be a slider tick behind.
                             const stored = priceInNetwork(newRoute) ?? saveFinancials;
                             onSaveRoute({ ...newRoute, ...(stored ? toStoredRouteMetrics(stored) : {}) });
-                            setShowSuccessMsg(true);
                             later(() => {
                               onClose();
-                              setShowSuccessMsg(false);
                               setIsFinalizing(false);
                               setStep(1);
                               setOriginId(null);
@@ -3911,9 +3852,7 @@ function RoutePlannerInner({
                                 ticketPrices: ticketPrices || r.ticketPrices || { economy: 100 }
                               });
                             }
-                            setShowSuccessMsg(true);
                             later(() => {
-                              setShowSuccessMsg(false);
                               setIsFinalizing(false);
                               onClose();
                             }, 1500);

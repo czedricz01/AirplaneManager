@@ -36,7 +36,7 @@ import { logWarn, logError } from './debugLog';
 import { nextMessageId } from './messages';
 import { assignRivalColors, MAP_YELLOW } from './theme';
 import { fleetOwnershipCost } from './fleetCosts';
-import { formatCurrency } from './format';
+import { formatCurrency, yearOf, monthOf } from './format';
 import { crisisSeverity, crisisDepartures, growthFrozen, CRISIS_FROM } from './rivalCrisis';
 
 /**
@@ -148,8 +148,6 @@ const CASH_RESERVE: Record<Personality, number> = {
   flag: 10_000_000, boutique: 10_000_000, optimizer: 10_000_000, lcc: 5_000_000, expansionist: 5_000_000
 };
 
-const yearOf = (offset: number) => 1960 + Math.floor(offset / 12);
-const monthOf = (offset: number) => 1 + (offset % 12);
 
 const specById = new Map<string, Aircraft>(aircraftList.map(a => [a.id, a]));
 
@@ -851,7 +849,7 @@ export const simulateAiAirlinesTurn = (
 
     // Rivals insure and maintain their aircraft like the player does; an old
     // fleet, or one standing idle, costs them too.
-    const flyingRegs = new Set(newRoutes.map(r => r.aircraftReg));
+    const flyingRegs = new Set(newRoutes.map(r => r.aircraftReg).filter((reg): reg is string => typeof reg === 'string'));
     const upkeep = fleetOwnershipCost(
       newFleet.map(p => ({ registration: p.reg, basePrice: p.basePrice, purchasedAt: p.purchasedAt, family: p.family, type: p.type })),
       flyingRegs,

@@ -69,11 +69,7 @@ interface Props {
   airlineCode?: string;
 }
 
-const routesAirportsMap = (() => {
-  const map = new Map<string, ReturnType<typeof airportsMapAdjusted.get>>();
-  airportsMapAdjusted.forEach((a, id) => map.set(id, a));
-  return map;
-})();
+const routesAirportsMap = airportsMapAdjusted;
 
 interface RouteRowProps {
   route: SimulatedRoute;

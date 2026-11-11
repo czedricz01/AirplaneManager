@@ -16,6 +16,7 @@
  *
  * Everything here is pure; App.tsx applies the effects where they act.
  */
+import { formatNumber } from './format';
 import { MAX_RANK, clampRank, rankDef } from './airlineRank';
 import type { AircraftClassId } from './aircraftClasses';
 
@@ -182,8 +183,6 @@ export interface ResearchState {
   active: { id: string; startedOffset: number }[];
 }
 
-export const EMPTY_RESEARCH: ResearchState = { done: [], active: [] };
-
 /**
  * The state a new game starts with: the class projects of the ranks already
  * reached are done (a scenario that starts as a National Airline already flies
@@ -294,7 +293,7 @@ export function startBlocker(state: ResearchState, project: ResearchProject, ran
   const limit = maxParallel(rank);
   if (state.active.length >= limit) return `Only ${limit} project${limit === 1 ? '' : 's'} can run at once at this rank.`;
   const cost = projectCost(project, year);
-  if (capital < cost) return `Costs ${cost.toLocaleString('en-US')} dollars; the airline has less.`;
+  if (capital < cost) return `Costs ${formatNumber(cost)} dollars; the airline has less.`;
   return null;
 }
 

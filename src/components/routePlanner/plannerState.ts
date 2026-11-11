@@ -1,4 +1,4 @@
-import type { ScheduledTrip } from '../RouteScheduleEditView';
+import type { ScheduledTrip } from '../../lib/gameTypes';
 
 /**
  * The route planner's core selection state.

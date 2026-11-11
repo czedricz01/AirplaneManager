@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { hubFeeFactor, ownerIncome, rivalLandingFee, rivalLandingsPerWeek, rivalMayEnter } from './hubOwnership';
+import { hubFeeFactor, ownerIncome, rivalLandingFee, rivalLandingsPerWeek, ownedAirports } from './hubOwnership';
 import { hubQuality } from './transferUtils';
 import { getManagementUnlockCost, getAirportUpkeep } from './financeUtils';
 
@@ -45,9 +45,9 @@ test('the owner collects half the rivals\' landing fees, only at tier-3 airports
 });
 
 test('rivals may enter every airport except the player\'s tier-3 ones', () => {
-  assert.equal(rivalMayEnter('FRA', { FRA: { level: 3 } }), false);
-  assert.equal(rivalMayEnter('FRA', { FRA: { level: 2 } }), true);
-  assert.equal(rivalMayEnter('MAD', {}), true);
+  assert.equal(ownedAirports({ FRA: { level: 3 } }).has('FRA'), true);
+  assert.equal(ownedAirports({ FRA: { level: 2 } }).has('FRA'), false);
+  assert.equal(ownedAirports({}).has('MAD'), false);
 });
 
 test('a tier-3 airport\'s desks are cheaper than a tier-2 one\'s', () => {

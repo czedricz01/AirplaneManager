@@ -1,12 +1,11 @@
 import React, { useMemo } from 'react';
-import { formatCurrency, formatNumber } from '../lib/format';
+import { formatCurrency, formatNumber, yearOf } from '../lib/format';
 import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info, ArrowRightLeft } from 'lucide-react';
-import { ManagementLevel, AirportInfrastructure } from '../App';
+import type { AirportInfrastructure, SimulatedRoute } from '../lib/gameTypes';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
-import { SimulatedRoute } from '../App';
 
 import { getAirportUpkeep, getSlotPurchaseCost, SLOT_CAPEX_LABEL, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';
@@ -72,7 +71,7 @@ export function AirportDetailView({
   const [showMgmtModal, setShowMgmtModal] = React.useState(false);
 
   const level = airport.level;
-  const currentYear = 1960 + Math.floor(currentDateOffset / 12);
+  const currentYear = yearOf(currentDateOffset);
   
   const hubAutoUpgrade = infrastructure.level >= 2;
   // Same rules and prices as the route planner.
@@ -200,14 +199,6 @@ export function AirportDetailView({
 
   return (
     <div className="absolute inset-0 z-[2000] flex flex-col bg-aero-black overflow-hidden pointer-events-auto font-mono">
-      <div className="absolute inset-0 z-0 opacity-20 grayscale grayscale-100">
-        <img 
-          src="https://images.unsplash.com/photo-1556388158-158ea5ccacbd?q=80&w=1600&auto=format&fit=crop" 
-          className="w-full h-full object-cover" 
-          alt="Airport"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-aero-black via-aero-black/90 to-transparent"></div>
-      </div>
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
@@ -251,8 +242,8 @@ export function AirportDetailView({
             infrastructure.level === 1 ? 'Standard' :
             infrastructure.level === 2 ? 'Hub' : 'Owner'
           } />
-          <Metric label="Business" value={getAirportStats(airport, currentYear).business.toLocaleString()} />
-          <Metric label="Tourism" value={getAirportStats(airport, currentYear).tourism.toLocaleString()} />
+          <Metric label="Business" value={formatNumber(getAirportStats(airport, currentYear).business)} />
+          <Metric label="Tourism" value={formatNumber(getAirportStats(airport, currentYear).tourism)} />
           <Metric label="Weekly Seats" value={formatNumber(passengerData.total)} />
           <div className="flex flex-col relative group min-w-[100px]">
             <span className="text-white/30 text-3xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-white transition-colors" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>

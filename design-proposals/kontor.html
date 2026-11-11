@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Designvorschlag: C · Kontor</title>
+<!-- Vorschau: Schriften kommen hier von Google Fonts. In der App würden die Schriftdateien selbst ausgeliefert. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+table{border-collapse:collapse;width:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* ---- the sheet around the previews (not part of the design itself) ---- */
+.sheet{font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c1c1c;background:#e9e9e6;padding:32px 24px 64px}
+.sheet > header, .sheet > section{max-width:1320px;margin:0 auto}
+.sheet h1{font-size:28px;line-height:1.2;margin:0 0 6px;letter-spacing:-.01em}
+.sheet .lead{max-width:70ch;margin:0 0 24px;color:#3a3a3a}
+.sheet h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#555;margin:36px 0 12px;font-weight:600}
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.spec > div{background:#fff;border:1px solid #cfcfca;padding:16px 18px}
+.spec h3{font-size:14px;margin:0 0 8px}
+.spec ul{margin:0;padding-left:18px}
+.spec li{margin:2px 0}
+.spec code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:#f1f1ee;padding:1px 4px}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.sw li{border:1px solid #cfcfca;background:#fff;margin:0}
+.sw i{display:block;height:36px}
+.sw span{display:block;padding:5px 7px;font:12px/1.3 ui-monospace,Menlo,Consolas,monospace}
+.sw b{display:block;font:600 12px/1.3 system-ui,sans-serif}
+.frames{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame{border:1px solid #9a9a95;background:#fff;box-shadow:0 1px 0 #bdbdb8}
+.frame.desktop{width:1280px;max-width:100%;overflow:auto}
+.frame.desktop > .app{width:1280px;height:760px}
+.frame.mobile{width:362px}
+.frame.mobile > .app{width:360px;height:740px}
+.cap{font-size:12px;color:#555;margin:0 0 6px}
+.app{position:relative;overflow:hidden}
+
+.C{--bg:#FFFFFF;--side:#F3F5F2;--ink:#1B2420;--muted:#56625C;--line:#DDE2DC;--rule:#848F89;--primary:#1F5A44;--neg:#A8321F;--warn:#7A5200;--focus:#1F5A44;
+  background:var(--bg);color:var(--ink);font:15px/1.45 "Public Sans",system-ui,sans-serif;display:grid;grid-template-columns:212px 1fr}
+.C .serif{font-family:"Newsreader",Georgia,serif}
+.C .num{font-variant-numeric:tabular-nums lining-nums}
+.C .pos{color:var(--primary)} .C .neg{color:var(--neg)} .C .mut{color:var(--muted)}
+/* side: plain words, grouped */
+.C .side{background:var(--side);border-right:1px solid var(--line);padding:22px 0 18px;display:flex;flex-direction:column}
+.C .side .brand{padding:0 22px 18px;font:600 22px/1.1 "Newsreader",Georgia,serif}
+.C .side .brand small{display:block;font:400 13px/1.3 "Public Sans",sans-serif;color:var(--muted);margin-top:4px}
+.C .side .grp{font:600 12px/1 "Public Sans",sans-serif;color:var(--muted);padding:14px 22px 6px}
+.C .side a{display:block;padding:8px 22px;color:var(--ink);text-decoration:none;font-size:15px;border-left:3px solid transparent}
+.C .side a[aria-current]{font-weight:600;color:var(--primary);border-left-color:var(--primary);background:#fff}
+.C .side .when{margin-top:auto;padding:14px 22px 0;border-top:1px solid var(--line)}
+.C .side .when b{display:block;font:500 26px/1.1 "Newsreader",Georgia,serif}
+.C .side .when span{font-size:13px;color:var(--muted)}
+.C .btn{border:1px solid var(--rule);background:#fff;padding:0 16px;height:38px;font:600 14.5px/1 "Public Sans",sans-serif;border-radius:4px;color:var(--ink)}
+.C .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.C .side .btn{width:100%;margin-top:12px}
+/* main */
+.C .main{padding:26px 36px 0;min-width:0}
+.C .crumb{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--muted)}
+.C .crumb .sp{margin-left:auto;display:flex;gap:8px}
+.C h1.t{font:500 36px/1.1 "Newsreader",Georgia,serif;margin:6px 0 2px;letter-spacing:-.01em}
+.C .sumline{color:var(--muted);margin:0 0 16px}
+/* headline figures: big serif numbers, no boxes */
+.C .figs{display:grid;grid-template-columns:repeat(6,auto);justify-content:space-between;gap:24px;padding:14px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--line);margin:0 0 18px}
+.C .figs dt{font-size:13px;color:var(--muted)}
+.C .figs dd{margin:4px 0 0;font:500 26px/1 "Newsreader",Georgia,serif}
+.C .figs dd small{display:block;font:400 13px/1.2 "Public Sans",sans-serif;margin-top:5px}
+.C .sec{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+.C .sec h2{font:600 15px/1 "Public Sans",sans-serif;margin:0;text-transform:none;letter-spacing:0;color:var(--ink)}
+.C .sec .sp{margin-left:auto;display:flex;gap:8px;align-items:center}
+.C .field{border:1px solid var(--rule);background:#fff;padding:0 12px;height:38px;font:inherit;font-size:14.5px;border-radius:4px;color:var(--ink);width:210px}
+.C table.tt{font-size:14.5px}
+.C .tt th{font:600 13px/1.2 "Public Sans",sans-serif;color:var(--muted);text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);white-space:nowrap}
+.C .tt td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:baseline}
+.C .tt th.r,.C .tt td.r{text-align:right}
+.C .tt th:first-child,.C .tt td:first-child{padding-left:0}
+.C .tt th:last-child,.C .tt td:last-child{padding-right:0}
+.C .tt .pair{font:500 17px/1.1 "Newsreader",Georgia,serif}
+.C .tt tr.sel td{background:var(--side)}
+.C .tt tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--primary);padding-left:12px}
+.C .tag{display:inline-block;border:1px solid currentColor;border-radius:3px;padding:1px 6px;font-size:12px;font-weight:600;margin-left:8px}
+.C .tot td{border-bottom:0;border-top:1px solid var(--ink);font-weight:600}
+/* mobile */
+.C.m{display:flex;flex-direction:column;grid-template-columns:none}
+.C.m .bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.C.m .bar .brand{font:600 19px/1 "Newsreader",Georgia,serif}
+.C.m .bar .when{margin-left:auto;font-size:13.5px;color:var(--muted)}
+.C.m .bar .btn{height:44px}
+.C.m .main{padding:14px 16px 0;flex:1;overflow:hidden}
+.C.m h1.t{font-size:28px;margin-top:0}
+.C.m .sumline{margin-bottom:12px;font-size:14px}
+.C.m .figs{grid-template-columns:repeat(3,1fr);gap:12px 10px;padding:12px 0;margin-bottom:12px}
+.C.m .figs dd{font-size:20px}
+.C.m .figs dd small{font-size:12px;margin-top:3px}
+.C.m .sec .btn{height:44px}
+.C.m ul.rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.C.m ul.rows li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 0;border-bottom:1px solid var(--line);min-height:60px}
+.C.m ul.rows .pair{font:500 18px/1.2 "Newsreader",Georgia,serif}
+.C.m ul.rows .sub{color:var(--muted);font-size:13px}
+.C.m ul.rows .p{text-align:right;font-weight:600}
+.C.m ul.rows .l{text-align:right;color:var(--muted);font-size:13px}
+.C.m .dock{display:grid;grid-template-columns:1fr 1.3fr;gap:10px;padding:10px 16px;border-top:1px solid var(--line);background:var(--side)}
+.C.m .dock .btn{height:48px}
+
+</style>
+</head>
+<body>
+<div class="sheet">
+<header>
+<h1>C · Kontor</h1>
+<p class="lead">Hell und sachlich, wie ein Geschäftsbericht: Weiß, ein tiefes Grün, Serifenschrift für Überschriften und die großen Kennzahlen. Jede Ansicht beginnt mit einem Satz, der die Lage zusammenfasst, darunter die Zahlen. Die Navigation besteht nur aus Wörtern.</p>
+</header>
+<section>
+<h2>System</h2>
+<div class="spec">
+<div style="grid-column:1/-1"><h3>Farbpalette</h3><ul class="sw"><li><i style="background:#FFFFFF"></i><span><b>Grund</b>#FFFFFF</span></li><li><i style="background:#F3F5F2"></i><span><b>Seitenfläche</b>#F3F5F2</span></li><li><i style="background:#1B2420"></i><span><b>Text</b>#1B2420</span></li><li><i style="background:#56625C"></i><span><b>Nebentext</b>#56625C</span></li><li><i style="background:#DDE2DC"></i><span><b>Linie fein</b>#DDE2DC</span></li><li><i style="background:#848F89"></i><span><b>Linie Bedienelement</b>#848F89</span></li><li><i style="background:#1F5A44"></i><span><b>Grün (Akzent, Gewinn)</b>#1F5A44</span></li><li><i style="background:#A8321F"></i><span><b>Verlust</b>#A8321F</span></li><li><i style="background:#7A5200"></i><span><b>Warnung</b>#7A5200</span></li></ul></div>
+<div><h3>Typografie</h3><ul><li>Überschriften, Routennamen, große Zahlen: <b>Newsreader</b> (Serife)</li><li>Fließtext, Tabellen, Buttons: <b>Public Sans</b> mit Tabellenziffern</li><li>Keine Festbreitenschrift</li><li>Skala: 13 · 15 (Basis) · 17 · 26 · 36 px</li><li>Keine Großbuchstaben-Beschriftungen</li></ul></div>
+<div><h3>Abstände und Radien</h3><ul><li>Raster: 4 px; verwendet werden 8 · 12 · 16 · 22 · 36 px</li><li>Großzügiger Seitenrand: Desktop 36 px, Mobile 16 px</li><li>Radius 4 px für Buttons und Felder, 3 px für Marken</li><li>Keine Schatten; eine dunkle Linie über dem Zahlenblock, sonst feine Linien</li></ul></div>
+<div><h3>Komponenten</h3><ul><li><b>Tabellen:</b> luftige Zeilen, ausgeschriebene Städtenamen, Summenzeile</li><li><b>Marken:</b> „Loss", „Low load" als Text mit Umriss statt Farbpunkt</li><li><b>Buttons:</b> Grün gefüllt (Hauptaktion), weiß mit Umriss</li><li><b>Kennzahlen:</b> große Serifen-Zahlen ohne Kästen</li><li><b>Navigation:</b> Desktop Wortliste links, Mobile Menü-Schaltfläche oben und zwei Aktionen unten</li></ul></div>
+<div><h3>Vorteile für diese App</h3><ul><li>Am leichtesten zu verstehen: ausgeschriebene Namen, ein Satz zur Lage, Summenzeile</li><li>Geld und Ergebnis stehen im Vordergrund, passend für ein Wirtschaftsspiel</li><li>Unverwechselbar; weit weg vom üblichen Spiel-Dashboard</li><li>Status steht als Wort da, nicht nur als Farbe (gut für Screenreader und Farbfehlsichtige)</li></ul></div>
+<div><h3>Nachteile</h3><ul><li>Geringste Datendichte: 8 Routen passen gerade so, lange Listen brauchen mehr Scrollen</li><li>Wirkt wie Büro-Software; weniger „Luftfahrt-Gefühl"</li><li>Weltkarte auf weißem Grund braucht einen eigenen Rahmen</li><li>Mobile-Navigation liegt hinter einer Menü-Schaltfläche: ein Tipp mehr beim Wechsel der Ansicht</li></ul></div>
+</div>
+</section>
+<section>
+<h2>Vorschau: Routenübersicht im Spiel</h2>
+<div class="frames">
+<div><p class="cap">Desktop, 1280 × 760 px</p><div class="frame desktop"><div class="app C">
+<aside class="side"><div class="brand">Neo Airlines<small>NE · home airport Frankfurt</small></div><nav aria-label="Main"><div class="grp">Operations</div><a href="#">Map</a><a href="#">Buy aircraft</a><a href="#">My fleet</a><a href="#" aria-current="page">Routes</a><a href="#">Airports</a><div class="grp">Business</div><a href="#">My company</a><a href="#">Career</a><a href="#">Rivals</a></nav><div class="when"><span>Current month</span><b class="num">March 1967</b><button class="btn primary">Close month</button></div></aside>
+<div class="main">
+<div class="crumb"><span>Operations</span><span aria-hidden="true">/</span><span>Routes</span><div class="sp"><button class="btn">Messages (3)</button><button class="btn">Menu</button></div></div>
+<h1 class="t">Routes</h1>
+<p class="sumline">Eight routes carried 16,176 passengers a week. Two lost money last month.</p>
+<dl class="figs"><div><dt>Capital</dt><dd class="num">$38.42M<small class="pos">+$1.07M</small></dd></div><div><dt>Fleet</dt><dd class="num">9<small class="mut">1 idle</small></dd></div><div><dt>Routes</dt><dd class="num">8<small class="neg">2 at a loss</small></dd></div><div><dt>Reputation</dt><dd class="num">64<small class="pos">+2</small></dd></div><div><dt>Demand</dt><dd class="num">103%<small class="pos">+4.1%</small></dd></div><div><dt>Fuel</dt><dd class="num">$0.031/L<small class="neg">+6.2%</small></dd></div></dl>
+<div class="sec"><h2>All routes, by profit</h2><div class="sp"><input class="field" placeholder="Filter by airport" aria-label="Filter by airport"><button class="btn primary">New route</button></div></div>
+<table class="tt"><thead><tr><th>Route</th><th>Flight</th><th>Aircraft</th><th class="r">Flights a week</th><th class="r">Passengers a week</th><th class="r">Load</th><th class="r">Fare</th><th class="r">Profit last month</th></tr></thead><tbody><tr><td><span class="pair">Frankfurt – New York</span></td><td class="mut num">NE 400</td><td>Boeing 707-320B</td><td class="r num">14</td><td class="r num">2,212</td><td class="r num">84%</td><td class="r num">$412</td><td class="r num pos">+$486,300</td></tr><tr class="sel"><td><span class="pair">Frankfurt – London</span></td><td class="mut num">NE 112</td><td>Caravelle III</td><td class="r num">28</td><td class="r num">2,016</td><td class="r num">90%</td><td class="r num">$96</td><td class="r num pos">+$212,900</td></tr><tr><td><span class="pair">Frankfurt – Paris</span></td><td class="mut num">NE 130</td><td>Caravelle III</td><td class="r num">28</td><td class="r num">1,904</td><td class="r num">85%</td><td class="r num">$78</td><td class="r num pos">+$148,400</td></tr><tr><td><span class="pair">Frankfurt – Istanbul</span></td><td class="mut num">NE 236</td><td>Boeing 727-100</td><td class="r num">14</td><td class="r num">1,428</td><td class="r num">78%</td><td class="r num">$164</td><td class="r num pos">+$96,700</td></tr><tr><td><span class="pair">Frankfurt – Cairo</span><span class="tag" style="color:var(--warn)">Low load</span></td><td class="mut num">NE 318</td><td>Boeing 727-100</td><td class="r num">7</td><td class="r num">612</td><td class="r num">67%</td><td class="r num">$221</td><td class="r num pos">+$18,200</td></tr><tr><td><span class="pair">Frankfurt – Madrid</span><span class="tag neg">Loss</span></td><td class="mut num">NE 150</td><td>Caravelle III</td><td class="r num">14</td><td class="r num">742</td><td class="r num">66%</td><td class="r num">$139</td><td class="r num neg">−$4,600</td></tr><tr><td><span class="pair">Frankfurt – Stockholm</span><span class="tag neg">Loss</span></td><td class="mut num">NE 172</td><td>Fokker F27-100</td><td class="r num">14</td><td class="r num">398</td><td class="r num">59%</td><td class="r num">$118</td><td class="r num neg">−$31,800</td></tr><tr><td><span class="pair">Frankfurt – Vienna</span></td><td class="mut num">NE 104</td><td>Fokker F27-100</td><td class="r num">21</td><td class="r num">864</td><td class="r num">86%</td><td class="r num">$71</td><td class="r num pos">+$44,100</td></tr><tr class="tot"><td colspan="7">Total</td><td class="r num pos">+$970,200</td></tr></tbody></table>
+</div></div></div></div>
+<div><p class="cap">Mobile, 360 × 740 px</p><div class="frame mobile"><div class="app C m">
+<div class="bar"><button class="btn" aria-label="Open navigation">Menu</button><span class="brand">Neo Airlines</span><span class="when num">March 1967</span></div>
+<div class="main"><h1 class="t">Routes</h1><p class="sumline">Eight routes; two lost money last month.</p>
+<dl class="figs"><div><dt>Capital</dt><dd class="num">$38.42M<small class="pos">+$1.07M</small></dd></div><div><dt>Fleet</dt><dd class="num">9<small class="mut">1 idle</small></dd></div><div><dt>Routes</dt><dd class="num">8<small class="neg">2 at a loss</small></dd></div><div><dt>Reputation</dt><dd class="num">64<small class="pos">+2</small></dd></div><div><dt>Demand</dt><dd class="num">103%<small class="pos">+4.1%</small></dd></div><div><dt>Fuel</dt><dd class="num">$0.031/L<small class="neg">+6.2%</small></dd></div></dl>
+<div class="sec"><h2>By profit</h2></div>
+<ul class="rows"><li><span class="pair">Frankfurt – New York</span><span class="p num pos">+$486,300</span><span class="sub">NE 400 · Boeing 707-320B</span><span class="l num">84% load</span></li><li><span class="pair">Frankfurt – London</span><span class="p num pos">+$212,900</span><span class="sub">NE 112 · Caravelle III</span><span class="l num">90% load</span></li><li><span class="pair">Frankfurt – Paris</span><span class="p num pos">+$148,400</span><span class="sub">NE 130 · Caravelle III</span><span class="l num">85% load</span></li><li><span class="pair">Frankfurt – Istanbul</span><span class="p num pos">+$96,700</span><span class="sub">NE 236 · Boeing 727-100</span><span class="l num">78% load</span></li><li><span class="pair">Frankfurt – Cairo</span><span class="p num pos">+$18,200</span><span class="sub">NE 318 · Boeing 727-100</span><span class="l num">67% load</span></li></ul></div>
+<div class="dock"><button class="btn">New route</button><button class="btn primary">Close month</button></div>
+</div></div></div>
+</div>
+</section>
+</div>
+</body>
+</html>

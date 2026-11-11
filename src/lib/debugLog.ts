@@ -59,10 +59,6 @@ export function getLogEntries(): LogEntry[] {
   return buffer.slice();
 }
 
-export function clearLog() {
-  buffer.length = 0;
-}
-
 let installed = false;
 
 /**

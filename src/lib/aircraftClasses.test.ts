@@ -24,7 +24,7 @@ test('every aircraft of the catalogue has a class, and every class has aircraft'
 });
 
 test('the game starts with turboprop commuters to fly', () => {
-  const atStart = aircraftList.filter(a => a.firstDeliveryOffset <= 0 && a.lastDeliveryOffset >= 0 && classOfAircraft(a) === 'commuter');
+  const atStart = aircraftList.filter(a => a.firstDeliveryOffset <= 0 && (a.lastDeliveryOffset ?? 0) >= 0 && classOfAircraft(a) === 'commuter');
   assert.ok(atStart.length >= 2);
 });
 

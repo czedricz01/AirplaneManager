@@ -110,8 +110,6 @@ export const MAX_RANK = RANKS.length - 1;
  */
 export type GameMode = 'normal' | 'free';
 
-export const GAME_MODES: readonly GameMode[] = ['normal', 'free'];
-
 /** The rank of Free Mode: the top of the ladder, with nothing left to earn. */
 export const FREE_MODE_RANK = MAX_RANK;
 

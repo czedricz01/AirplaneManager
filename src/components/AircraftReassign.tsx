@@ -9,6 +9,7 @@
  *
  * Both only display what lib/aircraftAssignment decides.
  */
+import { formatNumber } from '../lib/format';
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Check, ChevronRight, Info } from 'lucide-react';
 import type { OwnedAircraft } from './MyFleetView';
@@ -96,7 +97,7 @@ function PlaneRow({
         <div className="text-3xs font-mono uppercase tracking-widest text-white/40 mt-0.5 flex flex-wrap gap-x-3">
           <span>{plane.class}</span>
           <span>{seatCount(plane)} seats</span>
-          <span>{plane.maxRange.toLocaleString('en-US')} km</span>
+          <span>{formatNumber(plane.maxRange)} km</span>
           <span>Hub {plane.hubId || 'none'}</span>
           {showBooked && <span>{busyPct}% of week booked</span>}
         </div>
@@ -131,7 +132,6 @@ export function AircraftSwapPanel(props: SwapProps) {
   }, [fleet, routes, plane.registration, moving, ctx]);
 
   const [selectedReg, setSelectedReg] = useState<string | null>(null);
-  const selected = candidates.find(c => c.plane.registration === selectedReg) || null;
 
   return (
     <div className="flex flex-col gap-3">

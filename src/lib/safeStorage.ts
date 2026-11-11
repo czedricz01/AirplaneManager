@@ -74,21 +74,3 @@ export function writeJson(key: string, value: unknown): boolean {
   }
   return writeString(key, serialised);
 }
-
-/**
- * A structured clone that does not go through JSON.
- *
- * Several places deep-cloned with `JSON.parse(JSON.stringify(x))`, which throws
- * on a circular reference and silently drops undefined, functions and Infinity.
- */
-export function deepClone<T>(value: T): T {
-  try {
-    return structuredClone(value);
-  } catch {
-    try {
-      return JSON.parse(JSON.stringify(value)) as T;
-    } catch {
-      return value;
-    }
-  }
-}

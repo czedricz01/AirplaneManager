@@ -142,8 +142,6 @@ export interface MilestonePerks {
   extraHubs: number;
 }
 
-export const NEUTRAL_PERKS: MilestonePerks = { slotPriceFactor: 1, extraHubs: 0 };
-
 /** What the milestones earned so far give the airline. */
 export function milestonePerks(earnedIds: readonly string[]): MilestonePerks {
   const earned = new Set(earnedIds);

@@ -23,7 +23,7 @@
  * takes its generator as a parameter so a test can fix it.
  */
 import type { GameDecision, Staff, Strike } from './gameState';
-import { formatCurrency } from './format';
+import { formatCurrency, yearOf } from './format';
 
 // --- Pay ---------------------------------------------------------------------
 
@@ -125,7 +125,7 @@ const LABOUR_MARKET: ReadonlyArray<{ from: number; to: number; points: number }>
 
 /** Pay points above the market wage the staff expect in the month at `offset`; negative in a slump. */
 export function labourMarketPremium(offset: number): number {
-  const year = 1960 + Math.floor(offset / 12);
+  const year = yearOf(offset);
   return LABOUR_MARKET.find(p => year >= p.from && year <= p.to)?.points ?? 0;
 }
 
