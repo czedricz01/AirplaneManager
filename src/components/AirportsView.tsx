@@ -58,7 +58,8 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
    * height is fixed by the cell padding, so a constant is enough and no
    * measurement pass is needed.
    */
-  const ROW_HEIGHT = 53;
+  // A table row: 44 px (Td's h-11) and its 1 px line.
+  const ROW_HEIGHT = 45;
   const OVERSCAN = 8;
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -191,15 +192,15 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
             scroll sideways instead of being squeezed into each other. Between
             md and lg the desktop layout is scaled from 1280px (lib/layout.ts),
             which is wider than this minimum, so only phones are affected. */}
-        <Table className="min-w-[720px] lg:min-w-0">
+        <Table className="rail:min-w-[720px] lg:rail:min-w-0 table-fixed rail:table-auto">
           <Thead>
-            <Th first sortable onClick={() => toggleSort('id')}>IATA {getSortIcon('id')}</Th>
+            <Th first className="w-14 rail:w-auto" sortable onClick={() => toggleSort('id')}>IATA {getSortIcon('id')}</Th>
             <Th sortable onClick={() => toggleSort('name')}>Name {getSortIcon('name')}</Th>
-            <Th sortable onClick={() => toggleSort('level')}>Level {getSortIcon('level')}</Th>
-            <Th sortable onClick={() => toggleSort('maxIcaoCode')}>ICAO {getSortIcon('maxIcaoCode')}</Th>
-            <Th sortable={false}>Slots (Avail/Total)</Th>
-            <Th sortable onClick={() => toggleSort('business')}>Business Demand {getSortIcon('business')}</Th>
-            <Th sortable onClick={() => toggleSort('tourism')}>Tourism Demand {getSortIcon('tourism')}</Th>
+            <Th className="w-16 rail:w-auto" sortable onClick={() => toggleSort('level')}>Level {getSortIcon('level')}</Th>
+            <Th className="hidden rail:table-cell" sortable onClick={() => toggleSort('maxIcaoCode')}>ICAO {getSortIcon('maxIcaoCode')}</Th>
+            <Th className="hidden rail:table-cell" sortable={false}>Slots free / total</Th>
+            <Th className="w-14 rail:w-auto" sortable onClick={() => toggleSort('business')}><span className="rail:hidden">Bus.</span><span className="hidden rail:inline">Business demand</span> {getSortIcon('business')}</Th>
+            <Th className="w-14 rail:w-auto" sortable onClick={() => toggleSort('tourism')}><span className="rail:hidden">Tour.</span><span className="hidden rail:inline">Tourism demand</span> {getSortIcon('tourism')}</Th>
           </Thead>
           <tbody>
             {filteredAndSortedAirports.length === 0 ? (
@@ -231,16 +232,16 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
                     className={`border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer ${lock ? 'opacity-60' : ''}`}
                     onClick={() => onSelectAirport?.(airport)}
                   >
-                    <Td className="pl-4 font-semibold text-accent">
+                    <Td className="pl-3 font-mono font-medium text-ink">
                       {airport.id}
                     </Td>
-                    <Td>{airport.name}</Td>
+                    <Td className="truncate">{airport.name}</Td>
                     <Td className="text-xs font-mono">
                       {airport.level}
                       {lock && <Lock size={11} className="inline ml-1.5 text-bad" aria-label="Closed at your rank" />}
                     </Td>
-                    <Td className="text-xs font-mono font-semibold">{airport.maxIcaoCode}</Td>
-                    <Td className="text-xs font-mono">{availableSlots} <span className="text-muted">/</span> {totalSlots}</Td>
+                    <Td className="hidden rail:table-cell text-xs font-mono">{airport.maxIcaoCode}</Td>
+                    <Td className="hidden rail:table-cell text-xs font-mono">{availableSlots} <span className="text-muted">/</span> {totalSlots}</Td>
                     <Td className="text-xs font-mono">{businessDemand}</Td>
                     <Td className="text-xs font-mono">{tourismDemand}</Td>
                   </tr>

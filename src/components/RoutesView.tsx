@@ -167,20 +167,28 @@ const RouteRow = React.memo(function RouteRow({
       onClick={() => onSelect(route)}
       className="border-b border-line hover:bg-raised transition-colors text-muted cursor-pointer"
     >
-      <Td className="pl-3 font-mono font-medium text-ink underline decoration-rule underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
-      <Td className="font-mono font-medium text-ink">{route.origin}</Td>
-      <Td className="font-mono font-medium text-ink">{route.destination}</Td>
-      <Td className="text-xs font-mono">{route.distance} km</Td>
-      <Td className="text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
-      <Td className="text-xs font-mono">{route.durMin ? <span title={`Time class ${getFlightTimeClass(route.durMin)}`}>{getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
-      <Td>
+      {/* Phones: one cell that says which route this is; the columns below are for wide screens. */}
+      <Td className="rail:hidden h-auto py-2 pl-0">
+        <div className="font-mono font-medium text-base text-ink">{route.origin}–{route.destination}</div>
+        <div className="text-xs text-muted">
+          {routeFlightNumber(route, airlineCode)}{aircraft ? ` · ${aircraft.manufacturer} ${aircraft.type}` : ''} · {route.weeklyFlights}/wk
+          <CancellationBadge cancellation={cancellation} />
+        </div>
+      </Td>
+      <Td className="hidden rail:table-cell pl-3 font-mono font-medium text-ink underline decoration-rule underline-offset-4">{routeFlightNumber(route, airlineCode)}</Td>
+      <Td className="hidden rail:table-cell font-mono font-medium text-ink">{route.origin}</Td>
+      <Td className="hidden rail:table-cell font-mono font-medium text-ink">{route.destination}</Td>
+      <Td className="hidden rail:table-cell text-xs font-mono">{route.distance} km</Td>
+      <Td className="hidden rail:table-cell text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
+      <Td className="hidden rail:table-cell text-xs font-mono">{route.durMin ? <span title={`Time class ${getFlightTimeClass(route.durMin)}`}>{getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
+      <Td className="hidden rail:table-cell">
         <div>{route.aircraft}</div>
         {aircraft && <div className="text-2xs text-muted">{aircraft.manufacturer} {aircraft.type}</div>}
       </Td>
-      <Td className="text-xs font-mono">{route.weeklyFlights}<CancellationBadge cancellation={cancellation} /></Td>
-      <Td className="text-xs font-mono">{route.paxPerWeek}</Td>
-      <Td className="text-xs font-mono"><ClassLine items={loadLine} /></Td>
-      <Td className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
+      <Td className="hidden rail:table-cell text-xs font-mono">{route.weeklyFlights}<CancellationBadge cancellation={cancellation} /></Td>
+      <Td className="hidden rail:table-cell text-xs font-mono">{route.paxPerWeek}</Td>
+      <Td className="hidden rail:table-cell text-xs font-mono"><ClassLine items={loadLine} /></Td>
+      <Td className="hidden rail:table-cell text-xs font-mono" onClick={(e) => e.stopPropagation()}>
         {onUpdatePricing && route.ticketPrices ? (
           <div className="flex flex-col gap-1">
             <ClassLine items={priceLine} />
@@ -201,7 +209,8 @@ const RouteRow = React.memo(function RouteRow({
           <span className="text-muted">-</span>
         )}
       </Td>
-      <Td className="pr-4 text-right text-xs font-mono">
+      <Td className="pr-0 rail:pr-4 text-right text-sm rail:text-xs font-mono">
+        <div className="rail:hidden text-xs"><ClassLine items={loadLine} /></div>
         {routeProfit !== undefined ? (
           <span className={routeProfit >= 0 ? 'text-good' : 'text-bad'}>
             {routeProfit >= 0 ? '+' : ''}{formatMoneyCompact(routeProfit)}
@@ -292,10 +301,10 @@ function RoutesViewImpl({
       <ViewHeader
         title={
           <>
-            ROUTES
+            Routes
             {onPlanRoute && (
               <Button variant="primary" size="md" onClick={onPlanRoute} className="ml-3">
-                Plan New Route +
+                New route
               </Button>
             )}
           </>
@@ -334,12 +343,11 @@ function RoutesViewImpl({
       />
 
       <TableScrollContainer>
-        {/* A minimum width on phones, upright or sideways, so the columns
-            scroll sideways instead of being squeezed into each other. Between
-            md and lg the desktop layout is scaled from 1280px (lib/layout.ts),
-            which is wider than this minimum, so only phones are affected. */}
-        <Table className="min-w-[1100px] lg:min-w-0">
-          <Thead>
+        {/* A phone held upright gets a list: each row is the city pair with a
+            line of detail, and the load and profit on the right. A phone held
+            sideways keeps the columns and scrolls them. */}
+        <Table className="rail:min-w-[1100px] lg:rail:min-w-0">
+          <Thead className="hidden rail:table-header-group">
             <Th first sortable={false}>Flight No.</Th>
             <Th sortable onClick={() => toggleSort('origin')}>From {getSortIcon('origin')}</Th>
             <Th sortable onClick={() => toggleSort('destination')}>To {getSortIcon('destination')}</Th>

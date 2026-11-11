@@ -2368,7 +2368,7 @@ function RoutePlannerInner({
                       onClick={generateFlightNumber}
                       className="h-10 bg-surface hover:bg-raised border border-line transition-colors uppercase tracking-label text-2xs font-semibold text-center text-muted hover:text-ink leading-tight flex items-center justify-center"
                     >
-                      RANDOM
+                      Random
                     </button>
                   </div>
                 </div>

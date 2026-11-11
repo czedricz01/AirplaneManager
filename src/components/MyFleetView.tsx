@@ -49,7 +49,7 @@ interface Props {
 }
 
 /** KPI labels on phones: one line, cut short if need be, instead of wrapping onto two. */
-const KPI_LABEL = 'bar:truncate short:truncate bar:max-w-full short:max-w-full short:mb-0.5';
+const KPI_LABEL = 'short:mb-0.5';
 
 function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, airlineCode = '', airportManagement, onReassignRoutes }: Props) {
   const [search, setSearch] = useState("");

@@ -26,9 +26,9 @@ export function Table({ children, className = '' }: { children: ReactNode; class
   return <table className={`w-full text-left text-sm border-collapse ${className}`}>{children}</table>;
 }
 
-export function Thead({ children }: { children: ReactNode }) {
+export function Thead({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <thead>
+    <thead className={className}>
       <tr className="border-b border-rule font-label font-semibold text-muted uppercase tracking-label text-2xs whitespace-nowrap">
         {children}
       </tr>

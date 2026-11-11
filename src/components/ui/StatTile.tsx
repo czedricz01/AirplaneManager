@@ -41,7 +41,7 @@ export function StatTile({
   if (size === 'sm') {
     return (
       <div className={`flex flex-col justify-center px-3.5 py-2 bar:px-3 bar:py-1.5 ${compact ? 'short:flex-row short:items-baseline short:gap-1.5 short:py-0 short:shrink-0' : ''}`}>
-        <span className={`font-label font-semibold text-2xs uppercase tracking-label text-muted leading-none whitespace-nowrap ${labelClassName}`}>{label}</span>
+        <span className={`font-label font-semibold text-2xs uppercase tracking-label text-muted leading-tight ${labelClassName}`}>{label}</span>
         <div className={`flex items-baseline gap-1.5 leading-none mt-1.5 ${compact ? 'short:mt-0' : ''}`}>
           <span className={`text-base ${compact ? 'short:text-sm' : ''} font-medium text-ink font-mono whitespace-nowrap ${valueClassName}`}>{value}</span>
           {trend && <span className={`${trendColor} font-mono text-2xs whitespace-nowrap`}>{trend}</span>}

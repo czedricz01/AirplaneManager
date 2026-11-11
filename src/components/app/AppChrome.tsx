@@ -55,7 +55,7 @@ export function GameStat(
   { label, value, trend, goodDirection = 'up' }:
   { label: string, value: string, trend?: string, goodDirection?: 'up' | 'down' }
 ) {
-  return <StatTile size="sm" compact label={label} value={value} trend={trend} goodDirection={goodDirection} />;
+  return <StatTile size="sm" compact labelClassName="whitespace-nowrap" label={label} value={value} trend={trend} goodDirection={goodDirection} />;
 }
 
 export function GameMenuOption({ label, onClick }: { label: string, onClick: () => void }) {

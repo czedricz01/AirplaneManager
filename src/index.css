@@ -153,6 +153,40 @@ a,
 }
 
 /*
+ * Touch targets. On a phone every control is at least 44 by 44 px, the
+ * smallest target a thumb hits reliably; the desktop keeps its compact
+ * controls. Set here once, so no view has to remember it.
+ */
+@media (max-width: 767.98px), (orientation: landscape) and (max-height: 500px) {
+  button,
+  [role="button"],
+  [role="switch"],
+  [role="tab"],
+  a[href],
+  select,
+  summary,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]) {
+    min-height: 44px;
+  }
+  button,
+  [role="button"],
+  [role="tab"],
+  a[href] {
+    min-width: 44px;
+  }
+  /* A bare checkbox or radio is too small to hit: give it the size, keep the box. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 24px;
+    height: 24px;
+    margin: 10px;
+  }
+  input[type="range"] {
+    min-height: 44px;
+  }
+}
+
+/*
  * iOS zooms the page into any form field whose text is smaller than 16px
  * when it gets focus, and does not zoom back out. Phones only, upright or
  * sideways: the desktop layout keeps its compact fields.
