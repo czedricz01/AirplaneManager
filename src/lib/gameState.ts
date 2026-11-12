@@ -418,8 +418,11 @@ export interface PlayerModifierState {
 }
 
 /**
- * What reputation does to demand: a tenth either way. Small enough that a good
- * network still beats a good reputation, large enough to be worth protecting.
+ * What reputation does to demand: from 15% less at 0 to 5% more at 100, and
+ * nothing at 75, which is about where a well-run airline settles. Small enough
+ * that a good network still beats a good reputation, large enough to be worth
+ * protecting. The company screen shows this very figure; it used to show a
+ * formula of its own that was neutral at 50.
  */
 export function reputationDemandFactor(reputation: number): number {
   return 0.85 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;

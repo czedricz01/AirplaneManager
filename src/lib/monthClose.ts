@@ -146,13 +146,17 @@ export function computeReputationTarget(samples: {
   weightedSat: number;      // pax-weighted mean route satisfaction, in percent
   meanInterior: number;     // 0-100
   meanAirframe: number;     // 0-100
-  loadFactor: number;       // 0-1
+  /** No longer counted; see below. */
+  loadFactor?: number;
 }): number {
   // A route at 130% satisfaction is as good as this scale goes.
   const satScore = Math.max(0, Math.min(100, (samples.weightedSat / 130) * 100));
   const condScore = Math.max(0, Math.min(100, samples.meanInterior * 0.6 + samples.meanAirframe * 0.4));
-  const loadScore = Math.max(0, Math.min(100, samples.loadFactor * 100));
-  return 0.5 * satScore + 0.3 * condScore + 0.2 * loadScore;
+  // Full aircraft used to count a fifth. Reputation raises demand, demand
+  // fills aircraft, and full aircraft raised reputation: a loop that fed
+  // itself whatever the airline was like. Passengers judge the flight and
+  // the aircraft; the weights keep a typical airline where it was.
+  return 0.65 * satScore + 0.35 * condScore;
 }
 
 /** Adds a one-off amount to the month's list, merging items with the same label. */
@@ -177,6 +181,12 @@ export function scenarioCapitalHistory(reports: MonthlyReport[], startedOffset: 
 export const scenarioRoutes = (routes: SimulatedRoute[]): ScenarioContext['routes'] =>
   routes.map(r => ({ origin: r.origin, destination: r.destination, weeklyFlights: r.schedule?.length || r.weeklyFlights || 0 }));
 
+/** Seats per departure of a rival route, when its aircraft is known. */
+function rivalSeats(ai: any, route: any): { seats?: number } {
+  const plane = (ai.fleet || []).find((f: any) => f.reg === route.aircraftReg);
+  return Number(plane?.capacity) > 0 ? { seats: Number(plane.capacity) } : {};
+}
+
 /** Every rival departure, as offers the finance engine can split demand by. */
 export function buildRivalOffers(ais: any[] | null | undefined) {
   return (ais || []).flatMap((ai: any) =>
@@ -185,6 +195,8 @@ export function buildRivalOffers(ais: any[] | null | undefined) {
       destination: r.destination,
       departures: r.departures || 0,
       airline: ai.name,
+      // What its aircraft can carry; without it the rival would win passengers it has no seat for.
+      ...rivalSeats(ai, r),
       // A rival cutting fares in a price war is that much more attractive.
       ...(r.priceCut > 0 ? { priceAppeal: 1 / (1 - Math.min(0.5, r.priceCut)) } : {})
     }))
@@ -820,7 +832,15 @@ export function closeMonth(input: MonthCloseInput): MonthCloseCommand[] {
       airports,
       currentDateOffset,
       selectedHub,
-      routes,
+      // With the seats of the aircraft on each route, so that the player's
+      // offer takes no more passengers from a rival than it can carry.
+      routes.map(r => {
+        const plane: any = fleet.find(f => f.registration === r.aircraft);
+        const seats = plane
+          ? (plane.config?.economy || 0) + (plane.config?.premium || 0) + (plane.config?.business || 0) + (plane.config?.first || 0) || plane.capacity
+          : 0;
+        return { origin: r.origin, destination: r.destination, schedule: r.schedule, seats };
+      }),
       { blocked: ownedAirports(airportManagement) }
     );
     // A rival wound up is eventually replaced by a new one, so the market

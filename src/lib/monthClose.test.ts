@@ -125,3 +125,12 @@ test('the same state and the same random numbers give the same close', () => {
   const withoutIds = (text: string) => text.replace(/"id":\d+/g, '"id":0');
   assert.equal(withoutIds(strip(closeMonth(freshGame()))), withoutIds(strip(closeMonth(freshGame()))));
 });
+
+test('full aircraft do not raise reputation; satisfaction and condition do', async () => {
+  const { computeReputationTarget } = await import('./monthClose');
+  const base = { weightedSat: 100, meanInterior: 90, meanAirframe: 90 };
+  assert.equal(computeReputationTarget({ ...base, loadFactor: 0.3 }), computeReputationTarget({ ...base, loadFactor: 1 }));
+  assert.ok(computeReputationTarget({ ...base, weightedSat: 120 }) > computeReputationTarget(base));
+  assert.ok(computeReputationTarget({ ...base, meanInterior: 50 }) < computeReputationTarget(base));
+  assert.equal(computeReputationTarget({ weightedSat: 130, meanInterior: 100, meanAirframe: 100 }), 100);
+});

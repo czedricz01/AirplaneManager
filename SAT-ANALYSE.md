@@ -328,3 +328,20 @@ Wochengewinn auf Beispielrouten (Normal, Preis = Marktpreis): FRA–CDG mit Serv
 Spielstände: kein Migrationsschritt. Die Werte werden beim nächsten Monatsabschluss neu berechnet. Flugzeuge bekommen den Wert je Klasse erst bei Kauf oder Umbau.
 
 Offen: Marktanteil mit Sitzkapazität der Rivalen (N2), künstliche Nachfragebremse (N6), Ruf-Schleife (N7), Klassenanteile nach Entfernung (N4).
+
+---
+
+## 11. Nachtrag 2026-11-12: Rivalen mit Sitzgrenze, Ruf ohne Auslastung, Klassenanteile
+
+| Punkt | vorher | jetzt |
+|---|---|---|
+| Marktanteil (N2) | Aufteilung nur nach Abflügen, Preis und SAT. Ein Rivale mit kleinen Flugzeugen nahm so viele Passagiere wie einer mit großen; was er nicht befördern konnte, verfiel. | Ein Angebot trägt `seats` (Sitze je Abflug). Ein Rivale bekommt höchstens so viele Passagiere, wie er Sitze hat. Der Rest wählt neu unter den Airlines mit freien Plätzen. Gilt in beide Richtungen: auch die Rivalen sehen die Sitze des Spielers. |
+| Ruf (N7) | 50 % SAT + 30 % Zustand + 20 % Auslastung. Ruf hob die Nachfrage, Nachfrage die Auslastung, Auslastung den Ruf. | 65 % SAT + 35 % Zustand. Eine typische Airline landet auf demselben Wert wie vorher. |
+| Ruf-Anzeige (L10) | Karte zeigte `(Ruf − 50) · 0,2 %`, gerechnet wurde `0,85 + Ruf · 0,002`. | Die Karte zeigt den gerechneten Wert (−15 % bis +5 %, neutral bei 75). Die Formel ist unverändert. |
+| Klassenanteile (N4) | Business und First fast gleich bei jeder Flugdauer; 45 min: 4 % First. | Beide wachsen mit der Flugzeit bis Index 4 (3,5 h): Business ×0,7 → ×1, First ×0,35 → ×1. Diese Passagiere fliegen stattdessen Economy; die Summe bleibt gleich. |
+
+Gemessen (FRA–CDG 1970, 60 Flüge/Woche mit 100 Sitzen, Economy-Nachfrage 9035): allein 6670 Passagiere; gegen einen Rivalen mit 60 Abflügen ohne Sitzgrenze 3194; hat der Rivale nur 10 Sitze je Abflug, 5928. Bei 50 oder 180 Sitzen ändert sich nichts, weil er seinen Anteil befördern kann.
+
+Annahme: Die Kabinen eines Rivalen folgen der Nachfrage. Sein Anteil an Sitzen je Klasse ist der Anteil der Klasse an der Nachfrage.
+
+Offen: die Nachfragebremse nach Jahr (`eraDemandFactor`, N6). Sie gleicht fehlende Konkurrenz aus und lässt sich nur mit Spieltests zurücknehmen.

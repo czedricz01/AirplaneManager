@@ -749,7 +749,8 @@ export const simulateAiAirlinesTurn = (
   currentDateOffset: number,
   playerHubId: string,
   /** The player's routes, so rivals face the same competition the player does. */
-  playerRoutes: { origin: string; destination: string; schedule?: any[] }[] = [],
+  /** `seats` is what the route's aircraft holds; without it the player's offer is not limited by seats. */
+  playerRoutes: { origin: string; destination: string; schedule?: any[]; seats?: number }[] = [],
   options: {
     /** Airports no rival may open a route into: the player's own (management tier 3). */
     blocked?: ReadonlySet<string>;
@@ -767,7 +768,8 @@ export const simulateAiAirlinesTurn = (
   const playerOffers: RouteOffer[] = playerRoutes.map(r => ({
     origin: r.origin,
     destination: r.destination,
-    departures: r.schedule?.length || 0
+    departures: r.schedule?.length || 0,
+    ...(Number(r.seats) > 0 ? { seats: Number(r.seats) } : {})
   }));
 
   const updatedAis = currentAiAirlines.map((ai, idxOfAiZone) => {
@@ -795,11 +797,15 @@ export const simulateAiAirlinesTurn = (
         ...playerOffers,
         ...currentAiAirlines
           .filter(other => other.id !== ai.id)
-          .flatMap(other => (other.routes || []).map(r => ({
-            origin: r.origin,
-            destination: r.destination,
-            departures: r.departures || 0
-          })))
+          .flatMap(other => (other.routes || []).map(r => {
+            const seats = Number((other.fleet || []).find(f => f.reg === r.aircraftReg)?.capacity);
+            return {
+              origin: r.origin,
+              destination: r.destination,
+              departures: r.departures || 0,
+              ...(seats > 0 ? { seats } : {})
+            };
+          }))
       ]
     };
 

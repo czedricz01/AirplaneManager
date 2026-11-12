@@ -635,11 +635,21 @@ export function calculateDemand(
     // Lower premium economy demand by 10%
     const preDemand = Math.round(baseDemand * prePct * 0.90);
 
+    // On a short hop few pay for a bed or a suite. Business and first class
+    // demand used to be almost the same share at every flight length, so a
+    // 45-minute flight asked for 4% first class. Both now grow with the flight
+    // time up to time index 4 (three and a half hours) and are unchanged from
+    // there. The passengers this removes fly economy; the total is the same.
+    const haul = Math.max(0, Math.min(1, (timeClass - 1) / 3));
+    const businessHaulFactor = 0.7 + 0.3 * haul;
+    const firstHaulFactor = 0.35 + 0.65 * haul;
+
     // Business demand should be 90% of Premium Economy demand on average (modulated by businessRatio for touristy routes)
-    const busDemand = Math.round(preDemand * 0.90 * (0.4 + 1.2 * businessRatio));
+    const longHaulBusiness = Math.round(preDemand * 0.90 * (0.4 + 1.2 * businessRatio));
+    const busDemand = Math.round(longHaulBusiness * businessHaulFactor);
 
     // First class demand should be 45% of Business demand on average (modulated by businessRatio for touristy routes)
-    const firstDemand = Math.round(busDemand * 0.45 * (0.3 + 1.4 * businessRatio));
+    const firstDemand = Math.round(longHaulBusiness * 0.45 * (0.3 + 1.4 * businessRatio) * firstHaulFactor);
 
     const ecoDemand = Math.max(0, Math.round(baseDemand - firstDemand - busDemand - preDemand));
 
@@ -1014,6 +1024,12 @@ export interface RouteOffer {
    * Feeds the share split like the player's own price does.
    */
   priceAppeal?: number;
+  /**
+   * Seats per departure, all cabins together. With it the offer can carry no
+   * more than its aircraft hold, and passengers it has no seat for fly with
+   * someone else. Left out, the offer is not limited.
+   */
+  seats?: number;
 }
 
 /** City pair, direction-insensitive: FRA-CDG and CDG-FRA are the same market. */
@@ -1272,9 +1288,17 @@ export function calculateRouteFinancials(
   // rivals because loyalty (below) favours them as much as this route.
   const ownKey = marketKey(route.origin, route.destination);
   let otherAirlinesAttractiveness = 0;
+  /** Each rival on the pair: how attractive it is and how many seats it flies a week, both directions. */
+  const rivalsOnPair: { attractiveness: number; weeklySeats?: number }[] = [];
   for (const offer of rivalOffers) {
     if (marketKey(offer.origin, offer.destination) !== ownKey) continue;
-    otherAirlinesAttractiveness += offerAttractiveness(offer.departures, offer.priceAppeal ?? 1);
+    const attractiveness = offerAttractiveness(offer.departures, offer.priceAppeal ?? 1);
+    if (!(attractiveness > 0)) continue;
+    otherAirlinesAttractiveness += attractiveness;
+    rivalsOnPair.push({
+      attractiveness,
+      weeklySeats: Number(offer.seats) > 0 ? Number(offer.seats) * offer.departures * 2 : undefined
+    });
   }
   let ownParallelAttractiveness = 0;
   for (const other of allRoutes) {
@@ -1331,12 +1355,35 @@ export function calculateRouteFinancials(
         ? marketShare(ownAttractiveness, rivalAttractiveness)
         : marketShare(ownAttractiveness * loyalty, ownParallelAttractiveness * loyalty + otherAirlinesAttractiveness);
 
+      // A rival cannot carry more than its seats. The split above goes by
+      // departures, price and quality only, so fourteen flights of a 50-seater
+      // took as many passengers as fourteen of a jumbo, and those it had no
+      // seat for were lost to everybody. They now choose again among the
+      // airlines that still have room. A rival's cabins are taken to follow
+      // the demand: this class's part of its seats is its part of the demand.
+      let spilledToUs = 0;
+      if (rivalsOnPair.length > 0 && maxPax > 0 && demandData.total > 0) {
+        const ownWeight = ownAttractiveness * loyalty;
+        const parallelWeight = ownParallelAttractiveness * loyalty;
+        const allWeight = ownWeight + parallelWeight + otherAirlinesAttractiveness;
+        const classPart = maxPax / demandData.total;
+        let spilled = 0;
+        let openWeight = ownWeight + parallelWeight;
+        for (const rival of rivalsOnPair) {
+          const wanted = allWeight > 0 ? maxPax * rival.attractiveness / allWeight : 0;
+          const room = rival.weeklySeats === undefined ? Infinity : rival.weeklySeats * classPart;
+          if (wanted > room) spilled += wanted - room;
+          else openWeight += rival.attractiveness;
+        }
+        if (spilled > 0 && openWeight > 0) spilledToUs = spilled * ownWeight / openWeight;
+      }
+
       // Whole seats: with part of the timetable cancelled, flightLegs is a
       // fraction, and so would be every passenger count derived from it.
       const weeklySupply = Math.round(seats * flightLegs);
       // Scarce seats sell a little dearer: the fare passengers measure the
       // price against carries the scarcity premium.
-      const marketDemand = maxPax * share;
+      const marketDemand = maxPax * share + spilledToUs;
       const fare = Math.round(satBase * scarcityPremium(marketDemand, weeklySupply));
       marketFare[c] = fare;
       const demMult = getPriceDemandMultiplier(price, fare, priceElasticity(c));
