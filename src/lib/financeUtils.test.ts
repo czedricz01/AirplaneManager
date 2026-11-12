@@ -811,3 +811,42 @@ test('the market share measures the price against the going fare, so satisfactio
   assert.ok(served.paxByClass.economy.actual >= plain.paxByClass.economy.actual);
   assert.ok(served.marketFare.economy > plain.marketFare.economy);
 });
+
+// --- Rivals' seats, premium demand by flight length -------------------------
+
+test('a rival takes no more passengers than it has seats for; the rest choose again', () => {
+  // Enough flights that the aircraft are not full, so more demand shows as more passengers.
+  const { aircraft, route, mgt } = sampleRoute(60);
+  // Economy only, so every local passenger is counted in one cabin.
+  const plane = { ...aircraft, config: { economy: 100, premium: 0, business: 0, first: 0, details: {} } };
+  const pax = (rival: any[]) => {
+    const fin = calculateRouteFinancials(route, plane, 1, mgt, 1970, 6, 'Normal', airportsMapAdjusted, [route], [plane], false, 1, rival);
+    return { market: fin.marketFare.economy, pax: fin.paxByClass.economy.actual, demand: fin.demandData.economy };
+  };
+  const offer = { origin: 'FRA', destination: 'CDG', departures: 60 };
+  const alone = pax([]);
+  const unlimited = pax([offer]);
+  const jumbo = pax([{ ...offer, seats: 100000 }]);
+  const tiny = pax([{ ...offer, seats: 10 }]);
+  assert.deepEqual(jumbo, unlimited, 'a rival with room for everybody changes nothing');
+  assert.ok(tiny.pax >= unlimited.pax);
+  assert.ok(tiny.pax <= alone.pax, 'never more than with no rival at all');
+  // With the aircraft full either way, the gain shows in the fare seats sell at.
+  assert.ok(tiny.market >= unlimited.market);
+  assert.ok(tiny.pax > unlimited.pax, `the spilled passengers reach the route (${unlimited.pax} -> ${tiny.pax}, alone ${alone.pax})`);
+});
+
+test('a short hop asks for less business and first class, a long flight as much as before', () => {
+  const d = (t: number) => fu.calculateDemand(106, 95, 121, 90, t, 6, 'Normal', 1960);
+  const share = (t: number, c: 'first' | 'business') => d(t)[c] / d(t).total;
+  assert.ok(share(1, 'first') < share(4, 'first') * 0.5);
+  assert.ok(share(1, 'business') < share(4, 'business'));
+  for (const t of [1, 2.5, 4, 8]) {
+    const x = d(t);
+    assert.ok(Math.abs(x.economy + x.premium + x.business + x.first - x.total) <= 2, 'the total is unchanged');
+  }
+  // From time index 4 on: the split the model always had.
+  const long = d(6);
+  assert.equal(long.business, Math.round(long.premium * 0.90 * (0.4 + 1.2 * long.formulaVars.businessRatio)));
+  assert.equal(long.first, Math.round(long.business * 0.45 * (0.3 + 1.4 * long.formulaVars.businessRatio)));
+});

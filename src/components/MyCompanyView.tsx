@@ -16,6 +16,7 @@ import type { Commonality } from '../lib/fleetCosts';
 import { rankDef } from '../lib/airlineRank';
 import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
 import type { Branding, ChronicleEntry } from '../lib/gameState';
+import { reputationDemandFactor } from '../lib/gameState';
 import type { MonthlyReport } from '../lib/gameTypes';
 import { CHART_COLORS } from '../lib/theme';
 
@@ -249,7 +250,7 @@ function MyCompanyViewImpl({
               valueClassName={reputation >= 65 ? 'text-good' : reputation < 40 ? 'text-bad' : ''}
             >
               <span className="block text-2xs text-muted mt-1">
-                demand {reputation >= 50 ? '+' : ''}{Math.round((reputation - 50) * 0.2)}%
+                demand {reputationDemandFactor(reputation) >= 1 ? '+' : ''}{Math.round((reputationDemandFactor(reputation) - 1) * 100)}%
               </span>
               <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
                 <div
