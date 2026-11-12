@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import { maturityNote } from '../lib/routeMaturity';
 import { FinancialReport } from "./FinancialReport";
 import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
@@ -285,7 +286,7 @@ export function RouteDetailView({
         {/* Bottom Two Thirds: 3 Boxes */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           {/* Timetable Box */}
-          <div onClick={() => onEditSchedule && onEditSchedule(route.id)} className="border border-line bg-ground/40 flex flex-col hover:border-accent/50 hover:bg-accent/5 transition-colors cursor-pointer group relative overflow-hidden min-h-[400px] bar:min-h-[240px] short:min-h-[200px] h-full">
+          <div role="button" tabIndex={0} aria-label="Edit the timetable" onKeyDown={clickOnKey} onClick={() => onEditSchedule && onEditSchedule(route.id)} className="border border-line bg-ground/40 flex flex-col hover:border-accent/50 hover:bg-accent/5 transition-colors cursor-pointer group relative overflow-hidden min-h-[400px] bar:min-h-[240px] short:min-h-[200px] h-full">
             <div className="p-4 pb-4 border-b border-line flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <Clock className="text-accent" size={20} />
@@ -377,7 +378,7 @@ export function RouteDetailView({
           </div>
 
           {/* Cabin Services Box */}
-          <div onClick={() => onEditCabinServices?.(route.id)} className="border border-line bg-ground/40 flex flex-col hover:border-accent/50 hover:bg-accent/5 transition-colors cursor-pointer group p-4 relative overflow-hidden">
+          <div role="button" tabIndex={0} aria-label="Edit cabin services" onKeyDown={clickOnKey} onClick={() => onEditCabinServices?.(route.id)} className="border border-line bg-ground/40 flex flex-col hover:border-accent/50 hover:bg-accent/5 transition-colors cursor-pointer group p-4 relative overflow-hidden">
              <div className="flex items-center justify-between mb-4 pb-4 border-b border-line">
               <div className="flex items-center gap-3">
                 <Coffee className="text-accent" size={24} />
@@ -458,7 +459,7 @@ export function RouteDetailView({
 
           
           {/* Finances Box */}
-          <div onClick={() => onEditFinancials?.(route.id)} className="border border-line bg-ground/40 flex flex-col hover:border-accent/50 hover:bg-accent/5 transition-colors cursor-pointer group relative overflow-hidden">
+          <div role="button" tabIndex={0} aria-label="Edit fares" onKeyDown={clickOnKey} onClick={() => onEditFinancials?.(route.id)} className="border border-line bg-ground/40 flex flex-col hover:border-accent/50 hover:bg-accent/5 transition-colors cursor-pointer group relative overflow-hidden">
             <div className="flex items-center justify-between mb-2 pb-2 border-b border-line p-4">
               <div className="flex items-center gap-3">
                 <DollarSign className="text-accent" size={20} />

@@ -125,8 +125,11 @@ test('rivals buy no aircraft while the pandemic runs', () => {
   let ais = network(at(2019, 1), 14);
   for (let m = 0; m < 12; m++) {
     const next = simulateAiAirlinesTurn(ais, airports, at(2020, 3) + m, 'FRA', []).updatedAis;
-    next.forEach((a, i) => {
-      const was = ais[i];
+    next.forEach(a => {
+      // By id, not by position: a rival that goes under in the crisis drops out
+      // of the list, and the ones after it move up a place.
+      const was = ais.find(x => x.id === a.id);
+      assert.ok(was, `${a.code} was not there the month before`);
       assert.ok(a.fleet.length <= was.fleet.length, `${a.code} bought an aircraft in month ${m}`);
       // Nothing is replaced either: every registration flies the same type.
       for (const p of a.fleet) assert.equal(was.fleet.find(x => x.reg === p.reg)?.id, p.id, `${a.code} ${p.reg} was replaced`);

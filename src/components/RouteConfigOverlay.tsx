@@ -1,3 +1,4 @@
+import { clickOnKey } from '../lib/a11y';
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Utensils, Wifi, Users } from 'lucide-react';
 import { Airport } from '../data/airports';
@@ -101,7 +102,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
       {/* Upright phones: the Confirm button drops below the title. */}
       <div className="p-4 bar:p-3 short:py-1.5 short:px-3 border-b border-line flex flex-col md:flex-row justify-between items-start md:items-center gap-3 short:gap-2 bg-surface">
         <div className="flex items-center gap-4 bar:gap-3 short:gap-3">
-          <div onClick={() => setActiveConfigClass(null)} className="w-12 h-12 bar:w-10 bar:h-10 short:w-9 short:h-9 shrink-0 flex items-center justify-center border border-line rounded-sm cursor-pointer hover:bg-ink hover:text-on-accent hover:border-ink transition-all group">
+          <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setActiveConfigClass(null)} className="w-12 h-12 bar:w-10 bar:h-10 short:w-9 short:h-9 shrink-0 flex items-center justify-center border border-line rounded-sm cursor-pointer hover:bg-ink hover:text-on-accent hover:border-ink transition-all group">
             <ChevronRight className="rotate-180 group-hover:scale-125 transition-transform" />
           </div>
           <div className="flex flex-col">

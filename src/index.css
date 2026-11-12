@@ -155,11 +155,12 @@ a,
 /*
  * Touch targets. On a phone every control is at least 44 by 44 px, the
  * smallest target a thumb hits reliably; the desktop keeps its compact
- * controls. Set here once, so no view has to remember it.
+ * controls. Set here once, so no view has to remember it. Clickable areas
+ * with role="button" (cards, rows, timetable blocks) are left to their own
+ * size: they are large already, or their size carries meaning.
  */
 @media (max-width: 767.98px), (orientation: landscape) and (max-height: 500px) {
   button,
-  [role="button"],
   [role="switch"],
   [role="tab"],
   a[href],
@@ -169,7 +170,6 @@ a,
     min-height: 44px;
   }
   button,
-  [role="button"],
   [role="tab"],
   a[href] {
     min-width: 44px;
