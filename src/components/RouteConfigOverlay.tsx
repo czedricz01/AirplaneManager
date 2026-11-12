@@ -10,7 +10,8 @@ import {
   getFlightTimeClass,
   getCateringOpt,
   seatWeightedSatisfaction,
-  serviceTimeMultiplier
+  getFlightTimeIndex,
+  expectedServicePoints
 } from '../lib/financeUtils';
 
 interface RouteConfigOverlayProps {
@@ -57,7 +58,9 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
 
   const duration = getFlightDurationMinutes();
   const timeClass = getFlightTimeClass(duration);
-  const satMultiplier = serviceTimeMultiplier(duration);
+  // What a class expects of meals, extras and service on a flight this long,
+  // in the same points the options below are listed with.
+  const expectedPts = (c: string) => Math.round(expectedServicePoints(c, getFlightTimeIndex(duration)));
 
   // "general" has no seats of its own; it shows the seat-weighted route figure.
   const getRouteSatForClass = (className: string) =>
@@ -114,7 +117,6 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                 <>
                   <div className="flex items-center gap-2 border-r border-line pr-6">
                     <span>Flight Class: <span className="text-accent">{timeClass}</span></span>
-                    <span className="text-2xs opacity-60">({Math.round(satMultiplier * 100)}% Multiplier)</span>
                   </div>
                   {['economy', 'premium', 'business', 'first'].map(c => {
                     const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
@@ -128,7 +130,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 border-r border-line pr-6">
                     <span>Flight Class: <span className="text-accent">{timeClass}</span></span>
-                    <span className="text-2xs opacity-60">({Math.round(satMultiplier * 100)}% Multiplier)</span>
+                    <span className="text-2xs opacity-60">(passengers expect {expectedPts(activeConfigClass)} service pts)</span>
                   </div>
                   <span>Product Selection & Tiering • <span className="text-accent text-sm font-semibold">Route SAT: {Math.round(Math.max(0, getRouteSatForClass(activeConfigClass)))}%</span></span>
                 </div>
@@ -274,7 +276,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                                     <span className="text-2xs font-semibold uppercase leading-tight line-clamp-2">{meal.label}</span>
                                     <span className="text-2xs opacity-60 block mt-0.5">${meal.cost.toFixed(2)}</span>
                                   </div>
-                                  <span className="text-xs font-semibold mt-auto">+{Math.round(meal.sat * satMultiplier)} pts</span>
+                                  <span className="text-xs font-semibold mt-auto">+{Math.round(meal.sat)} pts</span>
                                 </button>
                               );
                             })}
@@ -357,7 +359,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-2xs font-semibold uppercase ${isSelected ? 'text-on-accent' : 'text-muted'}`}>SAT</span>
-                    <span className="text-lg font-semibold">+{Math.round(opt.sat * satMultiplier)} pts</span>
+                    <span className="text-lg font-semibold">+{Math.round(opt.sat)} pts</span>
                   </div>
                 </button>
               );
@@ -414,7 +416,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-2xs font-semibold uppercase ${isSelected ? 'text-on-accent' : 'text-muted'}`}>SAT</span>
-                    <span className="text-lg font-semibold">+{Math.round(opt.sat * satMultiplier)} pts</span>
+                    <span className="text-lg font-semibold">+{Math.round(opt.sat)} pts</span>
                   </div>
                 </button>
               );

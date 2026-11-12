@@ -323,7 +323,7 @@ export function AirportDetailView({
                   {avail.stands && (
                     <div className="space-y-4 pt-4 border-t border-line">
                       <div className="flex justify-between items-center">
-                        <SectionLabel icon={<Anchor size={12} className="text-ink"/>} label="Gate/Stand Upgrades (up to +2 quality pts)" />
+                        <SectionLabel icon={<Anchor size={12} className="text-ink"/>} label="Gate/Stand Upgrades (up to +2 SAT pts)" />
                         {hubAutoUpgrade ? (
                           <span className="text-2xs text-ink font-semibold uppercase tracking-label">Automatic Hub Upgrade Enabled</span>
                         ) : (
@@ -368,7 +368,7 @@ export function AirportDetailView({
                     <div className="flex justify-between items-center">
                       <SectionLabel icon={<Info size={12} className="text-accent"/>} label="Passenger Processing" />
                       <div className={`text-2xs font-semibold px-2 py-0.5 rounded-sm ${satDeduction < 0 || (!infrastructure.desks.normal && !infrastructure.desks.self) ? 'bg-bad/10 text-bad' : 'bg-accent/10 text-accent'}`}>
-                         SAT Impact: {hasNoDesks ? '-15 quality pts (No Desks)' : (satDeduction === 0 ? '0.0' : `${formatNumber(satDeduction, 1)}%${deskLoad > 80 ? ' (Load)' : ' (Self-check share)'}`)}{selfServiceOnly ? ' | Premium cabins -10 quality pts (no staffed desk)' : ''}
+                         SAT Impact: {hasNoDesks ? 'about -15 SAT pts (No Desks)' : (satDeduction === 0 ? '0.0' : `${formatNumber(satDeduction, 1)}%${deskLoad > 80 ? ' (Load)' : ' (Self-check share)'}`)}{selfServiceOnly ? ' | Premium cabins -10 quality pts (no staffed desk)' : ''}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
@@ -489,7 +489,7 @@ export function AirportDetailView({
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="text-ink font-semibold text-sm">VIP Lounge</div>
-                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">+4 quality pts (Bus/First), +1 (PE)</div>
+                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">+4 SAT pts (Bus/First), +1 (PE)</div>
                         {gates?.vipLounge && !infrastructure.hubFacilities?.vipLounge && (
                           <div className="text-2xs text-bad mt-2 normal-case max-w-xs">{gates.vipLounge}</div>
                         )}

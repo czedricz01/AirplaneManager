@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getCateringOpt, getMultiOptionSum, applyDiminishingReturns, buildRivalRoutesByPair, marketKey, getPriceDemandMultiplier } from './financeUtils';
+import { getCateringOpt, getMultiOptionSum, buildRivalRoutesByPair, marketKey, getPriceDemandMultiplier } from './financeUtils';
 import * as fu from './financeUtils';
 import { MEAL_DATA, EXTRAS_OPTIONS } from '../data/catering';
 
@@ -20,16 +20,15 @@ test('getCateringOpt sums cost across combined meal items instead of averaging',
 
 test('getPriceDemandMultiplier falls faster above the base price than it grows below it', () => {
   const base = 100;
-  const sat = 50;
+  const elasticity = 1.25;
 
-  assert.equal(getPriceDemandMultiplier(base, base, sat), 1, 'no premium or discount at the base price');
+  assert.equal(getPriceDemandMultiplier(base, base, elasticity), 1, 'no premium or discount at the base price');
 
-  const underpriced = getPriceDemandMultiplier(80, base, sat);
-  const overpriced = getPriceDemandMultiplier(120, base, sat);
+  const underpriced = getPriceDemandMultiplier(80, base, elasticity);
+  const overpriced = getPriceDemandMultiplier(120, base, elasticity);
   assert.ok(underpriced > 1, 'a discount must still grow demand');
   assert.ok(overpriced < 1, 'a premium must still shrink demand');
 
-  const elasticity = Math.max(0.5, 1.5 - sat / 200);
   const symmetricOverpriced = Math.pow(base / 120, elasticity);
   assert.ok(overpriced < symmetricOverpriced, 'overpricing must fall off steeper than the plain elasticity curve');
   assert.equal(underpriced, Math.pow(base / 80, elasticity), 'underpricing is unaffected by the overprice penalty');
@@ -37,17 +36,18 @@ test('getPriceDemandMultiplier falls faster above the base price than it grows b
 
 test('above the fare demand first falls steeply, then levels off, and never pays more than the fare', () => {
   const fare = 100;
-  for (const sat of [40, 100, 200]) {
+  // Every cabin's own elasticity, from first class (least) to economy (most).
+  for (const sat of Object.values(fu.PRICE_ELASTICITY)) {
     const at = (p: number) => getPriceDemandMultiplier(p, fare, sat);
     // Each further step up the price loses a smaller share of what is left.
     const lossNear = 1 - at(130) / at(100);
     const lossFar = 1 - at(300) / at(230);
-    assert.ok(lossFar < lossNear, `sat ${sat}: the curve flattens (${lossNear.toFixed(2)} then ${lossFar.toFixed(2)})`);
+    assert.ok(lossFar < lossNear, `elasticity ${sat}: the curve flattens (${lossNear.toFixed(2)} then ${lossFar.toFixed(2)})`);
     // The price-insensitive travellers remain however high the fare goes.
-    assert.ok(at(1000) > 0.25 * 0.1 * 0.99, `sat ${sat}: some passengers stay at ten times the fare`);
+    assert.ok(at(1000) > 0.25 * 0.1 * 0.99, `elasticity ${sat}: some passengers stay at ten times the fare`);
     // Revenue per passenger the fare would have brought never grows above the fare.
     for (const p of [101, 120, 150, 200, 400, 1000]) {
-      assert.ok(p * at(p) < fare, `sat ${sat}: charging ${p} earns less than the fare`);
+      assert.ok(p * at(p) < fare, `elasticity ${sat}: charging ${p} earns less than the fare`);
     }
   }
 });
@@ -63,13 +63,6 @@ test('getMultiOptionSum leaves independent (non-grouped) extras additive', () =>
   const combo = getMultiOptionSum(['pillows', 'headphones'], EXTRAS_OPTIONS);
   assert.equal(combo.sat, EXTRAS_OPTIONS.pillows.sat + EXTRAS_OPTIONS.headphones.sat);
   assert.equal(combo.cost, EXTRAS_OPTIONS.pillows.cost + EXTRAS_OPTIONS.headphones.cost);
-});
-
-test('applyDiminishingReturns passes through below the threshold and dampens above it', () => {
-  assert.equal(applyDiminishingReturns(50), 50);
-  assert.equal(applyDiminishingReturns(100), 88);
-  assert.equal(applyDiminishingReturns(150), 102);
-  assert.equal(applyDiminishingReturns(210), 115);
 });
 
 test('MEAL_DATA cost and sat are non-decreasing within each tier', () => {
@@ -356,20 +349,6 @@ import {
   getPlaneSat
 } from './financeUtils';
 
-test('diminishing returns never add points and never fall as the input grows', () => {
-  // Below the threshold it passes through; just above it, it used to pay MORE
-  // than it was given (65 became 70), which is the opposite of "diminishing".
-  assert.equal(applyDiminishingReturns(65), 65);
-  assert.equal(applyDiminishingReturns(80), 80);
-  let previous = -Infinity;
-  for (let raw = 0; raw <= 300; raw++) {
-    const out = applyDiminishingReturns(raw);
-    assert.ok(out <= raw, `${raw} became ${out}`);
-    assert.ok(out >= previous, `${raw} fell to ${out} from ${previous}`);
-    previous = out;
-  }
-});
-
 test('adding a check-in desk never lowers satisfaction', () => {
   for (const premium of [false, true]) {
     const none = getDeskPenalty(false, false, premium);
@@ -654,19 +633,20 @@ test('whole time classes price exactly as before, values in between lie in betwe
   assert.equal(fu.calculateBasePrices(1500, 3).economy, 116);
   const mid = fu.calculateBasePrices(1500, 2.5).economy;
   assert.ok(mid < 121 && mid > 116);
-  assert.equal(fu.byTimeIndex(fu.TIME_CLASS_SAT_MULTIPLIERS, 1), 3.0);
-  assert.ok(Math.abs(fu.byTimeIndex(fu.TIME_CLASS_SAT_MULTIPLIERS, 1.5) - 2.6) < 1e-9);
-  assert.equal(fu.byTimeIndex(fu.TIME_CLASS_SAT_MULTIPLIERS, 99), 0.8);
+  const table = { 1: 3.0, 2: 2.2, 3: 1.8, 4: 1.4, 5: 1.1, 6: 0.9, 7: 0.8, 8: 0.8 };
+  assert.equal(fu.byTimeIndex(table, 1), 3.0);
+  assert.ok(Math.abs(fu.byTimeIndex(table, 1.5) - 2.6) < 1e-9);
+  assert.equal(fu.byTimeIndex(table, 99), 0.8);
 });
 
 test('one more minute of flight time moves satisfaction and demand only a little', () => {
   const aircraft = { popularity: 70, baseInteriorPop: 55, conditionInterior: 100 };
   const config = { catering: [['s2']], extras: ['softdrinks'], service: ['none'] };
   const mgt = { A: { desks: { normal: 1, self: 0 } }, B: { desks: { normal: 1, self: 0 } } };
-  const sat = (min: number) => fu.calculateClassSatisfaction('economy', aircraft, config, min, mgt, 'A', 'B', 'Normal').satisfactionPercentage;
+  const sat = (min: number) => fu.calculateClassSatisfaction('economy', aircraft, config, min, mgt, 'A', 'B').satisfactionPercentage;
   const demand = (min: number) => fu.calculateDemand(106, 95, 121, 90, fu.getFlightTimeIndex(min), 6, 'Normal', 1960).total;
-  // The edges where meals stay the same; 360 and 540 minutes add a meal.
-  for (const edge of [60, 120, 180, 240]) {
+  // Also where a meal is added (360 and 720 minutes): one more snack moves little.
+  for (const edge of [60, 120, 180, 240, 360, 540, 720]) {
     assert.ok(Math.abs(sat(edge) - sat(edge - 1)) <= 2, `satisfaction jumps at ${edge} min`);
   }
   for (const edge of [60, 120, 180, 240, 360, 540, 720]) {
@@ -699,4 +679,135 @@ test('a route inside the southern hemisphere peaks in January, not in July', () 
   assert.equal(d(7, 0), d(1, 1));
   // Leaving the argument out is the northern season, as every older caller had it.
   assert.equal(fu.calculateDemand(106, 95, 121, 90, 3, 7, 'Normal', 1960).total, d(7, 0));
+});
+
+// --- The satisfaction model -------------------------------------------------
+
+const satMgt = { A: { desks: { normal: 1, self: 0 } }, B: { desks: { normal: 1, self: 0 } } };
+const satPlane = { popularity: 70, baseInteriorPop: 55, conditionInterior: 100 };
+const noService = { catering: [['none']], extras: ['none'], service: ['none'] };
+const classSat = (c: string, config: any, min: number, plane: any = satPlane) =>
+  fu.calculateClassSatisfaction(c, plane, config, min, satMgt, 'A', 'B');
+
+test('satisfaction stays between 0 and its maximum, whatever is bought', () => {
+  const everything = {
+    catering: [['l15']],
+    extras: ['wifi_unlimited', 'amenities_luxury', 'pillows', 'headphones', 'magazine', 'pajamas', 'slippers', 'water', 'softdrinks', 'premium_alcohol'],
+    service: ['drinks', 'seat_coord', 'wheelchair', 'medical', 'dine_demand', 'turndown', 'sommelier']
+  };
+  const worst = { popularity: 0, baseInteriorPop: 0, conditionInterior: 0 };
+  const best = { popularity: 100, baseInteriorPop: 300, conditionInterior: 100 };
+  for (const c of fu.CABIN_CLASSES) {
+    for (const min of [30, 45, 150, 400, 800]) {
+      const top = classSat(c, everything, min, best).satisfactionPercentage;
+      const bottom = classSat(c, noService, min, worst).satisfactionPercentage;
+      assert.ok(top <= fu.SAT_MAX, `${c} ${min} min: ${top}`);
+      assert.ok(bottom >= 0);
+      assert.ok(top > 100 && bottom < 100);
+    }
+  }
+  // A 45-minute hop with every extra used to reach 378%.
+  assert.ok(classSat('economy', everything, 45).satisfactionPercentage <= fu.SAT_MAX);
+});
+
+test('a flight that delivers what its class expects scores 100', () => {
+  for (const c of fu.CABIN_CLASSES) {
+    const cabin = fu.SAT_MODEL.cabinExpectation[c];
+    const plane = { popularity: cabin, baseInteriorPop: cabin, conditionInterior: 100 };
+    const noGround = { A: { desks: { normal: 1, self: 0 } }, B: { desks: { normal: 1, self: 0 } } };
+    assert.equal(fu.getPlaneSat(plane, c), cabin);
+    assert.equal(fu.serviceSatPoints(40, 40, c, 4), 0);
+    const d = fu.calculateClassSatisfaction(c, plane, noService, 150, noGround, 'A', 'B');
+    assert.equal(d.cabinPoints, 0);
+    assert.equal(d.groundPoints, 0);
+  }
+});
+
+test('more service never lowers satisfaction, and levels off', () => {
+  let prev = -Infinity;
+  for (let pts = 0; pts <= 400; pts += 5) {
+    const now = fu.serviceSatPoints(pts, 40, 'economy', 4);
+    assert.ok(now >= prev, `fell at ${pts} points`);
+    assert.ok(now <= fu.SAT_MODEL.serviceDelight);
+    prev = now;
+  }
+  const snack = { catering: [['s2']], extras: ['none'], service: ['none'] };
+  const snackAndDrink = { catering: [['s2']], extras: ['softdrinks'], service: ['none'] };
+  for (const min of [45, 150, 400, 800]) {
+    assert.ok(classSat('economy', snackAndDrink, min).satisfactionPercentage >= classSat('economy', snack, min).satisfactionPercentage);
+  }
+});
+
+test('the same service satisfies less the longer the flight, and no service hurts most on a long haul', () => {
+  const snack = { catering: [['s2']], extras: ['softdrinks'], service: ['none'] };
+  const durations = [45, 150, 300, 450];
+  for (const config of [snack, noService]) {
+    const sats = durations.map(min => classSat('economy', config, min).servicePoints);
+    for (let i = 1; i < sats.length; i++) assert.ok(sats[i] < sats[i - 1], `${durations[i]} min`);
+  }
+  assert.ok(fu.expectedServicePoints('first', 4) > fu.expectedServicePoints('business', 4));
+  assert.ok(fu.expectedServicePoints('business', 4) > fu.expectedServicePoints('economy', 4));
+  // The dearer the cabin, the more a missing service costs.
+  assert.ok(fu.serviceSatPoints(0, 100, 'first', 6) < fu.serviceSatPoints(0, 100, 'economy', 6));
+});
+
+test('a cabin class is rated by its own seats, not by the average of the aircraft', () => {
+  const average = { popularity: 70, baseInteriorPop: 56, conditionInterior: 100, config: { economy: 150, first: 8, details: {} } };
+  const perClass = { ...average, config: { economy: 150, first: 8, details: { interiorByClass: { economy: 50, first: 170 } } } };
+  // An aircraft from before the per-class scores, and a class it has no score for.
+  assert.equal(fu.getPlaneSat(average, 'first'), fu.getPlaneSat(average));
+  assert.equal(fu.getPlaneSat(perClass, 'business'), fu.getPlaneSat(perClass));
+  assert.ok(fu.getPlaneSat(perClass, 'first') > fu.getPlaneSat(perClass, 'economy') + 60);
+  const first = (plane: any) => classSat('first', noService, 400, plane).cabinPoints;
+  const economy = (plane: any) => classSat('economy', noService, 400, plane).cabinPoints;
+  assert.ok(first(perClass) > first(average) + 20, 'the suite counts in first class');
+  assert.ok(economy(perClass) < economy(average), 'and economy is no longer credited with it');
+  // The cabin counts more on a long flight.
+  assert.ok(Math.abs(classSat('economy', noService, 800, perClass).cabinPoints) > Math.abs(classSat('economy', noService, 45, perClass).cabinPoints));
+});
+
+test('the difficulty moves the fare passengers accept, not their satisfaction', () => {
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const fin = (difficulty: string) =>
+    calculateRouteFinancials(route, aircraft, 1, mgt, 1970, 6, difficulty, airportsMapAdjusted, [route], [aircraft]);
+  const easy = fin('Easy'), normal = fin('Normal'), hard = fin('Hard');
+  assert.deepEqual(easy.routeSat, normal.routeSat);
+  assert.deepEqual(hard.routeSat, normal.routeSat);
+  assert.ok(easy.marketFare.economy > normal.marketFare.economy);
+  assert.ok(hard.marketFare.economy < normal.marketFare.economy);
+  assert.equal(fu.difficultyFareFactor('Normal'), 1);
+});
+
+test('cancelled flights cost satisfaction in proportion', () => {
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const fin = (mods?: any) =>
+    calculateRouteFinancials(route, aircraft, 1, mgt, 1970, 6, 'Normal', airportsMapAdjusted, [route], [aircraft], false, 1, [], mods);
+  const base = fin({ demandFactor: 1 });
+  const fifth = fin({ demandFactor: 1, cancelShare: { r1: 0.2 } });
+  assert.equal(fifth.routeSat.economy, base.routeSat.economy - 0.2 * fu.SAT_MODEL.cancelPenalty);
+  assert.deepEqual(fin({ demandFactor: 1, cancelShare: { other: 0.2 } }).routeSat, base.routeSat);
+});
+
+test('economy reacts to the fare more than business and first class do', () => {
+  const e = fu.PRICE_ELASTICITY;
+  assert.ok(e.economy > e.premium && e.premium > e.business && e.business > e.first);
+  const cheaper = (c: string) => getPriceDemandMultiplier(80, 100, fu.priceElasticity(c));
+  assert.ok(cheaper('economy') > cheaper('first'));
+  // A fare cut pays in economy and costs revenue in first class.
+  assert.ok(80 * cheaper('economy') > 100);
+  assert.ok(80 * cheaper('first') < 100);
+  assert.equal(fu.priceElasticity('unknown'), 1);
+});
+
+test('the market share measures the price against the going fare, so satisfaction counts once', () => {
+  const { aircraft, route, mgt } = sampleRoute(7);
+  const rival = [{ origin: 'FRA', destination: 'CDG', departures: 7 }];
+  const fin = (r: any) =>
+    calculateRouteFinancials(r, aircraft, 1, mgt, 1970, 6, 'Normal', airportsMapAdjusted, [r], [aircraft], false, 1, rival);
+  const better = { ...route, classConfigs: { economy: { catering: [['s13']], extras: ['softdrinks', 'pillows'], service: ['drinks'] } } };
+  const plain = fin(route), served = fin(better);
+  assert.ok(served.routeSat.economy > plain.routeSat.economy);
+  // Same price, better product: more passengers against the same rival.
+  assert.ok(served.paxByClass.economy.actual >= plain.paxByClass.economy.actual);
+  assert.ok(served.marketFare.economy > plain.marketFare.economy);
 });

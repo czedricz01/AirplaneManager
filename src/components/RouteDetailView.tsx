@@ -409,8 +409,8 @@ export function RouteDetailView({
                         {classSats.map(cs => {
                           // Live, like the percentage beside it; the copy stored on the route went stale.
                           const satDetails = financials?.satisfactionDetails?.[cs.name];
-                          const expectation = satDetails?.expectationTarget || 0;
-                          const reality = satDetails?.providedQuality || 0;
+                          const expectation = satDetails?.serviceExpected || 0;
+                          const reality = Math.round(satDetails?.serviceDelivered || 0);
                           
                           // The worst band is the most visible, not the darkest.
                           let barColor = 'bg-bad';
@@ -436,11 +436,11 @@ export function RouteDetailView({
 
                              <div className="flex justify-between text-2xs text-muted uppercase tracking-label relative z-10 mt-1">
                                 <span className="flex flex-col">
-                                   <span className="text-muted text-2xs">Expectation</span>
+                                   <span className="text-muted text-2xs">Service expected</span>
                                    <span className="font-mono text-ink">{expectation}</span>
                                 </span>
                                 <span className="flex flex-col text-right">
-                                   <span className="text-muted text-2xs">Reality</span>
+                                   <span className="text-muted text-2xs">Service served</span>
                                    <span className="font-mono text-ink">{reality}</span>
                                 </span>
                              </div>
