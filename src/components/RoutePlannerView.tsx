@@ -43,6 +43,8 @@ import {
   classConfigFor,
   CABIN_CLASSES,
   getFlightTimeClass,
+  getFlightTimeIndex,
+  southernShare,
   getCateringOpt,
   getMultiOptionSum,
   calculateDemand,
@@ -940,10 +942,11 @@ function RoutePlannerInner({
     const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]));
     const dur = sharedFlightDurationMinutes(selectedOrigin, selectedDest, selectedAircraft || { cruiseSpeed: 800 });
     const tc = getFlightTimeClass(dur);
+    const ti = getFlightTimeIndex(dur);
     const o = getAirportStats(selectedOrigin, currentYear);
     const t = getAirportStats(selectedDest, currentYear);
-    const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, tc, currentMonth, difficulty, currentYear, routeDemandFactor(playerMods, selectedOrigin, selectedDest) * eventRegionalFactor(currentYear, currentMonth, selectedOrigin, selectedDest));
-    return { d, tc, basePrices: calculateBasePrices(dist, tc), assumedAircraft: !selectedAircraft };
+    const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, ti, currentMonth, difficulty, currentYear, routeDemandFactor(playerMods, selectedOrigin, selectedDest) * eventRegionalFactor(currentYear, currentMonth, selectedOrigin, selectedDest), southernShare(selectedOrigin, selectedDest));
+    return { d, tc, basePrices: calculateBasePrices(dist, ti), assumedAircraft: !selectedAircraft };
   }, [selectedOrigin, selectedDest, selectedAircraft, currentYear, currentMonth, difficulty, playerMods]);
 
   /**
@@ -3583,7 +3586,7 @@ function RoutePlannerInner({
                              {saveFinancials && (() => {
                                 // Everything here is read from the engine result the route is
                                 // saved with, so the debug view cannot drift from the model.
-                                const bases = calculateBasePrices(saveFinancials.distance, saveFinancials.timeClass);
+                                const bases = calculateBasePrices(saveFinancials.distance, saveFinancials.timeIndex);
                                 const d = saveFinancials.demandData;
                                 return CABIN_CLASSES.map(c => {
                                    const seats = selectedAircraft.config?.[c] || 0;

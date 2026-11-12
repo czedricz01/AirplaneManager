@@ -169,6 +169,48 @@ export function getFlightTimeClass(durMin: number): number {
   return 8;
 }
 
+/**
+ * Flight time as a position on the time-class scale, without steps.
+ *
+ * The time class is a bucket: 59 minutes is class 1 and 60 minutes is class 2.
+ * Everything priced by it jumped at those edges. The same cabin scored 177%
+ * satisfaction at 59 minutes and 136% at 60, and one minute more flight time
+ * cost a route 13% of its passengers. This index is the same scale read
+ * continuously: it equals the class in the middle of each bucket (1 at 30
+ * minutes, 2 at 90, ... 8 at 810) and runs in a straight line in between.
+ */
+const TIME_INDEX_ANCHORS: [number, number][] = [
+  [30, 1], [90, 2], [150, 3], [210, 4], [300, 5], [450, 6], [630, 7], [810, 8]
+];
+
+export function getFlightTimeIndex(durMin: number): number {
+  if (!Number.isFinite(durMin)) return 1;
+  const first = TIME_INDEX_ANCHORS[0];
+  const last = TIME_INDEX_ANCHORS[TIME_INDEX_ANCHORS.length - 1];
+  if (durMin <= first[0]) return first[1];
+  if (durMin >= last[0]) return last[1];
+  for (let i = 1; i < TIME_INDEX_ANCHORS.length; i++) {
+    const [m1, c1] = TIME_INDEX_ANCHORS[i];
+    if (durMin <= m1) {
+      const [m0, c0] = TIME_INDEX_ANCHORS[i - 1];
+      return c0 + (c1 - c0) * ((durMin - m0) / (m1 - m0));
+    }
+  }
+  return last[1];
+}
+
+/**
+ * A value from a table keyed by time class 1-8, for a time index that may lie
+ * between two classes: the straight line between the two neighbours. A whole
+ * number returns the table's own entry.
+ */
+export function byTimeIndex(table: Record<number, number>, timeIndex: number): number {
+  const t = Number.isFinite(timeIndex) ? Math.max(1, Math.min(8, timeIndex)) : 1;
+  const lo = Math.floor(t);
+  const hi = Math.min(8, lo + 1);
+  return table[lo] + (table[hi] - table[lo]) * (t - lo);
+}
+
 export const TIME_CLASS_SAT_MULTIPLIERS: Record<number, number> = {
   1: 3.0,
   2: 2.2,
@@ -179,6 +221,37 @@ export const TIME_CLASS_SAT_MULTIPLIERS: Record<number, number> = {
   7: 0.8,
   8: 0.8
 };
+
+/** How much catering, extras and service count on a flight of `durMin` minutes. */
+export function serviceTimeMultiplier(durMin: number): number {
+  return byTimeIndex(TIME_CLASS_SAT_MULTIPLIERS, getFlightTimeIndex(durMin));
+}
+
+/** Southern summer is northern winter: the season there runs six months apart. */
+const SEASON_BY_MONTH = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
+
+/**
+ * The share of a route's two ends that lie south of the equator: 0, 0.5 or 1.
+ * Feeds the season in calculateDemand.
+ */
+export function southernShare(
+  origin: { coords: [number, number] } | null | undefined,
+  dest: { coords: [number, number] } | null | undefined
+): number {
+  const south = (a: { coords: [number, number] } | null | undefined) => (a?.coords && a.coords[0] < 0 ? 1 : 0);
+  return (south(origin) + south(dest)) / 2;
+}
+
+/**
+ * The holiday season of a month, 1 on average. `south` is southernShare():
+ * the tourist peak used to be July everywhere, Sydney and Cape Town included.
+ */
+export function seasonFactor(month: number, south: number = 0): number {
+  const i = ((Math.round(month) - 1) % 12 + 12) % 12;
+  const north = SEASON_BY_MONTH[i] ?? 1;
+  const s = Number.isFinite(south) ? Math.max(0, Math.min(1, south)) : 0;
+  return north * (1 - s) + SEASON_BY_MONTH[(i + 6) % 12] * s;
+}
 
 
 export function validateClassConfigs(classConfigs: any, selectedAircraft: any, airportManagement: any, selectedOrigin: any, selectedDest: any) {
@@ -523,10 +596,12 @@ export function calculateDemand(
      * An extra multiplier on top of the event effects, used for the player's
      * airline reputation. 1.0 is neutral, which is what the AI airlines pass.
      */
-    extraDemandFactor: number = 1
+    extraDemandFactor: number = 1,
+    /** southernShare() of the route; 0 keeps the northern season. */
+    south: number = 0
 ) {
-    const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
-    const Mv = mvValues[currentMonth - 1] || 1.0;
+    // `timeClass` may be a time index between two classes (getFlightTimeIndex).
+    const Mv = seasonFactor(currentMonth, south);
     // Was 1.2 / 1.1 / 1.0, which told the three levels apart by only 9%.
     const S = difficulty === 'Easy' ? 1.1 : difficulty === 'Normal' ? 0.9 : 0.75;
     const E = 1;
@@ -578,16 +653,13 @@ export function calculateDemand(
     };
 }
 
-export function calculateBasePrices(distance: number, timeClass: number) {
-    let baseEconomy = 30 + (distance * 0.05);
+/** What a short flight costs more per kilometre, by time class. */
+const SHORT_HAUL_FARE_FACTOR: Record<number, number> = { 1: 1.15, 2: 1.15, 3: 1.10, 4: 1.10, 5: 1.05, 6: 1, 7: 1, 8: 1 };
 
-    if (timeClass === 1 || timeClass === 2) {
-        baseEconomy *= 1.15;
-    } else if (timeClass === 3 || timeClass === 4) {
-        baseEconomy *= 1.10;
-    } else if (timeClass === 5) {
-        baseEconomy *= 1.05;
-    }
+export function calculateBasePrices(distance: number, timeClass: number) {
+    // `timeClass` may be a time index between two classes (getFlightTimeIndex);
+    // the short-haul surcharge then fades in a line instead of in steps.
+    const baseEconomy = (30 + (distance * 0.05)) * byTimeIndex(SHORT_HAUL_FARE_FACTOR, timeClass);
 
     const basePre = baseEconomy * (1.3 + ((timeClass - 1) * 0.15));
     const baseBus = baseEconomy * (2.0 + ((timeClass - 1) * 0.25));
@@ -636,8 +708,11 @@ export function applyDiminishingReturns(rawSat: number): number {
 }
 
 export function calculateClassSatisfaction(c: string, aircraft: any, config: any, dur: number, airportManagement: any, routeOrigin: string, routeDest: string, difficulty: string, slotType: string = 'regional') {
+      // Meals come in whole numbers and follow the class; everything that is a
+      // matter of degree follows the index, so one minute never moves it far.
       const timeClass = getFlightTimeClass(dur);
-      const multiplier = TIME_CLASS_SAT_MULTIPLIERS[timeClass] || 1.0;
+      const timeIndex = getFlightTimeIndex(dur);
+      const multiplier = byTimeIndex(TIME_CLASS_SAT_MULTIPLIERS, timeIndex);
       const mealCount = timeClass <= 5 ? 1 : timeClass <= 7 ? 2 : 3;
 
       let cateringSat = 0;
@@ -685,7 +760,7 @@ export function calculateClassSatisfaction(c: string, aircraft: any, config: any
       // clears 100% with more comfortable margin at realistic spend too.
       const expectationBase: Record<string, number> = { economy: 42, premium: 48, business: 64, first: 70 };
       const eBase = expectationBase[c] || 18;
-      const expectationMultiplier = 1.0 + ((timeClass - 1) * 0.15);
+      const expectationMultiplier = 1.0 + ((timeIndex - 1) * 0.15);
       const expectationTarget = eBase * expectationMultiplier;
       
       const baseSat = (providedQuality / expectationTarget) * 100;
@@ -1073,6 +1148,8 @@ export function calculateRouteFinancials(
   const getPaxHandlingUnit = (level: number) => (level >= 5 ? 5 : level >= 3 ? 4 : 3) * costIndex * feeFactor;
 
   const timeClass = getFlightTimeClass(durMin);
+  // Demand and fares follow the flight time without steps; see getFlightTimeIndex.
+  const timeIndex = getFlightTimeIndex(durMin);
 
   // Satisfaction per class: the single definition every screen also uses.
   // Returned as part of the result instead of being written onto the route
@@ -1093,12 +1170,13 @@ export function calculateRouteFinancials(
   const demandData = calculateDemand(
     originStats.business, originStats.tourism,
     destStats.business, destStats.tourism,
-    timeClass, currentMonth, difficulty, currentYear,
+    timeIndex, currentMonth, difficulty, currentYear,
     (mods ? routeDemandFactor(mods, originAirport, destAirport) * (mods.maturity?.[route.id] ?? 1) : extraDemandFactor) *
-      eventRegionalFactor(currentYear, currentMonth, originAirport, destAirport)
+      eventRegionalFactor(currentYear, currentMonth, originAirport, destAirport),
+    southernShare(originAirport, destAirport)
   );
 
-  const bases = calculateBasePrices(dist, timeClass);
+  const bases = calculateBasePrices(dist, timeIndex);
   let totalPax = 0;
   let totalRev = 0;
   /**
@@ -1279,6 +1357,8 @@ export function calculateRouteFinancials(
     distance: dist,
     durMin,
     timeClass,
+    /** The time class without steps: what demand and base fares were priced with. */
+    timeIndex,
     flightLegs,
     weeklyFlights,
     weightedSeatsPerWeek,
@@ -1333,7 +1413,7 @@ export function toStoredRouteMetrics(fin: ReturnType<typeof calculateRouteFinanc
 /** Engine-only fields older versions wrote onto routes; removed when a save loads. */
 export const TRANSIENT_ROUTE_FIELDS = [
   'basePriceBE75', 'basePriceBE99', 'basePriceBE35', 'satisfactionDetails', 'demandData',
-  'timeClass', 'flightLegs', 'weightedSeatsPerWeek', 'rivalAttractiveness', 'costsBreakdown'
+  'timeClass', 'timeIndex', 'flightLegs', 'weightedSeatsPerWeek', 'rivalAttractiveness', 'costsBreakdown'
 ] as const;
 
 /**

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { getCateringOpt, getMultiOptionSum, applyDiminishingReturns, buildRivalRoutesByPair, marketKey, getPriceDemandMultiplier } from './financeUtils';
+import * as fu from './financeUtils';
 import { MEAL_DATA, EXTRAS_OPTIONS } from '../data/catering';
 
 test('getCateringOpt sums cost across combined meal items instead of averaging', () => {
@@ -623,4 +624,79 @@ test('a development bonus on resale and on maintenance reaches the fleet\'s book
   const cost = (factor: number) => fleetOwnershipCost(fleet, new Set(['A']), 120, factor).total;
   assert.ok(cost(0.96) < cost(1));
   assert.ok(cost(0.96) > cost(1) * 0.9, 'insurance is not part of the maintenance programme');
+});
+
+// --- Flight time without steps ---------------------------------------------
+
+test('time index equals the time class in the middle of each bucket', () => {
+  const centres: [number, number][] = [[30, 1], [90, 2], [150, 3], [210, 4], [300, 5], [450, 6], [630, 7], [810, 8]];
+  for (const [min, cls] of centres) {
+    assert.equal(fu.getFlightTimeIndex(min), cls);
+    assert.equal(fu.getFlightTimeClass(min), cls);
+  }
+  assert.equal(fu.getFlightTimeIndex(0), 1);
+  assert.equal(fu.getFlightTimeIndex(2000), 8);
+  assert.equal(fu.getFlightTimeIndex(NaN), 1);
+});
+
+test('time index never falls and never jumps with one more minute', () => {
+  let prev = fu.getFlightTimeIndex(0);
+  for (let m = 1; m <= 900; m++) {
+    const now = fu.getFlightTimeIndex(m);
+    assert.ok(now >= prev, `fell at ${m} min`);
+    assert.ok(now - prev < 0.02, `jumped at ${m} min`);
+    prev = now;
+  }
+});
+
+test('whole time classes price exactly as before, values in between lie in between', () => {
+  assert.deepEqual(fu.calculateBasePrices(1500, 2), { economy: 121, premium: 175, business: 272, first: 423 });
+  assert.equal(fu.calculateBasePrices(1500, 3).economy, 116);
+  const mid = fu.calculateBasePrices(1500, 2.5).economy;
+  assert.ok(mid < 121 && mid > 116);
+  assert.equal(fu.byTimeIndex(fu.TIME_CLASS_SAT_MULTIPLIERS, 1), 3.0);
+  assert.ok(Math.abs(fu.byTimeIndex(fu.TIME_CLASS_SAT_MULTIPLIERS, 1.5) - 2.6) < 1e-9);
+  assert.equal(fu.byTimeIndex(fu.TIME_CLASS_SAT_MULTIPLIERS, 99), 0.8);
+});
+
+test('one more minute of flight time moves satisfaction and demand only a little', () => {
+  const aircraft = { popularity: 70, baseInteriorPop: 55, conditionInterior: 100 };
+  const config = { catering: [['s2']], extras: ['softdrinks'], service: ['none'] };
+  const mgt = { A: { desks: { normal: 1, self: 0 } }, B: { desks: { normal: 1, self: 0 } } };
+  const sat = (min: number) => fu.calculateClassSatisfaction('economy', aircraft, config, min, mgt, 'A', 'B', 'Normal').satisfactionPercentage;
+  const demand = (min: number) => fu.calculateDemand(106, 95, 121, 90, fu.getFlightTimeIndex(min), 6, 'Normal', 1960).total;
+  // The edges where meals stay the same; 360 and 540 minutes add a meal.
+  for (const edge of [60, 120, 180, 240]) {
+    assert.ok(Math.abs(sat(edge) - sat(edge - 1)) <= 2, `satisfaction jumps at ${edge} min`);
+  }
+  for (const edge of [60, 120, 180, 240, 360, 540, 720]) {
+    const before = demand(edge - 1);
+    assert.ok(Math.abs(demand(edge) - before) / before < 0.01, `demand jumps at ${edge} min`);
+  }
+  assert.ok(demand(45) > demand(200) && demand(200) > demand(700));
+});
+
+// --- Season by hemisphere --------------------------------------------------
+
+test('the season runs six months apart south of the equator', () => {
+  assert.equal(fu.seasonFactor(7), 1.15);
+  assert.equal(fu.seasonFactor(7, 1), fu.seasonFactor(1));
+  assert.equal(fu.seasonFactor(1, 1), 1.15);
+  assert.ok(Math.abs(fu.seasonFactor(7, 0.5) - (1.15 + 0.89) / 2) < 1e-9);
+  assert.equal(fu.seasonFactor(13), fu.seasonFactor(1));
+  const north = { coords: [50, 8] as [number, number] };
+  const south = { coords: [-33.9, 151.2] as [number, number] };
+  assert.equal(fu.southernShare(north, north), 0);
+  assert.equal(fu.southernShare(north, south), 0.5);
+  assert.equal(fu.southernShare(south, south), 1);
+  assert.equal(fu.southernShare(null, undefined), 0);
+});
+
+test('a route inside the southern hemisphere peaks in January, not in July', () => {
+  const d = (month: number, s: number) => fu.calculateDemand(106, 95, 121, 90, 3, month, 'Normal', 1960, 1, s).total;
+  assert.ok(d(1, 1) > d(7, 1));
+  assert.ok(d(7, 0) > d(1, 0));
+  assert.equal(d(7, 0), d(1, 1));
+  // Leaving the argument out is the northern season, as every older caller had it.
+  assert.equal(fu.calculateDemand(106, 95, 121, 90, 3, 7, 'Normal', 1960).total, d(7, 0));
 });

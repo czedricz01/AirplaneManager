@@ -260,3 +260,22 @@ Vorher/nachher (echte Funktionen):
 Bewusst **nicht** umgesetzt (Datenmodell, Balancing oder Designentscheidung nötig): L1, L5, L9, L10, D1–D4 sowie die Erklär-Oberflächen aus Abschnitt 6 und die Verbesserungen aus Abschnitt 7.
 
 Auswirkung auf bestehende Spielstände: Kein Migrationsschritt. Routenwerte werden beim nächsten Monatsabschluss neu berechnet. Bei abgenutzter Kabine, Zielflughäfen ohne Schalter und Überlast zwischen 80 und 110 % ändern sich die SAT-Werte.
+
+---
+
+## 9. Nachtrag 2026-11-12: Flugzeit ohne Stufen, Saison nach Hemisphäre
+
+Die Zeitklasse (1–8) ist ein Eimer: 59 min war Klasse 1, 60 min Klasse 2. Alles, was daran hing, sprang an den Grenzen.
+
+| Größe | vorher (59 → 60 min) | nachher |
+|---|---|---|
+| SAT Economy, gleiche Kabine | 177 % → 136 % | 155 % → 154 % |
+| Nachfrage LHR–FRA 1960 | 6457 → 5635 | 6060 → 6046 |
+| Economy-Basispreis 1500 km (Klasse 2 → 3) | 121 $ → 116 $ | stufenlos 121 … 116 $ |
+
+- Neu: `getFlightTimeIndex(durMin)` in `src/lib/financeUtils.ts`. Der Index ist dieselbe Skala, stufenlos gelesen. In der Mitte jedes Eimers (30, 90, 150, 210, 300, 450, 630, 810 min) ist er gleich der Klasse, dazwischen verläuft er gerade.
+- Den Index nutzen: Service-Faktor (`serviceTimeMultiplier`), Erwartung, Nachfrage, Klassenanteile und Basispreise. Die Zahl der Mahlzeiten bleibt bei der ganzen Klasse.
+- Ganze Klassen ergeben exakt die alten Werte. Routen in der Mitte eines Eimers ändern sich nicht, Routen am Rand um bis zu eine halbe Klasse.
+- Saison: `seasonFactor(month, south)`. Südlich des Äquators läuft sie sechs Monate versetzt; eine Route mit je einem Ende pro Hemisphäre bekommt den Mittelwert. Vorher lag die Spitze überall im Juli.
+
+Offen bleiben: S2–S7 und N2–N4, N6, N7 aus der Analyse vom 2026-11-12 (Ersatz der SAT durch Komfort 0–100 und Zufriedenheit als Ergebnis; Marktanteil mit Sitzkapazität).
