@@ -20,7 +20,7 @@ import { aircraftList, type Aircraft } from '../data/aircraft';
 import { REAL_AIRLINES, FICTIONAL_AIRLINES, isActiveIn, type RivalPersonality } from '../data/rivalAirlines';
 import {
   calculateRouteFinancials,
-  getFlightTimeClass,
+  getFlightTimeIndex,
   calculateBasePrices,
   getJetFuelPrice,
   getFlightDurationMinutes,
@@ -335,7 +335,7 @@ function buildService(personality: Personality) {
 
 /** Fares relative to the base price, per strategy. Easy rivals overcharge. */
 function ticketPricesFor(personality: Personality, difficulty: Difficulty, distance: number, durMin: number) {
-  const bases = calculateBasePrices(distance, getFlightTimeClass(durMin));
+  const bases = calculateBasePrices(distance, getFlightTimeIndex(durMin));
   const f: [number, number, number, number] =
     difficulty === 'Easy' ? [2.25, 2.30, 2.40, 2.50]
     : personality === 'lcc' ? [0.82, 0.85, 1, 1]

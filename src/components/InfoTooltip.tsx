@@ -116,7 +116,7 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
     title: 'Time-Class',
     desc:
       'A flight-length bucket from 1 (under an hour) to 8 (over twelve hours). It is not a cabin class.\n\n' +
-      'It drives three things: how many passengers the route generates (short hops generate far more), how many meals a cabin must serve, and how demanding passengers are — expectations rise 15% per class.',
+      'It tells how many meals a cabin must serve. Three more things follow the flight time itself, without steps between the classes: how many passengers the route generates (short hops generate far more), the base fare, and how demanding passengers are — expectations rise about 15% per class.',
   },
   icaoCode: {
     title: 'Max ICAO Code',

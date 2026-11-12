@@ -22,7 +22,8 @@ import {
   calculateDemand,
   calculateRouteFinancials,
   getFlightDurationMinutes,
-  getFlightTimeClass,
+  getFlightTimeIndex,
+  southernShare,
   marketKey,
   marketShare,
   offerAttractiveness,
@@ -350,12 +351,13 @@ export function computeTransferFlows(
     if (hit) return hit;
     const ao = airportsMap.get(o)!;
     const ad = airportsMap.get(d)!;
-    const timeClass = getFlightTimeClass(getFlightDurationMinutes(ao, ad, MARKET_CRUISE_SPEED));
+    const timeClass = getFlightTimeIndex(getFlightDurationMinutes(ao, ad, MARKET_CRUISE_SPEED));
     const so = getAirportStats(ao, year);
     const sd = getAirportStats(ad, year);
     const demandByClass = calculateDemand(
       so.business, so.tourism, sd.business, sd.tourism, timeClass, month, difficulty, year,
-      mods ? routeDemandFactor(mods, ao, ad) : 1
+      mods ? routeDemandFactor(mods, ao, ad) : 1,
+      southernShare(ao, ad)
     );
     const bases = calculateBasePrices(Math.round(directDistance(o, d)), timeClass);
     const demand = {} as Record<Cabin, number>;

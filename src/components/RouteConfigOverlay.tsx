@@ -10,7 +10,7 @@ import {
   getFlightTimeClass,
   getCateringOpt,
   seatWeightedSatisfaction,
-  TIME_CLASS_SAT_MULTIPLIERS
+  serviceTimeMultiplier
 } from '../lib/financeUtils';
 
 interface RouteConfigOverlayProps {
@@ -57,7 +57,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
 
   const duration = getFlightDurationMinutes();
   const timeClass = getFlightTimeClass(duration);
-  const satMultiplier = TIME_CLASS_SAT_MULTIPLIERS[timeClass] || 1.0;
+  const satMultiplier = serviceTimeMultiplier(duration);
 
   // "general" has no seats of its own; it shows the seat-weighted route figure.
   const getRouteSatForClass = (className: string) =>
