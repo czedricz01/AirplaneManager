@@ -97,7 +97,7 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
     desc:
       'How well this cabin meets what passengers expect for the class and the length of the flight.\n\n' +
       '100% means you met expectations exactly. Above that, passengers tolerate a higher fare; below it, they will only book at a discount.\n\n' +
-      'It comes from the aircraft and its interior condition, the extras fitted, and the catering, service and airport facilities you pay for. Expectations rise with flight length, so the same cabin scores lower on a long haul.',
+      'It starts at 100 and moves by three parts, each against what the class expects: the cabin of that class (counts more on long flights), meals, extras and service (a longer flight calls for more of them; none at all costs most on a long haul), and the airports (check-in, lounge, stands; count less on long flights). Check-in queues, staff morale and cancelled flights come on top. It cannot go above 160%.',
   },
   loadFactor: {
     title: 'Load Factor (LF)',
@@ -116,7 +116,7 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
     title: 'Time-Class',
     desc:
       'A flight-length bucket from 1 (under an hour) to 8 (over twelve hours). It is not a cabin class.\n\n' +
-      'It tells how many meals a cabin must serve. Three more things follow the flight time itself, without steps between the classes: how many passengers the route generates (short hops generate far more), the base fare, and how demanding passengers are — expectations rise about 15% per class.',
+      'It tells how many meals a cabin must serve. Three more things follow the flight time itself, without steps between the classes: how many passengers the route generates (short hops generate far more), the base fare, and how much service passengers expect.',
   },
   icaoCode: {
     title: 'Max ICAO Code',
@@ -148,13 +148,13 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
     title: 'Stands',
     desc:
       'Parking positions for your aircraft, rented weekly rather than bought.\n\n' +
-      'A stand for every slot, at both ends of a route, adds up to 2 quality points to the cabin. With fewer stands the bonus shrinks in proportion. From management tier T2 upwards the rent is waived.',
+      'A stand for every slot, at both ends of a route, adds up to 2 satisfaction points (a little more on short flights, less on long ones). With fewer stands the bonus shrinks in proportion. From management tier T2 upwards the rent is waived.',
   },
   desks: {
     title: 'Check-in Desks',
     desc:
       'Where your passengers are processed, rented weekly.\n\n' +
-      'This is the harshest penalty in the game: with no desks at all every class loses 15 quality points, and premium classes lose 10 if you offer only self-service. A desk never makes things worse. The penalty is worked out at both ends of a route and averaged. Desks also have a capacity — overloading them costs satisfaction again.',
+      'This is the harshest penalty in the game: with no desks at all every class loses about 15 satisfaction points, and premium classes lose 10 if you offer only self-service. A desk never makes things worse. The penalty is worked out at both ends of a route and averaged. Desks also have a capacity — overloading them costs satisfaction again.',
   },
   deskLoad: {
     title: 'Desk Load',

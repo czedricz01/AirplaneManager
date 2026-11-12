@@ -279,3 +279,52 @@ Die Zeitklasse (1–8) ist ein Eimer: 59 min war Klasse 1, 60 min Klasse 2. Alle
 - Saison: `seasonFactor(month, south)`. Südlich des Äquators läuft sie sechs Monate versetzt; eine Route mit je einem Ende pro Hemisphäre bekommt den Mittelwert. Vorher lag die Spitze überall im Juli.
 
 Offen bleiben: S2–S7 und N2–N4, N6, N7 aus der Analyse vom 2026-11-12 (Ersatz der SAT durch Komfort 0–100 und Zufriedenheit als Ergebnis; Marktanteil mit Sitzkapazität).
+
+---
+
+## 10. Nachtrag 2026-11-12: neues SAT-Modell
+
+Die Abschnitte 1, 3 und 4 beschreiben das alte Modell (Hardware × Software ÷ Erwartung). Es ist ersetzt. Die Regeln stehen in `SAT_MODEL` und `calculateClassSatisfaction` in `src/lib/financeUtils.ts`.
+
+### Die Rechnung
+
+```
+SAT = 100 + Kabine + Service + Boden            (je Klasse, begrenzt auf 0 … 160)
+Route-SAT = SAT + Check-in-Überlast + Moral − Ausfälle · 50
+```
+
+Alle Teile sind SAT-Punkte. 100 heißt: genau das Erwartete geliefert. `t` ist der Flugzeit-Index 1 (30 min) bis 8 (13,5 h).
+
+| Teil | Regel |
+|---|---|
+| Kabine | `(Kabinenwert der Klasse − Erwartung) · (0,5 + 0,1·(t−1))`, weich begrenzt auf ±30. Erwartung: Economy 55, Premium 60, Business 68, First 80. |
+| Service | Geliefert = Punkte aus Mahlzeiten + Extras + Service (`src/data/catering.ts`). Erwartet = Economy `5 + 10·(t−1)`, Premium `12 + 14·(t−1)`, Business `25 + 21·(t−1)`, First `40 + 33·(t−1)`. Unter der Erwartung: bis `−(6 + 9·(t−1))` × Klassenfaktor (1 / 1,1 / 1,25 / 1,4), anteilig. Darüber: bis +25, abflachend. |
+| Boden | (Schalter + Lounge + Stands) `· (1,2 − 0,1·(t−1))` |
+| Ausfälle | 20 % gestrichene Flüge kosten 10 Punkte. |
+
+### Was sich gegenüber dem alten Modell ändert
+
+| Punkt | alt | neu |
+|---|---|---|
+| Skala | nach oben offen (45 min mit allen Extras: 378 %) | 0 … 160 % |
+| Flugdauer | Service ×3,0 (kurz) bis ×0,8 (lang), Erwartung zugleich bis ×2,05 | Erwartung an Service wächst mit der Dauer; jeder Servicepunkt zählt überall gleich |
+| Kabine je Klasse (L1) | ein Durchschnitt für alle Klassen | eigener Wert je Klasse (`config.details.interiorByClass`); ältere Flugzeuge und Rivalen nutzen weiter den Durchschnitt |
+| Einheiten (L5) | Qualitätspunkte und Prozentpunkte gemischt | nur SAT-Punkte |
+| Schwierigkeit | SAT ×1,15 / ×0,85 | SAT unverändert; Zahlungsbereitschaft ×1,12 / ×0,88 (`difficultyFareFactor`) |
+| Preisempfindlichkeit | hing nur an der SAT, für alle Klassen gleich | je Klasse: Economy 1,2, Premium 1,0, Business 0,8, First 0,7 |
+| Marktanteil (D2) | Preisreiz = SAT-Preis ÷ Preis, dazu SAT-Reiz: SAT zählte doppelt | Preisreiz = Marktpreis ÷ Preis, SAT-Reiz einmal |
+| Ausfälle | ohne Wirkung auf die SAT | senken sie anteilig |
+
+### Vergleich (Typ 70, Interior je nach Rivalen-Strategie, Dauer 45 / 150 / 300 / 450 / 800 min)
+
+| Kabine | alt | neu |
+|---|---|---|
+| Flag-Carrier Economy | 172 / 116 / 82 / 72 / 61 | 130 / 108 / 92 / 84 / 69 |
+| Flag-Carrier First | 442 / 246 / 139 / 111 / 88 | 119 / 112 / 101 / 96 / 85 |
+| Ohne Service, Economy (Interior 42) | 86 / 69 / 56 / 51 / 44 | 90 / 73 / 54 / 45 / 27 |
+
+Wochengewinn auf Beispielrouten (Normal, Preis = Marktpreis): FRA–CDG mit Service 82 k → 34 k, FRA–MAD 186 k → 130 k, FRA–JFK (747) 110 k → 304 k, FRA–JFK ohne Service −172 k → −92 k. Kurzstrecken mit viel Service verdienen weniger, Langstrecken mit gutem Service mehr.
+
+Spielstände: kein Migrationsschritt. Die Werte werden beim nächsten Monatsabschluss neu berechnet. Flugzeuge bekommen den Wert je Klasse erst bei Kauf oder Umbau.
+
+Offen: Marktanteil mit Sitzkapazität der Rivalen (N2), künstliche Nachfragebremse (N6), Ruf-Schleife (N7), Klassenanteile nach Entfernung (N4).

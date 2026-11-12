@@ -1,7 +1,7 @@
 import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo, useEffect } from 'react';
 import { formatCurrency, formatNumber, yearOf } from '../lib/format';
-import { getPlaneSat } from '../lib/financeUtils';
+import { getPlaneSat, CABIN_CLASSES, SAT_MODEL } from '../lib/financeUtils';
 import { Aircraft } from '../data/aircraft';
 import type { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, Info, Settings, X, Download, Trash2 } from 'lucide-react';
@@ -473,6 +473,16 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
     return Math.round(score);
   }, [interiorPopRaw, hasWifi, isWifiAvailable, hasAmbientLighting, isAmbientAvailable, hasPremiumCatering, hasOnboardBar, isBarAvailable, hasShower, isShowerAvailable, hasReducedGalley, hasMinimalServices]);
 
+  // Each cabin's own score, with the cabin-wide extras every passenger has.
+  // The route economy rates a class by its own cabin; the average above stays
+  // as the aircraft's headline figure.
+  const cabinWideExtras = totalSeats > 0 ? baseInteriorPop - Math.round(interiorPopRaw) : 0;
+  const interiorByClass: Record<string, number> = {};
+  if (ecoSeats > 0) interiorByClass.economy = Math.round(getEcoPop() + cabinWideExtras);
+  if (premSeats > 0) interiorByClass.premium = Math.round(getPremPop() + cabinWideExtras);
+  if (bizSeats > 0) interiorByClass.business = Math.round(getBizPop() + cabinWideExtras);
+  if (firstSeats > 0) interiorByClass.first = Math.round(getFirstPop() + cabinWideExtras);
+
   // Overall Plane Pop
   // The formula the route economy uses, at the condition a new or refitted cabin
   // starts from, so this preview cannot drift from the figure routes are priced with.
@@ -670,7 +680,9 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         // Both change the usable cabin space. They were not stored, so the
         // next refit started without them and silently changed the seat count.
         hasReducedGalley,
-        hasMinimalServices
+        hasMinimalServices,
+        // Per cabin, for getPlaneSat(aircraft, cabinClass).
+        interiorByClass
       } as any
     };
     onConfirmPurchase(initialPlane || aircraft, quantity, output, baseInteriorPop, totalPrice);
@@ -1354,6 +1366,21 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 <div className="text-2xs font-label text-muted text-right uppercase mt-1 tracking-label">
                   (Type Sat {aircraft.popularity}% × 0.33) + (Interior Sat {baseInteriorPop}% × 0.67)
                 </div>
+              </div>
+
+              {/* What each cabin is rated by on a route: its own seats, not the average. */}
+              <div className="flex flex-col gap-1 pb-2">
+                <span className="text-2xs font-label text-muted uppercase tracking-label">Cabin score per class (expected)</span>
+                {CABIN_CLASSES.filter(c => interiorByClass[c] !== undefined).map(c => {
+                  const score = getPlaneSat({ popularity: aircraft.popularity, conditionInterior: 100, config: { details: { interiorByClass } } }, c);
+                  const expected = SAT_MODEL.cabinExpectation[c];
+                  return (
+                    <div key={c} className="flex items-center justify-between">
+                      <span className="text-2xs font-label text-muted uppercase tracking-label">{c}</span>
+                      <span className={`text-xs font-mono ${score >= expected ? 'text-accent' : 'text-bad'}`}>{score} ({expected})</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

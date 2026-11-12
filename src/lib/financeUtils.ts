@@ -211,22 +211,6 @@ export function byTimeIndex(table: Record<number, number>, timeIndex: number): n
   return table[lo] + (table[hi] - table[lo]) * (t - lo);
 }
 
-export const TIME_CLASS_SAT_MULTIPLIERS: Record<number, number> = {
-  1: 3.0,
-  2: 2.2,
-  3: 1.8,
-  4: 1.4,
-  5: 1.1,
-  6: 0.9,
-  7: 0.8,
-  8: 0.8
-};
-
-/** How much catering, extras and service count on a flight of `durMin` minutes. */
-export function serviceTimeMultiplier(durMin: number): number {
-  return byTimeIndex(TIME_CLASS_SAT_MULTIPLIERS, getFlightTimeIndex(durMin));
-}
-
 /** Southern summer is northern winter: the season there runs six months apart. */
 const SEASON_BY_MONTH = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
 
@@ -420,14 +404,18 @@ export function getMultiOptionSum(ids: string[], options: Record<string, { label
   };
 }
 
-export function adjustSatForDifficulty(baseSat: number, difficulty: string): number {
-  if (difficulty === 'Easy') {
-    return baseSat * 1.15;
-  }
-  if (difficulty === 'Hard') {
-    return baseSat * 0.85;
-  }
-  return baseSat;
+/**
+ * What passengers are willing to pay on a difficulty level, as a factor on the
+ * fare: 12% more on Easy, 12% less on Hard.
+ *
+ * The level used to multiply the satisfaction figure itself, so the very same
+ * flight left passengers "more satisfied" on Easy. It is a lever on money, and
+ * that is where it now sits; satisfaction describes the flight alone.
+ */
+export function difficultyFareFactor(difficulty: string): number {
+  if (difficulty === 'Easy') return 1.12;
+  if (difficulty === 'Hard') return 0.88;
+  return 1;
 }
 
 export const getLoungeBonus = (airportId: string | null, cabinClass: string, airportManagement?: any) => {
@@ -446,12 +434,24 @@ export const getLoungeBonus = (airportId: string | null, cabinClass: string, air
  */
 const interiorWearFactor = (condition: number) => 0.4 + 0.6 * (condition / 100);
 
-export const getPlaneSat = (aircraft?: any) => {
+/**
+ * The cabin score of an aircraft, 0 to about 100 and above for the best suites.
+ *
+ * With `cabinClass` it is that cabin's own score. The purchase used to average
+ * the four cabins by seats into one figure for everybody, so a first-class
+ * suite barely helped first class and economy was credited with it. Aircraft
+ * bought before the per-cabin scores were stored, and the rivals' aircraft,
+ * have only the average and use it for every cabin.
+ */
+export const getPlaneSat = (aircraft?: any, cabinClass?: string) => {
   if (!aircraft) return 0;
   // Any missing field used to make this NaN, and NaN then poisoned every figure
   // computed from it (it is how the AI economy ended up on a fallback constant).
   const popularity = Number.isFinite(aircraft.popularity) ? aircraft.popularity : 50;
-  const interiorPop = Number.isFinite(aircraft.baseInteriorPop) ? aircraft.baseInteriorPop : 50;
+  const ownCabin = cabinClass ? aircraft.config?.details?.interiorByClass?.[cabinClass] : undefined;
+  const interiorPop = Number.isFinite(ownCabin)
+    ? ownCabin
+    : Number.isFinite(aircraft.baseInteriorPop) ? aircraft.baseInteriorPop : 50;
   const interiorCondition = Number.isFinite(aircraft.conditionInterior) ? aircraft.conditionInterior : 100;
   // Wear belongs to the cabin. The model's popularity is a fact about the type
   // and used to be scaled down by it as well, so a tired cabin also made the
@@ -687,96 +687,136 @@ export function getSatMultiplier(sat: number): number {
 
 
 /**
- * Diminishing returns above a threshold, applied to a raw linear SAT sum (the
- * extras sum, or catering+service combined) before it feeds into
- * calculateClassSatisfaction. Below the threshold it's a pure passthrough, so
- * a moderate, realistic selection is unaffected; above it, each additional
- * raw point buys progressively less, taming what would otherwise be an
- * unbounded linear stack of every available option.
+ * The satisfaction model.
  *
- * The first 20 points above the threshold still count in full. The square root
- * alone paid MORE than it was given there (65 became 70), because it grows
- * faster than the input until the excess reaches SCALE; taking the smaller of
- * the two keeps the curve rising and never above the input.
+ * Satisfaction is 100 when a flight is what its passengers expected, and moves
+ * up or down by what each part of the trip delivers against that expectation:
+ *
+ *   100 + cabin + service + ground        (and, per route: check-in load,
+ *                                           staff morale, cancelled flights)
+ *
+ * Every part is in the same unit, satisfaction points, and every part levels
+ * off, so the figure stays between 0 and SAT_MAX. It used to be the ratio of a
+ * "quality" to an "expectation", open at the top: a 45-minute hop with every
+ * extra reached 378%, because short flights multiplied service by three while
+ * long flights both damped it and expected twice as much.
+ *
+ * How flight time enters, by time index 1 (half an hour) to 8 (13 hours):
+ *   cabin    counts more the longer the passenger sits in it
+ *   service  is expected in proportion to the flight: nothing much on a hop,
+ *            three meals and drinks on a long haul. Missing it costs more the
+ *            longer the flight; exceeding it pleases up to a limit.
+ *   ground   check-in, lounge and stand count less on a long trip
  */
-export function applyDiminishingReturns(rawSat: number): number {
-  const THRESHOLD = 60;
-  const SCALE = 20;
-  if (rawSat <= THRESHOLD) return rawSat;
-  const excess = rawSat - THRESHOLD;
-  return Math.round(THRESHOLD + Math.min(excess, Math.sqrt(excess * SCALE)));
+export const SAT_MAX = 160;
+
+export const SAT_MODEL = {
+  /** The cabin score (getPlaneSat) each class takes for granted. */
+  cabinExpectation: { economy: 55, premium: 60, business: 68, first: 80 } as Record<string, number>,
+  /** Satisfaction points per cabin point above or below it: at time index 1, and more per index. */
+  cabinWeight: { base: 0.5, perIndex: 0.1 },
+  /** The most the cabin can add or cost. */
+  cabinLimit: 30,
+  /**
+   * Service points (meals + extras + service, as listed in catering.ts) a
+   * class expects: at time index 1, and more per index.
+   */
+  serviceExpectation: {
+    economy: { base: 5, perIndex: 10 },
+    premium: { base: 12, perIndex: 14 },
+    business: { base: 25, perIndex: 21 },
+    first: { base: 40, perIndex: 33 }
+  } as Record<string, { base: number; perIndex: number }>,
+  /** What no service at all costs: at time index 1, and more per index. */
+  serviceShortfall: { base: 6, perIndex: 9 },
+  /** No service hurts the dearer cabins more. */
+  serviceShortfallByClass: { economy: 1, premium: 1.1, business: 1.25, first: 1.4 } as Record<string, number>,
+  /** The most that service beyond the expectation can add; twice the expectation earns 63% of it. */
+  serviceDelight: 25,
+  /** How much the ground side counts: at time index 1, and less per index. */
+  groundWeight: { base: 1.2, perIndex: -0.1 },
+  /** Points lost for a timetable that is cancelled entirely; in proportion below that. */
+  cancelPenalty: 50
+};
+
+/** Levels off towards +-limit; near zero it changes nothing. */
+const levelOff = (x: number, limit: number) => limit * Math.tanh(x / limit);
+
+/** The service points a class expects on a flight at this time index. */
+export function expectedServicePoints(cabinClass: string, timeIndex: number): number {
+  const e = SAT_MODEL.serviceExpectation[cabinClass] || SAT_MODEL.serviceExpectation.economy;
+  return e.base + e.perIndex * (timeIndex - 1);
 }
 
-export function calculateClassSatisfaction(c: string, aircraft: any, config: any, dur: number, airportManagement: any, routeOrigin: string, routeDest: string, difficulty: string, slotType: string = 'regional') {
+/**
+ * Satisfaction points for `delivered` service points against the `expected`
+ * ones: a straight loss down to nothing delivered, a gain that levels off above.
+ */
+export function serviceSatPoints(delivered: number, expected: number, cabinClass: string, timeIndex: number): number {
+  const ratio = expected > 0 ? Math.max(0, delivered) / expected : 1;
+  if (ratio < 1) {
+    const worst = (SAT_MODEL.serviceShortfall.base + SAT_MODEL.serviceShortfall.perIndex * (timeIndex - 1))
+      * (SAT_MODEL.serviceShortfallByClass[cabinClass] ?? 1);
+    return -worst * (1 - ratio);
+  }
+  return SAT_MODEL.serviceDelight * (1 - Math.exp(-(ratio - 1)));
+}
+
+export function calculateClassSatisfaction(c: string, aircraft: any, config: any, dur: number, airportManagement: any, routeOrigin: string, routeDest: string, slotType: string = 'regional') {
       // Meals come in whole numbers and follow the class; everything that is a
       // matter of degree follows the index, so one minute never moves it far.
       const timeClass = getFlightTimeClass(dur);
       const timeIndex = getFlightTimeIndex(dur);
-      const multiplier = byTimeIndex(TIME_CLASS_SAT_MULTIPLIERS, timeIndex);
       const mealCount = timeClass <= 5 ? 1 : timeClass <= 7 ? 2 : 3;
 
       let cateringSat = 0;
       for (let i = 0; i < mealCount; i++) {
           cateringSat += getCateringOpt(config.catering, i).sat;
       }
-      const extrasSat = applyDiminishingReturns(getMultiOptionSum(config.extras, EXTRAS_OPTIONS).sat);
+      const extrasSat = getMultiOptionSum(config.extras, EXTRAS_OPTIONS).sat;
       const serviceSat = getMultiOptionSum(config.service, SERVICE_OPTIONS).sat;
-      
-      const loungeBonus = getLoungeBonus(routeOrigin, c, airportManagement) + getLoungeBonus(routeDest, c, airportManagement);
-      
-      const standBonus = getStandBonus(routeOrigin, routeDest, slotType, airportManagement);
 
-      // Passengers check in at both ends of a round trip, so both airports
-      // count, as they already do for the overload penalty.
+      // --- Cabin: this class's own seats against what the class takes for granted.
+      const planeSat = getPlaneSat(aircraft, c);
+      const cabinExpectation = SAT_MODEL.cabinExpectation[c] ?? SAT_MODEL.cabinExpectation.economy;
+      const cabinWeight = SAT_MODEL.cabinWeight.base + SAT_MODEL.cabinWeight.perIndex * (timeIndex - 1);
+      const cabinPoints = levelOff((planeSat - cabinExpectation) * cabinWeight, SAT_MODEL.cabinLimit);
+
+      // --- Service: what is served against what a flight this long calls for.
+      const serviceDelivered = cateringSat + extrasSat + serviceSat;
+      const serviceExpected = expectedServicePoints(c, timeIndex);
+      const servicePoints = serviceSatPoints(serviceDelivered, serviceExpected, c, timeIndex);
+
+      // --- Ground: passengers check in at both ends of a round trip, so both
+      // airports count, as they already do for the overload penalty.
+      const groundWeight = SAT_MODEL.groundWeight.base + SAT_MODEL.groundWeight.perIndex * (timeIndex - 1);
       const isPremium = c === 'business' || c === 'first' || c === 'premium';
       const deskPenaltyAt = (airportId: string) => {
          const desks = airportManagement[airportId]?.desks;
          return getDeskPenalty((desks?.self || 0) > 0, (desks?.normal || 0) > 0, isPremium);
       };
-      const deskPenalty = (deskPenaltyAt(routeOrigin) + deskPenaltyAt(routeDest)) / 2;
+      const deskPenalty = ((deskPenaltyAt(routeOrigin) + deskPenaltyAt(routeDest)) / 2) * groundWeight;
+      const loungeBonus = (getLoungeBonus(routeOrigin, c, airportManagement) + getLoungeBonus(routeDest, c, airportManagement)) * groundWeight;
+      const standBonus = getStandBonus(routeOrigin, routeDest, slotType, airportManagement) * groundWeight;
+      const groundPoints = deskPenalty + loungeBonus + standBonus;
 
-      const planeSat = getPlaneSat(aircraft);
+      const sat = Math.round(Math.max(0, Math.min(SAT_MAX, 100 + cabinPoints + servicePoints + groundPoints)));
 
-      const hardProduct = Math.max(1, 20 + planeSat + (extrasSat * multiplier) + standBonus);
-      const softProduct = Math.max(1, 20 + (applyDiminishingReturns(cateringSat + serviceSat) * multiplier) + loungeBonus + deskPenalty);
-      
-      const providedQuality = Math.sqrt(hardProduct * softProduct);
-      
-      // hardProduct/softProduct both carry a flat +20 floor, so providedQuality can
-      // never drop below ~20 (normal check-in desks) even with every service set to
-      // "none". Economy and premium sit far below business/first here on purpose --
-      // a zero-spend config used to clear 100% in both regardless of input, so 100%
-      // cost real catering/extras/service spend only in the classes passengers
-      // already expect to pay more for. Business/first were raised only slightly:
-      // they already required real investment to satisfy.
-      //
-      // First's original base (104) combined with the multiplicative long-haul
-      // expectationMultiplier below made 100% mathematically out of reach on
-      // long-haul widebody routes even with every option maxed out (~80%
-      // ceiling), because TIME_CLASS_SAT_MULTIPLIERS simultaneously dampens the
-      // inputs on exactly those routes. Lowered so a strong (not necessarily
-      // maxed) first-class setup can clear 100% on any route length. Business
-      // was already reachable near/at max spend; lowered a bit further so it
-      // clears 100% with more comfortable margin at realistic spend too.
-      const expectationBase: Record<string, number> = { economy: 42, premium: 48, business: 64, first: 70 };
-      const eBase = expectationBase[c] || 18;
-      const expectationMultiplier = 1.0 + ((timeIndex - 1) * 0.15);
-      const expectationTarget = eBase * expectationMultiplier;
-      
-      const baseSat = (providedQuality / expectationTarget) * 100;
-      const adjustedSat = Math.round(Math.max(0, adjustSatForDifficulty(baseSat, difficulty)));
-      
       return {
-         hardProduct: Math.round(hardProduct),
-         softProduct: Math.round(softProduct),
-         providedQuality: Math.round(providedQuality),
-         expectationTarget: Math.round(expectationTarget),
-         satisfactionPercentage: adjustedSat,
-         // The ground-side inputs, in quality points, so screens can show what
-         // the model actually applied instead of re-deriving it their own way.
+         satisfactionPercentage: sat,
+         // The parts, in satisfaction points, so screens can show what the
+         // model actually applied instead of re-deriving it their own way.
+         cabinPoints,
+         servicePoints,
+         groundPoints,
          standBonus,
          loungeBonus,
-         deskPenalty
+         deskPenalty,
+         // What stands behind the parts.
+         planeSat,
+         cabinExpectation,
+         serviceDelivered,
+         serviceExpected: Math.round(serviceExpected)
       };
 }
 
@@ -808,7 +848,8 @@ export function getRouteClassSatisfaction(
   airportManagement: Record<string, any>,
   allRoutes: any[] = [],
   fleet: any[] = [],
-  difficulty: string
+  /** No longer used: the difficulty acts on the fare (difficultyFareFactor), not on satisfaction. */
+  _difficulty?: string
 ) {
   const durMin = Number(route.durMin) || 0;
   const weeklyFlights = route.schedule?.length || route.weeklyFlights || 0;
@@ -841,9 +882,9 @@ export function getRouteClassSatisfaction(
     if (seats <= 0) continue;
     const satData = calculateClassSatisfaction(
       c, aircraft, classConfigFor(classConfigs, c), durMin, mgt,
-      route.origin, route.destination, difficulty, slotType
+      route.origin, route.destination, slotType
     );
-    routeSat[c] = Math.max(0, satData.satisfactionPercentage + overloadPenalty);
+    routeSat[c] = Math.round(Math.max(0, Math.min(SAT_MAX, satData.satisfactionPercentage + overloadPenalty)));
     satisfactionDetails[c] = {
       ...satData,
       // Before the check-in overload penalty, for the "cabin services" figure.
@@ -885,13 +926,28 @@ const OVERPRICE_ELASTICITY_FACTOR = 3;
 export const PRICE_INSENSITIVE_SHARE = 0.25;
 const PRICE_INSENSITIVE_ELASTICITY = 1;
 
-export function getPriceDemandMultiplier(price: number, satBasePrice: number, sat: number) {
+/**
+ * How strongly a cabin's demand reacts to its fare: 1.2 means 1% cheaper sells
+ * 1.2% more seats. Holidaymakers in economy compare prices; business and first
+ * class travel mostly on someone else's account and react far less.
+ *
+ * This used to depend on satisfaction alone and was the same for every cabin
+ * (1 at 100% satisfaction), which made satisfaction count a second time on top
+ * of the fare it already sets.
+ */
+export const PRICE_ELASTICITY: Record<string, number> = { economy: 1.2, premium: 1.0, business: 0.8, first: 0.7 };
+
+export const priceElasticity = (cabinClass: string) => PRICE_ELASTICITY[cabinClass] ?? 1;
+
+/**
+ * The share of demand a fare keeps, against the fare passengers find fair.
+ * `elasticity` is priceElasticity() of the cabin; 1 when left out.
+ */
+export function getPriceDemandMultiplier(price: number, satBasePrice: number, elasticity: number = 1) {
     // Nothing is worth zero, and a free ticket draws the most demand there is.
     // Without these two lines 0/0 and x/0 turned the whole route result into NaN.
     if (!(satBasePrice > 0)) return 0;
     if (!(price > 0)) return 1.5;
-    const baseElasticity = 1.5;
-    const elasticity = Math.max(0.5, baseElasticity - (sat / 200));
     const appeal = satBasePrice / price;
     if (price <= satBasePrice) return Math.min(1.5, Math.pow(appeal, elasticity));
     return (1 - PRICE_INSENSITIVE_SHARE) * Math.pow(appeal, elasticity * OVERPRICE_ELASTICITY_FACTOR)
@@ -1159,10 +1215,13 @@ export function calculateRouteFinancials(
   // discarded.
   const { routeSat: cabinSat, satisfactionDetails, classConfigs } = getRouteClassSatisfaction(route, aircraft, airportManagement, allRoutes, fleet, difficulty);
   // Staff morale moves every class the same way, on top of the cabin product.
-  const satDelta = mods?.satDelta ?? 0;
+  // Cancelled flights cost satisfaction as well: a strike or a disruption
+  // used to thin out the timetable and leave the passengers as happy as before.
+  const cancelSat = -(1 - flownShare) * SAT_MODEL.cancelPenalty;
+  const satDelta = (mods?.satDelta ?? 0) + cancelSat;
   const routeSat: Record<string, number> = satDelta === 0
     ? cabinSat
-    : Object.fromEntries(Object.entries(cabinSat).map(([c, sat]) => [c, Math.max(0, Math.round(sat + satDelta))]));
+    : Object.fromEntries(Object.entries(cabinSat).map(([c, sat]) => [c, Math.max(0, Math.min(SAT_MAX, Math.round(sat + satDelta)))]));
 
   const originStats = getAirportStats(originAirport, currentYear);
   const destStats = getAirportStats(destAirport, currentYear);
@@ -1177,6 +1236,7 @@ export function calculateRouteFinancials(
   );
 
   const bases = calculateBasePrices(dist, timeIndex);
+  const fareFactor = difficultyFareFactor(difficulty);
   let totalPax = 0;
   let totalRev = 0;
   /**
@@ -1248,7 +1308,10 @@ export function calculateRouteFinancials(
       const maxPax = demandData[c as keyof typeof demandData] as number;
       const sat = routeSat[c];
       const satMultiplier = getSatMultiplier(sat);
-      const satBase = Math.round(bases[c as keyof typeof bases] * satMultiplier);
+      // The going fare for this distance on this difficulty, and what this
+      // cabin is worth to its passengers on top of or below it.
+      const marketBase = bases[c as keyof typeof bases] * fareFactor;
+      const satBase = Math.round(marketBase * satMultiplier);
       // A saved fare list that lacks this cabin (say, business added by a
       // refit) is priced at the going rate rather than at `undefined`, which
       // made every figure of the route NaN.
@@ -1256,9 +1319,12 @@ export function calculateRouteFinancials(
 
       // The share of this class's demand won against the rivals above. With
       // nobody else on the pair this is 1 and nothing changes.
+      // Price is measured against the going fare, quality counts on its own.
+      // The price term used to be the satisfaction-adjusted fare over the
+      // price, so satisfaction entered the split twice.
       const ownAttractiveness = offerAttractiveness(
         weeklyFlights,
-        price > 0 ? satBase / price : 1,
+        price > 0 ? marketBase / price : 1,
         sat / 100
       );
       const share = loyalty === 1
@@ -1273,7 +1339,7 @@ export function calculateRouteFinancials(
       const marketDemand = maxPax * share;
       const fare = Math.round(satBase * scarcityPremium(marketDemand, weeklySupply));
       marketFare[c] = fare;
-      const demMult = getPriceDemandMultiplier(price, fare, sat);
+      const demMult = getPriceDemandMultiplier(price, fare, priceElasticity(c));
       // Demand beyond MAX_DEMAND_SURPLUS times what this route can carry is not
       // available to it at any price, so it cannot prop up an inflated fare.
       const reachableDemand = Math.min(marketDemand, weeklySupply * MAX_DEMAND_SURPLUS);

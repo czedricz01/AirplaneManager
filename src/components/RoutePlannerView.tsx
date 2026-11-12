@@ -51,6 +51,8 @@ import {
   calculateBasePrices,
   eventRegionalFactor,
   getSatMultiplier,
+  difficultyFareFactor,
+  priceElasticity,
   getPriceDemandMultiplier,
   MAX_SCARCITY_PREMIUM,
   PRICE_INSENSITIVE_SHARE,
@@ -3038,7 +3040,7 @@ function RoutePlannerInner({
                           const config = classConfigFor(classConfigs, c);
                           const sd = c === 'general' ? null : details[c];
                           const displaySatVal = sd ? sd.satisfactionPercentage : weighted(d => d.satisfactionPercentage);
-                          const serviceQuality = sd ? sd.softProduct : weighted(d => d.softProduct);
+                          const serviceQuality = sd ? sd.servicePoints : weighted(d => d.servicePoints);
 
                           return (
                              <div 
@@ -3073,8 +3075,8 @@ function RoutePlannerInner({
                                        <span>{getMultiOptionSum(config.service, SERVICE_OPTIONS).label.split(',')[0]}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-current/10 bg-current/5">
-                                       <span className="opacity-60">Service quality:</span>
-                                       <span className={activeConfigClass === c ? 'text-on-accent font-semibold' : 'text-accent font-semibold'}>{Math.round(serviceQuality)} pts</span>
+                                       <span className="opacity-60">Service vs. expected:</span>
+                                       <span className={activeConfigClass === c ? 'text-on-accent font-semibold' : 'text-accent font-semibold'}>{signed(Math.round(serviceQuality))} pts</span>
                                     </div>
                                  </div>
                               </div>
@@ -3222,7 +3224,7 @@ function RoutePlannerInner({
                          </div>
                          <div className="flex items-center gap-4">
                             {/* Only the check-in load changes SAT directly; stands, lounges
-                                and desk types are quality points inside each class score. */}
+                                and desk types are points inside each class score. */}
                             <span className="text-sm font-semibold text-accent">
                                {signed(classSat.overloadPenalty, 1)}%
                             </span>
@@ -3244,7 +3246,7 @@ function RoutePlannerInner({
                                   </div>
                                   <div className="flex justify-between items-center px-2 py-1">
                                      <span className="">Stand Priority (both ends)</span>
-                                     <span className="text-accent">{signed(standBonus, 1)} quality pts</span>
+                                     <span className="text-accent">{signed(standBonus, 1)} pts</span>
                                   </div>
                                   
                                   <div className="border-t border-line pt-4 mt-4">
@@ -3260,7 +3262,7 @@ function RoutePlannerInner({
                                            <div key={c} className="flex justify-between items-center p-3 border border-line bg-surface mb-1">
                                               <div className="flex flex-col">
                                                  <span className="text-2xs text-muted font-semibold">{c}</span>
-                                                 <span className="text-2xs text-muted">Target: {sceData.expectationTarget} | Quality: {sceData.providedQuality} | Lounge: {signed(sceData.loungeBonus)} | Desks: {signed(sceData.deskPenalty, 1)}{overloadPenalty < 0 ? ` | Check-in load: ${formatNumber(overloadPenalty, 1)}%` : ''}</span>
+                                                 <span className="text-2xs text-muted">Cabin: {signed(sceData.cabinPoints, 1)} | Service: {signed(sceData.servicePoints, 1)} ({Math.round(sceData.serviceDelivered)} of {sceData.serviceExpected} pts) | Lounge: {signed(sceData.loungeBonus, 1)} | Desks: {signed(sceData.deskPenalty, 1)}{overloadPenalty < 0 ? ` | Check-in load: ${formatNumber(overloadPenalty, 1)}%` : ''}</span>
                                               </div>
                                               <span className="text-accent font-semibold text-xs">{Math.round(Math.max(0, classRouteSat))}%</span>
                                            </div>
@@ -3592,14 +3594,15 @@ function RoutePlannerInner({
                                    const seats = selectedAircraft.config?.[c] || 0;
                                    if (!seats) return null;
                                    const maxDemand = d[c] || 0;
-                                   const base = bases[c];
+                                   // The going fare on this difficulty, as the engine prices it.
+                                   const base = Math.round(bases[c] * difficultyFareFactor(difficulty));
                                    const sat = Math.max(0, saveFinancials.routeSat[c] || 0);
                                    const satMultiplier = getSatMultiplier(sat);
                                    const satBase = Math.round(base * satMultiplier);
                                    const currentPrice = ticketPrices[c] || satBase;
-                                   const elasticity = Math.max(0.5, 1.5 - sat / 200);
+                                   const elasticity = priceElasticity(c);
                                    const fare = saveFinancials.marketFare?.[c] ?? satBase;
-                                   const demMult = getPriceDemandMultiplier(currentPrice, fare, sat);
+                                   const demMult = getPriceDemandMultiplier(currentPrice, fare, elasticity);
                                    const pax = saveFinancials.paxByClass[c];
                                    return (
                                       <div key={c} className="flex flex-col py-2 border-b border-line last:border-0 gap-1">
