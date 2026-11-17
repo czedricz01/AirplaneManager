@@ -18,6 +18,15 @@ Monatsabschluss) wird geordnet neu aufgebaut. Oberfläche und Technik bleiben.
    offene Fragen, nächstes Paket.
 3. Neue Entscheidungen in `docs/neubau/ENTSCHEIDUNGEN.md` eintragen.
 4. Committen, pushen, Pull Request.
+5. Die letzte Antwort an den Menschen endet mit einer kurzen Anleitung für den nächsten Schritt:
+   - was jetzt zu tun ist (z. B. Pull Request mergen, offene Fragen beantworten),
+   - welches Paket als Nächstes kommt und worum es geht (ein Satz),
+   - der Prompt für die neue Sitzung in einem eigenen Codeblock, zum Kopieren, z. B.
+     ```
+     Mach das nächste Paket aus docs/neubau/STATUS.md.
+     ```
+   Wartet das nächste Paket auf eine Entscheidung, stattdessen die Fragen nennen
+   und einen Prompt geben, mit dem der Mensch sie beantworten kann.
 
 ## Allgemein
 
