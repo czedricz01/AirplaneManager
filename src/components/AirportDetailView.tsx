@@ -1,6 +1,7 @@
 import { clickOnKey } from '../lib/a11y';
 import React, { useMemo } from 'react';
 import { formatCurrency, formatNumber, yearOf } from '../lib/format';
+import { realCostIndex } from '../lib/realCosts';
 import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info, ArrowRightLeft } from 'lucide-react';
 import type { AirportInfrastructure, SimulatedRoute } from '../lib/gameTypes';
@@ -8,7 +9,7 @@ import type { AirportInfrastructure, SimulatedRoute } from '../lib/gameTypes';
 import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 
-import { getAirportUpkeep, getSlotPurchaseCost, SLOT_CAPEX_LABEL, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
+import { getAirportUpkeep, baseLandingFee, DESK_FIXED_SHARE, getSlotPurchaseCost, SLOT_CAPEX_LABEL, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';
 import { hubQuality, MIN_CONNECTION_MIN, MAX_CONNECTION_MIN, type HubTransferStats } from '../lib/transferUtils';
 
@@ -101,9 +102,13 @@ export function AirportDetailView({
     slotCosts,
     standUpgradeCosts,
     deskCosts,
+    deskCostsNow,
     deskCapacities,
     passengerData
   } = upkeepData;
+  /** A desk's weekly cost: at today's use, and the range from idle to full. */
+  const deskInfo = (kind: 'normal' | 'self') =>
+    `Cap: ${formatNumber(deskCapacities[kind])} pax/wk | ${formatCurrency(Math.floor(deskCosts[kind] * DESK_FIXED_SHARE))}–${formatCurrency(deskCosts[kind])}/wk by use`;
 
   // Check-in load and its SAT effect exactly as the economy computes them. This
   // screen used its own formula (all seats both ways, a different penalty), so
@@ -276,11 +281,13 @@ export function AirportDetailView({
           <Metric label="Max ICAO Code" value={airport.maxIcaoCode} info="icaoCode" />
           {(() => {
              const hubBonus = infrastructure.level >= 2;
-             const paxUnitFee = (hubBonus ? 0.475 : 0.5) + (level >= 5 ? 5 : level >= 3 ? 4 : 3);
-             const minLandingFee = Math.floor((2000 + 100 * level) * 1.1 * (hubBonus ? 0.95 : 1));
+             const costIndex = realCostIndex(currentYear);
+             const paxUnitFee = ((hubBonus ? 0.475 : 0.5) + (level >= 5 ? 5 : level >= 3 ? 4 : 3)) * costIndex;
+             // Landing fees go by seats; this is one seat of a jet. Turboprops pay 15% less.
+             const landingFeePerSeat = baseLandingFee(level, 'Narrowbody', 180) / 180 * (hubBonus ? 0.95 : 1) * costIndex;
              return (
                <>
-                 <Metric label="Landing Fee (Reg, 100+ seats)" value={formatCurrency(minLandingFee)} />
+                 <Metric label="Landing Fee per Seat" value={formatCurrency(landingFeePerSeat)} />
                  <Metric label="Pax Handling Fee" value={`${formatCurrency(paxUnitFee)} / pax`} />
                </>
              );
@@ -372,9 +379,9 @@ export function AirportDetailView({
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
-                       <InfaRow label="Standard Desk" count={infrastructure.desks.normal} cost={deskCosts.normal} onBuy={(n, isShift) => buyItem('desks', 'normal', n, isShift)} info={`Cap: ${deskCapacities.normal} pax/wk`} />
+                       <InfaRow label="Standard Desk" count={infrastructure.desks.normal} cost={deskCostsNow.normal} onBuy={(n, isShift) => buyItem('desks', 'normal', n, isShift)} info={deskInfo('normal')} />
                        {avail.selfCheckIn && (
-                         <InfaRow label="Self-Check-In" count={infrastructure.desks.self} cost={deskCosts.self} onBuy={(n, isShift) => buyItem('desks', 'self', n, isShift)} info={`Cap: ${deskCapacities.self} pax/wk | -1 SAT`} />
+                         <InfaRow label="Self-Check-In" count={infrastructure.desks.self} cost={deskCostsNow.self} onBuy={(n, isShift) => buyItem('desks', 'self', n, isShift)} info={`${deskInfo('self')} | -1 SAT`} />
                        )}
                     </div>
                     <div className="mt-2 text-2xs text-muted space-y-1">
