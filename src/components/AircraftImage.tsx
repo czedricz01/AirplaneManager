@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plane } from 'lucide-react';
 import { getAircraftImageCandidates, markImageUrlFailed } from '../lib/imageUtils';
+import { BUNDLED_AIRCRAFT_IMAGES } from '../lib/bundledAircraftImages';
 
 interface AircraftImageProps {
   safeName: string;
@@ -30,7 +31,7 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   const [candidateIndex, setCandidateIndex] = useState(0);
 
   const candidates = useMemo(
-    () => getAircraftImageCandidates(safeName, manufacturer, type, imagesMap, keyLookup),
+    () => getAircraftImageCandidates(safeName, manufacturer, type, imagesMap, keyLookup, BUNDLED_AIRCRAFT_IMAGES),
     [safeName, manufacturer, type, imagesMap, keyLookup]
   );
 

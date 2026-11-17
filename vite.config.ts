@@ -16,6 +16,18 @@ export default defineConfig(() => {
     // domain root (a subfolder, an artifact host, or a local file).
     base: './',
     plugins: [react(), tailwindcss()],
+    // The single-file build ships no aircraft pictures (see
+    // src/lib/bundledAircraftImages.ts); it loads them from the image bucket.
+    resolve: isStaticBuild
+      ? {
+          alias: [
+            {
+              find: /^(.*)\/bundledAircraftImages$/,
+              replacement: '$1/bundledAircraftImages.static',
+            },
+          ],
+        }
+      : undefined,
     build: isStaticBuild
       ? {
           outDir: 'dist-static',
