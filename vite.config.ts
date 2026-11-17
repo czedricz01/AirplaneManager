@@ -16,18 +16,6 @@ export default defineConfig(() => {
     // domain root (a subfolder, an artifact host, or a local file).
     base: './',
     plugins: [react(), tailwindcss()],
-    // The single-file build ships no aircraft pictures (see
-    // src/lib/bundledAircraftImages.ts); it loads them from the image bucket.
-    resolve: isStaticBuild
-      ? {
-          alias: [
-            {
-              find: /^(.*)\/bundledAircraftImages$/,
-              replacement: '$1/bundledAircraftImages.static',
-            },
-          ],
-        }
-      : undefined,
     build: isStaticBuild
       ? {
           outDir: 'dist-static',
@@ -36,6 +24,9 @@ export default defineConfig(() => {
           // the result openable straight from disk.
           cssCodeSplit: false,
           modulePreload: false,
+          // Every asset (aircraft pictures, fonts) goes into the code as a
+          // data: URL, so the one HTML file needs nothing next to it.
+          assetsInlineLimit: () => true,
           rollupOptions: {
             output: {
               format: 'iife' as const,

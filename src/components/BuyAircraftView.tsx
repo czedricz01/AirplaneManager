@@ -2,8 +2,8 @@ import { clickOnKey } from '../lib/a11y';
 import React, { useMemo, useState, useEffect } from 'react';
 import { formatCurrency } from '../lib/format';
 import { aircraftList, Aircraft } from '../data/aircraft';
-import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Database, Lock } from 'lucide-react';
-import { setSupabaseBucketUrl, getSupabaseBucketUrl, loadAircraftImagesMap } from '../lib/imageUtils';
+import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Lock } from 'lucide-react';
+import { loadAircraftImagesMap } from '../lib/imageUtils';
 import { AircraftImage } from './AircraftImage';
 import { ViewHeader } from './ui/ViewHeader';
 import { Button } from './ui/Button';
@@ -456,52 +456,6 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
         </div>
       ) : (
       <div className="flex-1 overflow-y-auto min-h-0 pr-4 space-y-6 pb-20">
-        {/* Permanent Supabase Storage Bucket Settings */}
-        {debugMode && (
-          <div className="bg-ground border border-dashed border-accent/20 rounded-sm p-4 shrink-0 transition-all hover:border-accent/40 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h3 className="font-label text-sm font-semibold text-ink flex items-center gap-2">
-                  <Database size={16} />
-                  Supabase Storage Bucket (Permanent Images)
-                  <Badge tone="warn">Debug</Badge>
-                </h3>
-                <p className="text-xs text-muted mt-0.5">
-                  Connected Supabase storage bucket URL for permanent aircraft image rendering across all devices.
-                </p>
-              </div>
-              {getSupabaseBucketUrl() && (
-                <Badge tone="yellow" className="self-start sm:self-center shrink-0">
-                  <CheckCircle2 size={12} />
-                  Bucket Active
-                </Badge>
-              )}
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                placeholder="e.g. https://xxxx.supabase.co/storage/v1/object/public/your-bucket-name"
-                className="flex-1 bg-ground/60 border border-line rounded-sm px-3 py-2 text-xs text-ink focus:outline-none focus:border-accent/60 transition-colors placeholder:text-muted"
-                value={getSupabaseBucketUrl()}
-                onChange={(e) => {
-                  setSupabaseBucketUrl(e.target.value);
-                  setSearchTerm(prev => prev); // re-trigger render
-                }}
-              />
-              <button
-                type="button"
-                className="bg-surface hover:bg-raised text-ink text-xs px-4 py-2 border border-line rounded-sm transition-colors whitespace-nowrap"
-                onClick={() => {
-                  setSupabaseBucketUrl('');
-                  setSearchTerm(prev => prev);
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        )}
         {/* Sleek ZIP & Single Image Customizers - visible in debug mode */}
         {debugMode && (
           <>
