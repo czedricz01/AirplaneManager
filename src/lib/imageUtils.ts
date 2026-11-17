@@ -61,12 +61,24 @@ export const clearAircraftImageCandidateCache = () => {
   candidateCacheImagesMap = undefined;
 };
 
+/** File name stem of an aircraft picture: "Airbus A220-100" -> "airbus_a220_100".
+ *  The image bucket and src/assets/planes/ both use this form. */
+export const aircraftImageStem = (name: string): string =>
+  name
+    .replace(/[\/\\]/g, '-')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
 export const getAircraftImageCandidates = (
   safeName: string,
   manufacturer?: string,
   type?: string,
   imagesMap?: Record<string, string>,
-  keyLookup?: string
+  keyLookup?: string,
+  /** Pictures shipped with the game, keyed by `aircraftImageStem`. Passed in
+   *  rather than imported, so this file still runs outside Vite (unit tests). */
+  bundledImages?: Record<string, string>
 ): string[] => {
   // The list depends only on these inputs, so build it once per aircraft rather than
   // on every render of every card showing that aircraft.
@@ -170,6 +182,13 @@ export const getAircraftImageCandidates = (
     if (imagesMap[underscoreLower]) localCandidates.push(imagesMap[underscoreLower]);
     if (imagesMap[cleanSafeName]) localCandidates.push(imagesMap[cleanSafeName]);
     if (imagesMap[safeName]) localCandidates.push(imagesMap[safeName]);
+  }
+  if (bundledImages) {
+    if (bundledImages[underscoreLower]) localCandidates.push(bundledImages[underscoreLower]);
+    if (manufacturer && type) {
+      const stem = aircraftImageStem(`${manufacturer} ${type}`);
+      if (bundledImages[stem]) localCandidates.push(bundledImages[stem]);
+    }
   }
 
   // Generate bucket candidate URLs for each stem & extension
