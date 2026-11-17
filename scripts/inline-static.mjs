@@ -5,8 +5,9 @@
  * classic <script> block. That makes it runnable from a plain static web host,
  * from a USB stick, or by double-clicking it — no Node.js, no server, no install.
  *
- * External services the game uses at runtime (map tiles, fonts, aircraft photos)
- * are still fetched from the network if the browser can reach them.
+ * Aircraft pictures and fonts are already inside app.js as data: URLs (see
+ * vite.config.ts). Map tiles are still fetched from the network if the browser
+ * can reach them.
  */
 import fs from 'node:fs';
 import path from 'node:path';

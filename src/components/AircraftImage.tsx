@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plane } from 'lucide-react';
-import { getAircraftImageCandidates, markImageUrlFailed } from '../lib/imageUtils';
+import { getAircraftImageCandidates } from '../lib/imageUtils';
 import { BUNDLED_AIRCRAFT_IMAGES } from '../lib/bundledAircraftImages';
 
 interface AircraftImageProps {
@@ -8,7 +8,6 @@ interface AircraftImageProps {
   manufacturer?: string;
   type?: string;
   imagesMap?: Record<string, string>;
-  keyLookup?: string;
   className?: string;
   alt?: string;
   referrerPolicy?: React.HTMLAttributeReferrerPolicy;
@@ -22,7 +21,6 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   manufacturer,
   type,
   imagesMap,
-  keyLookup,
   className = "w-full h-full object-cover",
   alt,
   referrerPolicy = "no-referrer",
@@ -31,8 +29,8 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   const [candidateIndex, setCandidateIndex] = useState(0);
 
   const candidates = useMemo(
-    () => getAircraftImageCandidates(safeName, manufacturer, type, imagesMap, keyLookup, BUNDLED_AIRCRAFT_IMAGES),
-    [safeName, manufacturer, type, imagesMap, keyLookup]
+    () => getAircraftImageCandidates(safeName, manufacturer, type, imagesMap, BUNDLED_AIRCRAFT_IMAGES),
+    [safeName, manufacturer, type, imagesMap]
   );
 
   // Reset index when the candidate list itself changes. Comparing the memoised array
@@ -42,10 +40,7 @@ export const AircraftImage: React.FC<AircraftImageProps> = ({
   }, [candidates]);
 
   const handleImageError = () => {
-    // Remember the miss so no other card retries this URL in this session.
-    const failed = candidates[candidateIndex];
-    if (failed) markImageUrlFailed(failed);
-
+    // Try the next picture (an uploaded one can be gone; the shipped one follows).
     if (candidateIndex < candidates.length - 1) {
       setCandidateIndex(prev => prev + 1);
     } else {

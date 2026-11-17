@@ -1,43 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { aircraftImageStem, clearAircraftImageCandidateCache, clearFailedImageUrls, getAircraftImageCandidates, markImageUrlFailed } from './imageUtils';
+import { aircraftImageStem, getAircraftImageCandidates } from './imageUtils';
 
-test('a cached candidate list keeps its identity while nothing has failed', () => {
-  clearAircraftImageCandidateCache();
-  clearFailedImageUrls();
-  const first = getAircraftImageCandidates('Douglas DC-8-10', 'Douglas', 'DC-8-10');
-  assert.ok(first.length > 0);
-  assert.equal(getAircraftImageCandidates('Douglas DC-8-10', 'Douglas', 'DC-8-10'), first);
+const bundled = { airbus_a220_100: '/assets/airbus_a220_100-abc.webp' };
+
+test('the bundled picture is found by the full aircraft name', () => {
+  assert.deepEqual(
+    getAircraftImageCandidates('Airbus A220-100', 'Airbus', 'A220-100', undefined, bundled),
+    [bundled.airbus_a220_100]
+  );
 });
 
-test('URLs that failed after caching are left out for cards that mount later', () => {
-  clearAircraftImageCandidateCache();
-  clearFailedImageUrls();
-  const first = getAircraftImageCandidates('Douglas DC-8-10', 'Douglas', 'DC-8-10');
-  markImageUrlFailed(first[0]);
-  markImageUrlFailed(first[1]);
-  const later = getAircraftImageCandidates('Douglas DC-8-10', 'Douglas', 'DC-8-10');
-  assert.deepEqual(later, first.slice(2));
+test('an uploaded picture comes before the bundled one', () => {
+  const uploaded = { airbus_a220_100: '/PlanePics/airbus_a220_100/image.png' };
+  assert.deepEqual(
+    getAircraftImageCandidates('Airbus A220-100', 'Airbus', 'A220-100', uploaded, bundled),
+    [uploaded.airbus_a220_100, bundled.airbus_a220_100]
+  );
 });
 
-test('once every guess has failed, a later card gets no URLs to request', () => {
-  clearAircraftImageCandidateCache();
-  clearFailedImageUrls();
-  const first = getAircraftImageCandidates('Douglas DC-8-10', 'Douglas', 'DC-8-10');
-  first.forEach(markImageUrlFailed);
-  assert.deepEqual(getAircraftImageCandidates('Douglas DC-8-10', 'Douglas', 'DC-8-10'), []);
-});
-
-test('a bundled picture comes before every remote guess', () => {
-  clearAircraftImageCandidateCache();
-  clearFailedImageUrls();
-  const bundled = { airbus_a220_100: '/assets/airbus_a220_100-abc.webp' };
-  const list = getAircraftImageCandidates('Airbus A220-100', 'Airbus', 'A220-100', undefined, undefined, bundled);
-  assert.equal(list[0], bundled.airbus_a220_100);
+test('an aircraft without a picture gets no URLs, so no request is made', () => {
+  assert.deepEqual(getAircraftImageCandidates('Unknown X-1', 'Unknown', 'X-1', undefined, bundled), []);
 });
 
 test('aircraftImageStem matches the file names in src/assets/planes', () => {
   assert.equal(aircraftImageStem('Airbus A220-100'), 'airbus_a220_100');
   assert.equal(aircraftImageStem('Aerospatiale BAC Concorde'), 'aerospatiale_bac_concorde');
+  assert.equal(aircraftImageStem('De Havilland Canada Dash 8-400 (Q400)'), 'de_havilland_canada_dash_8_400_q400');
 });

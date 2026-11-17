@@ -7,9 +7,8 @@
  * their final URLs. This module only maps stem -> URL; the images themselves
  * are loaded by the browser when a card shows them.
  *
- * The single-file static build (`npm run build:static`) swaps this module for
- * bundledAircraftImages.static.ts via an alias in vite.config.ts, because these
- * files cannot be folded into one HTML file without making it very large.
+ * In the single-file static build (`npm run build:static`) the URLs are data:
+ * URLs instead, so the pictures sit inside the HTML file (see vite.config.ts).
  */
 const files = import.meta.glob('../assets/planes/*.webp', {
   eager: true,
