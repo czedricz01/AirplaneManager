@@ -20,8 +20,10 @@ export function getAirportUpkeep(
   // The development tree's saving on airport charges applies to the upkeep too.
   const idx = (year === undefined ? 1 : realCostIndex(year)) * getFeeFactor();
 
+  // A regional slot costs half: its aircraft has about half the seats of a jet
+  // and earns half as much per departure.
   const slotCosts = {
-    regional: Math.round(250 * idx),
+    regional: Math.round(REGIONAL_SLOT_UPKEEP * idx),
     narrowbody: Math.round(250 * idx),
     widebody: Math.round(250 * idx)
   };
@@ -32,19 +34,34 @@ export function getAirportUpkeep(
     widebody: Math.round(600 * idx)
   };
   
+  /** What one desk costs a week when it is in full use. */
   const deskCosts = {
     normal: Math.floor(2500 * hubFeeFactor(infrastructure.level) * idx),
     self: Math.floor(1500 * hubFeeFactor(infrastructure.level) * idx)
   };
 
   const deskCapacities = {
-    normal: 5000,
-    self: 10000
+    normal: DESK_CAPACITY.normal,
+    self: DESK_CAPACITY.self
   };
 
   // Create a fast map for fleet registrations
   const fleetMap = new Map<string, any>();
   fleet.forEach(f => fleetMap.set(f.registration, f));
+
+  // The desks are staffed for the passengers they check in. A desk used to
+  // cost the same whether it checked in 5,000 passengers a week or 300, so an
+  // airline with one small aircraft paid a full desk at every airport it
+  // served: in 2022 about $5,200 a week each, more than the landing fees.
+  const deskUse = deskUtilization(
+    weeklyDeskPassengers(airport.id, routes, fleetMap),
+    infrastructure.desks?.normal || 0,
+    infrastructure.desks?.self || 0
+  );
+  const deskCostsNow = {
+    normal: Math.floor(deskCosts.normal * deskCostShare(deskUse)),
+    self: Math.floor(deskCosts.self * deskCostShare(deskUse))
+  };
 
   let departing = 0;
   let arriving = 0;
@@ -88,8 +105,8 @@ export function getAirportUpkeep(
     b.stands.widebody = (stands.widebody || 0) * standUpgradeCosts.widebody;
   }
   
-  b.desks.normal = (desks.normal || 0) * deskCosts.normal;
-  b.desks.self = (desks.self || 0) * deskCosts.self;
+  b.desks.normal = (desks.normal || 0) * deskCostsNow.normal;
+  b.desks.self = (desks.self || 0) * deskCostsNow.self;
 
   if (hubFacilities?.hangar) b.facilities.hangar = Math.round(10000 * idx);
   if (hubFacilities?.vipLounge) b.facilities.vip = Math.round(12500 * idx);
@@ -109,8 +126,55 @@ export function getAirportUpkeep(
     slotCosts,
     standUpgradeCosts,
     deskCosts,
+    /** What one desk costs a week at today's use. */
+    deskCostsNow,
+    /** The share of the desks' capacity in use, 0 to 1. */
+    deskUse,
     deskCapacities
   };
+}
+
+/** Weekly upkeep of one regional slot in 1960 dollars; narrowbody and widebody slots cost 250. */
+export const REGIONAL_SLOT_UPKEEP = 125;
+
+/** Passengers a desk checks in per week. */
+export const DESK_CAPACITY = { normal: 5000, self: 10000 } as const;
+
+/** The part of a desk's cost it costs even when nobody uses it. */
+export const DESK_FIXED_SHARE = 0.2;
+
+/** The share of a desk's full-use cost it costs at a utilization of `use` (0 to 1). */
+export function deskCostShare(use: number): number {
+  const u = Number.isFinite(use) ? Math.max(0, Math.min(1, use)) : 0;
+  return DESK_FIXED_SHARE + (1 - DESK_FIXED_SHARE) * u;
+}
+
+/** The share of an airport's desk capacity its passengers use, 0 to 1 and above when overloaded. */
+export function deskUtilization(weeklyPassengers: number, normalDesks: number, selfDesks: number): number {
+  const capacity = normalDesks * DESK_CAPACITY.normal + selfDesks * DESK_CAPACITY.self;
+  return capacity > 0 ? weeklyPassengers / capacity : 0;
+}
+
+/**
+ * The player's passengers per week at an airport's desks: the seats of every
+ * departure from or to it, as the desks are sized for a full aircraft.
+ */
+export function weeklyDeskPassengers(
+  airportId: string,
+  routes: ReadonlyArray<any>,
+  fleetByRegistration: ReadonlyMap<string, any>,
+  excludeRouteId?: string
+): number {
+  let pax = 0;
+  for (const r of routes) {
+    if (!r || r.id === excludeRouteId) continue;
+    if (r.origin !== airportId && r.destination !== airportId) continue;
+    const ac = fleetByRegistration.get(r.aircraft);
+    if (!ac) continue;
+    const seats = (ac.config?.economy || 0) + (ac.config?.premium || 0) + (ac.config?.business || 0) + (ac.config?.first || 0) || ac.capacity;
+    pax += seats * (r.schedule?.length || 0);
+  }
+  return pax;
 }
 /**
  * Block time for one leg, in minutes.
@@ -492,23 +556,13 @@ export const getDeskSim = (airportId: string | null, airportManagement?: any, ro
   const fl = fleet || [];
   if (!airportId || !mgt) return { load: 0, sat: 0, myPax: 0, cap: 0 };
   const infra = mgt[airportId]?.desks || { normal: 0, self: 0 };
-  const totalCap = (infra.normal * 5000) + (infra.self * 10000);
-  let myPax = 0;
-  
+  const totalCap = (infra.normal * DESK_CAPACITY.normal) + (infra.self * DESK_CAPACITY.self);
+
   // Create a fast map for fleet registrations
   const fleetMap = new Map<string, any>();
   fl.forEach((f: any) => fleetMap.set(f.registration, f));
-  
-  rt.forEach((r: any) => {
-    if (r.id === excludeRouteId) return;
-    if (r.origin === airportId || r.destination === airportId) {
-      const ac = fleetMap.get(r.aircraft);
-      if (ac) {
-        const actualSeats = (ac.config?.economy || 0) + (ac.config?.premium || 0) + (ac.config?.business || 0) + (ac.config?.first || 0) || ac.capacity;
-        myPax += actualSeats * (r.schedule?.length || 0);
-      }
-    }
-  });
+
+  let myPax = weeklyDeskPassengers(airportId, rt, fleetMap, excludeRouteId);
 
   if (selectedOrigin && selectedAircraft && (airportId === selectedOrigin.id || airportId === selectedDest?.id)) {
     const actualSeats = (selectedAircraft.config?.economy || 0) + (selectedAircraft.config?.premium || 0) + (selectedAircraft.config?.business || 0) + (selectedAircraft.config?.first || 0) || selectedAircraft.capacity;
@@ -1111,26 +1165,55 @@ export function marketShare(ownAttractiveness: number, rivalAttractiveness: numb
 }
 
 /**
- * Seats a regional aircraft needs to pay the full regional landing fee, and
- * the smallest share of it any aircraft pays.
+ * The seats of the aircraft that pays its class's full landing fee. Every
+ * other aircraft pays in proportion to its seats.
  */
-export const REGIONAL_FEE_REFERENCE_SEATS = 100;
-export const REGIONAL_FEE_MIN_SHARE = 0.3;
+export const LANDING_FEE_REFERENCE_SEATS: Record<string, number> = { regional: 180, narrowbody: 180, widebody: 420 };
+
+/**
+ * What a regional turboprop weighs per seat, as a share of what a jet weighs:
+ * an ATR 42-600 has a take-off weight of 18.6 t for 50 seats, an A320 79 t for
+ * 180, so the turboprop is about 85% as heavy per seat. Regional jets (CRJ,
+ * E-Jets, A220) weigh about what a narrowbody does per seat and get no share.
+ */
+export const REGIONAL_FEE_WEIGHT_SHARE = 0.85;
+
+/** Regional aircraft slower than this are propeller aircraft (the Saab 2000 is the fastest at 685 km/h). */
+export const PROPELLER_MAX_CRUISE_KMH = 700;
 
 /**
  * The share of its class's landing fee an aircraft pays.
  *
- * Real airports charge by take-off weight. The game charged one flat amount
- * per class, so a 52-seat turboprop paid 80% of what a 180-seat jet paid:
- * about $50 per seat and landing, two thirds of a 500 km fare. No regional
- * aircraft of 1960 could break even on any route at any price. Regional
- * aircraft now pay by size, measured in seats, up to the full fee at
- * REGIONAL_FEE_REFERENCE_SEATS. Narrowbodies and widebodies are unchanged.
+ * Real airports charge by take-off weight, and take-off weight follows the
+ * seats. The game used to charge one flat amount per class, which a regional
+ * aircraft of under 100 seats paid as if it had 100: an ATR 42 paid about
+ * $60 per seat and landing in 2022, a 180-seat jet $37, and no aircraft that
+ * small earned money on any route. Every class now pays by seats, so the
+ * aircraft at LANDING_FEE_REFERENCE_SEATS pays what its class always did, and
+ * regional turboprops pay the jet rate per seat times REGIONAL_FEE_WEIGHT_SHARE.
  */
-export function landingFeeSizeFactor(seats: number | undefined, aircraftClass: string | undefined): number {
-  if (String(aircraftClass || 'regional').toLowerCase() !== 'regional') return 1;
-  if (!(Number(seats) > 0)) return 1;
-  return Math.max(REGIONAL_FEE_MIN_SHARE, Math.min(1, Number(seats) / REGIONAL_FEE_REFERENCE_SEATS));
+export function landingFeeSizeFactor(seats: number | undefined, aircraftClass: string | undefined, cruiseSpeed?: number): number {
+  const cls = String(aircraftClass || 'regional').toLowerCase();
+  const reference = LANDING_FEE_REFERENCE_SEATS[cls];
+  if (!reference || !(Number(seats) > 0)) return 1;
+  const propeller = cls === 'regional' && Number(cruiseSpeed) > 0 && Number(cruiseSpeed) < PROPELLER_MAX_CRUISE_KMH;
+  return (Number(seats) / reference) * (propeller ? REGIONAL_FEE_WEIGHT_SHARE : 1);
+}
+
+/**
+ * One landing's fee, before the hub discount, the cost index and the
+ * development tree. Regional aircraft are priced at the narrowbody rate and
+ * scaled by landingFeeSizeFactor, so a seat costs about the same in either.
+ */
+export function baseLandingFee(airportLevel: number, aircraftClass: string | undefined, seats: number | undefined, cruiseSpeed?: number): number {
+  const cls = String(aircraftClass || 'regional').toLowerCase();
+  const size = landingFeeSizeFactor(seats, cls, cruiseSpeed);
+  switch (cls) {
+    case 'regional':
+    case 'narrowbody': return (2500 + 100 * airportLevel) * 1.1 * size;
+    case 'widebody': return (3000 + 150 * airportLevel) * 1.1 * size;
+    default: return 2200;
+  }
 }
 
 // Full Financial Calculation
@@ -1198,15 +1281,8 @@ export function calculateRouteFinancials(
   const originFeeFactor = hubFeeFactor(airportManagement[route.origin]?.level);
   const destFeeFactor = hubFeeFactor(airportManagement[route.destination]?.level);
 
-  const sizeFactor = landingFeeSizeFactor(aircraft.capacity, aircraft.class);
-  const getLandingFee = (level: number, hubFactor: number, type: string) => {
-    switch (type.toLowerCase()) {
-      case 'regional': return Math.floor((2000 + 100 * level) * 1.1 * hubFactor * costIndex * feeFactor * sizeFactor);
-      case 'narrowbody': return Math.floor((2500 + 100 * level) * 1.1 * hubFactor * costIndex * feeFactor);
-      case 'widebody': return Math.floor((3000 + 150 * level) * 1.1 * hubFactor * costIndex * feeFactor);
-      default: return Math.floor(2200 * costIndex * feeFactor);
-    }
-  };
+  const getLandingFee = (level: number, hubFactor: number, type: string) =>
+    Math.floor(baseLandingFee(level, type, aircraft.capacity, aircraft.cruiseSpeed) *(LANDING_FEE_REFERENCE_SEATS[type] ? hubFactor : 1) * costIndex * feeFactor);
 
   // Infrastructure is keyed by lower-case class names ("regional" / "narrowbody" /
   // "widebody") while aircraft data capitalises them, so normalise once here.

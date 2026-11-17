@@ -426,7 +426,7 @@ test('a fare that is missing or zero never turns the route result into NaN', () 
 
 // --- Demand level -------------------------------------------------------------
 
-import { calculateDemand, eraDemandFactor, getSatMultiplier, calculateBasePrices, scarcityPremium, MAX_SCARCITY_PREMIUM, landingFeeSizeFactor, REGIONAL_FEE_MIN_SHARE } from './financeUtils';
+import { calculateDemand, eraDemandFactor, getSatMultiplier, calculateBasePrices, scarcityPremium, MAX_SCARCITY_PREMIUM, landingFeeSizeFactor, REGIONAL_FEE_WEIGHT_SHARE, baseLandingFee, getAirportUpkeep, deskCostShare, DESK_FIXED_SHARE } from './financeUtils';
 
 test('the era factor keeps all of 1960, falls in a straight line, and holds after 2020', () => {
   assert.equal(eraDemandFactor(1960), 1);
@@ -533,13 +533,18 @@ test('with demand close to the seats, fewer flights fill better at the same fare
   assert.ok(thin.lf > dense.lf, `load ${thin.lf.toFixed(2)} vs ${dense.lf.toFixed(2)}`);
 });
 
-test('regional aircraft pay landing fees by size; larger classes are unchanged', () => {
-  assert.equal(landingFeeSizeFactor(52, 'Regional'), 0.52);
-  assert.equal(landingFeeSizeFactor(120, 'Regional'), 1, 'never more than the full fee');
-  assert.equal(landingFeeSizeFactor(10, 'Regional'), REGIONAL_FEE_MIN_SHARE, 'never less than the floor');
-  assert.equal(landingFeeSizeFactor(52, 'Narrowbody'), 1);
-  assert.equal(landingFeeSizeFactor(300, 'Widebody'), 1);
+test('every aircraft pays landing fees by size; the reference size of each class pays what it always did', () => {
+  assert.equal(landingFeeSizeFactor(180, 'Narrowbody'), 1);
+  assert.equal(landingFeeSizeFactor(420, 'Widebody'), 1);
+  assert.equal(landingFeeSizeFactor(90, 'Narrowbody'), 0.5, 'half the seats, half the fee');
+  assert.equal(landingFeeSizeFactor(180, 'Regional', 829), 1, 'a regional jet pays the jet rate per seat');
+  assert.ok(Math.abs(landingFeeSizeFactor(180, 'Regional', 556) - REGIONAL_FEE_WEIGHT_SHARE) < 1e-12, 'a turboprop is lighter per seat');
   assert.equal(landingFeeSizeFactor(undefined, 'Regional'), 1, 'unknown size pays the full fee');
+  assert.equal(landingFeeSizeFactor(100, 'unknown'), 1, 'an unknown class is not scaled');
+  // An ATR 42 and an A320 pay about the same per seat now, the turboprop a little less.
+  const perSeat = (seats: number, cls: string, speed: number) => baseLandingFee(4, cls, seats, speed) / seats;
+  assert.ok(perSeat(50, 'Regional', 556) < perSeat(180, 'Narrowbody', 830));
+  assert.ok(perSeat(50, 'Regional', 556) > 0.8 * perSeat(180, 'Narrowbody', 830));
 
   const spec = aircraftList.find(a => a.id === 'f-27')!;
   const make = (capacity: number) => ({
@@ -552,6 +557,32 @@ test('regional aircraft pay landing fees by size; larger classes are unchanged',
     return calculateRouteFinancials({ ...route, aircraft: 'T-F27' }, aircraft, 1, mgt, 1960, 6, 'Normal', airportsMapAdjusted, [route], [aircraft]).costsBreakdown.landingFees;
   };
   assert.ok(Math.abs(fee(50) / fee(100) - 0.5) < 0.01, 'half the seats, half the landing fee');
+});
+
+test('a check-in desk costs by use: a fifth when idle, the full price when full', () => {
+  assert.equal(deskCostShare(0), DESK_FIXED_SHARE);
+  assert.equal(deskCostShare(1), 1);
+  assert.equal(deskCostShare(3), 1, 'an overloaded desk costs no more than a full one');
+  assert.ok(Math.abs(deskCostShare(0.5) - (DESK_FIXED_SHARE + (1 - DESK_FIXED_SHARE) / 2)) < 1e-12);
+
+  const spec = aircraftList.find(a => a.type === 'ATR 42-600')!;
+  const plane = { ...spec, registration: 'T-ATR', config: { economy: 50, premium: 0, business: 0, first: 0 } };
+  const route = (flights: number) => ({ id: 'r', origin: 'FRA', destination: 'CDG', aircraft: 'T-ATR', schedule: Array.from({ length: flights }, () => ({})) });
+  const airport: any = { id: 'CDG', level: 4 };
+  const infra = { level: 1, slots: { regional: 0, narrowbody: 0, widebody: 0 }, stands: {}, desks: { normal: 1, self: 0 } };
+  const idle = getAirportUpkeep(airport, infra, [], [], 2022);
+  const small = getAirportUpkeep(airport, infra, [route(7)], [plane], 2022);
+  const full = getAirportUpkeep(airport, infra, [route(100)], [plane], 2022);
+  assert.equal(idle.desks.normal, Math.floor(idle.deskCosts.normal * DESK_FIXED_SHARE));
+  assert.ok(small.desks.normal > idle.desks.normal && small.desks.normal < idle.deskCosts.normal * 0.3, 'one small aircraft a day pays a small part of a desk');
+  assert.equal(full.desks.normal, full.deskCosts.normal, 'a full desk costs what a desk always did');
+});
+
+test('a regional slot costs half a jet slot', () => {
+  const airport: any = { id: 'CDG', level: 4 };
+  const infra = { level: 1, slots: { regional: 10, narrowbody: 10, widebody: 0 }, stands: {}, desks: { normal: 0, self: 0 } };
+  const up = getAirportUpkeep(airport, infra, [], [], 1960);
+  assert.equal(up.slots.regional * 2, up.slots.narrowbody);
 });
 
 test('a route in its first months draws less demand than the same route once mature', () => {

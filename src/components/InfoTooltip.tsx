@@ -153,7 +153,7 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
   desks: {
     title: 'Check-in Desks',
     desc:
-      'Where your passengers are processed, rented weekly.\n\n' +
+      'Where your passengers are processed, rented weekly. The rent follows the use: an idle desk costs a fifth of its full rate, a full one the whole rate, so a desk for one small aircraft a day is cheap.\n\n' +
       'This is the harshest penalty in the game: with no desks at all every class loses about 15 satisfaction points, and premium classes lose 10 if you offer only self-service. A desk never makes things worse. The penalty is worked out at both ends of a route and averaged. Desks also have a capacity — overloading them costs satisfaction again.',
   },
   deskLoad: {
