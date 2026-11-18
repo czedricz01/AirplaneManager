@@ -1274,7 +1274,549 @@ Business 221 $.
 
 ## 5. Kosten
 
-_(offen)_
+Dieser Abschnitt legt fest, was eine Gesellschaft für Flüge, Flughäfen, Flugzeuge und Werbung zahlt und
+welche Kosten im Monatsergebnis stehen. Grundlage: E4–E8, E17, E18, E27–E29, E31, E32, E44, E45, E50, E54,
+R2–R6; Vorgaben aus 3.16 und 4.14; Bestand: `bestand/4-kosten.md` (W1–W15). Alle heutigen Fundstellen
+ohne Pfad liegen in `src/lib/financeUtils.ts`.
+
+Einheiten: Strecken-Kosten gelten **je Woche, beide Richtungen zusammen** (wie der Erlös, 4.7).
+Flughafen-Kosten gelten je Woche, Flugzeug- und Werbekosten je Monat. Monat = Woche × `WEEKS_PER_MONTH`
+(E5), Jahr = 12 Monate. Alles ungerundet (R4).
+
+**Geld (1.3).** Jeder feste Betrag steht als Wert von 1960 in den Konstanten (Endung `_1960`) und wird nur
+über `atCost(betrag1960, month)` umgerechnet: Löhne, Gebühren, Mieten, Unterhalt, Verpflegung, Werbung,
+Einmalpreise, Listenpreise der Flugzeuge (E6, E54). **Ausnahme: Treibstoff** (Tabelle, echte Preise, E8).
+Beträge als Anteil einer anderen Größe (Versicherung, Wartung, Abschreibung als Anteil des Flugzeugpreises)
+bekommen keinen zweiten Index.
+
+### 5.0 Überblick
+
+```
+                                   ┌─ Treibstoff (Tabelle × Liter) ──────────┐
+Flugabschnitte, Flugzeug ──────────┼─ Besatzung (Stunden × Satz × Lohn) ─────┼─► Flugbetrieb ──┐
+                                   └─ Landegebühr (je Landung am Ziel) ──────┘                 │
+Belegte Slots ─► Slot-Anteil ─────────────────────────────────────────────────────────────────┼─► fixedWeeklyCost
+Flugzeug-Unterhalt + Abschreibung ─► Flugzeug-Anteil (nach Blockstunden) ──────────────────────┘     (je Strecke)
+
+Fluggäste ─► Check-in (je Reise) + Abfertigung (je Abflug) + Verpflegung + Frequent flyer ─► costPerPassenger
+
+Flughäfen: Slots, Abstellplätze, Schalter, Einrichtungen ──┐
+Flotte: Versicherung, Wartung, Wertänderung (Wertmodell) ──┼─► Kosten der Gesellschaft je Monat (5.16)
+Werbung, Frequent-flyer-Grundbetrag ───────────────────────┘
+Einnahme eigener Flughäfen (Stufe 3) ─► mindert die Kosten
+```
+
+**Drei Ebenen.**
+1. **Kosten je Fluggast** `costPerPassenger(route, c)` (5.8): wachsen mit den Fluggästen.
+2. **Feste Kosten je Strecke** `fixedWeeklyCost(route)` (5.9): hängen am Flugplan, nicht an den Fluggästen.
+3. **Kosten der Gesellschaft** (5.10–5.16): Flughäfen, Flotte, Werbung. Ein Teil davon wird den Strecken als
+   Anteil zugerechnet (Slots, Flugzeug), der Rest bleibt „nicht zugerechnet“. Jeder Dollar zählt im
+   Monatsergebnis genau einmal (5.16).
+
+**Wirkungswege.**
+- Kosten wirken auf das **Ergebnis** (Kasse, Bericht), den **besten Preis** (4.10, nur `costPerPassenger`)
+  und die **Gewinnschwelle** (4.11). Sie wirken nicht auf Nachfrage, Satisfaction oder Ruf.
+- Die **Schwierigkeit** wirkt auf keine Kosten (E4, 1.8). Ereignisse ändern keinen Kostensatz (E8); ihre
+  Wirkung auf Kosten läuft über weniger Flüge oder Krisen-Antworten (Abschnitt 8).
+
+**Was entfällt** (gegenüber heute):
+- Hard-Zuschlag 1,15 auf Treibstoff (`:1624`, W9) und Ereignis-Faktor auf Treibstoff (`:1620-1622`, W4): E4, E8.
+- Ersatzpreis 1,05 $ nach 2030 (`:1618`, W3): letzter Tabellenwert (E8).
+- Bodenpersonal als 30 % der Besatzung (`:1272`, W11): in der Abfertigung enthalten (R6, 5.6).
+- Gebühren je Fluggast an Start **und** Ziel (`:1510-1513`, W5): E27, 5.6.
+- Flugbegleiter nach Höchstsitzen (`:1262`, W10): nach eingebauter Kabine (R6, 5.4).
+- Eigene KI-Landegebühr (`src/lib/hubOwnership.ts:33-35`): dieselbe Funktion (R6, 5.15).
+- Eigene Werbe-Teuerung 3 % je Jahr in Jahresstufen (`src/lib/marketing.ts:86-91`): Kostenindex (E6, R5).
+- Monat = 4 Wochen bei Strecken und Flughäfen (`src/lib/monthClose.ts:487-503`, `:547`, `:550`, W15): E5.
+- Wiederverkaufswert mit sofort −10 % und ohne Kabine (`:1633-1647`), Wertverlust nie als Kosten (W13): 5.13 (E29).
+- Runden in Zwischenschritten (Treibstoffpreis auf 3 Stellen `:1247`, Landegebühr `Math.floor` `:1285`,
+  Slot-Preis auf 50 $ `:1717`, Flugzeug-Unterhalt `src/lib/fleetCosts.ts:55`): R4.
+
+### 5.1 Kosten-Faktoren der Gesellschaft
+
+Drei Faktoren verändern Kostensätze. Jeder wird an genau einer Stelle gebildet und von den Kostenformeln
+nur gelesen (R2; heute zwei Quellen für den Gebühren-Faktor, siehe 5.20).
+
+**Forschungs-Faktor** (Code-Name: `researchCostFactor(airline, kind)`)
+- Formel: `researchCostFactor(kind) = max(RESEARCH_COST_FLOOR, 1 − Σ Einsparungen der fertigen Forschungen dieser Art)`.
+- Arten `kind`: `fuel` (Treibstoff), `crew` (Besatzung), `fees` (Flughafen-Gebühren, 5.1 unten),
+  `catering` (Verpflegung), `maintenance` (Wartung), `slots` (Slot-Kaufpreis).
+- Konstanten: Einsparungen wie heute (`src/lib/research.ts:42-107`): Treibstoff 3 + 3 + 1 %, Besatzung
+  3 × 1 %, Gebühren 3 × 1 %, Verpflegung 2 × 2 %, Wartung 4 × 1 %, Slots 8 %;
+  `RESEARCH_COST_FLOOR = 0,4` (heute `src/lib/research.ts:253`).
+- KI: forscht nicht (Abschnitt 7), Faktor 1.
+- Effizienz-Forschung (`eff-1` … `eff-6`, je +1 Punkt) wirkt nicht hier, sondern auf die Effizienz (5.3).
+
+**Lohn-Faktor** (Code-Name: `payFactor(airline)`)
+- Formel: `payFactor = salaryPct / 100` (80 … 130 %, heute `src/lib/staff.ts:61-64`).
+- Wirkt nur auf die Besatzung (5.4). Bodenpersonal steckt in der Abfertigung (5.6) und folgt ihm nicht mehr.
+- KI: kein Personal-Modell (E44, Abschnitt 7), Faktor 1.
+
+**Flughafen-Gebühren-Faktor** (Code-Name: `airportFeeFactor(airline, airport)`)
+- Bedeutung: **ein** Nachlass für alle Gebühren, die eine Gesellschaft an einen Flughafen zahlt (R6, W6).
+- Formel: `airportFeeFactor = hubFeeFactor(Verwaltungsstufe dort) × researchCostFactor(fees)`.
+- `hubFeeFactor`: Stufe 0 und 1 → 1; Stufe 2 → `HUB_FEE_FACTOR_TIER2 = 0,95`; Stufe 3 → `HUB_FEE_FACTOR_TIER3 = 0,85`
+  (heute `src/lib/hubOwnership.ts:20-24`).
+- Gilt für: Landegebühr (5.5), Check-in und Abfertigung (5.6), Slot-, Stand- und Schalter-Miete (5.10).
+  Nicht für: Einrichtungen (eigene Kosten, keine Gebühr), Einmalpreise.
+- Neu: Check-in bekommt auf Stufe 3 auch −15 % (heute fest −5 %, `:1294-1295`); Abfertigung und Slot-Miete
+  bekommen den Nachlass (heute ohne).
+- Regeln (Tests): Faktor ≤ 1; höhere Stufe → nie höherer Faktor; dieselbe Zahl in Planer, Flughafen-Ansicht
+  und Monatsabschluss.
+
+### 5.2 Treibstoffpreis (Code-Name: `fuelPrice`)
+- Bedeutung: Was eine Gesellschaft in einem Monat für einen Liter Jet-Treibstoff zahlt.
+- Einheit und Bereich: $ je Liter > 0, ungerundet.
+- Formel:
+  ```
+  fuelPrice(airline, month) = fuelTable(month) / LITRES_PER_GALLON × researchCostFactor(fuel)
+  fuelTable(month) = Tabellenwert „JJJJ-MM“ in $ je Gallone (src/data/fuelPrices.ts)
+  ```
+  Vor 1960-01 gilt der erste, nach dem letzten Eintrag (2030-12) der **letzte** Tabellenwert (E8, W3).
+- Kein Kostenindex (1.3), keine Schwierigkeit (E4, W9), kein Ereignis-Faktor (E8, W4): Die Tabelle enthält
+  die Krisen schon.
+- Preis-Absicherung (Hedge, heute `src/App.tsx:639-650`, R3): eine Krisen-Antwort aus Abschnitt 8. Läuft
+  sie, ersetzt sie `fuelTable(month)` dieser Gesellschaft für ihre Dauer durch den abgesicherten Wert;
+  sonst nichts. Die Regel steht im Modell, nicht in `App.tsx`.
+- Konstanten: `LITRES_PER_GALLON = 3,78541`.
+- Hängt ab von: Monat, Forschung, laufende Absicherung.
+- Wirkt auf: Treibstoff-Kosten (5.3), Krisen-Antworten als Anteil der Treibstoff-Rechnung (Abschnitt 8, E6).
+- Regeln (Tests): Januar 2031 = Dezember 2030; gleicher Preis für Spieler und KI ohne Forschung und
+  Absicherung, auf jeder Schwierigkeit; ein laufendes Ereignis ändert ihn nicht.
+- Anzeige: Kopfzeile, Planer, Bericht; Wert aus dem Modell (heute holt der Planer ihn teils selbst, 5.20).
+
+### 5.3 Treibstoff je Strecke (Code-Name: `fuelCost`)
+- Bedeutung: Treibstoff-Rechnung einer Strecke je Woche.
+- Formel:
+  ```
+  fuelLitresPerSeat100km = FUEL_BASE / (FUEL_EFF_OFFSET + efficiency / FUEL_EFF_SCALE)
+  fuelCost = fuelLitresPerSeat100km × capacity × Entfernung / 100 × flownLegs × fuelPrice
+  ```
+  - `capacity`: Höchstsitze des Typs laut Daten (steht für Größe und Gewicht des Flugzeugs, R6, W10);
+    nicht die eingebauten Sitze und nicht die Fluggäste.
+  - `efficiency`: Wert des Typs in `src/data/aircraft.ts` + `EFFICIENCY_PER_RESEARCH` je fertiger
+    Effizienz-Forschung, höchstens 100. **Berechnet, nicht gespeichert** (heute ins Flugzeug geschrieben,
+    `src/lib/monthClose.ts:1129`; Umwandlung in 5.1).
+  - Entfernung: Großkreis in km (wie heute).
+  - `flownLegs`: Flugabschnitte je Woche, die das eigene Flugzeug wirklich fliegt: Hin- und Rückflug = 2,
+    Einweg = 1, ohne gestrichene (E33) und gecharterte (E32) Flüge.
+- Konstanten (heute `:1256`): `FUEL_BASE = 7,5`, `FUEL_EFF_OFFSET = 0,75`, `FUEL_EFF_SCALE = 70`
+  (Liter je Sitz und 100 km: Effizienz 14 → 8,0; 50 → 5,1; 72 → 4,2; 96 → 3,5); `EFFICIENCY_PER_RESEARCH = 1`.
+- Hängt ab von: Flugzeugtyp, Forschung, Entfernung, Flugplan, Ausfälle, `fuelPrice`.
+- Wirkt auf: `fixedWeeklyCost` (5.9).
+- Regeln (Tests): mehr Effizienz → nie mehr Treibstoff; gleiche Strecke, gleicher Typ → gleiche Kosten für
+  Spieler und KI (ohne Forschung); hängt nicht von den Fluggästen ab; gestrichene Flüge senken ihn anteilig.
+
+### 5.4 Besatzung (Code-Name: `crewCost`)
+- Bedeutung: Löhne von Cockpit und Kabine für die geflogenen Stunden.
+- Formel:
+  ```
+  cabinCrew = max(MIN_CABIN_CREW, Σ c: Sitze(c) / SEATS_PER_ATTENDANT[c])      (eingebaute Kabine, R6)
+  hourlyRate1960 = COCKPIT_CREW × PILOT_RATE_1960 + cabinCrew × ATTENDANT_RATE_1960
+  crewCost = atCost(hourlyRate1960, month) × blockMinutes × flownLegs / 60
+             × payFactor × researchCostFactor(crew)
+  ```
+  `cabinCrew` ist eine Kommazahl (Mittel über Umläufe), ungerundet (R4); heute `aufrunden(Höchstsitze / 50)`.
+- Konstanten: `COCKPIT_CREW = 2`, `PILOT_RATE_1960 = 100` $/h, `ATTENDANT_RATE_1960 = 40` $/h (heute `:1263`);
+  `SEATS_PER_ATTENDANT` Economy 50 · Premium 35 · Business 20 · First 10 (neu; Economy wie heute);
+  `MIN_CABIN_CREW = 1`.
+- Folge (E45): Eine dichte Economy-Kabine braucht weniger Personal je Sitz als eine Kabine mit Business und
+  First. Billigflieger sparen so ohne eigenen Faktor.
+- Bodenpersonal: entfällt als eigener Posten (W11); es ist in der Abfertigung (5.6) enthalten.
+- Hängt ab von: Kabine, `blockMinutes` (eine Richtung, 1.1), `flownLegs` (5.3), Lohn, Forschung, Kostenindex.
+- Wirkt auf: `fixedWeeklyCost` (5.9).
+- Regeln (Tests): mehr Sitze in einer Klasse → nie weniger Besatzung; Business-Sitz kostet mehr Besatzung als
+  Economy-Sitz; KI zahlt bei gleicher Kabine dasselbe wie der Spieler mit Lohn 100 % ohne Forschung.
+- Anzeige: Planer „Crew“ mit Stundensatz aus dem Modell (heute als Text nachgebaut, Planer `:3476`).
+
+### 5.5 Landegebühr (Code-Name: `landingFee`)
+- Bedeutung: Was eine Landung eines Flugzeugs an einem Flughafen kostet.
+- Formel:
+  ```
+  landingFee(airline, airport, aircraft, month) =
+      atCost(LANDING_BASE_1960[Klasse] + LANDING_PER_LEVEL_1960[Klasse] × Flughafengröße, month)
+    × capacity / LANDING_REFERENCE_SEATS[Klasse]
+    × (PROPELLER_FEE_SHARE, wenn Regional und Reisegeschwindigkeit < PROPELLER_MAX_SPEED; sonst 1)
+    × airportFeeFactor(airline, airport)
+  landingCost(route) = Σ geflogene Abschnitte: landingFee am Zielflughafen des Abschnitts
+  ```
+  Je **Flugabschnitt eine Landung am Ziel** (R6, W12): Hin- und Rückflug = eine Landung an jedem Ende;
+  Einweg = eine Landung.
+- Klassen: Regional, Narrowbody, Widebody (die einzigen in den Daten). Der Zweig „andere Klasse 2 200 $“
+  (`:1215`) entfällt.
+- Konstanten (heute `:1171-1217`, ausgeschrieben): `LANDING_BASE_1960` Regional und Narrowbody 2 750,
+  Widebody 3 300; `LANDING_PER_LEVEL_1960` 110 / 165; `LANDING_REFERENCE_SEATS` 180 / 180 / 420;
+  `PROPELLER_FEE_SHARE = 0,85`, `PROPELLER_MAX_SPEED = 700` km/h.
+- Hängt ab von: Flughafengröße (1 … 7), Typ (Höchstsitze, Klasse, Geschwindigkeit), Verwaltungsstufe,
+  Forschung, Kostenindex.
+- Wirkt auf: `fixedWeeklyCost` (5.9); Einnahme eigener Flughäfen (5.15).
+- Hinweis Balance (3.9): Landegebühren sind heute 26–47 % der Kurzstrecken-Kosten (Bestand, Beispielwerte).
+  Das Balance-Skript prüft die Höhe zusammen mit dem Grundpreis (E7).
+- Regeln (Tests): größerer Flughafen → nie billiger; mehr Höchstsitze → nie billiger; ein Einweg-Abschnitt
+  zahlt genau eine Landung; Spieler und KI zahlen mit derselben Funktion.
+- Anzeige: Flughafen-Ansicht je Flugzeugklasse, Planer; Werte aus dem Modell (heute eigene Rechnung,
+  `src/components/AirportDetailView.tsx:283-287`).
+
+### 5.6 Check-in und Abfertigung (Code-Namen: `checkInFee`, `handlingFee`)
+- Bedeutung: Gebühren, die der Flughafen für jeden Fluggast nimmt (E27).
+  - **Check-in** einmal **je Reise**, am Flughafen, an dem die Reise beginnt. Ein Umsteiger checkt am
+    Umsteige-Flughafen nicht noch einmal ein (W5).
+  - **Abfertigung** (Gepäck, Boarding, Bodenpersonal) **je Abflug**: an jedem Flughafen, an dem der Gast
+    abfliegt, also auf jedem Flugabschnitt einmal, am Start des Abschnitts.
+- Formel je Flughafen `x`:
+  ```
+  checkInFee(x)  = atCost(CHECKIN_FEE_1960, month) × airportFeeFactor(airline, x)
+  handlingFee(x) = atCost(HANDLING_FEE_1960[Größenstufe von x], month) × airportFeeFactor(airline, x)
+  ```
+- Konstanten: `CHECKIN_FEE_1960 = 1,0` $; `HANDLING_FEE_1960` Flughafengröße 1–2: 6 $, 3–4: 8 $, ab 5: 10 $.
+  Begründung (E27): Heute zahlt jeder Fluggast eines Abschnitts Check-in 0,5 $ und Abfertigung 3 / 4 / 5 $
+  an **beiden** Enden (`:1294-1296`, `:1510-1513`). Neu fällt jede Gebühr nur an einem Ende an; die Sätze
+  sind verdoppelt, damit die Summe je Fluggast etwa gleich bleibt. Umsteiger zahlen weniger als heute
+  (kein zweiter Check-in). Das wegfallende Bodenpersonal (W11, 2–4 % der Kosten) ist nicht aufgeschlagen;
+  das Balance-Skript (3.9) prüft die Höhe.
+- Wirkt auf: `costPerPassenger` (5.8).
+- Regeln (Tests): ein Direktgast zahlt je Reise genau einen Check-in; ein Umsteiger zahlt einen Check-in und
+  zwei Abfertigungen; Stufe 3 senkt beide Gebühren um denselben Anteil wie die Landegebühr.
+
+### 5.7 Verpflegung (Code-Name: `cateringCost`)
+- Bedeutung: Was Essen, Getränke, Extras und Bordservice für einen Fluggast einer Klasse auf einem
+  Flugabschnitt kosten.
+- Formel je Strecke und Klasse:
+  ```
+  cateringCost(route, c) = atCost( Σ_k mealWeight(k) × Σ Gerichte im Menü k: Preis
+                                   + Σ Extras: Preis + Σ Bordservice: Preis, month)
+                           × researchCostFactor(catering)
+  ```
+  - `mealWeight(k)`: **dieselben** Gewichte wie für die Service points (2.5, R5, W14). Mahlzeit 2 und 3
+    kosten stufenlos mehr, so wie sie stufenlos mehr Punkte bringen.
+  - Jedes gewählte Gericht kostet voll, auch wenn es wegen des abnehmenden Nutzens (E16) weniger Punkte
+    bringt. Mehr bieten kostet also immer mehr.
+  - Extras und Bordservice: die Preise der gewählten Stufen (je Gruppe die beste, wie in 2.5).
+- Konstanten: Preise in `src/data/catering.ts` (Feld `cost`) gelten als Werte von 1960 und laufen über
+  `atCost` (E6; heute ohne Index). Das Balance-Skript prüft die Höhe.
+- Hängt ab von: Auswahl je Klasse (dieselbe wie 2.5), `flightTimeIndex` der Strecke, Forschung, Kostenindex.
+- Wirkt auf: `costPerPassenger` (5.8).
+- Regeln (Tests): ein weiteres Gericht oder Extra senkt die Kosten nie; Mahlzeiten-Gewichte für Punkte und
+  Kosten sind dieselben Zahlen; 1 Minute mehr Flugzeit ändert die Kosten um weniger als 1 %.
+
+### 5.8 Kosten je Fluggast (Code-Name: `costPerPassenger`)
+- Bedeutung: Alles, was eine Strecke für einen zusätzlichen Fluggast der Klasse `c` zahlt (4.14).
+- Einheit: $ je Fluggast und Abschnitt, ungerundet.
+- Formel für **Direktgäste** einer Strecke A–B:
+  ```
+  tripCost(x) = checkInFee(x) + ffpCostPerPassenger            (je Reise, Start in x)
+  costPerPassenger(route, c) = cateringCost(route, c)
+                             + wA × (handlingFee(A) + tripCost(A)) + wB × (handlingFee(B) + tripCost(B))
+  ```
+  `wA`, `wB`: Anteil der Abflüge der Strecke in A bzw. B (Hin und Zurück: je 0,5). Grund: Die Fluggäste
+  einer Strecke sind beide Richtungen zusammen (3.0); wer in A abfliegt, zahlt dort.
+- Formel für **Umsteiger** auf einer Teilstrecke mit Drehkreuz H und anderem Ende X
+  (Code-Name: `transferCostPerPassenger(route, c)`):
+  ```
+  transferCostPerPassenger = cateringCost(route, c) + wX × handlingFee(X) + wH × handlingFee(H) + 0,5 × tripCost(X)
+  ```
+  Die Hälfte der Umsteiger beginnt ihre Reise in X (Check-in auf dieser Teilstrecke), die andere Hälfte
+  am anderen Ende der Verbindung (Check-in auf der anderen Teilstrecke). In H checkt niemand ein.
+- `ffpCostPerPassenger = atCost(FFP_COST_PER_PAX_1960, month)`, solange das Frequent-flyer-Programm läuft,
+  sonst 0 (5.14). KI: 0.
+- Umsteiger zählen als Fluggäste **beider** Teilstrecken (4.14): Verpflegung und Abfertigung auf jeder.
+- Hängt ab von: 5.6, 5.7, 5.14.
+- Wirkt auf: Strecken-Ergebnis (5.9), bester Preis (4.10), Gewinnschwelle (4.11).
+- Regeln (Tests): Summe über alle Fluggäste = Verpflegung + Check-in + Abfertigung + FFP der Strecke; ein
+  Umsteiger zahlt über beide Teilstrecken zusammen genau einen Check-in; hängt nicht vom Preis und nicht von
+  der Zahl der Fluggäste ab.
+
+### 5.9 Feste Kosten und Ergebnis je Strecke (Code-Namen: `fixedWeeklyCost`, `routeResult`)
+- Bedeutung: Was eine Strecke je Woche kostet, egal wie viele Fluggäste kommen (4.14).
+- Formel:
+  ```
+  flightOpsCost(route)  = fuelCost + crewCost + landingCost                       (5.3–5.5)
+  slotShare(route)      = Σ Abflughafen x: belegte Slots der Strecke in x × slotRent(x, Klasse)   (5.10)
+  aircraftShare(route)  = (aircraftUpkeep + ageDepreciation) des Flugzeugs / WEEKS_PER_MONTH
+                          × Blockstunden der Strecke / Blockstunden aller Strecken des Flugzeugs
+  fixedWeeklyCost(route) = flightOpsCost + slotShare + aircraftShare        (vorläufig, O54)
+
+  routeResult(route) = routeRevenue (4.7)
+                     − Σ c: directPax(c) × costPerPassenger(c)
+                     − Σ c: transferPax(c) × transferCostPerPassenger(c)
+                     − fixedWeeklyCost
+  ```
+  - Belegte Slots der Strecke in x = Abflüge der Strecke je Woche in x (1.6), nach Plan (auch gestrichene
+    und gecharterte Flüge belegen ihren Slot).
+  - Blockstunden nach Plan. Fliegt ein Flugzeug nur diese Strecke, trägt sie seine ganzen Kosten; ein
+    wenig genutztes Flugzeug macht seine Strecke teuer (gewollt: zeigt schlechte Auslastung).
+  - `ageDepreciation`: der planbare Teil der Abschreibung (5.13), ohne Zustand und Käufe.
+- **Lesart (O54):** E26 verlangt als Planer-Hauptzahl den „erwarteten Gewinn“. Ohne Flugzeug-Anteil zeigt
+  der Planer heute Gewinn auf Strecken, deren Flugzeug mehr kostet, als sie einbringen (Bestand W1: A350
+  +64 000 $ im Monat gegen 420 000 $ Unterhalt). Darum zählen Slot- und Flugzeug-Anteil vorläufig zu den
+  festen Kosten der Strecke. Der Planer zeigt zusätzlich „before aircraft costs“ (`flightOpsCost` +
+  `slotShare`).
+- Wirkt auf: Gewinnschwelle (4.11), Planer-Hauptzahl (4.12), Streckenliste und Bericht. Nicht auf den
+  besten Preis (4.10, feste Kosten ändern sich mit dem Preis nicht).
+- Regeln (Tests):
+  - Σ Strecken `slotShare` + nicht zugerechnete Slot-Miete = Slot-Miete der Gesellschaft (5.16).
+  - Σ Strecken `aircraftShare` eines Flugzeugs = sein Unterhalt + `ageDepreciation` je Woche.
+  - Planer-Ergebnis = Strecken-Ergebnis im Monatsabschluss bei gleichem Stand (R2).
+- Anzeige: Planer (Hauptzahl, Aufschlüsselung je Posten), Streckendetails, Streckenliste.
+
+### 5.10 Slots, Abstellplätze, Schalter (Code-Name: `airportUpkeep`)
+Alles je Gesellschaft und Flughafen, je Woche. Mieten sind Flughafen-Gebühren und tragen
+`airportFeeFactor` (5.1).
+
+**Slots** (Definition 1.6, E50)
+- Arten: Regional, Narrowbody, Widebody. Ein Abflug braucht einen Slot der Klasse seines Flugzeugs (wie heute).
+- Grenze je Flughafen: `SLOTS_PER_AIRPORT_LEVEL × Flughafengröße` Slots aller Arten und aller Gesellschaften
+  zusammen (heute 300 je Stufe, nur in Ansichten, `src/components/AirportDetailView.tsx:128` u. a.).
+- Kaufpreis: `slotPrice(Art) = atCost(SLOT_PRICE_1960[Art], month) × researchCostFactor(slots) × milestoneSlotFactor`
+  (`milestoneSlotFactor` aus Abschnitt 6, sonst 1). Neu mit Kostenindex (E6, W8), ungerundet.
+- Verkauf: `SLOT_RESALE_SHARE × slotPrice(Art)` des Verkaufsmonats.
+- Miete: `slotRent(x, Art) = atCost(SLOT_RENT_1960[Art], month) × airportFeeFactor(airline, x)` je gekauftem
+  Slot und Woche, belegt oder nicht.
+- Konstanten (heute `:25-29`, `:1715-1719`, `:1806-1808`): `SLOT_PRICE_1960` 25 000 / 50 000 / 100 000;
+  `SLOT_RENT_1960` 125 / 250 / 250; `SLOT_RESALE_SHARE = 0,5`; `SLOTS_PER_AIRPORT_LEVEL = 300`.
+
+**Abstellplätze (Stände)**
+- Nur an Flughäfen ab Größe 3 (wie heute, `:1703-1710`), je Art.
+- Verwaltungsstufe 0–1: gemietet, ohne Kaufpreis; Miete `atCost(STAND_RENT_1960[Art]) × airportFeeFactor`.
+- Ab Verwaltungsstufe 2: Jeder Slot hat automatisch einen Abstellplatz **ohne Miete** (E28, bewusster
+  Vorteil der Stufe).
+- Konstanten: `STAND_RENT_1960` 150 / 300 / 600 (heute `:31-35`).
+
+**Check-in-Schalter**
+- Pflicht an jedem Flughafen, an dem eine eigene Strecke abfliegt (E18; Lesart „beide Enden“, O52).
+- Arten: bedient (immer), Selbstbedienung (ab 1995, wie heute `:1703-1710`). Ohne Kaufpreis.
+- Miete je Schalter:
+  `deskRent = atCost(DESK_RENT_1960[Art]) × (DESK_FIXED_SHARE + (1 − DESK_FIXED_SHARE) × min(1, deskLoad)) × airportFeeFactor`
+  mit `deskLoad` aus 2.6.3 (Sitze der Abflüge je Woche / Kapazität; eine Funktion für Satisfaction und Kosten).
+- Konstanten (heute `:38-64`): `DESK_RENT_1960` bedient 2 500, Selbstbedienung 1 500; `DESK_FIXED_SHARE = 0,2`.
+- Regeln (Tests): `airportUpkeep` steigt nie mit weniger Slots, Ständen oder Schaltern; Stufe 2 → Stand-Miete 0;
+  Slot-Preis 2020 = Preis 1960 × `costIndex` 2020 (ohne Forschung).
+- Anzeige: Flughafen-Ansicht „Weekly upkeep“ mit Aufschlüsselung aus dem Modell, im Geld des aktuellen
+  Monats (heute teils in Preisen von 1960, Bestand 1.8).
+
+### 5.11 Verwaltungsstufen und Einrichtungen
+**Verwaltungsstufe** (Code-Name: `managementTierPrice`)
+- Einmalpreis: `atCost(Flughafengröße × TIER_PRICE_1960[Stufe], month)` (neu mit Kostenindex, E6, W8).
+- Konstanten (heute `:1656-1660`): `TIER_PRICE_1960` Stufe 1: 30 000, Stufe 2: 750 000, Stufe 3: 25 000 000
+  je Größenstufe des Flughafens.
+- Wirkung auf Kosten: `hubFeeFactor` (5.1), freie Stände ab Stufe 2 (5.10), Einnahme ab Stufe 3 (5.15).
+  Keine laufenden Kosten der Stufe selbst.
+
+**Einrichtungen** (Code-Name: `facilityPrice`, `facilityUpkeep`)
+- Hangar, VIP-Lounge, Catering-Küche je Flughafen mit eigener Verwaltungsstufe.
+- Einmalpreis `atCost(FACILITY_PRICE_1960)`, Unterhalt `atCost(FACILITY_UPKEEP_1960)` je Woche; kein
+  `airportFeeFactor` (eigene Anlage, keine Gebühr).
+- Konstanten: `FACILITY_PRICE_1960` Hangar 250 000, Lounge 1 000 000, Küche 250 000 (heute im Klick-Handler,
+  `src/components/AirportDetailView.tsx:443-554`, R3); `FACILITY_UPKEEP_1960` 10 000 / 12 500 / 10 000
+  (heute `:111-113`).
+- Wirkung der Einrichtungen (Satisfaction, Umsteiger, Wartung): andere Abschnitte (2.6.3, 3.13, 8).
+
+### 5.12 Flugzeug-Unterhalt (Code-Name: `aircraftUpkeep`)
+- Bedeutung: Versicherung und Wartungsprogramm eines Flugzeugs je Monat, ob es fliegt oder steht.
+- Formel:
+  ```
+  newPrice(type, month) = atCost(LIST_PRICE_1960[type], month)          (Listenpreis aus den Daten, E54)
+  aircraftUpkeep = newPrice × (INSURANCE_RATE + maintenanceRate(age) × commonalityFactor
+                                × researchCostFactor(maintenance)) / 12
+                   × (PARKED_SHARE, wenn das Flugzeug auf keiner Strecke eingesetzt ist; sonst 1)
+  maintenanceRate(age) = MAINTENANCE_RATE_NEW + (MAINTENANCE_RATE_OLD − MAINTENANCE_RATE_NEW)
+                         × kappen(age / MAINTENANCE_FULL_AGE, 0, 1)
+  ```
+  - `age`: Jahre mit Bruchteil seit dem **Baumonat** (wie 2.2, R13); heute seit dem Kaufmonat
+    (`src/lib/fleetCosts.ts:31-35`).
+  - `commonalityFactor`: Flotten-Mischung wie heute (`src/lib/fleetCosts.ts:67-121`): 1 + Zuschlag je Familie
+    über 3 − Nachlass nach Größe der eigenen Familie. Für Spieler und KI (E44).
+  - Bezug ist der **heutige** Neupreis des Typs: Wartung ist laufender Aufwand und wächst mit dem Kostenindex.
+- Konstanten (heute `src/lib/fleetCosts.ts:14-20`, `:67-76`): `INSURANCE_RATE = 0,006`;
+  `MAINTENANCE_RATE_NEW = 0,03`, `MAINTENANCE_RATE_OLD = 0,08`, `MAINTENANCE_FULL_AGE = 25`;
+  `PARKED_SHARE = 0,5`; Mischung: `FREE_FAMILIES = 3`, `VARIETY_PENALTY_PER_FAMILY = 0,03`,
+  `VARIETY_PENALTY_MAX = 0,3`, Nachlässe ab 3 / 6 / 12 / 25 Flugzeugen 4 / 8 / 12 / 15 %.
+- Gecharterte Flüge (E32): Das Flugzeug bleibt „eingesetzt“; Unterhalt voll.
+- Wirkt auf: `aircraftShare` (5.9), Kosten der Gesellschaft (5.16).
+- Regeln (Tests): älter → nie billiger; geparkt = halb; gleiche Flotte → gleicher Unterhalt für Spieler und KI
+  (ohne Forschung); Jahreswert = Monatswert × 12 (W15).
+
+### 5.13 Wertmodell und Abschreibung (Code-Namen: `aircraftValue`, `fleetValueResult`)
+- Bedeutung: Was ein Flugzeug wert ist und wie sein Wertverlust als Kosten im Monatsergebnis steht (E29, W13).
+  **Ein** Wertmodell für Spieler, KI, Gebrauchtmarkt, Kreditlinie und Übernahme (E29, R13, E34, E48).
+- Formel:
+  ```
+  valueBase(plane)      = atCost(LIST_PRICE_1960[type], Baumonat) + atCost(cabinListPrice(Kabine), Einbaumonat der Kabine)
+  ageFactor(age)        = 1 − (1 − RESIDUAL_SHARE) × kappen(age / DEPRECIATION_YEARS, 0, 1)
+  conditionFactor(plane) = 1 − CONDITION_VALUE_SPAN × (1 − (AIRFRAME_VALUE_SHARE × airframeCondition
+                                                            + (1 − AIRFRAME_VALUE_SHARE) × cabinCondition) / 100)
+  aircraftValue(plane, month) = valueBase × ageFactor(age) × conditionFactor
+  ```
+  - `cabinListPrice`: Preise der Sitze und Ausstattung aus dem Kauf- und Umbau-Dialog als Werte von 1960
+    (heute nur in der Oberfläche, `src/components/ConfigurePurchaseView.tsx:391-540`; neu im Modell,
+    `src/model/kabine.ts`, R3).
+  - Ein neues Flugzeug (Alter 0, Zustand 100) ist genau seinen Kaufpreis wert (E29, E54): Kaufpreis =
+    `valueBase` im Kaufmonat. Kein Sofort-Verlust (heute −10 %, `:1643-1646`), Kabine zählt mit.
+  - **Lesart „Zustand als Zu- oder Abschlag“ (E29):** Zustand 100 ist neutral, weil „Wert neu = Kaufpreis“
+    sonst nicht gilt. Ein gut gepflegtes Flugzeug verliert also weniger, ein abgenutztes mehr.
+  - `valueBase` bleibt nach dem Kauf fest (kein späterer Kostenindex): Das Wertmodell rechnet ab dem
+    Kaufpreis (1.3, E54). Ein Gebrauchtflugzeug hat dieselbe `valueBase` wie als Neuflugzeug (R13).
+- **Abschreibung im Monatsergebnis.** Alles, was den Flottenwert ändert, steht als ein Ergebnis-Posten:
+  ```
+  fleetValueResult(Monat) = (Flottenwert am Monatsende − Flottenwert am Monatsanfang)
+                          − Käufe − Kabinen-Umbauten − Grundüberholungen + Verkaufserlöse
+  ```
+  Kosten im Bericht = −`fleetValueResult`, in zwei Zeilen:
+  - „Depreciation“: Wertänderung der gehaltenen Flugzeuge (Alter und Zustand);
+  - „Aircraft trades“: bei Kauf, Umbau, Überholung, Verkauf die Differenz zwischen Wertänderung und
+    gezahltem bzw. erhaltenem Betrag (z. B. Verkauf unter Wert durch die Händler-Spanne, E30).
+  Folgen: Ein Kauf zum Wert ist ergebnisneutral; ein Umbau oder eine Überholung kostet im Ergebnis, was
+  sie mehr kostet, als sie den Wert hebt (E31: Wert steigt höchstens um den Preis); Kaufen und sofort
+  Verkaufen bringt nie Gewinn (E30).
+- **Planbare Abschreibung** (Code-Name: `ageDepreciation`) für den Flugzeug-Anteil (5.9):
+  `valueBase × (1 − RESIDUAL_SHARE) / (DEPRECIATION_YEARS × 12) × conditionFactor` je Monat bis
+  `DEPRECIATION_YEARS`, danach 0.
+- Konstanten (Startwerte; heute 2 % je Jahr bis 40 %, `src/lib/fleetCosts.ts:23-24`):
+  `DEPRECIATION_YEARS = 25`, `RESIDUAL_SHARE = 0,2` (3,2 % je Jahr); `CONDITION_VALUE_SPAN = 0,6`,
+  `AIRFRAME_VALUE_SHARE = 0,75` (heute 0,45 Zelle + 0,15 Kabine, `:1643-1644`). Endgültig aus dem
+  Balance-Skript (3.9).
+- Nicht hier, sondern Abschnitt 8: Händler-Spanne und Gebrauchtmarkt-Preise (E30), Vorbestellung,
+  Grundüberholung (E31), Verschleiß, Forschung „Resale value“ (wirkt auf den Verkaufserlös, nicht auf den Wert).
+- Regeln (Tests):
+  - Neues Flugzeug: `aircraftValue` = Kaufpreis.
+  - Älter oder abgenutzter → nie mehr Wert; nach `DEPRECIATION_YEARS` bei Zustand 100 genau `RESIDUAL_SHARE` × `valueBase`.
+  - Über die ganze Haltezeit: Σ `fleetValueResult` = Verkaufserlös − Kaufpreis − Umbauten − Überholungen.
+  - Gleiches Flugzeug → gleicher Wert für Spieler, KI und Gebrauchtmarkt.
+  - Ein Kauf ändert das Monatsergebnis nicht, solange der Preis dem Wert entspricht (W13).
+- Anzeige: Flottenansicht „Value“ je Flugzeug, Bericht (zwei Zeilen), Bilanz „Fleet value“.
+
+### 5.14 Werbung und Frequent flyer (Kosten)
+- **Kampagnen:** `atCost(CAMPAIGN_COST_1960[Stufe], month)` je laufendem Monat. Konstanten wie heute:
+  lokal 150 000, national 400 000, global 1 000 000 (`src/lib/marketing.ts:75-77`); die eigene Teuerung
+  `MARKETING_INFLATION = 0,03` in Jahresstufen entfällt (E6, R5). Wirkung: 3.9.5 und Abschnitt 6.
+- **Frequent flyer:** Grundbetrag `atCost(FFP_BASE_COST_1960, month)` je Monat, solange das Programm läuft;
+  dazu `ffpCostPerPassenger` je Reise in `costPerPassenger` (5.8). Konstanten wie heute
+  (`src/lib/marketing.ts:187-189`): `FFP_BASE_COST_1960 = 50 000`, `FFP_COST_PER_PAX_1960 = 0,8`
+  (neu mit Index, E6).
+- KI: keine Werbung, kein Programm (E44, Abschnitt 7).
+
+### 5.15 Einnahme eigener Flughäfen (Code-Name: `ownerFeeIncome`)
+- Bedeutung: Wer an einem Flughafen Verwaltungsstufe 3 hat, bekommt einen Anteil der Landegebühren der
+  **anderen** Gesellschaften dort.
+- Formel: `ownerFeeIncome(x) = OWNER_FEE_SHARE × Σ andere Gesellschaften: landingFee × Landungen je Woche in x`
+  mit **derselben** `landingFee` (5.5), die diese Gesellschaften zahlen (R6, W8; heute eigene Formel ohne
+  Flugzeuggröße, Kostenindex und Nachlass, `src/lib/hubOwnership.ts:33-35`). Haben mehrere Gesellschaften
+  dort Stufe 3, teilen sie sich den Anteil zu gleichen Teilen.
+- Konstanten: `OWNER_FEE_SHARE = 0,5` (heute `src/lib/hubOwnership.ts:30`).
+- Die zahlende Gesellschaft zahlt ihre volle Landegebühr (5.5); die Einnahme ist kein Abzug bei ihr.
+- Regeln (Tests): Einnahme = 0 ohne Stufe 3; eine größere Rivalen-Maschine bringt nie weniger.
+
+### 5.16 Kosten der Gesellschaft je Monat (Code-Name: `monthlyCosts`)
+- Bedeutung: Die vollständige Liste der Kosten im Monatsergebnis. Abschnitt 8 bucht sie im Abschluss.
+- Posten (Wochenwerte × `WEEKS_PER_MONTH`, E5):
+
+  | Posten | Inhalt | Abschnitt |
+  |---|---|---|
+  | Fuel | Σ Strecken `fuelCost` | 5.3 |
+  | Crew | Σ Strecken `crewCost` | 5.4 |
+  | Landing fees | Σ Strecken `landingCost` | 5.5 |
+  | Passenger fees | Σ Check-in und Abfertigung aller Fluggäste | 5.6, 5.8 |
+  | Catering | Σ Verpflegung aller Fluggäste (Direkt und Umsteiger) | 5.7, 5.8 |
+  | Airport upkeep | Slot-, Stand-, Schalter-Miete, Einrichtungen | 5.10, 5.11 |
+  | Aircraft upkeep | Σ Flugzeuge `aircraftUpkeep` (Monatswert) | 5.12 |
+  | Depreciation, Aircraft trades | −`fleetValueResult` | 5.13 |
+  | Marketing | Kampagnen, FFP-Grundbetrag und FFP je Fluggast | 5.14 |
+  | Abschnitt 8 | Charter-Gebühren (E32), Krisen-Antworten (E35), Zinsen der Kreditlinie (E34), Schäden aus Ereignissen | 8 |
+  | − Airport income | `ownerFeeIncome` | 5.15 |
+
+- **Monatsergebnis** = Monatserlös (4.9) − `monthlyCosts`.
+- **Nicht im Ergebnis, nur in der Kasse** (Einmalausgaben, wie heute): Slot-Kauf und -Verkauf, Verwaltungs-
+  stufen, Einrichtungen, Forschung (Preis aus Abschnitt 6), Übernahme (Abschnitt 7). Flugzeuge, Umbauten
+  und Überholungen gehen über das Wertmodell (5.13) und zählen nur mit ihrem Unterschied zum Wert.
+  Der Bericht zeigt Ergebnis und Kassen-Änderung getrennt.
+- **Zurechnung (Anzeige):** Σ Strecken-Ergebnisse (5.9) + nicht zugerechnete Kosten (freie Slots, Stände,
+  Schalter, Einrichtungen, Unterhalt geparkter Flugzeuge, Abschreibung aus Zustand und Käufen, Werbung,
+  Abschnitt-8-Posten, − Einnahmen) = Monatsergebnis / `WEEKS_PER_MONTH` (Test).
+- Regeln (Tests): kein Dollar zählt zweimal; 12 Monate gleicher Wochenkosten = Wochenkosten × 52,18 (W15);
+  Planer-Strecken-Kosten = Kosten im Abschluss bei gleichem Stand (R2).
+
+### 5.17 Gleiche Regeln für die KI (E44, E45)
+- Die KI zahlt **alle** Kosten aus 5.2–5.13 und 5.15 mit denselben Funktionen: Treibstoff, Besatzung,
+  Landung, Check-in, Abfertigung, Verpflegung (sie füllt jede Mahlzeit, R14), Slots, Stände, Schalter,
+  Unterhalt, Abschreibung. Heute ohne Flughafen-Kosten, mit eigener Landegebühr und Rabatten (1.6 W2).
+- Was bei der KI fehlt (bewusst, Abschnitt 7): Forschung (`researchCostFactor` = 1), Personal-Modell
+  (`payFactor` = 1), Werbung und Frequent flyer (keine Kosten aus 5.14).
+- Unterschiede zwischen Persönlichkeiten entstehen nur aus ihren Entscheidungen (Kabine, Flotte, Flughäfen),
+  nicht aus Kosten-Faktoren (E45): Eine dichte Economy-Kabine hat weniger Besatzung je Sitz (5.4) und weniger
+  Verpflegung; eine einheitliche Flotte weniger Wartung (5.12).
+- Regel (Test): Spieler mit Lohn 100 %, ohne Forschung, Werbung und Programm hat bei gleichem Stand dieselben
+  Kosten wie eine KI.
+
+### 5.18 Beispiel
+Startwerte, Januar, alle Flughäfen Größe 7 und Verwaltungsstufe 0–1, ein neues Flugzeug je Strecke (nur diese
+Strecke), volle Maschine, Preis = Marktpreis (4.3) mit `satisfactionFactor` 1, Erdnüsse (0,44 $) je Mahlzeit,
+kein Frequent flyer, keine Forschung. Je Woche, in $ (Hilfsskript, nicht im Projekt).
+
+| Fall | Erlös | Kosten | Ergebnis | Treibstoff | Landung | Je Fluggast | Besatzung | Flugzeug-Anteil |
+|---|---|---|---|---|---|---|---|---|
+| Caravelle III, FRA–CDG 1962, 14 Umläufe, 80 Y | 138 373 | 118 610 | **+19 764** | 19 % | 38 % | 22 % (11,72 $) | 5 % | 11 % |
+| ATR 72-200, FRA–CDG 1990, 14 Umläufe, 68 Y | 164 258 | 131 298 | **+32 960** | 10 % | 40 % | 24 % (16,36 $) | 8 % | 16 % |
+| A320ceo, FRA–MAD 1990, 7 Umläufe, 150 Y + 12 J | 406 377 | 252 074 | **+154 303** | 20 % | 29 % | 15 % (16,36 $) | 5 % | 30 % |
+| A320ceo, FRA–MAD 2020 | 581 226 | 399 516 | **+181 710** | 27 % | 26 % | 13 % (23,40 $) | 5 % | 27 % |
+| A330-300, FRA–JFK 1995, 7 Umläufe, 250 Y + 30 J | 2 517 187 | 914 924 | **+1 602 263** | 53 % | 11 % | 8 % (17,89 $) | 8 % | 20 % |
+| A330-300, FRA–JFK 2020 | 3 391 784 | 1 707 833 | **+1 683 952** | 66 % | 8 % | 6 % (24,10 $) | 6 % | 14 % |
+
+Slot-Anteil jeweils 0–6 %. Lesart:
+- Mit Marktpreis × Kostenindex (E7) und Treibstoff ohne Hard-Zuschlag bringt jede Länge in jedem Jahrzehnt
+  bei voller Maschine Gewinn (heute 2020 beide Strecken im Minus, W1, W2). Volle Maschinen sind aber nicht
+  der Normalfall; die Marge bei erwarteter Auslastung prüft das Balance-Skript (3.9).
+- Langstrecke ist jetzt sehr einträglich (Ergebnis 64 % des Erlöses 1995). Grund: Der Marktpreis wächst mit
+  dem Kostenindex, Treibstoff nicht im selben Maß, und `satisfactionFactor` 1 ist mit Erdnüsse auf 7 Stunden
+  unrealistisch. Hinweis für 3.9: Grundpreis je km für Langstrecke und Treibstoff-Formel gemeinsam prüfen.
+- Die Landegebühr bleibt auf Kurzstrecke der größte Posten (26–40 %).
+- Gewinnschwelle (4.11), A320ceo FRA–MAD 1990: feste Kosten 214 965 $, je Fluggast 16,36 $ →
+  Preisniveau 0,62 bei voller Maschine, 0,80 bei 75 % Auslastung.
+
+### 5.19 Vorgaben an andere Abschnitte
+- **Abschnitt 6 (Fortschritt):** Forschungs-Einsparungen je Art (5.1) und Effizienz-Punkte (5.3) als Felder je
+  Forschung, Texte daraus (E52); Slot-Nachlass aus Meilensteinen als `milestoneSlotFactor` (5.10), sonst 1;
+  Forschungspreise mit `atCost` (E6).
+- **Abschnitt 7 (KI):** KI zahlt alle Kosten (5.17); Liste der fehlenden Teile (Forschung, Personal, Werbung,
+  Frequent flyer); KI-Planung nutzt `costPerPassenger` und `fixedWeeklyCost` wie der Planer; KI kauft Slots
+  und Schalter und hält die Slot-Grenze ein (5.10, E50).
+- **Abschnitt 8 (Monat, Ereignisse, Flottenmarkt):**
+  - bucht `monthlyCosts` (5.16) einmal im Abschluss; Kasse nach allen Buchungen (R11);
+  - Händler-Spanne, Gebrauchtpreise und Vorbestellung als Preis relativ zu `aircraftValue` (5.13, E30);
+  - Grundüberholung: Preis als Anteil des Listenpreises × `atCost` (E31) und so hoch, dass die Wertsteigerung
+    aus 5.13 (`CONDITION_VALUE_SPAN × AIRFRAME_VALUE_SHARE` je Zustandspunkt) den Preis nie übersteigt;
+  - Charter-Gebühr je Flug (E32); gecharterte und gestrichene Flüge senken `flownLegs` (5.3);
+  - Krisen-Antworten als Anteil der betroffenen Kosten (z. B. Treibstoff-Rechnung, E6, E35), Preis-Absicherung (5.2);
+  - Kreditlinie aus dem Flottenwert `aircraftValue` (E34), Zinsen als Kosten (5.16);
+  - Verschleiß (Zustand) wirkt über `conditionFactor` auf den Wert (5.13).
+- **Phase 4:** Flughafen-Ansicht, Planer, Streckendetails und Bericht lesen alle Kosten aus dem Modell (R2);
+  Texte (Stundensatz, Gebühren, Nachlass, Forschung) aus den Konstanten (E52).
+- **Phase 5.1:** gespeicherte Effizienz und Type appeal am Flugzeug entfallen (berechnet); Baumonat für
+  Flugzeuge ohne Angabe = Kaufmonat; Kabinen-Einbaumonat = Baumonat.
+
+### 5.20 Zuordnung der Bestandsfunde
+
+| Fund (1.4) | Lösung in diesem Abschnitt |
+|---|---|
+| W1 Langstrecke verliert fast immer | 5.2 Treibstoff nur aus der Tabelle (E8); Marktpreis mit Kostenindex (4.3, E7); Beispiel 5.18; Marge im Balance-Skript (3.9) |
+| W2 2020 lohnt kaum eine Strecke | wie W1; Beispiel 5.18 |
+| W3 Treibstoff 2031 wie 1960 | 5.2 letzter Tabellenwert (E8) |
+| W4 Krisen doppelt | 5.2 kein Ereignis-Faktor (E8) |
+| W5 Fluggast-Gebühren an beiden Flughäfen | 5.6 Check-in je Reise, Abfertigung je Abflug (E27) |
+| W6 Drehkreuz-Nachlass ungleich | 5.1 ein `airportFeeFactor` für alle Flughafen-Gebühren (R6) |
+| W7 Abstellplätze ab Stufe 2 gratis | 5.10 bleibt, bewusst (E28) |
+| W8 Einmalpreise ohne Index, KI-Landegebühr | 5.10, 5.11 `atCost` (E6); 5.15 dieselbe `landingFee` (R6) |
+| W9 Hard verteuert Treibstoff der KI | 5.2 ohne Schwierigkeit (E4) |
+| W10 Kosten nach Höchstsitzen | 5.3, 5.5 nach Flugzeug; 5.4 Flugbegleiter nach Kabine (R6) |
+| W11 Bodenpersonal an Flugstunden | 5.6 in der Abfertigung enthalten (R6) |
+| W12 Einweg zahlt zwei Landungen | 5.5 je Abschnitt eine Landung am Ziel (R6) |
+| W13 Kauf nicht als Kosten | 5.13 Wertmodell, Abschreibung im Ergebnis (E29) |
+| W14 Mahlzeiten in Stufen | 5.7 dieselben `mealWeight` wie 2.5 (R5) |
+| W15 Jahreswerte uneinheitlich | 5.16 `WEEKS_PER_MONTH` (E5) |
+
+Doppelte Rechnungen (Bestand 1.4) → eine Funktion im Modell (R2): Gebühren-Faktor `mods.feeFactor` und
+`getFeeFactor()` → `airportFeeFactor` (5.1); Gebühren in `AirportDetailView.tsx:283-287` → 5.5, 5.6;
+KI-Landegebühr `hubOwnership.ts:33-35` → 5.15; Stundensatz-Text Planer `:3476` → 5.4; Sitze für Schalter
+doppelt gezählt (`:66-87`, `:162-178`) → `deskLoad` (2.6.3); Treibstoffpreis im Planer `:873-877` → 5.2.
 
 ## 6. Ruf, Rang, Fortschritt
 
