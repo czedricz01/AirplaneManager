@@ -768,3 +768,170 @@ export const BEST_FARE_COARSE_STEP = 0.01;
 
 /** Schrittweite der feinen Suche um den besten groben Punkt (± `BEST_FARE_COARSE_STEP`). SPEZIFIKATION 4.10. */
 export const BEST_FARE_FINE_STEP = 0.001;
+
+// ---------------------------------------------------------------------------
+// 5.1 Kosten-Faktoren der Gesellschaft
+// ---------------------------------------------------------------------------
+
+/** Arten von Kosten, die eine Forschung senken kann. SPEZIFIKATION 5.1. */
+export type CostResearchKind = 'fuel' | 'crew' | 'fees' | 'catering' | 'maintenance' | 'slots';
+
+/**
+ * Einsparung je fertiger Forschung (Anteil, 0,01 = 1 %), mit der Kostenart. Ids und Werte wie heute
+ * (`src/lib/research.ts:99-160`): Treibstoff 3 + 3 + 1 %, Besatzung 3 × 1 %, Gebühren 3 × 1 %,
+ * Verpflegung 2 × 2 %, Wartung 4 × 1 %, Slots 8 %. Paket 3.6 führt die Tabelle in die Felder der
+ * Forschungs-Tabelle (6.9) über (wie F23). SPEZIFIKATION 5.1.
+ */
+export const RESEARCH_COST_SAVINGS: Readonly<Record<string, { readonly kind: CostResearchKind; readonly saving: number }>> = {
+  'fuel-1': { kind: 'fuel', saving: 0.03 },
+  'fuel-2': { kind: 'fuel', saving: 0.03 },
+  'fuel-3': { kind: 'fuel', saving: 0.01 },
+  'crew-1': { kind: 'crew', saving: 0.01 },
+  'crew-2': { kind: 'crew', saving: 0.01 },
+  'crew-3': { kind: 'crew', saving: 0.01 },
+  'fees-1': { kind: 'fees', saving: 0.01 },
+  'fees-2': { kind: 'fees', saving: 0.01 },
+  'fees-3': { kind: 'fees', saving: 0.01 },
+  'catering-1': { kind: 'catering', saving: 0.02 },
+  'catering-2': { kind: 'catering', saving: 0.02 },
+  'maint-1': { kind: 'maintenance', saving: 0.01 },
+  'maint-2': { kind: 'maintenance', saving: 0.01 },
+  'maint-3': { kind: 'maintenance', saving: 0.01 },
+  'maint-4': { kind: 'maintenance', saving: 0.01 },
+  slots: { kind: 'slots', saving: 0.08 },
+};
+
+/** Kein Kosten-Faktor aus Forschung sinkt unter diesen Wert (heute `src/lib/research.ts:253`). SPEZIFIKATION 5.1. */
+export const RESEARCH_COST_FLOOR = 0.4;
+
+/** Höchste Verwaltungsstufe an einem Flughafen. SPEZIFIKATION 5.1, 5.11. */
+export const MAX_MANAGEMENT_TIER = 3;
+
+/** Gebühren-Nachlass ab Verwaltungsstufe 2 (heute `src/lib/hubOwnership.ts:20-24`). SPEZIFIKATION 5.1. */
+export const HUB_FEE_FACTOR_TIER2 = 0.95;
+
+/** Gebühren-Nachlass auf Verwaltungsstufe 3 (heute `src/lib/hubOwnership.ts:20-24`). SPEZIFIKATION 5.1. */
+export const HUB_FEE_FACTOR_TIER3 = 0.85;
+
+// ---------------------------------------------------------------------------
+// 5.2 Treibstoffpreis
+// ---------------------------------------------------------------------------
+
+/**
+ * Ausschläge der geschichtlichen Ölkrisen in der Treibstoff-Tabelle (E61). `startMonth` = Spielmonat
+ * des Beginns (0 = Januar 1960), `months` = Dauer, `factor` = höchster Faktor (heute `fuelMultiplier`,
+ * `src/lib/eventSystem.ts:70-205`). Ereignisse mit Faktor 1 fehlen. SPEZIFIKATION 5.2.
+ */
+export const FUEL_CRISES: readonly { readonly name: string; readonly startMonth: number; readonly months: number; readonly factor: number }[] = [
+  { name: '1973 Oil Crisis', startMonth: (1973 - START_YEAR) * 12 + 9, months: 18, factor: 2.0 },
+  { name: '1979 Energy Crisis', startMonth: (1979 - START_YEAR) * 12 + 1, months: 24, factor: 1.8 },
+  { name: 'Gulf War Oil Shock', startMonth: (1990 - START_YEAR) * 12 + 7, months: 12, factor: 1.5 },
+  { name: 'Global Financial Crisis', startMonth: (2008 - START_YEAR) * 12 + 8, months: 24, factor: 1.2 },
+  { name: 'Global Pandemic', startMonth: (2020 - START_YEAR) * 12 + 2, months: 24, factor: 0.7 },
+];
+
+/** Monate An- und Abstieg einer Krise in der Treibstoff-Tabelle, innerhalb ihrer Dauer (E61). SPEZIFIKATION 5.2. */
+export const FUEL_CRISIS_RAMP = 3;
+
+// ---------------------------------------------------------------------------
+// 5.3 Treibstoff je Strecke
+// ---------------------------------------------------------------------------
+
+/** Liter je Sitz und 100 km: `FUEL_BASE / (FUEL_EFF_OFFSET + Effizienz / FUEL_EFF_SCALE)` (heute `src/lib/financeUtils.ts:1256`). SPEZIFIKATION 5.3. */
+export const FUEL_BASE = 7.5;
+
+/** Siehe `FUEL_BASE`. SPEZIFIKATION 5.3. */
+export const FUEL_EFF_OFFSET = 0.75;
+
+/** Siehe `FUEL_BASE`. SPEZIFIKATION 5.3. */
+export const FUEL_EFF_SCALE = 70;
+
+/** Effizienz-Punkte je fertiger Effizienz-Forschung (heute +1 %, `src/lib/research.ts:99-147`). SPEZIFIKATION 5.3. */
+export const EFFICIENCY_PER_RESEARCH = 1;
+
+/** Ids der Effizienz-Forschungen (Feld `efficiencyPoints`, 6.9; Paket 3.6 führt sie über). SPEZIFIKATION 5.3. */
+export const EFFICIENCY_RESEARCH_IDS: readonly string[] = ['eff-1', 'eff-2', 'eff-3', 'eff-4', 'eff-5', 'eff-6'];
+
+/** Höchste Effizienz eines Flugzeugs mit Forschung. SPEZIFIKATION 5.3. */
+export const EFFICIENCY_MAX = 100;
+
+// ---------------------------------------------------------------------------
+// 5.4 Besatzung
+// ---------------------------------------------------------------------------
+
+/** Piloten im Cockpit (heute `src/lib/financeUtils.ts:1263`). SPEZIFIKATION 5.4. */
+export const COCKPIT_CREW = 2;
+
+/** Lohn eines Piloten je Blockstunde in $ von 1960. SPEZIFIKATION 5.4. */
+export const PILOT_RATE_1960 = 100;
+
+/** Lohn eines Flugbegleiters je Blockstunde in $ von 1960. SPEZIFIKATION 5.4. */
+export const ATTENDANT_RATE_1960 = 40;
+
+/** Sitze je Flugbegleiter nach Klasse (neu; Economy wie heute 50). SPEZIFIKATION 5.4. */
+export const SEATS_PER_ATTENDANT: Readonly<Record<CabinClass, number>> = {
+  economy: 50,
+  premium: 35,
+  business: 20,
+  first: 10,
+};
+
+/** Mindestens so viele Flugbegleiter je Flug. SPEZIFIKATION 5.4. */
+export const MIN_CABIN_CREW = 1;
+
+// ---------------------------------------------------------------------------
+// 5.5 Landegebühr
+// ---------------------------------------------------------------------------
+
+/** Grundbetrag einer Landung je Flugzeugklasse in $ von 1960 (heute `(2500 + …) × 1,1`, `src/lib/financeUtils.ts:1211-1213`). SPEZIFIKATION 5.5. */
+export const LANDING_BASE_1960: Readonly<Record<AircraftClass, number>> = {
+  Regional: 2750,
+  Narrowbody: 2750,
+  Widebody: 3300,
+};
+
+/** Zuschlag je Größenstufe des Flughafens in $ von 1960. SPEZIFIKATION 5.5. */
+export const LANDING_PER_LEVEL_1960: Readonly<Record<AircraftClass, number>> = {
+  Regional: 110,
+  Narrowbody: 110,
+  Widebody: 165,
+};
+
+/** Höchstsitze, bei denen ein Flugzeug die volle Gebühr seiner Klasse zahlt (heute `src/lib/financeUtils.ts:1171`). SPEZIFIKATION 5.5. */
+export const LANDING_REFERENCE_SEATS: Readonly<Record<AircraftClass, number>> = {
+  Regional: 180,
+  Narrowbody: 180,
+  Widebody: 420,
+};
+
+/** Anteil der Gebühr für Propeller-Flugzeuge (leichter je Sitz, heute `src/lib/financeUtils.ts:1179`). SPEZIFIKATION 5.5. */
+export const PROPELLER_FEE_SHARE = 0.85;
+
+/** Regional-Flugzeuge langsamer als diese Reisegeschwindigkeit (km/h) gelten als Propeller-Flugzeuge. SPEZIFIKATION 5.5. */
+export const PROPELLER_MAX_SPEED = 700;
+
+// ---------------------------------------------------------------------------
+// 5.6 Check-in und Abfertigung
+// ---------------------------------------------------------------------------
+
+/** Check-in je Reise in $ von 1960 (heute 0,5 $ an beiden Enden, E27). SPEZIFIKATION 5.6. */
+export const CHECKIN_FEE_1960 = 1.0;
+
+/** Abfertigung je Abflug eines Fluggasts in $ von 1960, nach Flughafengröße (heute 3 / 4 / 5 $ an beiden Enden). SPEZIFIKATION 5.6. */
+export const HANDLING_FEE_1960 = { small: 6, medium: 8, large: 10 } as const;
+
+/** Ab dieser Flughafengröße gilt `HANDLING_FEE_1960.medium`. SPEZIFIKATION 5.6. */
+export const HANDLING_MEDIUM_FROM = 3;
+
+/** Ab dieser Flughafengröße gilt `HANDLING_FEE_1960.large`. SPEZIFIKATION 5.6. */
+export const HANDLING_LARGE_FROM = 5;
+
+// ---------------------------------------------------------------------------
+// 5.8 Kosten je Fluggast (Frequent flyer, 5.14)
+// ---------------------------------------------------------------------------
+
+/** Kosten des Frequent-flyer-Programms je Reise in $ von 1960 (heute `src/lib/marketing.ts:189`, neu mit Index). SPEZIFIKATION 5.8, 5.14. */
+export const FFP_COST_PER_PAX_1960 = 0.8;
+
+/** Anteil der Umsteiger einer Teilstrecke, die ihre Reise am äußeren Ende beginnen (dort Check-in). SPEZIFIKATION 5.8. */
+export const TRANSFER_CHECKIN_SHARE = 0.5;

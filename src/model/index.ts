@@ -11,3 +11,4 @@ export * from './demand';
 export * from './marketSplit';
 export * from './transfers';
 export * from './fare';
+export * from './costs';
