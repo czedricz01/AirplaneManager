@@ -1,22 +1,25 @@
 # Status
 
-**Nächstes Paket: 2.5** (Soll-Zustand Preis und Erlös in `SPEZIFIKATION.md`, Abschnitt 4)
+**Nächstes Paket: 2.6** (Soll-Zustand Kosten in `SPEZIFIKATION.md`, Abschnitt 5)
 
 Stand: 18.11.2026 · Ausgangslage: 504 Tests grün, `tsc --noEmit` grün.
 
-Offene Frage: **O52** (Schalter-Pflicht an beiden Enden, Premium-Abzug ohne bedienten Schalter), siehe
-`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“. Blockiert 2.5 nicht; nötig spätestens beim Bau der Zufriedenheit
-(Phase 3). `SPEZIFIKATION.md` 2.6.3 folgt vorläufig der Empfehlung.
+Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; beide blockieren 2.6 nicht, die Spezifikation
+folgt vorläufig der Empfehlung):
+- **O52** Schalter-Pflicht an beiden Enden, Premium-Abzug ohne bedienten Schalter (`SPEZIFIKATION.md` 2.6.3).
+  Nötig spätestens beim Bau der Zufriedenheit (Phase 3); berührt in 2.6 die Schalter-Kosten.
+- **O53** Preis als Preisniveau (Anteil des Marktpreises) oder als Dollar-Betrag speichern
+  (`SPEZIFIKATION.md` 4.5). Nötig spätestens beim Bau des Preises (Phase 3).
 
-Paket 2.5: Soll-Zustand von Preis und Erlös in `SPEZIFIKATION.md`, Abschnitt 4 schreiben (Grundpreis je
-Klasse aus Entfernung und Flugzeit mit Kostenindex; Klassen-Verhältnisse aus einer Funktion; Marktpreis je
-Paar und Klasse; Knappheits-Zuschlag neu fassen oder streichen; Preis-Eingabe und Startpreis; Erlös je
-Strecke; Umsteiger-Tarif und Erlös-Aufteilung auf Teilstrecken; Planer-Hauptzahl und erlösbester Preis).
-Muss die Vorgaben aus 3.16 einhalten (Marktpreis unabhängig von den Fluggästen aus 3.11; kein zweiter
-Preis-Faktor auf die Fluggäste; Preis wirkt nur über `priceFactor` 3.9.2).
-Zu lesen: `SPEZIFIKATION.md` (Abschnitt 1, 2.10, Abschnitt 3 nur 3.0, 3.8, 3.9.2, 3.10, 3.11, 3.13, 3.16),
-`ENTSCHEIDUNGEN.md` (E4–E7, E13, E23–E26, E32, E44, E52, E54, R2, R7, R8), `bestand/3-preis.md`.
-Code nur bei Bedarf.
+Paket 2.6: Soll-Zustand der Kosten in `SPEZIFIKATION.md`, Abschnitt 5 schreiben (Treibstoff aus der Tabelle,
+Besatzung und Personal, Flughafen-Gebühren: Landung je Flugabschnitt, Check-in nur am Abflughafen,
+Abfertigung je Abflug, ein Nachlass-Faktor; Verpflegung; Slots und Abstellplätze; Verwaltungsstufen und
+Einrichtungen; Unterhalt; Abschreibung nach dem Wertmodell; alles über `atCost`). Muss die Vorgaben aus
+4.14 einhalten: je Strecke `costPerPassenger(route, c)` und `fixedWeeklyCost(route)` getrennt; Umsteiger
+zählen als Fluggäste beider Teilstrecken.
+Zu lesen: `SPEZIFIKATION.md` (Abschnitt 1, 2.6.3, 3.13, 3.16, 4.0, 4.7, 4.10, 4.11, 4.14),
+`ENTSCHEIDUNGEN.md` (E5–E8, E17, E18, E27–E29, E31, E32, E44, E45, E50, E54, R3, R6, O52),
+`bestand/4-kosten.md`. Code nur bei Bedarf.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -56,7 +59,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 2.2 | Grundbegriffe und Einheiten festlegen (Namen, Skalen, Rundung, Schwierigkeit) | erledigt |
 | 2.3 | Soll-Zustand Zufriedenheit (`SPEZIFIKATION.md` Abschnitt 2) | erledigt |
 | 2.4 | Soll-Zustand Nachfrage und Marktanteil (`SPEZIFIKATION.md` Abschnitt 3) | erledigt |
-| 2.5–2.9 | Je Bereich 1.3–1.7 den Soll-Zustand in `SPEZIFIKATION.md` schreiben (2.5 Preis, 2.6 Kosten, 2.7 Ruf und Fortschritt, 2.8 Konkurrenz, 2.9 Monat und Ereignisse) | offen |
+| 2.5 | Soll-Zustand Preis und Erlös (`SPEZIFIKATION.md` Abschnitt 4) | erledigt |
+| 2.6–2.9 | Je Bereich 1.4–1.7 den Soll-Zustand in `SPEZIFIKATION.md` schreiben (2.6 Kosten, 2.7 Ruf und Fortschritt, 2.8 Konkurrenz, 2.9 Monat und Ereignisse) | offen |
 
 ## Phase 3 – Modell neu bauen
 
@@ -104,3 +108,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 2.2 | Grundbegriffe in `SPEZIFIKATION.md` Abschnitt 1: Zeit (Spielmonat, stetige Zeit, 4,348 Wochen je Monat), Mengen, Spiel-Dollar mit einem Kostenindex über `atCost`, Skalen mit Neutralpunkten, Namen (E9), Slot = Abflug je Woche, Rundung nur in der Anzeige, Schwierigkeit getrennt von KI-Stärke; 2 neue Fragen (O50 Schwierigkeit im gemeinsamen Markt, O51 Listenpreise mit Kostenindex) |
 | 18.11.2026 | 2.3 | Zufriedenheit in `SPEZIFIKATION.md` Abschnitt 2: 16 Größen von Flugzeit-Index bis `satisfactionFactor`; Satisfaction wirkt nur noch über die Anziehung (als Zahlungsbereitschaft) und den Ruf; Menü mit abnehmendem Nutzen, stufenlose Mahlzeiten, Bodenteile als Mittel beider Enden, Forschung +1 je Stufe, kein Ausfall-Abzug; alle 15 Funde aus 1.1 zugeordnet. O50 → E53 (Schwierigkeit über die Anziehung), O51 → E54 (Listenpreise mit Kostenindex); 1.2 auf vier Klassen berichtigt; neue Frage O52 (Schalter) |
 | 18.11.2026 | 2.4 | Nachfrage und Marktanteil in `SPEZIFIKATION.md` Abschnitt 3: Marktgröße ohne Flugzeug und Schwierigkeit (Bezugs-Flugzeit 800 km/h, Weltanteil der Städte + eine Wachstumsregel × 2,5, Entfernungs-Kurve ohne Untergrenze), neue Klassen-Anteile nach Geschäftsanteil und Flugzeit, eine Aufteilung je Markt mit „Nicht fliegen“ (Anziehung aus Abflügen, Preis/Satisfaction, Flugzeit, Ruf u. a.), Bezugsangebot ohne Rivalen erlösbest am Marktpreis (E24), Anlauf nach der Wahl, Umsteiger als Angebote im selben Markt; alle 14 Funde aus 1.2 zugeordnet; keine neue offene Frage |
+| 18.11.2026 | 2.5 | Preis und Erlös in `SPEZIFIKATION.md` Abschnitt 4: Marktpreis nur aus Entfernung, Bezugs-Flugzeit und Kostenindex (gleich für alle Angebote, ohne Schwierigkeit und SAT), eine Funktion für die Klassen-Verhältnisse, Knappheits-Zuschlag entfällt (Knappheit hebt den besten Preis), Preis als Preisniveau × Marktpreis, Erlös = Fluggäste × Preis × 4,348 Wochen, Umsteiger-Erlös nach Marktpreisen der Teilstrecken, gewinnbester Preis und Gewinnschwelle aus dem Modell, Planer-Hauptzahl = erwarteter Gewinn; alle 11 Funde aus 1.3 zugeordnet; neue Frage O53 (Preis speichern) |
