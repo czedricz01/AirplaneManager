@@ -85,9 +85,16 @@ Diese Funde haben eine klare Lösung. Sie werden als Regeln in die Spezifikation
 
 ## Offen
 
-Keine. Alle 49 Fragen aus Paket 1.9 (O1–O49) sind entschieden (Stand 18.11.2026):
+Alle 49 Fragen aus Paket 1.9 (O1–O49) sind entschieden (Stand 18.11.2026):
 Block A (O3–O11) und Bauregeln → E4–E12; Block B (O2, O12–O24) → E13–E26;
 Block C (O25–O33) → E27–E35; Block D (O1, O34–O49) → E36–E52.
+
+Neu aus Paket 2.2 (blockieren 2.3 nicht; nötig spätestens für 2.4 bzw. 2.6):
+
+| Nr. | Frage | Optionen | Empfehlung |
+|---|---|---|---|
+| O50 | **Wo wirkt die Schwierigkeit im gemeinsamen Markt?** E4 sagt „nur auf die Spieler-Nachfrage (Marktgröße)“ und „KI-Wirtschaft neutral“. Mit einem Markt je Paar (E13, R1) teilen sich Spieler und KI dieselbe Marktgröße; ein Faktor auf die Marktgröße träfe auch die KI auf diesem Paar. | (a) Faktor auf die Marktgröße der Paare, auf denen der Spieler fliegt (trifft dort auch die KI). (b) Faktor auf die **Anziehung** der Spieler-Angebote (wie ein fester Ruf-Zu- oder Abschlag); KI-Rechnung unverändert. (c) Faktor auf die Spieler-Fluggäste nach der Aufteilung; abgezogene Gäste fliegen nicht. | **(b)**: eine Stelle, ein Markt, eine Rechnung (R1); die KI rechnet ohne Schwierigkeit; auf Hard gewinnt die KI etwas Anteil, das macht Hard auch spürbar schwerer. Ohne Rivalen wirkt (b) etwas schwächer als der Faktor selbst (gegen „Nicht fliegen“); Stärke daher im Balance-Skript (3.9) einstellen. |
+| O51 | **Wachsen die Listenpreise der Flugzeuge mit dem Kostenindex?** E6 sagt „ein Kostenindex für alle Dollar-Beträge“. Die Listenpreise (`basePrice` in `src/data/aircraft.ts`) sind aber Daten je Typ in festen Preisen, wie die Treibstoff-Tabelle (`src/lib/realCosts.ts:4-6`). Grundpreise der Tickets wachsen nach E7 mit dem Index (× 2,05 bis 2020). | (a) Nein: Listenpreise bleiben Daten ohne Index (wie heute); Flugzeuge werden gegenüber Erlösen und Löhnen über die Jahre günstiger. (b) Ja: Listenpreis × Kostenindex des Kaufmonats; Flugzeug-Kosten und Erlöse wachsen gleich. | **(b)**: Folgt E6 wörtlich und hält das Verhältnis Erlös : Flugzeugpreis über 60 Jahre gleich (Ziel von E7: jede Strecke in jedem Jahrzehnt). Die Treibstoff-Tabelle bleibt ohne Index (E8). Höhe der Listenpreise im Balance-Skript (3.9) prüfen. |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
