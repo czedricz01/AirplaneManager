@@ -1,11 +1,11 @@
 # Status
 
-**Nächstes Paket: 2.1b** (wartet auf Entscheidungen des Menschen)
+**Nächstes Paket: 2.1c** (wartet auf Entscheidungen des Menschen)
 
 Stand: 18.11.2026 · Ausgangslage: 504 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen: 40 Fragen in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“, in drei Blöcken B–D.
-Block A (O3–O11) und die Bauregeln R1–R16 sind entschieden (E4–E12). Jede Frage hat eine Empfehlung. Die Einzelfragen am Ende der
+Offene Fragen: 26 Fragen in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“, in zwei Blöcken C–D.
+Block A (O3–O11) und die Bauregeln R1–R16 sind entschieden (E4–E12), Block B (O2, O12–O24) ebenfalls (E13–E26). Jede Frage hat eine Empfehlung. Die Einzelfragen am Ende der
 Dateien in `bestand/` sind dort zusammengefasst und müssen nicht mehr einzeln gelesen werden.
 
 Ablauf 2.1a–2.1d: Claude liest nur den Block in `ENTSCHEIDUNGEN.md` und stellt dessen Fragen.
@@ -45,7 +45,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | Nr. | Paket | Status |
 |---|---|---|
 | 2.1a | Block A (Querschnitt: O3–O11) aus `ENTSCHEIDUNGEN.md` mit dem Menschen klären, inkl. Bauregeln R1–R16 | erledigt |
-| 2.1b | Block B (Markt: O2, O12–O24) klären | wartet |
+| 2.1b | Block B (Markt: O2, O12–O24) klären | erledigt |
 | 2.1c | Block C (Kosten, Flottenwert, Monat, Ereignisse: O25–O33) klären | wartet |
 | 2.1d | Block D (Ruf, Rang, Konkurrenz, Oberfläche: O1, O34–O49) klären | wartet |
 | 2.2 | Grundbegriffe und Einheiten festlegen (Namen, Skalen, Rundung, Schwierigkeit) | offen |
@@ -91,3 +91,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 17.11.2026 | 1.8 | Oberflächen-Bestand aufgenommen: 13 Regeln nur in der Oberfläche, 12 Kopien von Modell-Formeln, 9 Texte mit festen Zahlen, 5 doppelte Quellen; 9 Auffälligkeiten (u. a. Planer zeigt Schalter- und Standmieten in Preisen von 1960, Slot-Grenze nur in Ansichten, Preise von Hub-Einrichtungen im Klick-Handler); Vorschlag für die Pakete 4.2–4.7, 7 offene Fragen |
 | 17.11.2026 | 1.9 | Zusammenfassung: 56 Einzelfragen und O1–O6 zu 49 Fragen (O1–O49) mit Empfehlung in 4 Blöcken zusammengelegt, 16 Bauregeln (R1–R16) für Funde ohne Entscheidung; alle 103 Funde zugeordnet; Paket 2.1 in 2.1a–2.1d geteilt |
 | 18.11.2026 | 2.1a | Block A entschieden: alle 9 Empfehlungen übernommen (E4–E12): Schwierigkeit nur auf Spieler-Nachfrage, Normal = 1, KI-Wirtschaft neutral; Monat = 4,35 Wochen; ein Kostenindex für alle Beträge inkl. Grundpreise; Treibstoff nur aus Tabelle; neue Namen statt „SAT“; Gewichtung nach Fluggästen; Startwerte als Konstanten; Bauregeln R1–R16 bestätigt |
+| 18.11.2026 | 2.1b | Block B entschieden (E13–E26): 12 Empfehlungen übernommen; Abweichungen: Geschwindigkeit wirkt spürbar stärker in der Anziehung (E20), Klassen-Aufteilung mit Richtung Tourismus → Economy, Geschäft → Business/First (E21) |

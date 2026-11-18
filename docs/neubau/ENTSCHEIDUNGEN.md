@@ -19,6 +19,20 @@ Claude schlägt vor, der Mensch entscheidet.
 | E10 | 18.11.2026 | **Strecken-Zufriedenheit (O3):** Klassen überall nach Fluggästen gewichten, nicht nach Sitzen. | Anzeige und Ruf rechnen heute verschieden; zählen soll, was die Gäste erlebt haben. |
 | E11 | 18.11.2026 | **Startwerte (O10):** Teil der Spezifikation, als Konstanten im Modell. Startkapital-Stufen bleiben als Einstellung beim neuen Spiel. Start-Ruf siehe O1 (Block D). | Startwerte prägen die Balance; nur das Startkapital ist bewusst wählbar (1.8 W8). |
 | E12 | 18.11.2026 | **Bauregeln (O11):** R1–R16 als Ganzes bestätigt (Liste unten). | Funde mit klarer Lösung ohne eigene Entscheidung. |
+| E13 | 18.11.2026 | **Markt-Modell (O12):** Ein Markt-Modell je Städtepaar. Marktgröße aus Städten, Entfernung, Jahr, Saison. Jedes Angebot hat eine Anziehung aus Preis (gemessen am Marktpreis), SAT, Abflügen und Flugzeit (E20). „Nicht fliegen“ ist ein eigener Mitbewerber; die Fluggäste verteilen sich nach Anziehung. Preis wirkt mit und ohne Rivalen gleich. SAT wirkt im Markt nur über die Anziehung, über den Ruf langsam auf alle Strecken. | Heute wirkt SAT dreifach und der Preis mit Rivalen doppelt an zwei Bezugspreisen (1.1 W8; 1.2 W4; 1.3 Bezug 1.2 W4). |
+| E14 | 18.11.2026 | **SAT-Skala (O13):** 0–160; 100 = „wie erwartet“, 160 = Spitze. Markt und Ruf nutzen die ganze Skala. | Heute Kappe 160, Ruf bis 130, Faktor bis über 200 (1.1 W7; 1.3 W11). |
+| E15 | 18.11.2026 | **SAT unter 100 (O14):** Flachere Kurve, Richtung SAT 50 ≈ 75 % des Preises. Genaue Kurve und Abzüge aus dem Balance-Skript (3.9). | Heute SAT 50 = halber Preis; 4 $ Getränke heben den fairen Preis um 13 $ (1.1 W9). |
+| E16 | 18.11.2026 | **Mehrgang-Menü (O15):** Summe mit abnehmendem Nutzen: bestes Gericht voll, jedes weitere anteilig. Mehr bieten bringt immer etwas. | Heute Mittelwert: Wagyu 60, Wagyu + Butterkeks 34,9 (1.1 W1; 1.4 W14). |
+| E17 | 18.11.2026 | **Zwei Flughäfen (O16):** Alle Bodenteile (Schalter, Stellplätze, Lounge, Überlast) als Mittelwert beider Enden; das Bodengewicht (Langstrecke weniger) gilt für alle, auch Überlast. | Heute teils Mittelwert, teils Summe; Überlast auf Langstrecke voll (1.1 W3). |
+| E18 | 18.11.2026 | **Check-in-Schalter (O17):** Ein Schalter am Abflughafen ist Pflicht; der Planer verlangt ihn beim Anlegen der Strecke. Der SAT-Abzug für fehlende Schalter entfällt. | Heute bis −18 SAT je Klasse, größter Einzelposten auf Kurzstrecke (1.1 W14). |
+| E19 | 18.11.2026 | **Forschung „Plane type satisfaction“ (O18):** Wirkung direkt als SAT-Punkte (wie „Cabin design studio“); Text aus der Konstante. | Heute +0,2 bis +0,4 SAT, durch Runden oft 0 (1.1 W12; 1.5 W12). |
+| E20 | 18.11.2026 | **Geschwindigkeit (O19):** Marktgröße mit fester Bezugsgeschwindigkeit, nur aus der Entfernung. Kürzere Flugzeit gibt einem Angebot einen **spürbaren** Vorteil in der Anziehung (E13), stärker als „klein“; Stärke aus dem Balance-Skript (3.9). *Abweichung von der Empfehlung: mehr Einfluss der Geschwindigkeit.* | Heute macht ein langsames Flugzeug den ganzen Markt kleiner (1.2 W1). |
+| E21 | 18.11.2026 | **Klassen-Aufteilung (O20):** Je Klasse ein einfacher Anteil, der mit Flugzeit und Geschäftsanteil spürbar wächst. Richtung: Tourismus-geprägte Paare mehr Economy, Geschäfts-geprägte Paare mehr Business und First. Werte aus dem Balance-Skript (3.9). *Ergänzung zur Empfehlung: Richtung ausdrücklich festgelegt.* | Heute Premium bei 92 % der Paare genau 9 % (1.2 W5). |
+| E22 | 18.11.2026 | **Flugzeit-Kurve (O21):** Kurve sinkt bis zur längsten Strecke weiter, flacher als heute. Verhältnis aus dem Balance-Skript (3.9). | Heute ab ca. 12,6 h jede Langstrecke gleich; kurz/lang Faktor 6,9 (1.2 W13). |
+| E23 | 18.11.2026 | **Klassen-Faktoren (O2):** Überall die echten Klassen-Verhältnisse der Strecke aus einer Funktion (auch „Adjust All“, Startpreis, Gewichte). Gewinnschwelle je Klasse aus dem Modell. | Heute feste 1,6 / 3 / 5 gegen echte 1,3–2,35 / 2,0–3,75 / 3,0–6,5 (1.3 W2; 1.8 W5). |
+| E24 | 18.11.2026 | **Unter Marktpreis (O22):** Ohne Rivalen ist der Marktpreis etwa der erlösbeste Preis. Billiger lohnt nur gegen Rivalen oder zum Füllen der Sitze. | Heute bringt Economy unter Marktpreis bis +5 % Erlös (1.3 W3). |
+| E25 | 18.11.2026 | **Umsteiger-Tarif (O23):** Marktpreis der Verbindung Start–Ziel × fester Abschlag 0,9, mit derselben Funktion wie Direktgäste. | Heute 0,9 × Grundpreis ohne SAT, Schwierigkeit, Knappheit; auf Hard teurer als direkt (1.3 W5; 1.2 W9). |
+| E26 | 18.11.2026 | **Planer-Hauptzahl (O24):** Immer der erwartete Gewinn bei heutiger Nachfrage, auf jeder Stufe. „Volle Maschine“ höchstens als Nebenzahl beim Marktpreis. | Heute steigt die Hauptzahl mit jedem Preis (1.3 W1). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -59,27 +73,8 @@ Manche Fragen legen nur die **Richtung** fest; die genauen Zahlen kommen aus dem
 
 Die Fragen sind in vier Blöcke geteilt. Jeder Block ist ein Teil von Paket 2.1 (2.1a–2.1d).
 
-**Stand 18.11.2026:** Block A (O3–O11) und die Bauregeln sind entschieden (E4–E12, oben). Offen sind noch
-40 Fragen in den Blöcken B–D.
-
-### Block B · Markt: Zufriedenheit, Nachfrage, Preis (Paket 2.1b)
-
-| Nr. | Frage | Empfehlung | Quellen |
-|---|---|---|---|
-| O12 | **Markt-Modell (Preis und SAT im Wettbewerb):** Heute wirkt SAT dreifach (fairer Preis, Marktanteil, über den Ruf auf alle Strecken). Der Preis wirkt doppelt, sobald ein Rivale da ist (Marktanteil und Nachfrage), an zwei verschiedenen Bezugspreisen. Ohne Rivale: 10 % billiger = +13,5 % Gäste, mit Rivale +20,6 %. | **Ein** Markt-Modell je Städtepaar: Die Marktgröße kommt aus Städten, Entfernung, Jahr, Saison. Jedes Angebot hat eine Anziehung aus Preis (gemessen am Marktpreis), SAT und Abflügen. „Nicht fliegen“ zählt als eigener Mitbewerber. Die Fluggäste verteilen sich nach Anziehung. So wirkt der Preis mit und ohne Rivalen gleich. SAT wirkt im Markt nur über diese Anziehung; über den Ruf wirkt sie langsam auf alle Strecken (wie heute). | 1.1 W8, F4; 1.2 W4, F2; 1.3 Bezug 1.2 W4 |
-| O13 | **Skala der SAT:** Gekappt bei 160, der Ruf zählt sie nur bis 130, der SAT-Faktor ist bis über 200 gebaut. | Skala 0–160, 100 = „wie erwartet“, 160 = Spitze. Alle Wirkungen (Markt, Ruf) nutzen die ganze Skala. | 1.1 W7, F3; 1.3 W11 |
-| O14 | **SAT unter 100:** Heute ist SAT 50 = halber fairer Preis. Wasser und Softdrinks (4 $ je Gast) heben auf Kurzstrecke den fairen Preis um 13 $. | Flachere Kurve unter 100, Richtung: SAT 50 ≈ 75 % des Preises. Genaue Kurve im Balance-Skript (3.9), zusammen mit den Abzügen. | 1.1 W9, F5 |
-| O15 | **Mehrgang-Menü:** Ein weiteres Gericht senkt heute den Mahlzeit-Wert (Mittelwert statt Summe). Wagyu allein 60 Punkte, Wagyu + Butterkeks 34,9. | Summe mit abnehmendem Nutzen: bestes Gericht voll, jedes weitere anteilig. Mehr bieten bringt immer etwas. | 1.1 W1, F1; 1.4 W14 |
-| O16 | **Zwei Flughäfen:** Schalter und Stellplätze zählen als Mittelwert beider Enden, Lounge und Überlast als Summe. Überlast zählt auch auf Langstrecke voll. | Überall Mittelwert beider Enden. Das Bodengewicht (Boden zählt auf Langstrecke weniger) gilt für alle Bodenteile, auch Überlast. | 1.1 W3, F2 |
-| O17 | **Check-in-Schalter:** Ohne Schalter verliert jede Klasse bis −18 SAT, auf Kurzstrecke der größte Einzelposten. | Ein Schalter am Abflug ist Pflicht; der Planer verlangt ihn beim Anlegen der Strecke. Dann entfällt der Abzug. | 1.1 W14, F6 |
-| O18 | **Forschung „Plane type satisfaction +1%“:** bringt +0,2 bis +0,4 SAT, durch Runden oft 0. | Wirkung direkt als SAT-Punkte geben (wie „Cabin design studio“); Text aus der Konstante erzeugen. | 1.1 W12, F7; 1.5 W12 |
-| O19 | **Geschwindigkeit und Marktgröße:** Ein langsames Flugzeug macht heute den ganzen Markt kleiner (Frankfurt–Madrid 1990: 450 km/h 9 542 Gäste, 900 km/h 12 413). | Marktgröße mit fester Bezugsgeschwindigkeit (nur aus der Entfernung). Kürzere Flugzeit gibt einem Angebot einen kleinen Vorteil in der Anziehung (O12). | 1.2 W1, F1 |
-| O20 | **Klassen-Aufteilung:** Premium liegt bei 92 % der Paare genau auf der Untergrenze 9 %. | Je Klasse ein einfacher Anteil, der mit Flugzeit und Geschäftsanteil spürbar wächst. Werte im Balance-Skript (3.9). | 1.2 W5, F3 |
-| O21 | **Flugzeit-Kurve:** Ab etwa 12,6 h ist jede Langstrecke gleich; Kurz- zu Langstrecke Faktor 6,9. | Kurve sinkt bis zur längsten Strecke weiter, flacher als heute. Genaues Verhältnis im Balance-Skript (3.9). | 1.2 W13, F7 |
-| O2 | **Klassen-Faktoren im Planer:** „Adjust All“, Startpreis, Gewinnschwelle und Gewichte im Rechenkern nutzen feste 1,6 / 3 / 5; die echten Verhältnisse der Strecke liegen bei 1,3–2,35 / 2,0–3,75 / 3,0–6,5. | Überall die echten Klassen-Verhältnisse der Strecke aus einer Funktion. Gewinnschwelle je Klasse liefert das Modell. | O2; 1.3 W2, F1; 1.8 W5, F3 |
-| O22 | **Unter Marktpreis:** Economy bringt heute unter dem Marktpreis mehr Erlös (bis +5 %), wenn Sitze frei sind. | Nein. Ohne Rivalen soll der Marktpreis etwa der erlösbeste Preis sein. Billiger lohnt sich nur, um Anteil gegen Rivalen zu gewinnen oder Sitze zu füllen. | 1.3 W3, F2 |
-| O23 | **Umsteiger-Tarif:** heute 0,9 × Grundpreis, ohne SAT, Schwierigkeit, Knappheit; auf Hard ist Umsteigen teurer als direkt. | Marktpreis der Verbindung O–D × fester Abschlag (0,9), mit derselben Funktion wie Direktgäste. | 1.3 W5, F7; 1.2 W9 |
-| O24 | **Planer-Hauptzahl:** Auf Normal und Hard zeigt die große Zahl den Gewinn bei voller Maschine; sie steigt mit jedem Preis. | Hauptzahl immer der erwartete Gewinn bei heutiger Nachfrage, auf jeder Stufe. „Volle Maschine“ höchstens als Nebenzahl beim Marktpreis. (Nur Bestätigung.) | 1.3 W1, F6 |
+**Stand 18.11.2026:** Block A (O3–O11) und die Bauregeln sind entschieden (E4–E12), Block B (O2, O12–O24)
+ebenfalls (E13–E26, oben). Offen sind noch 26 Fragen in den Blöcken C–D.
 
 ### Block C · Kosten, Flottenwert, Monat, Ereignisse (Paket 2.1c)
 
@@ -119,8 +114,8 @@ Die Fragen sind in vier Blöcke geteilt. Jeder Block ist ein Teil von Paket 2.1 
 
 ### Abhängigkeiten
 
-- O12 zuerst: Sie bestimmt (mit E4, E6, E7) die Grundform des Modells.
-- O14, O20, O21 (und E7) legen nur die Richtung fest; die Zahlen kommen aus dem Balance-Skript (3.9).
+- E13 (O12) bestimmt mit E4, E6, E7 die Grundform des Modells.
+- E7, E15, E20, E21, E22 legen nur die Richtung fest; die Zahlen kommen aus dem Balance-Skript (3.9).
 - O27 (Wertmodell) ist Grundlage für O28, O29, O32 und O45.
 - O41 (gleiche Regeln) ist Grundlage für O42–O44 und O47.
 - O44 (Zuschuss abschaffen) erst, wenn E4 (O6), O41 und O42 umgesetzt sind.
