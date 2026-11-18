@@ -1,27 +1,17 @@
 # Status
 
-**Nächstes Paket: keins ohne Entscheidung.** Alle übrigen Pakete der Phase 3 warten auf offene Fragen:
-3.5 auf O54/O58, 3.6 auf O55, 3.7 auf O56/O57, 3.8 auf O58/O59; 3.9 braucht Preis und Kosten (also 3.5).
-Als Erstes O54 und O58 entscheiden, dann kommt 3.5 (Kosten).
+**Nächstes Paket: 3.5b** – Kosten Teil 2 (`SPEZIFIKATION.md` 5.9–5.18): feste Kosten je Strecke mit Slot- und
+Flugzeug-Anteil (E57), Slots, Abstellplätze, Schalter, Verwaltungsstufen, Einrichtungen, Flugzeug-Unterhalt,
+Wertmodell mit Abschreibung, Werbung und Frequent flyer, Einnahme eigener Flughäfen, Kosten der Gesellschaft je
+Monat; Beispiel 5.18 ganz nachrechnen. Datei `src/model/costs.ts` (wird sie zu groß, nach Unterabschnitten teilen, Hinweis im
+README). Danach sind 3.6, 3.7 und 3.8 frei (alle Fragen entschieden); 3.9 braucht 3.5b.
 
-Stand: 18.11.2026 · Paket 3.4 erledigt: `src/model/fare.ts` mit Abschnitt 4 (Marktpreis, Preisniveau
-`fareRatio`, Erlös, Umsteiger-Anteile, Monatserlös, bester Preis, Gewinnschwelle); Beispiel 4.13 nachgerechnet.
-754 Tests grün, `tsc --noEmit` grün.
+Stand: 18.11.2026 · O54–O59 entschieden (E57–E62). Paket 3.5a erledigt: `src/model/costs.ts` mit 5.1–5.8
+(Kosten-Faktoren, Treibstoffpreis mit Krisen-Form nach E61, Treibstoff, Besatzung, Landung, Check-in und
+Abfertigung, Verpflegung, Kosten je Fluggast); Beispiel 5.18 teilweise nachgerechnet (Kosten je Fluggast genau,
+Anteile von Treibstoff, Landung und Besatzung). 804 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“):
-- **O54** Flugzeug- und Slot-Anteil in den festen Kosten einer Strecke und in der Planer-Hauptzahl
-  (`SPEZIFIKATION.md` 5.9). Nötig für 3.5 (Kosten).
-- **O55** Jahresziel verfehlt: keine Strafe, Geld-Strafe oder nur sicheres Ziel im Folgejahr
-  (`SPEZIFIKATION.md` 6.11). Nötig für 3.6 (Fortschritt).
-- **O56** Preiskampf der KI gegen jede Gesellschaft oder nur gegen den Spieler (`SPEZIFIKATION.md` 7.6).
-  Nötig für 3.7 (Konkurrenz).
-- **O57** Verwaltungsstufe 3: KI nur bis Stufe 2, Spieler-Stufe 3 sperrt neue KI-Strecken (`SPEZIFIKATION.md` 7.10).
-  Nötig für 3.7 (Konkurrenz).
-- **O58** Krisen im Treibstoffpreis: Die Tabelle ist eine glatte Kurve ohne Ölkrisen; Ausschläge in die Tabelle
-  einrechnen, Ereignis-Faktor behalten oder keine Treibstoff-Krisen (`SPEZIFIKATION.md` 8.4, 8.5, 7.12).
-  Nötig für 3.5 (Kosten) und 3.8 (Ereignisse).
-- **O59** Grundüberholung ohne Hangar: überall mit Zuschlag, nur Spieler mit Hangar, oder KI überholt nie
-  (`SPEZIFIKATION.md` 8.13). Nötig für 3.8 (Flottenmarkt).
+Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
 Offen aus 3.2a (kein Blocker): Der Test „Kaufdialog-Anzeige = Modellwert“ (2.3) folgt, wenn der Kaufdialog
 auf `interiorScoreParts` umgestellt wird (Phase 4).
@@ -41,6 +31,11 @@ Offen aus 3.4 (kein Blocker): Planer-Hauptzahl „Expected weekly profit“, Neb
 (4.7, R2), „Preisänderung ändert die Fluggäste des laufenden Monats nicht“ (4.5) und „Hauptzahl = Gewinn im
 Monatsabschluss“ (4.12) prüft 3.8 / Phase 4. Ob gegenseitiges Unterbieten mit `bestFare` in Grenzen bleibt
 (4.10, Hinweis), prüft das Balance-Skript (3.9) mit Abschnitt 7.
+Offen aus 3.5a (kein Blocker): `fixedWeeklyCost`, `routeResult` und die Gesamtkosten des Beispiels 5.18 kommen mit
+3.5b; dann bekommen `bestFare` und `breakEvenFareLevel` echte Kosten (4.10, 4.11). „Planer-Kosten = Kosten im
+Abschluss“ (5.16, R2) prüft 3.8 / Phase 4. Höhe von Landegebühr (26–40 % der Kurzstrecken-Kosten) und Abfertigung
+ohne Bodenpersonal-Aufschlag prüft das Balance-Skript (3.9). Die Tabellen `RESEARCH_COST_SAVINGS` und
+`EFFICIENCY_RESEARCH_IDS` gehen in 3.6 in die Forschungs-Tabelle (6.9) über (F29). Lohn-Grenzen 80 … 130 setzt 8.7.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -96,11 +91,12 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.3a | Nachfrage Teil 1 (3.1–3.7): Bezugs-Flugzeit, Verflechtung, Wachstum, Entfernung, Ereignisse, Marktgröße, Klassen-Anteil | erledigt |
 | 3.3b | Nachfrage Teil 2 (3.8–3.14): Anziehung, „Nicht fliegen“, Aufteilung, Anlauf, Umsteiger; `satisfactionFactor` als Eingabe, solange 3.2b wartet | erledigt |
 | 3.4 | Preis und Erlös (Abschnitt 4) | erledigt |
-| 3.5 | Kosten und Wertmodell (Abschnitt 5) | wartet (O54, O58) |
-| 3.6 | Ruf, Rang, Fortschritt (Abschnitt 6) | wartet (O55) |
-| 3.7 | Konkurrenz (Abschnitt 7) | wartet (O56, O57) |
-| 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | wartet (O58, O59) |
-| 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | wartet (3.5) |
+| 3.5a | Kosten Teil 1 (5.1–5.8): Kosten-Faktoren, Treibstoffpreis mit Krisen (E61), Treibstoff, Besatzung, Landung, Check-in und Abfertigung, Verpflegung, Kosten je Fluggast | erledigt |
+| 3.5b | Kosten Teil 2 (5.9–5.18): feste Kosten je Strecke (E57), Flughäfen, Verwaltungsstufen, Einrichtungen, Unterhalt, Wertmodell, Werbung, Einnahme, Kosten der Gesellschaft, Beispiel 5.18 | offen |
+| 3.6 | Ruf, Rang, Fortschritt (Abschnitt 6) | offen |
+| 3.7 | Konkurrenz (Abschnitt 7) | offen |
+| 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | offen |
+| 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | wartet (3.5b) |
 
 ## Phase 4 – Oberfläche anbinden
 
@@ -151,3 +147,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 3.3b | Nachfrage Teil 2: `src/model/marketSplit.ts` (`directOffer`, `offerAppeal` mit 11 Faktoren, `noFlyAppeal`, `classPotential`, `rampFactor`, `marketSplit` mit Anlauf, Sitz-Grenze und Überlauf, `distributeToRoutes`, `passengerShare`, `departureShare`) und `src/model/transfers.ts` (Anschlüsse, Umweg, Drehkreuz-Güte, `transferOffer`, `allocateTransferSeats`); alle Konstanten 3.9–3.13 in `constants.ts`; Beispiel 3.15 genau nachgerechnet; 61 Regeltests (676 grün); Bau-Festlegungen F14–F20 (u. a. F17 Anlauf auch im Überlauf, F19 Anschlüsse je Ankunft) |
 | 18.11.2026 | 3.2b | O52 → E55 (Schalter Pflicht an beiden Enden, −10 für Premium-Klassen ohne bedienten Schalter), O53 → E56 (Preisniveau `fareRatio` speichern). Zufriedenheit Teil 2 in `src/model/satisfaction.ts`: `cabinPart`, `servicePart`, `groundPart` (Lounge, Stellplätze, Schalter-Art, Schalter-Last als Mittel beider Enden × Bodengewicht; `deskLoad` auch für 5.10), `staffPart`, `researchPart`, `satisfactionBreakdown`/`satisfaction` (einmal gekappt, ungerundet), `directOfferSatisfaction`, `connectionOfferSatisfaction`, `routeSatisfaction`, `airlineSatisfaction`, `satisfactionFactor` (an `offerAppeal` angeschlossen); alle Konstanten 2.6–2.10 in `constants.ts`; 32 Regeltests (708 grün); Bau-Festlegungen F21–F23 |
 | 18.11.2026 | 3.4 | Preis und Erlös in `src/model/fare.ts`: `baseFareEconomy` (Kurzstrecken-Zuschlag stufenlos, Index aus der Bezugs-Flugzeit), `classFareRatio`, `marketFare` (nur Entfernung und Monat), Preisniveau `fareRatio` mit einer Lese-Stelle für fehlende Preise (R8), `routeFare(s)`, „Adjust All“, `routeRevenue` je Klasse mit Umsteigern, `transferRevenueShare` nach Marktpreisen, `monthlyRevenue` mit 4,348 Wochen, `bestFare` (Gitter 0,01 / 0,001, gewinnbest, eigener Anlauf 1), `breakEvenFareLevel`, `fullAircraftRevenue`; Konstanten 4.1–4.10 in `constants.ts`; Beispiel 4.13 nachgerechnet; 46 Regeltests (754 grün); Bau-Festlegungen F24–F26 |
+| 18.11.2026 | – | O54–O59 entschieden: O54 → E57 (Slot- und Flugzeug-Anteil in den festen Kosten der Strecke), O55 → E58 (verfehltes Jahresziel kostet die halbe Prämie; Abweichung von der Empfehlung), O56 → E59 (Preiskampf gegen jede Gesellschaft), O57 → E60 (KI höchstens Stufe 2, Spieler-Stufe 3 ohne Sperre gegen die KI; Abweichung), O58 → E61 (Ölkrisen in der Treibstoff-Tabelle), O59 → E62 (Überholung überall, ohne Hangar 25 % teurer); `SPEZIFIKATION.md` 5.2, 5.9, 6.11, 6.15, 7.1, 7.2, 7.6, 7.7, 7.9, 7.10, 7.12, 7.13, 8.1, 8.2, 8.4, 8.13, 8.17–8.19 angepasst |
+| 18.11.2026 | 3.5a | Kosten Teil 1 in `src/model/costs.ts`: `researchCostFactor`, `payFactor`, `hubFeeFactor`, `airportFeeFactor` (ein Gebühren-Nachlass); `crisisFuelShape`, `fuelTable` (Krisen-Form über den Rohdaten, letzter Wert nach 2030), `fuelPrice` mit Absicherung; `aircraftEfficiency`, `fuelCost`; `cabinCrew` nach Kabine, `crewHourlyRate`, `crewCost`; `landingFee` je Landung am Ziel, `landingCost`; `checkInFee` je Reise, `handlingFee` je Abflug; `cateringCost` mit denselben Mahlzeiten-Gewichten wie 2.5 (`servedItems` gemeinsam); `costPerPassenger`, `transferCostPerPassenger`; Konstanten 5.1–5.8 in `constants.ts`; Beispiel 5.18 (Kosten je Fluggast, Anteile) nachgerechnet; 50 Regeltests (804 grün); Bau-Festlegungen F27–F31 (F28: Paket 3.5 geteilt) |

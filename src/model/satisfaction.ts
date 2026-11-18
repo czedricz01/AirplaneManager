@@ -278,6 +278,37 @@ function countedOptions(
   });
 }
 
+/** Was von einer Auswahl wirklich an Bord kommt (bekannt und lieferbar). */
+export interface ServedItems {
+  /** Ids der Gerichte je Mahlzeit (1 … `MEALS_MAX`), nur bekannte Gerichte lieferbarer Stufen. */
+  readonly meals: readonly (readonly string[])[];
+  /** Ids der Extras, die zählen (je Gruppe die beste lieferbare Stufe). */
+  readonly extraIds: readonly string[];
+  /** Ids des Bordservice, die zählen. */
+  readonly onboardServiceIds: readonly string[];
+}
+
+/**
+ * Was von der Auswahl an Bord kommt: nur bekannte und lieferbare Gerichte, Extras und Bordservice
+ * (`capability`); je Gruppe der Extras die beste Stufe. Dieselbe Auswahl bestimmt die Service points
+ * (2.5) und die Verpflegungskosten (5.7): Was zählt, kostet; was nicht an Bord kommt, kostet nichts.
+ * SPEZIFIKATION 2.5, 5.7.
+ */
+export function servedItems(selection: ServiceSelection, capability: ServiceCapability): ServedItems {
+  const allowed = new Set(capability.mealCategories);
+  const meals = Array.from({ length: MEALS_MAX }, (_, i) =>
+    (selection.meals[i] ?? []).filter((id) => {
+      const item = MEAL_ITEMS.get(id);
+      return item !== undefined && allowed.has(item.category);
+    }),
+  );
+  return {
+    meals,
+    extraIds: countedOptions(selection.extras, EXTRAS_OPTIONS, capability),
+    onboardServiceIds: countedOptions(selection.onboardService, SERVICE_OPTIONS, capability),
+  };
+}
+
 /**
  * Service points mit Aufschlüsselung. Siehe `servicePoints`. SPEZIFIKATION 2.5.
  */
@@ -287,22 +318,18 @@ export function servicePointsParts(
   capability: ServiceCapability,
 ): ServicePointsParts {
   const fti = flightTimeIndex(blockMinutes);
-  const allowed = new Set(capability.mealCategories);
+  const served = servedItems(selection, capability);
 
-  const meals = Array.from({ length: MEALS_MAX }, (_, i) => {
-    const dishPoints = (selection.meals[i] ?? [])
-      .map((id) => MEAL_ITEMS.get(id))
-      .filter((item): item is MealItem => item !== undefined && allowed.has(item.category))
-      .map((item) => item.points);
+  const meals = served.meals.map((dishes, i) => {
+    const dishPoints = dishes.map((id) => (MEAL_ITEMS.get(id) as MealItem).points);
     const weight = mealWeight(i + 1, fti);
     const value = menuPoints(dishPoints);
     return { weight, menuPoints: value, points: weight * value };
   });
 
-  const extraIds = countedOptions(selection.extras, EXTRAS_OPTIONS, capability);
+  const extraIds = served.extraIds;
   const extrasPoints = extraIds.reduce((sum, id) => sum + EXTRAS_OPTIONS[id].sat, 0);
-  const serviceIds = countedOptions(selection.onboardService, SERVICE_OPTIONS, capability);
-  const onboardServicePoints = serviceIds.reduce((sum, id) => sum + SERVICE_OPTIONS[id].sat, 0);
+  const onboardServicePoints = served.onboardServiceIds.reduce((sum, id) => sum + SERVICE_OPTIONS[id].sat, 0);
 
   const mealsPoints = meals.reduce((sum, meal) => sum + meal.points, 0);
   return {

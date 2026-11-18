@@ -1374,7 +1374,23 @@ nur gelesen (R2; heute zwei Quellen für den Gebühren-Faktor, siehe 5.20).
   ```
   Vor 1960-01 gilt der erste, nach dem letzten Eintrag (2030-12) der **letzte** Tabellenwert (E8, W3).
 - Kein Kostenindex (1.3), keine Schwierigkeit (E4, W9), kein Ereignis-Faktor (E8, W4): Die Tabelle enthält
-  die Krisen schon.
+  die Krisen.
+- **Krisen in der Tabelle** (E61): Die heutige Tabelle ist eine glatte Kurve ohne Ölkrisen. Die Ausschläge der
+  geschichtlichen Ereignisse werden **einmal** in die Tabelle eingerechnet; Ereignisse tragen keinen Treibstoff-Faktor:
+  ```
+  Tabelle neu(m) = Tabelle alt(m) × crisisFuelShape(m)
+  crisisFuelShape(m) = 1 + (F − 1) × min(1, (k + 1) / (RAMP + 1), (D − k) / (RAMP + 1))
+                       für m im Ereignis (k = 0 … D − 1 Monate seit Beginn, D = Dauer), sonst 1
+  ```
+  `RAMP = 3` Monate An- und Abstieg innerhalb der Dauer. Ereignisse und Faktoren `F` (heute `fuelMultiplier`,
+  `src/lib/eventSystem.ts:70-205`): Ölkrise 1973-10, 18 Monate, 2,0 · Energiekrise 1979-02, 24 Monate, 1,8 ·
+  Golfkrieg 1990-08, 12 Monate, 1,5 · Finanzkrise 2008-09, 24 Monate, 1,2 · Pandemie 2020-03, 24 Monate, 0,7.
+  Luftfahrtkrise 2001 (1,0) und die regionalen Ereignisse (1,0) ändern nichts. Überschneiden sich Ereignisse, gilt
+  das Produkt (bei den heutigen Daten überschneiden sie sich nicht).
+  Beispiel Ölkrise 1973: Okt 1,25 · Nov 1,5 · Dez 1,75 · Jan 1974 bis Dez 1974 2,0 · Jan 1975 1,75 · Feb 1,5 · Mär 1,25;
+  Mittel über 18 Monate 1,83 (8.17).
+  Bau (F27): `fuelTable` rechnet die Form über die unveränderten Rohdaten, solange der alte Code die Rohdaten
+  mit seinem Ereignis-Faktor liest; mit Paket 5.2 kann die Form in die Daten wandern (gleiche Werte).
 - Preis-Absicherung (Hedge, heute `src/App.tsx:639-650`, R3): eine Krisen-Antwort aus Abschnitt 8. Läuft
   sie, ersetzt sie `fuelTable(month)` dieser Gesellschaft für ihre Dauer durch den abgesicherten Wert;
   sonst nichts. Die Regel steht im Modell, nicht in `App.tsx`.
@@ -1401,7 +1417,7 @@ nur gelesen (R2; heute zwei Quellen für den Gebühren-Faktor, siehe 5.20).
   - `flownLegs`: Flugabschnitte je Woche, die das eigene Flugzeug wirklich fliegt: Hin- und Rückflug = 2,
     Einweg = 1, ohne gestrichene (E33) und gecharterte (E32) Flüge.
 - Konstanten (heute `:1256`): `FUEL_BASE = 7,5`, `FUEL_EFF_OFFSET = 0,75`, `FUEL_EFF_SCALE = 70`
-  (Liter je Sitz und 100 km: Effizienz 14 → 8,0; 50 → 5,1; 72 → 4,2; 96 → 3,5); `EFFICIENCY_PER_RESEARCH = 1`.
+  (Liter je Sitz und 100 km: Effizienz 14 → 7,9; 50 → 5,1; 72 → 4,2; 96 → 3,5); `EFFICIENCY_PER_RESEARCH = 1`.
 - Hängt ab von: Flugzeugtyp, Forschung, Entfernung, Flugplan, Ausfälle, `fuelPrice`.
 - Wirkt auf: `fixedWeeklyCost` (5.9).
 - Regeln (Tests): mehr Effizienz → nie mehr Treibstoff; gleiche Strecke, gleicher Typ → gleiche Kosten für
@@ -1534,7 +1550,7 @@ nur gelesen (R2; heute zwei Quellen für den Gebühren-Faktor, siehe 5.20).
   slotShare(route)      = Σ Abflughafen x: belegte Slots der Strecke in x × slotRent(x, Klasse)   (5.10)
   aircraftShare(route)  = (aircraftUpkeep + ageDepreciation) des Flugzeugs / WEEKS_PER_MONTH
                           × Blockstunden der Strecke / Blockstunden aller Strecken des Flugzeugs
-  fixedWeeklyCost(route) = flightOpsCost + slotShare + aircraftShare        (vorläufig, O54)
+  fixedWeeklyCost(route) = flightOpsCost + slotShare + aircraftShare        (E57)
 
   routeResult(route) = routeRevenue (4.7)
                      − Σ c: directPax(c) × costPerPassenger(c)
@@ -1546,9 +1562,9 @@ nur gelesen (R2; heute zwei Quellen für den Gebühren-Faktor, siehe 5.20).
   - Blockstunden nach Plan. Fliegt ein Flugzeug nur diese Strecke, trägt sie seine ganzen Kosten; ein
     wenig genutztes Flugzeug macht seine Strecke teuer (gewollt: zeigt schlechte Auslastung).
   - `ageDepreciation`: der planbare Teil der Abschreibung (5.13), ohne Zustand und Käufe.
-- **Lesart (O54):** E26 verlangt als Planer-Hauptzahl den „erwarteten Gewinn“. Ohne Flugzeug-Anteil zeigt
+- **Entscheidung E57 (O54):** E26 verlangt als Planer-Hauptzahl den „erwarteten Gewinn“. Ohne Flugzeug-Anteil zeigt
   der Planer heute Gewinn auf Strecken, deren Flugzeug mehr kostet, als sie einbringen (Bestand W1: A350
-  +64 000 $ im Monat gegen 420 000 $ Unterhalt). Darum zählen Slot- und Flugzeug-Anteil vorläufig zu den
+  +64 000 $ im Monat gegen 420 000 $ Unterhalt). Darum zählen Slot- und Flugzeug-Anteil zu den
   festen Kosten der Strecke. Der Planer zeigt zusätzlich „before aircraft costs“ (`flightOpsCost` +
   `slotShare`).
 - Wirkt auf: Gewinnschwelle (4.11), Planer-Hauptzahl (4.12), Streckenliste und Bericht. Nicht auf den
@@ -2132,16 +2148,19 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
     `niceDollars`); es ist ein fester Wert wie ein eingestellter Preis, keine Zwischenrechnung (R4).
 - **Belohnung** nur in Geld (E38): `Prämie = max(atCost(GOAL_MIN_REWARD_1960), GOAL_REWARD_SHARE[Art] × goalBase)`,
   ungerundet (heute auf 50 000 $ gerundet, beim sicheren Ziel oft 0, W10). In die Kasse, nicht ins Monatsergebnis.
-- **Verfehlt**: keine Strafe (E38 nimmt den Ruf-Abzug weg; vorläufig nach Empfehlung zu O55). Das Wagnis liegt in
-  der Wahl: Das hohe Ziel zahlt mehr, wird aber seltener erreicht.
+- **Verfehlt** (E58): Geld-Strafe `Strafe = GOAL_MISS_PENALTY_SHARE × Prämie` des gewählten Ziels, ungerundet, aus
+  der Kasse, nicht im Monatsergebnis (wie die Prämie). Kein Ruf-Abzug (E38). Das Wagnis liegt so in der Wahl und im
+  Ergebnis: Das hohe Ziel zahlt mehr, kostet beim Verfehlen aber auch mehr (2,5 % statt 1 % der Bezugsgröße).
+  Die Strafe darf die Kasse ins Minus drücken (Kreditlinie, 8.14); sie ist keine Einmalausgabe des Spielers.
 - **Messung** im Dezember-Abschluss: Gewinn und Fluggäste aus den Monatsberichten des Jahres; Strecken, Regionen,
   Ruf nach der Ruf-Änderung des Dezembers (es gibt keine Dezember-Boni mehr, W2). Eine Funktion
   `yearSnapshot` für Abschluss und Fortschrittsbalken.
 - Konstanten (Startwerte, endgültig aus 3.9): `GOAL_MIN_MARGIN = 0,05`; `GOAL_PROFIT_FLOOR_1960 = 2 000 000`;
   `GOAL_STEADY_FACTOR = 1,1`, `GOAL_STRETCH_FACTOR = 1,35` (wie heute); `GOAL_REWARD_SHARE` sicher 0,02 · andere
-  Art 0,03 · hoch 0,05; `GOAL_MIN_REWARD_1960 = 250 000`.
+  Art 0,03 · hoch 0,05; `GOAL_MIN_REWARD_1960 = 250 000`; `GOAL_MISS_PENALTY_SHARE = 0,5` (E58).
 - Regeln (Tests): Ziel nach einem Verlustjahr hängt vom Vorjahreserlös ab; Prämie nie unter dem Mindestbetrag;
-  hohes Ziel ≥ sicheres Ziel und hohe Prämie ≥ sichere Prämie; kein Ziel ändert den Ruf.
+  hohes Ziel ≥ sicheres Ziel und hohe Prämie ≥ sichere Prämie; kein Ziel ändert den Ruf; verfehlt: Kasse sinkt um
+  genau die Hälfte der Prämie, das Monatsergebnis bleibt gleich; erreicht: keine Strafe.
 
 ### 6.12 Karriere-Punkte und Ruhmeshallen (Code-Name: `careerScore`)
 - Bedeutung: Bewertung einer Laufbahn beim Ruhestand (E43). Richtung: Vermögen und Rang zählen am meisten,
@@ -2205,18 +2224,19 @@ Ruf-Ziel aus Satisfaction (6.1), ohne gestrichene Flüge und Werbung:
     Angebot (6.11).
   - `cancelledShare` des Monats liefern (gestrichene und geplante Sitze); Streik, technische Ausfälle und Ereignisse
     ändern den Ruf nur darüber (E33, E38); Charter zählt nicht als gestrichen (E32).
-  - Prämien aus Meilensteinen und Jahresziel in die Kasse, nicht ins Monatsergebnis (R11).
+  - Prämien aus Meilensteinen und Jahresziel in die Kasse, nicht ins Monatsergebnis (R11); ebenso die Strafe für ein
+    verfehltes Jahresziel (E58).
   - Felder `defectSaving`, `wearSaving`, `resaleBonus`, `moralePoints` (6.9) dort anwenden.
   - Szenario-Ziele mit Ruf auf die neue Skala setzen: „Reputation of 60 or more“ (`src/data/scenarios.ts:176`)
     → Startwert 55; prüfen im Balance-Skript (3.9).
 - **Balance-Skript (3.9):** Ruf-Steigungen (6.1), `CANCELLED_REPUTATION_WEIGHT`, Werbe-Beitrag, Ruf-Schwellen der
-  Ränge, Preise der Klassen-Forschung (Prüfregel 6.8), Ziel- und Prämien-Anteile (6.11).
+  Ränge, Preise der Klassen-Forschung (Prüfregel 6.8), Ziel-, Prämien- und Straf-Anteile (6.11).
 - **Phase 4:** Ruf-Aufschlüsselung (6.5), Farbstufen (6.6), Rang-Tabelle, Forschungs- und Meilenstein-Texte aus den
   Feldern (E42, E52).
 - **Phase 5.1 (Spielstand):** Ruf übernehmen (er läuft zum neuen Ziel); Rang bleibt; Rang-Werte der letzten 3 Monate
   aus den Monatsberichten, sonst der aktuelle Stand für alle 3 Monate; fertige Projekte bleiben (auch Überschall
   ohne Jumbo); erreichte Meilensteine bleiben; Ruhmeshalle nach `mode` in zwei Listen teilen; ein laufendes
-  Jahresziel behält sein Ziel, Prämie nach 6.11, keine Strafe.
+  Jahresziel behält sein Ziel, Prämie und Strafe nach 6.11 (E58).
 
 ### 6.16 Zuordnung der Bestandsfunde
 
@@ -2288,6 +2308,8 @@ Krisen-Fahrplan, Modernisierung, Notlage mit Verkauf und Auflösung, Nachrücken
   Spieler-Markt (`src/lib/monthClose.ts:201`): R7, 4.6, 7.6.
 - Zwei Rechnungen für Rivalen-Angebote (`src/lib/monthClose.ts:191-205` und `:768-810`): R1, eine Aufteilung.
 - Eröffnungskosten 1,5 Mio. $ (`:96`): Die KI kauft die Slots (7.10) wie der Spieler.
+- Sperre neuer KI-Strecken und -Drehkreuze an Flughäfen mit Spieler-Verwaltungsstufe 3 (`:1048-1051`, `:1064`,
+  `:1181`): E60, 7.10.
 - Drehkreuz-Grenze „Stufe × 40 Abflüge“ (`:141`, W4): Slot-Grenze je Flughafen (E50, 7.10).
 - Strafbuchung −150 000 $ für überschrittene Reichweite (`:842-843`): Die KI plant nur Strecken in Reichweite (7.11).
 - Rückschlag 20–70 Mio. $ mit 0,5 % je Monat (`:76-79`, `:869-873`): eine Zufallsbuchung nur für die KI.
@@ -2338,7 +2360,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 | Krisen-Antworten | keine (`crisisResponseFactor = 1`, keine Kosten) | die KI antwortet auf Krisen mit ihrem Fahrplan (7.12) |
 | Charter | keiner; ausgefallene Flüge werden gestrichen | Entscheidung vereinfacht |
 | Vorbestellung, Gebrauchtkauf | keine; die KI kauft nur neu (7.11) | Entscheidung vereinfacht |
-| Hangar, Catering-Küche, Verwaltungsstufe 3 | keine (VIP-Lounge siehe 7.10) | Entscheidung vereinfacht; Stufe 3: O57 |
+| Hangar, Catering-Küche, Verwaltungsstufe 3 | keine (VIP-Lounge siehe 7.10) | Entscheidung vereinfacht; Stufe 3: E60 |
 | Pech-Deckel (8.8) | keiner; KI-Defekte werden jeden Monat gewürfelt | schützt das Spielerlebnis (ergänzt in Paket 2.9) |
 - Regel (Test): Für jeden Eintrag gibt das Modell bei einer KI genau den Wert der Tabelle zurück.
 
@@ -2452,7 +2474,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - **Preiskampf** (heute `:72-73`, `:892-905`):
   - Beginn: Angriffslust ≥ `PRICE_WAR_MIN_AGGRESSION`, Strecke mindestens 2 Monate alt, geglätteter Gewinn > 0, und
     eine **andere Gesellschaft** (Spieler oder KI) hat auf dem Paar in den letzten `PRICE_WAR_WINDOW` Monaten ein
-    Angebot eröffnet oder bietet Economy billiger an als die KI. *(vorläufig, O56)*
+    Angebot eröffnet oder bietet Economy billiger an als die KI (E59).
   - Wirkung: Nachlass `PRICE_WAR_CUT` auf das Preisniveau, **einmal**, nicht Monat für Monat wachsend.
   - Ende: nach `PRICE_WAR_MAX_MONTHS`, wenn der geglättete Gewinn < 0 fällt oder der Mitbewerber das Paar verlässt;
     danach `PRICE_WAR_COOLDOWN` Monate kein neuer Preiskampf auf diesem Paar.
@@ -2475,8 +2497,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 ### 7.7 Gründung und Startwerte (Code-Name: `foundRival`)
 - Wer (wie heute `:607-658`): echte Gesellschaften des Startjahrs an ihrem echten Drehkreuz (Daten) und erfundene;
   nie am Spieler-Drehkreuz; gewichtet nach √(Nachfrage am Drehkreuz). Anteil erfundener wie heute.
-- Drehkreuz erfundener KI: Flughäfen ab Größe 4 (sonst 2), nicht Drehkreuz einer anderen Gesellschaft, nicht mit
-  Spieler-Verwaltungsstufe 3 (O57), gewichtet nach Nachfrage.
+- Drehkreuz erfundener KI: Flughäfen ab Größe 4 (sonst 2), nicht Drehkreuz einer anderen Gesellschaft, gewichtet
+  nach Nachfrage. Eine Spieler-Verwaltungsstufe 3 sperrt nicht (E60).
 - Startausstattung **wie der Spieler** (`src/App.tsx:1645-1652`): Verwaltungsstufe 2 am Drehkreuz, keine Slots,
   ein bedienter Schalter. Slots kauft die KI mit der ersten Strecke (7.10).
 - Startkasse: `atCost(RIVAL_START_CASH_1960[Stärke], month) ± atCost(3 Mio. $, month) × Zufall` (7.3). Ohne
@@ -2517,7 +2539,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   `score = √(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × LCC-Abzug / (1 + Abflüge
   anderer Gesellschaften auf dem Paar / 14)`, mit `Gewicht = Geschäft × g_B + Tourismus × g_T` (7.4).
   Nur Ziele in Reichweite, ab `MIN_ROUTE_KM = 150`, mit passender Piste, mit freien Slots an beiden Enden (7.10),
-  nicht mit Spieler-Stufe 3 (O57), nicht schon bedient. Die besten `Suchbreite` + 2 zufällige (7.3).
+  nicht schon bedient (Spieler-Stufe 3 sperrt nicht, E60). Die besten `Suchbreite` + 2 zufällige (7.3).
 - **Bewertung:** je Ziel 100 %, 60 % und 30 % der höchsten Umläufe, jeweils mit der **Planer-Hauptzahl** (4.12):
   erwarteter Gewinn mit allen Angeboten des Markts, Anlauf = 1, `fareRatio` aus 7.6 (neue Strecke), Kosten mit
   `costPerPassenger` und `fixedWeeklyCost` (5.8, 5.9). Dazu der Schätzfehler (7.3). Der beste Wert gewinnt (5.19).
@@ -2538,11 +2560,13 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   dass `deskLoad ≤ 0,8` (keine Überlast, 2.6.3). Die Miete zahlt sie wie der Spieler (5.10).
 - **Abstellplätze:** nur die freien Stände ab Verwaltungsstufe 2 (E28); keine gemieteten.
 - **Verwaltungsstufen:** Stufe 2 an jedem eigenen Drehkreuz (Startgeschenk am ersten, Kauf nach 5.11 an weiteren);
-  sonst keine. Nie Stufe 3 *(vorläufig, O57)*.
+  sonst keine. Nie Stufe 3 (E60).
 - **VIP-Lounge:** Flag und Boutique bauen an jedem eigenen Drehkreuz eine Lounge (Preis und Unterhalt 5.11), sobald
   sie dort Business- oder First-Sitze anbieten und die Kasse den Preis dreifach deckt. Sonst keine Einrichtungen.
-- **Sperre durch den Spieler** *(vorläufig, O57)*: An Flughäfen, an denen der Spieler Verwaltungsstufe 3 hat, eröffnet
-  die KI keine neuen Strecken und kein Drehkreuz; bestehende bleiben (wie heute `:1048-1051`, `:1064`, `:1181`).
+- **Keine Sperre durch den Spieler** (E60): Eine Spieler-Verwaltungsstufe 3 bringt Gebühren-Nachlass (5.1) und
+  Einnahme aus fremden Landungen (5.15), sperrt aber keinen Flughafen für die KI. Die heutige Sperre für neue
+  KI-Strecken und -Drehkreuze (`:1048-1051`, `:1064`, `:1181`) und der Text „Rivals cannot open new routes here“
+  (`src/components/AirportDetailView.tsx:589`) entfallen (Phase 4).
 - Regeln (Tests): Σ belegte Slots aller Gesellschaften ≤ Grenze; belegte ≤ gekaufte Slots je KI; eine KI überschreitet
   ihren Anteil nie; jede KI-Strecke hat an beiden Enden einen Schalter.
 
@@ -2586,8 +2610,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - Wachstumsstopp ab der Schwelle der Persönlichkeit (7.4): kein Kauf, keine Modernisierung, kein neues Drehkreuz.
 - Regeln (Tests): Juni 1974 und 2020 → Krise; ein Monat ohne Ereignis bei gleichbleibendem Treibstoff → 0.
 - Hinweis (Paket 2.9): Die heutige Tabelle `src/data/fuelPrices.ts` ist eine glatte Kurve ohne Krisen-Ausschläge
-  (1973-09 2,04 $, Höchstwert 1975-01 2,18 $; 1979–1981 fallend). „Juni 1974 → Krise“ gilt nur, wenn die Tabelle die
-  Ausschläge enthält (O58).
+  (1973-09 2,04 $, Höchstwert 1975-01 2,18 $; 1979–1981 fallend). Nach E61 bekommt sie die Ausschläge (5.2); damit
+  gilt „Juni 1974 → Krise“.
 
 ### 7.13 Wachstum, Größe und Dividende (E46)
 **Größe** (Code-Name: `rivalSize`)
@@ -2600,7 +2624,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   eigenen Slot-Anteils (7.10) belegt oder seit 3 Monaten fand die KI dort keine Strecke mit Gewinn;
   `rivalSize ≥ NEW_HUB_MIN_SEATS × Zahl der Drehkreuze`; Kasse ≥ Preis der Verwaltungsstufen 1 und 2 (5.11) + Reserve;
   kein Wachstumsstopp; je Monat mit `NEW_HUB_CHANCE = 0,04`.
-- Ort: Flughäfen ab **Größe 5** (R14), nicht Drehkreuz einer anderen KI, nicht mit Spieler-Stufe 3 (O57), gewichtet
+- Ort: Flughäfen ab **Größe 5** (R14), nicht Drehkreuz einer anderen KI (Spieler-Stufe 3 sperrt nicht, E60), gewichtet
   nach Nachfrage × `HOME_REGION_WEIGHT` in der Heimatregion (`regionOf`, R15) × (Spieler-Drehkreuz: 3 × Angriffslust / 6,
   wie heute).
 - Konstanten (Startwerte): `NEW_HUB_MIN_SEATS = 20 000` Sitze je Woche, `HOME_REGION_WEIGHT = 4`.
@@ -2779,7 +2803,7 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
 4 KI-Entscheidungen (7.8)     Preise, Krise, Verlierer, Flotte, Eröffnungen, Wachstum, Dividende, Notlage;
                               Nachrücken (7.7)
 5 Spieler: Lieferungen (8.12), Kreditlinie, Zwangsverkauf, Spielende (8.14)
-6 Spieler: Gewinnserie, Meilensteine (6.10), Rang (6.7), Dezember: Jahresziel (6.11) ─► Prämien in die Kasse
+6 Spieler: Gewinnserie, Meilensteine (6.10), Rang (6.7), Dezember: Jahresziel (6.11) ─► Prämien / Strafe in die Kasse
 7 Kasse am Monatsende, Bericht X (8.2)
 8 Übergang zu X+1             Datum + 1; Forschung fertig (6.9); Moral (8.7); Ereignisse (8.4), Störungen (8.6),
                               Personalstreik (8.7) für X+1 unter dem Pech-Deckel (8.8); Gebrauchtmarkt (8.11);
@@ -2792,7 +2816,7 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
 - Monat = 4 Wochen (Monat:487-505, :547, :550, :566): `WEEKS_PER_MONTH` (E5).
 - Abbuchungen nach dem Bericht (Vogelschläge Monat:982, Auslieferungen :1199): alles im Bericht dieses Monats (R11, W7).
 - Ereignis-Faktor auf den Treibstoff (Ereignisse:68-206, Vorlagen Monat:206-287): E8; die drei reinen Treibstoff-
-  Vorlagen entfallen (8.4, O58).
+  Vorlagen entfallen (8.4, E61).
 - Ereignisse als Modul-Zustand (`setRuntimeRandomEvents`, W13): Teil des Spielstands (R12, 8.3).
 - SAT-Abzug `50 × gestrichener Anteil` (`src/lib/financeUtils.ts:803`, `:1312`, W5): E33; Ruf-Abzug je gestrichene
   Strecke bis −4 (Störungen:98-100) und Streik −3 (`src/lib/staff.ts:177`): nur noch über `cancelledShare` (6.2, E38).
@@ -2828,7 +2852,7 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
 
 ### 8.2 Kasse am Monatsende und Bericht (Code-Namen: `cashAtMonthEnd`, `monthReport`)
 - **Kasse am Monatsende** (R11): die Kasse nach **allen** Buchungen des Abschlusses, einschließlich Lieferungen,
-  Zwangsverkäufen, Prämien, Dividende (KI). Eine Größe für alle Leser: Bericht, Kassen-Meilensteine (Prüfung vor den
+  Zwangsverkäufen, Prämien, Ziel-Strafe, Dividende (KI). Eine Größe für alle Leser: Bericht, Kassen-Meilensteine (Prüfung vor den
   Prämien, 8.1), Szenario-Ziele (8.15), Kreditlinie (8.14), Chronik, Zeitung, Notlage der KI (7.15).
 - **Einmalausgaben während des Monats** (Käufe, Slots, Stufen, Forschung, Krisen-Antworten, Überholungen, Umbauten)
   verlassen die Kasse, wenn der Spieler sie tätigt, und gehören in den Bericht des **laufenden** Monats (heute teils
@@ -2838,12 +2862,12 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
   Kasse Ende − Kasse Anfang = Monatsergebnis (5.16)
                             − (Flottenwert Ende − Flottenwert Anfang) − (Anzahlungen Ende − Anzahlungen Anfang)
                             − übrige Einmalausgaben (Slots netto, Stufen, Einrichtungen, Forschung)
-                            + Prämien − Dividende − Übernahmepreis + übernommene Kasse
+                            + Prämien − Ziel-Strafe − Dividende − Übernahmepreis + übernommene Kasse
   ```
   Sie folgt aus 5.13: Käufe, Umbauten, Überholungen und Verkäufe stehen im Ergebnis nur mit ihrem Unterschied zum Wert.
 - **Bericht X** (Code-Name: `monthReport`): Erlös je Art; Kosten je Posten aus 5.16 einschließlich der Posten aus
   diesem Abschnitt (Charter, Krisen-Antworten, Zinsen, Vogelschläge; KI: Zuschuss als eigene Zeile); Monatsergebnis;
-  Einmalausgaben je Art; Prämien; Kasse am Monatsanfang und -ende; Flottenwert; Kreditgrenze und -stand; Fluggäste;
+  Einmalausgaben je Art; Prämien und Ziel-Strafe; Kasse am Monatsanfang und -ende; Flottenwert; Kreditgrenze und -stand; Fluggäste;
   `cancelledShare`; Ruf mit Ursachen-Liste (6.5). Die Berichte der letzten `REPORT_HISTORY_MONTHS = 120` Monate bleiben
   im Spielstand (wie heute, Monat:1263).
 - Regeln (Tests): Kassen-Gleichung gilt in jedem Monat für jede Gesellschaft; „Kasse danach“ im Bericht = Kasse des
@@ -2868,11 +2892,11 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
 ### 8.4 Weltereignisse (Code-Name: `worldEvents`)
 - Bedeutung: Krisen, Booms und regionale Ereignisse, die die Reiselust ändern. Wirkung **nur** über
   `eventDemandFactor` auf die Marktgröße (3.5), also für alle Gesellschaften gleich, auch regionale (E35). Kein
-  Treibstoff-Faktor (E8); der Treibstoff steht allein in der Tabelle (5.2, O58).
+  Treibstoff-Faktor (E8); der Treibstoff steht allein in der Tabelle (5.2, E61).
 - **Geschichtliche Ereignisse** (Daten, wie heute Ereignisse:68-307): 6 weltweite (Ölkrise 1973, Energiekrise 1979,
   Golfkrieg 1990, Luftfahrtkrise 2001, Finanzkrise 2008, Pandemie 2020) und 11 regionale, je mit Beginn, Dauer,
   `demandMultiplier`, Regionen. Das Feld `fuelMultiplier` entfällt; seine Werte gehen einmal in die Treibstoff-Tabelle
-  (O58). Sie gelten immer und unabhängig vom Pech-Deckel (wie heute).
+  (5.2, E61). Sie gelten immer und unabhängig vom Pech-Deckel (wie heute).
 - **Zufallsereignisse** (heute Monat:206-287, :916-939):
   - Im Übergang zu X+1 mit `RANDOM_EVENT_CHANCE = 0,05` je Monat, nur bei offenem Pech-Deckel für ein Pech-Ereignis
     (8.8); Vorlage gleich verteilt; Dauer und Nachfrage-Faktor gleich verteilt im Bereich der Vorlage; regionale
@@ -2881,7 +2905,7 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
     Outages*, *Biofuel Refinement Breakthrough*, *Geopolitical Energy Friction*; Nachfrage 0,95–1,04). Es bleiben 4 Pech-
     (*Volcanic Ash*, *Economic Slump*, *Regional Airspace Closure*, *Regional Aviation Strike Wave*) und 4 Glück-Vorlagen
     (*Summer Vacation Surge*, *Global Commerce Summit*, *Wanderlust Marketing Campaign*, *Regional Tourism Boom*).
-    *(Lesart von E8; Teil von O58.)*
+    *(E61.)*
   - Pech-Ereignis (`isMalusEvent`): `demandMultiplier < 1` (heute auch „Treibstoff > Nachfrage“, `src/lib/malus.ts:44-46`).
 - **Meldungen**: Beginn (mit Krisen-Antwort als Frage, 8.5) und Ende jedes Ereignisses (wie heute, Monat:1208-1230);
   im Januar die Vorschau neuer Flugzeugtypen (wie heute, Monat:875-912). Texte aus den Daten und Konstanten (E52).
@@ -3106,7 +3130,7 @@ im Ergebnis neutral (5.13). Sofort wieder verkauft: −15 % (heute −10 %, durc
   ```
   `OVERHAUL_PRICE_SHARE = 0,04` (Startwert). Durch `max` steigt der Wert **nie** um mehr als den Preis (E31, Vorgabe
   5.19), für jede Größe und jedes Jahr. Im Ergebnis: Preis − `valueGain` als „Aircraft trades“.
-- Ort *(vorläufig, O59)*: überall möglich. Ohne eigenen Hangar an einem Flughafen seiner Strecken kostet sie
+- Ort (E62): überall möglich. Ohne eigenen Hangar an einem Flughafen seiner Strecken kostet sie
   `EXTERNAL_OVERHAUL_SURCHARGE = 0,25` mehr (fremde Werft). So gilt eine Regel für Spieler und KI (7.11; die KI hat
   keinen Hangar, 7.2). Heute nur mit Hangar.
 - Das Flugzeug fliegt weiter (wie heute).
@@ -3198,7 +3222,7 @@ Charter − Streichen = 29 027 − 2 701 − 14 584 = **+11 742 $** je Flug (heu
 Heute holt die Antwort 40 / 33 / 35 % des Ausfalls zurück, für 5 / 8 / 25 Mio. $ fest. Gegen Rivalen wirkt sie stärker
 (Anteil statt nur „Nicht fliegen“).
 
-**Preis-Absicherung** 1973 (O58 a, Ausschlag bis × 2,0 mit je 3 Monaten An- und Abstieg, im Mittel × 1,83 über 18 Monate),
+**Preis-Absicherung** 1973 (E61, Ausschlag bis × 2,0 mit je 3 Monaten An- und Abstieg, im Mittel × 1,83 über 18 Monate),
 Treibstoff-Rechnung 1 Mio. $ je Monat: Preis 0,2 × 1 × 18 = 3,6 Mio. $, Ersparnis ≈ 0,83 × 18 = 15 Mio. $.
 
 **Kreditlinie**: 10 × A320ceo zu je 20,6 Mio. $ → Grenze 103 Mio. $; Kasse −50 Mio. $ → Zinsen 333 333 $ je Monat.
@@ -3212,9 +3236,9 @@ Kabine 5,5, Zelle 3,9 Punkte je Jahr.
   (Vogelschlag); `flownLegs` aus `flownShare` (8.9). Anzahlungen zählen zum Unternehmenswert (6.12, 8.12).
 - **Abschnitt 6:** `cancelledShare` aus 8.9; Prüfreihenfolge aus 8.1; Kassen-Meilensteine prüfen die Kasse nach allen
   Buchungen ohne die Prämien dieses Abschlusses.
-- **Abschnitt 7:** Liste 7.2 um den Pech-Deckel ergänzt (8.8). Prüfung „Juni 1974 → Krise“ (7.12) setzt O58 (a) voraus.
+- **Abschnitt 7:** Liste 7.2 um den Pech-Deckel ergänzt (8.8). Prüfung „Juni 1974 → Krise“ (7.12) setzt die Tabelle nach E61 voraus (5.2).
 - **Phase 3:** `closeMonth` als reine Funktion mit `rng` (8.3); Krisen-Antworten, Überholung, Umbau-Preis, Vorbestellung
-  und Gebrauchtmarkt im Modell (R3). Bei O58 (a): Treibstoff-Tabelle um die Ausschläge der Krisen ergänzen.
+  und Gebrauchtmarkt im Modell (R3). Treibstoff-Tabelle mit den Ausschlägen der Krisen: erledigt in 3.5a (`fuelTable`, E61, F27).
 - **Balance-Skript (3.9):** `HEDGE_PRICE_SHARE`, `RECOVERY_PRICE_SHARE`, `CHARTER_MARKUP`, Händler-Spanne,
   Vorbestell-Rabatt, `OVERHAUL_PRICE_SHARE`, Verschleiß mit `WEEKS_PER_MONTH`, `CREDIT_LIMIT_SHARE`, `CREDIT_RATE`,
   Szenario-Ziele.
@@ -3242,7 +3266,7 @@ Kabine 5,5, Zelle 3,9 Punkte je Jahr.
 | W11 Verschleiß zählt gestrichene Flüge | 8.10 nur geflogene Stunden (R12) |
 | W12 Pech-Deckel lässt dreifach Pech zu | 8.8 Deckel nach dem ersten Pech zu (R12) |
 | W13 Ereignisse nur für den Spieler, Modul-Zustand | 8.4 für alle über `eventDemandFactor` (E35); 8.3 Spielstand (R12) |
-| W14 Krisen-Treibstoff doppelt | 8.4 kein Ereignis-Faktor (E8); Tabelle als einzige Quelle (O58) |
+| W14 Krisen-Treibstoff doppelt | 8.4 kein Ereignis-Faktor (E8); Tabelle als einzige Quelle (5.2, E61) |
 
 Doppelte Rechnungen (Bestand 1.7) → eine Funktion im Modell (R2, R3): Saisontabelle in `src/App.tsx:878` → Marktgröße
 (Abschnitt 3); Treibstoff-Absicherung in `src/App.tsx:639-650` → 8.5 und 5.2; Grundüberholung in `src/App.tsx:218-231`
