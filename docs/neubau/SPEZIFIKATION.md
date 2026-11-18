@@ -2159,7 +2159,7 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
   | Jahre | 5 je volles Jahr, höchstens 60 | gleich |
 
   - `companyValue` = Unternehmenswert wie bei der Übernahme (E48): Kasse + Σ `aircraftValue` (5.13) + Wert der
-    Slots (Verkaufswert, 5.10). Durch `atCost` bekommt ein späterer Start für dieselbe Leistung nicht mehr Punkte (W9).
+    Slots (Verkaufswert, 5.10) + Anzahlungen auf Vorbestellungen (8.12; die KI hat keine). Durch `atCost` bekommt ein späterer Start für dieselbe Leistung nicht mehr Punkte (W9).
   - Klassen-Projekte zählen nicht, weil sie im Free Mode offen sind und im Normal Mode schon im Rang stecken.
 - **Zwei Ruhmeshallen** (E43): getrennt für Normal und Free Mode, je die besten 10 (`HALL_SIZE`). Einträge ohne
   Angabe gehören zu Normal (wie heute, `src/lib/careerScore.ts:98`).
@@ -2339,7 +2339,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 | Charter | keiner; ausgefallene Flüge werden gestrichen | Entscheidung vereinfacht |
 | Vorbestellung, Gebrauchtkauf | keine; die KI kauft nur neu (7.11) | Entscheidung vereinfacht |
 | Hangar, Catering-Küche, Verwaltungsstufe 3 | keine (VIP-Lounge siehe 7.10) | Entscheidung vereinfacht; Stufe 3: O57 |
-
+| Pech-Deckel (8.8) | keiner; KI-Defekte werden jeden Monat gewürfelt | schützt das Spielerlebnis (ergänzt in Paket 2.9) |
 - Regel (Test): Für jeden Eintrag gibt das Modell bei einer KI genau den Wert der Tabelle zurück.
 
 ### 7.3 KI-Stärke (Code-Name: `rivalStrength`)
@@ -2585,6 +2585,9 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   bleiben gekauft.
 - Wachstumsstopp ab der Schwelle der Persönlichkeit (7.4): kein Kauf, keine Modernisierung, kein neues Drehkreuz.
 - Regeln (Tests): Juni 1974 und 2020 → Krise; ein Monat ohne Ereignis bei gleichbleibendem Treibstoff → 0.
+- Hinweis (Paket 2.9): Die heutige Tabelle `src/data/fuelPrices.ts` ist eine glatte Kurve ohne Krisen-Ausschläge
+  (1973-09 2,04 $, Höchstwert 1975-01 2,18 $; 1979–1981 fallend). „Juni 1974 → Krise“ gilt nur, wenn die Tabelle die
+  Ausschläge enthält (O58).
 
 ### 7.13 Wachstum, Größe und Dividende (E46)
 **Größe** (Code-Name: `rivalSize`)
@@ -2744,6 +2747,505 @@ Aufteilung (3.11, R1); Sitze je KI-Strecke (`src/lib/monthClose.ts:185-189`, `:8
 `PERSONALITIES`, `AGGRESSION` in `src/lib/saveMigration.ts:57-58` → eine Konstante (7.4); Ersatz-Kabine 85/10/4
 (`:188-193`) → 7.5 und 5.1; KI-Abflüge an fünf Stellen → Slots (1.6, 7.17); drei Restwerte → Wertmodell (5.13).
 
-## 8. Monatsabschluss und Ereignisse
+## 8. Monatsabschluss, Ereignisse, Flottenmarkt
 
-_(offen)_
+Dieser Abschnitt legt fest, in welcher Reihenfolge der Monatsabschluss rechnet und bucht, welche Ereignisse und
+Störungen es gibt, wie gestrichene und gecharterte Flüge zählen, wie Flugzeuge verschleißen, gekauft, verkauft,
+vorbestellt und überholt werden, und was bei negativer Kasse geschieht. Grundlage: E5, E6, E8, E29–E35, E38, E44,
+E49, R3, R11, R12, R13; Vorgaben aus 3.16, 4.14, 5.19, 6.15 und 7.19; Bestand: `bestand/7-monat-ereignisse.md`
+(W1–W14). Heutige Fundstellen: „Monat“ = `src/lib/monthClose.ts`, „Ereignisse“ = `src/lib/eventSystem.ts`,
+„Störungen“ = `src/lib/disruptions.ts`.
+
+**Für alle gleich (E35, E44).** Ereignisse, Störungen, Verschleiß, Ausfälle, Wertmodell und Kreditlinie gelten für
+Spieler und KI mit denselben Funktionen. Nur der Spieler hat Krisen-Antworten, Charter, Personalstreik,
+Vorbestellung, Gebrauchtkauf und den Pech-Deckel (Liste 7.2).
+
+**Geld (1.3).** Feste Beträge stehen als Wert von 1960 in den Konstanten und laufen über `atCost`. Beträge als
+**Anteil** einer Größe (Krisen-Antworten, Charter, Vogelschlag, Überholung, Händler-Spanne, Kreditgrenze) bekommen
+keinen zweiten Index.
+
+### 8.0 Überblick
+
+```
+Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, Spielstand + Bericht raus)
+
+1 Stand von X festlegen       Flugplan, Flotte, Preise vom Monatsbeginn (4.5), Ruf und Moral vom Monatsbeginn,
+                              Ereignisse und Störungen für X (beim letzten Abschluss gewürfelt), Charter-Antworten
+2 Rechnen, alle Gesellschaften in EINER Marktaufteilung (R1)
+                              Fluggäste (3.11) ─► Erlös (4) ─► geflogene Stunden ─► Verschleiß (8.10)
+                              ─► Wert am Monatsende (5.13) ─► Kosten (5.16 + Abschnitt-8-Posten) ─► Monatsergebnis
+                              Kasse += Monatsergebnis − Wertänderung (nur zahlungswirksame Posten, 8.2)
+3 Ruf (alle, 6.5)             mit airlineSatisfaction und cancelledShare (8.9)
+4 KI-Entscheidungen (7.8)     Preise, Krise, Verlierer, Flotte, Eröffnungen, Wachstum, Dividende, Notlage;
+                              Nachrücken (7.7)
+5 Spieler: Lieferungen (8.12), Kreditlinie, Zwangsverkauf, Spielende (8.14)
+6 Spieler: Gewinnserie, Meilensteine (6.10), Rang (6.7), Dezember: Jahresziel (6.11) ─► Prämien in die Kasse
+7 Kasse am Monatsende, Bericht X (8.2)
+8 Übergang zu X+1             Datum + 1; Forschung fertig (6.9); Moral (8.7); Ereignisse (8.4), Störungen (8.6),
+                              Personalstreik (8.7) für X+1 unter dem Pech-Deckel (8.8); Gebrauchtmarkt (8.11);
+                              abgelaufene Kampagnen; Meldungen und Fragen; Vorhersage X+1 (dieselbe Rechnung)
+```
+
+**Was entfällt** (gegenüber heute):
+- Zwei Buchungen (Spieler, dann KI mit eigener Rechnung, Monat:826-863, `src/lib/aiSimulation.ts:814-873`): eine
+  Rechnung für alle (R1, 7.8).
+- Monat = 4 Wochen (Monat:487-505, :547, :550, :566): `WEEKS_PER_MONTH` (E5).
+- Abbuchungen nach dem Bericht (Vogelschläge Monat:982, Auslieferungen :1199): alles im Bericht dieses Monats (R11, W7).
+- Ereignis-Faktor auf den Treibstoff (Ereignisse:68-206, Vorlagen Monat:206-287): E8; die drei reinen Treibstoff-
+  Vorlagen entfallen (8.4, O58).
+- Ereignisse als Modul-Zustand (`setRuntimeRandomEvents`, W13): Teil des Spielstands (R12, 8.3).
+- SAT-Abzug `50 × gestrichener Anteil` (`src/lib/financeUtils.ts:803`, `:1312`, W5): E33; Ruf-Abzug je gestrichene
+  Strecke bis −4 (Störungen:98-100) und Streik −3 (`src/lib/staff.ts:177`): nur noch über `cancelledShare` (6.2, E38).
+- Charter als 90 % des geretteten Erlöses mit vollen eigenen Kosten (Störungen:96, :478-511, W4): Preis je Flug (E32).
+- Gebrauchtpreis = Wiederverkaufswert × 0,95 und Mindestpreis 250 000 $ (`src/lib/usedMarket.ts:26`, `:81`, W1):
+  Händler-Spanne (E30).
+- Grundüberholung 200 000 $ fest (`src/App.tsx:218-231`, W3): Anteil des Neupreises, Wertgewinn höchstens Preis (E31).
+- Kasse ohne Folge negativ (W6): Kreditlinie (E34).
+- Krisen-Antworten mit festen Preisen 3–25 Mio. $ (Ereignisse:78-193, W8): Anteil der betroffenen Größe (E6, E35).
+
+### 8.1 Ablauf des Monatsabschlusses (Code-Name: `closeMonth`)
+- Bedeutung: Der einzige Zeitschritt des Spiels (1.1). Er nimmt den Spielstand am Ende von Monat X und gibt den
+  Spielstand für X+1, den Bericht X, Meldungen und offene Fragen zurück.
+- **Rein** (R12): `closeMonth` liest nur seine Eingabe und schreibt keinen Modul-Zustand; aller Zufall kommt aus dem
+  Zufallsgeber des Spielstands (8.3). Heute gibt er eine Befehlsliste an `App` (Monat:375-379) und schreibt Ereignisse
+  direkt (W13).
+- **Stand von X** (Schritt 1): Alles, was der Spieler bis zum Abschluss eingestellt hat (Flugplan, Flotte, Kabinen,
+  Service, Lohn, Kampagnen), gilt für den ganzen Monat X (wie heute). Ausnahme Preise: vom Monatsbeginn, neue Preise ab
+  X+1 (4.5). Ruf, Moral und Rang vom Monatsbeginn (3.9.4). Ereignisse und Störungen für X stehen seit dem letzten
+  Abschluss fest (8.4, 8.6); die Antworten des Spielers (Charter, Streik, Krisen-Antwort) liegen im Spielstand.
+- **Reihenfolge** wie in 8.0. Begründungen:
+  - Verschleiß (8.10) vor dem Wertmodell, weil `aircraftValue` am Monatsende den Zustand am Monatsende braucht (5.13).
+  - Ruf nach dem Rechnen: `airlineSatisfaction` und `cancelledShare` stammen aus der Rechnung des Monats (6.4).
+  - KI-Entscheidungen nach der Buchung; sie wirken ab X+1 (7.8, 7.19).
+  - Lieferungen und Kreditlinie vor den Meilensteinen, damit Kassen-Meilensteine die Kasse nach allen Buchungen prüfen
+    (6.10, R11). Die Prämien dieses Abschlusses zählen für diese Prüfung nicht mit (keine Kette im selben Monat).
+  - Forschung, die zu Beginn von X+1 fertig ist (6.9), wird im Übergang eingetragen und wirkt ab X+1.
+- Regeln (Tests):
+  - Zwei Aufrufe mit gleichem Spielstand ergeben genau dasselbe Ergebnis (kein versteckter Zustand, fester Zufall).
+  - Die Buchung hängt nicht von der Reihenfolge der Gesellschaften ab (7.8).
+  - Die Vorhersage für X+1 (Planer, Streckenliste) = Ergebnis des Abschlusses von X+1 bei unverändertem Stand und ohne
+    neue Zufallsereignisse (R2).
+
+### 8.2 Kasse am Monatsende und Bericht (Code-Namen: `cashAtMonthEnd`, `monthReport`)
+- **Kasse am Monatsende** (R11): die Kasse nach **allen** Buchungen des Abschlusses, einschließlich Lieferungen,
+  Zwangsverkäufen, Prämien, Dividende (KI). Eine Größe für alle Leser: Bericht, Kassen-Meilensteine (Prüfung vor den
+  Prämien, 8.1), Szenario-Ziele (8.15), Kreditlinie (8.14), Chronik, Zeitung, Notlage der KI (7.15).
+- **Einmalausgaben während des Monats** (Käufe, Slots, Stufen, Forschung, Krisen-Antworten, Überholungen, Umbauten)
+  verlassen die Kasse, wenn der Spieler sie tätigt, und gehören in den Bericht des **laufenden** Monats (heute teils
+  in den des nächsten, W7). Kasse am Monatsanfang von X+1 = Kasse am Monatsende von X.
+- **Kassen-Gleichung** (Test, je Gesellschaft und Monat):
+  ```
+  Kasse Ende − Kasse Anfang = Monatsergebnis (5.16)
+                            − (Flottenwert Ende − Flottenwert Anfang) − (Anzahlungen Ende − Anzahlungen Anfang)
+                            − übrige Einmalausgaben (Slots netto, Stufen, Einrichtungen, Forschung)
+                            + Prämien − Dividende − Übernahmepreis + übernommene Kasse
+  ```
+  Sie folgt aus 5.13: Käufe, Umbauten, Überholungen und Verkäufe stehen im Ergebnis nur mit ihrem Unterschied zum Wert.
+- **Bericht X** (Code-Name: `monthReport`): Erlös je Art; Kosten je Posten aus 5.16 einschließlich der Posten aus
+  diesem Abschnitt (Charter, Krisen-Antworten, Zinsen, Vogelschläge; KI: Zuschuss als eigene Zeile); Monatsergebnis;
+  Einmalausgaben je Art; Prämien; Kasse am Monatsanfang und -ende; Flottenwert; Kreditgrenze und -stand; Fluggäste;
+  `cancelledShare`; Ruf mit Ursachen-Liste (6.5). Die Berichte der letzten `REPORT_HISTORY_MONTHS = 120` Monate bleiben
+  im Spielstand (wie heute, Monat:1263).
+- Regeln (Tests): Kassen-Gleichung gilt in jedem Monat für jede Gesellschaft; „Kasse danach“ im Bericht = Kasse des
+  Spielstands nach dem Abschluss (heute bis 768 Mio. $ daneben, W7); kein Leser rechnet „Kasse + Ergebnis“ selbst.
+
+### 8.3 Zufall und Spielstand (Code-Name: `rng`)
+- **Zufallsgeber**: `rng(seed, month, purpose, key)` liefert eine Zahl 0 … 1, nur aus einem Startwert des Spielstands
+  (`seed`, beim neuen Spiel gewürfelt), dem Monat, dem Zweck (z. B. `defect`, `airportStrike`, `randomEvent`) und
+  einem Schlüssel (z. B. Flugzeug- oder Flughafen-Kennung). Kein `Math.random` im Modell. So ist jeder Abschluss
+  wiederholbar und testbar; die Reihenfolge der Würfe ändert kein Ergebnis.
+- Ausnahme: Der Gebrauchtmarkt würfelt nur nach Monat (gleiche Angebote in jedem Spiel, wie heute,
+  `src/lib/usedMarket.ts:22-29`).
+- **Im Spielstand** (R12; heute teils Modul-Zustand, W13):
+  - `randomEvents`: gewürfelte Zufallsereignisse mit Vorlage, Beginn, Dauer, Nachfrage-Faktor, Regionen;
+  - `crisisResponses`: Antworten des Spielers je Ereignis (Art, Preis, gesicherter Treibstoffpreis);
+  - `disruptions`: Störungen je Monat (Art, Ziel, Anteil, Antwort Charter/Streichen);
+  - `staff`: Lohn, Moral, Streik mit vereinbartem Lohn (8.7);
+  - `usedMarket`: weiterverkaufte Flugzeuge (8.11); `preorders` (8.12); `credit`: `overdrawnMonths` (8.14);
+  - Geschichtliche Ereignisse stehen in den Daten und werden nach Datum gelesen, nicht gespeichert.
+- Regel (Test): Ein Test, der `closeMonth` aufruft, ändert keine globalen Daten (W13).
+
+### 8.4 Weltereignisse (Code-Name: `worldEvents`)
+- Bedeutung: Krisen, Booms und regionale Ereignisse, die die Reiselust ändern. Wirkung **nur** über
+  `eventDemandFactor` auf die Marktgröße (3.5), also für alle Gesellschaften gleich, auch regionale (E35). Kein
+  Treibstoff-Faktor (E8); der Treibstoff steht allein in der Tabelle (5.2, O58).
+- **Geschichtliche Ereignisse** (Daten, wie heute Ereignisse:68-307): 6 weltweite (Ölkrise 1973, Energiekrise 1979,
+  Golfkrieg 1990, Luftfahrtkrise 2001, Finanzkrise 2008, Pandemie 2020) und 11 regionale, je mit Beginn, Dauer,
+  `demandMultiplier`, Regionen. Das Feld `fuelMultiplier` entfällt; seine Werte gehen einmal in die Treibstoff-Tabelle
+  (O58). Sie gelten immer und unabhängig vom Pech-Deckel (wie heute).
+- **Zufallsereignisse** (heute Monat:206-287, :916-939):
+  - Im Übergang zu X+1 mit `RANDOM_EVENT_CHANCE = 0,05` je Monat, nur bei offenem Pech-Deckel für ein Pech-Ereignis
+    (8.8); Vorlage gleich verteilt; Dauer und Nachfrage-Faktor gleich verteilt im Bereich der Vorlage; regionale
+    Vorlage: eine von 6 Regionen (`regionOf`, R15).
+  - Vorlagen: **8** statt 11. Es entfallen die drei, deren Wirkung fast nur der Treibstoff war (*Refinery Pipeline
+    Outages*, *Biofuel Refinement Breakthrough*, *Geopolitical Energy Friction*; Nachfrage 0,95–1,04). Es bleiben 4 Pech-
+    (*Volcanic Ash*, *Economic Slump*, *Regional Airspace Closure*, *Regional Aviation Strike Wave*) und 4 Glück-Vorlagen
+    (*Summer Vacation Surge*, *Global Commerce Summit*, *Wanderlust Marketing Campaign*, *Regional Tourism Boom*).
+    *(Lesart von E8; Teil von O58.)*
+  - Pech-Ereignis (`isMalusEvent`): `demandMultiplier < 1` (heute auch „Treibstoff > Nachfrage“, `src/lib/malus.ts:44-46`).
+- **Meldungen**: Beginn (mit Krisen-Antwort als Frage, 8.5) und Ende jedes Ereignisses (wie heute, Monat:1208-1230);
+  im Januar die Vorschau neuer Flugzeugtypen (wie heute, Monat:875-912). Texte aus den Daten und Konstanten (E52).
+- Regeln (Tests): ein regionales Ereignis ändert die Fluggäste einer KI auf einem betroffenen Paar wie die des Spielers;
+  kein Ereignis ändert `fuelPrice`; ohne laufendes Ereignis ist `eventDemandFactor = 1`.
+
+### 8.5 Krisen-Antworten (Code-Name: `crisisResponse`)
+- Bedeutung: Bei den 6 weltweiten geschichtlichen Ereignissen kann der **Spieler** einmal beim Beginn eine Antwort
+  kaufen (wie heute). Die KI antwortet mit ihrem Krisen-Fahrplan (7.12), nicht hiermit (7.2).
+- Preis als **Anteil der betroffenen Größe** (E6, E35), bezahlt bei der Wahl (Kasse muss reichen), im Monatsergebnis
+  des Monats, in dem sie gewählt wird (Posten „Crisis response“, 5.16). Bezugsgröße aus dem Bericht des letzten
+  abgeschlossenen Monats, also bei der Wahl bekannt.
+- **Preis-Absicherung** (Code-Name: `fuelHedge`; Ölkrisen 1973, 1979, 1990):
+  - Wirkung: `fuelTable(month)` dieser Gesellschaft = `fuelTable(Monat vor Beginn)` für die Dauer des Ereignisses
+    (5.2), in beide Richtungen (fällt der Preis, zahlt sie trotzdem den gesicherten).
+  - Preis: `HEDGE_PRICE_SHARE × Treibstoff-Rechnung des letzten Monats × Dauer in Monaten`.
+  - `HEDGE_PRICE_SHARE = 0,2` (Startwert; heute 4 Mio. $ für 18 Monate, also 0,22 bei 1 Mio. $ Rechnung je Monat).
+- **Rückgewinnung** (Code-Name: `demandRecovery`; Krisen 2001, 2008, 2020):
+  - Wirkung: `crisisResponseFactor = (f + (1 − f) × r) / f` auf die Anziehung aller Angebote der Gesellschaft (3.9.7)
+    für die Dauer, mit `f` = `demandMultiplier` des Ereignisses und `r` = Rückgewinnungs-Anteil aus den Daten
+    (heute `softensDemand` 0,4 / 0,33 / 0,35, `src/lib/gameState.ts:440-456`).
+  - Preis: `RECOVERY_PRICE_SHARE × r × (1 − f) × Dauer × Monatserlös des letzten Monats`.
+  - `RECOVERY_PRICE_SHARE = 0,15` (Startwert).
+  - Hinweis: Als Faktor auf die Anziehung holt die Antwort weniger zurück als heute als Faktor auf die Nachfrage, weil
+    „Nicht fliegen“ mitzählt (Beispiel 8.17). Stärke und Preis prüft das Balance-Skript (3.9).
+- Konstanten-Felder je Ereignis in den Daten: Art der Antwort und `r`; feste Preise entfallen.
+- Regeln (Tests): Preis wächst im gleichen Verhältnis wie die Bezugsgröße (doppelte Treibstoff-Rechnung → doppelter
+  Preis); ohne Antwort `crisisResponseFactor = 1` und Tabellenpreis; eine Antwort wirkt nur für die Gesellschaft, die
+  sie gekauft hat; eine Absicherung ändert den Preis nach dem Ende des Ereignisses nicht mehr.
+- Anzeige: Frage beim Beginn mit Preis und Wirkung in Zahlen aus dem Modell (heute `src/components/app/GameDialogs.tsx:72-79`).
+
+### 8.6 Betriebsstörungen und Vogelschläge (Code-Name: `disruptions`)
+Störungen streichen Flüge. Sie werden im Übergang für X+1 gewürfelt (damit der Spieler antworten kann) und in X+1
+gebucht. Wirkung nur über weniger geflogene Flüge (8.9).
+
+| Art | Wer | Chance je Monat | Gestrichener Anteil | Heute |
+|---|---|---|---|---|
+| Technischer Defekt | je **Flugzeug** jeder Gesellschaft, das fliegt | `defectChance` (unten) | `DEFECT_CANCEL_SHARE = 0,5` aller Flüge des Flugzeugs | je Strecke, nur Spieler (Störungen:64-70, :144-155) |
+| Flughafen-Streik | je Flughafen mit Abflügen | `AIRPORT_STRIKE_CHANCE = 0,00333` | `AIRPORT_STRIKE_CANCEL_SHARE = 0,6` aller Abflüge und Ankünfte dort, **alle Gesellschaften** | nur Spieler-Flughäfen (Störungen:82, :208-217) |
+| Winterwetter | je Region EU, NA, AS, Dez.–Feb. | `WINTER_CHANCE = 0,03` | `WINTER_CANCEL_SHARE = 0,15` aller Flüge mit einem Ende dort, alle Gesellschaften | nur Spieler (Störungen:85-89) |
+
+```
+defectChance(plane) = (DEFECT_BASE + DEFECT_PER_AIRFRAME_POINT × (100 − airframeCondition) + DEFECT_PER_YEAR × age)
+                      × (HANGAR_DEFECT_FACTOR, wenn an einem Flughafen seiner Strecken ein eigener Hangar steht; sonst 1)
+                      × max(0,4; 1 − Σ defectSaving)                                  (Forschung 6.9, nur Spieler)
+```
+- Konstanten wie heute (Störungen:64-70): `DEFECT_BASE = 0,00333`, `DEFECT_PER_AIRFRAME_POINT = 0,000267`,
+  `DEFECT_PER_YEAR = 0,000333`, `HANGAR_DEFECT_FACTOR = 0,5`. `age` seit dem Baumonat (R13).
+- **Je Flugzeug statt je Strecke** *(Lesart R6: Kosten und Folgen nach der richtigen Bezugsgröße)*: Ein Defekt ist ein
+  Schaden am Flugzeug; heute bekommt ein Flugzeug mit drei Strecken drei Würfe.
+- **Für alle Gesellschaften** (E44, 7.1): Flughafen-Streik und Wetter treffen alle Flüge am Ort; Defekte jedes Flugzeug.
+  Die KI streicht immer (kein Charter, 7.2).
+- **Vogelschlag** (Code-Name: `birdStrike`): je fliegendes Flugzeug jeder Gesellschaft `BIRD_STRIKE_CHANCE = 0,002` je
+  Monat (heute je Strecke, Störungen:73). Gewürfelt im Schritt 2 für den **abgeschlossenen** Monat X und im selben
+  Bericht gebucht (heute für X+1 sofort abgebucht, W7). Kosten `BIRD_STRIKE_COST_SHARE × newPrice(type, month)` (5.12)
+  mit `BIRD_STRIKE_COST_SHARE = 0,005` (heute 100 000 / 200 000 / 400 000 $ fest, W8), Posten „Damage“ (5.16). Kein
+  Flug fällt aus; außerhalb des Pech-Deckels (wie heute).
+- **Frage an den Spieler** (heute Störungen:92-94, :530-539): Störungen mit Anteil ≥ `MAJOR_DISRUPTION_SHARE = 0,25`
+  und Erlösverlust, höchstens `MAX_DISRUPTION_QUESTIONS = 3` je Monat, größter Verlust zuerst: Charter oder streichen
+  (8.9). Ohne Antwort bis zum Abschluss: streichen. Kleinere Störungen werden ohne Frage gestrichen.
+- Regeln (Tests): bessere Zelle oder jüngeres Flugzeug → nie höhere `defectChance`; Hangar halbiert sie; ein
+  Flughafen-Streik streicht bei Spieler und KI denselben Anteil; ein Vogelschlag steht im Bericht des Monats, in dem er
+  gewürfelt wurde.
+
+### 8.7 Personal: Moral und Streik (Code-Namen: `morale`, `staffStrike`)
+Nur Spieler (7.2). Regeln wie heute (`src/lib/staff.ts`), mit den Änderungen aus E38 und den Forschungs-Feldern.
+- **Moral** (wirkt nur über `staffPart`, 2.6.4): im Übergang zu X+1
+  ```
+  moraleTarget = kappen(BASE_MORALE + Σ moralePoints (6.9)
+                        + (salaryPct − 100 − labourMarketPremium(month)) × MORALE_PER_PAY_POINT
+                        + (Gewinnserie > PROFIT_STREAK_MONTHS ? PROFIT_STREAK_MORALE : 0)
+                        − (Streik in den letzten STRIKE_MEMORY_MONTHS Monaten ? STRIKE_MORALE_PENALTY : 0), 0, 100)
+  morale(neu)  = morale + MORALE_STEP × (moraleTarget − morale)
+  ```
+  Konstanten wie heute (`src/lib/staff.ts:66-83`, `:101-122`): `BASE_MORALE = 50`, `MORALE_PER_PAY_POINT = 1,5`,
+  `PROFIT_STREAK_MONTHS = 6`, `PROFIT_STREAK_MORALE = 5`, `STRIKE_MEMORY_MONTHS = 6`, `STRIKE_MORALE_PENALTY = 10`,
+  `MORALE_STEP = 0,2`; Arbeitsmarkt-Tabelle `labourMarketPremium` als Daten.
+- **Streik**: im Übergang zu X+1 mit `strikeChance = max(0, STRIKE_MORALE_THRESHOLD − morale) × STRIKE_CHANCE_PER_POINT`
+  (35, 0,006), nur bei offenem Pech-Deckel (8.8). Er gilt für den ganzen Monat X+1 und ist eine Frage:
+  - „Raise pay“: Lohn + `STRIKE_PAY_RAISE = 10` Punkte, Untergrenze für `STRIKE_MEMORY_MONTHS`; gestrichen
+    `STRIKE_SETTLED_CANCEL_SHARE = 0,5` aller Flüge;
+  - „Sit it out“ oder keine Antwort: gestrichen `STRIKE_FULL_CANCEL_SHARE = 1`.
+  - Der Ruf-Abzug −3 entfällt (E38); der Ruf sinkt nur über `cancelledShare` (6.2). Kein Charter bei Personalstreik.
+- Regeln (Tests): Lohn 100 % ohne Arbeitsmarkt-Zuschlag, Serie ≤ 6, kein Streik, keine Forschung → Ziel 50; Moral ≥ 35
+  → kein Streik; ein Streik ändert den Ruf nur über `cancelledShare`.
+
+### 8.8 Pech-Deckel (Code-Name: `badLuckCap`)
+- Bedeutung: Höchstens etwa die Hälfte der Monate bringt dem **Spieler** zufälliges Pech (wie heute `src/lib/malus.ts`).
+- Pech: ein Zufalls-Pech-Ereignis (8.4), eine Störung, die eine Spieler-Strecke trifft (8.6), ein Personalstreik (8.7).
+  Nicht: geschichtliche Ereignisse, Vogelschläge.
+- Offen für X+1, wenn kein Zufalls-Pech-Ereignis X+1 beansprucht (Dauer × 2 ab Beginn) und Monat X kein einmaliges Pech
+  (Störung oder Streik beim Spieler) hatte (wie heute, `src/lib/malus.ts:75-87`).
+- **Neu (R12, W12):** Im Übergang wird in fester Reihenfolge gewürfelt: Zufallsereignis → Störungen → Personalstreik.
+  Sobald einer davon Pech für den Spieler bringt, ist der Deckel für den Rest dieses Übergangs zu.
+- **Wirkung auf Würfe für alle:** Ist der Deckel zu, werden Flughafen-Streiks und Winterwetter an Flughäfen und in
+  Regionen, die der Spieler anfliegt, nicht gewürfelt; anderswo wie immer. Defekte von KI-Flugzeugen werden immer
+  gewürfelt. *(Lesart: Der Deckel schützt das Spielerlebnis; er ist ein Teil, den nur der Spieler hat, Liste 7.2.)*
+- Regeln (Tests): in einem Übergang höchstens ein Pech für den Spieler aus Zufall; nach einem Monat mit Störung oder
+  Streik folgt ein Monat ohne neues Zufalls-Pech; geschichtliche Ereignisse wirken auch bei geschlossenem Deckel.
+
+### 8.9 Gestrichene und gecharterte Flüge (Code-Namen: `flownShare`, `cancelledShare`, `charterFee`)
+**Anteile je Strecke** im Monat X:
+```
+affectedShare   = 1 − Π über alle Ursachen (1 − Anteil der Ursache)           (Defekt, Flughafen-Streik, Wetter, Personalstreik)
+cancelledShare  = 1 − Π über Ursachen OHNE Charter-Antwort (1 − Anteil)
+charteredShare  = affectedShare − cancelledShare
+flownShare      = 1 − affectedShare                                            (fliegt das eigene Flugzeug)
+```
+Ein Flug, den eine nicht gecharterte Ursache (z. B. Personalstreik) trifft, fällt aus, auch wenn eine andere Ursache
+gechartert ist (heute ähnlich, Störungen:116-129).
+
+**Wirkung** (E32, E33):
+- Sitze im Markt (3.11): × (1 − cancelledShare). Die Nachfrage fällt höchstens auf die übrigen Sitze, kein Abzug auf
+  Satisfaction oder Anziehung (E33, 3.16). Gecharterte Flüge bieten ihre Sitze wie sonst.
+- Eigene Flugkosten (Treibstoff, Besatzung, Landung, 5.3–5.5): nach `flownLegs` = geplante Abschnitte × `flownShare`.
+- Kosten je Fluggast (5.8): für alle beförderten Fluggäste, auch auf Charter-Flügen.
+- Slots, Flugzeug-Unterhalt und Abschreibung: unverändert (5.9, 5.12).
+
+**Ruf** (6.2): `cancelledShare` der Gesellschaft = Σ Strecken (Sitze × geplante Abflüge × cancelledShare) /
+Σ Strecken (Sitze × geplante Abflüge), alle Klassen. Charter zählt nicht als gestrichen.
+
+**Charter-Gebühr** (Code-Name: `charterFee`, E32, nur Spieler):
+```
+charterFee je gechartertem Abschnitt = CHARTER_MARKUP × flightOpsCost(route) / geplante Abschnitte je Woche
+Charter-Kosten im Monat              = Σ Strecken charterFee × geplante Abschnitte je Woche × charteredShare × WEEKS_PER_MONTH
+```
+- Ein Preis je Flug (was der Flug die Gesellschaft selbst kosten würde, mit Aufschlag), kein Erlösanteil. Das eigene
+  Flugzeug steht; seine Flugkosten entfallen (E32). Teilen sich zwei gecharterte Ursachen eine Strecke, zählt jeder Flug
+  einmal (heute anteilig geteilt, Störungen:429-511).
+- `CHARTER_MARKUP = 1,5` (Startwert, Balance-Skript 3.9). Posten „Charter“ (5.16), gebucht im Abschluss von X+1.
+- Folge: Charter lohnt, wenn Erlös je Flug − Kosten je Fluggast > `(CHARTER_MARKUP − 1) × flightOpsCost` je Flug, also
+  fast immer auf einer Strecke mit Gewinn (Beispiel 8.17; heute nie, W4).
+- Die Frage nennt Gebühr, geretteten Erlös und die gesparten eigenen Flugkosten aus dem Modell (R2).
+- Regeln (Tests): `cancelledShare = 0` ohne Störung; Charter für alle Ursachen → `cancelledShare = 0` und Ruf-Abzug 0;
+  Erlös mit Charter = Erlös ohne Störung; Kosten mit Charter = Kosten ohne Störung − eigene Flugkosten der gecharterten
+  Flüge + Charter-Gebühr; ein halber Flugplan bringt höchstens die Hälfte weniger Fluggäste (heute −77 %, W5).
+
+### 8.10 Verschleiß (Code-Name: `wear`)
+- Bedeutung: Wie Kabine und Zelle mit dem Fliegen altern. Für alle Gesellschaften (E44).
+- Formel je Flugzeug und Monat (Schritt 2):
+  ```
+  flownHours   = Σ Strecken des Flugzeugs: blockMinutes je Woche × flownShare × WEEKS_PER_MONTH / 60
+  cabinWear    = min(CABIN_WEAR_PER_HOUR × flownHours + WEAR_BASE, CABIN_WEAR_MAX)    × wearFactor
+  airframeWear = min(AIRFRAME_WEAR_PER_HOUR × flownHours + WEAR_BASE, AIRFRAME_WEAR_MAX) × wearFactor
+  wearFactor   = max(0,4; 1 − Σ wearSaving)                                   (Forschung 6.9, nur Spieler)
+  Zustand(neu) = max(0, Zustand − Verschleiß)
+  ```
+  Neu: nur **geflogene** Flüge (`flownShare`, R12, W11); gecharterte und gestrichene zählen nicht.
+- Konstanten wie heute (Monat:1512-1532): `CABIN_WEAR_PER_HOUR = 0,0012`, `AIRFRAME_WEAR_PER_HOUR = 0,00076`,
+  `WEAR_BASE = 0,1`, `CABIN_WEAR_MAX = 1`, `AIRFRAME_WEAR_MAX = 0,667` (Punkte je Monat). Mit `WEEKS_PER_MONTH` statt 4
+  sind die Stunden 8,7 % höher; die Werte prüft das Balance-Skript (3.9).
+- Wirkt auf: `cabinRating` (2.4, Kabinenzustand), `defectChance` (8.6, Zelle), `aircraftValue` (5.13, beide).
+- Flugzeuge im Gebrauchtmarkt (8.11) verschleißen nicht, altern aber (Wert über `ageFactor`).
+- Regeln (Tests): ein ganz bestreiktes Flugzeug verschleißt nur `WEAR_BASE`; mehr Stunden → nie weniger Verschleiß;
+  Zustand nie unter 0.
+
+### 8.11 Händler-Spanne, Verkauf und Gebrauchtmarkt (Code-Namen: `saleProceeds`, `usedPrice`, `usedMarket`)
+**Händler-Spanne** (E30): Der Markt kauft unter Wert und verkauft über Wert. Grundlage ist immer `aircraftValue` (5.13).
+```
+saleProceeds(plane) = aircraftValue × (1 − DEALER_SPREAD_SELL) × (1 + Σ resaleBonus)     (Forschung 6.9, nur Spieler)
+usedPrice(plane)    = aircraftValue × (1 + DEALER_SPREAD_BUY)
+```
+- Konstanten (Startwerte): `DEALER_SPREAD_SELL = 0,15`, `DEALER_SPREAD_BUY = 0,05`. Mit der größten Forschung
+  (`resaleBonus` 0,025) bringt ein Verkauf höchstens 87,1 % des Werts.
+- Gilt für jeden Verkauf an den Markt: Spieler, KI-Modernisierung, Notverkauf, Leerlauf-Verkauf, Zwangsverkauf (8.14)
+  (7.11; heute KI fest 20 % des Listenpreises, 1.6 W7). Der Unterschied zum Wert steht im Ergebnis als
+  „Aircraft trades“ (5.13).
+- Verkauf: Strecken des Flugzeugs werden gelöscht (wie heute); die Slots bleiben gekauft.
+
+**Gebrauchtmarkt** (heute `src/lib/usedMarket.ts`):
+- **Neue Angebote** je Monat: `USED_OFFERS_PER_MONTH = 6`, nur nach Monat gewürfelt (8.3), sichtbar einen Monat.
+  - Typen mindestens `USED_MIN_SERVICE_YEARS = 5` Jahre im Dienst.
+  - Baumonat zwischen Erstauslieferung und **Bauende** des Typs (R13, W9); Alter `USED_AGE_MIN … USED_AGE_MAX` = 4 … 24
+    Jahre innerhalb dieser Grenzen.
+  - Zustand (Startwerte wie heute, `src/lib/usedMarket.ts:73-76`): Zelle `98 − 2,2 × Alter ± 7`, Kabine
+    `92 − 2,8 × Alter ± 11`, je 20 … 95.
+  - Kabine: Auslieferungs-Kabine (alles Economy, 74 cm, keine Extras), Einbaumonat = Baumonat; `valueBase` nach 5.13.
+- **Weiterverkaufte Flugzeuge** (E49, R13): Jedes an den Markt verkaufte Flugzeug (Spieler, KI, Auflösung 7.15) kommt mit
+  Baumonat, Zustand und Kabine in den Markt, für `USED_RESOLD_MONTHS = 6` Monate; gezeigt werden die neuesten
+  `USED_RESOLD_MAX = 12`, ältere verlassen den Markt („an andere Käufer verkauft“).
+- **Preis** = `usedPrice` im aktuellen Monat; kein Mindestpreis (das Wertmodell hat einen Restwert, 5.13).
+- **Kauf** (nur Spieler, 7.2): Das Flugzeug behält Baumonat, Zustand, Kabine; Kaufmonat = jetzt. Kasse muss reichen.
+- Regeln (Tests): Gebraucht kaufen und im selben Monat verkaufen bringt höchstens 87,1 / 105 = 83 % zurück (heute 105 %,
+  W1); kein Angebot ist jünger als „jetzt − Bauende“; jedes verkaufte KI-Flugzeug erscheint im Markt (7.11);
+  `usedPrice` > `saleProceeds` für jedes Flugzeug.
+
+### 8.12 Neukauf und Vorbestellung (Code-Name: `preorder`)
+**Neukauf**: Preis = `valueBase` im Kaufmonat (Listenpreis × `costIndex` + Kabine, 5.13, E54), sofort aus der Kasse;
+im Ergebnis neutral (5.13). Sofort wieder verkauft: −15 % (heute −10 %, durch die Spanne).
+
+**Vorbestellung** (heute `src/lib/preorders.ts`):
+- Angebot: Typen mit Erstauslieferung in den nächsten `PREORDER_WINDOW_MONTHS = 12` Monaten; 1 … `PREORDER_MAX = 12`
+  Stück je Bestellung.
+- **Rabatt** (E30, kleiner als die Spanne):
+  `preorderDiscount(n) = min(PREORDER_DISCOUNT_MAX, PREORDER_DISCOUNT_BASE + PREORDER_DISCOUNT_STEP × (n − 1))`
+  mit `PREORDER_DISCOUNT_BASE = 0,05`, `PREORDER_DISCOUNT_STEP = 0,01`, `PREORDER_DISCOUNT_MAX = 0,12` (heute 12 % +
+  1 %, höchstens 20 %).
+  Bedingung (Test): `PREORDER_DISCOUNT_MAX < 1 − (1 − DEALER_SPREAD_SELL) × (1 + größter resaleBonus)` = 0,129.
+- **Preis** = `(1 − preorderDiscount) × valueBase(Liefermonat)`, also im Geld des Liefermonats.
+  - Anzahlung bei der Bestellung: `PREORDER_DEPOSIT_SHARE = 0,2` × geschätzter Preis (`valueBase` des Bestellmonats).
+    Sie ist ein Guthaben (`Anzahlungen`, 8.2), kein Aufwand; zählt zum Unternehmenswert (6.12).
+  - Rest bei Lieferung = Preis − Anzahlung.
+  - Im Ergebnis bei Lieferung: Wert − Preis = Rabatt als Ertrag in „Aircraft trades“ (5.13).
+- **Lieferung** (Schritt 5): Erstauslieferung + 1 + ⌊n / 3⌋ Monate (wie heute); ganze Bestellung. Bezahlt, wenn die
+  Kasse nach allen übrigen Buchungen den Rest deckt (keine Kreditlinie für Käufe, 8.14). Sonst einen Monat später,
+  höchstens `PREORDER_MAX_DELAYS = 3` Mal; danach storniert, Anzahlung verloren (Aufwand „Aircraft trades“).
+- **Storno durch den Spieler**: `PREORDER_REFUND_SHARE = 0,5` der Anzahlung zurück, der Rest Aufwand.
+- **Erstkunden-Bonus**: Lieferung ≤ `LAUNCH_WINDOW_MONTHS = 12` Monate nach Erstauslieferung → `launchBonus` für
+  `LAUNCH_BONUS_MONTHS = 24` Monate (2.2).
+- Ausgelieferte Kabine: wie im Bestelldialog gewählt; ohne Wahl die Auslieferungs-Kabine (wie heute).
+- Regeln (Tests): Vorbestellen und bei Lieferung verkaufen bringt nie Gewinn (heute bis +120 Mio. $ bei 12 Stück, W2);
+  Lieferung erscheint mit Restzahlung im Bericht dieses Monats (W7); mehr Stück → nie kleinerer Rabatt.
+
+### 8.13 Grundüberholung und Kabinen-Umbau (Code-Namen: `overhaulPrice`, `refitPrice`)
+**Grundüberholung** (General check, E31; heute `src/App.tsx:218-231`, `:2787-2810`, im Modell nach R3):
+- Wirkung: Zelle + `OVERHAUL_POINTS[k]` für die k-te Überholung dieses Flugzeugs = 50 / 50 / 40 / 30, danach keine
+  weitere (wie heute); höchstens 100. Senkt so `defectChance` (8.6) und hebt `aircraftValue` (5.13).
+- Preis:
+  ```
+  valueGain     = aircraftValue(Zelle nachher) − aircraftValue(Zelle vorher)
+  overhaulPrice = max(OVERHAUL_PRICE_SHARE × newPrice(type, month), valueGain) × (1 + Werft-Zuschlag)
+  ```
+  `OVERHAUL_PRICE_SHARE = 0,04` (Startwert). Durch `max` steigt der Wert **nie** um mehr als den Preis (E31, Vorgabe
+  5.19), für jede Größe und jedes Jahr. Im Ergebnis: Preis − `valueGain` als „Aircraft trades“.
+- Ort *(vorläufig, O59)*: überall möglich. Ohne eigenen Hangar an einem Flughafen seiner Strecken kostet sie
+  `EXTERNAL_OVERHAUL_SURCHARGE = 0,25` mehr (fremde Werft). So gilt eine Regel für Spieler und KI (7.11; die KI hat
+  keinen Hangar, 7.2). Heute nur mit Hangar.
+- Das Flugzeug fliegt weiter (wie heute).
+
+**Kabinen-Umbau** (heute `src/components/ConfigurePurchaseView.tsx:539`, `src/App.tsx:1951-1965`):
+- Preis = `atCost(cabinListPrice(neue Kabine), month) + atCost(REFIT_PER_SEAT_1960 × Sitze, month)`,
+  `REFIT_PER_SEAT_1960 = 1 000` (neu mit Index, W8).
+- Wert: Der Kabinen-Teil von `valueBase` wird durch die neue Kabine ersetzt (Einbaumonat = jetzt, 5.13); der Umbau-Lohn
+  hebt keinen Wert und steht als „Aircraft trades“ im Ergebnis.
+- Kabinenzustand danach: `max(jetzt, 90 − 10 × bisherige Umbauten, 30)` (wie heute).
+- Regeln (Tests): eine Überholung hebt den Wert nie über ihren Preis; 747 und CRJ zahlen denselben Anteil ihres
+  Neupreises (heute 200 000 $ für beide, W3); Überholung 2020 eines Typs = Anteil × `newPrice` 2020.
+
+### 8.14 Kreditlinie, Zwangsverkauf, Spielende (Code-Name: `creditLine`, E34)
+- **Kreditgrenze**: `creditLimit = CREDIT_LIMIT_SHARE × Σ aircraftValue` (Flottenwert am Monatsende, 5.13).
+- **Zinsen**: `interest = CREDIT_RATE / 12 × max(0, −Kasse am Monatsanfang)`, Posten „Interest“ (5.16). Guthaben bringt
+  keine Zinsen (wie heute).
+- **Käufe nur aus Guthaben**: Jede Einmalausgabe (Flugzeug, Slot, Stufe, Forschung, Antwort, Überholung, Umbau) braucht
+  Kasse ≥ Preis (wie heute). Die Kreditlinie deckt nur laufende Verluste und Zinsen.
+- **Stufen** (am Monatsende, Schritt 5):
+  | Kasse am Monatsende | Zustand | Folge |
+  |---|---|---|
+  | ≥ 0 | gesund | – |
+  | −`creditLimit` … < 0 | Kredit | Zinsen; Hinweis in der Kopfzeile |
+  | < −`creditLimit` | überzogen | Warnung; `overdrawnMonths` + 1 (in Folge; ein Monat darüber setzt auf 0) |
+- **Zwangsverkauf**: ab `overdrawnMonths ≥ OVERDRAWN_TO_FORCED_SALE = 6` je Abschluss **ein** Flugzeug, zuerst ein
+  abgestelltes, sonst das mit dem schlechtesten Strecken-Ergebnis (5.9), zu `saleProceeds` (8.11); so lange, bis die
+  Kasse wieder ≥ −`creditLimit` ist (dieselbe Regel wie der Notverkauf der KI, 7.11).
+- **Spielende**: überzogen und kein Flugzeug mehr. Free und Normal: wie Ruhestand (Karriere-Punkte 6.12, Ruhmeshalle),
+  Meldung „Bankruptcy“; Szenario: verloren.
+- **KI**: dieselbe Grenze und dieselben Zinsen; Notlage, Verkauf und Auflösung nach 7.15 („Kasse unter der Kreditgrenze“
+  = überzogen). Kein Spielende.
+- Konstanten (Startwerte, Balance-Skript 3.9): `CREDIT_LIMIT_SHARE = 0,5`, `CREDIT_RATE = 0,08` je Jahr.
+- Regeln (Tests): ohne Flugzeuge ist die Grenze 0; ein überzogener Monat zwischen gesunden setzt den Zähler zurück; nach
+  6 überzogenen Monaten in Folge sinkt die Flugzeugzahl um 1 je Monat; Zinsen = 0 bei Kasse ≥ 0; kein Kauf lässt die
+  Kasse unter 0 fallen.
+- Anzeige: Kopfzeile „Credit used x of y“, Monatsbericht, Warnung mit Monaten bis zum Zwangsverkauf (Texte aus den
+  Konstanten, E52).
+
+### 8.15 Szenario-Ziele (heute `src/data/scenarios.ts`, `scenarioEval.ts`)
+- Geprüft im Schritt 7 mit den Werten dieses Abschlusses: `capital` = Kasse am Monatsende (R11); `monthlyProfit` =
+  Monatsergebnis (5.16); `reputation` = Ruf nach der Ruf-Änderung (6.5); `routes`, `regions` (`regionOf`, R15),
+  `transferPax` aus dem Modell.
+- Dollar-Ziele und -Schwellen stehen als Wert von 1960 in den Daten und laufen über `atCost` des Prüfmonats (E6). So
+  bleiben sie richtig, wenn das Balance-Skript `COST_GROWTH` ändert. Umrechnung der heutigen Zahlen einmal in Phase 3.
+- Ruf-Ziele auf der neuen Skala (E36, 6.15): „Reputation of 60 or more“ (`src/data/scenarios.ts:176`) → 55 (Startwert,
+  Balance-Skript 3.9).
+- Verlieren: das Spielende aus 8.14; dazu `capitalFloor` mit Schwelle **−`creditLimit`** statt −5 Mio. $ (Monate wie im
+  Szenario, heute 3). *(Lesart von E34: eine Pleite-Regel.)*
+- Startflotte eines Szenarios: Baumonat = Start − `ageMonths`, Zustand aus den Daten; Kasse und Ruf wie angegeben.
+- Regeln (Tests): ein Szenario mit Kassen-Ziel wird nie mit Geld gewonnen, das im selben Abschluss schon ausgegeben ist
+  (W7); Ziel-Beträge 2020 = Wert 1960 × `costIndex` 2020.
+
+### 8.16 Prüfung auf ungültige Zahlen (heute `src/lib/invariants.ts`)
+- Keine Modell-Funktion gibt `NaN` oder unendlich zurück (Test über alle Funktionen mit Grenzwerten: 0 Sitze, 0 Fluggäste,
+  0 Flugzeuge, Kasse 0).
+- Am Ende jedes Abschlusses prüft `closeMonth` Kasse, Ruf, Moral, Zustände und Werte jeder Gesellschaft. Ein ungültiger
+  Wert ist ein Fehler: Meldung im Log, die Größe behält ihren Wert vom Monatsanfang (heute rechnet der Monat weiter, `|| 0`
+  fängt Unendlich nicht, W „Prüfhilfe“).
+- `finiteOr` bleibt für das Laden von Spielständen (5.1).
+
+### 8.17 Beispiel
+Zahlen mit den Startwerten (Hilfsskript, nicht im Projekt). `costIndex` 1990 = 1,430, 1995 = 1,518, 2010 = 1,816.
+
+**Flottenmarkt**, A320ceo (Liste 40 Mio. $), gebaut 1990, `valueBase` 57,2 Mio. $:
+
+| Fall | Betrag | Heute |
+|---|---|---|
+| Neu 1990 gekauft, sofort verkauft | 48,6 Mio. $ (mit Forschung 49,8) = −15 % | −10 % |
+| 2010, Alter 20, Zelle 60 / Kabine 40: Wert | 15,0 Mio. $ | – |
+| … Gebrauchtpreis / Verkaufserlös | 15,8 / 12,8 Mio. $ (mit Forschung 13,1) | Kauf × 0,95, Verkauf × 1,0 → +5 % |
+| 12 Stück vorbestellt, Wert bei Lieferung je 100 Mio. $ | Preis 88 Mio. $, Ertrag 12 Mio. $ je Stück; sofort verkauft 85 (87,1) Mio. $ | Preis 80, Wert 90 → +10 |
+| Überholung 2010, Alter 20, Zelle 50 → 100 (Kabine 40) | Wertgewinn 4,63 Mio. $; Anteil 0,04 × 72,6 = 2,90 → Preis **4,63** Mio. $ (fremde Werft 5,79) | 200 000 $, Wert + Millionen |
+| Überholung 1995, Alter 5, Zelle 85 → 100 (Kabine 80) | Wertgewinn 3,24 Mio. $; Anteil 2,43 → Preis 3,24 Mio. $ | 200 000 $ |
+
+**Charter oder streichen**, A320ceo FRA–MAD 1990 (Werte aus 5.18, 14 Abschnitte je Woche), je betroffenem Flug:
+Erlös 29 027 $, Kosten je Fluggast 2 701 $, eigene Flugkosten 9 723 $, Charter-Gebühr 14 584 $.
+Charter − Streichen = 29 027 − 2 701 − 14 584 = **+11 742 $** je Flug (heute in allen vier Beispielen −175 000 bis
+−770 000 $, W4), dazu kein Ruf-Abzug.
+
+**Rückgewinnung** (Bezugsangebot allein im Markt, Economy, Preis-Empfindlichkeit 2,2):
+
+| Krise | `f` / `r` / Dauer | `crisisResponseFactor` | Fluggäste mit Antwort | zurückgeholt | Preis (× Monatserlös) | Mehr-Erlös (× Monatserlös) |
+|---|---|---|---|---|---|---|
+| 2001 | 0,65 / 0,4 / 12 | 1,215 | × 1,088 | 16 % des Ausfalls | 0,25 | 0,68 |
+| 2008 | 0,75 / 0,33 / 24 | 1,110 | × 1,047 | 14 % | 0,30 | 0,85 |
+| 2020 | 0,20 / 0,35 / 24 | 2,400 | × 1,361 | 9 % | 1,01 | 1,73 |
+
+Heute holt die Antwort 40 / 33 / 35 % des Ausfalls zurück, für 5 / 8 / 25 Mio. $ fest. Gegen Rivalen wirkt sie stärker
+(Anteil statt nur „Nicht fliegen“).
+
+**Preis-Absicherung** 1973 (O58 a, Ausschlag bis × 2,0 mit je 3 Monaten An- und Abstieg, im Mittel × 1,83 über 18 Monate),
+Treibstoff-Rechnung 1 Mio. $ je Monat: Preis 0,2 × 1 × 18 = 3,6 Mio. $, Ersparnis ≈ 0,83 × 18 = 15 Mio. $.
+
+**Kreditlinie**: 10 × A320ceo zu je 20,6 Mio. $ → Grenze 103 Mio. $; Kasse −50 Mio. $ → Zinsen 333 333 $ je Monat.
+
+**Defekt-Chance** je Flugzeug und Monat (Zelle / Alter): 100 / 0: 0,33 % · 90 / 2: 0,67 % · 70 / 10: 1,47 % ·
+50 / 15: 2,17 % · 20 / 25: 3,30 % (mit Hangar die Hälfte). **Verschleiß** bei 69 Blockstunden je Woche (300 h je Monat):
+Kabine 5,5, Zelle 3,9 Punkte je Jahr.
+
+### 8.18 Vorgaben an andere Abschnitte und spätere Pakete
+- **Abschnitt 5:** Posten aus 8 in `monthlyCosts` (5.16): „Charter“, „Crisis response“, „Interest“, „Damage“
+  (Vogelschlag); `flownLegs` aus `flownShare` (8.9). Anzahlungen zählen zum Unternehmenswert (6.12, 8.12).
+- **Abschnitt 6:** `cancelledShare` aus 8.9; Prüfreihenfolge aus 8.1; Kassen-Meilensteine prüfen die Kasse nach allen
+  Buchungen ohne die Prämien dieses Abschlusses.
+- **Abschnitt 7:** Liste 7.2 um den Pech-Deckel ergänzt (8.8). Prüfung „Juni 1974 → Krise“ (7.12) setzt O58 (a) voraus.
+- **Phase 3:** `closeMonth` als reine Funktion mit `rng` (8.3); Krisen-Antworten, Überholung, Umbau-Preis, Vorbestellung
+  und Gebrauchtmarkt im Modell (R3). Bei O58 (a): Treibstoff-Tabelle um die Ausschläge der Krisen ergänzen.
+- **Balance-Skript (3.9):** `HEDGE_PRICE_SHARE`, `RECOVERY_PRICE_SHARE`, `CHARTER_MARKUP`, Händler-Spanne,
+  Vorbestell-Rabatt, `OVERHAUL_PRICE_SHARE`, Verschleiß mit `WEEKS_PER_MONTH`, `CREDIT_LIMIT_SHARE`, `CREDIT_RATE`,
+  Szenario-Ziele.
+- **Phase 4:** Bericht, Kopfzeile (Kredit), Fragen (Krise, Charter, Streik) und Gebrauchtmarkt lesen alles aus dem Modell
+  (R2); Texte aus Konstanten (E52).
+- **Phase 5.1 (Spielstand):** Zufallsereignisse aus dem Modul-Zustand in den Spielstand; `seed` neu würfeln; gewählte
+  Krisen-Antworten mit gespeichertem Preis übernehmen; Vorbestellungen mit Rabatt nach 8.12 neu rechnen (Anzahlung bleibt);
+  `overdrawnMonths = 0`; Gebraucht-Flugzeuge: Baumonat aus dem zurückgesetzten Kaufmonat (`src/App.tsx:1830`);
+  Szenario-Ziele in Werte von 1960 umrechnen.
+
+### 8.19 Zuordnung der Bestandsfunde
+
+| Fund (1.7) | Lösung in diesem Abschnitt |
+|---|---|
+| W1 Gebraucht kaufen und verkaufen +5 % | 8.11 Händler-Spanne auf beiden Seiten (E30) |
+| W2 Vorbestellung unter Wiederverkaufswert | 8.12 Rabatt kleiner als die Spanne, Wert neu = Kaufpreis (E29, E30) |
+| W3 Überholung hebt Wert um Millionen | 8.13 Preis als Anteil, Wertgewinn höchstens Preis (E31) |
+| W4 Charter rechnet sich nie | 8.9 eigenes Flugzeug steht, Gebühr je Flug (E32) |
+| W5 Gestrichene Flüge doppelt bestraft | 8.9 nur weniger Sitze und Ruf über `cancelledShare` (E33) |
+| W6 Kasse ohne Folge negativ | 8.14 Kreditlinie, Zwangsverkauf, Spielende (E34) |
+| W7 „Kasse danach“ falsch | 8.2 Kasse am Monatsende nach allen Buchungen; Vogelschlag und Lieferung im Bericht dieses Monats (R11) |
+| W8 Feste Dollar-Beträge | 8.5 Antworten als Anteil; 8.6 Vogelschlag als Anteil; 8.13 Überholung, Umbau mit `atCost`; 8.15 Szenario-Ziele (E6) |
+| W9 Gebrauchtmarkt ohne Bauende | 8.11 Baumonat bis Bauende; weiterverkaufte KI-Flugzeuge (R13, E49) |
+| W10 Wiederverkaufswert | 5.13 Wertmodell; 8.11 Spanne und Forschung auf den Erlös (E29) |
+| W11 Verschleiß zählt gestrichene Flüge | 8.10 nur geflogene Stunden (R12) |
+| W12 Pech-Deckel lässt dreifach Pech zu | 8.8 Deckel nach dem ersten Pech zu (R12) |
+| W13 Ereignisse nur für den Spieler, Modul-Zustand | 8.4 für alle über `eventDemandFactor` (E35); 8.3 Spielstand (R12) |
+| W14 Krisen-Treibstoff doppelt | 8.4 kein Ereignis-Faktor (E8); Tabelle als einzige Quelle (O58) |
+
+Doppelte Rechnungen (Bestand 1.7) → eine Funktion im Modell (R2, R3): Saisontabelle in `src/App.tsx:878` → Marktgröße
+(Abschnitt 3); Treibstoff-Absicherung in `src/App.tsx:639-650` → 8.5 und 5.2; Grundüberholung in `src/App.tsx:218-231`
+→ 8.13; Umbau- und Kaufpreis in `ConfigurePurchaseView.tsx:491-541` → 8.12, 8.13 und `src/model/kabine.ts`; Sitze
+(Monat:837-840, :185-189) → Kabine des Flugzeugs (7.5); Monatswert × 4 an vielen Stellen → `WEEKS_PER_MONTH` (E5);
+Charter-Netz je Gruppe neu (Störungen:478-506) → einmal je Monat in 8.9.
