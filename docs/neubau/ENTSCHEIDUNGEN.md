@@ -33,6 +33,15 @@ Claude schlägt vor, der Mensch entscheidet.
 | E24 | 18.11.2026 | **Unter Marktpreis (O22):** Ohne Rivalen ist der Marktpreis etwa der erlösbeste Preis. Billiger lohnt nur gegen Rivalen oder zum Füllen der Sitze. | Heute bringt Economy unter Marktpreis bis +5 % Erlös (1.3 W3). |
 | E25 | 18.11.2026 | **Umsteiger-Tarif (O23):** Marktpreis der Verbindung Start–Ziel × fester Abschlag 0,9, mit derselben Funktion wie Direktgäste. | Heute 0,9 × Grundpreis ohne SAT, Schwierigkeit, Knappheit; auf Hard teurer als direkt (1.3 W5; 1.2 W9). |
 | E26 | 18.11.2026 | **Planer-Hauptzahl (O24):** Immer der erwartete Gewinn bei heutiger Nachfrage, auf jeder Stufe. „Volle Maschine“ höchstens als Nebenzahl beim Marktpreis. | Heute steigt die Hauptzahl mit jedem Preis (1.3 W1). |
+| E27 | 18.11.2026 | **Gebühren je Fluggast (O25):** Check-in nur am Abflughafen, Abfertigung je Abflug. Höhe so neu einstellen, dass die Summe je Fluggast etwa gleich bleibt. | Heute an Start und Ziel fällig, Umsteiger zahlen doppelt (1.4 W5). |
+| E28 | 18.11.2026 | **Abstellplätze (O26):** Ab Verwaltungsstufe 2 bekommt jeder Slot automatisch einen Abstellplatz **ohne Unterhalt** (bewusster Vorteil der Stufe). *Abweichung von der Empfehlung: Geschenk bleibt.* | Heute nur im Code, ohne Kommentar (1.4 W7). |
+| E29 | 18.11.2026 | **Wertmodell (O27):** Wert neu = Kaufpreis (mit Kabine). Lineare Abschreibung je Jahr bis zu einem Restwert; Zustand als Zu- oder Abschlag. Die Abschreibung steht als Kosten im Monatsgewinn. Ein Wertmodell für Spieler, KI und Gebrauchtmarkt (R13). | Heute sofort −10 %, Kabine wertlos, Wertverlust nie als Kosten, Kauf als normaler Gewinnmonat (1.4 W13; 1.7 W10). |
+| E30 | 18.11.2026 | **Kauf- und Verkaufsspanne (O28):** Händler-Spanne: Verkauf an den Markt unter Wert, Kauf vom Markt zum Wert oder darüber. Vorbestellungs-Rabatt kleiner als diese Spanne. Kaufen und sofort verkaufen bringt nie Gewinn. | Heute +5 % bei Kauf und Sofortverkauf; Vorbestellung unter Wiederverkaufswert (1.7 W1, W2). |
+| E31 | 18.11.2026 | **Grundüberholung (O29):** Preis als Anteil des Listenpreises (mit Kostenindex). Sie senkt Verschleiß und Ausfälle; der Wert steigt höchstens um den Preis. | Heute 200 000 $ fest, hebt den Wert einer 747 um 13 Mio. $ (1.7 W3). |
+| E32 | 18.11.2026 | **Charter (O30):** Bei Charter steht das eigene Flugzeug (keine eigenen Flugkosten). Charter-Gebühr als Preis je Flug, nicht als Erlösanteil. | Heute doppelte Kosten, Charter immer 175 000–770 000 $ teurer als Streichen (1.7 W4). |
+| E33 | 18.11.2026 | **Gestrichene Flüge (O31):** Eine Strafe: Ruf-Abzug. Kein SAT-Abzug; die Nachfrage fällt höchstens auf die übrigen Sitze. | Heute SAT- und Ruf-Abzug; Erlös −77 % bei halbem Flugplan (1.7 W5). |
+| E34 | 18.11.2026 | **Negative Kasse (O32):** Kreditlinie mit Zins bis zu einer Grenze (aus Flottenwert, E29). Darunter Warnung, nach 6 Monaten Zwangsverkauf von Flugzeugen; ohne Flugzeuge Spielende. | Heute für den Spieler ohne Folge, die KI wird nach 6 Monaten verkauft (1.7 W6). |
+| E35 | 18.11.2026 | **Ereignisse (O33):** Ereignisse gelten für alle Gesellschaften gleich, auch regionale. Krisen-Antworten kosten einen Anteil der betroffenen Größe (E6). Mehr Ereignisse mit Antworten: nicht im Neubau, später. | Heute regionale nur für den Spieler; feste Preise 3–25 Mio. $ bei wachsendem Nutzen (1.7 W8, W13). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -74,21 +83,7 @@ Manche Fragen legen nur die **Richtung** fest; die genauen Zahlen kommen aus dem
 Die Fragen sind in vier Blöcke geteilt. Jeder Block ist ein Teil von Paket 2.1 (2.1a–2.1d).
 
 **Stand 18.11.2026:** Block A (O3–O11) und die Bauregeln sind entschieden (E4–E12), Block B (O2, O12–O24)
-ebenfalls (E13–E26, oben). Offen sind noch 26 Fragen in den Blöcken C–D.
-
-### Block C · Kosten, Flottenwert, Monat, Ereignisse (Paket 2.1c)
-
-| Nr. | Frage | Empfehlung | Quellen |
-|---|---|---|---|
-| O25 | **Gebühren je Fluggast:** Check-in und Abfertigung werden am Start **und** am Ziel fällig; Umsteiger zahlen am Umsteige-Flughafen doppelt. | Check-in nur am Abflug, Abfertigung je Abflug. Höhe so neu einstellen, dass die Summe je Fluggast etwa gleich bleibt. | 1.4 W5, F3 |
-| O26 | **Abstellplätze ab Verwaltungsstufe 2:** werden geschenkt und kosten keinen Unterhalt mehr. | Stufe 2 kauft sie automatisch, Unterhalt bleibt. | 1.4 W7, F4 |
-| O27 | **Wert eines Flugzeugs und Abschreibung:** Neu ist es sofort 10 % weniger wert; Kabine zählt nicht; Wertverlust erscheint nie als Kosten; ein Kauf für 140 Mio. $ gilt als normaler Gewinnmonat. | Ein Wertmodell: Wert neu = Kaufpreis (mit Kabine). Lineare Abschreibung je Jahr bis zu einem Restwert; Zustand als Zu- oder Abschlag. Die Abschreibung steht als Kosten im Monatsgewinn. | 1.4 W13, F6; 1.7 W10, F2 |
-| O28 | **Kauf- und Verkaufsspanne:** Gebraucht kaufen und sofort verkaufen bringt +5 %; Vorbestellung kostet 80–88 % und ist sofort 90 % wert. | Händler-Spanne: Verkauf an den Markt unter Wert, Kauf vom Markt zum Wert oder darüber. Vorbestellungs-Rabatt kleiner als diese Spanne. Kaufen und sofort verkaufen bringt nie Gewinn. | 1.7 W1, W2, F1 |
-| O29 | **Grundüberholung:** kostet immer 200 000 $ und hebt den Wert einer 747 um 13 Mio. $. | Preis als Anteil des Listenpreises (mit Kostenindex). Sie senkt Verschleiß und Ausfälle; der Wert steigt höchstens um den Preis. | 1.7 W3, F3 |
-| O30 | **Charter:** Das eigene Flugzeug kostet weiter (Treibstoff, Besatzung, Gebühren), dazu 90 % des geretteten Erlöses. Charter ist immer 175 000–770 000 $ teurer als Streichen. | Bei Charter steht das eigene Flugzeug (keine eigenen Flugkosten). Charter-Gebühr als Preis je Flug, nicht als Erlösanteil. | 1.7 W4, F4 |
-| O31 | **Gestrichene Flüge:** senken die SAT (−25 bei 50 % gestrichen) **und** den Ruf; die Nachfrage fällt unter die übrigen Sitze. | Eine Strafe: Ruf-Abzug. Kein SAT-Abzug; die Nachfrage fällt höchstens auf die übrigen Sitze. | 1.7 W5, F5 |
-| O32 | **Negative Kasse:** Für den Spieler ohne Folge (keine Kredite, Zinsen, Pleite). Die KI wird nach 6 Monaten im Minus verkauft. | Kreditlinie mit Zins bis zu einer Grenze (aus Flottenwert). Darunter Warnung, nach 6 Monaten Zwangsverkauf von Flugzeugen; ohne Flugzeuge Spielende. | 1.7 W6, F6 |
-| O33 | **Ereignisse:** Weltweite treffen alle, regionale nur den Spieler. Krisen-Antworten haben feste Preise (3–25 Mio. $), ihr Nutzen wächst mit der Airline. | Ereignisse gelten für alle Gesellschaften gleich, auch regionale. Krisen-Antworten kosten einen Anteil der betroffenen Größe (O8 → E6). Mehr Ereignisse mit Antworten: nicht im Neubau, später. | 1.7 W8, W13, F7 |
+ebenfalls (E13–E26), Block C (O25–O33) ebenfalls (E27–E35, oben). Offen sind noch 17 Fragen in Block D.
 
 ### Block D · Ruf, Rang, Konkurrenz, Oberfläche (Paket 2.1d)
 
@@ -116,6 +111,6 @@ ebenfalls (E13–E26, oben). Offen sind noch 26 Fragen in den Blöcken C–D.
 
 - E13 (O12) bestimmt mit E4, E6, E7 die Grundform des Modells.
 - E7, E15, E20, E21, E22 legen nur die Richtung fest; die Zahlen kommen aus dem Balance-Skript (3.9).
-- O27 (Wertmodell) ist Grundlage für O28, O29, O32 und O45.
+- E29 (O27, Wertmodell) ist Grundlage für E30, E31, E34 und O45.
 - O41 (gleiche Regeln) ist Grundlage für O42–O44 und O47.
 - O44 (Zuschuss abschaffen) erst, wenn E4 (O6), O41 und O42 umgesetzt sind.
