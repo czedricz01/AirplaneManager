@@ -5,8 +5,8 @@
  * Umsteige-Verbindungen aller Gesellschaften) und „Nicht fliegen“ werden **einmal gemeinsam**
  * nach ihrer Anziehung aufgeteilt (R1). Danach folgen Anlauf, Sitz-Grenze und Überlauf.
  *
- * Eingaben aus Paketen, die noch fehlen, kommen als fertige Zahlen (F14):
- * `satisfactionFactor` (2.10, Paket 3.2b), Marktpreis (Abschnitt 4, Paket 3.4), Forschung,
+ * Eingaben aus anderen Abschnitten kommen als fertige Zahlen (F14): `satisfactionFactor`
+ * (`satisfaction.ts`, 2.10, aus `offerSatisfaction` 2.8), Marktpreis (Abschnitt 4, Paket 3.4), Forschung,
  * Krisen-Antwort und Schwierigkeit als Faktoren.
  *
  * Alle Mengen sind Fluggäste je Woche, beide Richtungen zusammen, ungerundet (R4).
@@ -234,7 +234,10 @@ export interface OfferAppealInput {
   readonly fare: number;
   /** `marketFare(c)` des Paars (Abschnitt 4). */
   readonly marketFare: number;
-  /** `satisfactionFactor` (2.10); Standard 1 (Satisfaction 100). */
+  /**
+   * `satisfactionFactor(offerSatisfaction(c))` aus `satisfaction.ts` (2.8, 2.10); Standard 1 (Satisfaction 100).
+   * Für Umsteige-Verbindungen mit `connectionOfferSatisfaction`.
+   */
   readonly satisfactionFactor?: number;
   /** `offerBlockMinutes`. */
   readonly blockMinutes: number;

@@ -1,24 +1,58 @@
 /**
  * Zufriedenheit: SPEZIFIKATION Abschnitt 2 (ohne Kabine, die steht in `cabin.ts`).
  *
- * Stand Paket 3.2a: Flugzeit-Index (2.1), Type appeal (2.2), Service points (2.5).
- * Teile der Satisfaction und alles danach (2.6–2.10) folgen in Paket 3.2b.
+ * Stand Paket 3.2b: Flugzeit-Index (2.1), Type appeal (2.2), Service points (2.5), Teile der
+ * Satisfaction (2.6), Satisfaction je Klasse (2.7), Offer satisfaction (2.8), Route und Airline
+ * satisfaction (2.9), Satisfaction factor (2.10).
+ *
+ * Was andere Abschnitte liefern, kommt als fertige Zahl: Cabin rating (`cabin.ts`), Service points
+ * (2.5), Moral (Personal, Abschnitt 8), fertige Forschungen (6.9), Fluggäste (Abschnitt 3).
  */
 
 import { EXTRAS_OPTIONS, MEAL_DATA, SERVICE_OPTIONS } from '../data/catering';
 import { clamp, clampScale } from './basics';
 import {
+  CABIN_CLASSES,
+  CABIN_EXPECTATION,
+  CABIN_LIMIT,
+  CABIN_WEIGHT_BASE,
+  CABIN_WEIGHT_PER_INDEX,
+  DESK_CAPACITY,
+  DESK_OVERLOAD_FROM,
+  DESK_OVERLOAD_MAX,
+  DESK_OVERLOAD_SLOPE,
+  DESK_OVERLOAD_STEEP_FROM,
+  DESK_OVERLOAD_STEEP_SLOPE,
+  DESK_TYPE_PENALTY,
   FLIGHT_TIME_INDEX_ANCHORS,
+  GROUND_WEIGHT_BASE,
+  GROUND_WEIGHT_PER_INDEX,
   LAUNCH_BONUS,
   LAUNCH_BONUS_MONTHS,
   MEAL_CATEGORIES,
   MEAL_RAMP_FROM,
   MEAL_RAMP_TO,
   MEALS_MAX,
+  LOUNGE_POINTS,
   MENU_COURSE_SHARE,
+  MORALE_NEUTRAL,
+  RESEARCH_SATISFACTION_POINTS,
+  SAT_FACTOR_HIGH_A,
+  SAT_FACTOR_HIGH_B,
+  SAT_FACTOR_LOW_SLOPE,
+  SAT_PER_MORALE_POINT,
+  SCALES,
+  SERVICE_DELIGHT,
+  SERVICE_EXPECTATION,
+  SHORTFALL_BASE,
+  SHORTFALL_CLASS,
+  SHORTFALL_PER_INDEX,
+  STAND_POINTS,
   TYPE_APPEAL_DECAY_FROM,
   TYPE_APPEAL_DECAY_MAX,
   type AircraftClass,
+  type CabinClass,
+  type DeskType,
   type MealCategory,
 } from './constants';
 
@@ -295,4 +329,374 @@ export function servicePoints(
   capability: ServiceCapability,
 ): number {
   return servicePointsParts(selection, blockMinutes, capability).total;
+}
+
+// ---------------------------------------------------------------------------
+// 2.6.1 Kabinen-Teil
+// ---------------------------------------------------------------------------
+
+/** `CABIN_WEIGHT_BASE + CABIN_WEIGHT_PER_INDEX × (flightTimeIndex − 1)`: 0,5 bei 30 min, 1,2 ab 810 min. SPEZIFIKATION 2.6.1. */
+export function cabinWeight(flightTimeIdx: number): number {
+  return CABIN_WEIGHT_BASE + CABIN_WEIGHT_PER_INDEX * (flightTimeIdx - 1);
+}
+
+/**
+ * Kabinen-Teil: `30 × tanh((cabinRating − Erwartung) × cabinWeight / 30)`.
+ * 0 bei Erwartung, nie mehr als ± `CABIN_LIMIT`; auf Langstrecke stärker. SPEZIFIKATION 2.6.1.
+ *
+ * @param cabinRatingValue `cabinRating` der Klasse (2.4).
+ */
+export function cabinPart(cabinClass: CabinClass, cabinRatingValue: number, flightTimeIdx: number): number {
+  const gap = cabinRatingValue - CABIN_EXPECTATION[cabinClass];
+  return CABIN_LIMIT * Math.tanh((gap * cabinWeight(flightTimeIdx)) / CABIN_LIMIT);
+}
+
+// ---------------------------------------------------------------------------
+// 2.6.2 Service-Teil
+// ---------------------------------------------------------------------------
+
+/** Service points, die eine Klasse bei dieser Flugzeit erwartet. SPEZIFIKATION 2.6.2. */
+export function expectedServicePoints(cabinClass: CabinClass, flightTimeIdx: number): number {
+  const { base, perIndex } = SERVICE_EXPECTATION[cabinClass];
+  return base + perIndex * (flightTimeIdx - 1);
+}
+
+/** Abzug für gar keinen Service: `(6 + 9 × (Index − 1)) × SHORTFALL_CLASS[c]`. SPEZIFIKATION 2.6.2. */
+export function maxServiceShortfall(cabinClass: CabinClass, flightTimeIdx: number): number {
+  return (SHORTFALL_BASE + SHORTFALL_PER_INDEX * (flightTimeIdx - 1)) * SHORTFALL_CLASS[cabinClass];
+}
+
+/**
+ * Service-Teil aus `ratio = servicePoints / erwartet`:
+ * unter Erwartung `−maxShortfall × (1 − ratio)`, ab Erwartung `25 × (1 − e^−(ratio − 1))`.
+ * 0 genau bei Erwartung; nie unter `−maxShortfall`, nie über `SERVICE_DELIGHT`. SPEZIFIKATION 2.6.2.
+ */
+export function servicePart(cabinClass: CabinClass, servicePointsValue: number, flightTimeIdx: number): number {
+  const ratio = servicePointsValue / expectedServicePoints(cabinClass, flightTimeIdx);
+  if (ratio < 1) return -maxServiceShortfall(cabinClass, flightTimeIdx) * (1 - ratio);
+  return SERVICE_DELIGHT * (1 - Math.exp(-(ratio - 1)));
+}
+
+// ---------------------------------------------------------------------------
+// 2.6.3 Boden-Teil
+// ---------------------------------------------------------------------------
+
+/** `GROUND_WEIGHT_BASE − GROUND_WEIGHT_PER_INDEX × (flightTimeIndex − 1)`: 1,2 bei 30 min, 0,5 ab 810 min. SPEZIFIKATION 2.6.3. */
+export function groundWeight(flightTimeIdx: number): number {
+  return GROUND_WEIGHT_BASE - GROUND_WEIGHT_PER_INDEX * (flightTimeIdx - 1);
+}
+
+/** Eigene Check-in-Schalter einer Gesellschaft an einem Flughafen, je Art. */
+export type Desks = Readonly<Record<DeskType, number>>;
+
+/** Sitze je Woche, die die Schalter abfertigen: `5 000 × bediente + 10 000 × Selbstbedienung`. SPEZIFIKATION 2.6.3. */
+export function deskCapacity(desks: Desks): number {
+  return DESK_CAPACITY.normal * desks.normal + DESK_CAPACITY.self * desks.self;
+}
+
+/**
+ * Schalter-Auslastung einer Gesellschaft an einem Flughafen, als Anteil (1 = voll):
+ * Sitze aller eigenen Abflüge dort je Woche / Kapazität. Gezählt werden **Sitze**, nicht Fluggäste
+ * (kein Kreis über die Nachfrage). Eine Funktion für Satisfaction (2.6.3) und Schalter-Miete (5.10).
+ * Ohne Sitze 0; Sitze ohne jeden Schalter (Pflicht verletzt, E18, E55) = unendlich (F21). SPEZIFIKATION 2.6.3.
+ *
+ * @param departingSeatsPerWeek Σ Sitze je Flug × Abflüge je Woche **von diesem Flughafen** aller eigenen
+ *   Strecken; im Planer zählt die geplante Strecke mit.
+ */
+export function deskLoad(departingSeatsPerWeek: number, desks: Desks): number {
+  if (departingSeatsPerWeek === 0) return 0;
+  return departingSeatsPerWeek / deskCapacity(desks);
+}
+
+/**
+ * Abzug für überlastete Schalter, −20 … 0: bis 80 % nichts; 80 … 100 % −0,2 je Prozentpunkt (−4 bei 100 %);
+ * darüber −4 − 1,6 je Prozentpunkt, höchstens −20 (heute `getDeskOverloadSat`). SPEZIFIKATION 2.6.3.
+ *
+ * @param load `deskLoad` als Anteil.
+ */
+export function deskOverloadPoints(load: number): number {
+  const percent = load * 100;
+  const from = DESK_OVERLOAD_FROM * 100;
+  const steepFrom = DESK_OVERLOAD_STEEP_FROM * 100;
+  if (percent <= from) return 0;
+  if (percent <= steepFrom) return -DESK_OVERLOAD_SLOPE * (percent - from);
+  const atSteep = DESK_OVERLOAD_SLOPE * (steepFrom - from);
+  return -Math.min(DESK_OVERLOAD_MAX, atSteep + DESK_OVERLOAD_STEEP_SLOPE * (percent - steepFrom));
+}
+
+/** Eigene Einrichtungen einer Gesellschaft an einem Ende der Strecke. */
+export interface GroundSide {
+  /** Eigene VIP-Lounge vorhanden. */
+  readonly lounge: boolean;
+  /** Abstellplätze der Größenklasse des Flugzeugs. */
+  readonly stands: number;
+  /** Belegte Slots der Größenklasse des Flugzeugs (Abflüge je Woche, E50). */
+  readonly occupiedSlots: number;
+  /** Eigene Check-in-Schalter je Art. */
+  readonly desks: Desks;
+  /** Sitze aller eigenen Abflüge von hier je Woche, für `deskLoad`. */
+  readonly departingSeatsPerWeek: number;
+}
+
+/** Die vier Bodenteile, in Satisfaction-Punkten (vor Mittel und Bodengewicht oder danach). */
+export interface GroundParts {
+  readonly lounge: number;
+  readonly stands: number;
+  readonly deskType: number;
+  readonly deskOverload: number;
+}
+
+/** Bodenteile an einem Flughafen, vor dem Mittel beider Enden und vor dem Bodengewicht. SPEZIFIKATION 2.6.3. */
+export function groundSidePoints(cabinClass: CabinClass, side: GroundSide): GroundParts {
+  const coverage = side.occupiedSlots > 0 ? Math.min(1, side.stands / side.occupiedSlots) : 0;
+  const premiumClass = cabinClass !== 'economy';
+  return {
+    lounge: side.lounge ? LOUNGE_POINTS[cabinClass] : 0,
+    stands: STAND_POINTS * coverage,
+    deskType: premiumClass && side.desks.normal < 1 ? DESK_TYPE_PENALTY : 0,
+    deskOverload: deskOverloadPoints(deskLoad(side.departingSeatsPerWeek, side.desks)),
+  };
+}
+
+/** Boden-Teil mit Aufschlüsselung: jeder Teil als Mittel beider Enden × Bodengewicht. */
+export interface GroundPartParts extends GroundParts {
+  readonly weight: number;
+  /** Summe der vier Teile = `groundPart`. */
+  readonly total: number;
+}
+
+/**
+ * Boden-Teil mit Aufschlüsselung:
+ * `groundPart = groundWeight × Σ_Teil (Teil(Start) + Teil(Ziel)) / 2` (E17, W3). Beide Enden sind
+ * Abflughäfen (E55). SPEZIFIKATION 2.6.3.
+ */
+export function groundPartParts(
+  cabinClass: CabinClass,
+  origin: GroundSide,
+  destination: GroundSide,
+  flightTimeIdx: number,
+): GroundPartParts {
+  const weight = groundWeight(flightTimeIdx);
+  const a = groundSidePoints(cabinClass, origin);
+  const b = groundSidePoints(cabinClass, destination);
+  const part = (key: keyof GroundParts) => (weight * (a[key] + b[key])) / 2;
+  const lounge = part('lounge');
+  const stands = part('stands');
+  const deskType = part('deskType');
+  const deskOverload = part('deskOverload');
+  return { lounge, stands, deskType, deskOverload, weight, total: lounge + stands + deskType + deskOverload };
+}
+
+/** Boden-Teil einer Klasse. Siehe `groundPartParts`. SPEZIFIKATION 2.6.3. */
+export function groundPart(
+  cabinClass: CabinClass,
+  origin: GroundSide,
+  destination: GroundSide,
+  flightTimeIdx: number,
+): number {
+  return groundPartParts(cabinClass, origin, destination, flightTimeIdx).total;
+}
+
+// ---------------------------------------------------------------------------
+// 2.6.4 Personal-Teil, 2.6.5 Forschungs-Teil
+// ---------------------------------------------------------------------------
+
+/** `(morale − 50) × 0,1`, −5 … +5, gleich für alle Klassen. KI: 0 (kein Personal-Modell). SPEZIFIKATION 2.6.4. */
+export function staffPart(morale: number): number {
+  return (morale - MORALE_NEUTRAL) * SAT_PER_MORALE_POINT;
+}
+
+/**
+ * Summe der Satisfaction-Punkte aller fertigen Forschungen (`RESEARCH_SATISFACTION_POINTS`), gleich für alle
+ * Klassen, höchstens +8. Jede Id zählt einmal; andere Ids zählen 0. KI: 0. SPEZIFIKATION 2.6.5.
+ *
+ * @param completedResearch Ids der fertigen Forschungen.
+ */
+export function researchPart(completedResearch: readonly string[]): number {
+  return [...new Set(completedResearch)].reduce((sum, id) => sum + (RESEARCH_SATISFACTION_POINTS[id] ?? 0), 0);
+}
+
+// ---------------------------------------------------------------------------
+// 2.7 Satisfaction je Klasse
+// ---------------------------------------------------------------------------
+
+/** Was eine Klasse einer Strecke für ihre Satisfaction braucht (aus 2.4, 2.5). */
+export interface ClassSatisfactionInput {
+  /** `cabinRating` dieser Klasse im Flugzeug der Strecke (2.4). */
+  readonly cabinRating: number;
+  /** `servicePoints` dieser Klasse auf der Strecke (2.5). */
+  readonly servicePoints: number;
+}
+
+/** Was alle Klassen einer Strecke gemeinsam haben. */
+export interface RouteSatisfactionInput {
+  /** Flugzeit der Strecke in Minuten, eine Richtung (`blockMinutes`, 3.1). */
+  readonly blockMinutes: number;
+  /** Eigene Einrichtungen am Start-Flughafen. */
+  readonly origin: GroundSide;
+  /** Eigene Einrichtungen am Ziel-Flughafen. */
+  readonly destination: GroundSide;
+  /** Personalmoral 0 … 100; Standard 50 (neutral). KI: 50. */
+  readonly morale?: number;
+  /** Ids der fertigen Forschungen; Standard keine. KI: keine. */
+  readonly completedResearch?: readonly string[];
+}
+
+/** Alle Teile der Satisfaction einer Klasse. */
+export interface ClassSatisfactionBreakdown {
+  readonly flightTimeIndex: number;
+  readonly cabinPart: number;
+  /** Erwartete Service points, für die Anzeige „geliefert / erwartet“. */
+  readonly expectedServicePoints: number;
+  readonly servicePart: number;
+  readonly groundPart: GroundPartParts;
+  readonly staffPart: number;
+  readonly researchPart: number;
+  /** `100 + Summe der Teile`, vor dem Kappen. */
+  readonly unclamped: number;
+  /** `satisfaction(c)`, gekappt auf 0 … 160, ungerundet. */
+  readonly satisfaction: number;
+}
+
+/**
+ * Satisfaction einer Klasse mit allen Teilen:
+ * `kappen(100 + cabinPart + servicePart + groundPart + staffPart + researchPart, 0, 160)`,
+ * einmal gekappt, ungerundet (R4, W6). Keine Schwierigkeit, keine gestrichenen Flüge, kein Eigentümer
+ * (Spieler und KI gleich). SPEZIFIKATION 2.7.
+ */
+export function classSatisfactionBreakdown(
+  cabinClass: CabinClass,
+  classInput: ClassSatisfactionInput,
+  route: RouteSatisfactionInput,
+): ClassSatisfactionBreakdown {
+  const fti = flightTimeIndex(route.blockMinutes);
+  const cabin = cabinPart(cabinClass, classInput.cabinRating, fti);
+  const service = servicePart(cabinClass, classInput.servicePoints, fti);
+  const ground = groundPartParts(cabinClass, route.origin, route.destination, fti);
+  const staff = staffPart(route.morale ?? MORALE_NEUTRAL);
+  const research = researchPart(route.completedResearch ?? []);
+  const unclamped = SCALES.satisfaction.neutral + cabin + service + ground.total + staff + research;
+  return {
+    flightTimeIndex: fti,
+    cabinPart: cabin,
+    expectedServicePoints: expectedServicePoints(cabinClass, fti),
+    servicePart: service,
+    groundPart: ground,
+    staffPart: staff,
+    researchPart: research,
+    unclamped,
+    satisfaction: clampScale('satisfaction', unclamped),
+  };
+}
+
+/**
+ * Die eine Funktion für die Satisfaction einer Strecke (R2, E44): je Klasse mit Sitzen alle Teile und
+ * die Satisfaction. Klassen ohne Sitze fehlen im Ergebnis. Planer, Overlay, Streckenansicht, Bericht und
+ * Monatsabschluss lesen nur diese Funktion. SPEZIFIKATION 2.7.
+ *
+ * @param classes Je Klasse mit Sitzen Cabin rating und Service points.
+ */
+export function satisfactionBreakdown(
+  classes: Readonly<Partial<Record<CabinClass, ClassSatisfactionInput>>>,
+  route: RouteSatisfactionInput,
+): Partial<Record<CabinClass, ClassSatisfactionBreakdown>> {
+  const result: Partial<Record<CabinClass, ClassSatisfactionBreakdown>> = {};
+  for (const cabinClass of CABIN_CLASSES) {
+    const classInput = classes[cabinClass];
+    if (classInput) result[cabinClass] = classSatisfactionBreakdown(cabinClass, classInput, route);
+  }
+  return result;
+}
+
+/** Satisfaction einer Klasse, 0 … 160 (100 = wie erwartet). Siehe `classSatisfactionBreakdown`. SPEZIFIKATION 2.7. */
+export function satisfaction(
+  cabinClass: CabinClass,
+  classInput: ClassSatisfactionInput,
+  route: RouteSatisfactionInput,
+): number {
+  return classSatisfactionBreakdown(cabinClass, classInput, route).satisfaction;
+}
+
+// ---------------------------------------------------------------------------
+// 2.8 Offer satisfaction
+// ---------------------------------------------------------------------------
+
+/** Gewichtetes Mittel; ohne Gewicht `undefined`. */
+function weightedMean(entries: readonly { readonly value: number; readonly weight: number }[]): number | undefined {
+  let weightSum = 0;
+  let sum = 0;
+  for (const { value, weight } of entries) {
+    if (weight <= 0) continue;
+    weightSum += weight;
+    sum += weight * value;
+  }
+  return weightSum > 0 ? sum / weightSum : undefined;
+}
+
+/**
+ * Offer satisfaction einer Klasse im Direktangebot einer Gesellschaft auf einem Paar (R1): Mittel der
+ * `satisfaction(c)` ihrer Strecken mit Sitzen in `c`, gewichtet nach Sitzen je Woche in `c`. Weil sich die
+ * Fluggäste eines Angebots nach Sitzen verteilen (3.11), ist das zugleich nach Fluggästen (E10).
+ * Ohne Sitze in `c` `undefined`: Das Angebot nimmt am Markt `c` nicht teil (F21). SPEZIFIKATION 2.8.
+ */
+export function directOfferSatisfaction(
+  routes: readonly { readonly satisfaction: number; readonly seatsPerWeek: number }[],
+): number | undefined {
+  return weightedMean(routes.map((r) => ({ value: r.satisfaction, weight: r.seatsPerWeek })));
+}
+
+/**
+ * Offer satisfaction einer Klasse einer Umsteige-Verbindung: Mittel der `offerSatisfaction(c)` der
+ * Teilstrecken, gewichtet nach `blockMinutes`. SPEZIFIKATION 2.8, 3.13.
+ */
+export function connectionOfferSatisfaction(
+  legs: readonly { readonly offerSatisfaction: number; readonly blockMinutes: number }[],
+): number | undefined {
+  return weightedMean(legs.map((l) => ({ value: l.offerSatisfaction, weight: l.blockMinutes })));
+}
+
+// ---------------------------------------------------------------------------
+// 2.9 Route satisfaction und Airline satisfaction
+// ---------------------------------------------------------------------------
+
+/**
+ * Route satisfaction: Mittel der `satisfaction(c)` der Klassen nach Fluggästen je Woche (E10); ohne
+ * Fluggäste nach Sitzen; ohne beides 100 (F21). Nur Anzeige. SPEZIFIKATION 2.9.
+ */
+export function routeSatisfaction(
+  classes: readonly { readonly satisfaction: number; readonly passengers: number; readonly seats: number }[],
+): number {
+  const byPassengers = weightedMean(classes.map((c) => ({ value: c.satisfaction, weight: c.passengers })));
+  const bySeats = weightedMean(classes.map((c) => ({ value: c.satisfaction, weight: c.seats })));
+  return clampScale('routeSatisfaction', byPassengers ?? bySeats ?? SCALES.routeSatisfaction.neutral);
+}
+
+/**
+ * Airline satisfaction eines Monats: Mittel der `satisfaction(c)` über alle Strecken und Klassen, nach
+ * beförderten Fluggästen (E10, E39). Ohne Fluggäste 100. Gestrichene Flüge senken sie nicht (E33).
+ * Spieler und KI. Wirkt auf das Ruf-Ziel (Abschnitt 6). SPEZIFIKATION 2.9.
+ */
+export function airlineSatisfaction(
+  entries: readonly { readonly satisfaction: number; readonly passengers: number }[],
+): number {
+  const mean = weightedMean(entries.map((e) => ({ value: e.satisfaction, weight: e.passengers })));
+  return clampScale('satisfaction', mean ?? SCALES.satisfaction.neutral);
+}
+
+// ---------------------------------------------------------------------------
+// 2.10 Satisfaction factor
+// ---------------------------------------------------------------------------
+
+/**
+ * Zahlungsbereitschaft für Satisfaction `s` gegenüber Satisfaction 100: bis 100
+ * `1 − 0,005 × (100 − s)` (0 → 0,5; 50 → 0,75), darüber `1 + 0,008 × (s − 100) − 0,000035 × (s − 100)²`
+ * (160 → ≈ 1,35). Die einzige Wirkung der Satisfaction im Markt: Feld `satisfactionFactor` der Anziehung
+ * (3.9.2). SPEZIFIKATION 2.10.
+ *
+ * @param offerSatisfactionValue `offerSatisfaction(c)` (2.8).
+ */
+export function satisfactionFactor(offerSatisfactionValue: number): number {
+  const excess = offerSatisfactionValue - SCALES.satisfaction.neutral;
+  if (excess <= 0) return 1 + SAT_FACTOR_LOW_SLOPE * excess;
+  return 1 + SAT_FACTOR_HIGH_A * excess - SAT_FACTOR_HIGH_B * excess * excess;
 }

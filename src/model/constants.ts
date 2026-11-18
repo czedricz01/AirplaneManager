@@ -334,6 +334,159 @@ export const MEAL_CATEGORIES: Readonly<
 };
 
 // ---------------------------------------------------------------------------
+// 2.6.1 Kabinen-Teil
+// ---------------------------------------------------------------------------
+
+/** Cabin rating, das eine Klasse erwartet (heute `src/lib/financeUtils.ts:779`). SPEZIFIKATION 2.6.1. */
+export const CABIN_EXPECTATION: Readonly<Record<CabinClass, number>> = {
+  economy: 55,
+  premium: 60,
+  business: 68,
+  first: 80,
+};
+
+/** Satisfaction-Punkte je Cabin-rating-Punkt bei Flugzeit-Index 1. SPEZIFIKATION 2.6.1. */
+export const CABIN_WEIGHT_BASE = 0.5;
+
+/** Zusätzliches Kabinen-Gewicht je Index-Stufe (0,5 bei 30 min, 1,2 ab 810 min). SPEZIFIKATION 2.6.1. */
+export const CABIN_WEIGHT_PER_INDEX = 0.1;
+
+/** Mehr als ± so viele Punkte bewirkt die Kabine nie. SPEZIFIKATION 2.6.1. */
+export const CABIN_LIMIT = 30;
+
+// ---------------------------------------------------------------------------
+// 2.6.2 Service-Teil
+// ---------------------------------------------------------------------------
+
+/**
+ * Service points, die eine Klasse erwartet: Grundwert bei Flugzeit-Index 1 und Zuwachs je Index-Stufe
+ * (heute `src/lib/financeUtils.ts:788-793`). SPEZIFIKATION 2.6.2.
+ */
+export const SERVICE_EXPECTATION: Readonly<Record<CabinClass, { readonly base: number; readonly perIndex: number }>> = {
+  economy: { base: 5, perIndex: 10 },
+  premium: { base: 12, perIndex: 14 },
+  business: { base: 25, perIndex: 21 },
+  first: { base: 40, perIndex: 33 },
+};
+
+/** Abzug für gar keinen Service bei Flugzeit-Index 1 (vor dem Klassen-Faktor). SPEZIFIKATION 2.6.2. */
+export const SHORTFALL_BASE = 6;
+
+/** Zusätzlicher Abzug für gar keinen Service je Index-Stufe. SPEZIFIKATION 2.6.2. */
+export const SHORTFALL_PER_INDEX = 9;
+
+/** Fehlender Service schmerzt teure Klassen mehr: Faktor auf den Höchstabzug. SPEZIFIKATION 2.6.2. */
+export const SHORTFALL_CLASS: Readonly<Record<CabinClass, number>> = {
+  economy: 1,
+  premium: 1.1,
+  business: 1.25,
+  first: 1.4,
+};
+
+/** Mehr als so viele Punkte bringt Service über der Erwartung nie (doppelte Erwartung ≈ 63 % davon). SPEZIFIKATION 2.6.2. */
+export const SERVICE_DELIGHT = 25;
+
+// ---------------------------------------------------------------------------
+// 2.6.3 Boden-Teil
+// ---------------------------------------------------------------------------
+
+/** Bodengewicht bei Flugzeit-Index 1. SPEZIFIKATION 2.6.3. */
+export const GROUND_WEIGHT_BASE = 1.2;
+
+/** Bodengewicht sinkt je Index-Stufe um so viel (1,2 bei 30 min, 0,5 ab 810 min). SPEZIFIKATION 2.6.3. */
+export const GROUND_WEIGHT_PER_INDEX = 0.1;
+
+/**
+ * Punkte einer eigenen VIP-Lounge an einem Flughafen, vor dem Mittel beider Enden: eine Lounge an einem Ende
+ * zählt die Hälfte (Business 4, wie heute je Flughafen), an beiden Enden voll. SPEZIFIKATION 2.6.3.
+ */
+export const LOUNGE_POINTS: Readonly<Record<CabinClass, number>> = {
+  economy: 0,
+  premium: 2,
+  business: 8,
+  first: 8,
+};
+
+/** Punkte bei einem Abstellplatz für jeden belegten Slot (heute `src/lib/financeUtils.ts:584`). SPEZIFIKATION 2.6.3. */
+export const STAND_POINTS = 2;
+
+/**
+ * Abzug für Premium, Business und First an einem Flughafen ohne bedienten Schalter (nur Selbstbedienung).
+ * Economy nie. E55. SPEZIFIKATION 2.6.3.
+ */
+export const DESK_TYPE_PENALTY = -10;
+
+/** Arten der Check-in-Schalter: bedient und Selbstbedienung (Namen wie im Spielstand). */
+export type DeskType = 'normal' | 'self';
+
+/** Sitze je Woche, die ein Schalter abfertigt (heute `src/lib/financeUtils.ts:141`). SPEZIFIKATION 2.6.3. */
+export const DESK_CAPACITY: Readonly<Record<DeskType, number>> = {
+  normal: 5000,
+  self: 10000,
+};
+
+/** Bis zu dieser Schalter-Auslastung (Anteil) kein Abzug. SPEZIFIKATION 2.6.3. */
+export const DESK_OVERLOAD_FROM = 0.8;
+
+/** Ab dieser Auslastung (Anteil) steiler Abzug. SPEZIFIKATION 2.6.3. */
+export const DESK_OVERLOAD_STEEP_FROM = 1;
+
+/** Abzug je Prozentpunkt Auslastung zwischen 80 und 100 % (−4 bei 100 %). SPEZIFIKATION 2.6.3. */
+export const DESK_OVERLOAD_SLOPE = 0.2;
+
+/** Abzug je Prozentpunkt Auslastung über 100 %. SPEZIFIKATION 2.6.3. */
+export const DESK_OVERLOAD_STEEP_SLOPE = 1.6;
+
+/** Höchster Abzug durch Schalter-Überlast je Flughafen. SPEZIFIKATION 2.6.3. */
+export const DESK_OVERLOAD_MAX = 20;
+
+// ---------------------------------------------------------------------------
+// 2.6.4 Personal-Teil
+// ---------------------------------------------------------------------------
+
+/** Moral, bei der das Personal die Satisfaction weder hebt noch senkt (heute `src/lib/staff.ts:86`). SPEZIFIKATION 2.6.4. */
+export const MORALE_NEUTRAL = 50;
+
+/** Satisfaction-Punkte je Moral-Punkt über oder unter `MORALE_NEUTRAL` (−5 … +5). SPEZIFIKATION 2.6.4. */
+export const SAT_PER_MORALE_POINT = 0.1;
+
+// ---------------------------------------------------------------------------
+// 2.6.5 Forschungs-Teil
+// ---------------------------------------------------------------------------
+
+/**
+ * Satisfaction-Punkte je fertiger Forschung (Feld `satisfactionPoints`, 6.9), für alle Klassen gleich:
+ * „Cabin design studio“ +2, die sechs Stufen „Plane type satisfaction“ je +1 (E19). Höchstens +8.
+ * Ids wie heute in `src/lib/research.ts:100-164`. Paket 3.6 führt die Tabelle mit allen Feldern
+ * aus 6.9 zusammen (F22). SPEZIFIKATION 2.6.5.
+ */
+export const RESEARCH_SATISFACTION_POINTS: Readonly<Record<string, number>> = {
+  'sat-1': 1,
+  'sat-2': 1,
+  'sat-3': 1,
+  'sat-4': 1,
+  'sat-5': 1,
+  'sat-6': 1,
+  cabin: 2,
+};
+
+// ---------------------------------------------------------------------------
+// 2.10 Satisfaction factor
+// ---------------------------------------------------------------------------
+
+/**
+ * Bis Satisfaction 100: so viel weniger Zahlungsbereitschaft je Punkt unter 100 (50 → 0,75, 0 → 0,5).
+ * Startwert; endgültige Kurve aus dem Balance-Skript (3.9, E15). SPEZIFIKATION 2.10.
+ */
+export const SAT_FACTOR_LOW_SLOPE = 0.005;
+
+/** Über 100: linearer Zuwachs je Punkt (heute `src/lib/financeUtils.ts:744`). SPEZIFIKATION 2.10. */
+export const SAT_FACTOR_HIGH_A = 0.008;
+
+/** Über 100: Abflachung je Punkt² (160 → ≈ 1,35). SPEZIFIKATION 2.10. */
+export const SAT_FACTOR_HIGH_B = 0.000035;
+
+// ---------------------------------------------------------------------------
 // 3.1 Bezugs-Flugzeit und Flugzeit einer Strecke
 // ---------------------------------------------------------------------------
 

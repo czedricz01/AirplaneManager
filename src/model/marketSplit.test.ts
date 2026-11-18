@@ -1,5 +1,6 @@
 /**
- * Regeltests zu SPEZIFIKATION 3.8–3.12, 3.14 und dem Beispiel 3.15 (Aufteilung eines Markts).
+ * Regeltests zu SPEZIFIKATION 3.8–3.12, 3.14 und dem Beispiel 3.15 (Aufteilung eines Markts),
+ * dazu der Anschluss von `satisfactionFactor` (2.10) an die Anziehung.
  */
 
 import { describe, it } from 'node:test';
@@ -38,6 +39,7 @@ import {
   type OfferAppealInput,
   type SplitOffer,
 } from './marketSplit';
+import { satisfactionFactor } from './satisfaction';
 
 function assertClose(actual: number, expected: number, tolerance = 1e-9, message?: string) {
   assert.ok(Math.abs(actual - expected) <= tolerance, message ?? `${actual} ≉ ${expected}`);
@@ -153,6 +155,33 @@ describe('Abschnitt 3.9 Anziehung', () => {
     assert.ok(offerAppeal('economy', { ...REFERENCE, satisfactionFactor: 1.2 }) > base);
     assert.ok(offerAppeal('economy', { ...REFERENCE, blockMinutes: 100 }) > base);
     assert.ok(offerAppeal('economy', { ...REFERENCE, reputation: 70 }) > base);
+  });
+
+  it('2.10: ein Angebot mit höherer Satisfaction ist bei gleichem Preis nie weniger anziehend', () => {
+    for (const cabinClass of CABIN_CLASSES) {
+      for (const fare of [0.5, 1, 1.5].map((f) => f * MARKET_FARE[cabinClass])) {
+        let previous = -Infinity;
+        for (let s = 0; s <= 160; s += 0.5) {
+          const appeal = offerAppeal(cabinClass, {
+            ...REFERENCE, fare, marketFare: MARKET_FARE[cabinClass], satisfactionFactor: satisfactionFactor(s),
+          });
+          assert.ok(appeal >= previous, `${cabinClass}, Preis ${fare}, Satisfaction ${s}`);
+          previous = appeal;
+        }
+      }
+    }
+  });
+
+  it('2.10: Satisfaction s und Preis p ziehen an wie Satisfaction 100 und Preis p / satisfactionFactor(s)', () => {
+    for (const s of [0, 50, 80, 100, 130, 160]) {
+      const withSatisfaction = offerAppeal('business', {
+        ...REFERENCE, fare: 1200, marketFare: MARKET_FARE.business, satisfactionFactor: satisfactionFactor(s),
+      });
+      const atHundred = offerAppeal('business', {
+        ...REFERENCE, fare: 1200 / satisfactionFactor(s), marketFare: MARKET_FARE.business, satisfactionFactor: satisfactionFactor(100),
+      });
+      assertClose(withSatisfaction, atHundred, 1e-12);
+    }
   });
 
   it('3.9: gleiche Eingaben → gleiche Anziehung für Spieler und KI (Spieler-Faktoren neutral)', () => {
