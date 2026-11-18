@@ -7,3 +7,4 @@ export * from './basics';
 export * from './rng';
 export * from './satisfaction';
 export * from './cabin';
+export * from './demand';

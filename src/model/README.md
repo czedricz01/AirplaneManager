@@ -16,7 +16,7 @@ Eine Datei je Abschnitt der Spezifikation. Code-Dateien heißen englisch wie im 
 | `index.ts` | – | Öffentlicher Zugang: alles, was Oberfläche und alter Code nutzen dürfen | 3.1 |
 | `satisfaction.ts` | 2 | Zufriedenheit (ohne Kabine): `flightTimeIndex`, `typeAppeal`, `menuPoints`, `mealCount`, `mealWeight`, `serviceCapability`, `servicePoints` (+ `servicePointsParts`); 2.6–2.10 folgen | 3.2a (Teil 1) |
 | `cabin.ts` | 2.3, 2.4 | `interiorScore` (+ `interiorScoreParts`), `cabinExtrasPoints`, `cabinRating`, `wearFactor`, `averageCabinRating` (Spezifikation nennt `kabine.ts`, F1) | 3.2a |
-| `demand.ts` | 3 | Nachfrage und Marktaufteilung | geplant |
+| `demand.ts` | 3 | Nachfrage: `distanceKm`, `blockMinutes`, `referenceBlockMinutes`, `citySize`, `worldScale`, `relativeSize`, `businessLinkage`, `tourismLinkage`, `seasonFactor`, `businessShare`, `demandGrowth`, `distanceFactor`, `eventDemandFactor`, `marketSize` (+ `marketSizeParts`), `classShare`; Aufteilung 3.8–3.14 folgt | 3.3a (Teil 1) |
 | `fare.ts` | 4 | Preis und Erlös | geplant |
 | `costs.ts` | 5 | Kosten, Wertmodell | geplant |
 | `progress.ts` | 6 | Ruf, Rang, Fortschritt | geplant |

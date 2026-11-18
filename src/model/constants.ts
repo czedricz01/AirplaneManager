@@ -332,3 +332,119 @@ export const MEAL_CATEGORIES: Readonly<
   Narrowbody: { base: ['Basic', 'Standard'], upgraded: ['Basic', 'Standard', 'Premium'] },
   Widebody: { base: ['Basic', 'Standard', 'Premium'], upgraded: ['Basic', 'Standard', 'Premium', 'Luxury'] },
 };
+
+// ---------------------------------------------------------------------------
+// 3.1 Bezugs-Flugzeit und Flugzeit einer Strecke
+// ---------------------------------------------------------------------------
+
+/**
+ * Feste Bezugsgeschwindigkeit, km/h: Die Marktgröße misst die Entfernung mit dieser Geschwindigkeit,
+ * nie mit der des eingesetzten Flugzeugs (E20; heute `src/lib/transferUtils.ts:70`). SPEZIFIKATION 3.1.
+ */
+export const REFERENCE_SPEED = 800;
+
+/** Erdradius in km für die Großkreis-Entfernung (heute `src/data/airports.ts:62`). SPEZIFIKATION 1.2, 3.1. */
+export const EARTH_RADIUS_KM = 6371;
+
+/** Geflogener Weg = Großkreis × diesen Faktor (Luftstraßen; heute `src/lib/financeUtils.ts:203`). SPEZIFIKATION 3.1. */
+export const ROUTE_DETOUR = 1.02;
+
+/** Beschleunigung bis zur Reisegeschwindigkeit, km/h² (heute `src/lib/financeUtils.ts:206`). SPEZIFIKATION 3.1. */
+export const BLOCK_ACCEL = 6000;
+
+/** Verzögerung aus der Reisegeschwindigkeit, km/h² (heute `src/lib/financeUtils.ts:207`). SPEZIFIKATION 3.1. */
+export const BLOCK_DECEL = 4000;
+
+// ---------------------------------------------------------------------------
+// 3.2 Stadtgrößen und Verflechtung
+// ---------------------------------------------------------------------------
+
+/** Hochzahl der kleineren Stadt in der Verflechtung (zählt stärker; heute `src/lib/financeUtils.ts:670`). SPEZIFIKATION 3.2. */
+export const LINK_SMALL = 1.4;
+
+/** Hochzahl der größeren Stadt in der Verflechtung (heute `src/lib/financeUtils.ts:670`). SPEZIFIKATION 3.2. */
+export const LINK_LARGE = 0.6;
+
+/**
+ * Saison des Tourismus je Kalendermonat (Index 0 = Januar), Nordhalbkugel. Mittel ≈ 1.
+ * Südhalbkugel: um 6 Monate versetzt (heute `src/lib/financeUtils.ts:279`). SPEZIFIKATION 3.2.
+ */
+export const SEASON_BY_MONTH: readonly number[] = [
+  0.89, 0.91, 0.92, 0.96, 1.03, 1.1, 1.15, 1.14, 1.06, 0.95, 0.88, 1.0,
+];
+
+/** Weltregionen für Ereignisse (wie heute `EventRegion`, `src/lib/eventSystem.ts:28`). SPEZIFIKATION 3.5. */
+export type WorldRegion = 'EU' | 'NA' | 'SA' | 'AF' | 'AS' | 'OC';
+
+// ---------------------------------------------------------------------------
+// 3.3 Nachfrage-Wachstum
+// ---------------------------------------------------------------------------
+
+/**
+ * So viel mehr Menschen fliegen 2019 als 1960 (E7, W8). Die einzige Wachstumsregel der Nachfrage.
+ * Startwert; endgültig aus dem Balance-Skript (3.9). SPEZIFIKATION 3.3.
+ */
+export const DEMAND_GROWTH_1960_2019 = 2.5;
+
+/** Jahre von 1960 bis 2019, Bezugszeitraum von `DEMAND_GROWTH_1960_2019`. SPEZIFIKATION 3.3. */
+export const DEMAND_GROWTH_YEARS = 59;
+
+/** Nach diesem Jahr wächst die Nachfrage nicht mehr (wie der Kostenindex). SPEZIFIKATION 3.3. */
+export const DEMAND_GROWTH_LAST_YEAR = 2100;
+
+// ---------------------------------------------------------------------------
+// 3.4 Entfernungs-Faktor
+// ---------------------------------------------------------------------------
+
+/** Bei dieser Bezugs-Flugzeit (min) ist der Entfernungs-Faktor 1. Startwert (3.9). SPEZIFIKATION 3.4. */
+export const DISTANCE_REF = 450;
+
+/** Kürzere Bezugs-Flugzeiten (min) zählen wie diese. Startwert (3.9). SPEZIFIKATION 3.4. */
+export const DISTANCE_MIN = 45;
+
+/** Wie stark der Entfernungs-Faktor mit der Flugzeit fällt (Hochzahl). Startwert (3.9). SPEZIFIKATION 3.4. */
+export const DISTANCE_EXP = 0.5;
+
+// ---------------------------------------------------------------------------
+// 3.6 Marktgröße
+// ---------------------------------------------------------------------------
+
+/** Hochzahl der Verflechtung (Abstand großer zu kleinen Paaren; heute `src/lib/financeUtils.ts:683`). SPEZIFIKATION 3.6. */
+export const LINK_EXP = 0.448351;
+
+/** Maßstab der Marktgröße, Fluggäste je Woche (heute 29 × 0,9 bei Normal, ohne den Abzug, E4). Startwert (3.9). SPEZIFIKATION 3.6. */
+export const DEMAND_SCALE = 29;
+
+// ---------------------------------------------------------------------------
+// 3.7 Klassen-Anteil
+// ---------------------------------------------------------------------------
+
+/** Die höheren Klassen; Economy ist der Rest. */
+export type UpperCabinClass = Exclude<CabinClass, 'economy'>;
+
+/** Anteil der Klasse bei Geschäftsanteil 0,5 und kurzer Flugzeit. Startwerte (3.9). SPEZIFIKATION 3.7. */
+export const CLASS_BASE: Readonly<Record<UpperCabinClass, number>> = {
+  premium: 0.07,
+  business: 0.05,
+  first: 0.012,
+};
+
+/** Wie stark der Geschäftsanteil den Klassen-Anteil hebt (E21). Startwerte (3.9). SPEZIFIKATION 3.7. */
+export const CLASS_BUSINESS_GAIN: Readonly<Record<UpperCabinClass, number>> = {
+  premium: 0.6,
+  business: 1.6,
+  first: 1.6,
+};
+
+/** Wie stark lange Flugzeit den Klassen-Anteil hebt (E21). Startwerte (3.9). SPEZIFIKATION 3.7. */
+export const CLASS_TIME_GAIN: Readonly<Record<UpperCabinClass, number>> = {
+  premium: 0.5,
+  business: 0.6,
+  first: 1.5,
+};
+
+/** Ab dieser Bezugs-Flugzeit (min) steigen die höheren Klassen mit der Flugzeit. SPEZIFIKATION 3.7. */
+export const CLASS_TIME_FROM = 60;
+
+/** Ab dieser Bezugs-Flugzeit (min) steigen sie nicht mehr. SPEZIFIKATION 3.7. */
+export const CLASS_TIME_TO = 720;
