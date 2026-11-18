@@ -85,6 +85,18 @@ Diese Funde haben eine klare Lösung. Sie werden als Regeln in die Spezifikation
 | R15 | **Einheitliche Regeln:** überall `regionOf`; Jahresziel aus Vorjahr und Größe mit Mindest-Belohnung. | 1.5 W10, W11 |
 | R16 | **Aufräumen:** Selbstbedienungs-Abzug, SAT-Zweig über 200 und `loadFactor` im Ruf-Ziel entfernen; Texte und Kommentare aus Konstanten (4.1); altes Mahlzeiten-Format in 5.1 umwandeln. | 1.1 W4, W15; 1.3 W8, W11; 1.5 W12; 1.6 W11 |
 
+### Bau-Festlegungen (Phase 3)
+
+Technische Festlegungen beim Bau, innerhalb der Spezifikation. Claude legt sie fest; der Mensch kann sie
+jederzeit ändern. Sie ändern keine Spielregel.
+
+| Nr. | Paket | Festlegung | Begründung |
+|---|---|---|---|
+| F1 | 3.1 | **Dateien:** eine Datei je Spezifikations-Abschnitt mit englischem Namen (`basics.ts` = 1, `satisfaction.ts` = 2, `demand.ts` = 3, `fare.ts` = 4, `costs.ts` = 5, `progress.ts` = 6, `rivals.ts` = 7, `monthClose.ts` = 8); Kabine als `cabin.ts` (Spezifikation 2.3 und R3 nennen `kabine.ts`). Alle Konstanten in `constants.ts`. Übersicht in `src/model/README.md`. | Code-Dateien im Projekt heißen englisch; ein Ort für Konstanten erleichtert 4.1 (Texte aus Konstanten). |
+| F2 | 3.1 | **Ungültige Zahlen:** `clamp` und `costIndex` lassen `NaN` durch, statt es zu ersetzen. | Spezifikation 8.16: Ein ungültiger Wert ist ein Fehler, den die Prüfung am Monatsende findet; ein Ersatzwert würde ihn verstecken. |
+| F3 | 3.1 | **Zufallsgeber:** `rng` = 53-Bit-Prüfsumme „cyrb53“ (gemeinfrei, github.com/bryc/code) über `seed`, `month`, `purpose`, `key`, mit Trennzeichen; Ergebnis in [0, 1). Kein innerer Zustand. | Spezifikation 8.3: Ergebnis nur aus den vier Eingaben, Reihenfolge der Würfe egal. Tests prüfen Gleichverteilung und fehlenden Zusammenhang benachbarter Monate. |
+| F4 | 3.1 | **Unabhängigkeit:** `src/model/` importiert nichts aus `src/lib/` (nur Datentabellen aus `src/data/`). Doppelte Konstanten (z. B. `LITRES_PER_GALLON` in `src/lib/format.ts:87`) bleiben bis 5.2. | Der alte Code bleibt unverändert und grün; das neue Modell kann ohne ihn geprüft werden. |
+
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);

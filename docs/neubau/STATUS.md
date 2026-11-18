@@ -1,42 +1,41 @@
 # Status
 
-**Nächstes Paket: 3.1** (Gerüst `src/model/`, zentrale Konstanten, Regeltest-Muster)
+**Nächstes Paket: 3.2a** (Zufriedenheit Teil 1: Flugzeit-Index, Type appeal, Interior score, Cabin rating, Service points)
 
-Stand: 18.11.2026 · Phase 2 abgeschlossen: `SPEZIFIKATION.md` Abschnitte 1–8 vollständig. Ausgangslage: 504 Tests grün,
-`tsc --noEmit` grün (Paket 2.9 hat keinen Code geändert).
+Stand: 18.11.2026 · Paket 3.1 erledigt: Gerüst `src/model/` mit Konstanten, Grundbegriffen, Zufallsgeber und
+32 Regeltests. 536 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 3.1, die Spezifikation
+Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 3.2a, die Spezifikation
 folgt vorläufig der Empfehlung):
 - **O52** Schalter-Pflicht an beiden Enden, Premium-Abzug ohne bedienten Schalter (`SPEZIFIKATION.md` 2.6.3,
-  5.10). Nötig spätestens beim Bau der Zufriedenheit (Phase 3).
+  5.10). Nötig für **3.2b** (Boden-Teil der Satisfaction).
 - **O53** Preis als Preisniveau (Anteil des Marktpreises) oder als Dollar-Betrag speichern
-  (`SPEZIFIKATION.md` 4.5). Nötig spätestens beim Bau des Preises (Phase 3).
+  (`SPEZIFIKATION.md` 4.5). Nötig für 3.4 (Preis).
 - **O54** Flugzeug- und Slot-Anteil in den festen Kosten einer Strecke und in der Planer-Hauptzahl
-  (`SPEZIFIKATION.md` 5.9). Nötig spätestens beim Bau der Kosten (Phase 3).
+  (`SPEZIFIKATION.md` 5.9). Nötig für 3.5 (Kosten).
 - **O55** Jahresziel verfehlt: keine Strafe, Geld-Strafe oder nur sicheres Ziel im Folgejahr
-  (`SPEZIFIKATION.md` 6.11). Nötig spätestens beim Bau des Fortschritts (Phase 3).
+  (`SPEZIFIKATION.md` 6.11). Nötig für 3.6 (Fortschritt).
 - **O56** Preiskampf der KI gegen jede Gesellschaft oder nur gegen den Spieler (`SPEZIFIKATION.md` 7.6).
-  Nötig spätestens beim Bau der Konkurrenz (Phase 3).
+  Nötig für 3.7 (Konkurrenz).
 - **O57** Verwaltungsstufe 3: KI nur bis Stufe 2, Spieler-Stufe 3 sperrt neue KI-Strecken (`SPEZIFIKATION.md` 7.10).
-  Nötig spätestens beim Bau der Konkurrenz (Phase 3).
+  Nötig für 3.7 (Konkurrenz).
 - **O58** Krisen im Treibstoffpreis: Die Tabelle ist eine glatte Kurve ohne Ölkrisen; Ausschläge in die Tabelle
   einrechnen, Ereignis-Faktor behalten oder keine Treibstoff-Krisen (`SPEZIFIKATION.md` 8.4, 8.5, 7.12).
-  Nötig spätestens beim Bau von Kosten und Ereignissen (Phase 3).
+  Nötig für 3.5 (Kosten) und 3.8 (Ereignisse).
 - **O59** Grundüberholung ohne Hangar: überall mit Zuschlag, nur Spieler mit Hangar, oder KI überholt nie
-  (`SPEZIFIKATION.md` 8.13). Nötig spätestens beim Bau des Flottenmarkts (Phase 3).
+  (`SPEZIFIKATION.md` 8.13). Nötig für 3.8 (Flottenmarkt).
 
-Paket 3.1: Gerüst für das neue Modell anlegen, noch ohne Spielregeln.
-- Ordner `src/model/` mit `README.md` (Aufbau, eine Datei je Spezifikations-Abschnitt, Regeln R1–R4 in Kurzform).
-- Grundbegriffe aus `SPEZIFIKATION.md` Abschnitt 1 als Code: `WEEKS_PER_MONTH`, `yearOf`, `timeOf`, `costIndex`,
-  `atCost`, `COST_GROWTH`, `LITRES_PER_GALLON`, Skalen-Grenzen (1.4) mit einer `clamp`-Hilfe, Schwierigkeits-Faktor (1.8),
-  Zufallsgeber `rng(seed, month, purpose, key)` (8.3). Konstanten zentral (z. B. `src/model/constants.ts`), Werte von
-  1960 mit Endung `_1960`.
-- Regeltest-Muster: Je Regel aus der Spezifikation ein Test mit Verweis auf den Abschnitt (z. B.
-  `it('1.3: costIndex(0) = 1')`); die Regeln aus Abschnitt 1 und 8.3 als erste Tests.
-- Noch kein Umbau von `src/lib/`; der alte Code bleibt unverändert und grün.
-Zu lesen: `SPEZIFIKATION.md` Abschnitt 1 und 8.3, `ENTSCHEIDUNGEN.md` (R1–R4, E5, E6), `package.json`,
-Test-Einrichtung (z. B. `vitest.config.*`), ein bestehender Test in `src/lib/` als Vorbild. Prüfen: `npm test`,
-`npm run lint`.
+Paket 3.2a: Erste Hälfte von Abschnitt 2 als Code, ohne die Teile, die O52 berühren.
+- `src/model/satisfaction.ts`: `flightTimeIndex` (2.1), `typeAppeal` (2.2), `servicePoints` mit `menuPoints`,
+  `mealCount`, `mealWeight` (2.5; dieselben Gewichte nutzt später die Catering-Kosten in 5).
+- `src/model/cabin.ts`: `interiorScore` (2.3, Formel heute nur in `ConfigurePurchaseView.tsx`), `cabinRating` (2.4).
+- Alle Konstanten aus 2.1–2.5 in `src/model/constants.ts`; Skalen mit `clampScale` (einmal, am Ende).
+- Regeltests je Regel aus 2.1–2.5 (Muster aus `src/model/README.md`).
+- Noch kein Umbau von `src/lib/` oder der Oberfläche; `src/data/` nur lesen.
+Zu lesen: `SPEZIFIKATION.md` 2.0–2.5, `src/model/README.md`, `src/model/constants.ts`, `src/model/basics.ts`,
+`src/data/catering.ts` (Typen, Feld `sat`), Typ und Feld `popularity` in `src/data/aircraft.ts`,
+`src/components/ConfigurePurchaseView.tsx:98-106` und `:402-484` (Ausstattungs-Punkte, heutige Formel).
+Prüfen: `npm test`, `npm run lint`.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -86,8 +85,15 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 
 | Nr. | Paket | Status |
 |---|---|---|
-| 3.1 | Gerüst `src/model/`, zentrale Konstanten, Regeltest-Muster | offen |
-| 3.2–3.8 | Je Bereich das Modell nach Spezifikation bauen, mit Regeltests | offen |
+| 3.1 | Gerüst `src/model/`, zentrale Konstanten, Regeltest-Muster | erledigt |
+| 3.2a | Zufriedenheit Teil 1 (`SPEZIFIKATION.md` 2.1–2.5): Flugzeit-Index, Type appeal, Interior score, Cabin rating, Service points | offen |
+| 3.2b | Zufriedenheit Teil 2 (2.6–2.10): Teile der Satisfaction, Satisfaction je Klasse, Offer/Route/Airline satisfaction, `satisfactionFactor` | wartet (O52) |
+| 3.3 | Nachfrage und Marktanteil (Abschnitt 3) | offen |
+| 3.4 | Preis und Erlös (Abschnitt 4) | wartet (O53) |
+| 3.5 | Kosten und Wertmodell (Abschnitt 5) | wartet (O54, O58) |
+| 3.6 | Ruf, Rang, Fortschritt (Abschnitt 6) | wartet (O55) |
+| 3.7 | Konkurrenz (Abschnitt 7) | wartet (O56, O57) |
+| 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | wartet (O58, O59) |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
 
 ## Phase 4 – Oberfläche anbinden
@@ -133,3 +139,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 2.7 | Ruf, Rang, Fortschritt in `SPEZIFIKATION.md` Abschnitt 6: Ruf-Ziel aus Airline satisfaction (100 → 50, 160 → 100), Abzug für gestrichene Sitze und kleinem Werbe-Beitrag im Ziel (höchstens 3, klingt mit dem Ruf ab); eine Funktion `reputationChange` mit Ursachen-Liste; keine Einmal-Sprünge; Rang im 3-Monats-Mittel mit neuen Ruf-Schwellen 30 … 65, Forschungsplätze 3 / 4 / 5 ab Rang 4 / 6 / 8; Klassen-Forschung gesenkt (Narrowbody 2, Widebody 4, Jumbo und Überschall 5, Überschall braucht Widebody, Preise gesenkt) mit Prüfung: Concorde ab 1972 erforschbar; Forschungs-Wirkungen als 15 Felder; Meilensteine und Jahresziel nur Geld und Freischaltungen, alle Beträge über `atCost`; Karriere-Punkte mit zwei Ruhmeshallen, Forschung 5 statt 15; alle 14 Funde aus 1.5 zugeordnet; neue Frage O55 (Jahresziel verfehlt) |
 | 18.11.2026 | 2.8 | Konkurrenz in `SPEZIFIKATION.md` Abschnitt 7: KI rechnet mit denselben Funktionen (Tabelle 7.1), Liste der bewusst fehlenden Teile mit neutralen Werten (Forschung, Personal, Werbung, Frequent flyer, Schwierigkeit, Rang, Krisen-Antworten, Charter); KI-Stärke nur Verhalten; Persönlichkeiten nur als Entscheidungen mit echten Kostenvorteilen über die Kabine (LCC 202 statt 134 Sitze im A320ceo) und Prüfregel „ähnlicher Erfolg“; KI-Preise = Preis-Lage × `satisfactionFactor`, Anpassung nach Auslastung, Preiskampf einmal −12 % mit Boden über den Kosten; KI kauft Slots (Anteil je Flughafen), Schalter, Flugzeuge zum Wert; Größe in Sitzen, weitere Drehkreuze ab Größe 5, Dividende über 12 Monatskosten; Zuschuss mit `atCost` bis zur Prüfung; Notlage „in Folge“, Flotte aufgelöster KI in den Gebrauchtmarkt; Übernahme zum Unternehmenswert mit Kasse und Slots je Flughafen; Ticker nach Fluggästen; Rückschlag entfällt; alle 11 Funde aus 1.6 zugeordnet; neue Fragen O56 (Preiskampf gegen wen) und O57 (Stufe 3 und KI) |
 | 18.11.2026 | 2.9 | Monatsabschluss, Ereignisse, Flottenmarkt in `SPEZIFIKATION.md` Abschnitt 8: `closeMonth` als reine Funktion mit Zufallsgeber im Spielstand, eine Rechnung für Spieler und KI, Kasse am Monatsende nach allen Buchungen mit Kassen-Gleichung; Ereignisse nur über die Marktgröße (8 Zufalls-Vorlagen), Krisen-Antworten als Anteil von Treibstoff-Rechnung bzw. Erlös; Defekte je Flugzeug, Flughafen-Streik und Wetter für alle, Vogelschlag als Anteil des Neupreises; Charter = 1,5 × eigene Flugkosten je Flug (lohnt jetzt), nur `cancelledShare` als Strafe; Verschleiß aus geflogenen Stunden; Händler-Spanne −15 % / +5 %, Vorbestell-Rabatt bis 12 %, Überholung mindestens so teuer wie ihr Wertgewinn; Kreditlinie 50 % des Flottenwerts, 8 % Zins, Zwangsverkauf nach 6 Monaten, Spielende ohne Flugzeuge; alle 14 Funde aus 1.7 zugeordnet; Fund: Treibstoff-Tabelle ohne Krisen → neue Fragen O58 und O59 (Überholung ohne Hangar). Phase 2 abgeschlossen |
+| 18.11.2026 | 3.1 | Gerüst `src/model/`: `constants.ts` (Zeit, Liter je Gallone, Kostenindex, 10 Skalen mit Neutralpunkten, Schwierigkeit), `basics.ts` (`yearOf`, `timeOf`, `costIndex`, `atCost`, `clamp`, `clampScale`, `difficultyFactor`), `rng.ts` (zustandsloser Zufallsgeber nach 8.3), `README.md` (Aufbau, R1–R4, Testmuster); 32 Regeltests zu 1.1–1.8 und 8.3; Bau-Festlegungen F1–F4; Pakete 3.2–3.8 aufgeteilt (3.2a/3.2b), 3.2b wartet auf O52 |
