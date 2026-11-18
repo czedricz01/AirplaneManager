@@ -88,15 +88,16 @@ Diese Funde haben eine klare Lösung. Sie werden als Regeln in die Spezifikation
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54. Offen: O52, O53.
+O50 → E53, O51 → E54. Offen: O52, O53, O54.
 
-Neu aus Paket 2.3 (O52) und 2.5 (O53). Beide blockieren die Spezifikation nicht; nötig spätestens beim
-Bau in Phase 3 (O52: Zufriedenheit, O53: Preis):
+Neu aus Paket 2.3 (O52), 2.5 (O53) und 2.6 (O54). Keine blockiert die Spezifikation; nötig spätestens beim
+Bau in Phase 3 (O52: Zufriedenheit, O53: Preis, O54: Kosten und Planer):
 
 | Nr. | Frage | Optionen | Empfehlung |
 |---|---|---|---|
 | O52 | **Schalter nach E18.** (1) E18 verlangt einen Schalter „am Abflughafen“. Jede Strecke fliegt hin und zurück, also sind **beide Enden** Abflughäfen. (2) E18 streicht den Abzug für *fehlende* Schalter. Heute gibt es zusätzlich −10 für Premium, Business und First, wenn an einem Ende nur Selbstbedienungs-Schalter stehen (`src/lib/financeUtils.ts:537`). Selbstbedienung kostet 1 500 statt 2 500 $ je Woche bei doppelter Kapazität (`src/lib/financeUtils.ts:38-39`, `:141`). | (a) Pflicht an beiden Enden; −10 für Premium-Klassen ohne bedienten Schalter bleibt (× Bodengewicht, Mittel beider Enden). (b) Pflicht an beiden Enden; kein Abzug für die Schalter-Art. (c) Pflicht nur am Start-Flughafen der Strecke; Ziel ohne Schalter erlaubt. | **(a)**: Gäste checken an beiden Enden ein (heute zählt die Last beider Enden). Ohne den Premium-Abzug wäre der bediente Schalter nie sinnvoll, weil Selbstbedienung billiger ist und mehr schafft. So steht es vorläufig in `SPEZIFIKATION.md` 2.6.3. |
 | O53 | **Preis speichern (Paket 2.5).** Der Marktpreis steigt mit dem Kostenindex jeden Monat ein wenig (1,2 % je Jahr, E7). Ein fest gespeicherter Dollar-Preis rutscht dadurch langsam unter den Marktpreis: nach 10 Jahren 11 % billiger, ohne dass der Spieler etwas tut. Die KI rechnet ohnehin relativ zum Marktpreis (R7). | (a) Gespeichert wird das **Preisniveau** `fareRatio` (Preis / Marktpreis) je Klasse; der Planer zeigt und nimmt Dollar und rechnet um. (b) Gespeichert wird der Dollar-Preis; der Spieler muss ihn über die Jahre selbst anheben (Hinweis im Planer, wenn er unter den Marktpreis rutscht). | **(a)**: Kein stilles Abrutschen; Spieler und KI nutzen dieselbe Funktion (R7); „Adjust All“ ist dann einfach ein Preisniveau für alle Klassen. So steht es vorläufig in `SPEZIFIKATION.md` 4.5. Nachteil: Der Dollar-Betrag ändert sich jeden Monat leicht, ohne Eingabe. |
+| O54 | **Flugzeug und Slots in den Strecken-Kosten (Paket 2.6).** E26 verlangt als Planer-Hauptzahl den „erwarteten Gewinn“. Heute zählt der Planer nur Flugkosten und Gebühren; Unterhalt und (neu, E29) Abschreibung des Flugzeugs sowie die Slot-Miete fehlen. Beispiel heute: A350 FRA–JFK bringt +64 000 $ im Monat, das Flugzeug kostet 420 000 $ Unterhalt (`bestand/4-kosten.md`). | (a) `fixedWeeklyCost` einer Strecke enthält einen **Slot-Anteil** (Miete der belegten Slots) und einen **Flugzeug-Anteil** (Unterhalt + planbare Abschreibung, nach Blockstunden auf die Strecken des Flugzeugs verteilt). Hauptzahl = Gewinn nach diesen Anteilen; Nebenzahl „before aircraft costs“. (b) Nur Flugbetrieb (Treibstoff, Besatzung, Landung); Flugzeug und Slots nur im Monatsergebnis der Gesellschaft. | **(a)**: Der Planer zeigt, ob sich Strecke **und** Flugzeug lohnen; ein schlecht genutztes Flugzeug fällt auf; Gewinnschwelle (4.11) wird ehrlich. Der beste Preis (4.10) ändert sich nicht. So steht es vorläufig in `SPEZIFIKATION.md` 5.9. Nachteil: Die Hauptzahl wird kleiner als heute und hängt davon ab, welche Strecken das Flugzeug sonst fliegt. |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -112,5 +113,8 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - E53 präzisiert E4: Die Schwierigkeit wirkt über die Anziehung, nicht über die Marktgröße.
 - `SPEZIFIKATION.md` 2.8 und 2.10 setzen voraus, dass Abschnitt 3 die Fluggäste eines Angebots nach Sitzen auf seine Strecken verteilt und die Satisfaction als Zahlungsbereitschaft in die Anziehung nimmt. Erfüllt in 3.9.2 und 3.11 (Paket 2.4).
 - `SPEZIFIKATION.md` 3.16 setzt für Abschnitt 4 (Paket 2.5) voraus: Marktpreis je Paar und Klasse, gleich für alle Angebote und unabhängig von den Fluggästen aus 3.11; kein zweiter Preis-Faktor auf die Fluggäste. Erfüllt in 4.3 (Marktpreis nur aus Entfernung, Bezugs-Flugzeit, Kostenindex); der Knappheits-Zuschlag entfällt (4.4), Knappheit wirkt über den besten Preis (4.10).
-- `SPEZIFIKATION.md` 4.14 setzt für Abschnitt 5 (Paket 2.6) voraus: Kosten je Strecke getrennt in `costPerPassenger(route, c)` und `fixedWeeklyCost(route)`; Umsteiger zählen als Fluggäste beider Teilstrecken.
+- `SPEZIFIKATION.md` 4.14 setzt für Abschnitt 5 (Paket 2.6) voraus: Kosten je Strecke getrennt in `costPerPassenger(route, c)` und `fixedWeeklyCost(route)`; Umsteiger zählen als Fluggäste beider Teilstrecken. Erfüllt in 5.8 (mit `transferCostPerPassenger`: ein Check-in je Reise) und 5.9.
+- `SPEZIFIKATION.md` 5.19 setzt für Abschnitt 6 voraus: Forschungs-Einsparungen je Kostenart und Effizienz-Punkte als Felder je Forschung; Slot-Nachlass aus Meilensteinen als ein Faktor.
+- `SPEZIFIKATION.md` 5.19 setzt für Abschnitt 8 voraus: Händler-Spanne, Gebrauchtpreise, Vorbestellung und Grundüberholung relativ zum Wertmodell `aircraftValue` (5.13); Überholung hebt den Wert nie über ihren Preis (E31); Kreditlinie aus `aircraftValue` (E34); Abschluss bucht `monthlyCosts` (5.16).
+- O52 (Schalter an beiden Enden) bestimmt in 5.10, an welchen Flughäfen Schalter-Miete anfällt.
 - `SPEZIFIKATION.md` 4.10: Mit den Startwerten aus 3.9.2 liegt der beste Preis gegen einen gleichen Rivalen bei 70 % des Marktpreises. Abschnitt 7 (KI-Preise) und das Balance-Skript (3.9) müssen prüfen, dass gegenseitiges Unterbieten in Grenzen bleibt.
