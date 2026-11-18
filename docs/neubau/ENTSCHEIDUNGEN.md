@@ -59,6 +59,8 @@ Claude schlägt vor, der Mensch entscheidet.
 | E50 | 18.11.2026 | **Slots (O47):** Ein Slot = ein Abflug je Woche, für Spieler und KI. Die Grenze je Flughafen steht im Modell; die KI belegt Slots und hält die Grenze ein. | Heute Rechte und Abflüge als dieselbe Einheit verrechnet; Grenze nur in Ansichten (1.8 W2). |
 | E51 | 18.11.2026 | **Flüge je Tag (O48):** Regel des Planers: Übrige Strecken desselben Flugzeugs zählen mit. Eine Funktion im Modell; Planer und Zeitplan-Editor nutzen sie. | Zeitplan-Editor zählt heute den ganzen Tag (1.8 W6). |
 | E52 | 18.11.2026 | **Erklärtexte und Debug-Anzeige (O49):** Alle Zahlen in Texten aus den Konstanten (4.1). Die Debug-Anzeige zeigt nur die Aufschlüsselung, die das Modell liefert, keine eigene Rechnung. | Neun Texte mit festen Zahlen; Debug-Anzeige schreibt Formeln ab (1.8 W9; 1.3 W8). |
+| E53 | 18.11.2026 | **Schwierigkeit im gemeinsamen Markt (O50):** Die Schwierigkeit ist ein Faktor auf die **Anziehung** der Spieler-Angebote (wie ein fester Zu- oder Abschlag). Marktgröße und KI-Rechnung bleiben ohne Schwierigkeit. Stärke im Balance-Skript (3.9). Präzisiert E4 („Marktgröße“). | Eine Stelle, ein Markt, eine Rechnung (R1); die KI rechnet neutral; auf Hard gewinnt die KI etwas Anteil, Hard wird spürbar schwerer. |
+| E54 | 18.11.2026 | **Listenpreise der Flugzeuge (O51):** Kaufpreis = Listenpreis aus den Daten × Kostenindex des Kaufmonats. Die Treibstoff-Tabelle bleibt ohne Index (E8). Höhe der Listenpreise im Balance-Skript (3.9) prüfen. | Folgt E6 wörtlich; das Verhältnis Erlös : Flugzeugpreis bleibt über 60 Jahre gleich (Ziel von E7). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -85,16 +87,14 @@ Diese Funde haben eine klare Lösung. Sie werden als Regeln in die Spezifikation
 
 ## Offen
 
-Alle 49 Fragen aus Paket 1.9 (O1–O49) sind entschieden (Stand 18.11.2026):
-Block A (O3–O11) und Bauregeln → E4–E12; Block B (O2, O12–O24) → E13–E26;
-Block C (O25–O33) → E27–E35; Block D (O1, O34–O49) → E36–E52.
+O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
+O50 → E53, O51 → E54.
 
-Neu aus Paket 2.2 (blockieren 2.3 nicht; nötig spätestens für 2.4 bzw. 2.6):
+Neu aus Paket 2.3 (blockiert 2.4 nicht; nötig spätestens für den Bau der Zufriedenheit in Phase 3):
 
 | Nr. | Frage | Optionen | Empfehlung |
 |---|---|---|---|
-| O50 | **Wo wirkt die Schwierigkeit im gemeinsamen Markt?** E4 sagt „nur auf die Spieler-Nachfrage (Marktgröße)“ und „KI-Wirtschaft neutral“. Mit einem Markt je Paar (E13, R1) teilen sich Spieler und KI dieselbe Marktgröße; ein Faktor auf die Marktgröße träfe auch die KI auf diesem Paar. | (a) Faktor auf die Marktgröße der Paare, auf denen der Spieler fliegt (trifft dort auch die KI). (b) Faktor auf die **Anziehung** der Spieler-Angebote (wie ein fester Ruf-Zu- oder Abschlag); KI-Rechnung unverändert. (c) Faktor auf die Spieler-Fluggäste nach der Aufteilung; abgezogene Gäste fliegen nicht. | **(b)**: eine Stelle, ein Markt, eine Rechnung (R1); die KI rechnet ohne Schwierigkeit; auf Hard gewinnt die KI etwas Anteil, das macht Hard auch spürbar schwerer. Ohne Rivalen wirkt (b) etwas schwächer als der Faktor selbst (gegen „Nicht fliegen“); Stärke daher im Balance-Skript (3.9) einstellen. |
-| O51 | **Wachsen die Listenpreise der Flugzeuge mit dem Kostenindex?** E6 sagt „ein Kostenindex für alle Dollar-Beträge“. Die Listenpreise (`basePrice` in `src/data/aircraft.ts`) sind aber Daten je Typ in festen Preisen, wie die Treibstoff-Tabelle (`src/lib/realCosts.ts:4-6`). Grundpreise der Tickets wachsen nach E7 mit dem Index (× 2,05 bis 2020). | (a) Nein: Listenpreise bleiben Daten ohne Index (wie heute); Flugzeuge werden gegenüber Erlösen und Löhnen über die Jahre günstiger. (b) Ja: Listenpreis × Kostenindex des Kaufmonats; Flugzeug-Kosten und Erlöse wachsen gleich. | **(b)**: Folgt E6 wörtlich und hält das Verhältnis Erlös : Flugzeugpreis über 60 Jahre gleich (Ziel von E7: jede Strecke in jedem Jahrzehnt). Die Treibstoff-Tabelle bleibt ohne Index (E8). Höhe der Listenpreise im Balance-Skript (3.9) prüfen. |
+| O52 | **Schalter nach E18.** (1) E18 verlangt einen Schalter „am Abflughafen“. Jede Strecke fliegt hin und zurück, also sind **beide Enden** Abflughäfen. (2) E18 streicht den Abzug für *fehlende* Schalter. Heute gibt es zusätzlich −10 für Premium, Business und First, wenn an einem Ende nur Selbstbedienungs-Schalter stehen (`src/lib/financeUtils.ts:537`). Selbstbedienung kostet 1 500 statt 2 500 $ je Woche bei doppelter Kapazität (`src/lib/financeUtils.ts:38-39`, `:141`). | (a) Pflicht an beiden Enden; −10 für Premium-Klassen ohne bedienten Schalter bleibt (× Bodengewicht, Mittel beider Enden). (b) Pflicht an beiden Enden; kein Abzug für die Schalter-Art. (c) Pflicht nur am Start-Flughafen der Strecke; Ziel ohne Schalter erlaubt. | **(a)**: Gäste checken an beiden Enden ein (heute zählt die Last beider Enden). Ohne den Premium-Abzug wäre der bediente Schalter nie sinnvoll, weil Selbstbedienung billiger ist und mehr schafft. So steht es vorläufig in `SPEZIFIKATION.md` 2.6.3. |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -107,3 +107,5 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - E47 (Zuschuss abschaffen) erst, wenn E4, E44 und E45 umgesetzt sind.
 - E36 (Neutral 50) und E39 (Ruf-Ziel) gehören zusammen: Das Ruf-Ziel muss bei üblicher SAT um 50 liegen.
 - E41, E42: genaue Ränge je Flugzeugklasse und Forschungsplatz in 2.7.
+- E53 präzisiert E4: Die Schwierigkeit wirkt über die Anziehung, nicht über die Marktgröße.
+- `SPEZIFIKATION.md` 2.8 und 2.10 setzen voraus, dass Abschnitt 3 (Paket 2.4) die Fluggäste eines Angebots nach Sitzen auf seine Strecken verteilt und die Satisfaction als Zahlungsbereitschaft in die Anziehung nimmt.
