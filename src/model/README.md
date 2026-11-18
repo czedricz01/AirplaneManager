@@ -14,8 +14,8 @@ Eine Datei je Abschnitt der Spezifikation. Code-Dateien heißen englisch wie im 
 | `basics.ts` | 1 | Zeit (`yearOf`, `timeOf`), `costIndex`, `atCost`, `clamp`, `clampScale`, `difficultyFactor` | 3.1 |
 | `rng.ts` | 8.3 | Zufallsgeber `rng(seed, month, purpose, key)`; eigene Datei, weil alle Abschnitte ihn nutzen | 3.1 |
 | `index.ts` | – | Öffentlicher Zugang: alles, was Oberfläche und alter Code nutzen dürfen | 3.1 |
-| `satisfaction.ts` | 2 | Zufriedenheit (ohne Kabine) | geplant |
-| `cabin.ts` | 2.3, 2.4 | Interior score, Cabin rating (Spezifikation nennt `kabine.ts`, R3) | geplant |
+| `satisfaction.ts` | 2 | Zufriedenheit (ohne Kabine): `flightTimeIndex`, `typeAppeal`, `menuPoints`, `mealCount`, `mealWeight`, `serviceCapability`, `servicePoints` (+ `servicePointsParts`); 2.6–2.10 folgen | 3.2a (Teil 1) |
+| `cabin.ts` | 2.3, 2.4 | `interiorScore` (+ `interiorScoreParts`), `cabinExtrasPoints`, `cabinRating`, `wearFactor`, `averageCabinRating` (Spezifikation nennt `kabine.ts`, F1) | 3.2a |
 | `demand.ts` | 3 | Nachfrage und Marktaufteilung | geplant |
 | `fare.ts` | 4 | Preis und Erlös | geplant |
 | `costs.ts` | 5 | Kosten, Wertmodell | geplant |
