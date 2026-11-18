@@ -1,12 +1,11 @@
 # Status
 
-**Nächstes Paket: 3.2a** (Zufriedenheit Teil 1: Flugzeit-Index, Type appeal, Interior score, Cabin rating, Service points)
+**Nächstes Paket: 3.3a** (Nachfrage Teil 1: Marktgröße und Klassen-Anteile, `SPEZIFIKATION.md` 3.1–3.7)
 
-Stand: 18.11.2026 · Paket 3.1 erledigt: Gerüst `src/model/` mit Konstanten, Grundbegriffen, Zufallsgeber und
-32 Regeltests. 536 Tests grün, `tsc --noEmit` grün.
+Stand: 18.11.2026 · Paket 3.2a erledigt: `src/model/satisfaction.ts` (Flugzeit-Index, Type appeal, Service points)
+und `src/model/cabin.ts` (Interior score, Cabin rating) mit 42 Regeltests. 578 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 3.2a, die Spezifikation
-folgt vorläufig der Empfehlung):
+Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 3.3a):
 - **O52** Schalter-Pflicht an beiden Enden, Premium-Abzug ohne bedienten Schalter (`SPEZIFIKATION.md` 2.6.3,
   5.10). Nötig für **3.2b** (Boden-Teil der Satisfaction).
 - **O53** Preis als Preisniveau (Anteil des Marktpreises) oder als Dollar-Betrag speichern
@@ -25,16 +24,19 @@ folgt vorläufig der Empfehlung):
 - **O59** Grundüberholung ohne Hangar: überall mit Zuschlag, nur Spieler mit Hangar, oder KI überholt nie
   (`SPEZIFIKATION.md` 8.13). Nötig für 3.8 (Flottenmarkt).
 
-Paket 3.2a: Erste Hälfte von Abschnitt 2 als Code, ohne die Teile, die O52 berühren.
-- `src/model/satisfaction.ts`: `flightTimeIndex` (2.1), `typeAppeal` (2.2), `servicePoints` mit `menuPoints`,
-  `mealCount`, `mealWeight` (2.5; dieselben Gewichte nutzt später die Catering-Kosten in 5).
-- `src/model/cabin.ts`: `interiorScore` (2.3, Formel heute nur in `ConfigurePurchaseView.tsx`), `cabinRating` (2.4).
-- Alle Konstanten aus 2.1–2.5 in `src/model/constants.ts`; Skalen mit `clampScale` (einmal, am Ende).
-- Regeltests je Regel aus 2.1–2.5 (Muster aus `src/model/README.md`).
-- Noch kein Umbau von `src/lib/` oder der Oberfläche; `src/data/` nur lesen.
-Zu lesen: `SPEZIFIKATION.md` 2.0–2.5, `src/model/README.md`, `src/model/constants.ts`, `src/model/basics.ts`,
-`src/data/catering.ts` (Typen, Feld `sat`), Typ und Feld `popularity` in `src/data/aircraft.ts`,
-`src/components/ConfigurePurchaseView.tsx:98-106` und `:402-484` (Ausstattungs-Punkte, heutige Formel).
+Offen aus 3.2a (kein Blocker): Der Test „Kaufdialog-Anzeige = Modellwert“ (2.3) folgt, wenn der Kaufdialog
+auf `interiorScoreParts` umgestellt wird (Phase 4).
+
+Paket 3.3a: Erster Schritt von Abschnitt 3 (Marktgröße) als Code in `src/model/demand.ts`.
+- `blockMinutes` (Formel heute `getFlightDurationMinutes`, ungerundet) und `referenceBlockMinutes` (3.1).
+- `relativeSize`, `businessLinkage`, `tourismLinkage`, `seasonFactor`, `businessShare` (3.2), Stadtgrößen
+  stetig über `timeOf`.
+- `demandGrowth` (3.3), `distanceFactor` (3.4), `eventDemandFactor` (3.5), `marketSize` (3.6), `classShare` (3.7).
+- Alle Konstanten aus 3.1–3.7 in `src/model/constants.ts`; Regeltests je Regel (Muster `src/model/README.md`).
+- Noch keine Aufteilung (3.8–3.14, Paket 3.3b) und kein Umbau von `src/lib/` oder der Oberfläche.
+Zu lesen: `SPEZIFIKATION.md` 3.0–3.7, `src/model/README.md`, `src/model/constants.ts` (nur Aufbau),
+`src/model/basics.ts`, `src/data/airports.ts:1-70` (Typen, Stadtgrößen-Tabelle), `src/lib/financeUtils.ts:192-302`
+(Flugzeit, Saison) und `:660-690` (Verflechtung, Marktgröße heute), `src/lib/eventSystem.ts:326-351` (Ereignis-Faktor).
 Prüfen: `npm test`, `npm run lint`.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
@@ -86,9 +88,10 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | Nr. | Paket | Status |
 |---|---|---|
 | 3.1 | Gerüst `src/model/`, zentrale Konstanten, Regeltest-Muster | erledigt |
-| 3.2a | Zufriedenheit Teil 1 (`SPEZIFIKATION.md` 2.1–2.5): Flugzeit-Index, Type appeal, Interior score, Cabin rating, Service points | offen |
+| 3.2a | Zufriedenheit Teil 1 (`SPEZIFIKATION.md` 2.1–2.5): Flugzeit-Index, Type appeal, Interior score, Cabin rating, Service points | erledigt |
 | 3.2b | Zufriedenheit Teil 2 (2.6–2.10): Teile der Satisfaction, Satisfaction je Klasse, Offer/Route/Airline satisfaction, `satisfactionFactor` | wartet (O52) |
-| 3.3 | Nachfrage und Marktanteil (Abschnitt 3) | offen |
+| 3.3a | Nachfrage Teil 1 (3.1–3.7): Bezugs-Flugzeit, Verflechtung, Wachstum, Entfernung, Ereignisse, Marktgröße, Klassen-Anteil | offen |
+| 3.3b | Nachfrage Teil 2 (3.8–3.14): Anziehung, „Nicht fliegen“, Aufteilung, Anlauf, Umsteiger; `satisfactionFactor` als Eingabe, solange 3.2b wartet | offen |
 | 3.4 | Preis und Erlös (Abschnitt 4) | wartet (O53) |
 | 3.5 | Kosten und Wertmodell (Abschnitt 5) | wartet (O54, O58) |
 | 3.6 | Ruf, Rang, Fortschritt (Abschnitt 6) | wartet (O55) |
@@ -140,3 +143,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 2.8 | Konkurrenz in `SPEZIFIKATION.md` Abschnitt 7: KI rechnet mit denselben Funktionen (Tabelle 7.1), Liste der bewusst fehlenden Teile mit neutralen Werten (Forschung, Personal, Werbung, Frequent flyer, Schwierigkeit, Rang, Krisen-Antworten, Charter); KI-Stärke nur Verhalten; Persönlichkeiten nur als Entscheidungen mit echten Kostenvorteilen über die Kabine (LCC 202 statt 134 Sitze im A320ceo) und Prüfregel „ähnlicher Erfolg“; KI-Preise = Preis-Lage × `satisfactionFactor`, Anpassung nach Auslastung, Preiskampf einmal −12 % mit Boden über den Kosten; KI kauft Slots (Anteil je Flughafen), Schalter, Flugzeuge zum Wert; Größe in Sitzen, weitere Drehkreuze ab Größe 5, Dividende über 12 Monatskosten; Zuschuss mit `atCost` bis zur Prüfung; Notlage „in Folge“, Flotte aufgelöster KI in den Gebrauchtmarkt; Übernahme zum Unternehmenswert mit Kasse und Slots je Flughafen; Ticker nach Fluggästen; Rückschlag entfällt; alle 11 Funde aus 1.6 zugeordnet; neue Fragen O56 (Preiskampf gegen wen) und O57 (Stufe 3 und KI) |
 | 18.11.2026 | 2.9 | Monatsabschluss, Ereignisse, Flottenmarkt in `SPEZIFIKATION.md` Abschnitt 8: `closeMonth` als reine Funktion mit Zufallsgeber im Spielstand, eine Rechnung für Spieler und KI, Kasse am Monatsende nach allen Buchungen mit Kassen-Gleichung; Ereignisse nur über die Marktgröße (8 Zufalls-Vorlagen), Krisen-Antworten als Anteil von Treibstoff-Rechnung bzw. Erlös; Defekte je Flugzeug, Flughafen-Streik und Wetter für alle, Vogelschlag als Anteil des Neupreises; Charter = 1,5 × eigene Flugkosten je Flug (lohnt jetzt), nur `cancelledShare` als Strafe; Verschleiß aus geflogenen Stunden; Händler-Spanne −15 % / +5 %, Vorbestell-Rabatt bis 12 %, Überholung mindestens so teuer wie ihr Wertgewinn; Kreditlinie 50 % des Flottenwerts, 8 % Zins, Zwangsverkauf nach 6 Monaten, Spielende ohne Flugzeuge; alle 14 Funde aus 1.7 zugeordnet; Fund: Treibstoff-Tabelle ohne Krisen → neue Fragen O58 und O59 (Überholung ohne Hangar). Phase 2 abgeschlossen |
 | 18.11.2026 | 3.1 | Gerüst `src/model/`: `constants.ts` (Zeit, Liter je Gallone, Kostenindex, 10 Skalen mit Neutralpunkten, Schwierigkeit), `basics.ts` (`yearOf`, `timeOf`, `costIndex`, `atCost`, `clamp`, `clampScale`, `difficultyFactor`), `rng.ts` (zustandsloser Zufallsgeber nach 8.3), `README.md` (Aufbau, R1–R4, Testmuster); 32 Regeltests zu 1.1–1.8 und 8.3; Bau-Festlegungen F1–F4; Pakete 3.2–3.8 aufgeteilt (3.2a/3.2b), 3.2b wartet auf O52 |
+| 18.11.2026 | 3.2a | Zufriedenheit Teil 1: `src/model/satisfaction.ts` (`flightTimeIndex`, `typeAppeal`, `menuPoints`, `mealCount`, `mealWeight`, `serviceCapability`, `servicePoints`) und `src/model/cabin.ts` (`interiorScore`, `cabinRating`, `averageCabinRating`); Kabinen-Tabellen mit Lieferbarkeit und alle Konstanten 2.1–2.5 in `constants.ts`; 42 Regeltests (578 grün); Bau-Festlegungen F5–F8; Paket 3.3 in 3.3a/3.3b geteilt |
