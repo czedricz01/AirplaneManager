@@ -398,11 +398,11 @@ einzeln gerundet oder gekappt, außer wo eine Grenze ausdrücklich zur Form geh�
   - **Stellplätze** `standPoints`: `STAND_POINTS × min(1, Stellplätze / belegte Slots)` der Größenklasse
     des Flugzeugs; ohne belegte Slots 0.
   - **Schalter-Art** `deskTypePoints`: Premium, Business und First an einem Flughafen ohne **bedienten**
-    Schalter (nur Selbstbedienung) → `DESK_TYPE_PENALTY`; Economy immer 0. *(vorläufig, O52)*
+    Schalter (nur Selbstbedienung) → `DESK_TYPE_PENALTY`; Economy immer 0 (E55).
   - **Schalter-Last** `deskOverloadPoints`: aus der Auslastung der eigenen Schalter (unten), 0 … −20.
 - **Schalter-Pflicht (E18):** Jede Strecke braucht an beiden Enden mindestens einen Schalter der
   Gesellschaft; der Planer legt sie sonst nicht an. Ein Abzug für „kein Schalter“ existiert nicht.
-  *(Lesart „beide Enden“: O52.)*
+  Beide Enden, weil beide Abflughäfen sind (E55).
 - **Schalter-Auslastung** (Code-Name: `deskLoad`) je Gesellschaft und Flughafen:
   `deskLoad = Σ (Sitze × Abflüge je Woche) aller eigenen Strecken, die dort abfliegen / Kapazität`,
   `Kapazität = DESK_CAPACITY.normal × bediente Schalter + DESK_CAPACITY.self × Selbstbedienungs-Schalter`.
@@ -1075,7 +1075,7 @@ Marktpreis Start–Ziel × 0,9 ─► Umsteiger-Tarif ─► Umsteiger (3.13) �
 ### 4.5 Preis einer Strecke (Code-Namen: `fareRatio`, `routeFare`)
 **Preisniveau** `fareRatio(route, c)`: was der Spieler je Klasse einstellt, als Anteil des Marktpreises.
 - Formel: `routeFare(route, c) = fareRatio(route, c) × marketFare(c)`.
-- Gespeichert wird `fareRatio` (Zahl ohne Einheit), nicht der Dollar-Betrag (vorläufig, offene Frage O53).
+- Gespeichert wird `fareRatio` (Zahl ohne Einheit), nicht der Dollar-Betrag (E56).
   So bleibt ein Preis „10 % über Markt“ über die Jahre 10 % über Markt, auch wenn der Kostenindex steigt.
 - Eingabe: Der Planer zeigt und nimmt **Dollar** je Klasse; aus der Eingabe wird `fareRatio = Eingabe /
   marketFare(c)` (bei Bestätigung, aktueller Monat). Ein Prozent-Wert („+10 % vs. market“) steht daneben.
@@ -1583,7 +1583,7 @@ Alles je Gesellschaft und Flughafen, je Woche. Mieten sind Flughafen-Gebühren u
 - Konstanten: `STAND_RENT_1960` 150 / 300 / 600 (heute `:31-35`).
 
 **Check-in-Schalter**
-- Pflicht an jedem Flughafen, an dem eine eigene Strecke abfliegt (E18; Lesart „beide Enden“, O52).
+- Pflicht an jedem Flughafen, an dem eine eigene Strecke abfliegt (E18, E55: an beiden Enden jeder Strecke).
 - Arten: bedient (immer), Selbstbedienung (ab 1995, wie heute `:1703-1710`). Ohne Kaufpreis.
 - Miete je Schalter:
   `deskRent = atCost(DESK_RENT_1960[Art]) × (DESK_FIXED_SHARE + (1 − DESK_FIXED_SHARE) × min(1, deskLoad)) × airportFeeFactor`
@@ -2534,7 +2534,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   höchstens `RIVAL_SLOT_SHARE_HUB = 0,25` (eigenes Drehkreuz) bzw. `RIVAL_SLOT_SHARE_OTHER = 0,10` (andere
   Flughäfen) der Grenze; so bleibt für den Spieler Raum (heute 40 je Stufe ≈ 0,13 der Grenze, nur am Drehkreuz).
   Slots, die 6 Monate frei sind, verkauft sie (Erlös 5.10).
-- **Schalter (E18, O52):** An jedem Flughafen mit eigenen Abflügen hält die KI so viele Schalter ihrer Art (7.4),
+- **Schalter (E18, E55):** An jedem Flughafen mit eigenen Abflügen hält die KI so viele Schalter ihrer Art (7.4),
   dass `deskLoad ≤ 0,8` (keine Überlast, 2.6.3). Die Miete zahlt sie wie der Spieler (5.10).
 - **Abstellplätze:** nur die freien Stände ab Verwaltungsstufe 2 (E28); keine gemieteten.
 - **Verwaltungsstufen:** Stufe 2 an jedem eigenen Drehkreuz (Startgeschenk am ersten, Kauf nach 5.11 an weiteren);
