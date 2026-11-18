@@ -709,3 +709,62 @@ export const HUB_QUALITY_EXTRA_LEVEL = 3;
 
 /** Faktor auf die Drehkreuz-Güte mit der Forschung „Alliance“ (Feld `hubQualityFactor`, 6.9). SPEZIFIKATION 3.13. */
 export const HUB_QUALITY_RESEARCH_FACTOR = 1.1;
+
+// ---------------------------------------------------------------------------
+// 4.1 Grundpreis Economy
+// ---------------------------------------------------------------------------
+
+/** Grundbetrag eines Economy-Tickets in $ von 1960 (heute `src/lib/financeUtils.ts:725`). Startwert (3.9). SPEZIFIKATION 4.1. */
+export const FARE_BASE_1960 = 30;
+
+/** Economy-Preis je km Großkreis-Entfernung in $ von 1960 (heute `src/lib/financeUtils.ts:725`). Startwert (3.9). SPEZIFIKATION 4.1. */
+export const FARE_PER_KM_1960 = 0.05;
+
+/**
+ * Kurzstrecken-Zuschlag je Flugzeit-Index 1 … 8 (Stelle 0 = Index 1). Dazwischen gerade Linie
+ * (heute `SHORT_HAUL_FARE_FACTOR`, `src/lib/financeUtils.ts:720`). SPEZIFIKATION 4.1.
+ */
+export const SHORT_HAUL_FARE_FACTOR: readonly number[] = [1.15, 1.15, 1.1, 1.1, 1.05, 1, 1, 1];
+
+// ---------------------------------------------------------------------------
+// 4.2 Klassen-Verhältnis
+// ---------------------------------------------------------------------------
+
+/** Klassen-Verhältnis bei Flugzeit-Index 1 (heute `src/lib/financeUtils.ts:728-730`). Startwert (3.9). SPEZIFIKATION 4.2. */
+export const CLASS_FARE_RATIO_BASE: Readonly<Record<CabinClass, number>> = {
+  economy: 1,
+  premium: 1.3,
+  business: 2.0,
+  first: 3.0,
+};
+
+/** Zuwachs des Klassen-Verhältnisses je Stufe des Flugzeit-Index. Startwert (3.9). SPEZIFIKATION 4.2. */
+export const CLASS_FARE_RATIO_SLOPE: Readonly<Record<CabinClass, number>> = {
+  economy: 0,
+  premium: 0.15,
+  business: 0.25,
+  first: 0.5,
+};
+
+// ---------------------------------------------------------------------------
+// 4.5 Preis einer Strecke
+// ---------------------------------------------------------------------------
+
+/** Kleinstes Preisniveau (Preis / Marktpreis); darunter wäre `priceFactor` riesig. SPEZIFIKATION 4.5. */
+export const FARE_RATIO_MIN = 0.25;
+
+/** Größtes Preisniveau; darüber kommt praktisch niemand. SPEZIFIKATION 4.5. */
+export const FARE_RATIO_MAX = 4;
+
+/** Preisniveau einer neuen Strecke und bei fehlendem Preis (= Marktpreis, E23, R8). SPEZIFIKATION 4.5. */
+export const FARE_RATIO_DEFAULT = 1;
+
+// ---------------------------------------------------------------------------
+// 4.10 Bester Preis
+// ---------------------------------------------------------------------------
+
+/** Schrittweite der groben Suche über das Preisniveau. SPEZIFIKATION 4.10. */
+export const BEST_FARE_COARSE_STEP = 0.01;
+
+/** Schrittweite der feinen Suche um den besten groben Punkt (± `BEST_FARE_COARSE_STEP`). SPEZIFIKATION 4.10. */
+export const BEST_FARE_FINE_STEP = 0.001;

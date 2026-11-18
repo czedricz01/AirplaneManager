@@ -19,7 +19,7 @@ Eine Datei je Abschnitt der Spezifikation. Code-Dateien heißen englisch wie im 
 | `demand.ts` | 3 | Nachfrage: `distanceKm`, `blockMinutes`, `referenceBlockMinutes`, `citySize`, `worldScale`, `relativeSize`, `businessLinkage`, `tourismLinkage`, `seasonFactor`, `businessShare`, `demandGrowth`, `distanceFactor`, `eventDemandFactor`, `marketSize` (+ `marketSizeParts`), `classShare` | 3.3a |
 | `marketSplit.ts` | 3.8–3.12, 3.14 | Aufteilung: `directOffer`, Faktoren der Anziehung (`frequencyFactor`, `priceFactor`, `flightTimeFactor`, `reputationFactor`, `frequentFlyerFactor`, `advertisingRegionFactor`, `advertisingFactor`, `establishedRouteBonus`), `offerAppeal` (+ `offerAppealParts`), `noFlyAppeal`, `classPotential`, `rampFactor`, `marketSplit`, `distributeToRoutes`, `passengerShare`, `departureShare` | 3.3b |
 | `transfers.ts` | 3.13 | Umsteige-Verbindungen: `detourRatio`, `connectionWait`, `isFeasibleConnection`, `connections`, `hubQuality`, `connectionFactor`, `transferFare`, `transferClasses`, `transferOffer`, `allocateTransferSeats` | 3.3b |
-| `fare.ts` | 4 | Preis und Erlös | geplant |
+| `fare.ts` | 4 | Preis und Erlös: `shortHaulFareFactor`, `baseFareEconomy`, `classFareRatio`, `marketFare`/`marketFares`; Preisniveau `clampFareRatio`, `fareRatioOrDefault` (R8), `fareRatioFromInput`, `routeFare`/`routeFares`, `uniformFareRatios`, `fareVsMarket`; `routeRevenue` (+ `routeRevenueParts`), `transferRevenueShare`, `monthlyRevenue`; `bestFareRatio`, `routeClassPassengers`, `bestFare`; `breakEvenFareLevel`; `loadFactor`, `fullAircraftRevenue` | 3.4 |
 | `costs.ts` | 5 | Kosten, Wertmodell | geplant |
 | `progress.ts` | 6 | Ruf, Rang, Fortschritt | geplant |
 | `rivals.ts` | 7 | Konkurrenz (KI-Entscheidungen) | geplant |
