@@ -1820,7 +1820,426 @@ doppelt gezählt (`:66-87`, `:162-178`) → `deskLoad` (2.6.3); Treibstoffpreis 
 
 ## 6. Ruf, Rang, Fortschritt
 
-_(offen)_
+Dieser Abschnitt legt fest, wie der Ruf einer Gesellschaft entsteht und wirkt, wie der Spieler im Rang aufsteigt
+und was Forschung, Meilensteine, Jahresziel und Karriere-Punkte bringen. Grundlage: E6, E11, E19, E33, E36–E43,
+E52, R10, R15, R16; Vorgaben aus 3.16 (Ruf wirkt nur über `reputationFactor`) und 5.19 (Forschungs-Felder,
+`milestoneSlotFactor`, Preise mit `atCost`); Bestand: `bestand/5-ruf-fortschritt.md` (W1–W14). Alle heutigen
+Fundstellen ohne Pfad liegen in `src/lib/monthClose.ts`.
+
+**Wer was hat.** Den **Ruf** haben alle Gesellschaften, mit derselben Funktion (E44). **Rang, Forschung,
+Meilensteine, Jahresziel und Karriere-Punkte** hat nur der Spieler; sie regeln, was er darf und was er
+gewinnt. Die KI hat keine Freischaltungen (Abschnitt 7).
+
+**Geld (1.3).** Jeder feste Betrag dieses Abschnitts (Forschungspreise, Prämien, Kassen-Schwellen, Mindest-Ziele)
+steht als Wert von 1960 in den Konstanten und wird nur über `atCost(betrag1960, month)` umgerechnet (E6).
+Die eigene Teuerung der Forschung (4 % des Werts von 1960 je Jahr, `src/lib/research.ts:196-199`) entfällt.
+
+### 6.0 Überblick
+
+```
+Satisfaction aller Fluggäste (2.9) ─► Ruf aus Satisfaction ──┐
+Gestrichene Sitze des Monats (Abschnitt 8) ─► Abzug ─────────┼─► Ruf-Ziel ─► Ruf-Änderung (je Monat, eine Funktion)
+Laufende Werbekampagnen ─► Werbe-Beitrag (klein) ────────────┘                     │
+                                                                                   ▼
+                                       Ruf ─► reputationFactor (3.9.4): einzige Wirkung auf die Nachfrage
+                                           ─► Rang-Bedingung, Meilensteine, Jahresziel, Karriere-Punkte (nur Spieler)
+
+Rang-Werte im Mittel von 3 Monaten ─► Rang (nie Abstieg) ─► Flughäfen, Drehkreuze, Werbung, Lounge,
+                                                             Forschungsplätze, Forschungsprojekte, Übernahmen
+Forschung ─► Felder je Projekt ─► Kostenfaktoren (5.1), Effizienz (5.3), Satisfaction (2.6.5), Anziehung (3.9.4),
+                                  Umsteiger (3.13), Anlauf (3.12), Ausfälle, Verschleiß, Wiederverkauf (8)
+Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkte, E38)
+```
+
+**Was entfällt** (gegenüber heute):
+- Zustand der Flugzeuge im Ruf-Ziel (`:154`, W5): E39. Der Zustand wirkt über die Satisfaction (Kabine, 2.4)
+  und über Ausfälle (Zelle, Abschnitt 8).
+- Ruf-Zuschlag der Werbung **nach** dem Monatsschritt (`:606`, W1): Werbe-Beitrag im Ziel, klein (E37, 6.3).
+- Alle Einmal-Sprünge (W2, E38): Meilensteine (`:650-655`), Rang-Aufstieg +3 (`:680`), Jahresziel ±
+  (`:1042`), Streik −3 (`src/lib/staff.ts:177`, `src/App.tsx:457`), Ausfall bis −4
+  (`src/lib/disruptions.ts:97-100`, `src/App.tsx:475-476`), Übernahme +2 (`src/App.tsx:1867`).
+- Ruf-Teil des Frequent-flyer-Programms (0,3 je Monat, `src/lib/marketing.ts:190`): Das Programm wirkt nur
+  über `frequentFlyerFactor` (3.9.4); es ist keine Kampagne (Lesart von E37).
+- SAT-Kappe 130 im Ruf (`:153`): ganze Skala 0 … 160 (E14).
+- `loadFactor` im Ruf-Ziel (`:149-150`, `:453`, `:515`, `:600`, W12): R16.
+
+### 6.1 Ruf aus Satisfaction (Code-Name: `satisfactionReputation`)
+- Bedeutung: Welchen Ruf die Fluggäste einer Gesellschaft auf Dauer verbreiten, wenn nichts anderes geschieht.
+- Einheit und Bereich: Punkte 0 … 100.
+- Formel (stückweise gerade, stetig bei 100):
+  ```
+  s ≤ 100:  satisfactionReputation = REPUTATION_NEUTRAL × s / 100
+  s > 100:  satisfactionReputation = REPUTATION_NEUTRAL + (100 − REPUTATION_NEUTRAL) × (s − 100) / 60
+  ```
+  mit `s = airlineSatisfaction` (2.9: alle Strecken und Klassen, nach beförderten Fluggästen des Monats, E10, E39).
+  Satisfaction 100 („wie erwartet“) ergibt genau den Neutralpunkt 50 (E36: Das Ruf-Ziel liegt bei üblicher
+  Satisfaction um 50). Satisfaction 160 (Spitze) ergibt 100.
+- Ohne Fluggäste im Monat: `airlineSatisfaction = 100` (2.9), also 50. Der Ruf läuft dann langsam zur Mitte
+  (heute bleibt er stehen, `:590-603`). Wer nicht fliegt, wird vergessen, weder gelobt noch getadelt.
+- Konstanten: `REPUTATION_NEUTRAL = 50` (E36). Die beiden Steigungen (0,5 je Punkt unter 100, 0,83 darüber)
+  sind Startwerte; endgültig aus dem Balance-Skript (3.9).
+- Regeln (Tests): `satisfactionReputation(100) = 50`; steigt mit `s` (nie fallend); stetig; Wert in 0 … 100.
+
+### 6.2 Gestrichene Flüge (Code-Name: `cancellationPenalty`)
+- Bedeutung: Die einzige Strafe für gestrichene Flüge (E33). Streik, technische Ausfälle und Ereignisse wirken
+  auf den Ruf **nur** hierüber (E38).
+- Formel: `cancellationPenalty = CANCELLED_REPUTATION_WEIGHT × cancelledShare`
+  mit `cancelledShare = gestrichene Sitze des Monats / geplante Sitze des Monats` (alle Strecken, alle Klassen,
+  Sitze × Abflüge). Welche Flüge gestrichen werden, legt Abschnitt 8 fest.
+- Gecharterte Flüge (E32) gelten **nicht** als gestrichen: Die Fluggäste fliegen.
+- Konstanten: `CANCELLED_REPUTATION_WEIGHT = 100` (Startwert: 1 % gestrichene Sitze senkt das Ziel um 1 Punkt).
+- Regeln (Tests): keine gestrichenen Flüge → 0; mehr gestrichene Sitze → nie kleinerer Abzug; Charter → 0.
+
+### 6.3 Werbe-Beitrag (Code-Name: `advertisingReputation`)
+- Bedeutung: Werbung macht die Gesellschaft ein wenig angesehener, solange sie läuft (E37). Die Hauptwirkung der
+  Werbung ist die Anziehung (3.9.5).
+- Formel: `advertisingReputation = min(ADVERTISING_REPUTATION_MAX, Σ laufende Kampagnen: CAMPAIGN_REPUTATION[Stufe])`.
+- Der Beitrag steht **im Ruf-Ziel** (6.4), nicht als Zuschlag danach. Darum schaukelt er sich nicht auf (heute
+  Gleichgewicht = Zuschlag / 0,15, bis +15, W1) und **klingt nach Ende der Kampagne ab**: Das Ziel fällt zurück,
+  der Ruf folgt mit derselben Trägheit wie bei jeder anderen Änderung (6.5; Halbwertszeit ≈ 4,3 Monate).
+  Ein eigener Speicherwert ist nicht nötig.
+- Konstanten (Startwerte, endgültig aus 3.9): `CAMPAIGN_REPUTATION` lokal 0,5, national 1, global 2 (Zahlen wie
+  heute je Monat, `src/lib/marketing.ts:75-77`, jetzt als Punkte im Ziel); `ADVERTISING_REPUTATION_MAX = 3`.
+- KI: keine Werbung (E44), Beitrag 0.
+- Regeln (Tests): ohne Kampagne 0; nie über `ADVERTISING_REPUTATION_MAX`; eine laufende Kampagne hebt den Ruf im
+  Gleichgewicht um höchstens ihren Beitrag (nicht um ein Vielfaches).
+
+### 6.4 Ruf-Ziel (Code-Name: `reputationTarget`)
+- Bedeutung: Wohin sich der Ruf bewegt, wenn alles so bleibt wie in diesem Monat.
+- Einheit und Bereich: Punkte 0 … 100.
+- Formel: `reputationTarget = kappen(satisfactionReputation − cancellationPenalty + advertisingReputation, 0, 100)`.
+- Hängt ab von: 6.1–6.3. **Nicht** von Zustand der Flugzeuge (E39), Auslastung (R16), Schwierigkeit (E4),
+  Rang, Meilensteinen, Jahresziel (E38).
+- Regeln (Tests): mehr Satisfaction → nie niedrigeres Ziel; mehr gestrichene Sitze → nie höheres Ziel;
+  Satisfaction 100, nichts gestrichen, keine Werbung → genau 50.
+
+### 6.5 Ruf-Änderung (Code-Name: `reputationChange`)
+- Bedeutung: **Die einzige Stelle, an der sich der Ruf ändert** (R10). Einmal je Monat im Abschluss.
+- Formel:
+  ```
+  reputation(neu) = reputation + REPUTATION_STEP × (reputationTarget − reputation)
+  ```
+  Weil Ruf und Ziel in 0 … 100 liegen, bleibt das Ergebnis im Bereich; die Grenzen werden nur am Ziel einmal
+  gesetzt (R4, W4).
+- Ergebnis der Funktion: neuer Ruf, Ziel und eine **Liste der Ursachen** für die Anzeige (R10, E52):
+  | Ursache | Anteil an der Änderung |
+  |---|---|
+  | Passenger satisfaction | `REPUTATION_STEP × (satisfactionReputation − reputation)` |
+  | Cancelled flights | `−REPUTATION_STEP × cancellationPenalty` |
+  | Advertising | `REPUTATION_STEP × advertisingReputation` |
+  | Limit (nur wenn das Ziel gekappt wurde) | Rest bis zur Summe |
+  Die Summe der Anteile = Änderung (Test).
+- Konstanten: `REPUTATION_STEP = 0,15` (wie heute `REPUTATION_INERTIA`, `:143`; Halbwertszeit 4,3 Monate).
+- Wirkt ab dem nächsten Monat: Nachfrage und Planer rechnen mit dem Ruf vom Monatsanfang (3.9.4).
+- Spieler und KI (E44).
+- Regeln (Tests):
+  - Keine andere Funktion im Modell oder in der Oberfläche schreibt den Ruf (Suche nach Zuweisungen, W4).
+  - Ruf bewegt sich nie über das Ziel hinaus; gleiches Ziel → Abstand schrumpft je Monat um genau 15 %.
+  - Meilensteine, Rang-Aufstieg, Jahresziel, Streik-Entscheidung und Übernahme ändern den Ruf im selben Monat
+    nicht (E38).
+
+### 6.6 Wirkung und Anzeige des Rufs
+- **Einzige Wirkung auf die Nachfrage:** `reputationFactor` in der Anziehung (3.9.4, 3.16), Ruf 50 = 1.
+- Weitere Leser (nur Spieler, keine Rechenwirkung auf Markt, Preis oder Kosten): Rang-Bedingung (6.7),
+  Meilensteine (6.10), Fokus-Ziel „Reputation“ (6.11), Karriere-Punkte (6.12), Szenario-Ziele (Abschnitt 8),
+  Chronik und Zeitung (Anzeige).
+- **Farbstufen** (E36) aus denselben Konstanten: „hoch“ ab `REPUTATION_NEUTRAL + REPUTATION_DISPLAY_BAND`,
+  „niedrig“ bis `REPUTATION_NEUTRAL − REPUTATION_DISPLAY_BAND`, sonst neutral; `REPUTATION_DISPLAY_BAND = 10`
+  (heute eigene Stufen 65 / 40, `src/components/MyCompanyView.tsx:250`).
+- Anzeige: Firmen-Ansicht „Reputation“ mit Ziel, Nachfrage-Wirkung („Demand +x%“ aus `reputationFactor`) und der
+  Ursachen-Liste aus 6.5; Monatsbericht.
+
+### 6.7 Rang (Code-Name: `rank`)
+- Bedeutung: Stufe der Gesellschaft des Spielers, 0 (Startup) … 9 (Global Player). Öffnet Flughäfen, Drehkreuze
+  und Werkzeuge. Wird **nie verloren** (E40).
+- **Rang-Werte** (Code-Name: `rankStats`): je Monat am Ende des Abschlusses gespeichert:
+  | Wert | Festlegung |
+  |---|---|
+  | `routes` | Strecken am Monatsende |
+  | `monthlyPax` | Fluggäste des Monats, jede Teilstrecke gezählt (Umsteiger doppelt, wie heute), = Fluggäste je Woche × `WEEKS_PER_MONTH` (E5) |
+  | `reputation` | Ruf nach der Ruf-Änderung (6.5) |
+  | `regions` | Regionen mit mindestens einem Strecken-Ende, über `regionOf` (R15) |
+  | `years` | volle Jahre seit Spielstart (zählt nicht im Mittel) |
+- **Prüfung** (E40): Für `routes`, `monthlyPax`, `reputation`, `regions` zählt das **Mittel der letzten 3 Monate**.
+  Monate vor Spielstart zählen als 0. Rang = höchste Stufe, deren Bedingungen alle erfüllt sind, Stufen der
+  Reihe nach; neuer Rang = max(alter Rang, Prüfung).
+- **Eine Funktion** `rankStats` für Abschluss und Karriere-Ansicht (heute zwei Wege, `:674` und
+  `src/App.tsx:794-801`).
+- **Tabelle der Ränge** (Code-Name: `RANKS`, je Stufe ein Datensatz; alle Texte daraus erzeugt, E42, E52):
+
+  | Stufe | Strecken | Fluggäste / Monat | Ruf | Regionen | Jahre | Drehkreuze | Flughafen-Größe bis | Forschungsplätze | Klassen-Forschung erscheint | Weitere Freischaltungen |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | 0 Startup | 0 | 0 | 0 | 0 | 0 | 1 | 4 | 2 | (Commuter offen) | lokale Werbung |
+  | 1 Local | 3 | 8 000 | 30 | 1 | 0 | 1 | 5 | 2 | Regional | – |
+  | 2 Regional | 6 | 25 000 | 35 | 1 | 1 | 2 | 5 | 2 | Narrowbody | Frequent flyer |
+  | 3 Domestic | 12 | 70 000 | 40 | 1 | 3 | 2 | 6 | 2 | – | nationale Werbung |
+  | 4 National | 24 | 170 000 | 45 | 1 | 6 | 3 | 7 | **3** | Widebody | VIP-Lounge |
+  | 5 Continental | 40 | 350 000 | 50 | 2 | 10 | 4 | 7 | 3 | Jumbo, Überschall | – |
+  | 6 International | 65 | 700 000 | 53 | 3 | 15 | 5 | 7 | **4** | – | globale Werbung, Übernahme in der Krise |
+  | 7 Intercontinental | 95 | 1 200 000 | 56 | 4 | 22 | 6 | 7 | 4 | – | – |
+  | 8 Flag Carrier | 135 | 2 000 000 | 60 | 5 | 30 | 8 | 7 | **5** | – | Verwaltungsstufe 3 |
+  | 9 Global Player | 190 | 3 500 000 | 65 | 6 | 40 | 12 | 7 | 5 | – | Übernahme eines gesunden Rivalen |
+
+  - Strecken, Fluggäste, Regionen, Jahre, Drehkreuze, Flughafen-Größen und weitere Freischaltungen wie heute
+    (`src/lib/airlineRank.ts:42-103`, `:187-197`); Startwerte, endgültig aus dem Balance-Skript (3.9).
+    Hinweis: Mit `WEEKS_PER_MONTH` statt 4 Wochen sind die Fluggast-Schwellen gleich hoher Nachfrage rund 9 %
+    leichter erreichbar.
+  - **Ruf-Schwellen neu** (heute 40 … 80): Der Neutralpunkt sinkt von 75 auf 50 (E36), und der Zustand zählt
+    nicht mehr (E39). Ruf 50 heißt jetzt „Fluggäste im Mittel wie erwartet zufrieden“ (Satisfaction 100);
+    Ruf 65 heißt Satisfaction ≈ 118. Die alten Werte wären mit der neuen Skala für die oberen Ränge kaum
+    erreichbar.
+  - **Forschungsplätze** (E42): 3 ab National (4), 4 ab International (6, wie der heutige Text dort), 5 ab Flag
+    Carrier (8). Feld `researchSlots` je Rang; ersetzt `2 + abrunden(Rang / 3)` (`src/lib/research.ts:177-179`, W7).
+  - **Klassen-Forschung** (E41): Ränge gesenkt, siehe 6.8.
+- Free Mode: Rang 9 vom ersten Monat an, nichts gesperrt (wie heute).
+- Ausnahmen beim Flughafen-Zugang wie heute (`src/lib/airportAccess.ts:31-44`): Heimat, Flughäfen mit eigener
+  Verwaltungsstufe ≥ 1, Enden bestehender Strecken.
+- Rang-Aufstieg: Meldung mit den Freischaltungen aus der Tabelle; **keine Ruf-Punkte** (E38), kein Geld.
+- Schwierigkeit: wirkt hier nicht (E4, 1.8, W13); Hard macht den Aufstieg nur über weniger Fluggäste schwerer.
+- Fortschrittsbalken: Mittel der Anteile (Mittelwert / Schwelle, je höchstens 1) über die Bedingungen > 0, aus
+  denselben 3-Monats-Mitteln wie die Prüfung (heute aus einem Monat, `src/lib/airlineRank.ts:166-182`).
+- Regeln (Tests):
+  - Ein einzelner starker Monat zwischen zwei schwachen hebt den Rang nicht, wenn das Mittel nicht reicht (W6).
+  - Rang sinkt nie, auch wenn die Werte fallen.
+  - Forschungsplätze, Drehkreuze und Texte der Rang-Meldung stammen aus demselben Datensatz (W7).
+  - Jede Stufe verlangt in jeder Spalte mindestens so viel wie die Stufe davor.
+
+### 6.8 Flugzeugklassen und Erreichbarkeit (E41)
+- Klassen wie heute (`src/lib/aircraftClasses.ts:48-58`): Commuter (bis 60 Sitze, offen), Regional, Narrowbody,
+  Widebody, Jumbo (über 500 Sitze), Überschall (über 1 000 km/h). Eine Klasse ist offen, wenn ihre Forschung
+  fertig ist; Klassen der eigenen Flotte bleiben offen; Free Mode: alle.
+- Klassen-Projekte (Startwerte; Preis in $ von 1960 über `atCost`):
+
+  | Projekt | Erscheint ab Rang (heute) | Braucht (heute) | Dauer | Preis 1960 (heute) |
+  |---|---|---|---|---|
+  | Regional | 1 (1) | – | 6 Monate | 3 Mio. $ (3) |
+  | Narrowbody | **2** (3) | Regional | 9 Monate | 12 Mio. $ (12) |
+  | Widebody | **4** (5) | Narrowbody | 12 Monate | **40** Mio. $ (60) |
+  | Jumbo | **5** (7) | Widebody | 18 Monate | **80** Mio. $ (200) |
+  | Überschall | **5** (8) | **Widebody** (Jumbo) | 24 Monate | **60** Mio. $ (500) |
+
+  - Überschall braucht Widebody statt Jumbo: So liegen beide Projekte auf Rang 5 nebeneinander, und die
+    Concorde (Narrowbody-Rumpf) hängt nicht an der 747.
+  - Preise gesenkt, damit die Klasse im Zeitraum auch bezahlbar ist: 500 Mio. $ von 1960 sind für eine
+    Gesellschaft auf Rang 5 um 1975 mehrere Jahresergebnisse (Prüfregel unten).
+- **Prüfung der Erreichbarkeit** (Start Januar 1960, schnellster Weg; Rang frühestens nach den Jahren der Tabelle):
+
+  | Klasse | Rang erreicht frühestens | Forschung fertig frühestens | Lieferzeitraum (Daten) | Spielraum |
+  |---|---|---|---|---|
+  | Regional | Rang 1: April 1960 (3-Monats-Mittel) | Okt. 1960 | ab 1960 | offen |
+  | Narrowbody | Rang 2: Jan. 1961 | Okt. 1961 | ab 1960 (707) | offen |
+  | Widebody | Rang 4: Jan. 1966 | Jan. 1967 | ab Mitte 1971 (DC-10) | offen |
+  | Jumbo | Rang 5: Jan. 1970 | Juli 1971 | ab 1970 (747-100), bis heute | offen |
+  | Überschall | Rang 5: Jan. 1970 | Jan. 1972 | Concorde 1976,0 bis 1980,4 | Rang 5 bis spätestens Juni 1978 (Forschung muss bis Monat 221 starten) |
+
+  Lieferzeiträume aus `src/data/aircraft.ts` (`firstDeliveryOffset`, `lastDeliveryOffset`), ausgewertet mit
+  `classOfAircraft` (Hilfsskript, nicht im Projekt). Für die Concorde bleiben rund 8,4 Jahre Spielraum (Januar 1970 bis Juni 1978).
+- Spielstart nach 1960 oder Szenario: Klassen-Projekte bis zum Startrang gelten als fertig (wie heute,
+  `src/lib/research.ts:191-193`).
+- Regeln (Tests):
+  - Für jede Klasse gilt: Jahre-Bedingung ihres Rangs + Dauer aller nötigen Projekte (nacheinander) <
+    letzter Liefermonat der Klasse (bei Start 1960).
+  - Balance-Skript (3.9) prüft: Eine Gesellschaft, die die Bedingungen des Rangs gerade erfüllt, bezahlt die
+    Klassen-Forschung dieses Rangs aus höchstens 12 Monatsergebnissen (5.16).
+
+### 6.9 Forschung (Code-Name: `research`)
+- Bedeutung: Projekte, die einmal Geld und einige Monate kosten und danach dauerhaft wirken.
+- **Projekte**: 45 wie heute (`src/lib/research.ts:100-164`): 5 Klassen-Projekte (6.8), 40 Bonus-Projekte.
+  Ränge und Ketten der Bonus-Projekte wie heute.
+- **Preis**: `researchPrice(project, month) = atCost(RESEARCH_PRICE_1960[project], month)`, bezahlt beim Start
+  (Kasse, nicht im Monatsergebnis, 5.16). Bonus-Projekte ohne eigenen Preis:
+  `RESEARCH_PRICE_1960 = (1,2 + 1,3 × Rang) Mio. $` (wie heute, `src/lib/research.ts:80-89`), ungerundet (R4).
+- **Dauer**: wie heute; Bonus-Projekte ohne eigene Dauer `3 + aufrunden(Rang / 2)` Monate. Fertig, wenn zu
+  Monatsbeginn die Monate seit Start ≥ Dauer (wie heute, `src/lib/research.ts:312-323`).
+- **Start-Sperre** wie heute (`src/lib/research.ts:286-298`): fertig, läuft schon, Rang zu klein, Vorgänger fehlt,
+  alle Plätze belegt (`researchSlots`, 6.7), zu wenig Geld (Preis des aktuellen Monats).
+- **Wirkungen als Felder je Projekt** (5.19). Jedes Feld wirkt an genau einer Stelle; der Text des Projekts wird
+  aus den Feldern erzeugt (E52):
+
+  | Feld | Einheit | Projekte (Werte wie heute) | Zusammenfassen | Wirkt in |
+  |---|---|---|---|---|
+  | `costSaving.fuel` | Anteil | fuel-1 0,03 · fuel-2 0,03 · fuel-3 0,01 | `researchCostFactor` = max(0,4; 1 − Σ) | 5.1 → 5.2 |
+  | `costSaving.crew` | Anteil | crew-1 … crew-3 je 0,01 | wie oben | 5.1 → 5.4 |
+  | `costSaving.fees` | Anteil | fees-1 … fees-3 je 0,01 | wie oben | 5.1 `airportFeeFactor` |
+  | `costSaving.catering` | Anteil | catering-1, catering-2 je 0,02 | wie oben | 5.1 → 5.7 |
+  | `costSaving.maintenance` | Anteil | maint-1 … maint-4 je 0,01 | wie oben | 5.1 → 5.12 |
+  | `costSaving.slots` | Anteil | slots 0,08 | wie oben | 5.1 → 5.10 |
+  | `efficiencyPoints` | Punkte | eff-1 … eff-6 je 1 | Summe | 5.3 |
+  | `satisfactionPoints` | Punkte | sat-1 … sat-6 je 1 (E19), cabin 2 | Summe | 2.6.5 |
+  | `demandFactor` | Faktor | yield-1 1,015 · yield-2 1,025 · yield-3 1,01 | Produkt | 3.9.4 `researchDemandFactor` |
+  | `hubQualityFactor` | Faktor | alliance 1,1 | Produkt | 3.13 `hubQuality` |
+  | `rampBonus` | Anteil | planning 0,15 | Summe | 3.12 `RAMP_RESEARCH_BONUS` |
+  | `defectSaving` | Anteil | maintenance 0,3 | max(0,4; 1 − Σ) | Abschnitt 8 (Ausfälle) |
+  | `wearSaving` | Anteil | wear-1, wear-2 je 0,03 | max(0,4; 1 − Σ) | Abschnitt 8 (Verschleiß) |
+  | `resaleBonus` | Anteil | resale-1 0,01 · resale-2 0,015 | Summe | Abschnitt 8 (Verkaufserlös) |
+  | `moralePoints` | Punkte | academy 5 | Summe | Moral (2.6.4; Personal in Abschnitt 8) |
+
+  - Die Stufen „Plane type satisfaction“ (sat-1 … sat-6) heißen neu z. B. „Satisfaction +1 in every cabin class“
+    und wirken als Satisfaction-Punkte, nicht mehr auf Type appeal (E19, 2.2, 2.6.5).
+  - „Aircraft efficiency +1 point“ statt „+1%“ (W12).
+- KI: forscht nicht (Abschnitt 7); alle Felder neutral.
+- Regeln (Tests): ohne fertige Projekte ist jede Wirkung neutral; ein weiteres fertiges Projekt verschlechtert nie
+  etwas; jeder Kostenfaktor ≥ 0,4; Preis 2020 = Preis 1960 × `costIndex` 2020 (W9); jeder Projekt-Text enthält die
+  Zahl aus seinem Feld.
+- Anzeige: Karriere > Development mit Preis des aktuellen Monats, Dauer, Plätzen „belegt / Rang-Grenze“.
+
+### 6.10 Meilensteine (Code-Name: `milestones`)
+- Bedeutung: Einmalige Auszeichnungen, im Abschluss geprüft, je einmal vergeben (wie heute, 31 Stück in Spuren
+  Bronze / Silber / Gold und Sonderleistungen, `src/lib/milestones.ts:85-134`).
+- **Belohnung** nur in Geld und Freischaltungen (E38), **ohne Ruf-Punkte**:
+  | Stufe | Prämie (Wert 1960, über `atCost`) | Slot-Nachlass | Drehkreuze |
+  |---|---|---|---|
+  | Bronze | 0,5 Mio. $ | – | – |
+  | Silber | 3 Mio. $ | 2 % | – |
+  | Gold | 15 Mio. $ | 3 % | einzelne +1 (wie heute) |
+  | Sonderleistung | 2 Mio. $ | 1 % | „Empire builder“ +1 (wie heute) |
+
+  Die heutigen Ruf-Werte je Stufe und die Sonder-Ruf-Werte (z. B. Überschall +8, `src/lib/milestones.ts:68-73`,
+  `:129-133`) entfallen. Die Prämie geht in die Kasse, nicht ins Monatsergebnis (wie Einmalbeträge in 5.16), damit
+  Gewinnserie und Jahresziel nur den Flugbetrieb messen.
+- **Slot-Nachlass** (Code-Name: `milestoneSlotFactor`, Vorgabe 5.19):
+  `milestoneSlotFactor = 1 − min(MILESTONE_SLOT_DISCOUNT_MAX, Σ Slot-Nachlässe der erreichten Meilensteine)`;
+  `MILESTONE_SLOT_DISCOUNT_MAX = 0,3` (heute `src/lib/milestones.ts:137`). Wirkt nur im Slot-Kaufpreis (5.10).
+- **Schwellen** wie heute, mit diesen Änderungen:
+  - Kassen-Meilensteine: Kasse am Monatsende (R11) ≥ `atCost(100 Mio. / 1 Mrd. / 10 Mrd. $)` (E6, W9).
+  - Ruf-Meilensteine: Ruf ≥ 60 / 70 / 80 (heute 60 / 80 / 95). Neue Skala (E36, 6.7): 60 = Satisfaction ≈ 112,
+    80 = Satisfaction 136; 95 wäre nur mit Satisfaction ≈ 154 erreichbar. Texte „Reputation 60 or more“ (heute
+    „above“, prüft aber ≥, W12).
+  - „Kontinente“ → „Regionen“ über `regionOf` (R15, W11): 2 / 4 / 6 Regionen.
+  - Gewinnserie: Monat mit Monatsergebnis (5.16) > 0 → +1; Verlust → 0; ohne Strecken unverändert (wie heute `:611`).
+- Prüfreihenfolge: nach Ruf-Änderung und Monatsergebnis; Meilensteine ändern weder Ruf noch Rang-Werte, die
+  Reihenfolge zu 6.7 ist daher gleichgültig.
+- Regeln (Tests): jeder Meilenstein höchstens einmal; keine Ruf-Änderung durch Meilensteine;
+  `milestoneSlotFactor` in 0,7 … 1; Prämie im Jahr 2020 = Wert 1960 × `costIndex` 2020.
+- Anzeige: Karriere > Milestones; Texte und Prämien aus den Konstanten (E52).
+
+### 6.11 Jahresziel (Code-Name: `annualGoal`)
+- Bedeutung: Jeden Dezember bietet der Vorstand drei Ziele für das neue Jahr an: ein sicheres Gewinnziel, ein
+  Ziel anderer Art, ein hohes Gewinnziel (wie heute, `src/lib/annualGoals.ts:115-121`). Ohne Wahl gilt im Januar
+  das sichere.
+- **Bezugsgröße** (R15: aus Vorjahr und Größe):
+  ```
+  goalBase = max(Vorjahresergebnis, GOAL_MIN_MARGIN × Vorjahreserlös, atCost(GOAL_PROFIT_FLOOR_1960))
+  ```
+  Vorjahresergebnis = Σ Monatsergebnisse (5.16), Vorjahreserlös = Σ Monatserlöse (4.9).
+  Nach einem Verlustjahr zählt die Größe (Mindest-Marge auf den Erlös), nicht mehr der feste Mindestwert (W10).
+- **Ziele**:
+  - sicher: Gewinn ≥ `GOAL_STEADY_FACTOR × goalBase`;
+  - hoch: Gewinn ≥ `GOAL_STRETCH_FACTOR × goalBase`;
+  - andere Art, reihum nach Jahreszahl wie heute (`src/lib/annualGoals.ts:81-107`): Strecken + max(3, 20 %),
+    Regionen + 1 (über `regionOf`), Ruf + 6 (höchstens 90), Fluggäste × 1,2, kein Verlustmonat.
+  - Das Ziel wird beim Angebot **einmal** auf eine glatte Zahl gesetzt und so gespeichert (wie heute
+    `niceDollars`); es ist ein fester Wert wie ein eingestellter Preis, keine Zwischenrechnung (R4).
+- **Belohnung** nur in Geld (E38): `Prämie = max(atCost(GOAL_MIN_REWARD_1960), GOAL_REWARD_SHARE[Art] × goalBase)`,
+  ungerundet (heute auf 50 000 $ gerundet, beim sicheren Ziel oft 0, W10). In die Kasse, nicht ins Monatsergebnis.
+- **Verfehlt**: keine Strafe (E38 nimmt den Ruf-Abzug weg; vorläufig nach Empfehlung zu O55). Das Wagnis liegt in
+  der Wahl: Das hohe Ziel zahlt mehr, wird aber seltener erreicht.
+- **Messung** im Dezember-Abschluss: Gewinn und Fluggäste aus den Monatsberichten des Jahres; Strecken, Regionen,
+  Ruf nach der Ruf-Änderung des Dezembers (es gibt keine Dezember-Boni mehr, W2). Eine Funktion
+  `yearSnapshot` für Abschluss und Fortschrittsbalken.
+- Konstanten (Startwerte, endgültig aus 3.9): `GOAL_MIN_MARGIN = 0,05`; `GOAL_PROFIT_FLOOR_1960 = 2 000 000`;
+  `GOAL_STEADY_FACTOR = 1,1`, `GOAL_STRETCH_FACTOR = 1,35` (wie heute); `GOAL_REWARD_SHARE` sicher 0,02 · andere
+  Art 0,03 · hoch 0,05; `GOAL_MIN_REWARD_1960 = 250 000`.
+- Regeln (Tests): Ziel nach einem Verlustjahr hängt vom Vorjahreserlös ab; Prämie nie unter dem Mindestbetrag;
+  hohes Ziel ≥ sicheres Ziel und hohe Prämie ≥ sichere Prämie; kein Ziel ändert den Ruf.
+
+### 6.12 Karriere-Punkte und Ruhmeshallen (Code-Name: `careerScore`)
+- Bedeutung: Bewertung einer Laufbahn beim Ruhestand (E43). Richtung: Vermögen und Rang zählen am meisten,
+  Forschung weniger.
+- Formel (Summe ungerundet, Anzeige ganze Punkte):
+
+  | Teil | Formel | Heute (`src/lib/careerScore.ts:39-54`) |
+  |---|---|---|
+  | Vermögen | `150 × log10(max(1, companyValue / atCost(1 Mio. $)))` | 100 × log10(nominal in Mio. $) |
+  | Rang | 80 × Rang (nur Normal) | gleich |
+  | Meilensteine | 10 je Meilenstein | gleich |
+  | Ruf | 2 × Ruf | gleich |
+  | Übernahmen | 25 je Übernahme | gleich |
+  | Forschung | **5** je fertiges **Bonus**-Projekt (Klassen zählen nicht) | 15 je Projekt |
+  | Jahre | 5 je volles Jahr, höchstens 60 | gleich |
+
+  - `companyValue` = Unternehmenswert wie bei der Übernahme (E48): Kasse + Σ `aircraftValue` (5.13) + Wert der
+    Slots (Verkaufswert, 5.10). Durch `atCost` bekommt ein späterer Start für dieselbe Leistung nicht mehr Punkte (W9).
+  - Klassen-Projekte zählen nicht, weil sie im Free Mode offen sind und im Normal Mode schon im Rang stecken.
+- **Zwei Ruhmeshallen** (E43): getrennt für Normal und Free Mode, je die besten 10 (`HALL_SIZE`). Einträge ohne
+  Angabe gehören zu Normal (wie heute, `src/lib/careerScore.ts:98`).
+- Szenario-Sterne unverändert (`src/lib/careerScore.ts:114-118`).
+- Regeln (Tests): mehr Vermögen, höherer Rang, mehr Meilensteine → nie weniger Punkte; Forschung bringt höchstens
+  200 Punkte (heute bis 675); gleiche Leistung 1960 und 1990 gestartet → gleiche Vermögens-Punkte bei gleichem
+  `companyValue / costIndex`; ein Free-Eintrag erscheint nie in der Normal-Halle.
+
+### 6.13 Startwerte (E11)
+- `START_REPUTATION = 50` für Spieler und KI (E36; heute Spieler 50, KI rechnet immer neutral).
+- Startrang: Normal 0 oder die Untergrenze des Szenarios; Free Mode 9 (wie heute).
+- Start-Forschung: Klassen-Projekte bis zum Startrang fertig (6.8); sonst nichts.
+- Keine Meilensteine, kein Jahresziel im ersten Jahr (das erste Angebot kommt im ersten Dezember).
+- Rang-Werte vor Spielstart: 0 (6.7).
+
+### 6.14 Beispiel
+Ruf-Ziel aus Satisfaction (6.1), ohne gestrichene Flüge und Werbung:
+
+| Airline satisfaction | 50 | 80 | 90 | 100 | 110 | 120 | 130 | 145 | 160 |
+|---|---|---|---|---|---|---|---|---|---|
+| Ruf-Ziel | 25 | 40 | 45 | **50** | 58,3 | 66,7 | 75 | 87,5 | 100 |
+| `reputationFactor` (3.9.4) | 0,95 | 0,98 | 0,99 | 1 | 1,017 | 1,033 | 1,05 | 1,075 | 1,10 |
+
+- Weg zum Ziel (Start 50, Satisfaction 120, Ziel 66,7): nach 1 Monat 52,5 · 3: 56,4 · 6: 60,4 · 12: 64,3 · 24: 66,3.
+- Globale Kampagne (Beitrag 2) bei Satisfaction 100: nach 12 Monaten Ruf 51,7; 6 Monate nach dem Ende 50,6;
+  12 Monate danach 50,2 (heute dauerhaft +13,3).
+- Ruf 60 im Gleichgewicht, ein Monat mit 10 % gestrichenen Sitzen: Ziel 50 → Ruf 58,5; danach 1 Monat 58,7 ·
+  3: 59,1 · 6: 59,4.
+- Karriere (60 Jahre, Unternehmenswert 5 000 Mio. $ von 1960, Rang 9, 25 Meilensteine, Ruf 70, 2 Übernahmen,
+  40 Bonus-Projekte): Vermögen 555 + Rang 720 + Meilensteine 250 + Ruf 140 + Übernahmen 50 + Forschung 200 +
+  Jahre 300 = **2 215**. Forschung 9 % der Summe (heute 25 %, W14).
+
+(Hilfsskript, nicht im Projekt.)
+
+### 6.15 Vorgaben an andere Abschnitte
+- **Abschnitt 7 (KI):** KI hat Ruf mit `reputationChange` (6.5), Start 50, Werbe-Beitrag 0; `airlineSatisfaction`
+  aus ihren eigenen Strecken (E44). KI hat keinen Rang, keine Forschung, keine Meilensteine, kein Jahresziel;
+  Abschnitt 7 legt fest, ob für die KI Klassen- oder Flughafen-Sperren gelten. Übernahmen: Rang 6 (in der Krise)
+  und 9 (gesund) wie in 6.7; Preis über denselben Unternehmenswert wie `companyValue` (6.12, E48).
+- **Abschnitt 8 (Monat, Ereignisse):**
+  - Reihenfolge im Abschluss: Forschung fertig zu Monatsbeginn (6.9); nach Erlös und Kosten: Ruf-Änderung (6.5),
+    Meilensteine (6.10), Rang-Werte speichern und Rang prüfen (6.7); im Dezember Jahresziel messen und neues
+    Angebot (6.11).
+  - `cancelledShare` des Monats liefern (gestrichene und geplante Sitze); Streik, technische Ausfälle und Ereignisse
+    ändern den Ruf nur darüber (E33, E38); Charter zählt nicht als gestrichen (E32).
+  - Prämien aus Meilensteinen und Jahresziel in die Kasse, nicht ins Monatsergebnis (R11).
+  - Felder `defectSaving`, `wearSaving`, `resaleBonus`, `moralePoints` (6.9) dort anwenden.
+  - Szenario-Ziele mit Ruf auf die neue Skala setzen: „Reputation of 60 or more“ (`src/data/scenarios.ts:176`)
+    → Startwert 55; prüfen im Balance-Skript (3.9).
+- **Balance-Skript (3.9):** Ruf-Steigungen (6.1), `CANCELLED_REPUTATION_WEIGHT`, Werbe-Beitrag, Ruf-Schwellen der
+  Ränge, Preise der Klassen-Forschung (Prüfregel 6.8), Ziel- und Prämien-Anteile (6.11).
+- **Phase 4:** Ruf-Aufschlüsselung (6.5), Farbstufen (6.6), Rang-Tabelle, Forschungs- und Meilenstein-Texte aus den
+  Feldern (E42, E52).
+- **Phase 5.1 (Spielstand):** Ruf übernehmen (er läuft zum neuen Ziel); Rang bleibt; Rang-Werte der letzten 3 Monate
+  aus den Monatsberichten, sonst der aktuelle Stand für alle 3 Monate; fertige Projekte bleiben (auch Überschall
+  ohne Jumbo); erreichte Meilensteine bleiben; Ruhmeshalle nach `mode` in zwei Listen teilen; ein laufendes
+  Jahresziel behält sein Ziel, Prämie nach 6.11, keine Strafe.
+
+### 6.16 Zuordnung der Bestandsfunde
+
+| Fund (1.5) | Lösung in diesem Abschnitt |
+|---|---|
+| W1 Werbung kauft Ruf dauerhaft | 6.3 kleiner Beitrag im Ziel, höchstens 3, klingt nach dem Ende ab (E37) |
+| W2 Einmal-Boni verfliegen | keine Einmal-Sprünge; Belohnungen in Geld und Freischaltungen: 6.5, 6.7, 6.10, 6.11 (E38) |
+| W3 Start-Ruf und Neutralpunkt | 6.1 Satisfaction 100 → Ruf 50; 6.6 Farbstufen aus `REPUTATION_NEUTRAL`; 6.13 Start 50 (E36) |
+| W4 Ruf an neun Stellen | 6.5 eine Funktion mit Ursachen-Liste, Grenzen einmal (R10) |
+| W5 Zustand im Ruf | 6.4 Zustand zählt nicht mehr (E39) |
+| W6 Rang an einem Monat | 6.7 Mittel der letzten 3 Monate, nie Abstieg (E40) |
+| W7 Texte zu Forschungsplätzen | 6.7 Feld `researchSlots` je Rang, Texte daraus: 3 / 4 / 5 ab Rang 4 / 6 / 8 (E42) |
+| W8 Überschall kaum erreichbar | 6.8 Rang 5, Voraussetzung Widebody, Preis gesenkt; Prüfung der Erreichbarkeit (E41) |
+| W9 Feste Dollar-Beträge | `atCost` für Forschung (6.9), Prämien und Kassen-Schwellen (6.10), Ziele (6.11), Vermögens-Punkte (6.12) (E6) |
+| W10 Stetiges Ziel ohne Geld | 6.11 Bezugsgröße aus Vorjahr und Erlös, Mindest-Prämie (R15) |
+| W11 Zwei Erdteil-Einteilungen | 6.7, 6.10, 6.11 überall `regionOf` (R15) |
+| W12 Texte weichen ab | 6.9 „+1 point“, 6.10 „or more“; alle Texte aus Konstanten (E52); `loadFactor` entfernt (R16) |
+| W13 Schwierigkeit wirkt hier nicht | bleibt so (E4, 1.8); 6.7 |
+| W14 Karriere-Punkte | 6.12 zwei Ruhmeshallen, Forschung 5 statt 15, Vermögen mit Kostenindex (E43) |
+
+Doppelte Rechnungen (Bestand 1.5) → eine Funktion im Modell (R2): Rang-Werte (`:674` und `src/App.tsx:794-801`)
+→ `rankStats` (6.7); Jahres-Stand (`:1022-1026` und `src/App.tsx:823-827`) → `yearSnapshot` (6.11);
+`continentOf` / `regionOf` → `regionOf`; Ruf-Grenzen an acht Stellen → 6.5; Farbstufen der Firmen-Ansicht → 6.6.
 
 ## 7. Konkurrenz
 

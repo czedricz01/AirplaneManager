@@ -88,16 +88,17 @@ Diese Funde haben eine klare Lösung. Sie werden als Regeln in die Spezifikation
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54. Offen: O52, O53, O54.
+O50 → E53, O51 → E54. Offen: O52, O53, O54, O55.
 
-Neu aus Paket 2.3 (O52), 2.5 (O53) und 2.6 (O54). Keine blockiert die Spezifikation; nötig spätestens beim
-Bau in Phase 3 (O52: Zufriedenheit, O53: Preis, O54: Kosten und Planer):
+Neu aus Paket 2.3 (O52), 2.5 (O53), 2.6 (O54) und 2.7 (O55). Keine blockiert die Spezifikation; nötig spätestens
+beim Bau in Phase 3 (O52: Zufriedenheit, O53: Preis, O54: Kosten und Planer, O55: Fortschritt):
 
 | Nr. | Frage | Optionen | Empfehlung |
 |---|---|---|---|
 | O52 | **Schalter nach E18.** (1) E18 verlangt einen Schalter „am Abflughafen“. Jede Strecke fliegt hin und zurück, also sind **beide Enden** Abflughäfen. (2) E18 streicht den Abzug für *fehlende* Schalter. Heute gibt es zusätzlich −10 für Premium, Business und First, wenn an einem Ende nur Selbstbedienungs-Schalter stehen (`src/lib/financeUtils.ts:537`). Selbstbedienung kostet 1 500 statt 2 500 $ je Woche bei doppelter Kapazität (`src/lib/financeUtils.ts:38-39`, `:141`). | (a) Pflicht an beiden Enden; −10 für Premium-Klassen ohne bedienten Schalter bleibt (× Bodengewicht, Mittel beider Enden). (b) Pflicht an beiden Enden; kein Abzug für die Schalter-Art. (c) Pflicht nur am Start-Flughafen der Strecke; Ziel ohne Schalter erlaubt. | **(a)**: Gäste checken an beiden Enden ein (heute zählt die Last beider Enden). Ohne den Premium-Abzug wäre der bediente Schalter nie sinnvoll, weil Selbstbedienung billiger ist und mehr schafft. So steht es vorläufig in `SPEZIFIKATION.md` 2.6.3. |
 | O53 | **Preis speichern (Paket 2.5).** Der Marktpreis steigt mit dem Kostenindex jeden Monat ein wenig (1,2 % je Jahr, E7). Ein fest gespeicherter Dollar-Preis rutscht dadurch langsam unter den Marktpreis: nach 10 Jahren 11 % billiger, ohne dass der Spieler etwas tut. Die KI rechnet ohnehin relativ zum Marktpreis (R7). | (a) Gespeichert wird das **Preisniveau** `fareRatio` (Preis / Marktpreis) je Klasse; der Planer zeigt und nimmt Dollar und rechnet um. (b) Gespeichert wird der Dollar-Preis; der Spieler muss ihn über die Jahre selbst anheben (Hinweis im Planer, wenn er unter den Marktpreis rutscht). | **(a)**: Kein stilles Abrutschen; Spieler und KI nutzen dieselbe Funktion (R7); „Adjust All“ ist dann einfach ein Preisniveau für alle Klassen. So steht es vorläufig in `SPEZIFIKATION.md` 4.5. Nachteil: Der Dollar-Betrag ändert sich jeden Monat leicht, ohne Eingabe. |
 | O54 | **Flugzeug und Slots in den Strecken-Kosten (Paket 2.6).** E26 verlangt als Planer-Hauptzahl den „erwarteten Gewinn“. Heute zählt der Planer nur Flugkosten und Gebühren; Unterhalt und (neu, E29) Abschreibung des Flugzeugs sowie die Slot-Miete fehlen. Beispiel heute: A350 FRA–JFK bringt +64 000 $ im Monat, das Flugzeug kostet 420 000 $ Unterhalt (`bestand/4-kosten.md`). | (a) `fixedWeeklyCost` einer Strecke enthält einen **Slot-Anteil** (Miete der belegten Slots) und einen **Flugzeug-Anteil** (Unterhalt + planbare Abschreibung, nach Blockstunden auf die Strecken des Flugzeugs verteilt). Hauptzahl = Gewinn nach diesen Anteilen; Nebenzahl „before aircraft costs“. (b) Nur Flugbetrieb (Treibstoff, Besatzung, Landung); Flugzeug und Slots nur im Monatsergebnis der Gesellschaft. | **(a)**: Der Planer zeigt, ob sich Strecke **und** Flugzeug lohnen; ein schlecht genutztes Flugzeug fällt auf; Gewinnschwelle (4.11) wird ehrlich. Der beste Preis (4.10) ändert sich nicht. So steht es vorläufig in `SPEZIFIKATION.md` 5.9. Nachteil: Die Hauptzahl wird kleiner als heute und hängt davon ab, welche Strecken das Flugzeug sonst fliegt. |
+| O55 | **Jahresziel verfehlt (Paket 2.7).** E38 nimmt dem Jahresziel den Ruf-Abzug (heute −1 sicher, −2 andere Art, −3 hoch, `src/lib/annualGoals.ts:75`, `:85-105`). Ohne Ersatz kostet ein verfehltes Ziel nichts. | (a) Keine Strafe; das Wagnis liegt in der Wahl (hohes Ziel zahlt 5 % der Bezugsgröße, sicheres 2 %). (b) Geld-Strafe beim Verfehlen, z. B. die Hälfte der Prämie. (c) Verfehlt: im nächsten Jahr nur das sichere Ziel im Angebot. | **(a)**: Folgt E38 („belohnen mit Geld oder Freischaltungen“) ohne neue Regel; eine Geld-Strafe des Vorstands wäre ein neuer Mechanismus. So steht es vorläufig in `SPEZIFIKATION.md` 6.11. Nachteil: Das hohe Ziel ist ohne Risiko; der Reiz des sicheren Ziels ist nur, dass es leichter klappt. |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -117,4 +118,13 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - `SPEZIFIKATION.md` 5.19 setzt für Abschnitt 6 voraus: Forschungs-Einsparungen je Kostenart und Effizienz-Punkte als Felder je Forschung; Slot-Nachlass aus Meilensteinen als ein Faktor.
 - `SPEZIFIKATION.md` 5.19 setzt für Abschnitt 8 voraus: Händler-Spanne, Gebrauchtpreise, Vorbestellung und Grundüberholung relativ zum Wertmodell `aircraftValue` (5.13); Überholung hebt den Wert nie über ihren Preis (E31); Kreditlinie aus `aircraftValue` (E34); Abschluss bucht `monthlyCosts` (5.16).
 - O52 (Schalter an beiden Enden) bestimmt in 5.10, an welchen Flughäfen Schalter-Miete anfällt.
+- E41, E42: festgelegt in `SPEZIFIKATION.md` 6.7 und 6.8 (Forschungsplätze 3 / 4 / 5 ab Rang 4 / 6 / 8; Klassen
+  Regional 1, Narrowbody 2, Widebody 4, Jumbo und Überschall 5; Überschall braucht Widebody statt Jumbo).
+- E36 (Neutral 50) und E39 bedingen in 6.7 und 6.10 neue Ruf-Schwellen (Ränge 30 … 65, Meilensteine 60 / 70 / 80).
+- `SPEZIFIKATION.md` 6.15 setzt für Abschnitt 7 voraus: KI hat Ruf mit derselben Funktion (Start 50, ohne
+  Werbe-Beitrag), aber keinen Rang, keine Forschung, keine Meilensteine; Klassen- und Flughafen-Sperren der KI
+  dort festlegen; Übernahme-Preis = Unternehmenswert wie `companyValue` (6.12).
+- `SPEZIFIKATION.md` 6.15 setzt für Abschnitt 8 voraus: Reihenfolge im Abschluss (Forschung, Ruf, Meilensteine,
+  Rang, Jahresziel); `cancelledShare` je Monat (Charter zählt nicht); Prämien nur in der Kasse; Forschungs-Felder
+  für Ausfälle, Verschleiß, Wiederverkauf und Moral; Szenario-Ruf-Ziel auf neuer Skala.
 - `SPEZIFIKATION.md` 4.10: Mit den Startwerten aus 3.9.2 liegt der beste Preis gegen einen gleichen Rivalen bei 70 % des Marktpreises. Abschnitt 7 (KI-Preise) und das Balance-Skript (3.9) müssen prüfen, dass gegenseitiges Unterbieten in Grenzen bleibt.

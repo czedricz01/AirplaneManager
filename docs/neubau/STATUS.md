@@ -1,10 +1,10 @@
 # Status
 
-**Nächstes Paket: 2.7** (Soll-Zustand Ruf, Rang, Fortschritt in `SPEZIFIKATION.md`, Abschnitt 6)
+**Nächstes Paket: 2.8** (Soll-Zustand Konkurrenz in `SPEZIFIKATION.md`, Abschnitt 7)
 
 Stand: 18.11.2026 · Ausgangslage: 504 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 2.7, die Spezifikation
+Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 2.8, die Spezifikation
 folgt vorläufig der Empfehlung):
 - **O52** Schalter-Pflicht an beiden Enden, Premium-Abzug ohne bedienten Schalter (`SPEZIFIKATION.md` 2.6.3,
   5.10). Nötig spätestens beim Bau der Zufriedenheit (Phase 3).
@@ -12,17 +12,20 @@ folgt vorläufig der Empfehlung):
   (`SPEZIFIKATION.md` 4.5). Nötig spätestens beim Bau des Preises (Phase 3).
 - **O54** Flugzeug- und Slot-Anteil in den festen Kosten einer Strecke und in der Planer-Hauptzahl
   (`SPEZIFIKATION.md` 5.9). Nötig spätestens beim Bau der Kosten (Phase 3).
+- **O55** Jahresziel verfehlt: keine Strafe, Geld-Strafe oder nur sicheres Ziel im Folgejahr
+  (`SPEZIFIKATION.md` 6.11). Nötig spätestens beim Bau des Fortschritts (Phase 3).
 
-Paket 2.7: Soll-Zustand von Ruf, Rang und Fortschritt in `SPEZIFIKATION.md`, Abschnitt 6 schreiben
-(Ruf-Ziel aus Airline satisfaction und gestrichenen Flügen, Ruf-Änderung an einer Stelle mit Ursachen,
-abklingender Werbe-Beitrag, Neutralpunkt 50; Rang über 3 Monate, Flugzeugklassen und Forschungsplätze je
-Rang mit Prüfung der Erreichbarkeit; Meilensteine und Jahresziel mit Geld oder Freischaltungen; Forschung:
-Preise mit `atCost`, Einsparungen je Kostenart als Felder; Karriere-Punkte mit getrennten Ruhmeshallen).
-Muss die Vorgaben aus 3.16 (Ruf wirkt nur über `reputationFactor`) und 5.19 (Forschungs-Felder,
-`milestoneSlotFactor`) einhalten.
-Zu lesen: `SPEZIFIKATION.md` (Abschnitt 1, 2.6.5, 2.9, 3.9.4, 3.9.5, 3.16, 5.1, 5.19),
-`ENTSCHEIDUNGEN.md` (E6, E11, E19, E33, E36–E43, E52, R10, R15, R16), `bestand/5-ruf-fortschritt.md`.
-Code nur bei Bedarf.
+Paket 2.8: Soll-Zustand der Konkurrenz in `SPEZIFIKATION.md`, Abschnitt 7 schreiben
+(gleiche Wirtschaft für die KI, Liste der bewusst fehlenden Teile: Forschung, Personal, Werbung, Frequent flyer,
+Schwierigkeit; KI-Stärke nur über Verhalten; KI-Preise als `fareRatio` je Persönlichkeit und Lage, Preiskampf in
+Grenzen; Persönlichkeiten mit echten Kostenvorteilen und ähnlichem Erfolg; Wachstum nach Sitzen, weitere
+Drehkreuze, Dividende über einer Grenze, Ticker nach Fluggästen; Zuschuss bis zur Abschaffung mit `atCost`;
+Übernahme zum Unternehmenswert, Slots je Flughafen; Flotte aufgelöster KI in den Gebrauchtmarkt; KI hält die
+Slot-Grenze ein; KI-Ausstattung je Mahlzeit; Klassen- und Flughafen-Sperren der KI).
+Muss die Vorgaben aus 1.8, 2.6.4, 2.6.5, 3.16, 4.6, 4.14, 5.17, 5.19 und 6.15 einhalten.
+Zu lesen: `SPEZIFIKATION.md` (Abschnitt 1, 1.8, KI-Teile von 2.3 und 2.5, 3.9, 3.11, 3.13, 3.16, 4.6, 4.10 Hinweis, 4.14,
+5.10, 5.13, 5.17, 5.19, 6.12, 6.15), `ENTSCHEIDUNGEN.md` (E4, E44–E50, E53, R1, R7, R13, R14),
+`bestand/6-konkurrenz.md`. Code nur bei Bedarf.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -64,7 +67,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 2.4 | Soll-Zustand Nachfrage und Marktanteil (`SPEZIFIKATION.md` Abschnitt 3) | erledigt |
 | 2.5 | Soll-Zustand Preis und Erlös (`SPEZIFIKATION.md` Abschnitt 4) | erledigt |
 | 2.6 | Soll-Zustand Kosten (`SPEZIFIKATION.md` Abschnitt 5) | erledigt |
-| 2.7–2.9 | Je Bereich 1.5–1.7 den Soll-Zustand in `SPEZIFIKATION.md` schreiben (2.7 Ruf und Fortschritt, 2.8 Konkurrenz, 2.9 Monat und Ereignisse) | offen |
+| 2.7 | Soll-Zustand Ruf, Rang, Fortschritt (`SPEZIFIKATION.md` Abschnitt 6) | erledigt |
+| 2.8–2.9 | Je Bereich 1.6–1.7 den Soll-Zustand in `SPEZIFIKATION.md` schreiben (2.8 Konkurrenz, 2.9 Monat und Ereignisse) | offen |
 
 ## Phase 3 – Modell neu bauen
 
@@ -114,3 +118,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 2.4 | Nachfrage und Marktanteil in `SPEZIFIKATION.md` Abschnitt 3: Marktgröße ohne Flugzeug und Schwierigkeit (Bezugs-Flugzeit 800 km/h, Weltanteil der Städte + eine Wachstumsregel × 2,5, Entfernungs-Kurve ohne Untergrenze), neue Klassen-Anteile nach Geschäftsanteil und Flugzeit, eine Aufteilung je Markt mit „Nicht fliegen“ (Anziehung aus Abflügen, Preis/Satisfaction, Flugzeit, Ruf u. a.), Bezugsangebot ohne Rivalen erlösbest am Marktpreis (E24), Anlauf nach der Wahl, Umsteiger als Angebote im selben Markt; alle 14 Funde aus 1.2 zugeordnet; keine neue offene Frage |
 | 18.11.2026 | 2.5 | Preis und Erlös in `SPEZIFIKATION.md` Abschnitt 4: Marktpreis nur aus Entfernung, Bezugs-Flugzeit und Kostenindex (gleich für alle Angebote, ohne Schwierigkeit und SAT), eine Funktion für die Klassen-Verhältnisse, Knappheits-Zuschlag entfällt (Knappheit hebt den besten Preis), Preis als Preisniveau × Marktpreis, Erlös = Fluggäste × Preis × 4,348 Wochen, Umsteiger-Erlös nach Marktpreisen der Teilstrecken, gewinnbester Preis und Gewinnschwelle aus dem Modell, Planer-Hauptzahl = erwarteter Gewinn; alle 11 Funde aus 1.3 zugeordnet; neue Frage O53 (Preis speichern) |
 | 18.11.2026 | 2.6 | Kosten in `SPEZIFIKATION.md` Abschnitt 5: drei Ebenen (Kosten je Fluggast, feste Kosten je Strecke, Kosten der Gesellschaft); Treibstoff nur aus der Tabelle (nach 2030 letzter Wert); Flugbegleiter nach Kabine; Landung je Abschnitt am Ziel; Check-in je Reise, Abfertigung je Abflug (Bodenpersonal darin); ein Gebühren-Nachlass; alle festen Beträge über `atCost` (auch Verpflegung, Slots, Stufen, Werbung); Wertmodell mit Abschreibung als Ergebnis-Posten (Kauf zum Wert ergebnisneutral); KI zahlt alles; alle 15 Funde aus 1.4 zugeordnet; neue Frage O54 (Flugzeug- und Slot-Anteil in den Strecken-Kosten) |
+| 18.11.2026 | 2.7 | Ruf, Rang, Fortschritt in `SPEZIFIKATION.md` Abschnitt 6: Ruf-Ziel aus Airline satisfaction (100 → 50, 160 → 100), Abzug für gestrichene Sitze und kleinem Werbe-Beitrag im Ziel (höchstens 3, klingt mit dem Ruf ab); eine Funktion `reputationChange` mit Ursachen-Liste; keine Einmal-Sprünge; Rang im 3-Monats-Mittel mit neuen Ruf-Schwellen 30 … 65, Forschungsplätze 3 / 4 / 5 ab Rang 4 / 6 / 8; Klassen-Forschung gesenkt (Narrowbody 2, Widebody 4, Jumbo und Überschall 5, Überschall braucht Widebody, Preise gesenkt) mit Prüfung: Concorde ab 1972 erforschbar; Forschungs-Wirkungen als 15 Felder; Meilensteine und Jahresziel nur Geld und Freischaltungen, alle Beträge über `atCost`; Karriere-Punkte mit zwei Ruhmeshallen, Forschung 5 statt 15; alle 14 Funde aus 1.5 zugeordnet; neue Frage O55 (Jahresziel verfehlt) |
