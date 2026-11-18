@@ -1,16 +1,19 @@
 # Status
 
-**Nächstes Paket: 3.3b** (Nachfrage Teil 2: Anziehung, „Nicht fliegen“, Aufteilung, Anlauf, Umsteiger, `SPEZIFIKATION.md` 3.8–3.14)
+**Nächstes Paket: 3.2b** (Zufriedenheit Teil 2, `SPEZIFIKATION.md` 2.6–2.10) – **wartet auf O52**.
+Danach 3.4 (Preis, wartet auf O53). Alle übrigen Pakete der Phase 3 warten ebenfalls auf eine Entscheidung
+(3.9 Balance-Skript braucht Preis und Kosten).
 
-Stand: 18.11.2026 · Paket 3.3a erledigt: `src/model/demand.ts` (Bezugs-Flugzeit, Stadtgrößen stetig, Weltanteil,
-Verflechtung, Saison, Geschäftsanteil, Nachfrage-Wachstum, Entfernungs-Faktor, Ereignis-Faktor, Marktgröße,
-Klassen-Anteil) mit 37 Regeltests. 615 Tests grün, `tsc --noEmit` grün.
+Stand: 18.11.2026 · Paket 3.3b erledigt: `src/model/marketSplit.ts` (Direktangebot, Anziehung mit allen
+Faktoren, „Nicht fliegen“, Potenzial, Anlauf, Aufteilung mit Sitz-Grenze und Überlauf, Passenger/Departure share)
+und `src/model/transfers.ts` (Umsteige-Verbindungen); Beispiel 3.15 nachgerechnet; 61 Regeltests.
+676 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 3.3b):
+Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“):
 - **O52** Schalter-Pflicht an beiden Enden, Premium-Abzug ohne bedienten Schalter (`SPEZIFIKATION.md` 2.6.3,
-  5.10). Nötig für **3.2b** (Boden-Teil der Satisfaction).
+  5.10). Nötig für **3.2b** (Boden-Teil der Satisfaction). Empfehlung (a).
 - **O53** Preis als Preisniveau (Anteil des Marktpreises) oder als Dollar-Betrag speichern
-  (`SPEZIFIKATION.md` 4.5). Nötig für 3.4 (Preis).
+  (`SPEZIFIKATION.md` 4.5). Nötig für **3.4** (Preis). Empfehlung (a).
 - **O54** Flugzeug- und Slot-Anteil in den festen Kosten einer Strecke und in der Planer-Hauptzahl
   (`SPEZIFIKATION.md` 5.9). Nötig für 3.5 (Kosten).
 - **O55** Jahresziel verfehlt: keine Strafe, Geld-Strafe oder nur sicheres Ziel im Folgejahr
@@ -29,18 +32,22 @@ Offen aus 3.2a (kein Blocker): Der Test „Kaufdialog-Anzeige = Modellwert“ (2
 auf `interiorScoreParts` umgestellt wird (Phase 4).
 Offen aus 3.3a (kein Blocker): Die Balance-Regeln aus 3.3 (Marktgröße im Mittel aller Paare 1960 → 2019 × 2,5)
 und 3.7 (Premium-Anteil schwankt über alle Paare um mindestens 3 Prozentpunkte) prüft das Balance-Skript (3.9).
+Offen aus 3.3b (kein Blocker): Balance-Skript (3.9) prüft Umsteiger typisch unter 25 % in Märkten mit
+Direktangebot (3.13) und die Stärke von `FLIGHT_TIME_EXP` (3.9.3). Die Regel „Planer-Wert = Wert im
+Monatsabschluss“ (3.11, R2) wird geprüft, wenn Planer und Monatsabschluss das Modell nutzen (Phase 4 / 3.8).
+Wer Angebote aus dem Spielstand baut (Strecken je Paar, Fahrpläne, Alter, Laufmonate), regelt 3.8 bzw. Phase 4.
 
-Paket 3.3b: Zweiter Teil von Abschnitt 3 als Code in `src/model/demand.ts` (bei Bedarf geteilt, z. B. `demand/split.ts`).
-- Angebote eines Markts mit ihren Kennzahlen (3.8), Anziehung `offerAppeal` mit allen Faktoren (3.9),
-  „Nicht fliegen“ und Potenzial (3.10), Aufteilung `marketSplit` mit Sitz-Grenze und Überlauf (3.11),
-  Anlauf `rampFactor` (3.12), Umsteige-Verbindungen (3.13), Passenger share und Departure share (3.14).
-- Eingaben, solange andere Pakete fehlen: `satisfactionFactor` (2.10, Paket 3.2b) und Marktpreis bzw. Preis-Verhältnis
-  (Abschnitt 4, Paket 3.4) als Zahlen; Ruf, Forschung, Krisen-Antwort, Schwierigkeit als Faktoren.
-- Beispiel 3.15 als Test nachrechnen. Alle neuen Konstanten in `src/model/constants.ts`; Regeltests je Regel.
-- Kein Umbau von `src/lib/` oder der Oberfläche.
-Zu lesen: `SPEZIFIKATION.md` 2.10 und 3.8–3.17, `src/model/README.md`, `src/model/demand.ts` (nur Aufbau und
-Exporte), `src/model/constants.ts` (nur Aufbau), `src/lib/financeUtils.ts:1122-1170` (Anziehung und Marktanteil heute),
-`src/lib/routeMaturity.ts` (Anlauf heute), `src/lib/transferUtils.ts:60-120` und `:395-430` (Umsteiger heute).
+Paket 3.2b (sobald O52 entschieden ist): Zweiter Teil von Abschnitt 2 als Code in `src/model/satisfaction.ts`.
+- Teile der Satisfaction (2.6.1–2.6.5), Satisfaction je Klasse (2.7), Offer satisfaction (2.8),
+  Route und Airline satisfaction (2.9), `satisfactionFactor` (2.10).
+- O52-Antwort in `SPEZIFIKATION.md` 2.6.3 und 5.10 übernehmen.
+- Alle neuen Konstanten in `src/model/constants.ts`; Regeltests je Regel.
+- `satisfactionFactor` dann an `offerAppeal` (Feld `satisfactionFactor`, `src/model/marketSplit.ts`) anschließen: Test
+  „höhere Satisfaction bei gleichem Preis nie weniger anziehend“ (2.10).
+Zu lesen: `SPEZIFIKATION.md` 2.6–2.11, `src/model/README.md`, `src/model/satisfaction.ts` und `cabin.ts` (nur
+Aufbau und Exporte), `src/model/constants.ts` (nur Aufbau), `bestand/1-zufriedenheit.md` (nur Abschnitte zu
+Boden, Personal, Gewichtung), `src/lib/financeUtils.ts:500-560` (Boden-Teil heute) und `:740-750`
+(`getSatMultiplier`).
 Prüfen: `npm test`, `npm run lint`.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
@@ -95,7 +102,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.2a | Zufriedenheit Teil 1 (`SPEZIFIKATION.md` 2.1–2.5): Flugzeit-Index, Type appeal, Interior score, Cabin rating, Service points | erledigt |
 | 3.2b | Zufriedenheit Teil 2 (2.6–2.10): Teile der Satisfaction, Satisfaction je Klasse, Offer/Route/Airline satisfaction, `satisfactionFactor` | wartet (O52) |
 | 3.3a | Nachfrage Teil 1 (3.1–3.7): Bezugs-Flugzeit, Verflechtung, Wachstum, Entfernung, Ereignisse, Marktgröße, Klassen-Anteil | erledigt |
-| 3.3b | Nachfrage Teil 2 (3.8–3.14): Anziehung, „Nicht fliegen“, Aufteilung, Anlauf, Umsteiger; `satisfactionFactor` als Eingabe, solange 3.2b wartet | offen |
+| 3.3b | Nachfrage Teil 2 (3.8–3.14): Anziehung, „Nicht fliegen“, Aufteilung, Anlauf, Umsteiger; `satisfactionFactor` als Eingabe, solange 3.2b wartet | erledigt |
 | 3.4 | Preis und Erlös (Abschnitt 4) | wartet (O53) |
 | 3.5 | Kosten und Wertmodell (Abschnitt 5) | wartet (O54, O58) |
 | 3.6 | Ruf, Rang, Fortschritt (Abschnitt 6) | wartet (O55) |
@@ -149,3 +156,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 3.1 | Gerüst `src/model/`: `constants.ts` (Zeit, Liter je Gallone, Kostenindex, 10 Skalen mit Neutralpunkten, Schwierigkeit), `basics.ts` (`yearOf`, `timeOf`, `costIndex`, `atCost`, `clamp`, `clampScale`, `difficultyFactor`), `rng.ts` (zustandsloser Zufallsgeber nach 8.3), `README.md` (Aufbau, R1–R4, Testmuster); 32 Regeltests zu 1.1–1.8 und 8.3; Bau-Festlegungen F1–F4; Pakete 3.2–3.8 aufgeteilt (3.2a/3.2b), 3.2b wartet auf O52 |
 | 18.11.2026 | 3.2a | Zufriedenheit Teil 1: `src/model/satisfaction.ts` (`flightTimeIndex`, `typeAppeal`, `menuPoints`, `mealCount`, `mealWeight`, `serviceCapability`, `servicePoints`) und `src/model/cabin.ts` (`interiorScore`, `cabinRating`, `averageCabinRating`); Kabinen-Tabellen mit Lieferbarkeit und alle Konstanten 2.1–2.5 in `constants.ts`; 42 Regeltests (578 grün); Bau-Festlegungen F5–F8; Paket 3.3 in 3.3a/3.3b geteilt |
 | 18.11.2026 | 3.3a | Nachfrage Teil 1: `src/model/demand.ts` (`distanceKm`, `blockMinutes`, `referenceBlockMinutes`, `citySize` stetig, `worldScale`, `relativeSize`, `businessLinkage`, `tourismLinkage`, `seasonFactor`, `southernShare`, `businessShare`, `demandGrowth`, `distanceFactor`, `eventDemandFactor`, `marketSize` + `marketSizeParts`, `classShare`/`classShares`); alle Konstanten 3.1–3.7 in `constants.ts`; 37 Regeltests (615 grün); Bau-Festlegungen F9–F13 (F13: Schreibfehler in Spezifikation 3.7 berichtigt) |
+| 18.11.2026 | 3.3b | Nachfrage Teil 2: `src/model/marketSplit.ts` (`directOffer`, `offerAppeal` mit 11 Faktoren, `noFlyAppeal`, `classPotential`, `rampFactor`, `marketSplit` mit Anlauf, Sitz-Grenze und Überlauf, `distributeToRoutes`, `passengerShare`, `departureShare`) und `src/model/transfers.ts` (Anschlüsse, Umweg, Drehkreuz-Güte, `transferOffer`, `allocateTransferSeats`); alle Konstanten 3.9–3.13 in `constants.ts`; Beispiel 3.15 genau nachgerechnet; 61 Regeltests (676 grün); Bau-Festlegungen F14–F20 (u. a. F17 Anlauf auch im Überlauf, F19 Anschlüsse je Ankunft) |
