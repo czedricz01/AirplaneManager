@@ -1,10 +1,10 @@
 # Status
 
-**Nächstes Paket: 2.8** (Soll-Zustand Konkurrenz in `SPEZIFIKATION.md`, Abschnitt 7)
+**Nächstes Paket: 2.9** (Soll-Zustand Monatsabschluss und Ereignisse in `SPEZIFIKATION.md`, Abschnitt 8)
 
 Stand: 18.11.2026 · Ausgangslage: 504 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 2.8, die Spezifikation
+Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; keine blockiert 2.9, die Spezifikation
 folgt vorläufig der Empfehlung):
 - **O52** Schalter-Pflicht an beiden Enden, Premium-Abzug ohne bedienten Schalter (`SPEZIFIKATION.md` 2.6.3,
   5.10). Nötig spätestens beim Bau der Zufriedenheit (Phase 3).
@@ -14,18 +14,21 @@ folgt vorläufig der Empfehlung):
   (`SPEZIFIKATION.md` 5.9). Nötig spätestens beim Bau der Kosten (Phase 3).
 - **O55** Jahresziel verfehlt: keine Strafe, Geld-Strafe oder nur sicheres Ziel im Folgejahr
   (`SPEZIFIKATION.md` 6.11). Nötig spätestens beim Bau des Fortschritts (Phase 3).
+- **O56** Preiskampf der KI gegen jede Gesellschaft oder nur gegen den Spieler (`SPEZIFIKATION.md` 7.6).
+  Nötig spätestens beim Bau der Konkurrenz (Phase 3).
+- **O57** Verwaltungsstufe 3: KI nur bis Stufe 2, Spieler-Stufe 3 sperrt neue KI-Strecken (`SPEZIFIKATION.md` 7.10).
+  Nötig spätestens beim Bau der Konkurrenz (Phase 3).
 
-Paket 2.8: Soll-Zustand der Konkurrenz in `SPEZIFIKATION.md`, Abschnitt 7 schreiben
-(gleiche Wirtschaft für die KI, Liste der bewusst fehlenden Teile: Forschung, Personal, Werbung, Frequent flyer,
-Schwierigkeit; KI-Stärke nur über Verhalten; KI-Preise als `fareRatio` je Persönlichkeit und Lage, Preiskampf in
-Grenzen; Persönlichkeiten mit echten Kostenvorteilen und ähnlichem Erfolg; Wachstum nach Sitzen, weitere
-Drehkreuze, Dividende über einer Grenze, Ticker nach Fluggästen; Zuschuss bis zur Abschaffung mit `atCost`;
-Übernahme zum Unternehmenswert, Slots je Flughafen; Flotte aufgelöster KI in den Gebrauchtmarkt; KI hält die
-Slot-Grenze ein; KI-Ausstattung je Mahlzeit; Klassen- und Flughafen-Sperren der KI).
-Muss die Vorgaben aus 1.8, 2.6.4, 2.6.5, 3.16, 4.6, 4.14, 5.17, 5.19 und 6.15 einhalten.
-Zu lesen: `SPEZIFIKATION.md` (Abschnitt 1, 1.8, KI-Teile von 2.3 und 2.5, 3.9, 3.11, 3.13, 3.16, 4.6, 4.10 Hinweis, 4.14,
-5.10, 5.13, 5.17, 5.19, 6.12, 6.15), `ENTSCHEIDUNGEN.md` (E4, E44–E50, E53, R1, R7, R13, R14),
-`bestand/6-konkurrenz.md`. Code nur bei Bedarf.
+Paket 2.9: Soll-Zustand von Monatsabschluss, Ereignissen und Flottenmarkt in `SPEZIFIKATION.md`, Abschnitt 8 schreiben
+(Reihenfolge im Abschluss für Spieler und KI in einer Marktaufteilung, Kasse am Monatsende nach allen Buchungen;
+Verschleiß aus geflogenen Flügen, technische Ausfälle, gestrichene Flüge und `cancelledShare`; Charter als Preis je
+Flug ohne eigene Flugkosten; Ereignisse für alle, Krisen-Antworten als Anteil der betroffenen Größe, Preis-Absicherung;
+Kreditlinie mit Zins, Zwangsverkauf und Spielende; Gebrauchtmarkt, Händler-Spanne, Vorbestellung, Grundüberholung
+relativ zum Wertmodell; Ereignisse im Spielstand; Szenario-Ziele).
+Muss die Vorgaben aus 3.16, 4.14, 5.19, 6.15 und 7.19 einhalten.
+Zu lesen: `SPEZIFIKATION.md` (Abschnitt 1, 3.5, 3.9.7, 3.16, 4.5, 4.7, 4.9, 4.14, 5.2, 5.3, 5.12, 5.13, 5.16, 5.19,
+6.2, 6.5, 6.15, 7.1, 7.2, 7.11, 7.15, 7.19), `ENTSCHEIDUNGEN.md` (E5, E8, E29–E35, E38, E49, R11, R12, R13),
+`bestand/7-monat-ereignisse.md`. Code nur bei Bedarf.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -68,7 +71,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 2.5 | Soll-Zustand Preis und Erlös (`SPEZIFIKATION.md` Abschnitt 4) | erledigt |
 | 2.6 | Soll-Zustand Kosten (`SPEZIFIKATION.md` Abschnitt 5) | erledigt |
 | 2.7 | Soll-Zustand Ruf, Rang, Fortschritt (`SPEZIFIKATION.md` Abschnitt 6) | erledigt |
-| 2.8–2.9 | Je Bereich 1.6–1.7 den Soll-Zustand in `SPEZIFIKATION.md` schreiben (2.8 Konkurrenz, 2.9 Monat und Ereignisse) | offen |
+| 2.8 | Soll-Zustand Konkurrenz (`SPEZIFIKATION.md` Abschnitt 7) | erledigt |
+| 2.9 | Soll-Zustand Monatsabschluss, Ereignisse, Flottenmarkt (`SPEZIFIKATION.md` Abschnitt 8) | offen |
 
 ## Phase 3 – Modell neu bauen
 
@@ -119,3 +123,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 2.5 | Preis und Erlös in `SPEZIFIKATION.md` Abschnitt 4: Marktpreis nur aus Entfernung, Bezugs-Flugzeit und Kostenindex (gleich für alle Angebote, ohne Schwierigkeit und SAT), eine Funktion für die Klassen-Verhältnisse, Knappheits-Zuschlag entfällt (Knappheit hebt den besten Preis), Preis als Preisniveau × Marktpreis, Erlös = Fluggäste × Preis × 4,348 Wochen, Umsteiger-Erlös nach Marktpreisen der Teilstrecken, gewinnbester Preis und Gewinnschwelle aus dem Modell, Planer-Hauptzahl = erwarteter Gewinn; alle 11 Funde aus 1.3 zugeordnet; neue Frage O53 (Preis speichern) |
 | 18.11.2026 | 2.6 | Kosten in `SPEZIFIKATION.md` Abschnitt 5: drei Ebenen (Kosten je Fluggast, feste Kosten je Strecke, Kosten der Gesellschaft); Treibstoff nur aus der Tabelle (nach 2030 letzter Wert); Flugbegleiter nach Kabine; Landung je Abschnitt am Ziel; Check-in je Reise, Abfertigung je Abflug (Bodenpersonal darin); ein Gebühren-Nachlass; alle festen Beträge über `atCost` (auch Verpflegung, Slots, Stufen, Werbung); Wertmodell mit Abschreibung als Ergebnis-Posten (Kauf zum Wert ergebnisneutral); KI zahlt alles; alle 15 Funde aus 1.4 zugeordnet; neue Frage O54 (Flugzeug- und Slot-Anteil in den Strecken-Kosten) |
 | 18.11.2026 | 2.7 | Ruf, Rang, Fortschritt in `SPEZIFIKATION.md` Abschnitt 6: Ruf-Ziel aus Airline satisfaction (100 → 50, 160 → 100), Abzug für gestrichene Sitze und kleinem Werbe-Beitrag im Ziel (höchstens 3, klingt mit dem Ruf ab); eine Funktion `reputationChange` mit Ursachen-Liste; keine Einmal-Sprünge; Rang im 3-Monats-Mittel mit neuen Ruf-Schwellen 30 … 65, Forschungsplätze 3 / 4 / 5 ab Rang 4 / 6 / 8; Klassen-Forschung gesenkt (Narrowbody 2, Widebody 4, Jumbo und Überschall 5, Überschall braucht Widebody, Preise gesenkt) mit Prüfung: Concorde ab 1972 erforschbar; Forschungs-Wirkungen als 15 Felder; Meilensteine und Jahresziel nur Geld und Freischaltungen, alle Beträge über `atCost`; Karriere-Punkte mit zwei Ruhmeshallen, Forschung 5 statt 15; alle 14 Funde aus 1.5 zugeordnet; neue Frage O55 (Jahresziel verfehlt) |
+| 18.11.2026 | 2.8 | Konkurrenz in `SPEZIFIKATION.md` Abschnitt 7: KI rechnet mit denselben Funktionen (Tabelle 7.1), Liste der bewusst fehlenden Teile mit neutralen Werten (Forschung, Personal, Werbung, Frequent flyer, Schwierigkeit, Rang, Krisen-Antworten, Charter); KI-Stärke nur Verhalten; Persönlichkeiten nur als Entscheidungen mit echten Kostenvorteilen über die Kabine (LCC 202 statt 134 Sitze im A320ceo) und Prüfregel „ähnlicher Erfolg“; KI-Preise = Preis-Lage × `satisfactionFactor`, Anpassung nach Auslastung, Preiskampf einmal −12 % mit Boden über den Kosten; KI kauft Slots (Anteil je Flughafen), Schalter, Flugzeuge zum Wert; Größe in Sitzen, weitere Drehkreuze ab Größe 5, Dividende über 12 Monatskosten; Zuschuss mit `atCost` bis zur Prüfung; Notlage „in Folge“, Flotte aufgelöster KI in den Gebrauchtmarkt; Übernahme zum Unternehmenswert mit Kasse und Slots je Flughafen; Ticker nach Fluggästen; Rückschlag entfällt; alle 11 Funde aus 1.6 zugeordnet; neue Fragen O56 (Preiskampf gegen wen) und O57 (Stufe 3 und KI) |

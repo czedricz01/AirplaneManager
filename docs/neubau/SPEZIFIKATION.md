@@ -2243,7 +2243,506 @@ Doppelte Rechnungen (Bestand 1.5) → eine Funktion im Modell (R2): Rang-Werte (
 
 ## 7. Konkurrenz
 
-_(offen)_
+Dieser Abschnitt legt fest, nach welchen Regeln die KI-Gesellschaften rechnen, welche Teile sie bewusst nicht
+haben, wie sie entscheiden (Preise, Strecken, Flotte, Wachstum) und was bei Notlage, Auflösung und Übernahme
+geschieht. Grundlage: E4, E6, E44–E50, E53, R1, R7, R13, R14; Vorgaben aus 1.8, 2.6.4, 2.6.5, 3.16, 4.6, 4.14,
+5.17, 5.19 und 6.15; Bestand: `bestand/6-konkurrenz.md` (W1–W11). Alle heutigen Fundstellen ohne Pfad liegen in
+`src/lib/aiSimulation.ts`.
+
+**Grundsatz (E44).** Die KI ist eine Gesellschaft wie der Spieler: **dieselbe Wirtschaft**, dieselben Funktionen
+(Satisfaction, Markt, Preis, Kosten, Wertmodell, Ruf, Ereignisse, Slots). Vereinfacht sind nur ihre
+**Entscheidungen**: Sie wählt nach festen Regeln statt über die Oberfläche. Was ihr fehlt, steht als Liste in 7.2.
+
+**Stärke nur über Verhalten (E4).** Die KI-Stärke (`rivalStrength`, 1.8) ändert, wie geschickt die KI entscheidet,
+nie, wie sie rechnet. Die Schwierigkeit des Spielers wirkt nie auf die KI (E53).
+
+**Geld (1.3).** Jeder feste Betrag dieses Abschnitts (Startkasse, Reserven, Grenzen, Zuschuss, Mindestpreis) steht
+als Wert von 1960 in den Konstanten und wird nur über `atCost(betrag1960, month)` umgerechnet (E6).
+
+### 7.0 Überblick
+
+```
+Spielstart / Nachrücken ─► Gründung (7.7): Drehkreuz, Persönlichkeit (7.4), Kasse und Flotte nach KI-Stärke (7.3)
+
+Monatsabschluss (Abschnitt 8), für alle Gesellschaften in EINER Rechnung (R1):
+  Markt (3.11) mit allen Angeboten ─► Fluggäste, Erlös (4), Kosten (5), Wertänderung (5.13), Ruf (6.5)
+  danach je KI die Entscheidungen (7.8), wirksam ab dem nächsten Monat:
+    Preise (7.6) ─ Krise (7.12) ─ Verlierer ─ Feinabstimmung ─ Flotte (7.11) ─ Eröffnungen (7.9, 7.10)
+    ─ Wachstum und neue Drehkreuze (7.13) ─ Dividende (7.13) ─ Notlage (7.15)
+
+Wirkung auf den Spieler: über den gemeinsamen Markt (3.11), Landegebühren an eigenen Stufe-3-Flughäfen (5.15),
+  Slots an gemeinsamen Flughäfen (1.6), Gebrauchtmarkt (7.15), Übernahme (7.16), Ticker und Meldungen (7.17)
+```
+
+**Was bleibt** (wie heute, mit Modell-Funktionen statt eigener Rechnung): Persönlichkeiten und Angriffslust,
+Ziel-Vorauswahl mit Suchbreite und Schätzfehler, Geduld und Verlierer-Regel, Kernnetz, Feinabstimmung,
+Krisen-Fahrplan, Modernisierung, Notlage mit Verkauf und Auflösung, Nachrücken, Preiskampf.
+
+**Was entfällt** (gegenüber heute):
+- Eigene Wirtschaft der KI (W2): keine Flughafen-Kosten, Rabatt-Flughäfen wie Stufe 3 und 2 (`:410-423`), freie
+  Slots an Zielen, kein Anlauf, Ruf-Faktor 1, Zustand immer 100, Type appeal ohne Alter, Wiederverkauf ohne
+  Alter (W7), feste Restwerte 20 % (`:1017`): 7.1.
+- Schwierigkeit in der KI-Wirtschaft (W3): Nachfrage × 0,75 / 0,88 (`:433`), Treibstoff × 1,15 (`:793`),
+  Easy-Preise 2,25–2,5 × Grundpreis (`:337-352`), Easy-Kabine mit 85 % First (`:228-239`): E4, 7.3, 7.5.
+- Preise als Faktor auf den Grundpreis ohne Satisfaction (`:337-352`) und Preis-Reiz `1 / (1 − Nachlass)` im
+  Spieler-Markt (`src/lib/monthClose.ts:201`): R7, 4.6, 7.6.
+- Zwei Rechnungen für Rivalen-Angebote (`src/lib/monthClose.ts:191-205` und `:768-810`): R1, eine Aufteilung.
+- Eröffnungskosten 1,5 Mio. $ (`:96`): Die KI kauft die Slots (7.10) wie der Spieler.
+- Drehkreuz-Grenze „Stufe × 40 Abflüge“ (`:141`, W4): Slot-Grenze je Flughafen (E50, 7.10).
+- Strafbuchung −150 000 $ für überschrittene Reichweite (`:842-843`): Die KI plant nur Strecken in Reichweite (7.11).
+- Rückschlag 20–70 Mio. $ mit 0,5 % je Monat (`:76-79`, `:869-873`): eine Zufallsbuchung nur für die KI.
+  Ereignisse gelten für alle gleich (E35); gegen unbegrenzten Reichtum wirkt die Dividende (7.13). *(Lesart von E44.)*
+- Persönlichkeits-Faktor auf die Startkasse (Flag × 1,25 … LCC × 0,88, `:700-707`): E45, 7.7.
+- Ticker-Rang nach Kasse (`src/lib/monthClose.ts:1393`): nach Fluggästen (E46, 7.17).
+
+### 7.1 Gleiche Wirtschaft (E44)
+Die KI nutzt für jede Größe **dieselbe Funktion** wie der Spieler. Unterschiede entstehen nur aus ihren
+Entscheidungen und aus den fehlenden Teilen (7.2).
+
+| Bereich | Regel für die KI | Abschnitt |
+|---|---|---|
+| Satisfaction | aus ihrer Kabine (7.5), ihrem Service, ihren Flughäfen; `staffPart = 0`, `researchPart = 0` | 2, 2.6.4, 2.6.5 |
+| Type appeal, Cabin rating | mit Alter und Zustand ihrer Flugzeuge; kein Erstkunden-Bonus (keine Vorbestellung) | 2.2, 2.4 |
+| Markt | ihre Angebote in derselben Aufteilung wie alle (R1), mit eigener `offerSatisfaction` und echtem Preis | 3.11 |
+| Anlauf, Established route bonus | ja, nach dem Alter ihres Angebots | 3.12, 3.9.6 |
+| Ruf | `reputationChange` mit `airlineSatisfaction` ihrer Strecken und `cancelledShare`; Start 50; Werbe-Beitrag 0 | 6.1–6.5 |
+| Umsteige-Verbindungen | über jedes eigene Drehkreuz, wie beim Spieler | 3.13 |
+| Preis, Erlös | `routeFare = fareRatio × marketFare` (4.6); Erlös je Strecke wie beim Spieler | 4.5–4.9 |
+| Kosten | alle aus 5.2–5.13 mit denselben Funktionen, auch Slots, Stände, Schalter, Unterhalt, Abschreibung | 5.17 |
+| Wertmodell | `aircraftValue` mit Alter und Zustand; Verkauf mit Händler-Spanne | 5.13, 8 |
+| Verschleiß, Ausfälle | Zustand sinkt mit den geflogenen Flügen; technische Ausfälle streichen Flüge (Ruf über `cancelledShare`) | 8 |
+| Ereignisse | wirken auf alle Märkte gleich, auch regionale (E35) | 3.5, 8 |
+| Kreditlinie | wie beim Spieler, Zinsen als Kosten (E34); Folgen der Notlage in 7.15 | 8 |
+| Slots | kauft und belegt Slots; Grenze je Flughafen gilt für alle zusammen (E50) | 1.6, 5.10, 7.10 |
+| Schwierigkeit | wirkt nie (E4, E53) | 1.8 |
+
+- Regeln (Tests):
+  - Eine KI und ein Spieler mit gleichem Stand (Flotte, Kabine, Service, Flughäfen, Preise, Ruf), Lohn 100 %, ohne
+    Forschung, Werbung, Frequent flyer und Personal-Moral 50, auf Normal: gleiche Fluggäste, gleicher Erlös,
+    gleiche Kosten, gleiches Monatsergebnis.
+  - KI-Ergebnisse auf Easy, Normal und Hard (Spieler-Schwierigkeit) sind gleich, wenn der Spieler nicht im Markt ist (1.8).
+  - Kein Modell-Pfad fragt „ist das eine KI?“, außer in den Entscheidungen (7.6–7.16) und der Liste 7.2.
+
+### 7.2 Bewusst fehlende Teile (Code-Name: `RIVAL_OMITTED`)
+Die KI lässt diese Teile aus. Der Wert, mit dem das Modell für sie rechnet, steht in der Tabelle; er ist überall
+der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht zeigt sie als Text (E52).
+
+| Teil | Wert für die KI | Begründung |
+|---|---|---|
+| Forschung | `researchCostFactor = 1`, `researchPart = 0`, `researchDemandFactor = 1`, Effizienz ohne Forschung, Anlauf ohne Bonus, alle Felder aus 6.9 neutral | Fortschritt des Spielers; die KI kauft dafür jede lieferbare Flugzeugklasse (7.11) |
+| Personal (Lohn, Moral, Streik) | `payFactor = 1`, `staffPart = 0`, kein Streik | Personal-Modell ist ein Werkzeug des Spielers (E44) |
+| Werbung | `advertisingFactor = 1`, Werbe-Beitrag zum Ruf 0, keine Kosten aus 5.14 | Werkzeug des Spielers (E44, 6.3) |
+| Frequent flyer | `frequentFlyerFactor = 1`, keine Kosten | gehört zu „Werbung“ (Lesart von E44, 3.9.4) |
+| Schwierigkeit | `difficultyFactor = 1` | E4, E53 |
+| Rang, Meilensteine, Jahresziel, Karriere-Punkte | keine; keine Freischaltungen und Sperren daraus (7.11) | 6.15 |
+| Krisen-Antworten | keine (`crisisResponseFactor = 1`, keine Kosten) | die KI antwortet auf Krisen mit ihrem Fahrplan (7.12) |
+| Charter | keiner; ausgefallene Flüge werden gestrichen | Entscheidung vereinfacht |
+| Vorbestellung, Gebrauchtkauf | keine; die KI kauft nur neu (7.11) | Entscheidung vereinfacht |
+| Hangar, Catering-Küche, Verwaltungsstufe 3 | keine (VIP-Lounge siehe 7.10) | Entscheidung vereinfacht; Stufe 3: O57 |
+
+- Regel (Test): Für jeden Eintrag gibt das Modell bei einer KI genau den Wert der Tabelle zurück.
+
+### 7.3 KI-Stärke (Code-Name: `rivalStrength`)
+- Bedeutung: Wie geschickt die KI handelt (1.8). Eine Einstellung für alle KI, beim Spielstart gewählt (wie heute).
+- Werte (heute `:96-149`, `:700-715`, `:1111-1115`; Startwerte, endgültig aus dem Balance-Skript 3.9):
+
+  | Wert | Easy | Normal | Hard | Wirkt in |
+  |---|---|---|---|---|
+  | Startkasse `RIVAL_START_CASH_1960` | 50 Mio. $ | 80 Mio. $ | 120 Mio. $ | 7.7 |
+  | Startflotte (Flugzeuge) | 2 | 3 | 4 | 7.7 |
+  | Suchbreite (beste Ziele + 2 zufällige) | 4 | 8 | 12 | 7.9 |
+  | Schätzfehler auf den erwarteten Gewinn | ± 40 % | ± 10 % | 0 | 7.9 |
+  | Kaufneigung je Monat | 0,12 | 0,45 | 0,85 | 7.11 |
+  | Feinabstimmung | nie | jeden 2. Monat (zufällig) | jeden Monat | 7.8 |
+  | Verlierer und Eröffnungen je Monat | 1 | 1 | 2 | 7.8, 7.9 |
+  | Eröffnung nur mit erwartetem Gewinn > 0 | nein (jeder 2. Versuch) | ja | ja | 7.9 |
+
+- Neu: keine Wirkung auf Nachfrage, Preise, Treibstoff oder Kabine (E4, W3). Die Easy-Kabine mit 85 % First
+  entfällt: Sie gehörte zu den Easy-Preisen von 2,25 × Grundpreis und wäre zum Marktpreis nur ein Fehler im Modell,
+  kein Verhalten.
+- Regeln (Tests): Hard ist in jeder Zeile mindestens so geschickt wie Normal, Normal wie Easy; ein Wechsel der
+  KI-Stärke ändert keine Funktion aus 7.1.
+
+### 7.4 Persönlichkeiten (Code-Name: `PERSONALITIES`)
+- Bedeutung: Das Geschäftsmodell einer KI. Es bestimmt **nur Entscheidungen** (Kabine, Service, Preis-Lage,
+  Zielwahl, Wachstum, Geduld). Erfolg und Misserfolg entstehen aus dem Modell (E45).
+- Werte (Startwerte; Angriffslust, Geduld, Reserve, Kaufneigung und Zielgewichte wie heute `:93`, `:126`,
+  `:147-149`, `:503-521`, `:1111-1115`):
+
+  | Wert | LCC | Expansionist | Optimizer | Flag | Boutique |
+  |---|---|---|---|---|---|
+  | Angriffslust `aggression` | 8 | 9 | 4 | 6 | 5 |
+  | Kabine, Service | 7.5 | 7.5 | 7.5 | 7.5 | 7.5 |
+  | Preis-Lage `FARE_POSITION` (7.6) | 0,90 | 0,95 | bester Preis (4.10) | 1,00 | 1,00 |
+  | Preis-Boden im Preiskampf `FARE_FLOOR` | 0,60 | 0,65 | 0,75 | 0,75 | 0,75 |
+  | Zielgewicht Geschäft / Tourismus (7.9) | 0,6 / 1,4 | 1 / 1 | 1 / 1 | 1,5 / 0,5 | 1,5 / 0,5 |
+  | Langstrecken-Abzug über 3 500 km | × 0,4 | – | – | – | – |
+  | Geduld (Monate bis zum Urteil, 7.8) | 4 + 2 | 5 + 3 | 3 | 6 | 6 |
+  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,7 | 1 | 0,6 |
+  | Preis ≤ Anteil der Kasse beim Kauf | 65 % | 65 % | 45 % | 45 % | 45 % |
+  | Reserve nach Kauf `CASH_RESERVE_1960` | 5 Mio. $ | 5 Mio. $ | 10 Mio. $ | 10 Mio. $ | 10 Mio. $ |
+  | Drehkreuze höchstens `MAX_HUBS` (7.13) | 3 | 4 | 2 | 3 | 1 |
+  | Wachstumsstopp ab Krisenstärke (7.12) | 0,35 | 0,5 | 0,25 | 0,25 | 0,25 |
+  | Schalter-Art (7.10) | Selbstbedienung, wo lieferbar | bedient | bedient | bedient | bedient |
+
+  Geduld: Grundwert + (Angriffslust − 6), wenn positiv (wie heute `:950`).
+- **Echte Kostenvorteile (E45)** entstehen nur über die Kosten-Funktionen, ohne eigenen Faktor (5.17):
+  - **Dichtere Kabine:** Die LCC nutzt den Mindest-Sitzabstand und die Extras „Reduced galley“ und „Minimal services“
+    (+9 % Platz, 7.5). Treibstoff und Landung hängen am Flugzeug, nicht an den Sitzen (5.3, 5.5): mehr Sitze → weniger
+    Kosten je Sitz.
+  - **Weniger Personal je Sitz:** reine Economy braucht 1 Flugbegleiter je 50 Sitze statt je 10–35 (5.4).
+  - **Kein Service:** keine Verpflegungskosten (5.7); dafür niedrigere Satisfaction und damit niedrigere
+    Zahlungsbereitschaft (2.10), die die Preis-Lage 0,90 ausgleicht.
+  - **Einheitliche Flotte:** Kauf aus wenigen Familien senkt die Wartung (`commonalityFactor`, 5.12); alle KI kaufen
+    bevorzugt Typen ihrer vorhandenen Familien (7.11).
+- **Ähnlicher Erfolg (E45)** ist eine Prüfregel für das Balance-Skript (3.9), keine Formel: Je Persönlichkeit 10 Läufe
+  ohne Spieler, Start 1960, KI-Stärke Normal; der Median des Unternehmenswerts (`companyValue`, 6.12) in Preisen von
+  1960 liegt nach 20 und nach 40 Jahren bei jeder Persönlichkeit innerhalb des Faktors 2 des Medians aller
+  (heute Faktor 25 und mehr, W1). Stellschrauben: `FARE_POSITION`, Kabinen-Werte (7.5), Zielgewichte.
+- Persönlichkeiten echter Gesellschaften: aus den Daten (`src/data/rivalAirlines.ts`), wie heute.
+- Regeln (Tests): `PERSONALITIES` und `AGGRESSION` gibt es nur einmal (heute Kopie in `src/lib/saveMigration.ts:57-58`);
+  jede Persönlichkeit hat in jeder Zeile einen Wert.
+
+### 7.5 Kabine und Service der KI (Code-Name: `rivalCabin`)
+- Bedeutung: Wie eine KI ein neues Flugzeug einrichtet. Dieselbe Kabinen-Regel wie im Kaufdialog (Platz, Sitztyp,
+  Sitzabstand, Ausstattung, Extras; heute nur in der Oberfläche, `src/components/ConfigurePurchaseView.tsx:355-379`;
+  neu im Modell `src/model/kabine.ts`, R3) und dieselbe Funktion `interiorScore` (2.3). Ersetzt den festen Wert je
+  Persönlichkeit 42 … 78 (`:160-166`) und die Sitz-Anteile (`:202-222`).
+- Regel: Platz = `capacity × 74 cm × (1 + Extras-Platz)`. Business-, First- und Premium-Sitze bekommen ihren
+  **Platz-Anteil** (`share × Platz / (Sitzabstand × Sitz-Platzfaktor)`, abgerundet); der Rest wird Economy.
+  Commuter- und Regional-Flugzeuge bekommen nur Economy.
+- Werte je Persönlichkeit (Startwerte):
+
+  | | LCC | Expansionist | Optimizer | Flag | Boutique |
+  |---|---|---|---|---|---|
+  | Platz-Anteil Premium / Business / First | 0 / 0 / 0 | 0,09 / 0,06 / 0 | 0,14 / 0,10 / 0,06 | 0,15 / 0,17 / 0,13 | 0,22 / 0,25 / 0,18 |
+  | Sitzabstand Economy / Premium / Business / First (cm) | 74 / – / – / – | 76 / 88 / 105 / – | 78 / 90 / 115 / 160 | 79 / 95 / 130 / 180 | 81 / 100 / 150 / 200 |
+  | Sitz-Stufe `RIVAL_SEAT_LEVEL` (0 = Standard) | 0 | 0 | 1 | 1 | 2 |
+  | Ausstattung je Klasse | keine | IFE und Strom | IFE und Strom | alle | alle |
+  | Kabinenweite Extras | Reduced galley, Minimal services | Reduced galley | – | WLAN, Ambient lighting | WLAN, Ambient lighting, Onboard bar |
+
+  - Sitz-Stufe: Stufe der Sitzliste je Klasse; ist sie im Kaufmonat nicht lieferbar, die höchste lieferbare darunter.
+  - Ausstattung und Extras zählen nur, wenn sie im Kaufmonat lieferbar sind und ins Flugzeug passen (wie beim Spieler).
+- Service je Klasse: die Gerichte, Extras und Bordservice-Stufen je Persönlichkeit wie heute (`:287-334`;
+  LCC nichts). **Jede Mahlzeit** `k` mit `mealWeight(k) > 0` bekommt dasselbe Menü wie Mahlzeit 1 (R14, 2.5);
+  heute nur eine Mahlzeit (1.1 W11).
+- Die KI baut nie um; ein Flugzeug behält seine Kabine bis zum Verkauf (Zustand über Überholung, 7.11).
+- Regeln (Tests): Sitze aller Klassen ≤ Platz-Regel; die LCC hat bei gleichem Typ die meisten Sitze; Boutique die
+  höchste Economy-`interiorScore`; Satisfaction einer KI-Strecke = Satisfaction eines Spieler-Flugzeugs mit derselben
+  Kabine und demselben Service.
+
+### 7.6 KI-Preise (Code-Name: `rivalFareRatio`)
+- Bedeutung: Welches Preisniveau `fareRatio` (4.5) eine KI je Strecke und Klasse setzt. Eingang in den Markt nur
+  über `routeFare = fareRatio × marketFare` und `priceFactor` (4.6, R7).
+- Formel, je Klasse `c`, einmal im Monat nach der Buchung:
+  ```
+  zielniveau(c)  = FARE_POSITION[p] × satisfactionFactor(offerSatisfaction(c))      (Optimizer: bestFare / marketFare, 4.10)
+  lage(c)        = lage(c) des Vormonats, angepasst nach Auslastung der Klasse im Monat:
+                     Auslastung ≥ LOAD_HIGH: + FARE_STEP;   < LOAD_LOW: − FARE_STEP;
+                     sonst um FARE_STEP Richtung 0;   begrenzt auf ± YIELD_MAX
+  fareRatio(c)   = zielniveau(c) × (1 + lage(c)) × (1 − Preiskampf-Nachlass)
+                   begrenzt auf priceFloor … FARE_RATIO_MAX (4.5)
+  priceFloor     = max(FARE_RATIO_MIN, im Preiskampf: max(FARE_FLOOR[p], breakEvenFareLevel(L = 1)))
+  ```
+  - `satisfactionFactor`: Die KI verlangt, was ihre Fluggäste für ihre Satisfaction zu zahlen bereit sind (2.10).
+    Eine gute Kabine bringt so höhere Preise, keine eigene Regel.
+  - `breakEvenFareLevel(L = 1)` (4.11): das Preisniveau, bei dem die Strecke selbst mit voller Maschine nur ihre
+    Kosten deckt. Darunter geht die KI nie.
+  - Neue Strecke: `lage = 0`, kein Preiskampf.
+- **Preiskampf** (heute `:72-73`, `:892-905`):
+  - Beginn: Angriffslust ≥ `PRICE_WAR_MIN_AGGRESSION`, Strecke mindestens 2 Monate alt, geglätteter Gewinn > 0, und
+    eine **andere Gesellschaft** (Spieler oder KI) hat auf dem Paar in den letzten `PRICE_WAR_WINDOW` Monaten ein
+    Angebot eröffnet oder bietet Economy billiger an als die KI. *(vorläufig, O56)*
+  - Wirkung: Nachlass `PRICE_WAR_CUT` auf das Preisniveau, **einmal**, nicht Monat für Monat wachsend.
+  - Ende: nach `PRICE_WAR_MAX_MONTHS`, wenn der geglättete Gewinn < 0 fällt oder der Mitbewerber das Paar verlässt;
+    danach `PRICE_WAR_COOLDOWN` Monate kein neuer Preiskampf auf diesem Paar.
+- **Grenzen des Unterbietens** (Vorgabe 4.10, 4.14): Der Preiskampf-Nachlass wirkt einmal, die Lage höchstens
+  ± `YIELD_MAX`, und der Boden `priceFloor` liegt über den Kosten einer vollen Maschine. Damit gilt für jede KI:
+  `fareRatio ≥ max(FARE_FLOOR[p], breakEvenFareLevel(1))`, auch wenn zwei KI gleichzeitig kämpfen. Der Optimizer
+  antwortet mit dem besten Preis (4.10) auf die Preise der anderen; Antworten auf feste Preise der anderen führen zu
+  einem festen Punkt über den Kosten, nicht gegen 0 (Prüfung im Balance-Skript 3.9).
+- Konstanten (Startwerte): `LOAD_HIGH = 0,95`, `LOAD_LOW = 0,60`, `FARE_STEP = 0,03`, `YIELD_MAX = 0,15`;
+  `PRICE_WAR_MIN_AGGRESSION = 7`, `PRICE_WAR_CUT = 0,12` (wie heute), `PRICE_WAR_WINDOW = 6`,
+  `PRICE_WAR_MAX_MONTHS = 12`, `PRICE_WAR_COOLDOWN = 12`; `FARE_POSITION`, `FARE_FLOOR` in 7.4.
+- Regeln (Tests):
+  - Zwei KI mit Angriffslust 8 auf einem Paar, 36 Monate: `fareRatio` beider bleibt ≥ ihr Boden; nach dem Ende des
+    Preiskampfs kehrt es in höchstens `YIELD_MAX / FARE_STEP` Monaten zum Zielniveau zurück.
+  - Höhere Satisfaction → nie niedrigeres Zielniveau.
+  - KI und Spieler mit gleichem `fareRatio` zahlen denselben Preis (4.6).
+  - Kein KI-Preis wirkt über einen anderen Weg als `priceFactor` (kein Preis-Reiz, R7).
+- Anzeige: Rivalen-Ansicht je Strecke „±x % vs. market“ und „Price war“; Planer zeigt Rivalen-Preise je Klasse.
+
+### 7.7 Gründung und Startwerte (Code-Name: `foundRival`)
+- Wer (wie heute `:607-658`): echte Gesellschaften des Startjahrs an ihrem echten Drehkreuz (Daten) und erfundene;
+  nie am Spieler-Drehkreuz; gewichtet nach √(Nachfrage am Drehkreuz). Anteil erfundener wie heute.
+- Drehkreuz erfundener KI: Flughäfen ab Größe 4 (sonst 2), nicht Drehkreuz einer anderen Gesellschaft, nicht mit
+  Spieler-Verwaltungsstufe 3 (O57), gewichtet nach Nachfrage.
+- Startausstattung **wie der Spieler** (`src/App.tsx:1645-1652`): Verwaltungsstufe 2 am Drehkreuz, keine Slots,
+  ein bedienter Schalter. Slots kauft die KI mit der ersten Strecke (7.10).
+- Startkasse: `atCost(RIVAL_START_CASH_1960[Stärke], month) ± atCost(3 Mio. $, month) × Zufall` (7.3). Ohne
+  Persönlichkeits-Faktor (E45).
+- Startflotte: Anzahl nach Stärke (7.3), neue Flugzeuge des Startmonats (Alter 0, Zustand 100), Kabine nach 7.5;
+  das erste Narrowbody (wo lieferbar), die anderen Regional; Typ nach Persönlichkeit wie heute (`:661-677`), auf
+  Easy nicht mehr schwächer. Die Startflotte kommt zur Kasse hinzu (wie heute).
+- Ruf 50 (6.13).
+- **Nachrücken** (heute `src/lib/monthClose.ts:849-860`): Fehlen KI zur gewählten Anzahl, je Monat mit
+  `RIVAL_REFILL_CHANCE = 0,15` eine neue nach denselben Regeln, im aktuellen Monat (Kasse mit `atCost`, W5).
+- Regeln (Tests): gleiche Startkasse in Preisen von 1960 für eine KI von 1960 und von 2010; die Startausstattung am
+  Drehkreuz gleicht der des Spielers.
+
+### 7.8 Monat der KI (Ablauf)
+- **Buchung:** Erlös, Kosten, Wertänderung, Ruf und Kasse der KI bucht der Monatsabschluss mit denselben Funktionen
+  und in **derselben Marktaufteilung** wie den Spieler (R1; Ablauf Abschnitt 8). Es gibt keine eigene KI-Buchung
+  (heute `:814-873`).
+- **Entscheidungen** danach, je KI in dieser Reihenfolge; alle wirken ab dem nächsten Monat:
+  1. Preise (7.6).
+  2. Krise: Krisen-Fahrplan (7.12).
+  3. Verlierer: Strecken mit geglättetem Gewinn < 0 nach der Geduld (7.4): erst auf `THIN_SHARE = 0,4` der Flüge,
+     wenn das nach der Planer-Hauptzahl Gewinn bringt, sonst streichen; je Monat 1 (Hard 2), die schlechtesten;
+     mindestens `CORE_NETWORK = 2` Strecken bleiben (wie heute `:133`, `:950-976`).
+  4. Feinabstimmung: eine Strecke ± max(1, 25 %) Flüge, behalten, wenn die Planer-Hauptzahl (4.12) um mehr als
+     2 % steigt und Slots frei sind (wie heute `:982-1001`; Takt nach Stärke, 7.3).
+  5. Flotte: Modernisierung, Überholung, Notverkauf, Leerlauf-Verkauf (7.11).
+  6. Eröffnungen: freie Flugzeuge auf neue Strecken (7.9, 7.10).
+  7. Wachstum: Kauf, neues Drehkreuz (7.11, 7.13).
+  8. Dividende (7.13).
+  9. Notlage (7.15).
+- **Geglätteter Gewinn** `avgProfit = 0,65 × alt + 0,35 × routeResult` (5.9, Monatswert) je Strecke (wie heute `:852`).
+- Regel (Test): Die Buchung eines Monats hängt nicht von der Reihenfolge der KI ab; Entscheidungen einer KI ändern
+  keine Zahl des laufenden Monats.
+
+### 7.9 Planung einer Strecke (Code-Name: `rivalPlanRoute`)
+- Bedeutung: Wohin eine KI ein freies Flugzeug schickt.
+- **Vorauswahl** (billig, ohne Modell-Rechnung; heute `:503-521`):
+  `score = √(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × LCC-Abzug / (1 + Abflüge
+  anderer Gesellschaften auf dem Paar / 14)`, mit `Gewicht = Geschäft × g_B + Tourismus × g_T` (7.4).
+  Nur Ziele in Reichweite, ab `MIN_ROUTE_KM = 150`, mit passender Piste, mit freien Slots an beiden Enden (7.10),
+  nicht mit Spieler-Stufe 3 (O57), nicht schon bedient. Die besten `Suchbreite` + 2 zufällige (7.3).
+- **Bewertung:** je Ziel 100 %, 60 % und 30 % der höchsten Umläufe, jeweils mit der **Planer-Hauptzahl** (4.12):
+  erwarteter Gewinn mit allen Angeboten des Markts, Anlauf = 1, `fareRatio` aus 7.6 (neue Strecke), Kosten mit
+  `costPerPassenger` und `fixedWeeklyCost` (5.8, 5.9). Dazu der Schätzfehler (7.3). Der beste Wert gewinnt (5.19).
+- **Höchste Umläufe** je Flugzeug: dieselbe Funktion wie der Planer für machbare Flüge (E51); bis sie steht wie
+  heute `abrunden(7 × 18 h / Blockzeit eines Umlaufs)`, 1 … 21 (`:105-108`, `:281-285`).
+- Eröffnung: Kasse ≥ Kaufpreis der fehlenden Slots + Reserve (7.4); keine Pauschale mehr (heute 1,5 Mio. $, `:96`).
+- Regeln (Tests): Planer und KI rechnen für denselben Plan dieselbe Zahl; ein Ziel ohne freie Slots wird nie gewählt;
+  Hard (Schätzfehler 0) wählt unter den bewerteten Plänen immer den mit dem höchsten erwarteten Gewinn.
+
+### 7.10 Slots, Schalter, Drehkreuze und Einrichtungen der KI
+- **Slots (E50, 1.6, 5.10):** Die KI kauft vor einer Eröffnung oder Erweiterung die fehlenden Slots an **beiden**
+  Enden zum Preis aus 5.10 und zahlt die Miete. Sie belegt nie mehr, als sie gekauft hat, und kauft nur, solange
+  die Grenze des Flughafens (alle Gesellschaften zusammen) frei ist. Zusätzlich belegt eine KI an einem Flughafen
+  höchstens `RIVAL_SLOT_SHARE_HUB = 0,25` (eigenes Drehkreuz) bzw. `RIVAL_SLOT_SHARE_OTHER = 0,10` (andere
+  Flughäfen) der Grenze; so bleibt für den Spieler Raum (heute 40 je Stufe ≈ 0,13 der Grenze, nur am Drehkreuz).
+  Slots, die 6 Monate frei sind, verkauft sie (Erlös 5.10).
+- **Schalter (E18, O52):** An jedem Flughafen mit eigenen Abflügen hält die KI so viele Schalter ihrer Art (7.4),
+  dass `deskLoad ≤ 0,8` (keine Überlast, 2.6.3). Die Miete zahlt sie wie der Spieler (5.10).
+- **Abstellplätze:** nur die freien Stände ab Verwaltungsstufe 2 (E28); keine gemieteten.
+- **Verwaltungsstufen:** Stufe 2 an jedem eigenen Drehkreuz (Startgeschenk am ersten, Kauf nach 5.11 an weiteren);
+  sonst keine. Nie Stufe 3 *(vorläufig, O57)*.
+- **VIP-Lounge:** Flag und Boutique bauen an jedem eigenen Drehkreuz eine Lounge (Preis und Unterhalt 5.11), sobald
+  sie dort Business- oder First-Sitze anbieten und die Kasse den Preis dreifach deckt. Sonst keine Einrichtungen.
+- **Sperre durch den Spieler** *(vorläufig, O57)*: An Flughäfen, an denen der Spieler Verwaltungsstufe 3 hat, eröffnet
+  die KI keine neuen Strecken und kein Drehkreuz; bestehende bleiben (wie heute `:1048-1051`, `:1064`, `:1181`).
+- Regeln (Tests): Σ belegte Slots aller Gesellschaften ≤ Grenze; belegte ≤ gekaufte Slots je KI; eine KI überschreitet
+  ihren Anteil nie; jede KI-Strecke hat an beiden Enden einen Schalter.
+
+### 7.11 Flotte der KI
+- **Kauf** (heute `:1111-1168`): Wenn alle Flugzeuge fliegen, kein Wachstumsstopp (7.12) gilt und eine Strecke mit
+  freien Slots gefunden wird; mit Wahrscheinlichkeit Kaufneigung (7.3 × 7.4). Preis = Kaufpreis nach dem Wertmodell
+  mit Kabine (`valueBase`, 5.13; E54). Bedingungen: Preis ≤ Anteil der Kasse (7.4) und Preis + Slot-Kosten ≤ Kasse −
+  Reserve; ohne Gewinn in den letzten 3 Monaten nur, wenn Preis ≤ Kasse / 3. Wahl: unter den lieferbaren Typen
+  (Lieferzeitraum der Daten, passende Piste) der mit der besten Planer-Hauptzahl je Kaufpreis für die gefundene
+  Strecke; Typen aus vorhandenen Familien bekommen den Vorteil ihrer niedrigeren Wartung über `fixedWeeklyCost`
+  von selbst (5.12).
+- **Keine Klassen-Sperre:** Die KI kauft jede lieferbare Flugzeugklasse, auch Jumbo und Überschall; sie hat keinen Rang
+  und keine Forschung (7.2, 6.15). Grenzen sind nur Kasse, Reichweite, Piste und Lieferzeitraum. *(Lesart von 6.15:
+  Sperren sind Fortschritt des Spielers.)*
+- **Modernisierung** (heute `:1006-1031`): ein Flugzeug älter als 20 Jahre oder mehr als 12 Jahre nach dem Bauende
+  seines Typs wird ersetzt, wenn es einen lieferbaren Typ derselben Klasse gibt, der die Strecke schafft und
+  bezahlbar ist. Das alte Flugzeug wird an den Markt verkauft (Händler-Spanne, Abschnitt 8) und kommt mit Alter und
+  Zustand in den Gebrauchtmarkt (R13); heute fest 20 % des Listenpreises (W7).
+- **Grundüberholung:** fällt der Zellen- oder Kabinenzustand unter `RIVAL_OVERHAUL_BELOW = 60` %, lässt die KI das
+  Flugzeug zum Preis aus Abschnitt 8 überholen, wenn die Kasse es nach Reserve erlaubt.
+- **Notverkauf** (Kasse < 0): je Monat ein Flugzeug, zuerst ein freies, sonst das der schlechtesten Strecke; Erlös
+  aus dem Wertmodell mit Händler-Spanne (Abschnitt 8), nicht mehr ohne Alter (W7). Auch, wenn alle Strecken Gewinn
+  machen (heute dann kein Verkauf, W11).
+- **Leerlauf-Verkauf:** ein Flugzeug, das `MAX_IDLE_MONTHS = 6` Monate keine Strecke hat, wird verkauft; während
+  einer Krise (7.12) nach `CRISIS_IDLE_MONTHS = 12` Monaten (R14; heute steht die Uhr in der Krise, W9).
+- Reichweite: Die KI setzt ein Flugzeug nur auf Strecken in seiner Reichweite (Ersatz bei Modernisierung ebenso);
+  die Strafbuchung entfällt.
+- Regeln (Tests): Verkaufserlös eines KI-Flugzeugs = Erlös eines gleichen Spieler-Flugzeugs; jedes verkaufte
+  KI-Flugzeug erscheint im Gebrauchtmarkt; kein Kauf, der die Kasse unter die Reserve drückt.
+
+### 7.12 Krise (Code-Name: `crisisSeverity`)
+- Bedeutung: Wie stark eine weltweite Krise die KI zum Sparen bringt (heute `src/lib/rivalCrisis.ts`).
+- Formel: `crisisSeverity = kappen(max(1 − weltweiter eventDemandFactor, (fuelTable(month) / fuelTable-Mittel der
+  letzten 24 Monate − 1) / 2), 0, 1)`.
+  Neu: Weil Ereignisse den Treibstoff nicht mehr ändern (E8), misst der zweite Teil den Anstieg des Tabellenpreises
+  gegen seinen Mittelwert (heute Ereignis-Faktor auf Treibstoff, `src/lib/rivalCrisis.ts:20-23`). Ölkrisen stehen in
+  der Tabelle und lösen so weiter eine Krise aus.
+- Krise ab `CRISIS_FROM = 0,25`. Krisen-Fahrplan wie heute (`src/lib/rivalCrisis.ts:52-85`): Auslastung < 0,8 → Flüge
+  × Auslastung / 0,8; ≥ 0,95 → + 25 % des alten Plans; nach der Krise + 25 % je Monat bis zum alten Plan. Slots
+  bleiben gekauft.
+- Wachstumsstopp ab der Schwelle der Persönlichkeit (7.4): kein Kauf, keine Modernisierung, kein neues Drehkreuz.
+- Regeln (Tests): Juni 1974 und 2020 → Krise; ein Monat ohne Ereignis bei gleichbleibendem Treibstoff → 0.
+
+### 7.13 Wachstum, Größe und Dividende (E46)
+**Größe** (Code-Name: `rivalSize`)
+- Formel: angebotene Sitze je Woche = Σ Strecken Sitze × Abflüge je Woche (beide Richtungen). Ersetzt Flugzeugzahl
+  und Kasse als Maß (W4).
+- Wirkt auf: Bedingung für neue Drehkreuze (unten); Anzeige in der Rivalen-Ansicht; Balance-Skript (3.9).
+
+**Neues Drehkreuz** (heute `:1173-1190`, R14)
+- Bedingungen: weniger als `MAX_HUBS` (7.4) Drehkreuze; an allen eigenen Drehkreuzen sind mindestens 90 % des
+  eigenen Slot-Anteils (7.10) belegt oder seit 3 Monaten fand die KI dort keine Strecke mit Gewinn;
+  `rivalSize ≥ NEW_HUB_MIN_SEATS × Zahl der Drehkreuze`; Kasse ≥ Preis der Verwaltungsstufen 1 und 2 (5.11) + Reserve;
+  kein Wachstumsstopp; je Monat mit `NEW_HUB_CHANCE = 0,04`.
+- Ort: Flughäfen ab **Größe 5** (R14), nicht Drehkreuz einer anderen KI, nicht mit Spieler-Stufe 3 (O57), gewichtet
+  nach Nachfrage × `HOME_REGION_WEIGHT` in der Heimatregion (`regionOf`, R15) × (Spieler-Drehkreuz: 3 × Angriffslust / 6,
+  wie heute).
+- Konstanten (Startwerte): `NEW_HUB_MIN_SEATS = 20 000` Sitze je Woche, `HOME_REGION_WEIGHT = 4`.
+
+**Dividende** (Code-Name: `rivalDividend`)
+- Bedeutung: Geld über einer Grenze geht an die Eigentümer; die Kasse wächst nicht ohne Grenze (W4).
+- Formel: am Monatsende nach allen Buchungen (R11)
+  `dividendLimit = max(atCost(DIVIDEND_FLOOR_1960, month), DIVIDEND_RESERVE_MONTHS × Mittel von monthlyCosts der letzten 12 Monate)`,
+  `dividend = max(0, Kasse − dividendLimit)`; Kasse − `dividend`.
+- Kein Posten im Monatsergebnis (5.16), nur in der Kasse; zählt nicht zum Unternehmenswert.
+- Konstanten (Startwerte): `DIVIDEND_FLOOR_1960 = 50 000 000`, `DIVIDEND_RESERVE_MONTHS = 12`.
+- Regeln (Tests): Kasse nach Dividende ≤ `dividendLimit`; die Dividende ändert weder Ergebnis noch Ruf.
+
+### 7.14 Zuschuss (Code-Name: `rivalSubsidy`, E47)
+- Bedeutung: Übergang, bis die KI-Wirtschaft nach E4, E44 und E45 trägt; dann wird er abgeschafft.
+- Formel bis dahin: `atCost(SUBSIDY_1960(Jahr), month)` je Monat mit `SUBSIDY_1960` = 450 000 $ bis 1985, danach
+  gerade auf 150 000 $ bis 2005, dann 150 000 $ (heute nominal, `:47-65`). Er steht im Monatsergebnis der KI als
+  eigene Zeile „Subsidy“ (heute im Ergebnis versteckt).
+- Schalter `RIVAL_SUBSIDY_ENABLED`, Startwert an. **Abschaffung**, sobald das Balance-Skript (3.9) ohne Zuschuss
+  zeigt: In 10 Läufen 1960–2020 je Persönlichkeit (KI-Stärke Normal, ohne Spieler) ist der Median der Jahre bis zur
+  Auflösung über 40 (oder keine Auflösung), und die Prüfregel „ähnlicher Erfolg“ (7.4) gilt.
+- Regel (Test): ausgeschaltet → kein Dollar Zuschuss in keinem Monat.
+
+### 7.15 Notlage, Verkauf, Auflösung (E34, E49)
+- **Notlage:** Kasse < 0. Die KI nutzt die Kreditlinie wie der Spieler und zahlt Zinsen (Abschnitt 8, E34).
+- **Zähler** `distressMonths`: Monate **in Folge** mit Kasse < 0 am Monatsende; ein Monat mit Kasse ≥ 0 setzt ihn
+  auf 0 (so wie der Text „six months in a row“ sagt; heute sinkt er nur um 1, W11).
+- **Zum Verkauf:** `distressMonths ≥ DISTRESS_TO_SALE_MONTHS = 6` oder Kasse unter der Kreditgrenze (Abschnitt 8).
+  Zurück zu „gesund“, wenn die Kasse wieder ≥ 0 ist.
+- **Auflösung:** `SALE_TO_LIQUIDATION_MONTHS = 12` Monate zum Verkauf, oder keine Flugzeuge mehr. Dann:
+  - Flugzeuge kommen mit Alter, Zustand und Kabine in den **Gebrauchtmarkt** (E49, R13); heute verschwinden sie (W8);
+  - Slots gehen an den Flughafen zurück (frei für alle); Schalter, Lounges und Stufen entfallen;
+  - Schulden verfallen; die Meldung sagt das so (Text aus den Konstanten, E52).
+- Regeln (Tests): eine KI mit 5 Monaten Kasse < 0, dann 1 Monat ≥ 0, dann 5 Monate < 0 steht nicht zum Verkauf;
+  nach der Auflösung sind alle ihre Flugzeuge im Gebrauchtmarkt und alle ihre Slots frei.
+
+### 7.16 Übernahme (Code-Name: `takeoverPrice`, E48)
+- Wer darf: der Spieler ab Rang 6 eine KI, die zum Verkauf steht; ab Rang 9 eine gesunde (6.7, wie heute).
+- **Preis = Unternehmenswert** wie `companyValue` (6.12):
+  `takeoverPrice = max(atCost(TAKEOVER_MIN_PRICE_1960, month), Kasse + Σ aircraftValue + Σ Slots × Verkaufswert (5.10))`.
+  Gleiche Formel für gesund und zum Verkauf; gesund ist nur über den Rang schwerer (heute × 2,5, Flotte ohne Alter,
+  250 000 $ je Strecke, `src/lib/takeover.ts:21-44`, W6).
+- **Was der Spieler bekommt:**
+  - die **Kasse** der KI (auch eine negative: Schulden gehen mit über);
+  - alle Flugzeuge mit Alter, Zustand und Kabine (heute einfache Economy-Kabine), zunächst ohne Strecke (abgestellt);
+  - alle Slots **je Flughafen**, an dem sie liegen (heute alle am Heimat-Drehkreuz, W6), dazu die Schalter; an jedem
+    dieser Flughäfen mindestens Verwaltungsstufe 1, an KI-Drehkreuzen Stufe 2 (wenn der Spieler dort weniger hat).
+- **Was verfällt:** die Strecken (der Spieler plant neu), Lounges, der Ruf der KI. *(Lesart von E48: E48 nennt nur
+  Preis, Kasse und Slots.)*
+- Folgen: Kasse − Preis + Kasse der KI; Übernahmen + 1 (Karriere, 6.12); **kein** Ruf-Sprung (E38); die KI verschwindet.
+- Buchung: Preis und übernommene Kasse nur in der Kasse (5.16); die Flugzeuge gehen zum Wert ins Wertmodell
+  (ergebnisneutral, 5.13).
+- Konstanten: `TAKEOVER_MIN_PRICE_1960 = 1 000 000` (heute nominal).
+- Regeln (Tests): Preis = `companyValue` der KI (über dem Mindestpreis); Kasse des Spielers nach der Übernahme =
+  vorher − Preis + KI-Kasse; Σ übernommene Slots je Flughafen = Slots der KI dort; die Übernahme ändert das
+  Monatsergebnis nicht.
+
+### 7.17 Wirkung auf den Spieler und Anzeige
+- **Markt:** Jede KI-Strecke ist Teil eines Angebots im gemeinsamen Markt (3.8, 3.11) mit Sitzen, Abflügen, Preis,
+  Satisfaction und Flugzeit. Keine eigene Liste „Rivalen-Angebote“ (heute `buildRivalOffers`,
+  `src/lib/monthClose.ts:191-205`).
+- **Zeitpunkt:** Spieler und KI rechnen in einem Monat mit demselben Stand aller Angebote (R1); heute rechnet der
+  Spieler mit den KI-Strecken vom Monatsbeginn, die KI mit den Spieler-Strecken desselben Monats.
+- **Ticker-Rang** (E46): `1 + Anzahl KI mit mehr Fluggästen im Monat` als der Spieler (`monthlyPax` wie 6.7);
+  heute nach Kasse.
+- **Rivalen-Ansicht:** je KI Größe (`rivalSize`), Fluggäste, Ruf, Monatsergebnis mit Zeile „Subsidy“ (solange es ihn
+  gibt), Unternehmenswert, Persönlichkeit, Liste 7.2 als Text; je Strecke Preisniveau und Preiskampf. Alle Zahlen
+  aus dem Modell (R2); die Gewinne sind jetzt mit denen des Spielers vergleichbar (W2).
+- **Meldungen** wie heute (`:764`, `:901`, `:939`, `:974`, `:1029`, `:1187`, `:1201-1209`): Preiskampf, Kürzung,
+  Streckenende und neues Drehkreuz, wenn ein Spieler-Flughafen betroffen ist; Verkauf, Erholung, Auflösung,
+  Modernisierung, neue KI immer. Rückschlag entfällt. Texte und Zahlen aus den Konstanten (E52, W11).
+- **KI-Abflüge je Flughafen oder Paar:** eine Modell-Funktion (Slots, 1.6) für Planer, Flughafen-Ansichten und
+  Einnahme eigener Flughäfen (5.15); heute fünf Stellen (Bestand 1.6, „Doppelte Rechnungen“).
+
+### 7.18 Beispiel
+Kabinen nach 7.5 für einen A320ceo (`capacity` 186, Type appeal 70, neu), Sitze Economy / Premium / Business / First,
+Interior score und Cabin rating der Economy (Hilfsskript, nicht im Projekt):
+
+| Persönlichkeit | Sitze 1990 | Economy 1990: Interior / Cabin rating | Sitze 2015 | Economy 2015: Interior / Cabin rating |
+|---|---|---|---|---|
+| LCC | 202 / 0 / 0 / 0 | 40 / 49,9 | 202 / 0 / 0 / 0 | 40 / 49,9 |
+| Expansionist | 159 / 14 / 8 / 0 | 60,5 / 63,6 | 159 / 14 / 8 / 0 | 65,5 / 67,0 |
+| Optimizer | 120 / 17 / 10 / 4 | 81 / 77,4 | 120 / 17 / 10 / 4 | 86 / 80,7 |
+| Flag | 92 / 18 / 16 / 8 | 88,5 / 82,4 | 92 / 18 / 16 / 8 | 112,5 / 98,5 |
+| Boutique | 59 / 25 / 20 / 8 | 96,5 / 87,8 | 63 / 21 / 17 / 8 | 140,5 / 100 |
+
+- Kosten je Sitz (1990): Die LCC hat 202 statt 134 Sitze (Flag) → Treibstoff und Landung je Sitz −34 %; Flugbegleiter
+  4,04 für 202 Sitze gegen 3,95 für 134 Sitze → −32 % je Sitz (5.3–5.5).
+- Heute: alle Persönlichkeiten 186 Sitze, Interior score fest 42 … 78 für jede Klasse.
+
+KI-Preise, Economy, Marktpreis 100 $ (Satisfaction angenommen):
+
+| Fall | Zielniveau | Preis |
+|---|---|---|
+| LCC, Satisfaction 85 (`satisfactionFactor` 0,925) | 0,90 × 0,925 = 0,83 | 83 $ |
+| Flag, Satisfaction 115 (`satisfactionFactor` 1,112) | 1,00 × 1,112 = 1,11 | 111 $ |
+| LCC im Preiskampf | 0,83 × 0,88 = 0,73 | 73 $ |
+| LCC im Preiskampf, dazu volle Lage −15 % (leere Maschinen) | 0,83 × 0,85 × 0,88 = 0,62 | 62 $ (Boden 0,60) |
+
+Übernahme einer KI zum Verkauf im Jahr 2010: 10 × A320ceo, gekauft 1990 (Liste 40 Mio. $ × `costIndex` 1990 1,430 =
+57,2 Mio. $), Alter 20, Zustand 100, Kabine ohne Aufpreis → je 20,6 Mio. $; 280 Slots (10 Strecken, 14 Abflüge an
+beiden Enden) × 45 391 $ Verkaufswert; Kasse −20 Mio. $:
+`takeoverPrice` = 206,0 + 12,7 − 20,0 = **198,7 Mio. $**; der Spieler übernimmt 20 Mio. $ Schulden. Heute 290,5 Mio. $
+(Flotte ohne Alter, Kasse verfällt, Bestand 1.6).
+
+Zuschuss mit `atCost` (bis zur Abschaffung): 1960 450 000 $ · 1985 606 000 $ · 1995 455 000 $ · 2005 257 000 $
+(heute 450 000 / 450 000 / 300 000 / 150 000 $).
+
+### 7.19 Vorgaben an andere Abschnitte
+- **Abschnitt 8 (Monat, Ereignisse, Flottenmarkt):**
+  - Ein Abschluss bucht Spieler und alle KI in **einer** Marktaufteilung (R1); danach die KI-Entscheidungen (7.8),
+    wirksam ab dem nächsten Monat; Nachrücken (7.7) am Ende.
+  - Verschleiß, technische Ausfälle, Ereignisse und Kreditlinie mit Zinsen gelten für die KI wie für den Spieler
+    (7.1); `cancelledShare` auch für die KI (Ruf, 6.2). Keine Charter, keine Krisen-Antworten, kein Streik für die KI (7.2).
+  - Gebrauchtmarkt nimmt verkaufte und aufgelöste KI-Flugzeuge mit Alter, Zustand und Kabine auf (E49, R13);
+    Händler-Spanne und Überholungspreis gelten für die KI gleich (7.11).
+  - Rückschlag der KI entfällt (7.0).
+- **Balance-Skript (3.9):** Prüfregeln „ähnlicher Erfolg“ (7.4) und „Abschaffung des Zuschusses“ (7.14); Preiskampf
+  und Optimizer-Antworten bleiben über dem Boden (7.6); Kabinen-Werte (7.5), `FARE_POSITION`, Slot-Anteile (7.10),
+  Dividenden-Grenze (7.13), `NEW_HUB_MIN_SEATS`, KI-Stärke-Werte (7.3).
+- **Phase 4:** Rivalen-Ansicht, Ticker, Meldungen und KI-Abflüge aus dem Modell (7.17); Liste 7.2 als Text (E52).
+- **Phase 5.1 (Spielstand):** KI-Flugzeuge bekommen Baumonat = Kaufmonat und eine Kabine nach 7.5; KI-Strecken
+  `fareRatio` aus dem gespeicherten Preis (4.5); KI-Slots = belegte Abflüge je Flughafen (gekauft, ohne Zahlung);
+  ein bedienter Schalter je Abflughafen; Verwaltungsstufe 2 an KI-Drehkreuzen; Ruf 50; Notlage-Zähler übernehmen.
+
+### 7.20 Zuordnung der Bestandsfunde
+
+| Fund (1.6) | Lösung in diesem Abschnitt |
+|---|---|
+| W1 Persönlichkeit entscheidet über Reichtum | 7.4 Persönlichkeit nur als Entscheidung, echte Kostenvorteile über die Kabine (7.5), Prüfregel „ähnlicher Erfolg“ (E45) |
+| W2 KI spielt nach anderen Regeln | 7.1 gleiche Funktionen, 7.2 Liste der fehlenden Teile (E44) |
+| W3 Schwierigkeit verkehrt herum | 7.3 KI-Stärke nur Verhalten; Easy-Preise und Easy-Kabine entfallen (E4) |
+| W4 Kasse ohne Grenze, Wachstum an Slots | 7.10 Slot-Anteile je Flughafen, 7.13 Größe in Sitzen, neue Drehkreuze, Dividende; 7.17 Ticker nach Fluggästen (E46, E50) |
+| W5 Festbeträge nominal | `atCost` für Startkasse (7.7), Reserven (7.4), Zuschuss (7.14), Mindestpreis (7.16), Dividenden-Grenze (7.13); Eröffnungspauschale und Rückschlag entfallen (E6, E47) |
+| W6 Übernahme: Preis und Inhalt | 7.16 Unternehmenswert, Kasse geht mit, Slots je Flughafen (E48) |
+| W7 Wiederverkauf ohne Alter, 20 % | 7.11 Wertmodell mit Händler-Spanne für alle Verkäufe (R13) |
+| W8 Aufgelöste KI: Flugzeuge verschwinden | 7.15 Gebrauchtmarkt (E49) |
+| W9 Krise legt Flotten still | 7.11 Leerlauf-Verkauf auch in der Krise (R14); 7.12 Krisen-Fahrplan bleibt |
+| W10 Zweites Drehkreuz beliebig | 7.13 Größe 5, Heimatregion bevorzugt (R14) |
+| W11 Texte weichen ab | 7.15 Zähler „in Folge“; 7.11 Notverkauf auch bei Gewinn-Strecken; 7.17 Texte aus Konstanten (E52) |
+
+Doppelte Rechnungen (Bestand 1.6) → eine Funktion im Modell (R2): Rivalen-Angebote für Spieler und KI → eine
+Aufteilung (3.11, R1); Sitze je KI-Strecke (`src/lib/monthClose.ts:185-189`, `:801`) → Kabine des Flugzeugs (7.5);
+`PERSONALITIES`, `AGGRESSION` in `src/lib/saveMigration.ts:57-58` → eine Konstante (7.4); Ersatz-Kabine 85/10/4
+(`:188-193`) → 7.5 und 5.1; KI-Abflüge an fünf Stellen → Slots (1.6, 7.17); drei Restwerte → Wertmodell (5.13).
 
 ## 8. Monatsabschluss und Ereignisse
 
