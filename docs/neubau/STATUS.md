@@ -1,13 +1,12 @@
 # Status
 
-**Nächstes Paket: 3.4** (Preis und Erlös, `SPEZIFIKATION.md` Abschnitt 4). Danach warten alle übrigen Pakete der
-Phase 3 auf eine Entscheidung (3.5 auf O54/O58, 3.6 auf O55, 3.7 auf O56/O57, 3.8 auf O58/O59; 3.9 braucht
-Preis und Kosten).
+**Nächstes Paket: keins ohne Entscheidung.** Alle übrigen Pakete der Phase 3 warten auf offene Fragen:
+3.5 auf O54/O58, 3.6 auf O55, 3.7 auf O56/O57, 3.8 auf O58/O59; 3.9 braucht Preis und Kosten (also 3.5).
+Als Erstes O54 und O58 entscheiden, dann kommt 3.5 (Kosten).
 
-Stand: 18.11.2026 · O52 → E55 (Schalter an beiden Enden, Premium-Abzug bleibt), O53 → E56 (Preisniveau
-speichern). Paket 3.2b erledigt: `src/model/satisfaction.ts` um die Teile der Satisfaction (Kabine, Service,
-Boden mit Schalter-Auslastung, Personal, Forschung), `satisfactionBreakdown`, Offer/Route/Airline satisfaction
-und `satisfactionFactor` erweitert; an `offerAppeal` angeschlossen. 708 Tests grün, `tsc --noEmit` grün.
+Stand: 18.11.2026 · Paket 3.4 erledigt: `src/model/fare.ts` mit Abschnitt 4 (Marktpreis, Preisniveau
+`fareRatio`, Erlös, Umsteiger-Anteile, Monatserlös, bester Preis, Gewinnschwelle); Beispiel 4.13 nachgerechnet.
+754 Tests grün, `tsc --noEmit` grün.
 
 Offene Fragen (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“):
 - **O54** Flugzeug- und Slot-Anteil in den festen Kosten einer Strecke und in der Planer-Hauptzahl
@@ -36,21 +35,12 @@ Offen aus 3.3b (kein Blocker): Balance-Skript (3.9) prüft Umsteiger typisch unt
 Direktangebot (3.13) und die Stärke von `FLIGHT_TIME_EXP` (3.9.3). Die Regel „Planer-Wert = Wert im
 Monatsabschluss“ (3.11, R2) wird geprüft, wenn Planer und Monatsabschluss das Modell nutzen (Phase 4 / 3.8).
 Wer Angebote aus dem Spielstand baut (Strecken je Paar, Fahrpläne, Alter, Laufmonate), regelt 3.8 bzw. Phase 4.
-
-Paket 3.4: Abschnitt 4 als Code in `src/model/fare.ts` (F1).
-- Grundpreis Economy (4.1), Klassen-Verhältnis (4.2), Marktpreis (4.3), Preis einer Strecke mit `fareRatio`
-  als gespeichertem Wert (4.5, E56; fehlender Preis = Marktpreis, R8), KI-Preise (4.6, nur die Funktion;
-  Preis-Lage der Persönlichkeiten kommt mit 3.7), Erlös je Strecke (4.7), Umsteiger-Tarif und Aufteilung auf
-  Teilstrecken (4.8), Monatserlös (4.9), bester Preis (4.10), Gewinnschwelle (4.11).
-- Kosten aus Abschnitt 5 (`costPerPassenger`, `fixedWeeklyCost`) kommen als fertige Zahlen (wie F14), solange
-  3.5 wartet. Planer-Zahlen (4.12) nur, soweit sie ohne Kosten-Code gehen; der Rest mit 3.5 / Phase 4.
-- Beispiel 4.13 nachrechnen; alle neuen Konstanten in `src/model/constants.ts`; Regeltests je Regel.
-- `marketFare` in `marketSplit.ts` / `transfers.ts` bleibt Eingabe; prüfen, dass `transferFare` (3.13) zu 4.8 passt.
-Zu lesen: `SPEZIFIKATION.md` 4.0–4.15, `src/model/README.md`, `src/model/marketSplit.ts` und `transfers.ts` (nur
-Aufbau und Exporte, besonders `marketSplit` und `transferFare`), `src/model/demand.ts` (nur `blockMinutes`,
-`referenceBlockMinutes`), `src/model/constants.ts` (nur Aufbau), `bestand/3-preis.md` (nur Formeln heute),
-`src/lib/financeUtils.ts:723-736` (`calculateBasePrices`).
-Prüfen: `npm test`, `npm run lint`.
+Offen aus 3.4 (kein Blocker): Planer-Hauptzahl „Expected weekly profit“, Nebenzahlen „First month“ und
+„Full aircraft“ mit Kosten (4.12) sowie `bestFare` / `breakEvenFareLevel` mit echten Kosten kommen mit 3.5
+(`costPerPassenger`, `fixedWeeklyCost`) bzw. Phase 4. Die Regeln „Planer-Erlös = Erlös im Monatsabschluss“
+(4.7, R2), „Preisänderung ändert die Fluggäste des laufenden Monats nicht“ (4.5) und „Hauptzahl = Gewinn im
+Monatsabschluss“ (4.12) prüft 3.8 / Phase 4. Ob gegenseitiges Unterbieten mit `bestFare` in Grenzen bleibt
+(4.10, Hinweis), prüft das Balance-Skript (3.9) mit Abschnitt 7.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -105,12 +95,12 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.2b | Zufriedenheit Teil 2 (2.6–2.10): Teile der Satisfaction, Satisfaction je Klasse, Offer/Route/Airline satisfaction, `satisfactionFactor` | erledigt |
 | 3.3a | Nachfrage Teil 1 (3.1–3.7): Bezugs-Flugzeit, Verflechtung, Wachstum, Entfernung, Ereignisse, Marktgröße, Klassen-Anteil | erledigt |
 | 3.3b | Nachfrage Teil 2 (3.8–3.14): Anziehung, „Nicht fliegen“, Aufteilung, Anlauf, Umsteiger; `satisfactionFactor` als Eingabe, solange 3.2b wartet | erledigt |
-| 3.4 | Preis und Erlös (Abschnitt 4) | offen |
+| 3.4 | Preis und Erlös (Abschnitt 4) | erledigt |
 | 3.5 | Kosten und Wertmodell (Abschnitt 5) | wartet (O54, O58) |
 | 3.6 | Ruf, Rang, Fortschritt (Abschnitt 6) | wartet (O55) |
 | 3.7 | Konkurrenz (Abschnitt 7) | wartet (O56, O57) |
 | 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | wartet (O58, O59) |
-| 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
+| 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | wartet (3.5) |
 
 ## Phase 4 – Oberfläche anbinden
 
@@ -160,3 +150,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 3.3a | Nachfrage Teil 1: `src/model/demand.ts` (`distanceKm`, `blockMinutes`, `referenceBlockMinutes`, `citySize` stetig, `worldScale`, `relativeSize`, `businessLinkage`, `tourismLinkage`, `seasonFactor`, `southernShare`, `businessShare`, `demandGrowth`, `distanceFactor`, `eventDemandFactor`, `marketSize` + `marketSizeParts`, `classShare`/`classShares`); alle Konstanten 3.1–3.7 in `constants.ts`; 37 Regeltests (615 grün); Bau-Festlegungen F9–F13 (F13: Schreibfehler in Spezifikation 3.7 berichtigt) |
 | 18.11.2026 | 3.3b | Nachfrage Teil 2: `src/model/marketSplit.ts` (`directOffer`, `offerAppeal` mit 11 Faktoren, `noFlyAppeal`, `classPotential`, `rampFactor`, `marketSplit` mit Anlauf, Sitz-Grenze und Überlauf, `distributeToRoutes`, `passengerShare`, `departureShare`) und `src/model/transfers.ts` (Anschlüsse, Umweg, Drehkreuz-Güte, `transferOffer`, `allocateTransferSeats`); alle Konstanten 3.9–3.13 in `constants.ts`; Beispiel 3.15 genau nachgerechnet; 61 Regeltests (676 grün); Bau-Festlegungen F14–F20 (u. a. F17 Anlauf auch im Überlauf, F19 Anschlüsse je Ankunft) |
 | 18.11.2026 | 3.2b | O52 → E55 (Schalter Pflicht an beiden Enden, −10 für Premium-Klassen ohne bedienten Schalter), O53 → E56 (Preisniveau `fareRatio` speichern). Zufriedenheit Teil 2 in `src/model/satisfaction.ts`: `cabinPart`, `servicePart`, `groundPart` (Lounge, Stellplätze, Schalter-Art, Schalter-Last als Mittel beider Enden × Bodengewicht; `deskLoad` auch für 5.10), `staffPart`, `researchPart`, `satisfactionBreakdown`/`satisfaction` (einmal gekappt, ungerundet), `directOfferSatisfaction`, `connectionOfferSatisfaction`, `routeSatisfaction`, `airlineSatisfaction`, `satisfactionFactor` (an `offerAppeal` angeschlossen); alle Konstanten 2.6–2.10 in `constants.ts`; 32 Regeltests (708 grün); Bau-Festlegungen F21–F23 |
+| 18.11.2026 | 3.4 | Preis und Erlös in `src/model/fare.ts`: `baseFareEconomy` (Kurzstrecken-Zuschlag stufenlos, Index aus der Bezugs-Flugzeit), `classFareRatio`, `marketFare` (nur Entfernung und Monat), Preisniveau `fareRatio` mit einer Lese-Stelle für fehlende Preise (R8), `routeFare(s)`, „Adjust All“, `routeRevenue` je Klasse mit Umsteigern, `transferRevenueShare` nach Marktpreisen, `monthlyRevenue` mit 4,348 Wochen, `bestFare` (Gitter 0,01 / 0,001, gewinnbest, eigener Anlauf 1), `breakEvenFareLevel`, `fullAircraftRevenue`; Konstanten 4.1–4.10 in `constants.ts`; Beispiel 4.13 nachgerechnet; 46 Regeltests (754 grün); Bau-Festlegungen F24–F26 |
