@@ -108,4 +108,5 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - E36 (Neutral 50) und E39 (Ruf-Ziel) gehören zusammen: Das Ruf-Ziel muss bei üblicher SAT um 50 liegen.
 - E41, E42: genaue Ränge je Flugzeugklasse und Forschungsplatz in 2.7.
 - E53 präzisiert E4: Die Schwierigkeit wirkt über die Anziehung, nicht über die Marktgröße.
-- `SPEZIFIKATION.md` 2.8 und 2.10 setzen voraus, dass Abschnitt 3 (Paket 2.4) die Fluggäste eines Angebots nach Sitzen auf seine Strecken verteilt und die Satisfaction als Zahlungsbereitschaft in die Anziehung nimmt.
+- `SPEZIFIKATION.md` 2.8 und 2.10 setzen voraus, dass Abschnitt 3 die Fluggäste eines Angebots nach Sitzen auf seine Strecken verteilt und die Satisfaction als Zahlungsbereitschaft in die Anziehung nimmt. Erfüllt in 3.9.2 und 3.11 (Paket 2.4).
+- `SPEZIFIKATION.md` 3.16 setzt für Abschnitt 4 (Paket 2.5) voraus: Marktpreis je Paar und Klasse, gleich für alle Angebote und unabhängig von den Fluggästen aus 3.11; kein zweiter Preis-Faktor auf die Fluggäste. Der heutige Knappheits-Zuschlag (`scarcityPremium`, hängt an der Nachfrage der eigenen Strecke) muss dafür neu gefasst werden oder entfallen.

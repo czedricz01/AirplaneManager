@@ -543,7 +543,422 @@ einzeln gerundet oder gekappt, außer wo eine Grenze ausdrücklich zur Form geh�
 
 ## 3. Nachfrage und Marktanteil
 
-_(offen)_
+Dieser Abschnitt legt fest, wie viele Menschen zwischen zwei Städten fliegen wollen und wie sie sich auf
+die Angebote verteilen. Grundlage: E4, E7, E9, E13, E20–E22, E24, E25, E33, E35–E37, E44, E50, E53,
+R1, R2, R4, R5, R8, R9; Bestand: `bestand/2-nachfrage.md` (W1–W14). Alle heutigen Fundstellen ohne Pfad
+liegen in `src/lib/financeUtils.ts`. Alle Mengen sind **Fluggäste je Woche, beide Richtungen zusammen**,
+ungerundet (R4).
+
+### 3.0 Überblick
+
+Zwei Schritte, streng getrennt:
+
+1. **Marktgröße** (3.1–3.7): Wie viele Fluggäste ein Städtepaar je Woche hat, wenn **eine** Gesellschaft
+   ein Bezugsangebot macht (3.9.0). Hängt nur von Städten, Entfernung, Zeit, Saison und Ereignissen ab,
+   nie von einer Gesellschaft, einem Flugzeug oder der Schwierigkeit (E13, E20, E53).
+2. **Aufteilung** (3.8–3.13): Alle Angebote des Paars (eigene, KI, Umsteige-Verbindungen) und „Nicht
+   fliegen“ werden **einmal gemeinsam** nach ihrer Anziehung aufgeteilt (R1). Danach Sitz-Grenze,
+   Überlauf und Anlauf.
+
+```
+Stadtgrößen (Geschäft, Tourismus) ─► Verflechtung ─┐
+Saison ────────────────────────────► (Tourismus) ──┤
+Bezugs-Flugzeit ─► Entfernungs-Faktor ─────────────┼─► Marktgröße ─► je Klasse (Klassen-Anteil)
+Zeit ─► Nachfrage-Wachstum ────────────────────────┤                      │
+Ereignisse ─► Ereignis-Faktor ─────────────────────┘                      ▼
+                                                                Potenzial je Klasse
+Angebot: Abflüge, Preis, Satisfaction, Flugzeit,                          │
+Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► Aufteilung (mit „Nicht fliegen“)
+                                                                          │
+                                       Anlauf ─► Sitz-Grenze, Überlauf ─► Fluggäste je Angebot
+                                                                          │
+                                                       nach Sitzen ─► Fluggäste je Strecke (2.8)
+```
+
+**Wirkungswege.**
+- Der **Preis** wirkt auf die Fluggäste genau einmal: über die Anziehung (3.9.2), gemessen am Marktpreis
+  (E13). Es gibt keinen zweiten Preis-Faktor auf die Fluggäste (heute `getPriceDemandMultiplier`,
+  `:1010-1019`). Mit und ohne Rivalen gilt dieselbe Formel; ohne Rivalen ist „Nicht fliegen“ der einzige
+  Mitbewerber (Lesart von E13 „Preis wirkt mit und ohne Rivalen gleich“: eine Stelle, ein Bezugspreis).
+- Die **Satisfaction** wirkt als Zahlungsbereitschaft in der Anziehung (2.10), einmal.
+- Der **Ruf** wirkt auf die Anziehung aller Angebote seiner Gesellschaft (3.9.4), für Spieler und KI.
+- Die **Schwierigkeit** wirkt nur auf die Anziehung der Spieler-Angebote (E53).
+
+**Was entfällt** (gegenüber heute):
+- Jahresbremse `eraDemandFactor` (`:622-640`): ersetzt durch eine Wachstumsregel (3.3, E7).
+- Schwierigkeit in der Nachfrage (`:660`) und der „Spieler-Faktor“ auf die Marktgröße
+  (`src/lib/gameState.ts:510-520`): Ruf, Werbung, Forschung, Frequent flyer wirken auf die Anziehung.
+- Preis-Faktor auf die Fluggäste (`:1010-1019`, `:1468-1471`) und `MAX_DEMAND_SURPLUS` (`:1040`).
+- Rechnung je Strecke mit neutralen Parallelstrecken (`:1379-1385`) und getrennte KI-Rechnung
+  (`src/lib/aiSimulation.ts:768-809`): eine Aufteilung je Markt (R1).
+- Umsteiger-Grenze 25 %, Umweg-Faktor und Anschluss-Verhältnis (`src/lib/transferUtils.ts:403-422`):
+  Umsteige-Verbindungen sind Angebote im Markt (3.13).
+- Saison-Kopie in `src/App.tsx:878` (R2).
+
+### 3.1 Bezugs-Flugzeit (Code-Name: `referenceBlockMinutes`)
+- Bedeutung: Flugzeit eines Paars mit einer festen Bezugsgeschwindigkeit; Maß für die Entfernung, das
+  nicht vom eingesetzten Flugzeug abhängt (E20, W1).
+- Einheit und Bereich: Minuten ≥ 0, ungerundet.
+- Formel: dieselbe Funktion wie `blockMinutes` einer Strecke (heute `getFlightDurationMinutes`, `:192-220`:
+  Großkreis × 1,02, Beschleunigen und Bremsen), mit `REFERENCE_SPEED` statt der Reisegeschwindigkeit.
+  Neu ungerundet (heute `Math.round`, `:218`).
+- Wirkt auf: Entfernungs-Faktor (3.4), Klassen-Anteile (3.7), Flugzeit-Teil der Anziehung (3.9.3, als Bezug).
+- Konstanten: `REFERENCE_SPEED = 800` km/h (heute für Umsteiger und Planer ohne Flugzeug,
+  `src/lib/transferUtils.ts:70`).
+- Regeln (Tests): gleich für alle Gesellschaften und Ansichten; ändert sich nicht mit dem Flugzeug.
+
+### 3.2 Stadtgrößen und Verflechtung
+**Stadtgröße** je Flughafen `a`: Geschäft `G(a)` und Tourismus `T(a)` aus `src/data/airports.ts:33-59`
+(Daten, unverändert; nach Tabellenende fortgeschrieben wie heute).
+- Neu, stetige Zeit (R5): zwischen zwei Tabellenjahren gerade Linie über `timeOf(month)` (heute Sprung am
+  Jahreswechsel).
+- Neu, **Weltanteil** (Code-Name: `relativeSize`): `Grel(a) = G(a) × ΣG(1960) / ΣG(jetzt)`, ebenso `Trel`,
+  Summe über alle Flughäfen der Daten. Eine Stadt „wächst“ nur, wenn sie schneller wächst als die Welt.
+  Das allgemeine Wachstum kommt allein aus 3.3. Im Januar 1960 gilt `Grel = G`.
+
+**Verflechtung** (Code-Namen: `businessLinkage`, `tourismLinkage`), Formeln wie heute (`:668-675`):
+- `pair(x, y) = min(x, y)^LINK_SMALL × max(x, y)^LINK_LARGE` (die kleinere Stadt zählt stärker).
+- `businessLinkage = pair(Grel(A), Grel(B))`.
+- `tourismLinkage = (pair(Grel(A), Trel(B)) + pair(Grel(B), Trel(A))) / 2 × seasonFactor`.
+- `linkage = businessLinkage + tourismLinkage`.
+- **Saison** `seasonFactor(month, south)`: Monatstabelle 0,88 … 1,15, Mittel ≈ 1; Südhalbkugel um
+  6 Monate versetzt, anteilig je Ende (wie heute, `:279-302`). Sie wirkt nur hier, nur auf den Tourismus.
+- **Geschäftsanteil** (Code-Name: `businessShare`): `businessLinkage / (businessLinkage + tourismLinkage
+  ohne Saison)`, 0 … 1. Ohne Saison, damit die Klassen-Aufteilung nicht mit dem Monat springt.
+- Konstanten: `LINK_SMALL = 1,4`, `LINK_LARGE = 0,6`.
+- Regeln (Tests): `linkage` hängt nicht von der Reihenfolge A, B ab; größere Städte ergeben nie weniger.
+
+### 3.3 Nachfrage-Wachstum (Code-Name: `demandGrowth`)
+- Bedeutung: Wie viel mehr Menschen weltweit fliegen als 1960. Die **einzige** Wachstumsregel (E7, W8).
+- Einheit und Bereich: Faktor, 1 im Januar 1960.
+- Formel: `demandGrowth = DEMAND_GROWTH_1960_2019 ^ ((timeOf(month) − 1960) / 59)`, Zeit begrenzt auf
+  1960 … 2100 (wie `costIndex`).
+- Konstanten: `DEMAND_GROWTH_1960_2019 = 2,5` (E7; heute ergibt sich etwa × 2,5 aus Hochzahl und
+  Jahresbremse, W8). Endgültiger Wert aus dem Balance-Skript (3.9).
+- Regeln (Tests): steigt stetig; `demandGrowth` 2019 = 2,5; im Mittel aller Paare wächst die Marktgröße
+  1960 → 2019 um × 2,5 (Balance-Skript; einzelne Paare mehr oder weniger, je nach Weltanteil ihrer Städte).
+
+### 3.4 Entfernungs-Faktor (Code-Name: `distanceFactor`)
+- Bedeutung: Kurze Strecken haben mehr Fluggäste je Verflechtung als lange (E22, W13).
+- Einheit und Bereich: Faktor > 0; 1 bei 450 min.
+- Formel: `distanceFactor = (max(referenceBlockMinutes, DISTANCE_MIN) / DISTANCE_REF) ^ (−DISTANCE_EXP)`.
+  Sinkt bis zur längsten Strecke weiter, ohne Untergrenze (heute ab ≈ 758 min fest 0,4).
+- Konstanten (Startwerte): `DISTANCE_REF = 450` min, `DISTANCE_MIN = 45` min, `DISTANCE_EXP = 0,5`.
+  Werte: 45 min 3,16 · 90 min 2,24 · 150 min 1,73 · 300 min 1,22 · 810 min 0,75 · 1 200 min 0,61.
+  Kurz : lang (45 min : 20 h) = 5,2 (heute 6,9). Endgültig aus dem Balance-Skript (3.9).
+- Hängt ab von: `referenceBlockMinutes` (nie vom Flugzeug).
+- Regeln (Tests): fällt streng mit der Bezugs-Flugzeit ab `DISTANCE_MIN`; 13 h und 20 h verschieden.
+
+### 3.5 Ereignis-Faktor (Code-Name: `eventDemandFactor`)
+- Bedeutung: Wie laufende Ereignisse (Krisen, Pandemie, Boom) die Reiselust auf einem Paar ändern.
+- Formel: Produkt über alle laufenden Ereignisse; je Ereignis Mittel beider Enden (Ende betroffen →
+  `demandMultiplier` des Ereignisses, sonst 1); weltweite Ereignisse betreffen jedes Ende
+  (wie heute `src/lib/eventSystem.ts:326-351`).
+- Wirkt auf: Marktgröße (3.6), also auf **alle Gesellschaften gleich** (E35; heute regionale nur für den
+  Spieler). Ereignisse ändern keinen Preis und keinen Treibstoff (E8).
+- Krisen-Antworten einer Gesellschaft wirken nicht hier, sondern als Faktor auf ihre Anziehung (3.9.7).
+- Regeln (Tests): ohne Ereignis 1; ein Ereignis an beiden Enden wirkt voll, an einem Ende halb.
+
+### 3.6 Marktgröße (Code-Name: `marketSize`)
+- Bedeutung: Fluggäste je Woche auf einem Städtepaar, wenn **eine** Gesellschaft das Bezugsangebot (3.9.0)
+  macht. Das ist die Zahl, die der Planer als „Market size“ zeigt.
+- Einheit und Bereich: Fluggäste je Woche ≥ 0, ungerundet.
+- Formel:
+  `marketSize = DEMAND_SCALE × linkage ^ LINK_EXP × distanceFactor × demandGrowth × eventDemandFactor`.
+- Hängt ab von: 3.1–3.5. **Nicht** von Flugzeug, Gesellschaft, Ruf, Preis, Satisfaction, Schwierigkeit.
+- Wirkt auf: Potenzial je Klasse (3.10).
+- Konstanten: `LINK_EXP = 0,448351` (heute `:683`; bestimmt nur noch den Abstand großer zu kleinen Paaren);
+  `DEMAND_SCALE = 29` (heute `:683`, ohne den Normal-Abzug 0,9, E4). Endgültig aus dem Balance-Skript.
+- Regeln (Tests): gleich für Spieler, KI, Planer, Umsteiger-Rechnung (W1, W9); ändert sich nicht mit der
+  Schwierigkeit; größere Städte → nie kleiner; kürzere Bezugs-Flugzeit → nie kleiner.
+- Anzeige: Planer Schritt 1, Flughafen- und Streckenansicht („Market size“, je Klasse aufgeschlüsselt).
+
+### 3.7 Klassen-Anteil (Code-Name: `classShare`)
+- Bedeutung: Welcher Teil der Marktgröße in Premium, Business und First reist (E21, W5).
+- Einheit und Bereich: Anteil 0 … 1 je Klasse; Summe der vier = 1.
+- Formel je Klasse `c` ∈ {premium, business, first}:
+  ```
+  classShare(c) = CLASS_BASE[c] × (1 + CLASS_BUSINESS_GAIN[c] × (businessShare − 0,5))
+                                × (1 + CLASS_TIME_GAIN[c] × timeRamp)
+  timeRamp      = kappen((referenceBlockMinutes − CLASS_TIME_FROM) / (CLASS_TIME_TO − CLASS_TIME_FROM), 0, 1)
+  classShare(economy) = 1 − Summe der drei anderen
+  ```
+  Richtung (E21): mehr Geschäft → mehr Business und First; mehr Tourismus → mehr Economy; längere
+  Flugzeit → mehr in allen höheren Klassen. Keine Untergrenze, kein Ableiten einer Klasse aus der anderen
+  (heute Premium fast immer 9 %, W5).
+- Konstanten (Startwerte; endgültig aus dem Balance-Skript 3.9):
+
+  | Klasse | `CLASS_BASE` | `CLASS_BUSINESS_GAIN` | `CLASS_TIME_GAIN` |
+  |---|---|---|---|
+  | premium | 0,07 | 0,6 | 0,5 |
+  | business | 0,05 | 1,6 | 0,6 |
+  | first | 0,012 | 1,6 | 1,5 |
+
+  `CLASS_TIME_FROM = 60` min, `CLASS_TIME_TO = 720` min.
+  Ergebnis (Premium / Business / First / Economy): kurz, reiner Tourismus 4,9 / 1,0 / 0,2 / 93,9 %;
+  kurz, gemischt (0,5) 7,0 / 5,0 / 1,2 / 86,8 %; lang, gemischt 10,5 / 8,0 / 3,0 / 78,5 %;
+  lang, reines Geschäft 13,7 / 14,4 / 5,4 / 66,6 %.
+- Regeln (Tests): Summe = 1; Economy ≥ 0,5 bei allen Eingaben; höherer `businessShare` senkt Economy nie
+  und hebt Business und First; Premium schwankt über alle Paare spürbar (Balance-Skript: 5 %- bis
+  95 %-Wert mindestens 3 Prozentpunkte auseinander).
+- Kein Wechsel zwischen Klassen: Wer Business reisen will, wählt unter den Business-Angeboten oder fliegt
+  nicht. Ein Angebot ohne Sitze in Klasse `c` nimmt am Markt dieser Klasse nicht teil.
+
+### 3.8 Angebote eines Markts
+Ein Markt ist ein Städtepaar mit einer Klasse. Angebote darin (R1):
+- **Direktangebot** einer Gesellschaft = alle ihre Strecken auf dem Paar zusammen (1.5). Je Gesellschaft
+  und Paar genau eines.
+- **Umsteige-Verbindung** einer Gesellschaft über einen ihrer Drehkreuze (3.13). Je Gesellschaft und
+  Umsteige-Flughafen eine.
+
+Kennzahlen eines Angebots in Klasse `c`:
+
+| Kennzahl | Code-Name | Festlegung |
+|---|---|---|
+| Sitze | `offerSeats(c)` | Summe der Sitze in `c` × Flüge je Woche aller Strecken, beide Richtungen. |
+| Abflüge je Richtung | `frequency` | Abflüge je Woche auf dem Paar, beide Richtungen, geteilt durch 2. Ein Einweg-Umlauf zählt halb so viel wie Hin und Zurück (W14). Gilt für alle Klassen. |
+| Preis | `offerFare(c)` | Mittel der Preise in `c` aller Strecken, nach Sitzen in `c` gewichtet. Fehlender Preis = Marktpreis (R8). Der Erlös ist damit derselbe, als zahlte jeder Gast den Preis seiner Strecke (Verteilung nach Sitzen, 3.11). |
+| Satisfaction | `offerSatisfaction(c)` | aus 2.8. |
+| Flugzeit | `offerBlockMinutes` | Mittel der `blockMinutes` aller Strecken, nach Sitzen gewichtet; Verbindung: 3.13. |
+| Alter | `offerAgeMonths` | Monate, seit die Gesellschaft das Paar ohne Unterbrechung bedient. Wer das Paar aufgibt, beginnt beim nächsten Mal bei 0. Eine weitere Strecke auf einem bedienten Paar läuft **nicht** neu an. |
+
+### 3.9 Anziehung (Code-Name: `offerAppeal`)
+- Bedeutung: Wie stark ein Angebot Fluggäste einer Klasse anzieht, im Vergleich zu anderen Angeboten und zu
+  „Nicht fliegen“.
+- Einheit und Bereich: Zahl > 0 ohne Einheit; **1 = Bezugsangebot**.
+- Formel je Angebot `o` und Klasse `c`, ein Produkt (jeder Faktor wirkt nur hier, R2):
+  ```
+  offerAppeal(o, c) = frequencyFactor × priceFactor(c) × flightTimeFactor × reputationFactor
+                    × establishedRouteBonus × advertisingFactor × frequentFlyerFactor
+                    × researchDemandFactor × crisisResponseFactor × difficultyFactor
+                    (× connectionFactor bei Umsteige-Verbindungen, 3.13)
+  ```
+- Ungerundet, nicht gekappt (R4).
+- Regeln (Tests): jeder Faktor = 1 im Bezugszustand; besser bieten (mehr Abflüge, niedrigerer Preis,
+  höhere Satisfaction, kürzere Flugzeit, höherer Ruf) senkt die Anziehung nie; gleiche Eingaben → gleiche
+  Anziehung für Spieler und KI (außer den Faktoren, die nur der Spieler hat, 3.9.4–3.9.7).
+
+#### 3.9.0 Bezugsangebot
+Ein Angebot mit 7 Abflügen je Richtung (täglich), Preis = Marktpreis, Satisfaction 100, Flugzeit =
+Bezugs-Flugzeit, Ruf 50, Alter 9 … 24 Monate, ohne Werbung, Frequent flyer, Forschung, Krisen-Antwort,
+auf Normal. Seine Anziehung ist 1. Allein im Markt bekommt es genau `marketSize × classShare(c)` Fluggäste
+(3.10).
+
+#### 3.9.1 Abflüge (Code-Name: `frequencyFactor`)
+- Formel: `frequencyFactor = (frequency / REFERENCE_FREQUENCY) ^ FREQUENCY_EXP`.
+- Konstanten: `REFERENCE_FREQUENCY = 7` je Richtung und Woche; `FREQUENCY_EXP = 0,5` (Wurzel, wie heute
+  `:1134`).
+- Je Gesellschaft aus der **Summe** ihrer Abflüge auf dem Paar (R1): Aufteilen derselben Flüge auf mehrere
+  Strecken ändert nichts (W2).
+
+#### 3.9.2 Preis und Satisfaction (Code-Name: `priceFactor`)
+- Formel: `priceFactor(c) = (offerFare(c) / (marketFare(c) × satisfactionFactor(c))) ^ (−PRICE_SENSITIVITY[c])`.
+  - `marketFare(c)`: Marktpreis des Paars (Abschnitt 4), gleich für alle Angebote.
+  - `satisfactionFactor(c)`: aus `offerSatisfaction(c)` (2.10). So gilt die Vorgabe aus 2.10 wörtlich:
+    Satisfaction `s` und Preis `p` ziehen so stark an wie Satisfaction 100 und Preis `p / satisfactionFactor(s)`.
+- Konstanten (Startwerte): `PRICE_SENSITIVITY` Economy 2,2 · Premium 2,0 · Business 1,8 · First 1,7.
+  Größer als heute (1,2 / 1,0 / 0,8 / 0,7, `:1002-1004`), weil die Zahl eine andere Bedeutung hat: Die
+  Empfindlichkeit der eigenen Fluggäste ist `PRICE_SENSITIVITY × (1 − Anteil)` (Anteil an allen Reisewilligen
+  einschließlich „Nicht fliegen“). Sie muss über 1 liegen, sonst brächte jeder höhere Preis mehr Erlös.
+- Folge (E24): Ohne Rivalen liegt der erlösbeste Preis des Bezugsangebots genau bei
+  `marketFare × satisfactionFactor` (Herleitung: Erlös steigt, solange `PRICE_SENSITIVITY × (1 − Anteil) < 1`;
+  beim Bezugsangebot ist der Anteil an den Reisewilligen genau `1 − 1 / PRICE_SENSITIVITY`, 3.10).
+  Ein Angebot mit mehr Anziehung aus anderen Gründen (z. B. 14 Abflüge je Richtung) hat einen etwas
+  höheren erlösbesten Preis (Faktor `(übrige Anziehung)^(1 / PRICE_SENSITIVITY)`, bei 14 Abflügen
+  Economy ≈ 1,17). Billiger als `marketFare × satisfactionFactor` lohnt bei voller Anziehung nur gegen
+  Rivalen oder zum Füllen der Sitze (E24).
+- Regeln (Tests): Bezugsangebot allein im Markt, Sitze reichen: erlösbester Preis = `marketFare × satisfactionFactor`
+  (± 1 %); 10 % billiger und 10 % teurer bringen beide weniger Erlös; gegen einen gleichen Rivalen bringt
+  10 % billiger mehr Erlös.
+
+#### 3.9.3 Flugzeit (Code-Name: `flightTimeFactor`)
+- Bedeutung: Kürzere Reisezeit zieht spürbar mehr an (E20). Langsame Flugzeuge verlieren Anteil, machen
+  aber den Markt nicht kleiner (W1).
+- Formel: `flightTimeFactor = (offerBlockMinutes / referenceBlockMinutes) ^ (−FLIGHT_TIME_EXP)`.
+- Konstanten: `FLIGHT_TIME_EXP = 1,0` (Startwert; „spürbar“ nach E20, Stärke aus dem Balance-Skript 3.9).
+  Beispiele: 10 % längere Flugzeit → 0,91; Turboprop auf 1 000 km (≈ 1,47-fache Zeit) → 0,68; halbe
+  Flugzeit (Überschall) → 2,0.
+- Regel (Test): kürzere Flugzeit senkt die Anziehung nie; halbe Flugzeit = `2 ^ FLIGHT_TIME_EXP`.
+
+#### 3.9.4 Gesellschaft: Ruf, Forschung, Frequent flyer, Schwierigkeit
+- **Ruf** `reputationFactor = 1 + REPUTATION_DEMAND_SLOPE × (reputation − 50)`; Ruf 50 = 1 (E36).
+  `REPUTATION_DEMAND_SLOPE = 0,002` (0,9 bei Ruf 0, 1,1 bei Ruf 100; Spanne wie heute 0,2,
+  `src/lib/gameState.ts:428`). Spieler und KI (E44). Ruf vom Monatsanfang.
+- **Forschung** `researchDemandFactor`: Produkt der fertigen Nachfrage-Forschungen 1,015 × 1,025 × 1,01
+  (heute `src/lib/research.ts:114`, `:143`, `:165`). Nur Spieler (KI forscht nicht, E44).
+- **Frequent flyer** `frequentFlyerFactor = 1 + min(FF_MAX, FF_START + FF_PER_MONTH × (Laufmonate − 1))`,
+  solange das Programm läuft, sonst 1. `FF_START = 0,05`, `FF_PER_MONTH = 0,01`, `FF_MAX = 0,20`
+  (heute `src/lib/marketing.ts:192-194`). Gilt für alle Angebote der Gesellschaft (heute nur eigene Strecken
+  und Parallelstrecken, `:1391`, `:1432`). Nur Spieler: zählt zu „Werbung“ (`marketing.ts`), die die KI
+  bewusst auslässt (Lesart von E44).
+- **Schwierigkeit** `difficultyFactor`: aus 1.8; nur Spieler-Angebote (E53), auch Umsteige-Verbindungen.
+
+#### 3.9.5 Werbung (Code-Name: `advertisingFactor`)
+- Formel: Mittel beider Enden des Werbe-Faktors ihrer Region; Werbe-Faktor je Region = `1 + Summe der
+  laufenden Kampagnen` (lokal 0,05, national 0,10, global 0,18), höchstens `ADVERTISING_MAX = 1,25`
+  (wie heute `src/lib/marketing.ts:74-84`, `:126-135`).
+- Wirkt, solange die Kampagne läuft (E37), nur auf die Anziehung des Werbenden; der kleine Ruf-Beitrag
+  steht in Abschnitt 6. Nur Spieler (E44).
+
+#### 3.9.6 Established route bonus (Code-Name: `establishedRouteBonus`)
+- Formel: `1 + ESTABLISHED_BONUS_MAX × kappen((offerAgeMonths − ESTABLISHED_FROM) / (ESTABLISHED_TO − ESTABLISHED_FROM), 0, 1)`.
+- Konstanten: `ESTABLISHED_BONUS_MAX = 0,05`, `ESTABLISHED_FROM = 24`, `ESTABLISHED_TO = 48` Monate
+  (heute `src/lib/routeMaturity.ts:20-24`). Spieler und KI (E44).
+
+#### 3.9.7 Krisen-Antwort (Code-Name: `crisisResponseFactor`)
+- Faktor > 1 auf die Angebote einer Gesellschaft in den Märkten, die ein Ereignis trifft, auf das sie mit
+  einer Krisen-Antwort reagiert hat. Höhe und Kosten in Abschnitt 8 (E6, E35). Ohne Antwort 1.
+
+### 3.10 Nicht fliegen und Potenzial
+**Nicht fliegen** (Code-Name: `noFlyAppeal`)
+- Bedeutung: Wer reisen könnte, aber keines der Angebote nimmt (zu teuer, zu selten, zu langsam), wählt
+  „Nicht fliegen“. Ein eigener Mitbewerber mit fester Anziehung (E13).
+- Formel: `noFlyAppeal(c) = 1 / (PRICE_SENSITIVITY[c] − 1)`: Economy 0,83 · Premium 1,0 · Business 1,25 ·
+  First 1,43. Folgt aus 3.9.2: Nur mit diesem Wert ist das Bezugsangebot ohne Rivalen erlösbest am
+  Marktpreis (E24). Keine eigene Stellschraube.
+
+**Potenzial** (Code-Name: `classPotential`)
+- Bedeutung: Alle Reisewilligen einer Klasse; die Obergrenze, wenn die Angebote unendlich anziehend wären.
+- Formel: `classPotential(c) = marketSize × classShare(c) × PRICE_SENSITIVITY[c] / (PRICE_SENSITIVITY[c] − 1)`.
+  So fliegen beim Bezugsangebot allein genau `marketSize × classShare(c)` (3.9.0).
+- Regel (Test): Bezugsangebot allein, Sitze reichen → Fluggäste = `marketSize × classShare(c)`.
+
+### 3.11 Aufteilung (Code-Name: `marketSplit`)
+- Bedeutung: Wie viele Fluggäste je Woche jedes Angebot eines Markts bekommt. **Eine Funktion je Markt und
+  Klasse für alle Angebote** (R1); Planer, Monatsabschluss, KI-Planung und Bericht nutzen sie (R2).
+- Schritte:
+  1. **Wahl.** Jedes Angebot `o` bekommt
+     `Wunsch(o) = classPotential × offerAppeal(o) / (Σ offerAppeal aller Angebote + noFlyAppeal)`.
+  2. **Anlauf.** `Wunsch(o) × rampFactor(o)` (3.12). Wer wegen des Anlaufs fehlt, fliegt nicht.
+  3. **Sitz-Grenze und Überlauf.** Ist bei einem Angebot der Wunsch größer als seine Sitze, bekommt es so
+     viele Fluggäste wie Sitze. Der Rest wählt neu unter den Angeboten mit freien Sitzen und „Nicht fliegen“,
+     im Verhältnis ihrer Anziehung. Wiederholen, bis kein Angebot mehr überläuft (höchstens so oft, wie es
+     Angebote gibt). Das Ergebnis hängt nicht von der Reihenfolge der Angebote ab.
+     Umsteige-Verbindungen haben in diesem Schritt keine Sitz-Grenze; ihre Grenze kommt in 3.13.
+  4. **Auf Strecken verteilen.** Die Fluggäste eines Direktangebots in `c` verteilen sich auf seine Strecken
+     **nach Sitzen in `c` je Woche** (Vorgabe aus 2.8). Jede Strecke hat damit dieselbe Auslastung in `c`.
+- Ungerundet (R4; heute `abrunden`, `:1469-1471`).
+- Hängt ab von: `classPotential`, `offerAppeal` aller Angebote, `noFlyAppeal`, Sitze, `rampFactor`.
+- Wirkt auf: Fluggäste je Strecke → Erlös (Abschnitt 4), Kosten je Fluggast (Abschnitt 5),
+  `routeSatisfaction` und `airlineSatisfaction` (2.9), Passenger share (3.14).
+- Regeln (Tests):
+  - Summe der Fluggäste aller Angebote ≤ `classPotential`; kein Angebot über seinen Sitzen.
+  - Anteile vor Anlauf und Sitz-Grenze (einschließlich „Nicht fliegen“) ergeben genau 1 (W3, W10).
+  - Gleiche Abflüge auf eine oder mehrere eigene Strecken verteilt → gleiche Fluggäste (W2).
+  - Ein weiteres Angebot senkt die Fluggäste der anderen nie über das hinaus, was es selbst bekommt.
+  - Spieler und KI bekommen bei gleichen Eingaben gleich viele Fluggäste (auf Normal, ohne Spieler-Faktoren).
+  - Ein voller Rivale gibt Gäste an Angebote mit freien Sitzen ab, nie an volle.
+  - Planer-Wert = Wert im Monatsabschluss bei gleichem Stand (R2).
+- Anzeige: Planer (erwartete Fluggäste je Klasse, Passenger share), Streckendetails, Bericht.
+
+### 3.12 Anlauf (Code-Name: `rampFactor`)
+- Bedeutung: Ein neues Direktangebot ist noch unbekannt und erreicht nur einen Teil seiner Gäste (R9, W11).
+- Formel: `rampFactor = RAMP_START + (1 − RAMP_START) × kappen(offerAgeMonths / RAMP_MONTHS, 0, 1)`.
+  Mit der Forschung „Route planning suite“: `RAMP_START + RAMP_RESEARCH_BONUS`.
+- Wirkt in 3.11 Schritt 2, **nach** der Wahl, nicht auf die Anziehung. So bleibt der erlösbeste Preis
+  während des Anlaufs derselbe (E24), und Rivalen gewinnen nicht automatisch dazu.
+- Gilt je Angebot, nicht je Strecke (3.8): Eine weitere Strecke auf einem bedienten Paar läuft nicht an.
+  Umsteige-Verbindungen haben keinen Anlauf (wie heute).
+- Konstanten: `RAMP_START = 0,6`, `RAMP_MONTHS = 9`, `RAMP_RESEARCH_BONUS = 0,15` (heute
+  `src/lib/routeMaturity.ts:17-24`, `src/lib/research.ts:123`). Spieler und KI (E44).
+- Regeln (Tests): steigt nie mit weniger Alter; ab `RAMP_MONTHS` genau 1.
+- Anzeige (R9): Planer zeigt erwartete Fluggäste im ersten Monat und bei voller Nachfrage; Streckendetails
+  „Ramping up“ mit Monaten bis zur vollen Nachfrage.
+
+### 3.13 Umsteige-Verbindungen
+- Bedeutung: Eine Gesellschaft bietet zwischen O und D eine Reise mit Umstieg an ihrem Drehkreuz H an. Die
+  Verbindung ist ein Angebot im Markt O–D und wird mit allen anderen aufgeteilt (R1, W9).
+- Wer: alle Gesellschaften mit Drehkreuz H (E44). Keine Verbindung auf einem Paar, das die Gesellschaft
+  direkt bedient (ihre Gäste nehmen den Direktflug). Keine Verbindungen über Gesellschaften hinweg.
+- Bedingungen: Strecken O–H und H–D der Gesellschaft; Umweg `(Entfernung O–H + H–D) / Entfernung O–D ≤
+  MAX_DETOUR`; mindestens ein machbarer Anschluss (Umstiegszeit `MIN_CONNECTION` … `MAX_CONNECTION`).
+- Klassen: Klasse `c` nur, wenn beide Teilstrecken Sitze in `c` haben.
+- Kennzahlen (3.8):
+  - `frequency`: machbare Anschlüsse je Woche und Richtung (jeder ankommende Flug in H zählt einmal, wenn er
+    einen Anschluss hat), Mittel beider Richtungen.
+  - `offerFare(c) = TRANSFER_FARE_SHARE × marketFare(c)` des Paars O–D (E25); dieselbe Preisformel 3.9.2.
+  - `offerSatisfaction(c)`: Mittel der Teilstrecken nach `blockMinutes` (2.8).
+  - `offerBlockMinutes`: Flugzeit O–H + H–D + mittlere Umstiegszeit der machbaren Anschlüsse. Der Umweg
+    kostet so über `flightTimeFactor` (heute eigener Umweg-Faktor).
+- Zusätzlicher Faktor in der Anziehung:
+  `connectionFactor = CONNECTION_APPEAL × hubQuality`.
+  - `hubQuality = min(1, 0,4 + 0,15 × Verwaltungsstufe + 0,05 je Extra (Stufe 3, Lounge, Catering))`,
+    × 1,1 mit der Forschung „Alliance“ (heute `src/lib/transferUtils.ts:156-162`, `:389`).
+  - `CONNECTION_APPEAL = 0,5` (Startwert: Umsteigen ist lästig; Balance-Skript prüft, dass Umsteiger in
+    Märkten mit Direktangebot typisch unter 25 % bleiben, heute feste Grenze).
+- Sitze: Nach der Aufteilung aller Märkte (3.11) kommen die Umsteiger auf die **freien** Sitze derselben
+  Klasse beider Teilstrecken, höchster Tarif je Sitz zuerst (wie heute, `src/lib/transferUtils.ts:438-479`).
+  Wer keinen Platz findet, fliegt nicht (kein zweiter Überlauf). Direktgäste haben Vorrang.
+- Erlös-Aufteilung auf die Teilstrecken: Abschnitt 4.
+- Regeln (Tests): Umsteiger belegen nie mehr als die freien Sitze; Umweg über `MAX_DETOUR` → keine
+  Verbindung; Umsteiger-Markt O–D hat dieselbe `marketSize` wie die Direktrechnung (W9).
+- Konstanten: `MAX_DETOUR = 1,6`, `MIN_CONNECTION = 45` min, `MAX_CONNECTION = 360` min,
+  `TRANSFER_FARE_SHARE = 0,9` (heute `src/lib/transferUtils.ts:37-45`).
+
+### 3.14 Passenger share und Departure share
+**Passenger share** (Code-Name: `passengerShare`)
+- Formel: Fluggäste aller Angebote einer Gesellschaft auf dem Paar (alle Klassen, direkt und Umsteiger)
+  / Fluggäste aller Gesellschaften auf dem Paar. „Nicht fliegen“ zählt nicht mit. Ohne Fluggäste: 0.
+- Wirkt auf: nichts im Modell (Anzeige).
+- Anzeige: Planer, Streckendetails, Flughafen-Ansicht.
+
+**Departure share** (Code-Name: `departureShare`)
+- Formel: Abflüge je Woche der Gesellschaft auf dem Paar / Abflüge aller Gesellschaften auf dem Paar
+  (nur Direktflüge).
+- Wirkt auf: nichts im Modell (Anzeige, Chronik; heute `departureMarketShare`, `src/lib/chronicle.ts:81-101`).
+- Regeln (Tests): beide Anteile aller Gesellschaften eines Paars ergeben zusammen 1 (wenn jemand fliegt).
+
+### 3.15 Beispiel
+Economy, Marktgröße × Klassen-Anteil = 1 000, Marktpreis 100 $, `PRICE_SENSITIVITY` 2,2 → `noFlyAppeal` 0,83,
+Potenzial 1 833. Sitze reichen, wo nicht anders genannt.
+
+| Fall | Fluggäste Spieler | Erlös Spieler | Hinweis |
+|---|---|---|---|
+| Bezugsangebot allein, 100 $ | 1 000 | 100 000 $ | erlösbest (E24) |
+| allein, 90 $ | 1 104 | 99 342 $ | billiger: weniger Erlös |
+| allein, 110 $ | 904 | 99 454 $ | teurer: weniger Erlös |
+| allein, Satisfaction 130, 100 $ | 1 183 | 118 327 $ | `satisfactionFactor` 1,21 |
+| allein, Satisfaction 130, 120,85 $ | 1 000 | 120 850 $ | erlösbest bei 100 × 1,2085 |
+| allein, 14 Abflüge je Richtung | 1 154 | 115 358 $ | erlösbest erst bei 117 $ |
+| allein, 10 % längere Flugzeit | 957 | 95 652 $ | |
+| allein, erster Monat (Anlauf 0,6) | 600 | 60 000 $ | |
+| mit gleichem Rivalen, beide 100 $ | 647 (Rivale 647) | 64 706 $ | Markt wächst auf 1 294 |
+| mit gleichem Rivalen, Spieler 90 $ | 747 (Rivale 593) | 67 236 $ | gegen Rivalen lohnt billiger |
+| mit gleichem Rivalen, Rivale nur 500 Sitze | 727 (Rivale 500) | 72 727 $ | 80 von 147 übergelaufenen Gästen |
+
+### 3.16 Vorgaben an andere Abschnitte
+- **Abschnitt 4 (Preis):** `marketFare(c)` je Paar und Klasse, gleich für alle Angebote; er darf nicht von
+  den Fluggästen aus 3.11 abhängen (sonst Kreis). Kein zweiter Preis-Faktor auf die Fluggäste. Erlös =
+  Fluggäste je Strecke × Preis der Strecke; Umsteiger-Erlös auf die Teilstrecken verteilen. Planer zeigt den
+  erlösbesten Preis aus diesem Modell.
+- **Abschnitt 5 (Kosten):** Kosten je Fluggast aus den Fluggästen je Strecke (3.11 Schritt 4 und 3.13).
+- **Abschnitt 6 (Ruf):** `reputationFactor` (3.9.4) ist die einzige Wirkung des Rufs auf die Nachfrage;
+  Werbe-Beitrag zum Ruf dort.
+- **Abschnitt 7 (KI):** Liste der Faktoren, die die KI nicht hat: Forschung, Werbung, Frequent flyer,
+  Schwierigkeit (Personal-Teil aus 2.6.4). KI-Preise relativ zum Marktpreis (R7). KI-Planung nutzt
+  `marketSplit` mit allen Angeboten.
+- **Abschnitt 8 (Ereignisse):** Ereignisse wirken über `eventDemandFactor` auf die Marktgröße; Krisen-Antworten
+  über `crisisResponseFactor`. Gestrichene Flüge senken die Sitze (Nachfrage höchstens auf die übrigen
+  Sitze, E33), nicht die Anziehung.
+
+### 3.17 Zuordnung der Bestandsfunde
+
+| Fund (1.2) | Lösung in diesem Abschnitt |
+|---|---|
+| W1 Marktgröße hängt vom Flugzeug ab | 3.1, 3.6 Bezugs-Flugzeit; Geschwindigkeit nur in der Anziehung, 3.9.3 (E20) |
+| W2 Aufteilen gewinnt Anteil | 3.8, 3.9.1 Abflüge je Gesellschaft summiert (R1) |
+| W3 Parallelstrecken ≠ 100 % | 3.11 eine Aufteilung je Markt (R1) |
+| W4 Preis wirkt doppelt | 3.0, 3.9.2 Preis nur in der Anziehung, ein Bezugspreis (E13) |
+| W5 Premium fast immer 9 % | 3.7 neue Klassen-Anteile (E21) |
+| W6 Normal nicht neutral | 3.6 ohne Schwierigkeit; 3.9.4 Faktor nur auf Spieler-Anziehung (E4, E53) |
+| W7 Hard-KI schlechtere Wirtschaft | 3.9 KI ohne Schwierigkeit (E4, E44) |
+| W8 Zwei Wachstumsbremsen | 3.2 Weltanteil, 3.3 eine Wachstumsregel (E7) |
+| W9 Umsteiger nach anderen Regeln | 3.13 Verbindung als Angebot im selben Markt (R1, E25) |
+| W10 Spieler und KI rechnen verschieden | 3.11 eine Aufteilung für alle (R1, E44) |
+| W11 Planer ohne Anlauf | 3.12 Anzeige erster Monat und volle Nachfrage (R9) |
+| W12 Gleiche Namen | 3.9.4 Frequent flyer, 3.9.6 Established route bonus, 3.14 Passenger / Departure share (E9) |
+| W13 Langstrecken ab 12,6 h gleich | 3.4 Kurve ohne Untergrenze (E22) |
+| W14 Einweg zählt wie Hin und Zurück | 3.8 Abflüge je Richtung (R1) |
 
 ## 4. Preis und Erlös
 
