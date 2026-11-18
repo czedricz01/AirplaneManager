@@ -698,8 +698,8 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
   Ergebnis (Premium / Business / First / Economy): kurz, reiner Tourismus 4,9 / 1,0 / 0,2 / 93,9 %;
   kurz, gemischt (0,5) 7,0 / 5,0 / 1,2 / 86,8 %; lang, gemischt 10,5 / 8,0 / 3,0 / 78,5 %;
   lang, reines Geschäft 13,7 / 14,4 / 5,4 / 66,6 %.
-- Regeln (Tests): Summe = 1; Economy ≥ 0,5 bei allen Eingaben; höherer `businessShare` senkt Economy nie
-  und hebt Business und First; Premium schwankt über alle Paare spürbar (Balance-Skript: 5 %- bis
+- Regeln (Tests): Summe = 1; Economy ≥ 0,5 bei allen Eingaben; höherer `businessShare` hebt Economy nie
+  und hebt Business und First (berichtigt in 3.3a, F13); Premium schwankt über alle Paare spürbar (Balance-Skript: 5 %- bis
   95 %-Wert mindestens 3 Prozentpunkte auseinander).
 - Kein Wechsel zwischen Klassen: Wer Business reisen will, wählt unter den Business-Angeboten oder fliegt
   nicht. Ein Angebot ohne Sitze in Klasse `c` nimmt am Markt dieser Klasse nicht teil.
