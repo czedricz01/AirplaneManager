@@ -962,7 +962,315 @@ Potenzial 1 833. Sitze reichen, wo nicht anders genannt.
 
 ## 4. Preis und Erlös
 
-_(offen)_
+Dieser Abschnitt legt fest, was ein Ticket kostet, woran der Preis gemessen wird und wie daraus der Erlös
+einer Strecke entsteht. Grundlage: E4–E7, E13, E23–E26, E32, E33, E44, E52, E54, R2, R4, R7, R8;
+Vorgaben aus 3.16; Bestand: `bestand/3-preis.md` (W1–W11). Alle heutigen Fundstellen ohne Pfad liegen in
+`src/lib/financeUtils.ts`; Planer = `src/components/RoutePlannerView.tsx`.
+
+Einheiten: Preise gelten **je Fluggast und Strecke, eine Richtung**; eine Strecke hat einen Preis je Klasse,
+gleich in beiden Richtungen (wie heute). Erlöse gelten **je Woche, beide Richtungen zusammen**. Alles
+ungerundet (R4); ganze $ nur in der Anzeige.
+
+### 4.0 Überblick
+
+```
+Entfernung ─────────────────────────────┐
+Bezugs-Flugzeit (3.1) ─► Flugzeit-Index ┼─► Grundpreis Economy (1960) ─┐
+                                        └─► Klassen-Verhältnis ────────┼─► Marktpreis je Klasse
+Kostenindex (1.3) ─────────────────────────────────────────────────────┘        │
+                                                                                 ▼
+Eingabe: Preisniveau je Klasse ──────────────────────────────────► Preis der Strecke
+                                                                                 │
+                                    Anziehung (3.9.2) ◄──────────────────────────┤
+                                            │                                    │
+                                    Aufteilung (3.11) ─► Fluggäste je Strecke ───┴─► Erlös je Strecke
+                                                                                 ▲
+Marktpreis Start–Ziel × 0,9 ─► Umsteiger-Tarif ─► Umsteiger (3.13) ─► Anteil je Teilstrecke
+```
+
+**Wirkungswege.**
+- Der **Marktpreis** hängt nur von Entfernung, Bezugs-Flugzeit und Kostenindex ab. Er ist für alle Angebote
+  eines Paars gleich und hängt nicht von Fluggästen, Sitzen, Satisfaction, Ruf oder Schwierigkeit ab
+  (3.16, E4, E13). So entsteht kein Kreis mit der Aufteilung (3.11).
+- Der **eigene Preis** wirkt auf die Fluggäste genau einmal: über `priceFactor` (3.9.2). Kein zweiter
+  Preis-Faktor (3.16).
+- Der **Erlös** ist Fluggäste × gezahlter Preis. Nichts sonst (kein Zuschlag, keine Schwierigkeit).
+
+**Was entfällt** (gegenüber heute):
+- Schwierigkeit im Preis `difficultyFareFactor` (`:479-483`, `:1413`): E4.
+- SAT-Faktor im Marktpreis `satBase` (`:1414`): Satisfaction wirkt nur als Zahlungsbereitschaft in der
+  Anziehung (2.10, 3.9.2).
+- Knappheits-Zuschlag `scarcityPremium` (`:1056-1063`, `:1463`): siehe 4.4.
+- Preis-Faktor `getPriceDemandMultiplier` mit Obergrenze 1,5 und Zwei-Teil-Kurve (`:978-1019`): 3.9.2.
+- Feste Klassen-Gewichte 1 / 1,6 / 3 / 5 (`:1518-1523`; Planer `:1039-1042`, `:3662`, `:3709`): 4.2 (E23).
+- Gewinnschwellen BE75 / BE99 / BE35 mit festen Gewichten (`:1525-1527`): 4.11.
+- „Volle Maschine“ (`forceFullLoad`, `:1469-1471`) als Hauptzahl des Planers: 4.12 (E26).
+- Drei Ersatzpreise bei fehlendem Preis (`:1352-1357`, `:1418`; `src/lib/monthClose.ts:1452`): 4.5 (R8).
+- Monat = 4 Wochen (`src/lib/monthClose.ts:473`, `:487`): 4.9 (E5).
+
+### 4.1 Grundpreis Economy (Code-Name: `baseFareEconomy`)
+- Bedeutung: Was ein Economy-Ticket auf diesem Paar „normal“ kostet, in Preisen von 1960.
+- Einheit und Bereich: $ (Wert 1960) > 0, ungerundet.
+- Formel:
+  `baseFareEconomy = (FARE_BASE_1960 + FARE_PER_KM_1960 × Entfernung) × shortHaulFareFactor`
+  mit `shortHaulFareFactor = byTimeIndex(SHORT_HAUL_FARE_FACTOR, flightTimeIndex(referenceBlockMinutes))`
+  (gerade Linie zwischen den Tabellenwerten, wie heute `:721-726`).
+- Neu: Der Flugzeit-Index kommt aus der **Bezugs-Flugzeit** (3.1), nicht aus der Flugzeit des eingesetzten
+  Flugzeugs. Nur so ist der Marktpreis für alle Angebote eines Paars gleich (3.16). Heute hängt er am
+  Flugzeug der eigenen Strecke (`:1413` über `timeClass`); KI und Umsteiger rechnen schon mit 800 km/h
+  (`src/lib/transferUtils.ts:70`).
+- Neu ungerundet (heute `Math.round`, `:733`).
+- Hängt ab von: Entfernung (km, Großkreis), `referenceBlockMinutes`.
+- Wirkt auf: `marketFare` (4.3), sonst nichts.
+- Konstanten (wie heute; endgültig aus dem Balance-Skript 3.9, Ziel E7):
+  `FARE_BASE_1960 = 30` $, `FARE_PER_KM_1960 = 0,05` $/km,
+  `SHORT_HAUL_FARE_FACTOR` je Index 1 … 8 = 1,15 · 1,15 · 1,10 · 1,10 · 1,05 · 1 · 1 · 1.
+- Regeln (Tests): längere Entfernung → nie billiger; Preis je km fällt mit der Entfernung (nie steigend);
+  gleich für alle Flugzeuge und Gesellschaften; 1 Minute mehr Bezugs-Flugzeit ändert ihn stetig (kein Sprung).
+- Anzeige: keine eigene; erklärt im Glossar (Paket 4.1).
+
+### 4.2 Klassen-Verhältnis (Code-Name: `classFareRatio`)
+- Bedeutung: Wie viel teurer eine Klasse als Economy auf diesem Paar ist. **Eine Funktion für alle Zwecke**
+  (E23): Marktpreis, Startpreis, „Adjust All“, Gewinnschwelle, KI-Preise.
+- Einheit und Bereich: Faktor ≥ 1; Economy = 1.
+- Formel mit `i = flightTimeIndex(referenceBlockMinutes)` (stufenlos, 1 … 8), Werte wie heute (`:728-730`):
+  ```
+  classFareRatio(economy)  = 1
+  classFareRatio(premium)  = 1,3 + 0,15 × (i − 1)    → 1,30 … 2,35
+  classFareRatio(business) = 2,0 + 0,25 × (i − 1)    → 2,00 … 3,75
+  classFareRatio(first)    = 3,0 + 0,50 × (i − 1)    → 3,00 … 6,50
+  ```
+- Konstanten: `CLASS_FARE_RATIO_BASE` (1 / 1,3 / 2,0 / 3,0), `CLASS_FARE_RATIO_SLOPE` (0 / 0,15 / 0,25 / 0,5).
+  Endgültig aus dem Balance-Skript (3.9).
+- Regeln (Tests): Economy ≤ Premium ≤ Business ≤ First bei jedem Index; steigt nie mit kürzerer Flugzeit;
+  keine Stelle im Modell oder in der Oberfläche nutzt feste Klassen-Gewichte (Suche nach 1,6 / 3,0 / 5,0, W2).
+
+### 4.3 Marktpreis (Code-Name: `marketFare`)
+- Bedeutung: Der Bezugspreis einer Klasse auf einem Paar. An ihm wird jedes Angebot gemessen (3.9.2); er
+  ist der erlösbeste Preis eines Bezugsangebots ohne Rivalen (E24).
+- Einheit und Bereich: $ des aktuellen Monats > 0, ungerundet.
+- Formel: `marketFare(c) = atCost(baseFareEconomy × classFareRatio(c), month)` (1.3, E7).
+- Hängt ab von: 4.1, 4.2, Kostenindex. **Nicht** von Fluggästen, Sitzen, Satisfaction, Ruf, Saison,
+  Ereignissen, Schwierigkeit, Gesellschaft oder Flugzeug (3.16, E4, E13).
+- Wirkt auf: `priceFactor` (3.9.2), Preis-Eingabe (4.5), KI-Preise (4.6), Umsteiger-Tarif (4.8),
+  Gewinnschwelle (4.11), Anzeigen.
+- Regeln (Tests):
+  - Gleich für alle Angebote eines Paars, für Spieler und KI, in Planer und Monatsabschluss (R2).
+  - Unabhängig von der Reihenfolge A, B des Paars.
+  - Ändert sich nicht mit Schwierigkeit, Satisfaction, Sitzen oder Fluggästen.
+  - `marketFare` 2020 = `marketFare` 1960 × `costIndex` 2020 (gleiches Paar).
+- Anzeige: Planer und Streckendetails „Market fare“ je Klasse; Flughafen-Ansicht je Paar.
+
+### 4.4 Knappheit (kein eigener Zuschlag)
+- Heute: Marktpreis × bis 1,10, wenn die Nachfrage der eigenen Strecke ihre Sitze übersteigt
+  (`scarcityPremium`, `:1056-1063`). Das hängt an den eigenen Sitzen und Fluggästen und verstößt damit
+  gegen 3.16 (Marktpreis gleich für alle, ohne Kreis).
+- Neu: **entfällt.** Knappheit wirkt von selbst über die Sitz-Grenze in der Aufteilung (3.11 Schritt 3):
+  Sind die Sitze knapp, verliert ein höherer Preis kaum Fluggäste, also steigt der beste Preis (4.10).
+  Beispiel 4.13: 800 Sitze bei 1 000 Wunsch-Gästen → bester Preis 122 % des Marktpreises (heute +10 %).
+  Der Planer zeigt diesen besten Preis; der Spieler muss ihn selbst setzen. Der Erlös steigt nicht ohne
+  sein Zutun.
+- Regel (Test): Mehr eigene Sitze ändern den Marktpreis nicht.
+
+### 4.5 Preis einer Strecke (Code-Namen: `fareRatio`, `routeFare`)
+**Preisniveau** `fareRatio(route, c)`: was der Spieler je Klasse einstellt, als Anteil des Marktpreises.
+- Formel: `routeFare(route, c) = fareRatio(route, c) × marketFare(c)`.
+- Gespeichert wird `fareRatio` (Zahl ohne Einheit), nicht der Dollar-Betrag (vorläufig, offene Frage O53).
+  So bleibt ein Preis „10 % über Markt“ über die Jahre 10 % über Markt, auch wenn der Kostenindex steigt.
+- Eingabe: Der Planer zeigt und nimmt **Dollar** je Klasse; aus der Eingabe wird `fareRatio = Eingabe /
+  marketFare(c)` (bei Bestätigung, aktueller Monat). Ein Prozent-Wert („+10 % vs. market“) steht daneben.
+- Bereich: `FARE_RATIO_MIN … FARE_RATIO_MAX` = 0,25 … 4, einmal begrenzt beim Speichern (R4). Unter
+  0,25 wäre `priceFactor` riesig; über 4 kommt praktisch niemand.
+- Startpreis einer neuen Strecke: `fareRatio = 1` in jeder Klasse (Marktpreis, E23). Kein fester
+  Klassen-Faktor (heute Planer `:1032-1045`).
+- „Adjust All Prices“: setzt **ein** Preisniveau für alle Klassen (`fareRatio(c) = r` für alle `c`); die
+  Klassen-Verhältnisse kommen so aus 4.2 (E23; heute fest 1,6 / 3 / 5, Planer `:3657-3667`).
+- „Set best fares“ (neu): setzt je Klasse den besten Preis aus 4.10.
+- Wirksam: Ein geänderter Preis gilt ab dem **nächsten Monatsabschluss** für den ganzen nächsten Monat
+  (wie heute, `src/lib/monthClose.ts:1451-1454`). Der laufende Monat rechnet mit dem Preis, der zu seinem
+  Beginn galt. Der Planer zeigt die Zahlen mit dem neuen Preis und den Hinweis „from next month“.
+- **Fehlender Preis** (R8): `fareRatio = 1`, an genau einer Stelle (Lese-Funktion des Modells). Gilt für
+  alte Spielstände, neue Klassen nach einem Kabinen-Umbau und KI-Strecken. Keine Ansicht zeigt 0 $ (W9).
+- Spielstand-Umwandlung (5.1): `fareRatio = gespeicherter Preis / marketFare` im Monat der Umwandlung.
+- Regeln (Tests): `routeFare` > 0 immer; gleiche `fareRatio` → gleicher Abstand zum Marktpreis in jedem
+  Jahr; Preisänderung ändert die Fluggäste des laufenden Monats nicht; fehlender Preis = Marktpreis.
+
+### 4.6 KI-Preise (R7)
+- Die KI setzt ihre Preise mit **derselben Funktion**: `routeFare = fareRatio × marketFare(c)`. Ihr
+  `fareRatio` wählt sie nach ihrer Persönlichkeit und Lage (Abschnitt 7; heute `ticketPricesFor`,
+  `src/lib/aiSimulation.ts:336-352`, als Faktor auf den Grundpreis ohne SAT).
+- Ihr Preis wirkt in der Aufteilung wie jeder andere: über `priceFactor` aus ihrem echten Preis (3.9.2).
+  Der eigene „Preis-Reiz“ `1 / (1 − Nachlass)` im Spieler-Markt entfällt (`src/lib/monthClose.ts:201`).
+- Preiskampf: ein niedrigeres `fareRatio` (Abschnitt 7), keine eigene Rechnung.
+- Easy-KI mit 2,25- bis 2,5-fachem Grundpreis entfällt (E4).
+- Regel (Test): Spieler und KI mit gleichem `fareRatio` auf demselben Paar zahlen denselben Preis.
+
+### 4.7 Erlös je Strecke (Code-Name: `routeRevenue`)
+- Bedeutung: Was eine Strecke je Woche einnimmt.
+- Einheit und Bereich: $ je Woche ≥ 0, ungerundet.
+- Formel:
+  ```
+  routeRevenue = Σ Klassen c: directPax(route, c) × routeFare(route, c)
+               + Σ Umsteiger-Flüsse über diese Strecke: transferRevenueShare (4.8)
+  ```
+  `directPax(route, c)`: Fluggäste der Strecke in `c` je Woche aus 3.11 Schritt 4 (beide Richtungen).
+- Mehrere Strecken einer Gesellschaft auf einem Paar: Jede Strecke nimmt ihren eigenen Preis ein. Weil die
+  Fluggäste nach Sitzen verteilt werden (3.11) und `offerFare` nach Sitzen gemittelt ist (3.8), gilt
+  Σ Strecken = Fluggäste des Angebots × `offerFare` (Test).
+- Gestrichene Flüge (E33): weniger Sitze → höchstens so viele Fluggäste wie übrige Sitze → weniger Erlös.
+  Kein weiterer Abzug.
+- Charter (E32): Fluggäste auf gecharterten Flügen zahlen ihren Preis wie sonst; der Erlös gehört der Strecke.
+  Die Charter-Gebühr ist ein Preis je Flug (Kosten, Abschnitt 8), kein Erlösanteil.
+- Gilt gleich für Spieler und KI (E44).
+- Hängt ab von: 3.11, 3.13, 4.5, 4.8.
+- Wirkt auf: Streckengewinn (mit Abschnitt 5), Monatserlös (4.9), Planer (4.12).
+- Regeln (Tests): Erlös = 0 ohne Fluggäste; Planer-Erlös = Erlös im Monatsabschluss bei gleichem Stand (R2);
+  höherer eigener Preis bei unveränderten Fluggästen → nie weniger Erlös.
+- Anzeige: Streckendetails „Weekly revenue“ je Klasse, Umsteiger getrennt; die Ansicht rechnet nicht selbst
+  (heute `src/components/RouteDetailView.tsx:494`, R2).
+
+### 4.8 Umsteiger-Tarif und Aufteilung auf Teilstrecken
+**Umsteiger-Tarif** (Code-Name: `transferFare`)
+- Formel: `transferFare(c) = TRANSFER_FARE_SHARE × marketFare(c)` des Paars **Start–Ziel** (O–D), E25.
+  Dieselbe Funktion `marketFare` wie für Direktgäste; keine Schwierigkeit, kein Zuschlag.
+  `TRANSFER_FARE_SHARE = 0,9` (3.13).
+- Die Gesellschaft stellt ihn nicht ein (wie heute). Er ist zugleich `offerFare` der Verbindung in 3.13.
+
+**Aufteilung auf die Teilstrecken** (Code-Name: `transferRevenueShare`)
+- Formel: Erlös eines Umsteigers in `c` = `transferFare(c)`. Er wird auf die Teilstrecken O–H und H–D
+  **im Verhältnis ihrer Marktpreise** in `c` verteilt:
+  `Anteil(O–H) = marketFare_OH(c) / (marketFare_OH(c) + marketFare_HD(c))`, Rest an H–D.
+- Neu: nach Marktpreis statt nach Entfernung (heute `src/lib/transferUtils.ts:470-474`). Grund: Kurze
+  Teilstrecken haben einen höheren Preis je km (Kurzstrecken-Zuschlag, Grundbetrag 30 $); nach Entfernung
+  bekäme der Zubringer fast nichts (Beispiel 4.13: 7 % statt 15 %). So wird jede Teilstrecke im Planer
+  fair bewertet.
+- Die Summe der Anteile ist genau `transferFare` (Test). Umsteiger zählen als Fluggäste beider Teilstrecken
+  (Kosten je Fluggast, Abschnitt 5).
+- Regeln (Tests): Erlös aller Teilstrecken = Umsteiger × `transferFare`; jeder Anteil liegt zwischen 0 und 1;
+  die längere (teurere) Teilstrecke bekommt nie weniger als die kürzere.
+
+### 4.9 Monatserlös (Code-Name: `monthlyRevenue`)
+- Formel: `monthlyRevenue = Σ Strecken routeRevenue × WEEKS_PER_MONTH` (1.1, E5). Mit dem Stand des Monats
+  (Marktgröße mit Saison, Preise vom Monatsbeginn, gestrichene Flüge). Ablauf im Abschluss: Abschnitt 8.
+- Regel (Test): 12 Monate gleicher Wochenerlös = Wochenerlös × 52,18.
+- Anzeige: Monatsbericht, Finanzen.
+
+### 4.10 Bester Preis (Code-Name: `bestFare`)
+- Bedeutung: Der Preis einer Klasse, bei dem die Strecke den höchsten Wochengewinn in dieser Klasse hat,
+  wenn alles andere bleibt, wie es ist. Der Planer zeigt ihn (3.16).
+- Lesart von 3.16 („erlösbester Preis“): Gesucht wird der **gewinnbeste** Preis, also Erlös minus Kosten je
+  Fluggast der Klasse (Abschnitt 5: Verpflegung, Gebühren je Fluggast). Ohne Kosten je Fluggast ist er
+  gleich dem erlösbesten. Grund: Der Spieler will Gewinn; Kosten je Abflug ändern sich mit dem Preis nicht
+  und spielen keine Rolle.
+- Formel: `bestFare(route, c) = fareRatio* × marketFare(c)`, wobei `fareRatio*` in
+  `FARE_RATIO_MIN … FARE_RATIO_MAX` den Wert
+  `directPax(route, c; fareRatio) × (fareRatio × marketFare(c) − costPerPassenger(route, c))`
+  am größten macht. Dabei:
+  - `directPax` aus `marketSplit` (3.11) mit **allen** Angeboten des Markts, Anlauf = 1 (volle Nachfrage),
+    Sitz-Grenze und Überlauf eingeschlossen;
+  - Preise der anderen Klassen, der eigenen anderen Strecken und aller Rivalen bleiben fest (keine Reaktion);
+  - Umsteiger bleiben außen vor (Näherung; die Hauptzahl 4.12 rechnet sie mit).
+- Suche: Gitter über `fareRatio` in Schritten von 0,01, dann um den besten Gitterpunkt ± 0,01 in Schritten
+  von 0,001. Bei Gleichstand der niedrigere Preis. Ergebnis ist damit eindeutig und für Planer und KI gleich.
+- Was herauskommt (folgt aus 3.9.2, Test):
+  - Bezugsangebot allein, Sitze reichen, keine Kosten je Fluggast: `bestFare = marketFare × satisfactionFactor`
+    (E24, ± 0,5 %).
+  - Kosten je Fluggast > 0 → bester Preis höher.
+  - Sitze knapp → bester Preis höher (4.4).
+  - Mehr Anziehung aus anderen Gründen (Abflüge, Ruf, Flugzeit) → bester Preis höher (3.9.2).
+  - Gleich starker Rivale → bester Preis niedriger.
+- Hinweis für das Balance-Skript (3.9) und Abschnitt 7: Mit den Startwerten aus 3.9.2 liegt der beste Preis
+  gegen einen gleichen Rivalen bei 70 % des Marktpreises (4.13). Gehen beide so vor, sinken die Preise
+  weiter (Preiskampf). Ob das gewollt ist, prüft das Balance-Skript; Stellschraube ist `PRICE_SENSITIVITY`.
+- Anzeige: Planer je Klasse „Best fare“ als Marke am Preisregler und Knopf „Set best fares“ (4.5).
+
+### 4.11 Gewinnschwelle (Code-Name: `breakEvenFareLevel`)
+- Bedeutung: Welches Preisniveau (für alle Klassen gleich, wie „Adjust All“) die Kosten einer Strecke bei
+  einer gegebenen Auslastung genau deckt (E23: Gewinnschwelle aus dem Modell, mit echten Klassen-Verhältnissen).
+- Formel bei Auslastung `L` (0 < L ≤ 1, gleich in allen Klassen):
+  ```
+  breakEvenFareLevel(L) = (fixedWeeklyCost + Σ c: costPerPassenger(c) × L × seatsPerWeek(c))
+                          / (L × Σ c: seatsPerWeek(c) × marketFare(c))
+  ```
+  `fixedWeeklyCost`: Kosten der Strecke je Woche, die nicht von den Fluggästen abhängen (Abschnitt 5);
+  `seatsPerWeek(c)`: Sitze in `c` × Flüge je Woche (beide Richtungen).
+  Preis je Klasse an der Schwelle = `breakEvenFareLevel(L) × marketFare(c)`.
+- Ersetzt BE75 / BE99 / BE35 mit Gewichten 1 / 1,6 / 3 / 5 (`:1518-1527`).
+- Regeln (Tests): höhere Auslastung → nie höhere Schwelle; bei `L` und Preisniveau = Schwelle ist der
+  Gewinn der Strecke 0 (wenn alle Klassen genau `L` erreichen).
+- Anzeige: Planer-Regler mit zwei Marken: Schwelle bei der **erwarteten** Auslastung (aus 3.11 beim
+  eingestellten Preis) und bei voller Maschine (`L = 1`, die tiefste mögliche Schwelle).
+
+### 4.12 Planer-Zahlen (E26, R2, R9)
+Der Planer rechnet nichts selbst; er ruft dieselben Funktionen wie der Monatsabschluss (R2) mit dem
+geplanten Stand (eingestellte Preise, Flugplan, Kabine) und dem aktuellen Monat.
+
+| Zahl | Festlegung |
+|---|---|
+| **Hauptzahl: „Expected weekly profit“** | Erlös (4.7, mit Umsteigern) − Kosten (Abschnitt 5) je Woche, bei **heutiger Nachfrage nach dem Anlauf** (Anlauf = 1), Saison des aktuellen Monats, mit allen Rivalen (E26). Auf jeder Schwierigkeit gleich gebildet (heute auf Easy anders, W1). |
+| Nebenzahl „First month“ | dieselbe Rechnung mit dem Anlauf im ersten Monat (3.12, R9); bei einer bestehenden Strecke mit ihrem Alter. |
+| Nebenzahl „Full aircraft at market fare“ | Σ Sitze je Woche × `marketFare` − Kosten bei voller Maschine. Nur als Vergleich, klein, mit Hinweis „not expected“ (E26). Hängt nicht vom eingestellten Preis ab. |
+| Je Klasse | Market fare (4.3), eingestellter Preis mit „±x % vs. market“, Best fare (4.10), erwartete Fluggäste und Auslastung, Hinweis aus 2.10 („Passengers pay up to x% more/less for this satisfaction“). |
+| Gewinnschwelle | 4.11 bei erwarteter und voller Auslastung. |
+
+- Regel (Test): Hauptzahl = Gewinn je Woche im Monatsabschluss bei gleichem Stand, sobald der Anlauf
+  vorbei ist; die Hauptzahl steigt nie allein dadurch, dass ein Preis über den besten Preis erhöht wird
+  (heute W1).
+
+### 4.13 Beispiel
+Grundpreise 1960 (Bezugs-Flugzeit mit 800 km/h; Klassen-Verhältnis in Klammern) und Economy 2020
+(Kostenindex 2,05):
+
+| Paar | km | Bezugs-Flugzeit | Index | Economy | Premium | Business | First | Economy 2020 |
+|---|---|---|---|---|---|---|---|---|
+| Frankfurt–Paris | 449 | 44 min | 1,24 | 60 $ | 81 $ (1,34) | 124 $ (2,06) | 188 $ (3,12) | 123 $ |
+| Frankfurt–Madrid | 1 420 | 119 min | 2,48 | 114 $ | 173 $ (1,52) | 269 $ (2,37) | 425 $ (3,74) | 233 $ |
+| Frankfurt–New York | 6 189 | 483 min | 6,19 | 339 $ | 705 $ (2,08) | 1 119 $ (3,30) | 1 899 $ (5,59) | 694 $ |
+| London–Sydney | 17 020 | 1 312 min | 8 | 881 $ | 2 070 $ (2,35) | 3 304 $ (3,75) | 5 727 $ (6,50) | 1 802 $ |
+
+Bester Preis, Economy, Daten wie 3.15 (Marktgröße × Klassen-Anteil 1 000, Marktpreis 100 $,
+`PRICE_SENSITIVITY` 2,2), Bezugsangebot:
+
+| Fall | Bester Preis | Fluggäste | Erlös (− Kosten je Fluggast) | Hinweis |
+|---|---|---|---|---|
+| allein, Sitze reichen | 100 $ | 1 000 | 100 000 $ | E24 |
+| allein, nur 800 Sitze | 122 $ | 800 | 97 633 $ | beim Marktpreis nur 80 000 $ (4.4) |
+| allein, 20 $ Kosten je Fluggast | 118 $ | 831 | 81 690 $ | gewinnbest, nicht erlösbest |
+| gleicher Rivale zu 100 $ | 70 $ | 1 000 | 69 880 $ | beim Marktpreis 64 706 $ (3.15) |
+
+Umsteiger Paris–New York über Frankfurt, Economy: Marktpreis O–D 322 $ → `transferFare` 290 $. Anteil
+Paris–Frankfurt 60 / (60 + 339) = 15 % → 44 $; Frankfurt–New York 246 $ (nach Entfernung heute 7 % → 20 $).
+
+Gewinnschwelle (Kosten nur zur Veranschaulichung): Frankfurt–Madrid, 150 Economy + 12 Business, 14 Flüge
+je Woche, feste Kosten 150 000 $ je Woche, 15 $ je Fluggast, `L` = 0,75 → Preisniveau 0,82: Economy 94 $,
+Business 221 $.
+
+### 4.14 Vorgaben an andere Abschnitte
+- **Abschnitt 5 (Kosten):** je Strecke `costPerPassenger(route, c)` (alles, was mit den Fluggästen wächst) und
+  `fixedWeeklyCost(route)` (alles andere) getrennt liefern; 4.10 und 4.11 brauchen beide. Umsteiger zählen als
+  Fluggäste beider Teilstrecken.
+- **Abschnitt 7 (KI):** `fareRatio` je Persönlichkeit und Lage, Preiskampf als niedrigeres `fareRatio`;
+  die KI darf `bestFare` (4.10) zur Planung nutzen. Prüfen, ob gegenseitiges Unterbieten in Grenzen bleibt
+  (4.10, Hinweis).
+- **Abschnitt 8 (Monat):** Preise vom Monatsbeginn; neue Preise ab dem nächsten Abschluss (4.5);
+  Monatserlös = Wochenerlös × `WEEKS_PER_MONTH` (4.9); Charter-Gebühr je Flug als Kosten (4.7, E32).
+- **Phase 4 / 5.1:** Planer-Zahlen nach 4.12; Spielstand-Umwandlung der Preise nach 4.5.
+
+### 4.15 Zuordnung der Bestandsfunde
+
+| Fund (1.3) | Lösung in diesem Abschnitt |
+|---|---|
+| W1 Planer-Hauptzahl steigt mit jedem Preis | 4.12 Hauptzahl = erwarteter Gewinn, „volle Maschine“ nur Nebenzahl beim Marktpreis (E26) |
+| W2 Feste Klassen-Faktoren 1,6 / 3 / 5 | 4.2 eine Funktion `classFareRatio` für alle Zwecke (E23) |
+| W3 Unter Marktpreis mehr Erlös | 3.9.2, 4.10 Marktpreis ist erlösbest ohne Rivalen (E24) |
+| W4 KI-Preise ohne Marktpreis | 4.6 `fareRatio × marketFare` mit derselben Funktion (R7) |
+| W5 Umsteiger nach eigenen Regeln | 4.8 `TRANSFER_FARE_SHARE × marketFare` O–D, Aufteilung nach Marktpreisen (E25) |
+| W6 Monat = 4 Wochen | 4.9 `WEEKS_PER_MONTH` (E5) |
+| W7 Preise fest, Kosten steigen | 4.3 Marktpreis mit Kostenindex (E7); 4.5 Preisniveau folgt ihm |
+| W8 Kommentar 15 %, Code 10 % | 4.4 Zuschlag entfällt; Texte aus Konstanten (E52) |
+| W9 Drei Ersatzpreise | 4.5 fehlender Preis = Marktpreis, eine Stelle (R8) |
+| W10 Schwierigkeit im Preis anders als in der Nachfrage | 4.3 Preis ohne Schwierigkeit (E4) |
+| W11 SAT-Faktor über 200 | 2.10 eine Kurve 0 … 160; kein SAT-Faktor im Preis (R16) |
 
 ## 5. Kosten
 
