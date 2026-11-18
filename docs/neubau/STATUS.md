@@ -1,17 +1,15 @@
 # Status
 
-**Nächstes Paket: 2.1d** (wartet auf Entscheidungen des Menschen)
+**Nächstes Paket: 2.2** (Grundbegriffe und Einheiten festlegen)
 
 Stand: 18.11.2026 · Ausgangslage: 504 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen: 17 Fragen in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“, in Block D.
-Block A (O3–O11) und die Bauregeln R1–R16 sind entschieden (E4–E12), Block B (O2, O12–O24) ebenfalls (E13–E26), Block C (O25–O33) ebenfalls (E27–E35). Jede Frage hat eine Empfehlung. Die Einzelfragen am Ende der
-Dateien in `bestand/` sind dort zusammengefasst und müssen nicht mehr einzeln gelesen werden.
+Offene Fragen: keine. Alle 49 Fragen (O1–O49) sind entschieden (E4–E52 in `ENTSCHEIDUNGEN.md`).
 
-Ablauf 2.1a–2.1d: Claude liest nur den Block in `ENTSCHEIDUNGEN.md` und stellt dessen Fragen.
-Der Mensch antwortet je Frage (oder „alle Empfehlungen übernehmen“). Claude trägt die Antworten
-unter „Getroffen“ ein (E4 ff.) und streicht sie aus „Offen“. Nur bei Bedarf die genannte
-Bestandsdatei nachlesen.
+Paket 2.2: Grundbegriffe und Einheiten in `SPEZIFIKATION.md` festlegen (Namen nach E9, Skalen
+wie SAT 0–160 (E14) und Ruf 0–100 mit Neutral 50 (E36), Monat = 4,35 Wochen (E5), Kostenindex (E6),
+Rundung (R4), Schwierigkeit (E4), Slot = Abflug je Woche (E50)). Zu lesen: `ENTSCHEIDUNGEN.md`
+(Abschnitt „Getroffen“ und Bauregeln), `SPEZIFIKATION.md`. Bestandsdateien nur bei Bedarf.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -47,7 +45,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 2.1a | Block A (Querschnitt: O3–O11) aus `ENTSCHEIDUNGEN.md` mit dem Menschen klären, inkl. Bauregeln R1–R16 | erledigt |
 | 2.1b | Block B (Markt: O2, O12–O24) klären | erledigt |
 | 2.1c | Block C (Kosten, Flottenwert, Monat, Ereignisse: O25–O33) klären | erledigt |
-| 2.1d | Block D (Ruf, Rang, Konkurrenz, Oberfläche: O1, O34–O49) klären | wartet |
+| 2.1d | Block D (Ruf, Rang, Konkurrenz, Oberfläche: O1, O34–O49) klären | erledigt |
 | 2.2 | Grundbegriffe und Einheiten festlegen (Namen, Skalen, Rundung, Schwierigkeit) | offen |
 | 2.3–2.9 | Je Bereich 1.1–1.7 den Soll-Zustand in `SPEZIFIKATION.md` schreiben | offen |
 
@@ -93,3 +91,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 2.1a | Block A entschieden: alle 9 Empfehlungen übernommen (E4–E12): Schwierigkeit nur auf Spieler-Nachfrage, Normal = 1, KI-Wirtschaft neutral; Monat = 4,35 Wochen; ein Kostenindex für alle Beträge inkl. Grundpreise; Treibstoff nur aus Tabelle; neue Namen statt „SAT“; Gewichtung nach Fluggästen; Startwerte als Konstanten; Bauregeln R1–R16 bestätigt |
 | 18.11.2026 | 2.1b | Block B entschieden (E13–E26): 12 Empfehlungen übernommen; Abweichungen: Geschwindigkeit wirkt spürbar stärker in der Anziehung (E20), Klassen-Aufteilung mit Richtung Tourismus → Economy, Geschäft → Business/First (E21) |
 | 18.11.2026 | 2.1c | Block C entschieden (E27–E35): 8 Empfehlungen übernommen (u. a. Wertmodell mit Abschreibung als Kosten, Händler-Spanne, Charter ohne eigene Flugkosten, Kreditlinie mit Zwangsverkauf und Spielende, Ereignisse für alle); Abweichung: Abstellplätze ab Stufe 2 bleiben ohne Unterhalt (E28) |
+| 18.11.2026 | 2.1d | Block D entschieden (E36–E52): 15 Empfehlungen übernommen (u. a. Ruf neutral 50, keine Einmal-Sprünge, Rang über 3 Monate, gleiche Wirtschaft für die KI, Übernahme zum Unternehmenswert, Slot = Abflug je Woche); Abweichungen: Werbung behält einen kleinen, abklingenden Ruf-Beitrag (E37), Flugzeugklassen bleiben an den Rang gebunden, mit niedrigeren Schwellen (E41) |
