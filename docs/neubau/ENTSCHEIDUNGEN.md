@@ -42,6 +42,23 @@ Claude schlägt vor, der Mensch entscheidet.
 | E33 | 18.11.2026 | **Gestrichene Flüge (O31):** Eine Strafe: Ruf-Abzug. Kein SAT-Abzug; die Nachfrage fällt höchstens auf die übrigen Sitze. | Heute SAT- und Ruf-Abzug; Erlös −77 % bei halbem Flugplan (1.7 W5). |
 | E34 | 18.11.2026 | **Negative Kasse (O32):** Kreditlinie mit Zins bis zu einer Grenze (aus Flottenwert, E29). Darunter Warnung, nach 6 Monaten Zwangsverkauf von Flugzeugen; ohne Flugzeuge Spielende. | Heute für den Spieler ohne Folge, die KI wird nach 6 Monaten verkauft (1.7 W6). |
 | E35 | 18.11.2026 | **Ereignisse (O33):** Ereignisse gelten für alle Gesellschaften gleich, auch regionale. Krisen-Antworten kosten einen Anteil der betroffenen Größe (E6). Mehr Ereignisse mit Antworten: nicht im Neubau, später. | Heute regionale nur für den Spieler; feste Preise 3–25 Mio. $ bei wachsendem Nutzen (1.7 W8, W13). |
+| E36 | 18.11.2026 | **Ruf-Neutralpunkt (O1):** Ruf 50 = Nachfrage-Faktor 1 (neutral); Start-Ruf 50. Darüber Bonus, darunter Abzug. Farbstufen der Anzeige aus denselben Konstanten. | Heute neutral 75, Start 50; typische Ziele 60–74, Spieler bleiben dauerhaft im Minus; Anzeige färbt ab 65 grün (1.5 W3). |
+| E37 | 18.11.2026 | **Werbung und Ruf (O34):** Werbung bringt Nachfrage, solange sie läuft, und zusätzlich einen **kleinen, begrenzten Ruf-Beitrag, der nach Ende der Kampagne abklingt**. Der Beitrag ist eine Ursache in der Ruf-Änderung (R10); Höhe deutlich unter heute (bis 15), genaue Zahl aus dem Balance-Skript (3.9). *Abweichung von der Empfehlung (nur Bekanntheit): kleiner Ruf-Anteil bleibt.* | Heute hebt Werbung den Ruf dauerhaft um bis zu 15 Punkte und überdeckt schlechte SAT (1.5 W1). |
+| E38 | 18.11.2026 | **Einmal-Sprünge im Ruf (O35):** Keine. Meilensteine, Rang und Jahresziel belohnen mit Geld oder Freischaltungen. Störungen (Streik, Ausfall) wirken nur über gestrichene Flüge (E33). Übernahme +2 entfällt. | Sprünge verfliegen in Monaten, können aber eine Rang-Schwelle überspringen (1.5 W2; 1.8 W8). |
+| E39 | 18.11.2026 | **Zustand im Ruf (O36):** Zustand zählt nicht mehr im Ruf; er wirkt über die SAT (Kabine) und über Ausfälle (Zelle). Ruf-Ziel aus SAT (nach Fluggästen, E10) und gestrichenen Flügen (E33); dazu der abklingende Werbe-Beitrag (E37). | Kabine heute doppelt gezählt; ungewichtetes Mittel ohne abgestellte Flugzeuge (1.5 W5). |
+| E40 | 18.11.2026 | **Rang (O37):** Bedingungen im Mittel der letzten 3 Monate prüfen. Rang geht weiter nie verloren. | Heute genügt ein einzelner (Sommer-)Monat (1.5 W6). |
+| E41 | 18.11.2026 | **Flugzeugklassen (O38):** Bindung an den Rang bleibt; die nötigen Ränge werden **gesenkt**. Prüfpunkt: Jede Klasse ist bei Start 1960 in ihrem Lieferzeitraum erreichbar, einschließlich Forschungsdauer (Überschall: Concorde neu 1976 bis Mitte 1980). Genaue Ränge in der Spezifikation (2.7). *Abweichung von der Empfehlung (Rang oder Jahr): nur Rang, niedrigere Schwellen.* | Überschall heute erst ab Flag Carrier (frühestens 1990), Concorde dann nicht mehr lieferbar (1.5 W8). |
+| E42 | 18.11.2026 | **Forschungsplätze (O39):** Die Texte gelten: 3. Platz ab National (Rang 4), 5. Platz ab Flag Carrier (Rang 8); der 4. Platz auf einem Rang dazwischen, festgelegt in 2.7. Plätze als Feld je Rang, Text daraus erzeugt. | Code gibt 3 / 4 / 5 ab Rang 3 / 6 / 9, Texte versprechen anderes (1.5 W7). |
+| E43 | 18.11.2026 | **Karriere-Punkte (O40):** Getrennte Ruhmeshallen für Free und Normal. Gewichte in Phase 2; Richtung: Vermögen und Rang zählen am meisten, Forschung weniger. | Heute eine gemeinsame Liste; Forschung zählt fast wie der höchste Rang (1.5 W14). |
+| E44 | 18.11.2026 | **Gleiche Regeln für die KI (O41):** Dieselbe Wirtschaft für alle: Kosten, Slots, Anlauf, Verschleiß, Ruf, Ereignisse, SAT. Vereinfacht bleiben nur die Entscheidungen der KI. Was die KI bewusst auslässt (Forschung, Personal und Streik, Werbung), steht als Liste in der Spezifikation. | KI heute ohne Flughafen-Kosten, mit Rabatt, freien Slots, ohne Anlauf, Ruf, Verschleiß; zählt im Spieler-Markt immer mit SAT 100 (1.6 W2; 1.1 W10; 1.2 W10; 1.7 W13). |
+| E45 | 18.11.2026 | **Persönlichkeiten (O42):** Alle Persönlichkeiten im Mittel ähnlich erfolgreich. Billigflieger bekommen echte Kostenvorteile (dichtere Kabine, weniger Personal je Sitz). Prüfung im Balance-Skript (3.9). | Flag-Carrier heute bis 2000 mit 19–26 Mrd. $, LCC und Optimizer pleite (1.6 W1). |
+| E46 | 18.11.2026 | **KI-Wachstum (O43):** Größe nach Sitzen messen. Die KI kann weitere Drehkreuze eröffnen und modernisieren; Geld über einer Grenze geht als Dividende ab. Ticker-Rang nach Fluggästen. | Heute endet Wachstum an den Drehkreuz-Slots, danach Geld ohne Grenze; Ticker nach Kasse (1.6 W4). |
+| E47 | 18.11.2026 | **KI-Zuschuss (O44):** Abschaffen, sobald die KI-Wirtschaft nach E4, E44 und E45 stimmt (Prüfung im Balance-Skript 3.9). Bis dahin mit Kostenindex (E6). | 150 000–450 000 $ je Monat, nominal (1.6 W5). |
+| E48 | 18.11.2026 | **Übernahme (O45):** Preis = Unternehmenswert: Flottenwert mit Alter (E29) + Kasse + Wert der Slots. Die Kasse der KI geht an den Spieler. Slots je Flughafen übergeben. | Heute Flottenwert ohne Alter, Kasse verfällt, Slots am falschen Drehkreuz (1.6 W6). |
+| E49 | 18.11.2026 | **Flotte aufgelöster KI (O46):** Die Flugzeuge kommen mit Alter und Zustand in den Gebrauchtmarkt (R13). | Heute verschwinden sie, die Meldung sagt das Gegenteil (1.6 W8; 1.7 W9). |
+| E50 | 18.11.2026 | **Slots (O47):** Ein Slot = ein Abflug je Woche, für Spieler und KI. Die Grenze je Flughafen steht im Modell; die KI belegt Slots und hält die Grenze ein. | Heute Rechte und Abflüge als dieselbe Einheit verrechnet; Grenze nur in Ansichten (1.8 W2). |
+| E51 | 18.11.2026 | **Flüge je Tag (O48):** Regel des Planers: Übrige Strecken desselben Flugzeugs zählen mit. Eine Funktion im Modell; Planer und Zeitplan-Editor nutzen sie. | Zeitplan-Editor zählt heute den ganzen Tag (1.8 W6). |
+| E52 | 18.11.2026 | **Erklärtexte und Debug-Anzeige (O49):** Alle Zahlen in Texten aus den Konstanten (4.1). Die Debug-Anzeige zeigt nur die Aufschlüsselung, die das Modell liefert, keine eigene Rechnung. | Neun Texte mit festen Zahlen; Debug-Anzeige schreibt Formeln ab (1.8 W9; 1.3 W8). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -68,49 +85,18 @@ Diese Funde haben eine klare Lösung. Sie werden als Regeln in die Spezifikation
 
 ## Offen
 
-Zusammenfassung aus Paket 1.9 (Stand 17.11.2026, Commit `a4648b3`).
-Quelle: die acht Dateien in `bestand/`. Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`,
-Abschnitt W4; **1.2 F4** = dort offene Frage 4.
+Keine. Alle 49 Fragen aus Paket 1.9 (O1–O49) sind entschieden (Stand 18.11.2026):
+Block A (O3–O11) und Bauregeln → E4–E12; Block B (O2, O12–O24) → E13–E26;
+Block C (O25–O33) → E27–E35; Block D (O1, O34–O49) → E36–E52.
 
-Aus 56 Einzelfragen (7 je Bestandsdatei) und O1–O6 sind **49 Fragen** geworden. Doppelte Fragen
-sind zusammengelegt. O1–O6 behalten ihre Nummer, neue Fragen beginnen bei O7.
-Alle 103 Funde (W) der Bestandsdateien sind einer Frage oder einer Bauregel (R1–R16) zugeordnet.
-
-Jede Frage hat eine **Empfehlung** von Claude. Wer einer Empfehlung zustimmt, schreibt nur „ja“.
-Manche Fragen legen nur die **Richtung** fest; die genauen Zahlen kommen aus dem Balance-Skript
-(Paket 3.9). Das steht dann in der Empfehlung.
-
-Die Fragen sind in vier Blöcke geteilt. Jeder Block ist ein Teil von Paket 2.1 (2.1a–2.1d).
-
-**Stand 18.11.2026:** Block A (O3–O11) und die Bauregeln sind entschieden (E4–E12), Block B (O2, O12–O24)
-ebenfalls (E13–E26), Block C (O25–O33) ebenfalls (E27–E35, oben). Offen sind noch 17 Fragen in Block D.
-
-### Block D · Ruf, Rang, Konkurrenz, Oberfläche (Paket 2.1d)
-
-| Nr. | Frage | Empfehlung | Quellen |
-|---|---|---|---|
-| O1 | **Ruf-Neutralpunkt und Start-Ruf:** Neutral ist 75 (Nachfrage-Faktor 1), Start 50 (−5 %). Typische Ziele liegen bei 60–74; viele Spieler bleiben dauerhaft unter 75. Die Firmen-Ansicht färbt ab 65 grün. | Neutral bei 50, Start bei 50. Farbstufen aus den Konstanten. | O1; 1.5 W3, F7 |
-| O34 | **Werbung und Ruf:** Werbung hebt den Ruf dauerhaft um bis zu 15 Punkte. | Werbung bringt nur Bekanntheit (Nachfrage, solange sie läuft), keinen Ruf. | 1.5 W1, F1 |
-| O35 | **Einmalige Ruf-Boni und -Strafen** (Meilensteine, Rang, Jahresziel, Streik, Ausfall, Übernahme +2): verfliegen in Monaten, können aber eine Rang-Schwelle überspringen. | Keine Einmal-Sprünge im Ruf. Belohnungen in Geld oder Freischaltungen. Störungen wirken über O31. Übernahme +2 entfällt. | 1.5 W2, F2; 1.8 W8, F4 |
-| O36 | **Zustand im Ruf:** ungewichtetes Mittel der Flugzeuge mit Strecke; abgestellte zählen nicht; die Kabine steckt schon in der SAT. | Zustand nicht mehr im Ruf; er wirkt über die SAT (Kabine) und über Ausfälle (Zelle). Ruf kommt aus SAT (nach Fluggästen) und gestrichenen Flügen. | 1.5 W5, F5 |
-| O37 | **Rang:** Bedingungen gelten für einen einzigen Monat; ein Sommermonat genügt. Der Rang geht nie verloren. | Mittel der letzten 3 Monate prüfen. Rang geht weiter nie verloren. | 1.5 W6, F3 |
-| O38 | **Flugzeugklassen:** an den Rang gebunden; die Concorde ist im freien Spiel kaum erreichbar. | Klasse frei, sobald Rang **oder** Jahr erreicht ist (was zuerst kommt). Jahr je Klasse in der Spezifikation. | 1.5 W8, F4 |
-| O39 | **Forschungsplätze je Rang:** Code gibt 3 / 4 / 5 bei Rang 3 / 6 / 9; Texte versprechen 3 bei National (4) und 5 bei Flag Carrier (8). | Die Texte gelten: Plätze als Feld je Rang, Text daraus erzeugt. (Nur Bestätigung.) | 1.5 W7 |
-| O40 | **Karriere-Punkte:** Free und Normal in einer Ruhmeshalle; Forschung zählt fast so viel wie der höchste Rang. | Getrennte Listen für Free und Normal. Gewichte in Phase 2 festlegen; Richtung: Vermögen und Rang zählen am meisten. | 1.5 W14, F6 |
-| O41 | **Gleiche Regeln für die KI:** Die KI zahlt keine Flughafen-Kosten, hat Gebühren-Rabatt überall, freie Slots, keinen Anlauf, keinen Ruf, keinen Verschleiß, keine Sperren, bekommt Zuschuss; regionale Ereignisse treffen sie nicht; im Spieler-Markt zählt sie immer mit SAT 100. | Dieselbe Wirtschaft für alle (Kosten, Slots, Anlauf, Verschleiß, Ruf, Ereignisse, SAT). Vereinfacht bleiben nur die Entscheidungen der KI. Was die KI bewusst auslässt (Forschung, Personal und Streik, Werbung), steht als Liste in der Spezifikation. | 1.6 W2, F1; 1.1 W10; 1.2 W10; 1.7 W13 |
-| O42 | **Persönlichkeiten und Billigflieger:** Flag-Carrier werden bis 2000 zu 19–26 Mrd. $ Kasse, LCC und Optimizer gehen pleite, weil Kosten je Sitz nicht vom Geschäftsmodell abhängen. | Alle Persönlichkeiten im Mittel ähnlich erfolgreich. Billigflieger bekommen echte Kostenvorteile (dichtere Kabine, weniger Personal je Sitz). | 1.6 W1, F3 |
-| O43 | **KI-Wachstum und Kasse:** Wachstum endet an den Drehkreuz-Slots, danach sammelt sich Geld ohne Grenze. Der Ticker-Rang zählt nach Kasse. | Größe nach Sitzen messen. KI kann weitere Drehkreuze eröffnen und modernisieren; Geld über einer Grenze geht als Dividende ab. Ticker-Rang nach Fluggästen. | 1.6 W4, F4 |
-| O44 | **Zuschuss für die KI** (150 000–450 000 $ je Monat, nominal): | Abschaffen, sobald die KI-Wirtschaft nach E4 (O6), O41, O42 stimmt. Bis dahin mit Kostenindex. | 1.6 W5, F5 |
-| O45 | **Übernahme:** Preis aus Flottenwert ohne Alter; die Kasse der KI verfällt; Slots des 2. Drehkreuzes landen am Heimat-Drehkreuz. | Preis = Unternehmenswert: Flottenwert mit Alter (O27) + Kasse + Wert der Slots. Slots je Flughafen übergeben. | 1.6 W6, F6 |
-| O46 | **Flugzeuge aufgelöster KI:** verschwinden, die Meldung sagt „go back to the market“. | An den Gebrauchtmarkt geben. | 1.6 W8, F7; 1.7 W9 |
-| O47 | **Slots:** Gemietete Rechte und KI-Abflüge je Woche werden voneinander abgezogen, als wären sie dieselbe Einheit. Die Grenze (Stufe × 300) steht nur in Ansichten; die KI prüft sie nicht. | Ein Slot = ein Abflug je Woche. Die Grenze steht im Modell; die KI belegt Slots und hält die Grenze ein. | 1.8 W2, F1 |
-| O48 | **Flüge je Tag:** Der Planer zählt die freie Tageszeit des Flugzeugs, der Zeitplan-Editor den ganzen Tag. | Regel des Planers (übrige Strecken desselben Flugzeugs zählen), in einer Funktion im Modell. | 1.8 W6, F7 |
-| O49 | **Erklärtexte und Debug-Anzeige:** neun Texte mit festen Zahlen; die Debug-Anzeige schreibt Formeln ab. | Alle Zahlen in Texten aus den Konstanten. Die Debug-Anzeige zeigt nur die Aufschlüsselung, die das Modell liefert, keine eigene Rechnung. | 1.8 W9, F6; 1.3 W8 |
+Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
 ### Abhängigkeiten
 
 - E13 (O12) bestimmt mit E4, E6, E7 die Grundform des Modells.
-- E7, E15, E20, E21, E22 legen nur die Richtung fest; die Zahlen kommen aus dem Balance-Skript (3.9).
-- E29 (O27, Wertmodell) ist Grundlage für E30, E31, E34 und O45.
-- O41 (gleiche Regeln) ist Grundlage für O42–O44 und O47.
-- O44 (Zuschuss abschaffen) erst, wenn E4 (O6), O41 und O42 umgesetzt sind.
+- E7, E15, E20, E21, E22, E37, E45 legen nur die Richtung fest; die Zahlen kommen aus dem Balance-Skript (3.9).
+- E29 (O27, Wertmodell) ist Grundlage für E30, E31, E34 und E48.
+- E44 (gleiche Regeln) ist Grundlage für E45–E47 und E50.
+- E47 (Zuschuss abschaffen) erst, wenn E4, E44 und E45 umgesetzt sind.
+- E36 (Neutral 50) und E39 (Ruf-Ziel) gehören zusammen: Das Ruf-Ziel muss bei üblicher SAT um 50 liegen.
+- E41, E42: genaue Ränge je Flugzeugklasse und Forschungsplatz in 2.7.
