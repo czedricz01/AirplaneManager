@@ -1,31 +1,17 @@
 # Status
 
-**Nächstes Paket: 1.9**
+**Nächstes Paket: 2.1a** (wartet auf Entscheidungen des Menschen)
 
 Stand: 17.11.2026 · Ausgangslage: 504 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen (werden in 1.9 gesammelt, in 2.1 entschieden):
-- aus 1.1: sieben Fragen am Ende von `bestand/1-zufriedenheit.md` (Mehrgang-Menü, zwei Flughäfen,
-  SAT-Skala, Wirkungswege, Preisdruck unter 100, Schalter-Pflicht, Forschungstext).
-- aus 1.2: sieben Fragen am Ende von `bestand/2-nachfrage.md` (Flugzeug-Geschwindigkeit und
-  Marktgröße, Preis doppelt, Klassen-Aufteilung, Schwierigkeit, Wachstum, Namen, Langstrecken-Kurve).
-- aus 1.3: sieben Fragen am Ende von `bestand/3-preis.md` (Klassen-Faktoren im Planer, Erlös unter
-  Marktpreis, Monatslänge, Preise über die Jahre, Schwierigkeit, Planer-Hauptzahl, Umsteiger-Tarif).
-- aus 1.4: sieben Fragen am Ende von `bestand/4-kosten.md` (Marge je Streckenlänge und Jahrzehnt,
-  Treibstoff-Quelle und Wert nach 2030, Fluggast-Gebühren an beiden Flughäfen, kostenlose Abstellplätze,
-  Kostenindex für Einmalpreise, Abschreibung, Treibstoff-Zuschlag Hard).
-- aus 1.5: sieben Fragen am Ende von `bestand/5-ruf-fortschritt.md` (Werbung und Ruf, Einmal-Boni,
-  Rang nach einem Monat, Flugzeugklassen nach Rang oder Zeit, Zustand im Ruf, Karriere-Punkte,
-  Start-Ruf).
-- aus 1.6: sieben Fragen am Ende von `bestand/6-konkurrenz.md` (gleiche Regeln für KI, KI-Schwierigkeit
-  nur als Verhalten, Persönlichkeiten und Billigflieger, Wachstumsgrenze und Kasse, Zuschuss,
-  Übernahme-Preis, Flugzeuge aufgelöster KI).
-- aus 1.7: sieben Fragen am Ende von `bestand/7-monat-ereignisse.md` (Spanne Kauf/Verkauf,
-  Wertmodell Flugzeug, Grundüberholung, Charter-Kosten, Strafe für gestrichene Flüge, negative Kasse,
-  Ereignisse für alle und Preise der Krisen-Antworten).
-- aus 1.8: sieben Fragen am Ende von `bestand/8-oberflaeche.md` (Einheit eines Slots und KI-Slots,
-  Kostenindex für Einmalpreise, Gewinnschwelle je Klasse, Ruf bei Übernahme, Startwerte,
-  Zahlen in Erklärtexten, Flüge je Tag).
+Offene Fragen: 49 Fragen (O1–O49) und 16 Bauregeln (R1–R16) in `ENTSCHEIDUNGEN.md`, Abschnitt
+„Offen“, in vier Blöcken A–D. Jede Frage hat eine Empfehlung. Die Einzelfragen am Ende der
+Dateien in `bestand/` sind dort zusammengefasst und müssen nicht mehr einzeln gelesen werden.
+
+Ablauf 2.1a–2.1d: Claude liest nur den Block in `ENTSCHEIDUNGEN.md` und stellt dessen Fragen.
+Der Mensch antwortet je Frage (oder „alle Empfehlungen übernehmen“). Claude trägt die Antworten
+unter „Getroffen“ ein (E4 ff.) und streicht sie aus „Offen“. Nur bei Bedarf die genannte
+Bestandsdatei nachlesen.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -52,13 +38,16 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 1.6 | Konkurrenz (KI) | `aiSimulation.ts`, `rivalCrisis.ts`, `takeover.ts`, `buildRivalOffers` in `monthClose.ts` | `bestand/6-konkurrenz.md` | erledigt |
 | 1.7 | Monatsabschluss, Ereignisse, Flottenmarkt | `monthClose.ts` (`closeMonth`), `eventSystem.ts`, `disruptions.ts`, `preorders.ts`, `usedMarket.ts`, `getAircraftResaleValue`, `invariants.ts` | `bestand/7-monat-ereignisse.md` | erledigt |
 | 1.8 | Querschnitt: Doppelrechnungen in der Oberfläche | Suche in `src/components/` und `src/App.tsx` nach Formeln, die die Ansicht selbst rechnet statt `src/lib/` aufzurufen | `bestand/8-oberflaeche.md` | erledigt |
-| 1.9 | Zusammenfassung | alle `bestand/*.md` | Liste aller Widersprüche und Entscheidungsfragen in `ENTSCHEIDUNGEN.md` | offen |
+| 1.9 | Zusammenfassung | alle `bestand/*.md` | Liste aller Widersprüche und Entscheidungsfragen in `ENTSCHEIDUNGEN.md` | erledigt |
 
 ## Phase 2 – Spezifikation
 
 | Nr. | Paket | Status |
 |---|---|---|
-| 2.1 | Entscheidungsfragen aus 1.9 mit dem Menschen klären | offen |
+| 2.1a | Block A (Querschnitt: O3–O11) aus `ENTSCHEIDUNGEN.md` mit dem Menschen klären, inkl. Bauregeln R1–R16 | wartet |
+| 2.1b | Block B (Markt: O2, O12–O24) klären | wartet |
+| 2.1c | Block C (Kosten, Flottenwert, Monat, Ereignisse: O25–O33) klären | wartet |
+| 2.1d | Block D (Ruf, Rang, Konkurrenz, Oberfläche: O1, O34–O49) klären | wartet |
 | 2.2 | Grundbegriffe und Einheiten festlegen (Namen, Skalen, Rundung, Schwierigkeit) | offen |
 | 2.3–2.9 | Je Bereich 1.1–1.7 den Soll-Zustand in `SPEZIFIKATION.md` schreiben | offen |
 
@@ -100,3 +89,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 17.11.2026 | 1.6 | Konkurrenz-Bestand aufgenommen: 63 Größen, 11 Auffälligkeiten (u. a. Persönlichkeit entscheidet über Reichtum, Flag-Carrier mit 20+ Mrd. $ Kasse, KI ohne Flughafen-Kosten, Anlauf und Verschleiß, Hard-KI rechnet schlechter, Easy-KI lebt vom Zuschuss, Übernahme ohne Alter und Kasse), 7 offene Fragen |
 | 17.11.2026 | 1.7 | Monatsabschluss-, Ereignis- und Flottenmarkt-Bestand aufgenommen: 59 Größen, 14 Auffälligkeiten (u. a. Gebrauchtkauf mit Sofortverkauf +5 %, Vorbestellung unter Wiederverkaufswert, Grundüberholung 200 000 $ hebt Wert um Millionen, Charter immer teurer als Streichen, Spieler-Kasse ohne Folge negativ, Bericht-Kasse ohne Lieferungen), 7 offene Fragen |
 | 17.11.2026 | 1.8 | Oberflächen-Bestand aufgenommen: 13 Regeln nur in der Oberfläche, 12 Kopien von Modell-Formeln, 9 Texte mit festen Zahlen, 5 doppelte Quellen; 9 Auffälligkeiten (u. a. Planer zeigt Schalter- und Standmieten in Preisen von 1960, Slot-Grenze nur in Ansichten, Preise von Hub-Einrichtungen im Klick-Handler); Vorschlag für die Pakete 4.2–4.7, 7 offene Fragen |
+| 17.11.2026 | 1.9 | Zusammenfassung: 56 Einzelfragen und O1–O6 zu 49 Fragen (O1–O49) mit Empfehlung in 4 Blöcken zusammengelegt, 16 Bauregeln (R1–R16) für Funde ohne Entscheidung; alle 103 Funde zugeordnet; Paket 2.1 in 2.1a–2.1d geteilt |
