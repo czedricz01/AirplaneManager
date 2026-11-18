@@ -448,3 +448,111 @@ export const CLASS_TIME_FROM = 60;
 
 /** Ab dieser Bezugs-Flugzeit (min) steigen sie nicht mehr. SPEZIFIKATION 3.7. */
 export const CLASS_TIME_TO = 720;
+
+// ---------------------------------------------------------------------------
+// 3.9 Anziehung
+// ---------------------------------------------------------------------------
+
+/** Abflüge je Richtung und Woche des Bezugsangebots (täglich): `frequencyFactor` = 1. SPEZIFIKATION 3.9.0, 3.9.1. */
+export const REFERENCE_FREQUENCY = 7;
+
+/** Hochzahl der Abflüge in der Anziehung (Wurzel, heute `src/lib/financeUtils.ts:1134`). SPEZIFIKATION 3.9.1. */
+export const FREQUENCY_EXP = 0.5;
+
+/**
+ * Preis-Empfindlichkeit je Klasse (Hochzahl in `priceFactor`). Muss über 1 liegen, sonst brächte jeder
+ * höhere Preis mehr Erlös; daraus folgt auch `noFlyAppeal` (3.10). Startwerte (3.9). SPEZIFIKATION 3.9.2.
+ */
+export const PRICE_SENSITIVITY: Readonly<Record<CabinClass, number>> = {
+  economy: 2.2,
+  premium: 2.0,
+  business: 1.8,
+  first: 1.7,
+};
+
+/** Hochzahl der Flugzeit in der Anziehung: halbe Flugzeit = Faktor 2 (E20). Startwert (3.9). SPEZIFIKATION 3.9.3. */
+export const FLIGHT_TIME_EXP = 1.0;
+
+/** Ruf-Wirkung auf die Anziehung je Punkt über oder unter 50 (0,9 bei 0, 1,1 bei 100; E36). SPEZIFIKATION 3.9.4. */
+export const REPUTATION_DEMAND_SLOPE = 0.002;
+
+/** Frequent flyer im ersten Laufmonat (heute `src/lib/marketing.ts:192`). SPEZIFIKATION 3.9.4. */
+export const FF_START = 0.05;
+
+/** Frequent flyer: Zuwachs je weiterem Laufmonat (heute `src/lib/marketing.ts:193`). SPEZIFIKATION 3.9.4. */
+export const FF_PER_MONTH = 0.01;
+
+/** Frequent flyer: höchster Zuschlag (heute `src/lib/marketing.ts:194`). SPEZIFIKATION 3.9.4. */
+export const FF_MAX = 0.2;
+
+/** Stufe einer Werbe-Kampagne. */
+export type CampaignTier = 'local' | 'national' | 'global';
+
+/** Zuschlag einer laufenden Kampagne auf den Werbe-Faktor ihrer Region (heute `src/lib/marketing.ts:74-78`). SPEZIFIKATION 3.9.5. */
+export const ADVERTISING_BOOST: Readonly<Record<CampaignTier, number>> = {
+  local: 0.05,
+  national: 0.1,
+  global: 0.18,
+};
+
+/** Höchster Werbe-Faktor einer Region, wie viele Kampagnen auch laufen (heute `src/lib/marketing.ts:84`). SPEZIFIKATION 3.9.5. */
+export const ADVERTISING_MAX = 1.25;
+
+/** Höchster Established route bonus (heute `src/lib/routeMaturity.ts:24`). SPEZIFIKATION 3.9.6. */
+export const ESTABLISHED_BONUS_MAX = 0.05;
+
+/** Ab diesem Alter (Monate) wächst der Established route bonus. SPEZIFIKATION 3.9.6. */
+export const ESTABLISHED_FROM = 24;
+
+/** Ab diesem Alter (Monate) ist er voll. SPEZIFIKATION 3.9.6. */
+export const ESTABLISHED_TO = 48;
+
+// ---------------------------------------------------------------------------
+// 3.12 Anlauf
+// ---------------------------------------------------------------------------
+
+/** Anteil der gewählten Fluggäste, den ein neues Angebot im ersten Monat erreicht (heute `src/lib/routeMaturity.ts:17`). SPEZIFIKATION 3.12. */
+export const RAMP_START = 0.6;
+
+/** Monate bis zur vollen Nachfrage (heute `src/lib/routeMaturity.ts:19`). SPEZIFIKATION 3.12. */
+export const RAMP_MONTHS = 9;
+
+/** Zuschlag auf `RAMP_START` mit der Forschung „Route planning suite“ (Feld `rampBonus`, 6.9). SPEZIFIKATION 3.12. */
+export const RAMP_RESEARCH_BONUS = 0.15;
+
+// ---------------------------------------------------------------------------
+// 3.13 Umsteige-Verbindungen
+// ---------------------------------------------------------------------------
+
+/** Minuten einer Woche (Fahrplan: Montag 00:00 = 0). */
+export const MINUTES_PER_WEEK = 7 * 24 * 60;
+
+/** Größter Umweg (geflogene / direkte Entfernung) einer Verbindung (heute `src/lib/transferUtils.ts:41`). SPEZIFIKATION 3.13. */
+export const MAX_DETOUR = 1.6;
+
+/** Kürzeste Umstiegszeit in Minuten (heute `src/lib/transferUtils.ts:37`). SPEZIFIKATION 3.13. */
+export const MIN_CONNECTION = 45;
+
+/** Längste Umstiegszeit in Minuten (heute `src/lib/transferUtils.ts:39`). SPEZIFIKATION 3.13. */
+export const MAX_CONNECTION = 360;
+
+/** Preis einer Verbindung als Anteil des Marktpreises Start–Ziel (E25; heute `src/lib/transferUtils.ts:45`). SPEZIFIKATION 3.13, 4.8. */
+export const TRANSFER_FARE_SHARE = 0.9;
+
+/** Umsteigen ist lästig: Faktor auf die Anziehung einer Verbindung bei Drehkreuz-Güte 1. Startwert (3.9). SPEZIFIKATION 3.13. */
+export const CONNECTION_APPEAL = 0.5;
+
+/** Drehkreuz-Güte eines Flughafens ohne Verwaltung (heute `src/lib/transferUtils.ts:161`). SPEZIFIKATION 3.13. */
+export const HUB_QUALITY_BASE = 0.4;
+
+/** Drehkreuz-Güte je Verwaltungsstufe. SPEZIFIKATION 3.13. */
+export const HUB_QUALITY_PER_LEVEL = 0.15;
+
+/** Drehkreuz-Güte je Extra (Stufe 3, Lounge, Catering; heute `src/lib/hubOwnership.ts:27`, `transferUtils.ts:158-159`). SPEZIFIKATION 3.13. */
+export const HUB_QUALITY_PER_EXTRA = 0.05;
+
+/** Ab dieser Verwaltungsstufe zählt die Stufe selbst als Extra. SPEZIFIKATION 3.13. */
+export const HUB_QUALITY_EXTRA_LEVEL = 3;
+
+/** Faktor auf die Drehkreuz-Güte mit der Forschung „Alliance“ (Feld `hubQualityFactor`, 6.9). SPEZIFIKATION 3.13. */
+export const HUB_QUALITY_RESEARCH_FACTOR = 1.1;

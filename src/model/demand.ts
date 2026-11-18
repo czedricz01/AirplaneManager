@@ -1,8 +1,8 @@
 /**
  * Nachfrage und Marktanteil: SPEZIFIKATION Abschnitt 3.
  *
- * Stand Paket 3.3a: Marktgröße (3.1–3.6) und Klassen-Anteil (3.7).
- * Die Aufteilung auf die Angebote (3.8–3.14) folgt in Paket 3.3b.
+ * Hier: Marktgröße (3.1–3.6) und Klassen-Anteil (3.7). Die Aufteilung auf die Angebote steht in
+ * `marketSplit.ts` (3.8–3.12, 3.14) und `transfers.ts` (3.13).
  *
  * Alle Mengen sind Fluggäste je Woche, beide Richtungen zusammen, ungerundet (R4).
  * Die Marktgröße hängt nur von Städten, Entfernung, Zeit, Saison und Ereignissen ab,
