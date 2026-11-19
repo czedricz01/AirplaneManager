@@ -98,6 +98,13 @@ export const RIVAL_INPUTS = {
   charter: false,
   /** Kein Pech-Deckel (8.8): Defekte jeden Monat gewürfelt. */
   badLuckCap: false,
+  /** Kein Personal-Modell (8.7): Moral bleibt neutral, kein Streik-Wurf. */
+  staffModel: false,
+  /** Kein Zwangsverkauf und kein Spielende (8.14): Notlage, Verkauf und Auflösung nach 7.15. */
+  forcedSale: false,
+  /** Keine Krisen-Antworten (8.5). */
+  hedgedEvents: [] as readonly string[],
+  recoveryEvents: [] as readonly string[],
 } as const;
 
 /** Ein Eintrag der Liste „bewusst fehlende Teile“, als Text für die Rivalen-Ansicht (E52, Englisch). */

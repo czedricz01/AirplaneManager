@@ -2609,3 +2609,10 @@ export const CREDIT_RATE = 0.08;
 
 /** Ab so vielen überzogenen Monaten in Folge: Zwangsverkauf, ein Flugzeug je Abschluss. SPEZIFIKATION 8.14. */
 export const OVERDRAWN_TO_FORCED_SALE = 6;
+
+// ---------------------------------------------------------------------------
+// 8.2 Bericht
+// ---------------------------------------------------------------------------
+
+/** So viele Monatsberichte bleiben im Spielstand (wie heute `src/lib/monthClose.ts:1263`). SPEZIFIKATION 8.2. */
+export const REPORT_HISTORY_MONTHS = 120;
