@@ -70,6 +70,8 @@ Claude schlägt vor, der Mensch entscheidet.
 | E61 | 18.11.2026 | **Krisen im Treibstoffpreis (O58):** Die Ausschläge der geschichtlichen Ölkrisen werden **einmal in die Tabelle** `src/data/fuelPrices.ts` eingerechnet (heutige Faktoren über die Dauer der Ereignisse, je 3 Monate linearer An- und Abstieg innerhalb der Dauer). Ereignisse haben keinen Treibstoff-Faktor (E8 wörtlich); die 3 Zufalls-Vorlagen, die fast nur den Treibstoff ändern, entfallen. | Eine Quelle, keine Doppelzählung (E8); Ölkrisen bleiben spürbar; KI-Krise aus dem Treibstoff (7.12) und Preis-Absicherung (8.5) funktionieren. Zufällige Treibstoff-Schwankungen gibt es nicht mehr. |
 | E62 | 18.11.2026 | **Grundüberholung ohne Hangar (O59):** Überall möglich; ohne eigenen Hangar an einem Flughafen seiner Strecken 25 % teurer (fremde Werft, `EXTERNAL_OVERHAUL_SURCHARGE = 0,25`). Eine Regel für Spieler und KI. | E44; der Hangar bleibt nützlich (halbe Defekt-Chance, billigere Überholung). Neu: Der Spieler kann ohne Hangar überholen. |
 | E63 | 19.11.2026 | **Verwaltungsstufe 3 und KI, neu entschieden (O57 = a):** Die KI kauft höchstens Stufe 2. Spieler-Stufe 3 bringt Gebühren-Nachlass (5.1), Einnahme aus fremden Landungen (5.15) **und eine Sperre**: Dort eröffnet die KI keine neuen Strecken und kein Drehkreuz; Bestehendes bleibt (wie heute `src/lib/aiSimulation.ts:1048-1051`, `:1181`). Ersetzt E60. Eine Regel nur für den Spieler (Liste 7.2). | Empfehlung aus Paket 2.8: Die Sperre ist ein bewusstes Ziel der teuren Stufe 3 (25 Mio. $ von 1960, Rang 8); die KI braucht sie nicht, weil sie keinen Rang hat. Text „Rivals cannot open new routes here“ (`src/components/AirportDetailView.tsx:589`) bleibt. |
+| E64 | 19.11.2026 | **Wachstum der Marktgröße (O61 = A):** Regel 3.3 gilt für die **Summe** der Marktgrößen aller Paare: 1960 → 2019 × 2,5 (± 10 %, Balance-Skript B3.1). `DEMAND_GROWTH_1960_2019` = **2,25** (statt 2,5). | Die Summe misst, „wie viel mehr Menschen fliegen“ (E7); das Mittel der Verhältnisse wird von kleinen Paaren mit großem Zuwachs gezogen. Mit 2,5 wuchs die Summe × 2,78, weil sich die Weltanteile der Städte verschieben; mit 2,25 × 2,51 (`balance/O61-O62-bericht.md`). |
+| E65 | 19.11.2026 | **Preiskampf ohne festen Punkt (O62 = A):** Vorgabe 7.6 lautet: Wechselseitige beste Antworten bleiben über den Kosten (B4.2); ein fester Punkt ist nicht nötig (B4.3 nur noch Info). Der Optimizer behält den besten Preis ohne Schrittgrenze. Zeigt der Langlauf (3.9b) störende Sprünge der KI-Preise, bekommt er eine Schrittgrenze `FARE_STEP` (Weg B). | Zwei gleiche Optimizer springen zwischen 1,74 und 1,36 (FRA–MAD 1990, je vier A320ceo), weil der Überlauf (3.11) wechselt; eine Dämpfung beendet das nicht. Die Preise bleiben weit über der Gewinnschwelle (0,62). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -149,41 +151,23 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
-Offen aus dem Balance-Skript (Paket 3.9a, Zahlen in `BALANCE.md` und `balance/3.9a-bericht.md`). Keine blockiert
-Paket 3.9b; O60 sollte erst mit dessen Ergebnis (Preise mit Rivalen) entschieden werden.
+Offen aus dem Balance-Skript (Paket 3.9a, Zahlen in `BALANCE.md` und `balance/O61-O62-bericht.md`). Blockiert
+Paket 3.9b nicht; O60 sollte erst mit dessen Ergebnis (Preise mit Rivalen) entschieden werden.
 
 **O60 – Marktgröße gegenüber einem Flugzeug (B4.1, B4.5).** Ein Flugzeug allein ist fast überall bei jedem Preis voll;
-der beste Preis liegt beim 1,3- bis 4-Fachen des Marktpreises, Margen 59–77 %, ein neues Flugzeug ist nach 0,4–2 Jahren
-bezahlt. E24 („ohne Rivalen etwa Marktpreis“) gilt nur, wenn die Sitze reichen.
-- A: `DEMAND_SCALE` senken (z. B. × 0,25 → 7): A320ceo FRA–MAD 1990 dann 1,54 / Marge 39 %, ATR HAM–NUE 2,01 / 54 %,
-  A330 FRA–JFK 1,10 / 2 %. Kurz bleibt einträglich, Langstrecke kaum noch; ggf. zusammen mit `DISTANCE_EXP` (kurze Paare
+der beste Preis liegt beim 1,2- bis 4-Fachen des Marktpreises, Margen 58–77 %, ein neues Flugzeug ist nach 0,4–2,1
+Jahren bezahlt (Zahlen mit E64). E24 („ohne Rivalen etwa Marktpreis“) gilt nur, wenn die Sitze reichen.
+- A: `DEMAND_SCALE` senken (z. B. × 0,25 → 7): A320ceo FRA–MAD 1990 dann 1,48 / Marge 37 %, ATR HAM–NUE 1,95 / 52 %,
+  A330 FRA–JFK 1,10 / −4 %. Kurz bleibt einträglich, Langstrecke kaum noch; ggf. zusammen mit `DISTANCE_EXP` (kurze Paare
   kleiner) einstellen.
 - B: Lassen; Knappheit ist gewollt, Rivalen drücken die Preise (Nachweis im Langlauf 3.9b).
 - C: `PRICE_SENSITIVITY` erhöhen, damit Fluggäste stärker auf den Preis reagieren (senkt den Knappheits-Preis; Wirkung
   erst im Skript zu messen).
 - **Empfehlung:** vorläufig B; nach 3.9b entscheiden. Liegt dort das mittlere Preisniveau auf Paaren mit Rivalen über
   1,5 oder die Marge typischer Strecken über 40 %, dann A (mit `DISTANCE_EXP`), Faktor aus dem Skript.
-
-**O61 – Wachstum der Marktgröße 1960 → 2019 (B3.1).** `demandGrowth` 2019 = 2,5, aber über alle Paare wächst die
-Marktgröße im Mittel der Verhältnisse × 3,36, in der Summe × 2,78 (Weltanteile der Städte verschieben sich, Verflechtung
-ist ein Produkt).
-- A: Regel 3.3 als **Summe aller Paare** lesen und `DEMAND_GROWTH_1960_2019` auf 2,25 senken (Summe dann ≈ × 2,5).
-- B: Regel als Summe lesen, Konstante 2,5 lassen (Summe × 2,78).
-- C: Regel lassen (Mittel der Verhältnisse) und `DEMAND_GROWTH_1960_2019` auf etwa 1,9 senken.
-- **Empfehlung:** A. Die Summe misst, „wie viel mehr Menschen fliegen“ (E7); das Mittel der Verhältnisse wird von kleinen
-  Paaren mit großem Zuwachs gezogen.
-
-**O62 – Kein fester Punkt beim Preiskampf (B4.3).** Zwei gleiche Optimizer mit je vier A320ceo auf FRA–MAD 1990
-springen zwischen 1,74 und 1,45; die Preise bleiben weit über den Kosten (B4.2 ok). Eine Dämpfung (halber Schritt)
-beendet den Zyklus nicht (Preise 1,44 / 1,59 / 1,49).
-- A: Vorgabe 7.6 anpassen: „Die Preise bleiben über den Kosten“; ein fester Punkt ist nicht nötig. Ob die KI-Preise im
-  laufenden Spiel störend springen, misst 3.9b.
-- B: Der Optimizer ändert sein Preisniveau je Monat höchstens um `FARE_STEP` (3 %) in Richtung des besten Preises, wie die
-  anderen Persönlichkeiten (`rivalFareRatio`, 7.6); Preise schwanken dann nur noch in kleinen Schritten.
-- **Empfehlung:** A jetzt; B nur, wenn 3.9b störende Sprünge zeigt.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 

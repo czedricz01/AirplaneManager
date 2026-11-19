@@ -2,8 +2,8 @@
 
 **Nächstes Paket: 3.9b** – Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (KI ab 1960, je Persönlichkeit
 10 Läufe): „ähnlicher Erfolg“ (7.4), Abschaffung des Zuschusses (7.14), Preise und Preiskampf mit Rivalen (7.6, Nachweis
-zu O60 und O62), Umsteiger-Anteil (3.13), Slot-Anteile, Dividende, neue Drehkreuze, KI-Stärke, Eröffnungen und Käufe je
-Jahr, Rechenzeit. Zuerst die Rechenzeit eines Laufs messen und die Flughafen-Auswahl festlegen. Liste in
+zu O60; nach E65 auch, ob die Optimizer-Preise störend springen), Umsteiger-Anteil (3.13), Slot-Anteile, Dividende, neue
+Drehkreuze, KI-Stärke, Eröffnungen und Käufe je Jahr, Rechenzeit. Zuerst die Rechenzeit eines Laufs messen und die Flughafen-Auswahl festlegen. Liste in
 `BALANCE.md`, Abschnitt „Noch offene Prüfregeln“. Startpunkt: `src/balance/` (Gerüst aus 3.9a), `src/model/rivalMonth.ts`
 (`rivalDecisions`, `rivalRefill`, `foundRivalCompany`), `src/model/monthClose.ts` (`closeMonth`).
 
@@ -13,13 +13,17 @@ Stand: 19.11.2026 · Paket 3.9a erledigt: Balance-Skript `npm run balance` (Rech
 überall bei jedem Preis voll; bester Preis 1,3–4 × Marktpreis, Margen 59–77 % (O60). Paket 3.9 geteilt (F44).
 1215 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen: O60 (Marktgröße gegenüber einem Flugzeug), O61 (Wachstum 1960 → 2019 über alle Paare), O62 (kein fester
-Punkt beim Preiskampf); Empfehlungen in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“. Keine blockiert 3.9b; O60 erst mit dem
-Ergebnis von 3.9b entscheiden, O61 und O62 jederzeit.
+Nachtrag 19.11.2026: O61 → E64 (Regel 3.3 gilt für die Summe aller Paare, `DEMAND_GROWTH_1960_2019` = 2,25),
+O62 → E65 (kein fester Punkt beim Preiskampf nötig, B4.3 nur Info). Spezifikation 3.3 und 7.6 angepasst; Bericht neu:
+`docs/neubau/balance/O61-O62-bericht.md` mit 6 ok, 0 Abweichung, 13 Info. 1215 Tests grün, `tsc --noEmit` grün.
+
+Offene Frage: O60 (Marktgröße gegenüber einem Flugzeug); Empfehlung in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“.
+Blockiert 3.9b nicht; erst mit dem Ergebnis von 3.9b entscheiden.
 
 Offen aus 3.9a (kein Blocker): Prüfregeln der Abschnitte 6 und 8 ohne Langlauf in 3.9c (Liste in `BALANCE.md`). Nach
-Entscheidungen zu O60–O62 die Konstanten ändern, `npm run balance -- --out docs/neubau/balance/<paket>-bericht.md` neu
-erzeugen und die Spezifikation (3.3, 3.6, 7.6) anpassen. Schwierigkeit (B3.5) erst nach O60 einstellen.
+der Entscheidung zu O60 die Konstanten ändern, `npm run balance -- --out docs/neubau/balance/<paket>-bericht.md` neu
+erzeugen und die Spezifikation (3.6) anpassen. Schwierigkeit (B3.5) erst nach O60 einstellen. E65: Zeigt 3.9b störende
+Sprünge der Optimizer-Preise, bekommt der Optimizer eine Schrittgrenze `FARE_STEP` (7.6).
 
 Offen aus 3.2a (kein Blocker): Der Test „Kaufdialog-Anzeige = Modellwert“ (2.3) folgt, wenn der Kaufdialog
 auf `interiorScoreParts` umgestellt wird (Phase 4).
@@ -235,3 +239,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | 3.8b | Monatsabschluss Teil 2 in `src/model/monthClose.ts`: Modell-Spielstand (`ModelState`, `CompanyState` mit neutralen `CompanyInputs`, Kassenbuch `MonthLedger`, Vorbestellungen), `monthOperations` (eine Marktaufteilung je Paar und Klasse für alle, Satisfaction, Erlös, Kosten mit Abschnitt-8-Posten, Verschleiß, Wert, Vogelschlag, Einnahmen der Stufe 3) als Abschluss und Vorhersage, `closeMonth(state, decisions)` in der Reihenfolge 8.0 (Buchung, Ruf, Entscheidungen von außen, Lieferungen, Kreditlinie, Zwangsverkauf, Spielende, Gewinnserie, Bericht, Prüfung 8.16, Übergang mit Preisen, Moral, Würfen, Gebrauchtmarkt), `buyAircraft`/`sellAircraft`/`spend` für Einmalausgaben; `RIVAL_INPUTS` um `staffModel`, `forcedSale`, Krisen-Antworten ergänzt; 22 Regeltests (Kassen-Gleichung, Reihenfolge der Gesellschaften, Lieferung und Vogelschlag im Bericht, keine globalen Daten, halber Flugplan, Charter, Kreditlinie, Vorhersage = Abschluss, Preise ab X+1), 1164 grün; Paket 3.8 weiter geteilt (F41) |
 | 19.11.2026 | 3.8d | Monatsabschluss Teil 4 in `src/model/rivalMonth.ts`: Eröffnungen freier Flugzeuge mit Planer-Hauptzahl einer neuen Strecke und Slot-Kauf an beiden Enden (fairer Anteil je KI, F43), Kauf mit Strecke (Bezugs-Typ, dann bester Typ je Kaufpreis), Modernisierung, Kabinen-Erneuerung mit derselben Kabine, neues Drehkreuz, VIP-Lounge, Verkauf 6 Monate freier Slots, Schalter, Fahrpläne `rivalSchedule`; Zuschuss als Zeile „Subsidy“ (`costTotals.ts`); Gründung `foundRivalCompany` und Nachrücken `rivalRefill` als letzter Schritt von `closeMonth`; `rivalAircraft` in `rivals.ts`; 21 neue Tests (1206 grün) |
 | 19.11.2026 | 3.9a | Balance-Skript Teil 1: `npm run balance` (`src/balance/`, `scripts/balance.ts`), Beispiel-Welten mit `monthOperations`, bester Preis je Klasse, Preiskampf zweier gleicher Gesellschaften, Empfindlichkeit der Marktgröße über ein Ereignis im Beispiel-Spielstand; 19 Prüfregeln zu Abschnitten 1–5 (5 ok, 2 Abweichung, 12 Info), Bericht `balance/3.9a-bericht.md`, Bewertung `BALANCE.md`; Funde: ein Flugzeug fast überall bei jedem Preis voll (Margen 59–77 %), Marktgröße aller Paare wächst × 2,78 statt × 2,5, Preiskampf ohne festen Punkt → O60–O62; Paket 3.9 in 3.9a–c geteilt (F44); 9 neue Tests (1215 grün) |
+| 19.11.2026 | – | O61 → E64 (Wachstum 1960 → 2019 als Summe aller Paare, `DEMAND_GROWTH_1960_2019` 2,5 → 2,25; Summe jetzt × 2,51), O62 → E65 (Preiskampf ohne festen Punkt; B4.3 nur Info, Schrittgrenze erst bei Sprüngen in 3.9b); `SPEZIFIKATION.md` 3.3, 7.6 angepasst; Prüfregeln B3.1, B4.3 umgestellt; Bericht `balance/O61-O62-bericht.md` (6 ok, 0 Abweichung, 13 Info); `BALANCE.md` mit neuen Zahlen |

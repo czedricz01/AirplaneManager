@@ -285,9 +285,9 @@ export function routeSections(
   priceChecks.push({
     id: 'B4.3',
     spec: '7.6',
-    rule: 'Die besten Antworten enden in einem festen Punkt (Vorgabe 7.6)',
+    rule: 'Enden die besten Antworten in einem festen Punkt? Nicht verlangt (7.6, E65); verlangt ist B4.2',
     value: duels.map((d) => `${d.departures} Abflüge: ${d.converged ? 'fest' : d.cycle ? 'Zyklus' : 'nicht fest'}`).join('; '),
-    verdict: duels.every((d) => d.converged) ? 'ok' : 'abweichung',
+    verdict: 'info',
   });
   priceChecks.push({
     id: 'B4.4',
