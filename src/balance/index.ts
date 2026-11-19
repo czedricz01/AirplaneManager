@@ -5,20 +5,30 @@
  * `npm run balance -- --long` rechnet dazu die Langläufe der KI (Paket 3.9b, `longRun.ts`, `competition.ts`).
  */
 
+import { careerSection } from './career';
+import { eventSection, smallMarketResults } from './events';
 import { demandSection, satisfactionSection, timeAndMoney } from './market';
 import { renderMarkdown, type Section } from './report';
-import { routeSections } from './routes';
+import { ROUTE_CASES, routeSections, runCase } from './routes';
 
 export { renderMarkdown, verdictCounts, type Check, type Section, type Table, type Verdict } from './report';
 
-/** Alle Abschnitte des Berichts (Paket 3.9a: Abschnitte 1–5 der Spezifikation). */
+/** Alle Abschnitte des Berichts ohne Langlauf (Pakete 3.9a und 3.9c: Abschnitte 1–6 und 8 der Spezifikation). */
 export function balanceSections(): Section[] {
-  return [timeAndMoney(), satisfactionSection(), demandSection(), ...routeSections()];
+  const results = ROUTE_CASES.map((c) => runCase(c));
+  return [
+    timeAndMoney(),
+    satisfactionSection(),
+    demandSection(),
+    ...routeSections(results),
+    careerSection(),
+    eventSection({ results, smallMarket: smallMarketResults(ROUTE_CASES) }),
+  ];
 }
 
 /** Einleitung des Berichts. */
 export const BALANCE_INTRO = [
-  'Erzeugt mit `npm run balance` aus `src/balance/` (Pakete 3.9a, 3.9b; Langläufe mit `--long`). Alle Zahlen kommen aus den Funktionen in `src/model/`',
+  'Erzeugt mit `npm run balance` aus `src/balance/` (Pakete 3.9a–3.9c; Langläufe mit `--long`). Alle Zahlen kommen aus den Funktionen in `src/model/`',
   'mit den Startwerten aus `src/model/constants.ts`; das Skript ändert keine Konstante. Bewertung und Empfehlungen:',
   '`docs/neubau/BALANCE.md`.',
   '',

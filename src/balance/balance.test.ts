@@ -1,5 +1,5 @@
 /**
- * Tests des Balance-Skripts (Pakete 3.9a, 3.9b): Format, Bericht, Beispiel-Welten, Langläufe. Die Balance-Regeln selbst prüft das Skript
+ * Tests des Balance-Skripts (Pakete 3.9a–3.9c): Format, Bericht, Beispiel-Welten, Langläufe. Die Balance-Regeln selbst prüft das Skript
  * (`npm run balance`); hier nur, dass es richtig rechnet und gleich bleibt.
  */
 
@@ -13,6 +13,10 @@ import { bestFareRatios, caseMarket, priceDuel, ROUTE_CASES, routeSections, runC
 import { marketState, routeOf, runMarket, sampleMonth, seatsTotal } from './world';
 import { allModelAirports, founderHub, longRunStart, PERSONALITY_ORDER, runLong } from './longRun';
 import { competitionSections, spreadFactor, yearsToLiquidation } from './competition';
+import { careerSection, equipmentResults, goalCase, monthsToRecover, RANK_CASES, reputationAfter, runRankCase, satisfactionForReputation } from './career';
+import { eventSection, hedgeCases, MAX_RESALE_BONUS, oilShockCases, recoveryCase, spreadCase } from './events';
+import { satisfactionReputation } from '../model/progress';
+import { DEALER_SPREAD_BUY, DEALER_SPREAD_SELL, GOAL_MISS_PENALTY_SHARE, HEDGE_PRICE_SHARE } from '../model/constants';
 
 const A330 = ROUTE_CASES.find((c) => c.label === 'A330-300 FRA–JFK 1995');
 
@@ -151,5 +155,74 @@ describe('Balance-Skript: Langläufe (3.9b)', () => {
     assert.equal(spreadFactor({ all: 1, by: { ...by, boutique: 0 } }), Number.POSITIVE_INFINITY);
     assert.equal(yearsToLiquidation({ ...withSubsidy, founderLiquidated: { lcc: 2003.5 } }, 'lcc'), 13.5);
     assert.equal(yearsToLiquidation(withSubsidy, 'flag'), Number.POSITIVE_INFINITY);
+  });
+});
+
+describe('Balance-Skript: Abschnitte 6 und 8 (3.9c)', () => {
+  it('satisfactionForReputation kehrt satisfactionReputation um', () => {
+    for (const s of [0, 40, 100, 118, 160]) assert.ok(Math.abs(satisfactionForReputation(satisfactionReputation(s)) - s) < 1e-9);
+  });
+
+  it('monthsToRecover und reputationAfter folgen REPUTATION_STEP', () => {
+    assert.equal(monthsToRecover(0.5), 0);
+    assert.equal(monthsToRecover(7.5), 13);
+    // Gleiches Ziel: der Abstand schrumpft je Monat um 15 %.
+    const after = reputationAfter(50, 2, { airlineSatisfaction: 120 });
+    const target = satisfactionReputation(120);
+    assert.ok(Math.abs(target - after - (target - 50) * 0.85 ** 2) < 1e-9);
+  });
+
+  it('goalCase: hohes Ziel lohnt ab (R_sicher / R_hoch + k) / (1 + k)', () => {
+    const g = goalCase('x', 100e6, 500e6, sampleMonth(1990));
+    const k = GOAL_MISS_PENALTY_SHARE;
+    assert.ok(Math.abs(g.stretchBreakEven - (g.reward.steady / g.reward.stretch + k) / (1 + k)) < 1e-12);
+    assert.ok(g.reward.stretch >= g.reward.steady);
+    // Verlustjahr: Bezugsgröße aus dem Erlös.
+    assert.equal(goalCase('y', -10e6, 500e6, sampleMonth(1990)).base, 25e6);
+  });
+
+  it('runRankCase: Monatsergebnis = Fluggäste der Schwelle × Ergebnis je Fluggast', () => {
+    const r = runRankCase(RANK_CASES[0]);
+    assert.ok(r.projects.length === 1 && r.projects[0].id === 'class-regional');
+    assert.ok(Math.abs(r.monthlyResult - 8000 * r.resultPerPax) < 1e-6);
+    assert.ok(r.monthsToPay > 0 && Number.isFinite(r.monthsToPay));
+  });
+
+  it('hedgeCases: drei Ölkrisen, Preis = Anteil × Dauer', () => {
+    const h = hedgeCases();
+    assert.equal(h.length, 3);
+    for (const c of h) {
+      assert.ok(Math.abs(c.price - HEDGE_PRICE_SHARE * c.months) < 1e-12);
+      assert.ok(c.meanRatio > 1);
+    }
+  });
+
+  it('spreadCase: Kauf und sofortiger Verkauf bringt höchstens (1 − Spanne) × (1 + Forschung) / (1 + Aufschlag) zurück', () => {
+    const bound = ((1 - DEALER_SPREAD_SELL) * (1 + MAX_RESALE_BONUS)) / (1 + DEALER_SPREAD_BUY);
+    for (const age of [0, 10]) assert.ok(spreadCase('a320ceo', sampleMonth(1990), age).roundTrip <= bound + 1e-12);
+  });
+
+  it('recoveryCase: Antwort bringt Fluggäste, Preis nach 8.5', () => {
+    const c = recoveryCase('Aviation Downturn', 0.25);
+    assert.ok(c.paxRatio >= 1);
+    assert.ok(c.gainedResult > 0 && c.price > 0);
+  });
+
+  it('oilShockCases: 39 Monate, jede Ausstattung mit endlichem Ruf', () => {
+    const o = oilShockCases();
+    assert.equal(o.months, 39);
+    for (const c of o.cases) assert.ok(Number.isFinite(c.reputationAtDeadline) && c.reputationAtDeadline > 0);
+  });
+
+  it('careerSection und eventSection: Prüfregeln mit Werten, ohne NaN, Kennungen eindeutig', () => {
+    assert.ok(A330);
+    const r = runCase(A330);
+    const sections = [
+      careerSection(equipmentResults().slice(0, 5), [runRankCase(RANK_CASES[0])]),
+      eventSection({ results: [r], smallMarket: [] }, [recoveryCase('Aviation Downturn', 1)]),
+    ];
+    const ids = sections.flatMap((s) => s.checks.map((c) => c.id));
+    assert.equal(new Set(ids).size, ids.length);
+    for (const s of sections) for (const c of s.checks) assert.ok(c.value.length > 0 && !c.value.includes('NaN'), `${c.id}: ${c.value}`);
   });
 });

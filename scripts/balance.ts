@@ -1,7 +1,7 @@
 /**
  * Balance-Skript (Paket 3.9): rechnet Beispielwerte mit `src/model/` und prüft die Balance-Regeln der Spezifikation.
  *
- *   npm run balance                  → Bericht als Markdown auf die Konsole (Abschnitte 1–5, wenige Sekunden)
+ *   npm run balance                  → Bericht als Markdown auf die Konsole (Abschnitte 1–6 und 8, wenige Sekunden)
  *   npm run balance -- --out <datei> → Bericht in eine Datei
  *   npm run balance -- --long        → dazu die Langläufe der KI (Abschnitt 7, 3.13; Paket 3.9b), etwa 1–2 Stunden
  *
