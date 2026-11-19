@@ -528,10 +528,11 @@ export const WORLD_REGIONS: readonly WorldRegion[] = ['EU', 'NA', 'SA', 'AF', 'A
 // ---------------------------------------------------------------------------
 
 /**
- * So viel mehr Menschen fliegen 2019 als 1960 (E7, W8). Die einzige Wachstumsregel der Nachfrage.
- * Startwert; endgültig aus dem Balance-Skript (3.9). SPEZIFIKATION 3.3.
+ * Wachstum der Weltnachfrage 1960 → 2019 (E7, W8). Die einzige Wachstumsregel der Nachfrage.
+ * 2,25 statt 2,5, weil sich die Weltanteile der Städte verschieben: Die Summe der Marktgrößen aller Paare wächst
+ * damit 1960 → 2019 um etwa × 2,5 (E64, Balance-Skript B3.1). SPEZIFIKATION 3.3.
  */
-export const DEMAND_GROWTH_1960_2019 = 2.5;
+export const DEMAND_GROWTH_1960_2019 = 2.25;
 
 /** Jahre von 1960 bis 2019, Bezugszeitraum von `DEMAND_GROWTH_1960_2019`. SPEZIFIKATION 3.3. */
 export const DEMAND_GROWTH_YEARS = 59;

@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { airportsData, getAirportStats } from '../data/airports';
 import {
   CABIN_CLASSES,
+  DEMAND_GROWTH_1960_2019,
   DEMAND_SCALE,
   DISTANCE_MIN,
   LINK_EXP,
@@ -221,9 +222,9 @@ describe('Abschnitt 3.2 Stadtgrößen und Verflechtung', () => {
 });
 
 describe('Abschnitt 3.3 Nachfrage-Wachstum', () => {
-  it('3.3: 1 im Januar 1960, 2,5 im Januar 2019', () => {
+  it('3.3: 1 im Januar 1960, 2,25 im Januar 2019 (E64)', () => {
     assert.equal(demandGrowth(0), 1);
-    assertClose(demandGrowth(jan(2019)), 2.5);
+    assertClose(demandGrowth(jan(2019)), 2.25);
   });
 
   it('3.3: steigt stetig mit jedem Monat', () => {
@@ -322,12 +323,12 @@ describe('Abschnitt 3.6 Marktgröße', () => {
     assert.ok(size(small, near) >= size(small, far));
   });
 
-  it('3.6: wachsen alle Städte wie die Welt, wächst die Marktgröße 1960 → 2019 genau um demandGrowth (× 2,5)', () => {
+  it('3.6: wachsen alle Städte wie die Welt, wächst die Marktgröße 1960 → 2019 genau um demandGrowth (× 2,25)', () => {
     const rows = (t: number, b: number) =>
       Array.from({ length: 70 }, (_, i) => [t * 1.03 ** i, b * 1.03 ** i] as const);
     const pair = [fakeAirport(FRANKFURT, rows(30, 50)), fakeAirport(LONDON, rows(80, 40))];
     const size = (m: number) => marketSize({ a: pair[0], b: pair[1], month: m, world: worldScale(m, pair) });
-    assertClose(size(jan(2019)) / size(0), 2.5, 1e-9);
+    assertClose(size(jan(2019)) / size(0), DEMAND_GROWTH_1960_2019, 1e-9);
   });
 
   it('3.6: Marktgröße nimmt nur Städte, Zeit, Weltanteil und Ereignis-Faktor (kein Flugzeug, keine Schwierigkeit)', () => {

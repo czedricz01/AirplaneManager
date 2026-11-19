@@ -633,10 +633,13 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
 - Einheit und Bereich: Faktor, 1 im Januar 1960.
 - Formel: `demandGrowth = DEMAND_GROWTH_1960_2019 ^ ((timeOf(month) − 1960) / 59)`, Zeit begrenzt auf
   1960 … 2100 (wie `costIndex`).
-- Konstanten: `DEMAND_GROWTH_1960_2019 = 2,5` (E7; heute ergibt sich etwa × 2,5 aus Hochzahl und
-  Jahresbremse, W8). Endgültiger Wert aus dem Balance-Skript (3.9).
-- Regeln (Tests): steigt stetig; `demandGrowth` 2019 = 2,5; im Mittel aller Paare wächst die Marktgröße
-  1960 → 2019 um × 2,5 (Balance-Skript; einzelne Paare mehr oder weniger, je nach Weltanteil ihrer Städte).
+- Konstanten: `DEMAND_GROWTH_1960_2019 = 2,25` (E64). Kleiner als das Ziel × 2,5 (E7), weil sich die Weltanteile
+  der Städte verschieben: Die Verflechtung ist ein Produkt zweier Städte, darum wächst die Summe über alle Paare
+  stärker als `demandGrowth` (Balance-Skript: mit 2,5 Summe × 2,78, mit 2,25 Summe × 2,51).
+- Regeln (Tests): steigt stetig; `demandGrowth` 2019 = `DEMAND_GROWTH_1960_2019`; die **Summe** der Marktgrößen
+  aller Paare wächst 1960 → 2019 um × 2,5 ± 10 % (Balance-Skript B3.1, E64; einzelne Paare mehr oder weniger, je
+  nach Weltanteil ihrer Städte). Nicht das Mittel der Verhältnisse: Es wird von kleinen Paaren mit großem Zuwachs
+  gezogen.
 
 ### 3.4 Entfernungs-Faktor (Code-Name: `distanceFactor`)
 - Bedeutung: Kurze Strecken haben mehr Fluggäste je Verflechtung als lange (E22, W13).
@@ -2482,8 +2485,11 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - **Grenzen des Unterbietens** (Vorgabe 4.10, 4.14): Der Preiskampf-Nachlass wirkt einmal, die Lage höchstens
   ± `YIELD_MAX`, und der Boden `priceFloor` liegt über den Kosten einer vollen Maschine. Damit gilt für jede KI:
   `fareRatio ≥ max(FARE_FLOOR[p], breakEvenFareLevel(1))`, auch wenn zwei KI gleichzeitig kämpfen. Der Optimizer
-  antwortet mit dem besten Preis (4.10) auf die Preise der anderen; Antworten auf feste Preise der anderen führen zu
-  einem festen Punkt über den Kosten, nicht gegen 0 (Prüfung im Balance-Skript 3.9).
+  antwortet mit dem besten Preis (4.10) auf die Preise der anderen. Wechselseitige beste Antworten bleiben über den
+  Kosten, nicht gegen 0 (Balance-Skript B4.2). Ein fester Punkt ist **nicht** nötig (E65): Wird eine Gesellschaft
+  gerade voll, geht der Überlauf (3.11) zur anderen, und die besten Antworten springen zwischen zwei Werten
+  (B4.3, Info). Ob die KI-Preise im laufenden Spiel störend springen, misst der Langlauf (3.9b); nur dann bekommt
+  der Optimizer eine Schrittgrenze wie die anderen Persönlichkeiten (`FARE_STEP`).
 - Konstanten (Startwerte): `LOAD_HIGH = 0,95`, `LOAD_LOW = 0,60`, `FARE_STEP = 0,03`, `YIELD_MAX = 0,15`;
   `PRICE_WAR_MIN_AGGRESSION = 7`, `PRICE_WAR_CUT = 0,12` (wie heute), `PRICE_WAR_WINDOW = 6`,
   `PRICE_WAR_MAX_MONTHS = 12`, `PRICE_WAR_COOLDOWN = 12`; `FARE_POSITION`, `FARE_FLOOR` in 7.4.
@@ -2747,7 +2753,7 @@ Zuschuss mit `atCost` (bis zur Abschaffung): 1960 450 000 $ · 1985 606 000 $ ·
     Händler-Spanne und Überholungspreis gelten für die KI gleich (7.11).
   - Rückschlag der KI entfällt (7.0).
 - **Balance-Skript (3.9):** Prüfregeln „ähnlicher Erfolg“ (7.4) und „Abschaffung des Zuschusses“ (7.14); Preiskampf
-  und Optimizer-Antworten bleiben über dem Boden (7.6); Kabinen-Werte (7.5), `FARE_POSITION`, Slot-Anteile (7.10),
+  und Optimizer-Antworten bleiben über dem Boden, ohne störende Sprünge im laufenden Spiel (7.6, E65); Kabinen-Werte (7.5), `FARE_POSITION`, Slot-Anteile (7.10),
   Dividenden-Grenze (7.13), `NEW_HUB_MIN_SEATS`, KI-Stärke-Werte (7.3).
 - **Phase 4:** Rivalen-Ansicht, Ticker, Meldungen und KI-Abflüge aus dem Modell (7.17); Liste 7.2 als Text (E52).
 - **Phase 5.1 (Spielstand):** KI-Flugzeuge bekommen Baumonat = Kaufmonat und eine Kabine nach 7.5; KI-Strecken
