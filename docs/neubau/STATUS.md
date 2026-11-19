@@ -1,24 +1,26 @@
 # Status
 
-**Nächstes Paket: 3.9b** – Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (KI ab 1960, je Persönlichkeit
-10 Läufe): „ähnlicher Erfolg“ (7.4), Abschaffung des Zuschusses (7.14), Preise und Preiskampf mit Rivalen (7.6, Nachweis
-zu O60; nach E65 auch, ob die Optimizer-Preise störend springen), Umsteiger-Anteil (3.13), Slot-Anteile, Dividende, neue
-Drehkreuze, KI-Stärke, Eröffnungen und Käufe je Jahr, Rechenzeit. Zuerst die Rechenzeit eines Laufs messen und die Flughafen-Auswahl festlegen. Liste in
-`BALANCE.md`, Abschnitt „Noch offene Prüfregeln“. Startpunkt: `src/balance/` (Gerüst aus 3.9a), `src/model/rivalMonth.ts`
-(`rivalDecisions`, `rivalRefill`, `foundRivalCompany`), `src/model/monthClose.ts` (`closeMonth`).
+**Nächstes Paket: 3.9c** – Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (Ruf-Steigungen, gestrichene Flüge,
+Werbe-Beitrag, Ruf-Schwellen der Ränge, Klassen-Forschung, Jahresziel-Anteile, Szenario-Ziele; Krisen-Antworten, Charter,
+Händler-Spanne, Vorbestell-Rabatt, Überholung, Verschleiß, Kreditlinie). Liste in `BALANCE.md`, Abschnitt „Noch offene
+Prüfregeln“. Startpunkt: `src/balance/` (Muster: `routes.ts`, `world.ts`), `src/model/progress.ts`,
+`src/model/monthEvents.ts`, `src/model/fleetMarket.ts`. Unabhängig von O60, O63, O64.
 
-Stand: 19.11.2026 · Paket 3.9a erledigt: Balance-Skript `npm run balance` (Rechnung in `src/balance/`, Aufruf
-`scripts/balance.ts`) mit 19 Prüfregeln zu den Abschnitten 1–5: 5 ok, 2 Abweichung, 12 Info; Bericht
-`docs/neubau/balance/3.9a-bericht.md`, Bewertung `docs/neubau/BALANCE.md`. Wichtigster Fund: Ein Flugzeug allein ist fast
-überall bei jedem Preis voll; bester Preis 1,3–4 × Marktpreis, Margen 59–77 % (O60). Paket 3.9 geteilt (F44).
-1215 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.9b erledigt: Langläufe der KI ohne Spieler (`npm run balance -- --long`,
+`src/balance/longRun.ts`, `competition.ts`), 26 Läufe über 40–60 Jahre mit allen 628 Flughäfen; Bericht
+`docs/neubau/balance/3.9b-bericht.md` mit 10 ok, 0 Abweichung, 20 Info; Bewertung `BALANCE.md`, Funde 4–10.
+Wichtigste Funde: „ähnlicher Erfolg“ gilt (Faktor 1,66 nach 40 Jahren), der Zuschuss kann weg (O63); die KI teilt nie
+ein Paar, alles ist voll, Marge im Median 40 % (O60 → neue Empfehlung A, O64); Wachstum endet um 1995 an Drehkreuzen und
+Slots. Vorarbeit: Planer-Rechnungen nur auf den gebrauchten Märkten (gleiches Ergebnis, ~135-mal schneller, F46);
+Fehler der KI-Kabinen-Erneuerung behoben (F45). 1224 Tests grün, `tsc --noEmit` grün.
 
-Nachtrag 19.11.2026: O61 → E64 (Regel 3.3 gilt für die Summe aller Paare, `DEMAND_GROWTH_1960_2019` = 2,25),
-O62 → E65 (kein fester Punkt beim Preiskampf nötig, B4.3 nur Info). Spezifikation 3.3 und 7.6 angepasst; Bericht neu:
-`docs/neubau/balance/O61-O62-bericht.md` mit 6 ok, 0 Abweichung, 13 Info. 1215 Tests grün, `tsc --noEmit` grün.
+Offene Fragen: O60 (Marktgröße), O63 (Zuschuss abschaffen), O64 (Konkurrenz und Wachstum der KI); Empfehlungen in
+`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“. Blockieren 3.9c nicht. Nach O64 und O60 die Konstanten ändern und
+`npm run balance -- --long --out docs/neubau/balance/<paket>-bericht.md` neu rechnen (Optimizer-Sprünge, Umsteiger und
+KI-Stärke dann erneut bewerten).
 
-Offene Frage: O60 (Marktgröße gegenüber einem Flugzeug); Empfehlung in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“.
-Blockiert 3.9b nicht; erst mit dem Ergebnis von 3.9b entscheiden.
+Offen aus 3.9b (kein Blocker): Die Umsteiger-Regel (3.13) ist nur erfüllt, weil kein Sitz frei ist (vor der
+Sitz-Verteilung 15–34 %); nach O60 `CONNECTION_APPEAL` prüfen. KI-Stärke mit nur je 3 Läufen Easy / Hard gemessen.
 
 Offen aus 3.9a (kein Blocker): Prüfregeln der Abschnitte 6 und 8 ohne Langlauf in 3.9c (Liste in `BALANCE.md`). Nach
 der Entscheidung zu O60 die Konstanten ändern, `npm run balance -- --out docs/neubau/balance/<paket>-bericht.md` neu
@@ -175,7 +177,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.8c | Monatsabschluss Teil 3 (7.8–7.16 im Abschluss, 3.13, 6.9–6.11, 8.15): KI-Entscheidungen `rivalDecisions`, Umsteiger im Abschluss, Forschung, Meilensteine, Rang, Jahresziel, Szenario-Ziele | erledigt |
 | 3.8d | Monatsabschluss Teil 4 (7.7, 7.9–7.11, 7.13, 7.14 im Abschluss): KI-Eröffnungen, Wachstum (Kauf, Modernisierung, neues Drehkreuz), Slots, Schalter, Lounge, Zuschuss, Nachrücken, Kabinen-Umbau und Fahrpläne der KI | erledigt |
 | 3.9a | Balance-Skript Teil 1: Gerüst, Abschnitte 1–5 ohne Langlauf (Zeit und Geld, Zufriedenheit, Nachfrage über alle Paare, Preis und Kosten typischer Strecken, Preiskampf) | erledigt |
-| 3.9b | Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (Abschnitt 7, Umsteiger 3.13) | offen |
+| 3.9b | Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (Abschnitt 7, Umsteiger 3.13) | erledigt |
 | 3.9c | Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (Ruf, Rang, Forschung, Jahresziel, Szenario, Krisen-Antworten, Charter, Flottenmarkt, Kreditlinie) | offen |
 
 ## Phase 4 – Oberfläche anbinden
@@ -240,3 +242,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | 3.8d | Monatsabschluss Teil 4 in `src/model/rivalMonth.ts`: Eröffnungen freier Flugzeuge mit Planer-Hauptzahl einer neuen Strecke und Slot-Kauf an beiden Enden (fairer Anteil je KI, F43), Kauf mit Strecke (Bezugs-Typ, dann bester Typ je Kaufpreis), Modernisierung, Kabinen-Erneuerung mit derselben Kabine, neues Drehkreuz, VIP-Lounge, Verkauf 6 Monate freier Slots, Schalter, Fahrpläne `rivalSchedule`; Zuschuss als Zeile „Subsidy“ (`costTotals.ts`); Gründung `foundRivalCompany` und Nachrücken `rivalRefill` als letzter Schritt von `closeMonth`; `rivalAircraft` in `rivals.ts`; 21 neue Tests (1206 grün) |
 | 19.11.2026 | 3.9a | Balance-Skript Teil 1: `npm run balance` (`src/balance/`, `scripts/balance.ts`), Beispiel-Welten mit `monthOperations`, bester Preis je Klasse, Preiskampf zweier gleicher Gesellschaften, Empfindlichkeit der Marktgröße über ein Ereignis im Beispiel-Spielstand; 19 Prüfregeln zu Abschnitten 1–5 (5 ok, 2 Abweichung, 12 Info), Bericht `balance/3.9a-bericht.md`, Bewertung `BALANCE.md`; Funde: ein Flugzeug fast überall bei jedem Preis voll (Margen 59–77 %), Marktgröße aller Paare wächst × 2,78 statt × 2,5, Preiskampf ohne festen Punkt → O60–O62; Paket 3.9 in 3.9a–c geteilt (F44); 9 neue Tests (1215 grün) |
 | 19.11.2026 | – | O61 → E64 (Wachstum 1960 → 2019 als Summe aller Paare, `DEMAND_GROWTH_1960_2019` 2,5 → 2,25; Summe jetzt × 2,51), O62 → E65 (Preiskampf ohne festen Punkt; B4.3 nur Info, Schrittgrenze erst bei Sprüngen in 3.9b); `SPEZIFIKATION.md` 3.3, 7.6 angepasst; Prüfregeln B3.1, B4.3 umgestellt; Bericht `balance/O61-O62-bericht.md` (6 ok, 0 Abweichung, 13 Info); `BALANCE.md` mit neuen Zahlen |
+| 19.11.2026 | 3.9b | Balance-Skript Teil 2: Langläufe ohne Spieler (`src/balance/longRun.ts`, `competition.ts`, `scripts/balance-run.ts`, `npm run balance -- --long`), 26 Läufe; Bericht `balance/3.9b-bericht.md` (10 ok, 0 Abweichung, 20 Info), Funde 4–10 in `BALANCE.md`; Planer-Rechnungen nur auf gebrauchten Märkten (F46, ~135-mal schneller, gleiches Ergebnis), Fehler KI-Kabinen-Erneuerung (F45); neue Fragen O63, O64, O60 mit neuer Empfehlung A. |
