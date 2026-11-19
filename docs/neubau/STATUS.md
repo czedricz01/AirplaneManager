@@ -1,15 +1,15 @@
 # Status
 
-**Nächstes Paket: 3.6b** – Fortschritt Teil 2 (`SPEZIFIKATION.md` 6.9–6.14): Forschungs-Tabelle mit Feldern je
-Projekt (übernimmt `RESEARCH_SATISFACTION_POINTS`, `RESEARCH_COST_SAVINGS`, `EFFICIENCY_RESEARCH_IDS` und
-`CLASS_RESEARCH`, F23, F29, F36), Forschungspreis und Start-Sperre, Meilensteine mit `milestoneSlotFactor` (für
-5.10), Jahresziel mit Strafe (E58), Karriere-Punkte; Datei `src/model/progress.ts` (weiter). Danach sind 3.7, 3.8
-und 3.9 frei.
+**Nächstes Paket: 3.7** – Konkurrenz (`SPEZIFIKATION.md` Abschnitt 7): KI rechnet mit denselben Funktionen
+(7.1), bewusst fehlende Teile (7.2), KI-Stärke, Persönlichkeiten, Kabine, KI-Preise mit Preiskampf (E59), Gründung,
+Planung, Slots/Schalter/Drehkreuze mit Sperre durch Spieler-Stufe 3 (E63), Flotte, Krise, Wachstum, Zuschuss,
+Notlage, Übernahme zum Unternehmenswert (`companyValue` aus 3.6b); neue Datei `src/model/rivals.ts`. Abschnitt 7 ist
+groß; das Paket bei Bedarf in 3.7a/3.7b teilen (wie F28, F36). Danach 3.8 und 3.9.
 
-Stand: 19.11.2026 · O54–O59 erneut abgefragt: O57 neu entschieden (E63: Spieler-Stufe 3 sperrt neue KI-Strecken
-und -Drehkreuze, ersetzt E60), die anderen bestätigt. Paket 3.6a erledigt: Ruf (6.1–6.6), Rang (6.7) und
-Flugzeugklassen (6.8) in `src/model/progress.ts`; Beispiel 6.14 (Ruf-Teil) nachgerechnet. 916 Tests grün,
-`tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.6b erledigt: Forschungs-Tabelle mit Feldern (ersetzt drei Einzel-Tabellen),
+Forschungspreis und Start-Sperre, Meilensteine mit `milestoneSlotFactor`, Jahresziel mit Strafe (E58),
+Karriere-Punkte mit zwei Ruhmeshallen in `src/model/progress.ts`; Beispiel 6.14 (Karriere) nachgerechnet.
+967 Tests grün, `tsc --noEmit` grün.
 
 Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
@@ -32,8 +32,7 @@ Offen aus 3.4 (kein Blocker): Planer-Hauptzahl „Expected weekly profit“, Neb
 Monatsabschluss“ (4.12) prüft 3.8 / Phase 4. Ob gegenseitiges Unterbieten mit `bestFare` in Grenzen bleibt
 (4.10, Hinweis), prüft das Balance-Skript (3.9) mit Abschnitt 7.
 Offen aus 3.5a (kein Blocker): „Planer-Kosten = Kosten im Abschluss“ (5.16, R2) prüft 3.8 / Phase 4. Höhe von Landegebühr (26–40 % der Kurzstrecken-Kosten) und Abfertigung
-ohne Bodenpersonal-Aufschlag prüft das Balance-Skript (3.9). Die Tabellen `RESEARCH_COST_SAVINGS` und
-`EFFICIENCY_RESEARCH_IDS` gehen in 3.6 in die Forschungs-Tabelle (6.9) über (F29). Lohn-Grenzen 80 … 130 setzt 8.7.
+ohne Bodenpersonal-Aufschlag prüft das Balance-Skript (3.9). Lohn-Grenzen 80 … 130 setzt 8.7.
 Offen aus 3.5b (kein Blocker): `bestFare` und `breakEvenFareLevel` nehmen `costPerPassenger` und `fixedWeeklyCost`
 als Zahlen; wer sie aus dem Spielstand baut (Strecken, Flugzeuge, Blockstunden, Slots, Schalter-Last), regeln 3.8
 und Phase 4, ebenso „Planer-Ergebnis = Strecken-Ergebnis im Abschluss“ (5.9, R2). Die Abschnitt-8-Posten
@@ -47,6 +46,14 @@ im Abschluss (6.15) prüft 3.8. Wer `cancelledShare`, die Regionen der Strecken-
 3 Monate aus dem Spielstand baut, regeln 3.8 und Phase 4. Ruf-Steigungen, `CANCELLED_REPUTATION_WEIGHT`, Werbe-Beitrag,
 Ruf-Schwellen der Ränge und die Bezahlbarkeit der Klassen-Forschung (6.8) prüft das Balance-Skript (3.9). E63 setzt 3.7
 um (Sperre in 7.9, 7.10, 7.13).
+
+Offen aus 3.6b (kein Blocker): Die Felder `defectFactor`, `wearFactor`, `resaleBonus`, `moralePoints` aus
+`researchEffects` wendet 3.8 an (Ausfälle, Verschleiß, Verkauf, Personal); `demandFactor`, `hubQualityFactor` und
+`rampBonus` reicht der Aufrufer (3.8 / Phase 4) an `offerAppeal`, `hubQuality` und `rampFactor` weiter. Wer
+`MilestoneContext`, Jahres-Berichte und `companyValue` aus dem Spielstand baut und Prämien, Strafe und Forschungspreis
+in der Kasse bucht (nicht im Monatsergebnis), regelt 3.8. Spielstand (5.1): alte Meilenstein-Ids `continents-*` und
+`reputation-60/80/95` nach Stufe auf `regions-*` und `reputation-bronze/silver/gold`, `startedOffset` → `startMonth`,
+Ruhmeshalle mit `splitHall` teilen (F37). Ziel-, Prämien- und Straf-Anteile (6.11) prüft das Balance-Skript (3.9).
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -105,7 +112,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.5a | Kosten Teil 1 (5.1–5.8): Kosten-Faktoren, Treibstoffpreis mit Krisen (E61), Treibstoff, Besatzung, Landung, Check-in und Abfertigung, Verpflegung, Kosten je Fluggast | erledigt |
 | 3.5b | Kosten Teil 2 (5.9–5.18): feste Kosten je Strecke (E57), Flughäfen, Verwaltungsstufen, Einrichtungen, Unterhalt, Wertmodell, Werbung, Einnahme, Kosten der Gesellschaft, Beispiel 5.18 | erledigt |
 | 3.6a | Fortschritt Teil 1 (6.1–6.8): Ruf aus Satisfaction, gestrichene Flüge, Werbe-Beitrag, Ruf-Ziel, Ruf-Änderung mit Ursachen, Farbstufen, Rang mit 3-Monats-Mittel, Flugzeugklassen | erledigt |
-| 3.6b | Fortschritt Teil 2 (6.9–6.14): Forschung mit Feldern, Meilensteine, Jahresziel, Karriere-Punkte | offen |
+| 3.6b | Fortschritt Teil 2 (6.9–6.14): Forschung mit Feldern, Meilensteine, Jahresziel, Karriere-Punkte | erledigt |
 | 3.7 | Konkurrenz (Abschnitt 7) | offen |
 | 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | offen |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
@@ -164,3 +171,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | 3.5b | Kosten Teil 2: `src/model/airportCosts.ts` (`slotLimit`, `slotPrice`, `slotResalePrice`, `slotRent`, `standRent` mit freien Ständen ab Stufe 2, `deskRent` nach `deskLoad`, `airportUpkeep` mit Einrichtungen, `managementTierPrice`, `facilityPrice`/`facilityUpkeep`, `ownerFeeIncome`), `src/model/fleet.ts` (`aircraftUpkeep` mit Flotten-Mischung, Wertmodell `valueBase`/`aircraftValue`, `ageDepreciation`, `fleetValueResult` in „Depreciation“ und „Aircraft trades“), `src/model/costTotals.ts` (`slotShare`, `aircraftShare`, `fixedWeeklyCost` mit „before aircraft costs“, `routeResult`, `campaignCost`, `ffpBaseCost`, `monthlyCosts`, `unattributedWeeklyCost`), `cabinListPrice` in `cabin.ts`, Kosten je Fluggast nach Posten in `costs.ts`; Konstanten 5.10–5.15 in `constants.ts`; Beispiel 5.18 ganz nachgerechnet (Erlös, Kosten, Ergebnis, Anteile, Gewinnschwelle); 69 Regeltests (873 grün); Bau-Festlegungen F32–F35 |
 | 19.11.2026 | – | O54–O59 erneut abgefragt: O57 → E63 (Spieler-Stufe 3 sperrt neue KI-Strecken und -Drehkreuze; ersetzt E60), O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62); `SPEZIFIKATION.md` 7.0, 7.2, 7.7, 7.9, 7.10, 7.13 angepasst |
 | 19.11.2026 | 3.6a | Ruf, Rang, Flugzeugklassen in `src/model/progress.ts`: Ruf-Ziel aus Airline satisfaction (100 → 50), Abzug für gestrichene Sitze, Werbe-Beitrag im Ziel (höchstens 3), eine Ruf-Änderung mit Ursachen-Liste, Farbstufen; Rang-Tabelle `RANKS` mit neuen Ruf-Schwellen und Forschungsplätzen, Prüfung im 3-Monats-Mittel ohne Abstieg, Freischaltungen, Flughafen-Zugang, Fortschritt; 6 Flugzeugklassen (`SizeClass`) mit `CLASS_RESEARCH` und Erreichbarkeits-Test gegen die Flugzeugdaten; Paket 3.6 geteilt (F36); 43 neue Tests, 916 grün |
+| 19.11.2026 | 3.6b | Forschung, Meilensteine, Jahresziel, Karriere in `src/model/progress.ts`: Forschungs-Tabelle `RESEARCH_PROJECTS` (45 Projekte mit 15 Feldern, ersetzt `RESEARCH_SATISFACTION_POINTS`, `RESEARCH_COST_SAVINGS`, `EFFICIENCY_RESEARCH_IDS`), `researchEffects` als einzige Zusammenfassung, Preis über `atCost` ungerundet, Start-Sperre, Fortschritt, Texte aus den Feldern; 31 Meilensteine als Daten ohne Ruf-Punkte, `milestoneSlotFactor`, Drehkreuz-Zuschläge, Gewinnserie; Jahresziel mit Bezugsgröße aus Vorjahr und Erlös, Mindest-Prämie, Strafe = halbe Prämie (E58), `yearSnapshot`; Karriere-Punkte mit `companyValue` und zwei Ruhmeshallen; Bau-Festlegung F37; 51 neue Tests, 967 grün |

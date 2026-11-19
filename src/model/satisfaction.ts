@@ -36,7 +36,6 @@ import {
   LOUNGE_POINTS,
   MENU_COURSE_SHARE,
   MORALE_NEUTRAL,
-  RESEARCH_SATISFACTION_POINTS,
   SAT_FACTOR_HIGH_A,
   SAT_FACTOR_HIGH_B,
   SAT_FACTOR_LOW_SLOPE,
@@ -55,6 +54,7 @@ import {
   type DeskType,
   type MealCategory,
 } from './constants';
+import { researchEffects } from './progress';
 
 // ---------------------------------------------------------------------------
 // 2.1 Flugzeit-Index
@@ -534,13 +534,14 @@ export function staffPart(morale: number): number {
 }
 
 /**
- * Summe der Satisfaction-Punkte aller fertigen Forschungen (`RESEARCH_SATISFACTION_POINTS`), gleich für alle
- * Klassen, höchstens +8. Jede Id zählt einmal; andere Ids zählen 0. KI: 0. SPEZIFIKATION 2.6.5.
+ * Summe der Satisfaction-Punkte aller fertigen Forschungen (Feld `satisfactionPoints` der Forschungs-Tabelle,
+ * 6.9), gleich für alle Klassen, höchstens +8. Jede Id zählt einmal; andere Ids zählen 0. KI: 0.
+ * SPEZIFIKATION 2.6.5.
  *
  * @param completedResearch Ids der fertigen Forschungen.
  */
 export function researchPart(completedResearch: readonly string[]): number {
-  return [...new Set(completedResearch)].reduce((sum, id) => sum + (RESEARCH_SATISFACTION_POINTS[id] ?? 0), 0);
+  return researchEffects(completedResearch).satisfactionPoints;
 }
 
 // ---------------------------------------------------------------------------
