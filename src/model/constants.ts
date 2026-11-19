@@ -1751,6 +1751,8 @@ export interface PersonalityDef {
   readonly growthStopSeverity: number;
   /** Schalter-Art (7.10). */
   readonly deskChoice: RivalDeskChoice;
+  /** Baut eine VIP-Lounge an jedem eigenen Drehkreuz (Flag, Boutique). 7.10. */
+  readonly buildsLounge: boolean;
   /** Kabine (7.5). */
   readonly cabin: RivalCabinDef;
   /** Service je Klasse (7.5; heute `src/lib/aiSimulation.ts:287-334`, LCC nichts). */
@@ -1775,6 +1777,7 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     maxHubs: 3,
     growthStopSeverity: 0.35,
     deskChoice: 'selfWhereAvailable',
+    buildsLounge: false,
     cabin: {
       spaceShare: { premium: 0, business: 0, first: 0 },
       pitch: { economy: 74, premium: 0, business: 0, first: 0 },
@@ -1798,6 +1801,7 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     maxHubs: 4,
     growthStopSeverity: 0.5,
     deskChoice: 'served',
+    buildsLounge: false,
     cabin: {
       spaceShare: { premium: 0.09, business: 0.06, first: 0 },
       pitch: { economy: 76, premium: 88, business: 105, first: 0 },
@@ -1825,6 +1829,7 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     maxHubs: 2,
     growthStopSeverity: 0.25,
     deskChoice: 'served',
+    buildsLounge: false,
     cabin: {
       spaceShare: { premium: 0.14, business: 0.1, first: 0.06 },
       pitch: { economy: 78, premium: 90, business: 115, first: 160 },
@@ -1852,6 +1857,7 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     maxHubs: 3,
     growthStopSeverity: 0.25,
     deskChoice: 'served',
+    buildsLounge: true,
     cabin: {
       spaceShare: { premium: 0.15, business: 0.17, first: 0.13 },
       pitch: { economy: 79, premium: 95, business: 130, first: 180 },
@@ -1883,6 +1889,7 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     maxHubs: 1,
     growthStopSeverity: 0.25,
     deskChoice: 'served',
+    buildsLounge: true,
     cabin: {
       spaceShare: { premium: 0.22, business: 0.25, first: 0.18 },
       pitch: { economy: 81, premium: 100, business: 150, first: 200 },
@@ -2024,3 +2031,205 @@ export const START_AIRCRAFT_WEIGHTS: Readonly<
   flag: { capacity: 0, efficiency: 0, popularity: 1.5, range: 0 },
   boutique: { capacity: 0, efficiency: 0, popularity: 0, range: 0.02 },
 };
+
+// ---------------------------------------------------------------------------
+// 7.8 Monat der KI
+// ---------------------------------------------------------------------------
+
+/** Reihenfolge der KI-Entscheidungen nach der Buchung; alle wirken ab dem nächsten Monat. SPEZIFIKATION 7.8. */
+export const RIVAL_DECISION_STEPS = [
+  'prices',
+  'crisis',
+  'losers',
+  'fineTune',
+  'fleet',
+  'openings',
+  'growth',
+  'dividend',
+  'distress',
+] as const;
+
+/** Ein Schritt aus `RIVAL_DECISION_STEPS`. */
+export type RivalDecisionStep = (typeof RIVAL_DECISION_STEPS)[number];
+
+/** Geglätteter Gewinn: Anteil des alten Werts (wie heute `src/lib/aiSimulation.ts:852`); der Rest ist der neue Monat. SPEZIFIKATION 7.8. */
+export const AVG_PROFIT_KEEP = 0.65;
+
+/** Verlierer: erst auf diesen Anteil der Flüge (wie heute `:957`). SPEZIFIKATION 7.8. */
+export const THIN_SHARE = 0.4;
+
+/** So viele Strecken behält eine KI mindestens (wie heute `:133`). SPEZIFIKATION 7.8. */
+export const CORE_NETWORK = 2;
+
+/** Feinabstimmung: Schritt = max(1, Anteil × Flüge) (wie heute `:991`). SPEZIFIKATION 7.8. */
+export const FINE_TUNE_STEP_SHARE = 0.25;
+
+/** Feinabstimmung: behalten, wenn die Planer-Hauptzahl um mehr als diesen Anteil steigt (wie heute `:996`). SPEZIFIKATION 7.8. */
+export const FINE_TUNE_MIN_GAIN = 0.02;
+
+/** Feinabstimmung erst ab diesem Alter der Strecke, Monate (wie heute `:986`). SPEZIFIKATION 7.8. */
+export const FINE_TUNE_MIN_ROUTE_AGE = 2;
+
+// ---------------------------------------------------------------------------
+// 7.9 Planung einer Strecke
+// ---------------------------------------------------------------------------
+
+/** Kürzeste KI-Strecke in km (wie heute). SPEZIFIKATION 7.9. */
+export const MIN_ROUTE_KM = 150;
+
+/** Vorauswahl: Strecken unter diesem Anteil der Reichweite zählen anteilig (`min(1, km / (0,2 × Reichweite))`). SPEZIFIKATION 7.9. */
+export const PRESELECT_RANGE_SHARE = 0.2;
+
+/** Vorauswahl: Abflüge anderer Gesellschaften auf dem Paar teilen durch `1 + Abflüge / 14`. SPEZIFIKATION 7.9. */
+export const PRESELECT_CROWDING_DEPARTURES = 14;
+
+/** Bewertete Flugzahlen je Ziel als Anteil der höchsten Umläufe. SPEZIFIKATION 7.9. */
+export const PLAN_FREQUENCY_SHARES: readonly number[] = [1, 0.6, 0.3];
+
+/** Planbare Minuten je Woche und Flugzeug: 7 Tage × 18 h (wie heute `:104`, bis E51 steht). SPEZIFIKATION 7.9. */
+export const WEEKLY_OPERATING_MINUTES = 7 * 18 * 60;
+
+/** Höchstens so viele Umläufe je Woche und Flugzeug (wie heute `:107`). SPEZIFIKATION 7.9. */
+export const MAX_WEEKLY_ROTATIONS = 21;
+
+// ---------------------------------------------------------------------------
+// 7.10 Slots, Schalter, Drehkreuze und Einrichtungen der KI
+// ---------------------------------------------------------------------------
+
+/** Anteil der Slot-Grenze, den eine KI an ihrem eigenen Drehkreuz höchstens hält. Startwert (3.9). SPEZIFIKATION 7.10. */
+export const RIVAL_SLOT_SHARE_HUB = 0.25;
+
+/** Anteil der Slot-Grenze, den eine KI an anderen Flughäfen höchstens hält. Startwert (3.9). SPEZIFIKATION 7.10. */
+export const RIVAL_SLOT_SHARE_OTHER = 0.1;
+
+/** Slots, die so viele Monate in Folge frei sind, verkauft die KI. SPEZIFIKATION 7.10. */
+export const RIVAL_SLOT_IDLE_MONTHS = 6;
+
+/** Verwaltungsstufe der KI an jedem eigenen Drehkreuz; sonst keine, nie Stufe 3 (E63). SPEZIFIKATION 7.10. */
+export const RIVAL_HUB_TIER = 2;
+
+/** VIP-Lounge erst, wenn die Kasse ihren Preis so oft deckt. SPEZIFIKATION 7.10. */
+export const LOUNGE_CASH_COVER = 3;
+
+// ---------------------------------------------------------------------------
+// 7.11 Flotte der KI
+// ---------------------------------------------------------------------------
+
+/** Ohne Gewinn in den letzten Monaten kauft die KI nur, wenn Preis ≤ Kasse × dieser Anteil. SPEZIFIKATION 7.11. */
+export const NO_PROFIT_PRICE_CASH_SHARE = 1 / 3;
+
+/** „Gewinn in den letzten Monaten“: so viele Monate. SPEZIFIKATION 7.11. */
+export const PROFIT_LOOKBACK_MONTHS = 3;
+
+/** Modernisierung: Flugzeuge älter als so viele Jahre (wie heute `:1012`). SPEZIFIKATION 7.11. */
+export const MODERNIZE_AGE_YEARS = 20;
+
+/** Modernisierung: so viele Monate nach dem Lieferende des Typs (12 Jahre, wie heute `:1011`). SPEZIFIKATION 7.11. */
+export const MODERNIZE_AFTER_END_MONTHS = 144;
+
+/** Grundüberholung, wenn Zellen- oder Kabinenzustand darunter fällt, %. SPEZIFIKATION 7.11. */
+export const RIVAL_OVERHAUL_BELOW = 60;
+
+/** Leerlauf-Verkauf nach so vielen Monaten ohne Strecke. SPEZIFIKATION 7.11. */
+export const MAX_IDLE_MONTHS = 6;
+
+/** Leerlauf-Verkauf während einer Krise (7.12) nach so vielen Monaten (R14). SPEZIFIKATION 7.11. */
+export const CRISIS_IDLE_MONTHS = 12;
+
+// ---------------------------------------------------------------------------
+// 7.12 Krise
+// ---------------------------------------------------------------------------
+
+/** Krise ab dieser Stärke (wie heute `src/lib/rivalCrisis.ts:31`). SPEZIFIKATION 7.12. */
+export const CRISIS_FROM = 0.25;
+
+/** Treibstoff-Teil der Krise: Mittel der Tabelle über so viele Monate vor dem Monat. SPEZIFIKATION 7.12. */
+export const CRISIS_FUEL_WINDOW = 24;
+
+/** Treibstoff-Teil der Krise: Anstieg gegen das Mittel × diesen Faktor („/ 2“). SPEZIFIKATION 7.12. */
+export const CRISIS_FUEL_WEIGHT = 0.5;
+
+/** Krisen-Fahrplan: Ziel-Auslastung beim Kürzen (wie heute `src/lib/rivalCrisis.ts:54`). SPEZIFIKATION 7.12. */
+export const CRISIS_TARGET_LOAD = 0.8;
+
+/** Krisen-Fahrplan: ab dieser Auslastung kommen Flüge zurück (wie heute `:57`). SPEZIFIKATION 7.12. */
+export const CRISIS_FULL_LOAD = 0.95;
+
+/** Krisen-Fahrplan: so viel des alten Plans kommt je Monat zurück (aufgerundet, mindestens 1; wie heute `:60`). SPEZIFIKATION 7.12. */
+export const CRISIS_RECOVERY_STEP = 0.25;
+
+// ---------------------------------------------------------------------------
+// 7.13 Wachstum, Größe und Dividende
+// ---------------------------------------------------------------------------
+
+/** Neues Drehkreuz erst ab `rivalSize ≥ NEW_HUB_MIN_SEATS × Zahl der Drehkreuze` (Sitze je Woche). Startwert (3.9). SPEZIFIKATION 7.13. */
+export const NEW_HUB_MIN_SEATS = 20_000;
+
+/** Neues Drehkreuz: Wahrscheinlichkeit je Monat, wenn alle Bedingungen gelten. SPEZIFIKATION 7.13. */
+export const NEW_HUB_CHANCE = 0.04;
+
+/** Neues Drehkreuz: nur an Flughäfen ab dieser Größe (R14). SPEZIFIKATION 7.13. */
+export const NEW_HUB_MIN_LEVEL = 5;
+
+/** Neues Drehkreuz: eigene Drehkreuze gelten als voll ab diesem Anteil des eigenen Slot-Anteils. SPEZIFIKATION 7.13. */
+export const NEW_HUB_SLOT_USE = 0.9;
+
+/** Neues Drehkreuz: … oder seit so vielen Monaten dort keine Strecke mit Gewinn gefunden. SPEZIFIKATION 7.13. */
+export const NEW_HUB_NO_PROFIT_MONTHS = 3;
+
+/** Gewicht der Heimatregion bei der Wahl eines neuen Drehkreuzes. Startwert (3.9). SPEZIFIKATION 7.13. */
+export const HOME_REGION_WEIGHT = 4;
+
+/** Gewicht eines Spieler-Drehkreuzes: `3 × Angriffslust / 6` (wie heute). SPEZIFIKATION 7.13. */
+export const PLAYER_HUB_WEIGHT = 3;
+
+/** Siehe `PLAYER_HUB_WEIGHT`: Angriffslust, bei der das Gewicht genau `PLAYER_HUB_WEIGHT` ist. SPEZIFIKATION 7.13. */
+export const PLAYER_HUB_AGGRESSION_PIVOT = 6;
+
+/** Dividenden-Grenze mindestens so viel in $ von 1960. Startwert (3.9). SPEZIFIKATION 7.13. */
+export const DIVIDEND_FLOOR_1960 = 50_000_000;
+
+/** Dividenden-Grenze: so viele mittlere Monatskosten der letzten 12 Monate. Startwert (3.9). SPEZIFIKATION 7.13. */
+export const DIVIDEND_RESERVE_MONTHS = 12;
+
+/** Mittel der Monatskosten über so viele Monate. SPEZIFIKATION 7.13. */
+export const DIVIDEND_COST_WINDOW = 12;
+
+// ---------------------------------------------------------------------------
+// 7.14 Zuschuss (E47, bis zur Abschaffung)
+// ---------------------------------------------------------------------------
+
+/** Zuschuss an. Abschaffung, sobald das Balance-Skript (3.9) die Prüfregel aus 7.14 erfüllt. SPEZIFIKATION 7.14. */
+export const RIVAL_SUBSIDY_ENABLED = true;
+
+/** Zuschuss je Monat in $ von 1960 bis `SUBSIDY_HIGH_UNTIL` (wie heute nominal, `:47-65`). SPEZIFIKATION 7.14. */
+export const SUBSIDY_HIGH_1960 = 450_000;
+
+/** Zuschuss je Monat in $ von 1960 ab `SUBSIDY_LOW_FROM`. SPEZIFIKATION 7.14. */
+export const SUBSIDY_LOW_1960 = 150_000;
+
+/** Bis zu diesem Jahr der hohe Zuschuss; danach gerade fallend bis `SUBSIDY_LOW_FROM`. SPEZIFIKATION 7.14. */
+export const SUBSIDY_HIGH_UNTIL = 1985;
+
+/** Ab diesem Jahr der niedrige Zuschuss. SPEZIFIKATION 7.14. */
+export const SUBSIDY_LOW_FROM = 2005;
+
+// ---------------------------------------------------------------------------
+// 7.15 Notlage, Verkauf, Auflösung
+// ---------------------------------------------------------------------------
+
+/** Zum Verkauf nach so vielen Monaten in Folge mit Kasse < 0. SPEZIFIKATION 7.15. */
+export const DISTRESS_TO_SALE_MONTHS = 6;
+
+/** Auflösung nach so vielen Monaten zum Verkauf. SPEZIFIKATION 7.15. */
+export const SALE_TO_LIQUIDATION_MONTHS = 12;
+
+// ---------------------------------------------------------------------------
+// 7.16 Übernahme (E48)
+// ---------------------------------------------------------------------------
+
+/** Mindestpreis einer Übernahme in $ von 1960 (heute nominal). SPEZIFIKATION 7.16. */
+export const TAKEOVER_MIN_PRICE_1960 = 1_000_000;
+
+/** Verwaltungsstufe, die der Spieler an jedem Flughafen mit übernommenen Slots mindestens bekommt. SPEZIFIKATION 7.16. */
+export const TAKEOVER_MIN_TIER = 1;

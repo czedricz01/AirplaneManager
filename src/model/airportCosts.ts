@@ -56,6 +56,37 @@ export function slotLimit(airportSize: number): number {
   return SLOTS_PER_AIRPORT_LEVEL * airportSize;
 }
 
+/** Eine Strecke einer Gesellschaft für das Zählen von Abflügen (Slots, 1.6). */
+export interface DepartureRoute {
+  readonly origin: string;
+  readonly destination: string;
+  /** Umläufe je Woche = Abflüge je Woche an **jedem** Ende (1.6). */
+  readonly weeklyFrequency: number;
+}
+
+/**
+ * Abflüge je Woche an einem Flughafen = belegte Slots dort: Σ Umläufe aller Strecken mit einem Ende dort. Eine
+ * Funktion für Spieler und KI, Planer, Flughafen-Ansichten und Einnahme eigener Flughäfen (5.15).
+ * SPEZIFIKATION 1.6, 7.17.
+ */
+export function departuresAt(routes: readonly DepartureRoute[], airportId: string): number {
+  let total = 0;
+  for (const r of routes) {
+    if (r.origin === airportId) total += r.weeklyFrequency;
+    if (r.destination === airportId) total += r.weeklyFrequency;
+  }
+  return total;
+}
+
+/** Abflüge je Woche auf einem Paar, in einer Richtung (Richtung egal). SPEZIFIKATION 1.6, 7.17. */
+export function departuresOnPair(routes: readonly DepartureRoute[], a: string, b: string): number {
+  let total = 0;
+  for (const r of routes) {
+    if ((r.origin === a && r.destination === b) || (r.origin === b && r.destination === a)) total += r.weeklyFrequency;
+  }
+  return total;
+}
+
 /**
  * Kaufpreis eines Slots: `atCost(SLOT_PRICE_1960[Art], month) × researchCostFactor(slots) × milestoneSlotFactor`.
  * Neu mit Kostenindex (E6, W8), ungerundet. SPEZIFIKATION 5.10.

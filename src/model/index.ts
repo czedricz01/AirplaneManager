@@ -17,3 +17,4 @@ export * from './fleet';
 export * from './costTotals';
 export * from './progress';
 export * from './rivals';
+export * from './rivalMonth';
