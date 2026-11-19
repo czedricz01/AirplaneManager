@@ -1,14 +1,15 @@
 # Status
 
-**Nächstes Paket: 3.6** – Ruf, Rang, Fortschritt (`SPEZIFIKATION.md` Abschnitt 6): Ruf-Ziel aus Airline satisfaction,
-Ruf-Änderung, Rang im 3-Monats-Mittel, Flugzeugklassen, Forschungs-Tabelle mit Feldern (übernimmt
-`RESEARCH_COST_SAVINGS` und `EFFICIENCY_RESEARCH_IDS`, F29), Meilensteine (`milestoneSlotFactor` für 5.10),
-Jahresziel, Karriere-Punkte. Datei `src/model/progress.ts`; Abschnitt 6 ist etwa so groß wie Abschnitt 5, bei Bedarf
-wie 3.5 in 3.6a/3.6b teilen. Danach sind 3.7, 3.8 und 3.9 frei.
+**Nächstes Paket: 3.6b** – Fortschritt Teil 2 (`SPEZIFIKATION.md` 6.9–6.14): Forschungs-Tabelle mit Feldern je
+Projekt (übernimmt `RESEARCH_SATISFACTION_POINTS`, `RESEARCH_COST_SAVINGS`, `EFFICIENCY_RESEARCH_IDS` und
+`CLASS_RESEARCH`, F23, F29, F36), Forschungspreis und Start-Sperre, Meilensteine mit `milestoneSlotFactor` (für
+5.10), Jahresziel mit Strafe (E58), Karriere-Punkte; Datei `src/model/progress.ts` (weiter). Danach sind 3.7, 3.8
+und 3.9 frei.
 
-Stand: 18.11.2026 · Paket 3.5b erledigt: Abschnitt 5 vollständig, verteilt auf `costs.ts`, `airportCosts.ts`,
-`fleet.ts`, `costTotals.ts` (F32); Listenpreis der Kabine in `cabin.ts`; Beispiel 5.18 ganz nachgerechnet (F35).
-873 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · O54–O59 erneut abgefragt: O57 neu entschieden (E63: Spieler-Stufe 3 sperrt neue KI-Strecken
+und -Drehkreuze, ersetzt E60), die anderen bestätigt. Paket 3.6a erledigt: Ruf (6.1–6.6), Rang (6.7) und
+Flugzeugklassen (6.8) in `src/model/progress.ts`; Beispiel 6.14 (Ruf-Teil) nachgerechnet. 916 Tests grün,
+`tsc --noEmit` grün.
 
 Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
@@ -40,6 +41,12 @@ und Phase 4, ebenso „Planer-Ergebnis = Strecken-Ergebnis im Abschluss“ (5.9,
 Wertgewinn `CONDITION_VALUE_SPAN × AIRFRAME_VALUE_SHARE` je Zustandspunkt) und die Slot-Grenze beim Kauf (E50,
 auch KI, 3.7). `milestoneSlotFactor` liefert 3.6. Höhe der Listenpreise (E54), Abschreibung (`DEPRECIATION_YEARS`,
 `RESIDUAL_SHARE`) und die hohe Langstrecken-Marge aus 5.18 prüft das Balance-Skript (3.9).
+
+Offen aus 3.6a (kein Blocker): Die Regel „keine andere Funktion schreibt den Ruf“ (6.5, R10) und die Reihenfolge
+im Abschluss (6.15) prüft 3.8. Wer `cancelledShare`, die Regionen der Strecken-Enden und die Rang-Werte der letzten
+3 Monate aus dem Spielstand baut, regeln 3.8 und Phase 4. Ruf-Steigungen, `CANCELLED_REPUTATION_WEIGHT`, Werbe-Beitrag,
+Ruf-Schwellen der Ränge und die Bezahlbarkeit der Klassen-Forschung (6.8) prüft das Balance-Skript (3.9). E63 setzt 3.7
+um (Sperre in 7.9, 7.10, 7.13).
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -97,7 +104,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.4 | Preis und Erlös (Abschnitt 4) | erledigt |
 | 3.5a | Kosten Teil 1 (5.1–5.8): Kosten-Faktoren, Treibstoffpreis mit Krisen (E61), Treibstoff, Besatzung, Landung, Check-in und Abfertigung, Verpflegung, Kosten je Fluggast | erledigt |
 | 3.5b | Kosten Teil 2 (5.9–5.18): feste Kosten je Strecke (E57), Flughäfen, Verwaltungsstufen, Einrichtungen, Unterhalt, Wertmodell, Werbung, Einnahme, Kosten der Gesellschaft, Beispiel 5.18 | erledigt |
-| 3.6 | Ruf, Rang, Fortschritt (Abschnitt 6) | offen |
+| 3.6a | Fortschritt Teil 1 (6.1–6.8): Ruf aus Satisfaction, gestrichene Flüge, Werbe-Beitrag, Ruf-Ziel, Ruf-Änderung mit Ursachen, Farbstufen, Rang mit 3-Monats-Mittel, Flugzeugklassen | erledigt |
+| 3.6b | Fortschritt Teil 2 (6.9–6.14): Forschung mit Feldern, Meilensteine, Jahresziel, Karriere-Punkte | offen |
 | 3.7 | Konkurrenz (Abschnitt 7) | offen |
 | 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | offen |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
@@ -154,3 +162,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 18.11.2026 | – | O54–O59 entschieden: O54 → E57 (Slot- und Flugzeug-Anteil in den festen Kosten der Strecke), O55 → E58 (verfehltes Jahresziel kostet die halbe Prämie; Abweichung von der Empfehlung), O56 → E59 (Preiskampf gegen jede Gesellschaft), O57 → E60 (KI höchstens Stufe 2, Spieler-Stufe 3 ohne Sperre gegen die KI; Abweichung), O58 → E61 (Ölkrisen in der Treibstoff-Tabelle), O59 → E62 (Überholung überall, ohne Hangar 25 % teurer); `SPEZIFIKATION.md` 5.2, 5.9, 6.11, 6.15, 7.1, 7.2, 7.6, 7.7, 7.9, 7.10, 7.12, 7.13, 8.1, 8.2, 8.4, 8.13, 8.17–8.19 angepasst |
 | 18.11.2026 | 3.5a | Kosten Teil 1 in `src/model/costs.ts`: `researchCostFactor`, `payFactor`, `hubFeeFactor`, `airportFeeFactor` (ein Gebühren-Nachlass); `crisisFuelShape`, `fuelTable` (Krisen-Form über den Rohdaten, letzter Wert nach 2030), `fuelPrice` mit Absicherung; `aircraftEfficiency`, `fuelCost`; `cabinCrew` nach Kabine, `crewHourlyRate`, `crewCost`; `landingFee` je Landung am Ziel, `landingCost`; `checkInFee` je Reise, `handlingFee` je Abflug; `cateringCost` mit denselben Mahlzeiten-Gewichten wie 2.5 (`servedItems` gemeinsam); `costPerPassenger`, `transferCostPerPassenger`; Konstanten 5.1–5.8 in `constants.ts`; Beispiel 5.18 (Kosten je Fluggast, Anteile) nachgerechnet; 50 Regeltests (804 grün); Bau-Festlegungen F27–F31 (F28: Paket 3.5 geteilt) |
 | 18.11.2026 | 3.5b | Kosten Teil 2: `src/model/airportCosts.ts` (`slotLimit`, `slotPrice`, `slotResalePrice`, `slotRent`, `standRent` mit freien Ständen ab Stufe 2, `deskRent` nach `deskLoad`, `airportUpkeep` mit Einrichtungen, `managementTierPrice`, `facilityPrice`/`facilityUpkeep`, `ownerFeeIncome`), `src/model/fleet.ts` (`aircraftUpkeep` mit Flotten-Mischung, Wertmodell `valueBase`/`aircraftValue`, `ageDepreciation`, `fleetValueResult` in „Depreciation“ und „Aircraft trades“), `src/model/costTotals.ts` (`slotShare`, `aircraftShare`, `fixedWeeklyCost` mit „before aircraft costs“, `routeResult`, `campaignCost`, `ffpBaseCost`, `monthlyCosts`, `unattributedWeeklyCost`), `cabinListPrice` in `cabin.ts`, Kosten je Fluggast nach Posten in `costs.ts`; Konstanten 5.10–5.15 in `constants.ts`; Beispiel 5.18 ganz nachgerechnet (Erlös, Kosten, Ergebnis, Anteile, Gewinnschwelle); 69 Regeltests (873 grün); Bau-Festlegungen F32–F35 |
+| 19.11.2026 | – | O54–O59 erneut abgefragt: O57 → E63 (Spieler-Stufe 3 sperrt neue KI-Strecken und -Drehkreuze; ersetzt E60), O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62); `SPEZIFIKATION.md` 7.0, 7.2, 7.7, 7.9, 7.10, 7.13 angepasst |
+| 19.11.2026 | 3.6a | Ruf, Rang, Flugzeugklassen in `src/model/progress.ts`: Ruf-Ziel aus Airline satisfaction (100 → 50), Abzug für gestrichene Sitze, Werbe-Beitrag im Ziel (höchstens 3), eine Ruf-Änderung mit Ursachen-Liste, Farbstufen; Rang-Tabelle `RANKS` mit neuen Ruf-Schwellen und Forschungsplätzen, Prüfung im 3-Monats-Mittel ohne Abstieg, Freischaltungen, Flughafen-Zugang, Fortschritt; 6 Flugzeugklassen (`SizeClass`) mit `CLASS_RESEARCH` und Erreichbarkeits-Test gegen die Flugzeugdaten; Paket 3.6 geteilt (F36); 43 neue Tests, 916 grün |

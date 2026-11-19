@@ -2308,8 +2308,6 @@ Krisen-Fahrplan, Modernisierung, Notlage mit Verkauf und Auflösung, Nachrücken
   Spieler-Markt (`src/lib/monthClose.ts:201`): R7, 4.6, 7.6.
 - Zwei Rechnungen für Rivalen-Angebote (`src/lib/monthClose.ts:191-205` und `:768-810`): R1, eine Aufteilung.
 - Eröffnungskosten 1,5 Mio. $ (`:96`): Die KI kauft die Slots (7.10) wie der Spieler.
-- Sperre neuer KI-Strecken und -Drehkreuze an Flughäfen mit Spieler-Verwaltungsstufe 3 (`:1048-1051`, `:1064`,
-  `:1181`): E60, 7.10.
 - Drehkreuz-Grenze „Stufe × 40 Abflüge“ (`:141`, W4): Slot-Grenze je Flughafen (E50, 7.10).
 - Strafbuchung −150 000 $ für überschrittene Reichweite (`:842-843`): Die KI plant nur Strecken in Reichweite (7.11).
 - Rückschlag 20–70 Mio. $ mit 0,5 % je Monat (`:76-79`, `:869-873`): eine Zufallsbuchung nur für die KI.
@@ -2360,7 +2358,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 | Krisen-Antworten | keine (`crisisResponseFactor = 1`, keine Kosten) | die KI antwortet auf Krisen mit ihrem Fahrplan (7.12) |
 | Charter | keiner; ausgefallene Flüge werden gestrichen | Entscheidung vereinfacht |
 | Vorbestellung, Gebrauchtkauf | keine; die KI kauft nur neu (7.11) | Entscheidung vereinfacht |
-| Hangar, Catering-Küche, Verwaltungsstufe 3 | keine (VIP-Lounge siehe 7.10) | Entscheidung vereinfacht; Stufe 3: E60 |
+| Hangar, Catering-Küche, Verwaltungsstufe 3 | keine (VIP-Lounge siehe 7.10) | Entscheidung vereinfacht; Stufe 3: E63 |
+| Sperre durch Verwaltungsstufe 3 | Die Sperre (7.10) wirkt nur gegen die KI; die KI sperrt nie den Spieler | E63: Stufe 3 bleibt ein Werkzeug des Spielers (Rang 8) |
 | Pech-Deckel (8.8) | keiner; KI-Defekte werden jeden Monat gewürfelt | schützt das Spielerlebnis (ergänzt in Paket 2.9) |
 - Regel (Test): Für jeden Eintrag gibt das Modell bei einer KI genau den Wert der Tabelle zurück.
 
@@ -2498,7 +2497,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - Wer (wie heute `:607-658`): echte Gesellschaften des Startjahrs an ihrem echten Drehkreuz (Daten) und erfundene;
   nie am Spieler-Drehkreuz; gewichtet nach √(Nachfrage am Drehkreuz). Anteil erfundener wie heute.
 - Drehkreuz erfundener KI: Flughäfen ab Größe 4 (sonst 2), nicht Drehkreuz einer anderen Gesellschaft, gewichtet
-  nach Nachfrage. Eine Spieler-Verwaltungsstufe 3 sperrt nicht (E60).
+  nicht mit Spieler-Verwaltungsstufe 3 (7.10, E63), gewichtet nach Nachfrage.
 - Startausstattung **wie der Spieler** (`src/App.tsx:1645-1652`): Verwaltungsstufe 2 am Drehkreuz, keine Slots,
   ein bedienter Schalter. Slots kauft die KI mit der ersten Strecke (7.10).
 - Startkasse: `atCost(RIVAL_START_CASH_1960[Stärke], month) ± atCost(3 Mio. $, month) × Zufall` (7.3). Ohne
@@ -2539,7 +2538,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   `score = √(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × LCC-Abzug / (1 + Abflüge
   anderer Gesellschaften auf dem Paar / 14)`, mit `Gewicht = Geschäft × g_B + Tourismus × g_T` (7.4).
   Nur Ziele in Reichweite, ab `MIN_ROUTE_KM = 150`, mit passender Piste, mit freien Slots an beiden Enden (7.10),
-  nicht schon bedient (Spieler-Stufe 3 sperrt nicht, E60). Die besten `Suchbreite` + 2 zufällige (7.3).
+  nicht mit Spieler-Stufe 3 an einem der beiden Enden (7.10, E63), nicht schon bedient. Die besten `Suchbreite`
+  + 2 zufällige (7.3).
 - **Bewertung:** je Ziel 100 %, 60 % und 30 % der höchsten Umläufe, jeweils mit der **Planer-Hauptzahl** (4.12):
   erwarteter Gewinn mit allen Angeboten des Markts, Anlauf = 1, `fareRatio` aus 7.6 (neue Strecke), Kosten mit
   `costPerPassenger` und `fixedWeeklyCost` (5.8, 5.9). Dazu der Schätzfehler (7.3). Der beste Wert gewinnt (5.19).
@@ -2560,15 +2560,17 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   dass `deskLoad ≤ 0,8` (keine Überlast, 2.6.3). Die Miete zahlt sie wie der Spieler (5.10).
 - **Abstellplätze:** nur die freien Stände ab Verwaltungsstufe 2 (E28); keine gemieteten.
 - **Verwaltungsstufen:** Stufe 2 an jedem eigenen Drehkreuz (Startgeschenk am ersten, Kauf nach 5.11 an weiteren);
-  sonst keine. Nie Stufe 3 (E60).
+  sonst keine. Nie Stufe 3 (E63).
 - **VIP-Lounge:** Flag und Boutique bauen an jedem eigenen Drehkreuz eine Lounge (Preis und Unterhalt 5.11), sobald
   sie dort Business- oder First-Sitze anbieten und die Kasse den Preis dreifach deckt. Sonst keine Einrichtungen.
-- **Keine Sperre durch den Spieler** (E60): Eine Spieler-Verwaltungsstufe 3 bringt Gebühren-Nachlass (5.1) und
-  Einnahme aus fremden Landungen (5.15), sperrt aber keinen Flughafen für die KI. Die heutige Sperre für neue
-  KI-Strecken und -Drehkreuze (`:1048-1051`, `:1064`, `:1181`) und der Text „Rivals cannot open new routes here“
-  (`src/components/AirportDetailView.tsx:589`) entfallen (Phase 4).
+- **Sperre durch den Spieler** (E63): An Flughäfen, an denen der Spieler Verwaltungsstufe 3 hat, eröffnet die KI
+  keine neuen Strecken (an keinem der beiden Enden) und kein Drehkreuz; bestehende KI-Strecken und -Drehkreuze bleiben,
+  Erweiterungen bestehender Strecken (mehr Flüge, 7.8 Schritt 4) bleiben erlaubt (wie heute `:1048-1051`, `:1064`,
+  `:1181`). Dazu Gebühren-Nachlass (5.1) und Einnahme aus fremden Landungen (5.15). Der Text „Rivals cannot open new
+  routes here“ (`src/components/AirportDetailView.tsx:589`) bleibt. Eine Regel, die nur der Spieler hat (Liste 7.2).
 - Regeln (Tests): Σ belegte Slots aller Gesellschaften ≤ Grenze; belegte ≤ gekaufte Slots je KI; eine KI überschreitet
-  ihren Anteil nie; jede KI-Strecke hat an beiden Enden einen Schalter.
+  ihren Anteil nie; jede KI-Strecke hat an beiden Enden einen Schalter; an einem Flughafen mit Spieler-Stufe 3
+  eröffnet keine KI eine neue Strecke oder ein Drehkreuz, ihre bestehenden Strecken dort bleiben.
 
 ### 7.11 Flotte der KI
 - **Kauf** (heute `:1111-1168`): Wenn alle Flugzeuge fliegen, kein Wachstumsstopp (7.12) gilt und eine Strecke mit
@@ -2624,7 +2626,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   eigenen Slot-Anteils (7.10) belegt oder seit 3 Monaten fand die KI dort keine Strecke mit Gewinn;
   `rivalSize ≥ NEW_HUB_MIN_SEATS × Zahl der Drehkreuze`; Kasse ≥ Preis der Verwaltungsstufen 1 und 2 (5.11) + Reserve;
   kein Wachstumsstopp; je Monat mit `NEW_HUB_CHANCE = 0,04`.
-- Ort: Flughäfen ab **Größe 5** (R14), nicht Drehkreuz einer anderen KI (Spieler-Stufe 3 sperrt nicht, E60), gewichtet
+- Ort: Flughäfen ab **Größe 5** (R14), nicht Drehkreuz einer anderen KI, nicht mit Spieler-Stufe 3 (7.10, E63), gewichtet
   nach Nachfrage × `HOME_REGION_WEIGHT` in der Heimatregion (`regionOf`, R15) × (Spieler-Drehkreuz: 3 × Angriffslust / 6,
   wie heute).
 - Konstanten (Startwerte): `NEW_HUB_MIN_SEATS = 20 000` Sitze je Woche, `HOME_REGION_WEIGHT = 4`.

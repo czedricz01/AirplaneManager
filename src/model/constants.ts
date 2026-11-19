@@ -1133,3 +1133,155 @@ export const OWNER_FEE_SHARE = 0.5;
 
 /** Verwaltungsstufe, ab der eine Gesellschaft an den Landegebühren anderer verdient. SPEZIFIKATION 5.15. */
 export const OWNER_TIER = 3;
+
+// ---------------------------------------------------------------------------
+// 6.1–6.6 Ruf
+// ---------------------------------------------------------------------------
+
+/** Neutralpunkt des Rufs: Satisfaction 100 ergibt Ruf 50 (E36). SPEZIFIKATION 6.1. */
+export const REPUTATION_NEUTRAL = SCALES.reputation.neutral;
+
+/** Ruf jeder Gesellschaft beim Start, Spieler und KI (E36, E11). SPEZIFIKATION 6.13. */
+export const START_REPUTATION = 50;
+
+/** Abzug im Ruf-Ziel je Anteil gestrichener Sitze: 1 % gestrichen → −1 Punkt. Startwert (3.9). SPEZIFIKATION 6.2. */
+export const CANCELLED_REPUTATION_WEIGHT = 100;
+
+/** Beitrag einer laufenden Kampagne zum Ruf-Ziel, Punkte (Zahlen wie heute `src/lib/marketing.ts:75-77`). Startwerte (3.9). SPEZIFIKATION 6.3, E37. */
+export const CAMPAIGN_REPUTATION: Readonly<Record<CampaignTier, number>> = {
+  local: 0.5,
+  national: 1,
+  global: 2,
+};
+
+/** Höchster Werbe-Beitrag zum Ruf-Ziel, Punkte, wie viele Kampagnen auch laufen. SPEZIFIKATION 6.3, E37. */
+export const ADVERTISING_REPUTATION_MAX = 3;
+
+/** Anteil des Abstands zum Ruf-Ziel, den der Ruf je Monat zurücklegt (Halbwertszeit 4,3 Monate; heute `src/lib/monthClose.ts:143`). SPEZIFIKATION 6.5. */
+export const REPUTATION_STEP = 0.15;
+
+/** Farbstufen der Anzeige: „hoch“ ab 50 + Band, „niedrig“ bis 50 − Band. SPEZIFIKATION 6.6. */
+export const REPUTATION_DISPLAY_BAND = 10;
+
+// ---------------------------------------------------------------------------
+// 6.7 Rang
+// ---------------------------------------------------------------------------
+
+/** Rang-Werte zählen im Mittel dieser Zahl von Monaten (E40). SPEZIFIKATION 6.7. */
+export const RANK_AVERAGE_MONTHS = 3;
+
+/** Bedingungen einer Rang-Stufe. Fluggäste je Monat zählen jede Teilstrecke. SPEZIFIKATION 6.7. */
+export interface RankRequirement {
+  readonly routes: number;
+  readonly monthlyPax: number;
+  readonly reputation: number;
+  readonly regions: number;
+  readonly years: number;
+}
+
+/** Eine Stufe der Rang-Tabelle; alle Texte zum Rang werden daraus erzeugt (E42, E52). */
+export interface RankDef {
+  /** Stufe 0 … 9. */
+  readonly index: number;
+  /** Name im Spiel (Oberflächentext, Englisch). */
+  readonly title: string;
+  readonly requires: RankRequirement;
+  /** Drehkreuze (Verwaltungsstufe 2), ohne Meilenstein-Zuschläge. */
+  readonly maxHubs: number;
+  /** Größte Flughafen-Größe, die die Gesellschaft nutzen darf. */
+  readonly maxAirportLevel: number;
+  /** Gleichzeitig laufende Forschungen (E42; ersetzt `2 + abrunden(Rang / 3)`, W7). */
+  readonly researchSlots: number;
+}
+
+/**
+ * Tabelle der Ränge (Startwerte, endgültig aus dem Balance-Skript 3.9). Strecken, Fluggäste, Regionen, Jahre,
+ * Drehkreuze, Flughafen-Größen wie heute (`src/lib/airlineRank.ts:42-103`); Ruf-Schwellen neu für die Skala mit
+ * Neutralpunkt 50 (E36, E39); Forschungsplätze 3 / 4 / 5 ab Rang 4 / 6 / 8 (E42). SPEZIFIKATION 6.7.
+ */
+export const RANKS: readonly RankDef[] = [
+  { index: 0, title: 'Startup', requires: { routes: 0, monthlyPax: 0, reputation: 0, regions: 0, years: 0 }, maxHubs: 1, maxAirportLevel: 4, researchSlots: 2 },
+  { index: 1, title: 'Local Airline', requires: { routes: 3, monthlyPax: 8_000, reputation: 30, regions: 1, years: 0 }, maxHubs: 1, maxAirportLevel: 5, researchSlots: 2 },
+  { index: 2, title: 'Regional Airline', requires: { routes: 6, monthlyPax: 25_000, reputation: 35, regions: 1, years: 1 }, maxHubs: 2, maxAirportLevel: 5, researchSlots: 2 },
+  { index: 3, title: 'Domestic Airline', requires: { routes: 12, monthlyPax: 70_000, reputation: 40, regions: 1, years: 3 }, maxHubs: 2, maxAirportLevel: 6, researchSlots: 2 },
+  { index: 4, title: 'National Airline', requires: { routes: 24, monthlyPax: 170_000, reputation: 45, regions: 1, years: 6 }, maxHubs: 3, maxAirportLevel: 7, researchSlots: 3 },
+  { index: 5, title: 'Continental Airline', requires: { routes: 40, monthlyPax: 350_000, reputation: 50, regions: 2, years: 10 }, maxHubs: 4, maxAirportLevel: 7, researchSlots: 3 },
+  { index: 6, title: 'International Airline', requires: { routes: 65, monthlyPax: 700_000, reputation: 53, regions: 3, years: 15 }, maxHubs: 5, maxAirportLevel: 7, researchSlots: 4 },
+  { index: 7, title: 'Intercontinental Airline', requires: { routes: 95, monthlyPax: 1_200_000, reputation: 56, regions: 4, years: 22 }, maxHubs: 6, maxAirportLevel: 7, researchSlots: 4 },
+  { index: 8, title: 'Flag Carrier', requires: { routes: 135, monthlyPax: 2_000_000, reputation: 60, regions: 5, years: 30 }, maxHubs: 8, maxAirportLevel: 7, researchSlots: 5 },
+  { index: 9, title: 'Global Player', requires: { routes: 190, monthlyPax: 3_500_000, reputation: 65, regions: 6, years: 40 }, maxHubs: 12, maxAirportLevel: 7, researchSlots: 5 },
+];
+
+/** Höchster Rang; im Free Mode gilt er vom ersten Monat an (wie heute). SPEZIFIKATION 6.7. */
+export const MAX_RANK = RANKS.length - 1;
+
+/** Werkzeuge, die ein Rang öffnet (Spalte „Weitere Freischaltungen“). */
+export type RankUnlock =
+  | 'localCampaign'
+  | 'frequentFlyer'
+  | 'nationalCampaign'
+  | 'vipLounge'
+  | 'globalCampaign'
+  | 'takeoverDistressed'
+  | 'managementTier3'
+  | 'takeoverHealthy';
+
+/** Rang, ab dem ein Werkzeug offen ist (wie heute `src/lib/airlineRank.ts:187-197`). SPEZIFIKATION 6.7. */
+export const RANK_UNLOCKS: Readonly<Record<RankUnlock, number>> = {
+  localCampaign: 0,
+  frequentFlyer: 2,
+  nationalCampaign: 3,
+  vipLounge: 4,
+  globalCampaign: 6,
+  takeoverDistressed: 6,
+  managementTier3: 8,
+  takeoverHealthy: 9,
+};
+
+// ---------------------------------------------------------------------------
+// 6.8 Flugzeugklassen
+// ---------------------------------------------------------------------------
+
+/** Flugzeugklasse für Freischaltung und Forschung (6 Stufen nach Größe; nicht `AircraftClass` der Daten). SPEZIFIKATION 6.8. */
+export type SizeClass = 'commuter' | 'regional' | 'narrowbody' | 'widebody' | 'jumbo' | 'supersonic';
+
+/** Alle Flugzeugklassen, kleinste zuerst. SPEZIFIKATION 6.8. */
+export const SIZE_CLASSES: readonly SizeClass[] = ['commuter', 'regional', 'narrowbody', 'widebody', 'jumbo', 'supersonic'];
+
+/** Regional-Flugzeuge bis zu so vielen Sitzen sind „Commuter“ (offen; heute `src/lib/aircraftClasses.ts:55`). SPEZIFIKATION 6.8. */
+export const COMMUTER_MAX_SEATS = 60;
+
+/** Narrowbodies bis zu so vielen Sitzen zählen als „Regional“ (heute `src/lib/aircraftClasses.ts:54`). SPEZIFIKATION 6.8. */
+export const REGIONAL_JET_MAX_SEATS = 130;
+
+/** Widebodies über so vielen Sitzen sind „Jumbo“ (heute `src/lib/aircraftClasses.ts:46`). SPEZIFIKATION 6.8. */
+export const JUMBO_MIN_SEATS = 500;
+
+/** Schneller als so viele km/h ist „Überschall“ (heute `src/lib/aircraftClasses.ts:51`). SPEZIFIKATION 6.8. */
+export const SUPERSONIC_MIN_KMH = 1000;
+
+/** Forschungs-Projekt, das eine Flugzeugklasse öffnet. */
+export interface ClassResearch {
+  /** Id des Projekts (wie heute, `src/lib/research.ts`). */
+  readonly id: string;
+  /** Rang, ab dem das Projekt erscheint (E41). */
+  readonly rank: number;
+  /** Klasse, deren Projekt vorher fertig sein muss; `null` = keine. */
+  readonly requires: SizeClass | null;
+  /** Dauer in Monaten. */
+  readonly months: number;
+  /** Preis in $ von 1960, über `atCost` (E6). */
+  readonly price1960: number;
+}
+
+/**
+ * Klassen-Projekte (Startwerte; Preise endgültig aus 3.9). Commuter ist ohne Projekt offen. Überschall braucht
+ * Widebody statt Jumbo (E41). SPEZIFIKATION 6.8.
+ */
+export const CLASS_RESEARCH: Readonly<Record<Exclude<SizeClass, 'commuter'>, ClassResearch>> = {
+  regional: { id: 'class-regional', rank: 1, requires: null, months: 6, price1960: 3_000_000 },
+  narrowbody: { id: 'class-narrowbody', rank: 2, requires: 'regional', months: 9, price1960: 12_000_000 },
+  widebody: { id: 'class-widebody', rank: 4, requires: 'narrowbody', months: 12, price1960: 40_000_000 },
+  jumbo: { id: 'class-jumbo', rank: 5, requires: 'widebody', months: 18, price1960: 80_000_000 },
+  supersonic: { id: 'class-supersonic', rank: 5, requires: 'widebody', months: 24, price1960: 60_000_000 },
+};
