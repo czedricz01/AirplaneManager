@@ -11,7 +11,7 @@ npm run balance
 ```
 
 ```bash
-npm run balance -- --out docs/neubau/balance/O61-O62-bericht.md
+npm run balance -- --out docs/neubau/balance/3.9c-bericht.md
 ```
 
 Mit den Langläufen der KI (Paket 3.9b, 26 Läufe, mit 4 Prozessen etwa 45 min):
@@ -30,13 +30,16 @@ Weitere Optionen: `--runs`, `--years`, `--strength-runs`, `--cache`, `--reuse` (
 | `src/balance/world.ts` | Beispiel-Welten: kleiner `ModelState` mit einer oder zwei Gesellschaften, gerechnet mit `monthOperations` (dieselbe Rechnung wie Planer und Abschluss, R2) |
 | `src/balance/market.ts` | Abschnitte 1–3: Zeit und Geld, Zufriedenheit, Nachfrage (alle 115 440 Städtepaare) |
 | `src/balance/routes.ts` | Abschnitte 4–5: typische Strecken beim gewinnbesten Preis, Empfindlichkeit der Marktgröße, Preiskampf |
+| `src/balance/career.ts` | Abschnitt 6: Ruf je Ausstattung, Ausfälle, Werbung, Ruf-Schwellen, Klassen-Forschung und Jahresziel an der Rang-Schwelle (3.9c) |
+| `src/balance/events.ts` | Abschnitt 8: Krisen-Antworten, Charter, Händler-Spanne, Vorbestellung, Überholung, Verschleiß, Kreditlinie, Szenario-Ziele (3.9c) |
 | `src/balance/longRun.ts` | Langlauf ohne Spieler: Gründer je Persönlichkeit, `closeMonth` Monat für Monat, Messwerte je Jahr (3.9b) |
 | `src/balance/competition.ts` | Auswertung der Langläufe: Prüfregeln B7.x und B3.13, Tabellen (3.9b) |
 | `scripts/balance-run.ts` | ein Langlauf in eigenem Prozess (für `--jobs`) |
 | `src/balance/balance.test.ts` | Tests des Skripts (Format, Beispiel-Welten, kurze Langläufe) |
 | `docs/neubau/balance/3.9a-bericht.md` | Ausgabe des Skripts (Stand 3.9a, vor E64 und E65) |
 | `docs/neubau/balance/O61-O62-bericht.md` | Ausgabe des Skripts nach E64 (`DEMAND_GROWTH_1960_2019` = 2,25) und E65 |
-| `docs/neubau/balance/3.9b-bericht.md` | Ausgabe mit Langläufen (aktueller Stand: 10 ok · 0 Abweichung · 20 Info) |
+| `docs/neubau/balance/3.9b-bericht.md` | Ausgabe mit Langläufen (Abschnitte 1–5, 7: 10 ok · 0 Abweichung · 20 Info) |
+| `docs/neubau/balance/3.9c-bericht.md` | Ausgabe ohne Langläufe (aktueller Stand, Abschnitte 1–6 und 8: 15 ok · 0 Abweichung · 21 Info) |
 
 Der Code liegt in `src/balance/`, damit `npm run lint` ihn prüft (`scripts/` ist davon ausgenommen). Die Oberfläche
 importiert nichts von dort.
@@ -205,9 +208,100 @@ Median Unternehmenswert der Gründer nach 40 Jahren: Easy 1 535, Normal 2 496, H
 Hard kauft mehr (120 statt 106 Flugzeuge je Gründer), verdient aber nicht mehr: Wachstum endet an Drehkreuzen und Slots
 (Fund 9), nicht am Geschick. Mit nur 3 Läufen je Stärke ist das ein Hinweis, kein Beweis; erst nach O60 / O64 neu messen.
 
+## Ergebnis Paket 3.9c (Abschnitte 6 und 8 ohne Langlauf)
+
+**Ergebnis: 15 ok · 0 Abweichung · 21 Info** (Abschnitte 1–6 und 8; neu: B6.1–B6.8, B8.1–B8.9). Zahlen:
+`docs/neubau/balance/3.9c-bericht.md`. Die Langläufe (Abschnitt 7) stehen weiter in `3.9b-bericht.md`.
+
+**Vorsicht:** Alle Ergebnisse und Margen stammen aus dem heutigen, zu großen Markt (Fund 1, E67). Wo sie zählen
+(Klassen-Forschung, Jahresziel, Rückgewinnung, Kreditlinie), zeigt der Bericht daneben einen Fall mit 10 % Marge oder
+Marktgröße × 0,25. Nach E67 (Paket 3.9d) den Bericht neu erzeugen.
+
+### Fund 11: Die Ruf-Skala passt; die Spanne kommt aus der Ausstattung (B6.1, B6.2, B6.5, B6.6) → ok
+
+- Median der Ruf-Ziele über 5 Ausstattungen × 2 Strecken (A320ceo FRA–MAD 1990, A330-300 FRA–JFK 1995): **46,7**, also
+  „um 50“ (E36). Die Spanne ist groß: LCC auf Langstrecke 24,1 (Satisfaction 48), Flag auf Mittelstrecke 69,6 (124).
+  Mit allen Satisfaction-Projekten (+8 Punkte) bis 76,3.
+- Ruf-Schwellen der Ränge (B6.5 ok): Rang 5 (Ruf 50) erreicht Flag auf beiden Strecken; Rang 9 (65) Flag und Boutique
+  auf Mittelstrecke schon ohne Forschung.
+- Ruf-Meilensteine: Silber (70, Satisfaction 124) nur mit Forschung, **Gold (80, Satisfaction 136) mit keiner
+  KI-Ausstattung** (bestes Ziel 76,3). Der Spieler hat mehr Hebel als die KI-Ausstattungen (Lounge, Stellplätze,
+  Schalter, Personal). Hinweis, kein Handlungsbedarf: Gold soll selten sein.
+
+### Fund 12: Gestrichene Flüge kosten im Mittel 1 Punkt; ein Defekt trifft kleine Gesellschaften hart (B6.3) → Info
+
+Erwarteter Abzug im Ruf-Ziel 0,7 (neues Flugzeug) bis 1,6 Punkte (20 Jahre alt). Ein Defekt streicht 50 % der Flüge
+eines Flugzeugs: Bei einer Gesellschaft mit **einem** Flugzeug fällt der Ruf im Monat um 7,5 Punkte und braucht 13
+Monate, bis der Abstand unter 1 Punkt liegt; bei 10 Flugzeugen −0,75. Ein Defekt je Flugzeug kommt bei neuen Flugzeugen
+etwa alle 25 Jahre vor; mit Charter zählt er nicht. Kein Handlungsbedarf.
+
+### Fund 13: Werbung hebt den Ruf um höchstens 3 Punkte und klingt ab (B6.4) → ok
+
+Alle drei Kampagnen zusammen: Gleichgewicht 53,0, nach 12 Monaten 52,6, 6 Monate nach dem Ende 51,0. Über den Ruf wirkt
+das auf die Nachfrage nur mit +0,6 %; die Hauptwirkung der Werbung ist die Anziehung (3.9.5).
+
+### Fund 14: Klassen-Forschung ist bezahlbar – heute (B6.7) → ok, nach E67 neu prüfen
+
+Eine Gesellschaft genau an der Fluggast-Schwelle des Rangs bezahlt die Klassen-Forschung dieses Rangs aus 1,0–2,8
+Monatsergebnissen (Grenze 12). Mit 10 % Marge (Ziel nach E67: 10–25 %) wären es 17,3 (Rang 1), 19,8 (Rang 2), 6,4
+(Rang 4) und 12,5 (Rang 5, Jumbo + Überschall). **Nach E67 kann B6.7 für Rang 1, 2 und 5 kippen;** dann die Preise in
+`CLASS_RESEARCH` senken (Spezifikation 6.8).
+
+### Fund 15: Jahresziel: kleine Prämien, hohes Ziel lohnt ab 60 % Chance (B6.8) → Info
+
+Ohne Mindestbetrag ist die Prämie 0,24 (sicher), 0,36 (andere Art) und 0,60 (hoch) Monatsergebnisse. Das hohe Ziel
+bringt im Mittel mehr als ein sicher erreichtes sicheres Ziel, wenn es mit mindestens **60 %** Chance erreicht wird
+(Strafe = halbe Prämie, E58); das sichere Ziel lohnt ab 33 %. Die Mindestprämie bindet in keinem Beispiel (Ergebnisse
+groß, Fund 1); wo sie bindet, sind beide Prämien gleich und das hohe Ziel lohnt nie. Erst nach E67 bewerten.
+
+### Fund 16: Krisen-Antworten lohnen sich mehrfach (B8.1, B8.2) → Frage O65
+
+| Antwort | Ersparnis bzw. Mehr-Ergebnis ÷ Preis |
+|---|---|
+| Preis-Absicherung 1973 / 1979 / 1990 | 4,62 / 2,49 / 1,84 |
+| Rückgewinnung 2001 / 2008 / 2020 (heutiger Markt) | 5,14 / 5,08 / 4,69 |
+| Rückgewinnung 2001 / 2008 / 2020 (Markt × 0,25) | 3,41 / 3,49 / 2,51 |
+
+- Die Absicherung hängt nur an der Treibstoff-Tabelle (gleiche Menge wie vor der Krise), nicht an der Marktgröße.
+- Die Rückgewinnung holt 15–32 % des Ergebnis-Verlusts zurück; mit kleinerem Markt weniger (volle Flugzeuge verlieren
+  zuerst nur „Knappheit“).
+- Beide Antworten sind damit keine Abwägung, sondern immer richtig. Ob das so bleiben soll: O65.
+
+### Fund 17: Charter lohnt auf jeder Strecke mit Gewinn (B8.3) → ok
+
+Auf allen 13 Strecken mit Gewinn (11 typische, 2 mit Markt × 0,25) bringt Charter mehr als Streichen, mindestens
+6 572 $ je Flug. Auf der einzigen Strecke mit Verlust (A330-300 FRA–JFK 1995 bei Markt × 0,25) ist Streichen besser
+(−13 020 $), weil die Gebühr 115 % des Erlöses je Flug ist. So soll es sein (8.9).
+
+### Fund 18: Flottenmarkt ohne Schlupfloch (B8.4, B8.5, B8.6) → ok, Hinweise
+
+- **Händler-Spanne:** Gebraucht kaufen und sofort verkaufen bringt 83,0 % zurück (mit größter Forschung). Der Verlust
+  entspricht 0,6 (Alter 20) bis 3,2 (neu) Monatsergebnissen einer A320ceo-Strecke.
+- **Vorbestellung:** Sofort verkauft immer Verlust (−0,9 bis −7,9 % des Werts). Der Rabatt ist aber ein guter Ertrag
+  der gebundenen Anzahlung: 23–42 % je Jahr gegen 8 % Kreditzins. Das belohnt Planung; kein Handlungsbedarf.
+- **Überholung:** Preis = Wertgewinn in allen 5 Fällen; der Mindestpreis (4 % des Neupreises) bindet nie. Mit Hangar
+  kostet die Überholung netto also nichts und senkt die Defekt-Chance (2,4–8 % weniger gestrichene Flüge je Jahr);
+  ohne Hangar 25 % mehr. Der Mindestpreis greift nur bei kleinem Wertgewinn (fast neue Zelle).
+
+### Fund 19: Verschleiß passt zur Nutzung (B8.7) → Info
+
+Bei typischem Flugplan 45–452 Blockstunden je Monat. Langstrecke: Kabine −7,7, Zelle −5,3 Punkte je Jahr (Kabine 50
+nach 6,5 Jahren, also etwa ein Umbau je 6–7 Jahre); Kurz- und Mittelstrecke −1,8 bis −2,9 bzw. −1,6 bis −2,3. Der
+Gebrauchtmarkt nimmt −2,8 / −2,2 an, passend zur Mittelstrecke. Kein Handlungsbedarf.
+
+### Fund 20: Kreditlinie großzügig für Kurzstrecke, knapp für frühe Langstrecke (B8.8) → Info
+
+Die Grenze (50 % des Werts eines neuen Flugzeugs) deckt 4,5 (707 FRA–JFK 1965) bis 33,7 Monate feste Strecken-Kosten.
+Der Zins bei voller Nutzung ist 2–28 % des Monatsergebnisses. Nach E67 neu ansehen.
+
+### Fund 21: Szenario „Oil Shock“: Ruf 55 passt (B8.9) → ok
+
+Nach 39 Monaten (Okt. 1973 bis Dez. 1976, Start 50): LCC-Kabine 30,9; Flag-Kabine im Zustand 60 ohne Umbau 52,3; nach
+einem Umbau (Zustand 90) Flag 58,2 und Boutique 57,6. Das Ziel braucht also einen Kabinen-Umbau, wie der Kommentar im
+Szenario sagt. Die Dollar-Beträge aller Szenarien als Wert von 1960 stehen im Bericht (für Phase 5.1).
+
 ## Noch offene Prüfregeln
 
-**Paket 3.9c – Abschnitte 6 und 8 ohne Langlauf:** Ruf-Steigungen (6.1), `CANCELLED_REPUTATION_WEIGHT`, Werbe-Beitrag,
-Ruf-Schwellen der Ränge, Klassen-Forschung aus höchstens 12 Monatsergebnissen (6.8), Ziel-, Prämien- und Straf-Anteile
-(6.11), Szenario-Ziele (Ruf 55, 8.15); `HEDGE_PRICE_SHARE`, `RECOVERY_PRICE_SHARE`, `CHARTER_MARKUP`, Händler-Spanne,
-Vorbestell-Rabatt, `OVERHAUL_PRICE_SHARE`, Verschleiß mit `WEEKS_PER_MONTH`, `CREDIT_LIMIT_SHARE`, `CREDIT_RATE` (8.5–8.14).
+Keine Prüfregel der Abschnitte 1–8 ist mehr ohne Skript. Nach E66–E68 (Paket 3.9d) den ganzen Bericht neu erzeugen,
+mit Langläufen; besonders B6.7 (Klassen-Forschung), B6.8 (Jahresziel), B8.2 (Rückgewinnung) und B8.8 (Kreditlinie)
+hängen an der Marktgröße.

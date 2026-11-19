@@ -78,6 +78,8 @@ export interface OfferSpec {
   readonly ageMonths?: number;
   readonly inputs?: CompanyInputs;
   readonly reputation?: number;
+  /** Zustand von Zelle und Kabine in % (Standard 100, neu); für gebrauchte Flugzeuge (Szenario, 3.9c). */
+  readonly condition?: { readonly airframe: number; readonly cabin: number };
 }
 
 /** Ein Markt: Städtepaar, Monat, Angebote. */
@@ -123,7 +125,8 @@ function routeFor(spec: OfferSpec, plane: AircraftState, from: string, to: strin
 
 /** Eine Gesellschaft mit einem neuen Flugzeug (gebaut im Monat des Markts) auf einer Strecke. */
 function companyFor(spec: OfferSpec, market: MarketSpec): CompanyState {
-  const plane = rivalAircraft(spec.personality, catalogType(spec.typeId), market.month, `${spec.company}-p`);
+  const fresh = rivalAircraft(spec.personality, catalogType(spec.typeId), market.month, `${spec.company}-p`);
+  const plane = spec.condition ? { ...fresh, airframeCondition: spec.condition.airframe, cabinCondition: spec.condition.cabin } : fresh;
   const route = routeFor(spec, plane, market.from, market.to);
   const cash = 100_000_000;
   const holding = holdingFor(plane, spec.departures / 2);
