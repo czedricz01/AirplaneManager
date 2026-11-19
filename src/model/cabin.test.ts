@@ -1,5 +1,5 @@
 /**
- * Regeltests zu SPEZIFIKATION 2.3 (Interior score) und 2.4 (Cabin rating).
+ * Regeltests zu SPEZIFIKATION 2.3 (Interior score), 2.4 (Cabin rating) und 5.13 (Listenpreis der Kabine).
  */
 
 import { describe, it } from 'node:test';
@@ -8,15 +8,20 @@ import assert from 'node:assert/strict';
 import {
   CABIN_CLASSES,
   CABIN_EXTRA_POINTS,
+  CABIN_EXTRA_PRICE_1960,
   FEATURE_POINTS,
+  FEATURE_PRICE_1960,
   PITCH_NORM,
   SEAT_TYPE_POINTS,
+  SEAT_TYPE_PRICE_1960,
   type CabinClass,
   type CabinExtra,
 } from './constants';
 import {
   averageCabinRating,
   cabinExtrasPoints,
+  cabinListPrice,
+  cabinListPriceParts,
   cabinRating,
   interiorScore,
   interiorScoreParts,
@@ -191,5 +196,51 @@ describe('Abschnitt 2.4 Cabin rating', () => {
       67.5,
     );
     assert.ok(Number.isNaN(averageCabinRating([])), 'ohne Sitze kein Ersatzwert');
+  });
+});
+
+describe('Abschnitt 5.13 Listenpreis der Kabine (cabinListPrice)', () => {
+  it('5.13: Preise gibt es für genau die Sitztypen, Ausstattungen und Extras mit Punkten', () => {
+    for (const c of CABIN_CLASSES) {
+      assert.deepEqual(Object.keys(SEAT_TYPE_PRICE_1960[c]).sort(), Object.keys(SEAT_TYPE_POINTS[c]).sort());
+      assert.deepEqual(Object.keys(FEATURE_PRICE_1960[c]).sort(), Object.keys(FEATURE_POINTS[c]).sort());
+    }
+    assert.deepEqual(Object.keys(CABIN_EXTRA_PRICE_1960).sort(), Object.keys(CABIN_EXTRA_POINTS).sort());
+  });
+
+  it('5.13: Standard-Sitze ohne Ausstattung kosten nichts', () => {
+    assert.equal(cabinListPrice({ economy: { seats: 150, interior: plain('economy') }, business: { seats: 12, interior: plain('business') } }, LATE), 0);
+  });
+
+  it('5.13: je Klasse Sitze × (Sitztyp + Ausstattung), dazu kabinenweite Extras', () => {
+    const fit: CabinFit = { ...LATE, extras: ['wifi', 'reduced'] };
+    const parts = cabinListPriceParts(
+      {
+        economy: { seats: 100, interior: { seatType: 'Comfort', pitch: 74, features: ['ife', 'power'] } },
+        business: { seats: 10, interior: { seatType: 'Lie-Flat', pitch: 100, features: ['massage'] } },
+      },
+      fit,
+    );
+    assert.equal(parts.classes.economy, 100 * (80 + 300 + 100));
+    assert.equal(parts.classes.business, 10 * (2500 + 1200));
+    assert.equal(parts.classes.first, 0);
+    assert.equal(parts.cabinExtras, 150_000 - 25_000);
+    assert.equal(parts.total, 48_000 + 37_000 + 125_000);
+  });
+
+  it('5.13: was im Einbaumonat nicht lieferbar war, kostet nichts (wie 2.3)', () => {
+    const early: CabinFit = { installedMonth: 0, capacity: 150, extras: ['wifi', 'bar'] };
+    const price = cabinListPrice(
+      { business: { seats: 10, interior: { seatType: 'Suites', pitch: 100, features: ['ife', 'lumbar'] } } },
+      early,
+    );
+    assert.equal(price, 0);
+    assert.equal(cabinListPrice({ economy: { seats: 10, interior: { seatType: 'Unbekannt', pitch: 74, features: [] } } }, LATE), 0);
+  });
+
+  it('5.13: mehr Sitze oder mehr Ausstattung kosten nie weniger', () => {
+    const one = cabinListPrice({ first: { seats: 8, interior: { seatType: 'Recliner', pitch: 150, features: ['wood'] } } }, LATE);
+    const more = cabinListPrice({ first: { seats: 9, interior: { seatType: 'Recliner', pitch: 150, features: ['wood', 'mirror'] } } }, LATE);
+    assert.ok(more >= one);
   });
 });

@@ -12,3 +12,6 @@ export * from './marketSplit';
 export * from './transfers';
 export * from './fare';
 export * from './costs';
+export * from './airportCosts';
+export * from './fleet';
+export * from './costTotals';

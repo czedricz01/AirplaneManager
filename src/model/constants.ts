@@ -317,6 +317,9 @@ export const MEAL_RAMP_TO = 7.5;
 /** Flugzeugklassen aus `src/data/aircraft.ts` (Feld `class`). */
 export type AircraftClass = 'Regional' | 'Narrowbody' | 'Widebody';
 
+/** Alle Flugzeugklassen der Daten; zugleich die Arten der Slots und Abstellplätze (5.10). */
+export const AIRCRAFT_CLASSES: readonly AircraftClass[] = ['Regional', 'Narrowbody', 'Widebody'];
+
 /** Stufen der Gerichte, wie die Gruppen in `MEAL_DATA` (`src/data/catering.ts`). */
 export type MealCategory = 'Basic' | 'Standard' | 'Premium' | 'Luxury';
 
@@ -935,3 +938,198 @@ export const FFP_COST_PER_PAX_1960 = 0.8;
 
 /** Anteil der Umsteiger einer Teilstrecke, die ihre Reise am äußeren Ende beginnen (dort Check-in). SPEZIFIKATION 5.8. */
 export const TRANSFER_CHECKIN_SHARE = 0.5;
+
+// ---------------------------------------------------------------------------
+// 5.10 Slots, Abstellplätze, Schalter
+// ---------------------------------------------------------------------------
+
+/** Slots aller Arten und aller Gesellschaften je Größenstufe eines Flughafens (heute nur in Ansichten, `src/components/AirportDetailView.tsx:128`). SPEZIFIKATION 5.10, E50. */
+export const SLOTS_PER_AIRPORT_LEVEL = 300;
+
+/** Kaufpreis eines Slots je Art in $ von 1960 (heute `src/lib/financeUtils.ts:1715-1719`, ohne Index). SPEZIFIKATION 5.10. */
+export const SLOT_PRICE_1960: Readonly<Record<AircraftClass, number>> = {
+  Regional: 25_000,
+  Narrowbody: 50_000,
+  Widebody: 100_000,
+};
+
+/** Miete eines gekauften Slots je Woche in $ von 1960, belegt oder nicht (heute `src/lib/financeUtils.ts:25-29`). SPEZIFIKATION 5.10. */
+export const SLOT_RENT_1960: Readonly<Record<AircraftClass, number>> = {
+  Regional: 125,
+  Narrowbody: 250,
+  Widebody: 250,
+};
+
+/** Verkaufserlös eines Slots als Anteil des Kaufpreises im Verkaufsmonat (heute `src/lib/financeUtils.ts:1806-1808`). SPEZIFIKATION 5.10. */
+export const SLOT_RESALE_SHARE = 0.5;
+
+/** Abstellplätze gibt es erst an Flughäfen ab dieser Größe (heute `src/lib/financeUtils.ts:1703-1710`). SPEZIFIKATION 5.10. */
+export const STANDS_MIN_AIRPORT_SIZE = 3;
+
+/** Miete eines Abstellplatzes je Woche in $ von 1960, Verwaltungsstufe 0–1 (heute `src/lib/financeUtils.ts:31-35`). SPEZIFIKATION 5.10. */
+export const STAND_RENT_1960: Readonly<Record<AircraftClass, number>> = {
+  Regional: 150,
+  Narrowbody: 300,
+  Widebody: 600,
+};
+
+/** Ab dieser Verwaltungsstufe hat jeder Slot einen Abstellplatz ohne Miete (E28). SPEZIFIKATION 5.10. */
+export const FREE_STANDS_FROM_TIER = 2;
+
+/** Miete eines Check-in-Schalters je Woche bei voller Auslastung, in $ von 1960 (heute `src/lib/financeUtils.ts:38-64`). SPEZIFIKATION 5.10. */
+export const DESK_RENT_1960: Readonly<Record<DeskType, number>> = {
+  normal: 2500,
+  self: 1500,
+};
+
+/** Anteil der Schalter-Miete, der auch ohne Fluggäste anfällt; der Rest wächst mit `deskLoad` bis 1. SPEZIFIKATION 5.10. */
+export const DESK_FIXED_SHARE = 0.2;
+
+/** Erster Spielmonat mit Selbstbedienungs-Schaltern: Januar 1995 (heute `src/lib/financeUtils.ts:1703-1710`). SPEZIFIKATION 5.10. */
+export const SELF_DESK_FROM = (1995 - START_YEAR) * 12;
+
+// ---------------------------------------------------------------------------
+// 5.11 Verwaltungsstufen und Einrichtungen
+// ---------------------------------------------------------------------------
+
+/** Einmalpreis einer Verwaltungsstufe je Größenstufe des Flughafens, in $ von 1960 (heute `src/lib/financeUtils.ts:1656-1660`, ohne Index). SPEZIFIKATION 5.11. */
+export const TIER_PRICE_1960: Readonly<Record<1 | 2 | 3, number>> = {
+  1: 30_000,
+  2: 750_000,
+  3: 25_000_000,
+};
+
+/** Einrichtungen einer Gesellschaft an einem Flughafen (Namen wie im Spielstand, `src/lib/gameTypes.ts:90-92`). */
+export type FacilityKind = 'hangar' | 'vipLounge' | 'catering';
+
+/** Einmalpreis einer Einrichtung in $ von 1960 (heute im Klick-Handler, `src/components/AirportDetailView.tsx:443-554`). SPEZIFIKATION 5.11. */
+export const FACILITY_PRICE_1960: Readonly<Record<FacilityKind, number>> = {
+  hangar: 250_000,
+  vipLounge: 1_000_000,
+  catering: 250_000,
+};
+
+/** Unterhalt einer Einrichtung je Woche in $ von 1960, ohne Gebühren-Faktor (heute `src/lib/financeUtils.ts:111-113`). SPEZIFIKATION 5.11. */
+export const FACILITY_UPKEEP_1960: Readonly<Record<FacilityKind, number>> = {
+  hangar: 10_000,
+  vipLounge: 12_500,
+  catering: 10_000,
+};
+
+// ---------------------------------------------------------------------------
+// 5.12 Flugzeug-Unterhalt
+// ---------------------------------------------------------------------------
+
+/** Versicherung je Jahr als Anteil des heutigen Neupreises (heute `src/lib/fleetCosts.ts:14`). SPEZIFIKATION 5.12. */
+export const INSURANCE_RATE = 0.006;
+
+/** Wartungsprogramm je Jahr als Anteil des Neupreises bei Alter 0 (heute `src/lib/fleetCosts.ts:16`). SPEZIFIKATION 5.12. */
+export const MAINTENANCE_RATE_NEW = 0.03;
+
+/** Wartungsprogramm je Jahr ab `MAINTENANCE_FULL_AGE` (heute `src/lib/fleetCosts.ts:17`). SPEZIFIKATION 5.12. */
+export const MAINTENANCE_RATE_OLD = 0.08;
+
+/** Ab diesem Alter in Jahren gilt `MAINTENANCE_RATE_OLD`; dazwischen gerade Linie. SPEZIFIKATION 5.12. */
+export const MAINTENANCE_FULL_AGE = 25;
+
+/** Anteil des Unterhalts für ein Flugzeug ohne Strecke (heute `src/lib/fleetCosts.ts:20`). SPEZIFIKATION 5.12. */
+export const PARKED_SHARE = 0.5;
+
+/** So viele Flugzeug-Familien hat eine Flotte ohne Zuschlag (heute `src/lib/fleetCosts.ts:73`). SPEZIFIKATION 5.12. */
+export const FREE_FAMILIES = 3;
+
+/** Wartungs-Zuschlag je Familie über `FREE_FAMILIES` (heute `src/lib/fleetCosts.ts:74`). SPEZIFIKATION 5.12. */
+export const VARIETY_PENALTY_PER_FAMILY = 0.03;
+
+/** Höchster Wartungs-Zuschlag für viele Familien (heute `src/lib/fleetCosts.ts:75`). SPEZIFIKATION 5.12. */
+export const VARIETY_PENALTY_MAX = 0.3;
+
+/**
+ * Wartungs-Nachlass nach Zahl der Flugzeuge der eigenen Familie, größte Schwelle zuerst
+ * (heute `src/lib/fleetCosts.ts:67-72`). SPEZIFIKATION 5.12.
+ */
+export const COMMONALITY_DISCOUNTS: readonly { readonly from: number; readonly discount: number }[] = [
+  { from: 25, discount: 0.15 },
+  { from: 12, discount: 0.12 },
+  { from: 6, discount: 0.08 },
+  { from: 3, discount: 0.04 },
+];
+
+// ---------------------------------------------------------------------------
+// 5.13 Wertmodell und Abschreibung
+// ---------------------------------------------------------------------------
+
+/** Jahre bis zum Restwert (Startwert; heute 2 % je Jahr bis 40 %, `src/lib/fleetCosts.ts:23-24`). SPEZIFIKATION 5.13. */
+export const DEPRECIATION_YEARS = 25;
+
+/** Restwert nach `DEPRECIATION_YEARS` als Anteil von `valueBase` (3,2 % je Jahr). SPEZIFIKATION 5.13. */
+export const RESIDUAL_SHARE = 0.2;
+
+/** So viel vom Wert kostet ein ganz abgenutztes Flugzeug (Zustand 0) höchstens. SPEZIFIKATION 5.13. */
+export const CONDITION_VALUE_SPAN = 0.6;
+
+/** Anteil der Zelle am Zustand für den Wert; der Rest ist die Kabine (heute 0,45 Zelle + 0,15 Kabine). SPEZIFIKATION 5.13. */
+export const AIRFRAME_VALUE_SHARE = 0.75;
+
+/**
+ * Preis je Sitz des Sitztyps in $ von 1960 (heute `SEAT_DEFS`, Feld `c`, `src/components/ConfigurePurchaseView.tsx:326-353`).
+ * Schlüssel wie `SEAT_TYPE_POINTS`; Lieferbarkeit von dort. SPEZIFIKATION 5.13 (`cabinListPrice`).
+ */
+export const SEAT_TYPE_PRICE_1960: Readonly<Record<CabinClass, Readonly<Record<string, number>>>> = {
+  economy: { Standard: 0, Comfort: 80, Ergonomic: 150, 'Premium-Eco': 300 },
+  premium: { Standard: 0, Recliner: 400, Cradle: 800 },
+  business: { Standard: 0, Recliner: 300, 'Angled Flat': 1000, 'Lie-Flat': 2500, Suites: 5000 },
+  first: { Standard: 0, Recliner: 500, 'Flat Bed': 1500, 'Open Suite': 3000, 'Closed Suite': 8000, Residence: 25000 },
+};
+
+/**
+ * Preis je Sitz einer Ausstattung in $ von 1960 (heute `src/components/ConfigurePurchaseView.tsx:492-535`).
+ * Schlüssel wie `FEATURE_POINTS`; Lieferbarkeit von dort. SPEZIFIKATION 5.13 (`cabinListPrice`).
+ */
+export const FEATURE_PRICE_1960: Readonly<Record<CabinClass, Readonly<Record<string, number>>>> = {
+  economy: { ife: 300, power: 100, hooks: 20, armrests: 50, headrests: 80, shell: 200, ped: 60 },
+  premium: { ife: 400, power: 150, table: 50, calf: 150, foot: 100, light: 80, usbc: 100 },
+  business: { ife: 600, power: 200, lumbar: 200, control: 800, massage: 1200, divider: 1500, charging: 300 },
+  first: { ife: 1000, power: 300, wardrobe: 800, wood: 3000, mirror: 400, minibar: 2500, climate: 4000 },
+};
+
+/**
+ * Preis eines kabinenweiten Extras je Flugzeug in $ von 1960 (heute `src/components/ConfigurePurchaseView.tsx:391-397`).
+ * „reduced“ und „minimal“ sind Nachlässe. Lieferbarkeit wie `CABIN_EXTRA_POINTS`. SPEZIFIKATION 5.13.
+ */
+export const CABIN_EXTRA_PRICE_1960: Readonly<Record<CabinExtra, number>> = {
+  wifi: 150_000,
+  ambient: 100_000,
+  catering: 300_000,
+  bar: 500_000,
+  shower: 1_000_000,
+  reduced: -25_000,
+  minimal: -50_000,
+};
+
+// ---------------------------------------------------------------------------
+// 5.14 Werbung und Frequent flyer
+// ---------------------------------------------------------------------------
+
+/** Stufen einer Werbe-Kampagne (Namen wie im Spielstand, `src/lib/gameState.ts:46`). */
+export type CampaignLevel = 'local' | 'national' | 'global';
+
+/** Kosten einer Kampagne je laufendem Monat in $ von 1960 (heute `src/lib/marketing.ts:75-77`; eigene Teuerung entfällt). SPEZIFIKATION 5.14. */
+export const CAMPAIGN_COST_1960: Readonly<Record<CampaignLevel, number>> = {
+  local: 150_000,
+  national: 400_000,
+  global: 1_000_000,
+};
+
+/** Grundbetrag des Frequent-flyer-Programms je Monat in $ von 1960 (heute `src/lib/marketing.ts:187`). SPEZIFIKATION 5.14. */
+export const FFP_BASE_COST_1960 = 50_000;
+
+// ---------------------------------------------------------------------------
+// 5.15 Einnahme eigener Flughäfen
+// ---------------------------------------------------------------------------
+
+/** Anteil der Landegebühren anderer Gesellschaften, den Inhaber der Stufe 3 bekommen (heute `src/lib/hubOwnership.ts:30`). SPEZIFIKATION 5.15. */
+export const OWNER_FEE_SHARE = 0.5;
+
+/** Verwaltungsstufe, ab der eine Gesellschaft an den Landegebühren anderer verdient. SPEZIFIKATION 5.15. */
+export const OWNER_TIER = 3;

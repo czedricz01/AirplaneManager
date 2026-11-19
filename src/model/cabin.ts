@@ -1,5 +1,6 @@
 /**
- * Kabine: SPEZIFIKATION 2.3 (Interior score) und 2.4 (Cabin rating).
+ * Kabine: SPEZIFIKATION 2.3 (Interior score), 2.4 (Cabin rating) und der Listenpreis der Kabine
+ * (`cabinListPrice`, 5.13).
  *
  * Die Formel des Interior score stand bisher nur im Kaufdialog
  * (`src/components/ConfigurePurchaseView.tsx:402-484`); sie gehört ins Modell (R3).
@@ -7,14 +8,18 @@
 
 import { clampScale } from './basics';
 import {
+  CABIN_CLASSES,
   CABIN_EXTRA_POINTS,
+  CABIN_EXTRA_PRICE_1960,
   FEATURE_POINTS,
+  FEATURE_PRICE_1960,
   INTERIOR_BASE,
   INTERIOR_SHARE,
   PITCH_FACTOR,
   PITCH_NORM,
   SEAT_TYPE_FACTOR,
   SEAT_TYPE_POINTS,
+  SEAT_TYPE_PRICE_1960,
   TYPE_APPEAL_SHARE,
   WEAR_FLOOR,
   type CabinClass,
@@ -152,4 +157,63 @@ export function averageCabinRating(classes: readonly { readonly rating: number; 
     weighted += c.seats * c.rating;
   }
   return weighted / seats;
+}
+
+// ---------------------------------------------------------------------------
+// 5.13 Listenpreis der Kabine
+// ---------------------------------------------------------------------------
+
+/** Eine Klasse der Kabine für den Preis: Sitze und Ausstattung. */
+export interface PricedClass {
+  readonly seats: number;
+  readonly interior: ClassInterior;
+}
+
+/** Aufschlüsselung des Listenpreises einer Kabine, in $ von 1960. */
+export interface CabinListPriceParts {
+  /** Je Klasse: Sitze × (Preis des Sitztyps + Preise der Ausstattung). */
+  readonly classes: Readonly<Record<CabinClass, number>>;
+  /** Kabinenweite Extras (Nachlässe für „reduced“ und „minimal“ negativ). */
+  readonly cabinExtras: number;
+  readonly total: number;
+}
+
+/**
+ * Listenpreis einer Kabine in $ von 1960 mit Aufschlüsselung: je Klasse `Sitze × (Sitztyp + Σ Ausstattung)`
+ * plus kabinenweite Extras. Es kostet, was eingebaut werden kann: Teile, die im Einbaumonat nicht lieferbar
+ * waren, und unbekannte Sitztypen (zählen als `Standard`) kosten nichts, wie in 2.3. Umrechnung in Geld
+ * des Einbaumonats nur mit `atCost` (5.13). SPEZIFIKATION 5.13.
+ */
+export function cabinListPriceParts(
+  classes: Readonly<Partial<Record<CabinClass, PricedClass>>>,
+  fit: CabinFit,
+): CabinListPriceParts {
+  const byClass = {} as Record<CabinClass, number>;
+  let total = 0;
+  for (const cabinClass of CABIN_CLASSES) {
+    const priced = classes[cabinClass];
+    if (!priced || priced.seats === 0) {
+      byClass[cabinClass] = 0;
+      continue;
+    }
+    const seat = SEAT_TYPE_POINTS[cabinClass][priced.interior.seatType];
+    let perSeat = seat && isDeliverable(seat, fit) ? SEAT_TYPE_PRICE_1960[cabinClass][priced.interior.seatType] : 0;
+    for (const key of new Set(priced.interior.features)) {
+      const item = FEATURE_POINTS[cabinClass][key];
+      if (item && isDeliverable(item, fit)) perSeat += FEATURE_PRICE_1960[cabinClass][key];
+    }
+    byClass[cabinClass] = priced.seats * perSeat;
+    total += byClass[cabinClass];
+  }
+  let cabinExtras = 0;
+  for (const extra of new Set(fit.extras)) {
+    const item = CABIN_EXTRA_POINTS[extra];
+    if (item && isDeliverable(item, fit)) cabinExtras += CABIN_EXTRA_PRICE_1960[extra];
+  }
+  return { classes: byClass, cabinExtras, total: total + cabinExtras };
+}
+
+/** Listenpreis einer Kabine in $ von 1960. Siehe `cabinListPriceParts`. SPEZIFIKATION 5.13. */
+export function cabinListPrice(classes: Readonly<Partial<Record<CabinClass, PricedClass>>>, fit: CabinFit): number {
+  return cabinListPriceParts(classes, fit).total;
 }

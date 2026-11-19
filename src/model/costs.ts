@@ -1,10 +1,10 @@
 /**
  * Kosten: SPEZIFIKATION Abschnitt 5.
  *
- * Paket 3.5a: Kosten-Faktoren (5.1), Treibstoffpreis mit Krisen (5.2), Kosten des Flugbetriebs einer
+ * Diese Datei: Kosten-Faktoren (5.1), Treibstoffpreis mit Krisen (5.2), Kosten des Flugbetriebs einer
  * Strecke (Treibstoff 5.3, Besatzung 5.4, Landung 5.5), Gebühren je Fluggast (5.6), Verpflegung (5.7)
- * und Kosten je Fluggast (5.8). Paket 3.5b ergänzt feste Kosten je Strecke (5.9), Flughäfen, Flotte,
- * Wertmodell und Kosten der Gesellschaft (5.10–5.17).
+ * und Kosten je Fluggast (5.8). Der Rest von Abschnitt 5 steht in eigenen Dateien (Paket 3.5b):
+ * `airportCosts.ts` (5.10, 5.11, 5.15), `fleet.ts` (5.12, 5.13), `costTotals.ts` (5.9, 5.14, 5.16).
  *
  * Strecken-Kosten gelten je Woche, beide Richtungen zusammen (wie der Erlös, 4.7). Kosten je Fluggast
  * gelten je Fluggast und Flugabschnitt. Alles ungerundet (R4). Feste Beträge nur über `atCost` (1.3);
@@ -467,17 +467,39 @@ export interface PassengerCostInput {
 }
 
 /**
+ * Kosten je Fluggast nach den Posten des Monatsberichts (5.16): Verpflegung („Catering“), Check-in und
+ * Abfertigung („Passenger fees“), Frequent flyer („Marketing“). Die Summe ist `costPerPassenger` bzw.
+ * `transferCostPerPassenger`; kein Dollar zählt zweimal.
+ */
+export interface PassengerCostParts {
+  readonly catering: number;
+  readonly fees: number;
+  readonly ffp: number;
+  readonly total: number;
+}
+
+/**
+ * Kosten eines zusätzlichen **Direktgasts** einer Klasse, je Flugabschnitt, nach Posten. Siehe
+ * `costPerPassenger`. SPEZIFIKATION 5.8, 5.16.
+ */
+export function costPerPassengerParts(input: PassengerCostInput): PassengerCostParts {
+  let fees = 0;
+  let ffp = 0;
+  for (const end of input.ends) {
+    fees += end.departureShare * (end.handlingFee + end.checkInFee);
+    ffp += end.departureShare * input.ffpCostPerPassenger;
+  }
+  return { catering: input.cateringCost, fees, ffp, total: input.cateringCost + fees + ffp };
+}
+
+/**
  * Kosten eines zusätzlichen **Direktgasts** einer Klasse, je Flugabschnitt:
  * `cateringCost + wA × (handlingFee(A) + tripCost(A)) + wB × (handlingFee(B) + tripCost(B))` mit
  * `tripCost(x) = checkInFee(x) + ffpCostPerPassenger` (je Reise, Start in x). Wer in A abfliegt, zahlt dort.
  * Hängt nicht vom Preis und nicht von der Zahl der Fluggäste ab. SPEZIFIKATION 5.8.
  */
 export function costPerPassenger(input: PassengerCostInput): number {
-  let cost = input.cateringCost;
-  for (const end of input.ends) {
-    cost += end.departureShare * (end.handlingFee + end.checkInFee + input.ffpCostPerPassenger);
-  }
-  return cost;
+  return costPerPassengerParts(input).total;
 }
 
 /** Eingaben für `transferCostPerPassenger`. */
@@ -493,17 +515,24 @@ export interface TransferPassengerCostInput {
 }
 
 /**
+ * Kosten eines Umsteigers auf einer Teilstrecke, je Abschnitt, nach Posten. Siehe `transferCostPerPassenger`.
+ * SPEZIFIKATION 5.8, 5.16.
+ */
+export function transferCostPerPassengerParts(input: TransferPassengerCostInput): PassengerCostParts {
+  const fees =
+    input.outer.departureShare * input.outer.handlingFee +
+    input.hub.departureShare * input.hub.handlingFee +
+    TRANSFER_CHECKIN_SHARE * input.outer.checkInFee;
+  const ffp = TRANSFER_CHECKIN_SHARE * input.ffpCostPerPassenger;
+  return { catering: input.cateringCost, fees, ffp, total: input.cateringCost + fees + ffp };
+}
+
+/**
  * Kosten eines Umsteigers auf einer Teilstrecke mit Drehkreuz H und äußerem Ende X, je Abschnitt:
  * `cateringCost + wX × handlingFee(X) + wH × handlingFee(H) + 0,5 × tripCost(X)`. Die Hälfte der
  * Umsteiger beginnt ihre Reise in X (Check-in hier), die andere am anderen Ende der Verbindung
  * (Check-in auf der anderen Teilstrecke). In H checkt niemand ein (E27, W5). SPEZIFIKATION 5.8.
  */
 export function transferCostPerPassenger(input: TransferPassengerCostInput): number {
-  return (
-    input.cateringCost +
-    input.outer.departureShare * input.outer.handlingFee +
-    input.hub.departureShare * input.hub.handlingFee +
-    TRANSFER_CHECKIN_SHARE * (input.outer.checkInFee + input.ffpCostPerPassenger)
-  );
+  return transferCostPerPassengerParts(input).total;
 }
-
