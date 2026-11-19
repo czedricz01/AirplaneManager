@@ -2429,7 +2429,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   Sitzabstand, Ausstattung, Extras; heute nur in der Oberfläche, `src/components/ConfigurePurchaseView.tsx:355-379`;
   neu im Modell `src/model/kabine.ts`, R3) und dieselbe Funktion `interiorScore` (2.3). Ersetzt den festen Wert je
   Persönlichkeit 42 … 78 (`:160-166`) und die Sitz-Anteile (`:202-222`).
-- Regel: Platz = `capacity × 74 cm × (1 + Extras-Platz)`. Business-, First- und Premium-Sitze bekommen ihren
+- Regel: Platz = `capacity × 74 cm × (1 + Extras-Platz) − Platzbedarf der Extras` (Bar 400 cm, Dusche 800 cm,
+  Premium-Catering 200 cm; wie im Kaufdialog, F38). Business-, First- und Premium-Sitze bekommen ihren
   **Platz-Anteil** (`share × Platz / (Sitzabstand × Sitz-Platzfaktor)`, abgerundet); der Rest wird Economy.
   Commuter- und Regional-Flugzeuge bekommen nur Economy.
 - Werte je Persönlichkeit (Startwerte):
@@ -2442,7 +2443,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   | Ausstattung je Klasse | keine | IFE und Strom | IFE und Strom | alle | alle |
   | Kabinenweite Extras | Reduced galley, Minimal services | Reduced galley | – | WLAN, Ambient lighting | WLAN, Ambient lighting, Onboard bar |
 
-  - Sitz-Stufe: Stufe der Sitzliste je Klasse; ist sie im Kaufmonat nicht lieferbar, die höchste lieferbare darunter.
+  - Sitz-Stufe: Stufe der Sitzliste je Klasse (Reihenfolge wie im Kaufdialog, 0 = Standard); ist sie im Kaufmonat
+    nicht lieferbar, die höchste lieferbare darunter.
   - Ausstattung und Extras zählen nur, wenn sie im Kaufmonat lieferbar sind und ins Flugzeug passen (wie beim Spieler).
 - Service je Klasse: die Gerichte, Extras und Bordservice-Stufen je Persönlichkeit wie heute (`:287-334`;
   LCC nichts). **Jede Mahlzeit** `k` mit `mealWeight(k) > 0` bekommt dasselbe Menü wie Mahlzeit 1 (R14, 2.5);

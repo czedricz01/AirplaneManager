@@ -16,3 +16,4 @@ export * from './airportCosts';
 export * from './fleet';
 export * from './costTotals';
 export * from './progress';
+export * from './rivals';

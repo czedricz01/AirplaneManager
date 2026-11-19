@@ -13,6 +13,8 @@
  * - Jeder Wert nennt den Abschnitt von `docs/neubau/SPEZIFIKATION.md`, der ihn festlegt.
  */
 
+import type { RivalPersonality } from '../data/rivalAirlines';
+
 // ---------------------------------------------------------------------------
 // 1.1 Zeit
 // ---------------------------------------------------------------------------
@@ -1623,3 +1625,402 @@ export const CAREER_MAX_YEARS = 60;
 
 /** Einträge je Ruhmeshalle (wie heute `src/lib/careerScore.ts:83`). SPEZIFIKATION 6.12. */
 export const HALL_SIZE = 10;
+
+// ---------------------------------------------------------------------------
+// 7 Konkurrenz
+// ---------------------------------------------------------------------------
+
+/** Geschäftsmodell einer KI (Typ aus den Daten `src/data/rivalAirlines.ts`, dort auch für echte Gesellschaften). */
+export type { RivalPersonality };
+
+/** Alle Persönlichkeiten, einmal (heute zusätzlich Kopie in `src/lib/saveMigration.ts:57-58`). SPEZIFIKATION 7.4. */
+export const PERSONALITY_IDS: readonly RivalPersonality[] = ['lcc', 'expansionist', 'optimizer', 'flag', 'boutique'];
+
+/** KI-Stärke: wie geschickt die KI entscheidet, nie wie sie rechnet (1.8, E4). SPEZIFIKATION 7.3. */
+export type RivalStrength = 'easy' | 'normal' | 'hard';
+
+/** Alle KI-Stärken, von schwach nach stark. SPEZIFIKATION 7.3. */
+export const RIVAL_STRENGTHS: readonly RivalStrength[] = ['easy', 'normal', 'hard'];
+
+/** Werte einer KI-Stärke. Startwerte (3.9). SPEZIFIKATION 7.3. */
+export interface RivalStrengthDef {
+  /** Startkasse in $ von 1960 (`RIVAL_START_CASH_1960`, heute `src/lib/aiSimulation.ts:700`). 7.7. */
+  readonly startCash1960: number;
+  /** Flugzeuge der Startflotte. 7.7. */
+  readonly startFleet: number;
+  /** So viele beste Ziele bewertet die KI (dazu `RIVAL_RANDOM_TARGETS` zufällige). 7.9. */
+  readonly searchWidth: number;
+  /** Schätzfehler auf den erwarteten Gewinn: ± Anteil. 7.9. */
+  readonly forecastNoise: number;
+  /** Kaufneigung je Monat (× Faktor der Persönlichkeit). 7.11. */
+  readonly buyChance: number;
+  /** Wahrscheinlichkeit einer Feinabstimmung je Monat: nie 0, „jeden 2. Monat (zufällig)“ 0,5, jeden Monat 1. 7.8. */
+  readonly fineTuneChance: number;
+  /** Verlierer und Eröffnungen je Monat. 7.8, 7.9. */
+  readonly actionsPerMonth: number;
+  /** Wahrscheinlichkeit, auch ohne erwarteten Gewinn > 0 zu eröffnen (Easy: jeder 2. Versuch). 7.9. */
+  readonly openWithoutProfitChance: number;
+}
+
+/** KI-Stärken (heute `src/lib/aiSimulation.ts:96-149`, `:700-715`, `:1111-1115`). Startwerte (3.9). SPEZIFIKATION 7.3. */
+export const RIVAL_STRENGTH: Readonly<Record<RivalStrength, RivalStrengthDef>> = {
+  easy: {
+    startCash1960: 50_000_000,
+    startFleet: 2,
+    searchWidth: 4,
+    forecastNoise: 0.4,
+    buyChance: 0.12,
+    fineTuneChance: 0,
+    actionsPerMonth: 1,
+    openWithoutProfitChance: 0.5,
+  },
+  normal: {
+    startCash1960: 80_000_000,
+    startFleet: 3,
+    searchWidth: 8,
+    forecastNoise: 0.1,
+    buyChance: 0.45,
+    fineTuneChance: 0.5,
+    actionsPerMonth: 1,
+    openWithoutProfitChance: 0,
+  },
+  hard: {
+    startCash1960: 120_000_000,
+    startFleet: 4,
+    searchWidth: 12,
+    forecastNoise: 0,
+    buyChance: 0.85,
+    fineTuneChance: 1,
+    actionsPerMonth: 2,
+    openWithoutProfitChance: 0,
+  },
+};
+
+/** Zur Vorauswahl der besten Ziele kommen so viele zufällige (heute `:503-521`). SPEZIFIKATION 7.9. */
+export const RIVAL_RANDOM_TARGETS = 2;
+
+/** Schalter-Art einer Persönlichkeit: Selbstbedienung, wo lieferbar, oder bedient (E18, E55). SPEZIFIKATION 7.4, 7.10. */
+export type RivalDeskChoice = 'selfWhereAvailable' | 'served';
+
+/** Platz-Anteile, Sitzabstände, Sitz-Stufe, Ausstattung und Extras der Kabine einer Persönlichkeit. SPEZIFIKATION 7.5. */
+export interface RivalCabinDef {
+  /** Platz-Anteil je Premium-Klasse (0 = keine Sitze dieser Klasse). Economy bekommt den Rest. */
+  readonly spaceShare: Readonly<Record<Exclude<CabinClass, 'economy'>, number>>;
+  /** Sitzabstand je Klasse in cm (nur Klassen mit Platz-Anteil > 0 und Economy). */
+  readonly pitch: Readonly<Record<CabinClass, number>>;
+  /** Stufe der Sitzliste (`SEAT_TYPE_POINTS`, 0 = Standard); nicht lieferbar → höchste lieferbare darunter. */
+  readonly seatLevel: number;
+  /** Ausstattung je Klasse: keine, nur IFE und Strom, oder alle (je lieferbar). */
+  readonly features: 'none' | 'ifePower' | 'all';
+  /** Kabinenweite Extras (je lieferbar und passend). */
+  readonly extras: readonly CabinExtra[];
+}
+
+/** Service einer Klasse: ein Menü (gilt für jede Mahlzeit, R14), Extras, Bordservice; Ids aus `src/data/catering.ts`. */
+export interface RivalClassService {
+  readonly menu: readonly string[];
+  readonly extras: readonly string[];
+  readonly onboardService: readonly string[];
+}
+
+/** Werte einer Persönlichkeit: nur Entscheidungen (E45). SPEZIFIKATION 7.4, 7.5. */
+export interface PersonalityDef {
+  /** Angriffslust 1 … 10 (heute `:93`). */
+  readonly aggression: number;
+  /** Preis-Lage `FARE_POSITION` (7.6): Faktor auf das Zielniveau, oder `best` = bester Preis (4.10, Optimizer). */
+  readonly farePosition: number | 'best';
+  /** Preis-Boden im Preiskampf `FARE_FLOOR` (7.6), Preisniveau. */
+  readonly fareFloor: number;
+  /** Zielgewicht Geschäft / Tourismus in der Vorauswahl (7.9). */
+  readonly targetWeight: { readonly business: number; readonly tourism: number };
+  /** Faktor der Vorauswahl für Ziele über `LONG_HAUL_KM` (LCC 0,4, sonst 1). 7.9. */
+  readonly longHaulFactor: number;
+  /** Grundwert der Geduld in Monaten; dazu `max(0, aggression − PATIENCE_AGGRESSION_PIVOT)`. 7.8. */
+  readonly patienceBase: number;
+  /** Faktor auf die Kaufneigung der KI-Stärke (7.11). */
+  readonly buyFactor: number;
+  /** Höchste Kaufneigung nach dem Faktor; ohne Angabe 1. */
+  readonly buyChanceMax?: number;
+  /** Ein Flugzeug kostet höchstens diesen Anteil der Kasse (7.11). */
+  readonly purchaseCashShare: number;
+  /** Reserve nach einem Kauf oder einer Eröffnung in $ von 1960 (`CASH_RESERVE_1960`, heute `:147-149`). */
+  readonly cashReserve1960: number;
+  /** Höchstzahl der Drehkreuze `MAX_HUBS` (7.13). */
+  readonly maxHubs: number;
+  /** Wachstumsstopp ab dieser Krisenstärke (7.12). */
+  readonly growthStopSeverity: number;
+  /** Schalter-Art (7.10). */
+  readonly deskChoice: RivalDeskChoice;
+  /** Kabine (7.5). */
+  readonly cabin: RivalCabinDef;
+  /** Service je Klasse (7.5; heute `src/lib/aiSimulation.ts:287-334`, LCC nichts). */
+  readonly service: Readonly<Record<CabinClass, RivalClassService>>;
+}
+
+const NO_SERVICE: RivalClassService = { menu: [], extras: [], onboardService: [] };
+
+/** Persönlichkeiten. Startwerte (3.9: Prüfregel „ähnlicher Erfolg“). SPEZIFIKATION 7.4, 7.5. */
+export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> = {
+  lcc: {
+    aggression: 8,
+    farePosition: 0.9,
+    fareFloor: 0.6,
+    targetWeight: { business: 0.6, tourism: 1.4 },
+    longHaulFactor: 0.4,
+    patienceBase: 4,
+    buyFactor: 1.25,
+    buyChanceMax: 0.85,
+    purchaseCashShare: 0.65,
+    cashReserve1960: 5_000_000,
+    maxHubs: 3,
+    growthStopSeverity: 0.35,
+    deskChoice: 'selfWhereAvailable',
+    cabin: {
+      spaceShare: { premium: 0, business: 0, first: 0 },
+      pitch: { economy: 74, premium: 0, business: 0, first: 0 },
+      seatLevel: 0,
+      features: 'none',
+      extras: ['reduced', 'minimal'],
+    },
+    service: { economy: NO_SERVICE, premium: NO_SERVICE, business: NO_SERVICE, first: NO_SERVICE },
+  },
+  expansionist: {
+    aggression: 9,
+    farePosition: 0.95,
+    fareFloor: 0.65,
+    targetWeight: { business: 1, tourism: 1 },
+    longHaulFactor: 1,
+    patienceBase: 5,
+    buyFactor: 1.35,
+    buyChanceMax: 0.9,
+    purchaseCashShare: 0.65,
+    cashReserve1960: 5_000_000,
+    maxHubs: 4,
+    growthStopSeverity: 0.5,
+    deskChoice: 'served',
+    cabin: {
+      spaceShare: { premium: 0.09, business: 0.06, first: 0 },
+      pitch: { economy: 76, premium: 88, business: 105, first: 0 },
+      seatLevel: 0,
+      features: 'ifePower',
+      extras: ['reduced'],
+    },
+    service: {
+      economy: NO_SERVICE,
+      premium: { menu: ['b14'], extras: ['water'], onboardService: [] },
+      business: { menu: ['s10'], extras: ['softdrinks', 'pillows'], onboardService: ['drinks'] },
+      first: { menu: ['p5'], extras: ['alcohol', 'amenities'], onboardService: ['drinks'] },
+    },
+  },
+  optimizer: {
+    aggression: 4,
+    farePosition: 'best',
+    fareFloor: 0.75,
+    targetWeight: { business: 1, tourism: 1 },
+    longHaulFactor: 1,
+    patienceBase: 3,
+    buyFactor: 0.7,
+    purchaseCashShare: 0.45,
+    cashReserve1960: 10_000_000,
+    maxHubs: 2,
+    growthStopSeverity: 0.25,
+    deskChoice: 'served',
+    cabin: {
+      spaceShare: { premium: 0.14, business: 0.1, first: 0.06 },
+      pitch: { economy: 78, premium: 90, business: 115, first: 160 },
+      seatLevel: 1,
+      features: 'ifePower',
+      extras: [],
+    },
+    service: {
+      economy: { menu: ['b5'], extras: ['water'], onboardService: [] },
+      premium: { menu: ['s8'], extras: ['softdrinks', 'pillows'], onboardService: ['drinks'] },
+      business: { menu: ['p6'], extras: ['alcohol', 'amenities'], onboardService: ['drinks'] },
+      first: { menu: ['l12'], extras: ['premium_alcohol', 'amenities_premium'], onboardService: ['dine_demand'] },
+    },
+  },
+  flag: {
+    aggression: 6,
+    farePosition: 1,
+    fareFloor: 0.75,
+    targetWeight: { business: 1.5, tourism: 0.5 },
+    longHaulFactor: 1,
+    patienceBase: 6,
+    buyFactor: 1,
+    purchaseCashShare: 0.45,
+    cashReserve1960: 10_000_000,
+    maxHubs: 3,
+    growthStopSeverity: 0.25,
+    deskChoice: 'served',
+    cabin: {
+      spaceShare: { premium: 0.15, business: 0.17, first: 0.13 },
+      pitch: { economy: 79, premium: 95, business: 130, first: 180 },
+      seatLevel: 1,
+      features: 'all',
+      extras: ['wifi', 'ambient'],
+    },
+    service: {
+      economy: { menu: ['b15'], extras: ['water', 'pillows'], onboardService: [] },
+      premium: { menu: ['s13'], extras: ['softdrinks', 'headphones', 'pillows'], onboardService: ['drinks'] },
+      business: { menu: ['p6', 's1'], extras: ['alcohol', 'amenities', 'headphones'], onboardService: ['drinks', 'seat_coord'] },
+      first: {
+        menu: ['l13', 'p15'],
+        extras: ['premium_alcohol', 'amenities_luxury', 'headphones', 'pajamas'],
+        onboardService: ['dine_demand', 'turndown'],
+      },
+    },
+  },
+  boutique: {
+    aggression: 5,
+    farePosition: 1,
+    fareFloor: 0.75,
+    targetWeight: { business: 1.5, tourism: 0.5 },
+    longHaulFactor: 1,
+    patienceBase: 6,
+    buyFactor: 0.6,
+    purchaseCashShare: 0.45,
+    cashReserve1960: 10_000_000,
+    maxHubs: 1,
+    growthStopSeverity: 0.25,
+    deskChoice: 'served',
+    cabin: {
+      spaceShare: { premium: 0.22, business: 0.25, first: 0.18 },
+      pitch: { economy: 81, premium: 100, business: 150, first: 200 },
+      seatLevel: 2,
+      features: 'all',
+      extras: ['wifi', 'ambient', 'bar'],
+    },
+    service: {
+      economy: { menu: ['b14'], extras: ['water'], onboardService: [] },
+      premium: { menu: ['s9'], extras: ['softdrinks', 'pillows'], onboardService: ['drinks'] },
+      business: { menu: ['p9', 'p2'], extras: ['alcohol', 'amenities_premium', 'headphones'], onboardService: ['dine_demand'] },
+      first: { menu: ['l14', 'l4'], extras: ['premium_alcohol', 'amenities_luxury', 'pajamas'], onboardService: ['dine_demand', 'turndown'] },
+    },
+  },
+};
+
+/** Geduld: Grundwert + (Angriffslust − 6), wenn positiv (heute `:950`). SPEZIFIKATION 7.4. */
+export const PATIENCE_AGGRESSION_PIVOT = 6;
+
+/** Ab dieser Entfernung gilt der Langstrecken-Faktor der Vorauswahl, km. SPEZIFIKATION 7.4, 7.9. */
+export const LONG_HAUL_KM = 3500;
+
+// ---------------------------------------------------------------------------
+// 7.5 Kabine (Platz-Regel des Kaufdialogs, gilt für Spieler und KI)
+// ---------------------------------------------------------------------------
+
+/** Platz je Sitz der Typ-Kapazität in cm: die Kapazität gilt bei 74 cm Sitzabstand (heute `ConfigurePurchaseView.tsx:359`). SPEZIFIKATION 7.5. */
+export const CABIN_SPACE_PER_CAPACITY_SEAT_CM = 74;
+
+/** Mehr Platz durch kabinenweite Extras, Anteil („Reduced galley“ 3 %, „Minimal services“ 6 %; heute `:361-363`). SPEZIFIKATION 7.5. */
+export const CABIN_EXTRA_SPACE_GAIN: Readonly<Partial<Record<CabinExtra, number>>> = {
+  reduced: 0.03,
+  minimal: 0.06,
+};
+
+/** Platzbedarf kabinenweiter Extras in cm (heute `ConfigurePurchaseView.tsx:372`). SPEZIFIKATION 7.5. */
+export const CABIN_EXTRA_SPACE_CM: Readonly<Partial<Record<CabinExtra, number>>> = {
+  catering: 200,
+  bar: 400,
+  shower: 800,
+};
+
+/**
+ * Platzfaktor je Sitztyp: Platz eines Sitzes = Sitzabstand × Faktor (heute `SEAT_DEFS`, Feld `m`,
+ * `ConfigurePurchaseView.tsx:326-353`). Unbekannter Sitztyp wie `Standard` (1). SPEZIFIKATION 7.5.
+ */
+export const SEAT_SPACE_FACTOR: Readonly<Record<CabinClass, Readonly<Record<string, number>>>> = {
+  economy: { Standard: 1, Comfort: 1.05, Ergonomic: 1, 'Premium-Eco': 1.1 },
+  premium: { Standard: 1, Recliner: 1.2, Cradle: 1.4 },
+  business: { Standard: 1, Recliner: 1.1, 'Angled Flat': 1.3, 'Lie-Flat': 1.6, Suites: 2 },
+  first: { Standard: 1, Recliner: 1.2, 'Flat Bed': 1.5, 'Open Suite': 1.8, 'Closed Suite': 2.2, Residence: 3 },
+};
+
+/** Ausstattung „IFE und Strom“ der Expansionist- und Optimizer-Kabine. SPEZIFIKATION 7.5. */
+export const RIVAL_BASIC_FEATURES: readonly string[] = ['ife', 'power'];
+
+// ---------------------------------------------------------------------------
+// 7.6 KI-Preise
+// ---------------------------------------------------------------------------
+
+/** Auslastung, ab der die KI die Lage um `FARE_STEP` hebt. Startwert (3.9). SPEZIFIKATION 7.6. */
+export const LOAD_HIGH = 0.95;
+
+/** Auslastung, unter der die KI die Lage um `FARE_STEP` senkt. Startwert (3.9). SPEZIFIKATION 7.6. */
+export const LOAD_LOW = 0.6;
+
+/** Schritt der Lage je Monat. Startwert (3.9). SPEZIFIKATION 7.6. */
+export const FARE_STEP = 0.03;
+
+/** Lage höchstens ± so viel. Startwert (3.9). SPEZIFIKATION 7.6. */
+export const YIELD_MAX = 0.15;
+
+/** Preiskampf ab dieser Angriffslust (wie heute `:73`). SPEZIFIKATION 7.6. */
+export const PRICE_WAR_MIN_AGGRESSION = 7;
+
+/** Preiskampf: Nachlass auf das Preisniveau, einmal (wie heute `:72`). SPEZIFIKATION 7.6. */
+export const PRICE_WAR_CUT = 0.12;
+
+/** Preiskampf: eine andere Gesellschaft hat in so vielen letzten Monaten eröffnet (E59). SPEZIFIKATION 7.6. */
+export const PRICE_WAR_WINDOW = 6;
+
+/** Preiskampf: so viele Monate höchstens. SPEZIFIKATION 7.6. */
+export const PRICE_WAR_MAX_MONTHS = 12;
+
+/** Nach einem Preiskampf so viele Monate keiner auf demselben Paar. SPEZIFIKATION 7.6. */
+export const PRICE_WAR_COOLDOWN = 12;
+
+/** Preiskampf erst ab diesem Alter der eigenen Strecke, Monate. SPEZIFIKATION 7.6. */
+export const PRICE_WAR_MIN_ROUTE_AGE = 2;
+
+// ---------------------------------------------------------------------------
+// 7.7 Gründung und Startwerte
+// ---------------------------------------------------------------------------
+
+/** Zufälliger Teil der Startkasse: ± so viel in $ von 1960 (wie heute `:708`). SPEZIFIKATION 7.7. */
+export const RIVAL_START_CASH_NOISE_1960 = 3_000_000;
+
+/** Startausstattung am Drehkreuz, gleich für Spieler und KI (heute `src/App.tsx:1645-1652`). SPEZIFIKATION 7.7. */
+export const START_HUB_SETUP = {
+  managementTier: 2,
+  slots: 0,
+  desks: { normal: 1, self: 0 },
+} as const;
+
+/** Erfundene KI: Drehkreuz an Flughäfen ab dieser Größe; gibt es keinen freien, ab `RIVAL_HUB_FALLBACK_LEVEL`. SPEZIFIKATION 7.7. */
+export const RIVAL_HUB_MIN_LEVEL = 4;
+
+/** Siehe `RIVAL_HUB_MIN_LEVEL`. SPEZIFIKATION 7.7. */
+export const RIVAL_HUB_FALLBACK_LEVEL = 2;
+
+/** Bei einer KI: Wahrscheinlichkeit, dass sie erfunden ist (wie heute `:629`). SPEZIFIKATION 7.7. */
+export const FICTIONAL_SINGLE_CHANCE = 0.4;
+
+/** Bei mehreren KI: Anteil erfundener = Grundwert + Spanne × Zufall, mindestens eine (wie heute `:630`). SPEZIFIKATION 7.7. */
+export const FICTIONAL_SHARE_BASE = 0.3;
+
+/** Siehe `FICTIONAL_SHARE_BASE`. SPEZIFIKATION 7.7. */
+export const FICTIONAL_SHARE_SPREAD = 0.2;
+
+/** Je Monat Wahrscheinlichkeit, dass eine fehlende KI nachrückt. SPEZIFIKATION 7.7. */
+export const RIVAL_REFILL_CHANCE = 0.15;
+
+/**
+ * Wahl der Startflugzeuge (wie heute `src/lib/aiSimulation.ts:661-677`):
+ * `Beliebtheit − 0,2 × Monate seit Lieferbeginn + Gewichte der Persönlichkeit + (Zufall − 0,5) × 15`. SPEZIFIKATION 7.7.
+ */
+export const START_AIRCRAFT_AGE_PENALTY = 0.2;
+
+/** Siehe `START_AIRCRAFT_AGE_PENALTY`: Spanne des Zufalls (± die Hälfte). SPEZIFIKATION 7.7. */
+export const START_AIRCRAFT_NOISE = 15;
+
+/** Gewichte der Persönlichkeit bei der Wahl der Startflugzeuge (wie heute `:664-668`). SPEZIFIKATION 7.7. */
+export const START_AIRCRAFT_WEIGHTS: Readonly<
+  Record<RivalPersonality, { readonly capacity: number; readonly efficiency: number; readonly popularity: number; readonly range: number }>
+> = {
+  lcc: { capacity: 0.15, efficiency: 0.6, popularity: 0, range: 0 },
+  expansionist: { capacity: 0, efficiency: 0, popularity: 0, range: 0 },
+  optimizer: { capacity: 0, efficiency: 1.2, popularity: 0, range: 0 },
+  flag: { capacity: 0, efficiency: 0, popularity: 1.5, range: 0 },
+  boutique: { capacity: 0, efficiency: 0, popularity: 0, range: 0.02 },
+};

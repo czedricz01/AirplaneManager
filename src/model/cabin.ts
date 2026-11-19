@@ -1,6 +1,6 @@
 /**
- * Kabine: SPEZIFIKATION 2.3 (Interior score), 2.4 (Cabin rating) und der Listenpreis der Kabine
- * (`cabinListPrice`, 5.13).
+ * Kabine: SPEZIFIKATION 2.3 (Interior score), 2.4 (Cabin rating), der Listenpreis der Kabine
+ * (`cabinListPrice`, 5.13) und die Platz-Regel des Kaufdialogs (7.5, für Spieler und KI).
  *
  * Die Formel des Interior score stand bisher nur im Kaufdialog
  * (`src/components/ConfigurePurchaseView.tsx:402-484`); sie gehört ins Modell (R3).
@@ -11,12 +11,16 @@ import {
   CABIN_CLASSES,
   CABIN_EXTRA_POINTS,
   CABIN_EXTRA_PRICE_1960,
+  CABIN_EXTRA_SPACE_CM,
+  CABIN_EXTRA_SPACE_GAIN,
+  CABIN_SPACE_PER_CAPACITY_SEAT_CM,
   FEATURE_POINTS,
   FEATURE_PRICE_1960,
   INTERIOR_BASE,
   INTERIOR_SHARE,
   PITCH_FACTOR,
   PITCH_NORM,
+  SEAT_SPACE_FACTOR,
   SEAT_TYPE_FACTOR,
   SEAT_TYPE_POINTS,
   SEAT_TYPE_PRICE_1960,
@@ -216,4 +220,51 @@ export function cabinListPriceParts(
 /** Listenpreis einer Kabine in $ von 1960. Siehe `cabinListPriceParts`. SPEZIFIKATION 5.13. */
 export function cabinListPrice(classes: Readonly<Partial<Record<CabinClass, PricedClass>>>, fit: CabinFit): number {
   return cabinListPriceParts(classes, fit).total;
+}
+
+// ---------------------------------------------------------------------------
+// 7.5 Platz-Regel (Kaufdialog und KI)
+// ---------------------------------------------------------------------------
+
+/** Kabinenweite Extras, die im Einbaumonat lieferbar sind und ins Flugzeug passen; jedes einmal. */
+export function deliverableExtras(extras: readonly CabinExtra[], fit: Pick<CabinFit, 'installedMonth' | 'capacity'>): CabinExtra[] {
+  return [...new Set(extras)].filter((extra) => isDeliverable(CABIN_EXTRA_POINTS[extra], fit));
+}
+
+/**
+ * Platz einer Kabine in cm: `capacity × 74 cm × (1 + Platz-Gewinn der Extras) − Platzbedarf der Extras`.
+ * Nur lieferbare Extras zählen (wie in 2.3). Dieselbe Regel wie im Kaufdialog (heute nur dort,
+ * `src/components/ConfigurePurchaseView.tsx:355-379`; R3). SPEZIFIKATION 7.5.
+ */
+export function cabinSpace(fit: CabinFit): number {
+  const extras = deliverableExtras(fit.extras, fit);
+  let gain = 0;
+  let used = 0;
+  for (const extra of extras) {
+    gain += CABIN_EXTRA_SPACE_GAIN[extra] ?? 0;
+    used += CABIN_EXTRA_SPACE_CM[extra] ?? 0;
+  }
+  return fit.capacity * CABIN_SPACE_PER_CAPACITY_SEAT_CM * (1 + gain) - used;
+}
+
+/** Platz eines Sitzes in cm: Sitzabstand × Platzfaktor des Sitztyps (unbekannt = 1). SPEZIFIKATION 7.5. */
+export function seatSpace(cabinClass: CabinClass, interior: ClassInterior): number {
+  return interior.pitch * (SEAT_SPACE_FACTOR[cabinClass][interior.seatType] ?? 1);
+}
+
+/**
+ * Economy-Sitze im restlichen Platz: `abrunden((Platz − Σ Platz der anderen Klassen) / Platz eines Economy-Sitzes)`,
+ * mindestens 0. Dieselbe Regel wie im Kaufdialog. SPEZIFIKATION 7.5.
+ */
+export function economySeatsLeft(
+  space: number,
+  others: Readonly<Partial<Record<Exclude<CabinClass, 'economy'>, { readonly seats: number; readonly interior: ClassInterior }>>>,
+  economy: ClassInterior,
+): number {
+  let used = 0;
+  for (const c of ['premium', 'business', 'first'] as const) {
+    const cls = others[c];
+    if (cls) used += cls.seats * seatSpace(c, cls.interior);
+  }
+  return Math.max(0, Math.floor((space - used) / seatSpace('economy', economy)));
 }
