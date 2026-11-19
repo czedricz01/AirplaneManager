@@ -13,7 +13,7 @@ import {
   FUEL_CRISES,
   LITRES_PER_GALLON,
   RESEARCH_COST_FLOOR,
-  RESEARCH_COST_SAVINGS,
+  RESEARCH_PROJECTS,
   START_YEAR,
   type AircraftClass,
   type CabinClass,
@@ -107,7 +107,7 @@ describe('Abschnitt 5.1 Kosten-Faktoren', () => {
   });
 
   it('5.1: der Faktor sinkt nie unter RESEARCH_COST_FLOOR', () => {
-    const all = Object.keys(RESEARCH_COST_SAVINGS);
+    const all = RESEARCH_PROJECTS.map((p) => p.id);
     for (const kind of ['fuel', 'crew', 'fees', 'catering', 'maintenance', 'slots'] as const) {
       assert.ok(researchCostFactor(kind, all) >= RESEARCH_COST_FLOOR);
     }

@@ -23,8 +23,6 @@ import {
   CHECKIN_FEE_1960,
   COCKPIT_CREW,
   EFFICIENCY_MAX,
-  EFFICIENCY_PER_RESEARCH,
-  EFFICIENCY_RESEARCH_IDS,
   FFP_COST_PER_PAX_1960,
   FUEL_BASE,
   FUEL_CRISES,
@@ -45,8 +43,6 @@ import {
   PILOT_RATE_1960,
   PROPELLER_FEE_SHARE,
   PROPELLER_MAX_SPEED,
-  RESEARCH_COST_FLOOR,
-  RESEARCH_COST_SAVINGS,
   SEATS_PER_ATTENDANT,
   TRANSFER_CHECKIN_SHARE,
   type AircraftClass,
@@ -60,25 +56,21 @@ import {
   type ServiceCapability,
   type ServiceSelection,
 } from './satisfaction';
+import { researchEffects } from './progress';
 
 // ---------------------------------------------------------------------------
 // 5.1 Kosten-Faktoren der Gesellschaft
 // ---------------------------------------------------------------------------
 
 /**
- * Faktor der Forschung auf eine Kostenart: `max(RESEARCH_COST_FLOOR, 1 − Σ Einsparungen)` der fertigen
- * Forschungen dieser Art. Unbekannte Ids zählen nicht, doppelte einmal. KI: keine Forschung, also 1.
- * SPEZIFIKATION 5.1.
+ * Faktor der Forschung auf eine Kostenart: `max(RESEARCH_COST_FLOOR, 1 − Σ costSaving[Art])` der fertigen
+ * Projekte (Feld `costSaving` der Forschungs-Tabelle, 6.9). Unbekannte Ids zählen nicht, doppelte einmal.
+ * KI: keine Forschung, also 1. SPEZIFIKATION 5.1.
  *
  * @param completedResearch Ids der fertigen Forschungen.
  */
 export function researchCostFactor(kind: CostResearchKind, completedResearch: readonly string[] = []): number {
-  let saving = 0;
-  for (const id of new Set(completedResearch)) {
-    const entry = RESEARCH_COST_SAVINGS[id];
-    if (entry && entry.kind === kind) saving += entry.saving;
-  }
-  return Math.max(RESEARCH_COST_FLOOR, 1 - saving);
+  return researchEffects(completedResearch).costFactor[kind];
 }
 
 /**
@@ -182,13 +174,13 @@ export function fuelPrice(month: number, completedResearch: readonly string[] = 
 // ---------------------------------------------------------------------------
 
 /**
- * Effizienz eines Flugzeugs: Wert des Typs + `EFFICIENCY_PER_RESEARCH` je fertiger Effizienz-Forschung,
- * höchstens `EFFICIENCY_MAX`, nie unter dem Wert des Typs. Berechnet, nicht gespeichert. SPEZIFIKATION 5.3.
+ * Effizienz eines Flugzeugs: Wert des Typs + Σ `efficiencyPoints` der fertigen Projekte (6.9; je Stufe
+ * `EFFICIENCY_PER_RESEARCH`), höchstens `EFFICIENCY_MAX`, nie unter dem Wert des Typs. Berechnet, nicht
+ * gespeichert. SPEZIFIKATION 5.3.
  */
 export function aircraftEfficiency(typeEfficiency: number, completedResearch: readonly string[] = []): number {
-  const done = new Set(completedResearch);
-  const count = EFFICIENCY_RESEARCH_IDS.filter((id) => done.has(id)).length;
-  return Math.max(typeEfficiency, Math.min(EFFICIENCY_MAX, typeEfficiency + count * EFFICIENCY_PER_RESEARCH));
+  const points = researchEffects(completedResearch).efficiencyPoints;
+  return Math.max(typeEfficiency, Math.min(EFFICIENCY_MAX, typeEfficiency + points));
 }
 
 /**

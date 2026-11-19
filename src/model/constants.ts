@@ -457,21 +457,7 @@ export const SAT_PER_MORALE_POINT = 0.1;
 // 2.6.5 Forschungs-Teil
 // ---------------------------------------------------------------------------
 
-/**
- * Satisfaction-Punkte je fertiger Forschung (Feld `satisfactionPoints`, 6.9), für alle Klassen gleich:
- * „Cabin design studio“ +2, die sechs Stufen „Plane type satisfaction“ je +1 (E19). Höchstens +8.
- * Ids wie heute in `src/lib/research.ts:100-164`. Paket 3.6 führt die Tabelle mit allen Feldern
- * aus 6.9 zusammen (F22). SPEZIFIKATION 2.6.5.
- */
-export const RESEARCH_SATISFACTION_POINTS: Readonly<Record<string, number>> = {
-  'sat-1': 1,
-  'sat-2': 1,
-  'sat-3': 1,
-  'sat-4': 1,
-  'sat-5': 1,
-  'sat-6': 1,
-  cabin: 2,
-};
+// Satisfaction-Punkte aus Forschung: Feld `satisfactionPoints` der Forschungs-Tabelle `RESEARCH_PROJECTS` (6.9, F37).
 
 // ---------------------------------------------------------------------------
 // 2.10 Satisfaction factor
@@ -531,6 +517,9 @@ export const SEASON_BY_MONTH: readonly number[] = [
 
 /** Weltregionen für Ereignisse (wie heute `EventRegion`, `src/lib/eventSystem.ts:28`). SPEZIFIKATION 3.5. */
 export type WorldRegion = 'EU' | 'NA' | 'SA' | 'AF' | 'AS' | 'OC';
+
+/** Alle Weltregionen (6 Stück; Rang, Meilensteine und Jahresziel zählen sie, R15). */
+export const WORLD_REGIONS: readonly WorldRegion[] = ['EU', 'NA', 'SA', 'AF', 'AS', 'OC'];
 
 // ---------------------------------------------------------------------------
 // 3.3 Nachfrage-Wachstum
@@ -779,30 +768,10 @@ export const BEST_FARE_FINE_STEP = 0.001;
 /** Arten von Kosten, die eine Forschung senken kann. SPEZIFIKATION 5.1. */
 export type CostResearchKind = 'fuel' | 'crew' | 'fees' | 'catering' | 'maintenance' | 'slots';
 
-/**
- * Einsparung je fertiger Forschung (Anteil, 0,01 = 1 %), mit der Kostenart. Ids und Werte wie heute
- * (`src/lib/research.ts:99-160`): Treibstoff 3 + 3 + 1 %, Besatzung 3 × 1 %, Gebühren 3 × 1 %,
- * Verpflegung 2 × 2 %, Wartung 4 × 1 %, Slots 8 %. Paket 3.6 führt die Tabelle in die Felder der
- * Forschungs-Tabelle (6.9) über (wie F23). SPEZIFIKATION 5.1.
- */
-export const RESEARCH_COST_SAVINGS: Readonly<Record<string, { readonly kind: CostResearchKind; readonly saving: number }>> = {
-  'fuel-1': { kind: 'fuel', saving: 0.03 },
-  'fuel-2': { kind: 'fuel', saving: 0.03 },
-  'fuel-3': { kind: 'fuel', saving: 0.01 },
-  'crew-1': { kind: 'crew', saving: 0.01 },
-  'crew-2': { kind: 'crew', saving: 0.01 },
-  'crew-3': { kind: 'crew', saving: 0.01 },
-  'fees-1': { kind: 'fees', saving: 0.01 },
-  'fees-2': { kind: 'fees', saving: 0.01 },
-  'fees-3': { kind: 'fees', saving: 0.01 },
-  'catering-1': { kind: 'catering', saving: 0.02 },
-  'catering-2': { kind: 'catering', saving: 0.02 },
-  'maint-1': { kind: 'maintenance', saving: 0.01 },
-  'maint-2': { kind: 'maintenance', saving: 0.01 },
-  'maint-3': { kind: 'maintenance', saving: 0.01 },
-  'maint-4': { kind: 'maintenance', saving: 0.01 },
-  slots: { kind: 'slots', saving: 0.08 },
-};
+/** Alle Kostenarten, die eine Forschung senken kann. SPEZIFIKATION 5.1, 6.9. */
+export const COST_RESEARCH_KINDS: readonly CostResearchKind[] = ['fuel', 'crew', 'fees', 'catering', 'maintenance', 'slots'];
+
+// Einsparungen je Projekt: Feld `costSaving` der Forschungs-Tabelle `RESEARCH_PROJECTS` (6.9, F37).
 
 /** Kein Kosten-Faktor aus Forschung sinkt unter diesen Wert (heute `src/lib/research.ts:253`). SPEZIFIKATION 5.1. */
 export const RESEARCH_COST_FLOOR = 0.4;
@@ -852,8 +821,7 @@ export const FUEL_EFF_SCALE = 70;
 /** Effizienz-Punkte je fertiger Effizienz-Forschung (heute +1 %, `src/lib/research.ts:99-147`). SPEZIFIKATION 5.3. */
 export const EFFICIENCY_PER_RESEARCH = 1;
 
-/** Ids der Effizienz-Forschungen (Feld `efficiencyPoints`, 6.9; Paket 3.6 führt sie über). SPEZIFIKATION 5.3. */
-export const EFFICIENCY_RESEARCH_IDS: readonly string[] = ['eff-1', 'eff-2', 'eff-3', 'eff-4', 'eff-5', 'eff-6'];
+// Effizienz-Forschungen: Feld `efficiencyPoints` der Forschungs-Tabelle `RESEARCH_PROJECTS` (6.9, F37).
 
 /** Höchste Effizienz eines Flugzeugs mit Forschung. SPEZIFIKATION 5.3. */
 export const EFFICIENCY_MAX = 100;
@@ -1264,6 +1232,8 @@ export const SUPERSONIC_MIN_KMH = 1000;
 export interface ClassResearch {
   /** Id des Projekts (wie heute, `src/lib/research.ts`). */
   readonly id: string;
+  /** Name im Spiel (Oberflächentext, Englisch, wie heute). */
+  readonly title: string;
   /** Rang, ab dem das Projekt erscheint (E41). */
   readonly rank: number;
   /** Klasse, deren Projekt vorher fertig sein muss; `null` = keine. */
@@ -1279,9 +1249,377 @@ export interface ClassResearch {
  * Widebody statt Jumbo (E41). SPEZIFIKATION 6.8.
  */
 export const CLASS_RESEARCH: Readonly<Record<Exclude<SizeClass, 'commuter'>, ClassResearch>> = {
-  regional: { id: 'class-regional', rank: 1, requires: null, months: 6, price1960: 3_000_000 },
-  narrowbody: { id: 'class-narrowbody', rank: 2, requires: 'regional', months: 9, price1960: 12_000_000 },
-  widebody: { id: 'class-widebody', rank: 4, requires: 'narrowbody', months: 12, price1960: 40_000_000 },
-  jumbo: { id: 'class-jumbo', rank: 5, requires: 'widebody', months: 18, price1960: 80_000_000 },
-  supersonic: { id: 'class-supersonic', rank: 5, requires: 'widebody', months: 24, price1960: 60_000_000 },
+  regional: { id: 'class-regional', title: 'Regional aircraft class', rank: 1, requires: null, months: 6, price1960: 3_000_000 },
+  narrowbody: { id: 'class-narrowbody', title: 'Narrowbody aircraft class', rank: 2, requires: 'regional', months: 9, price1960: 12_000_000 },
+  widebody: { id: 'class-widebody', title: 'Wide-body aircraft class', rank: 4, requires: 'narrowbody', months: 12, price1960: 40_000_000 },
+  jumbo: { id: 'class-jumbo', title: 'Jumbo aircraft class', rank: 5, requires: 'widebody', months: 18, price1960: 80_000_000 },
+  supersonic: { id: 'class-supersonic', title: 'Supersonic aircraft class', rank: 5, requires: 'widebody', months: 24, price1960: 60_000_000 },
 };
+
+// ---------------------------------------------------------------------------
+// 6.9 Forschung
+// ---------------------------------------------------------------------------
+
+/**
+ * Wirkungen eines Forschungs-Projekts als Felder (5.19, Tabelle in 6.9). Jedes Feld wirkt an genau einer Stelle;
+ * fehlende Felder sind neutral. Die Texte der Projekte werden aus den Feldern erzeugt (E52).
+ */
+export interface ResearchEffect {
+  /** Einsparung je Kostenart (Anteil, 0,01 = 1 %); `researchCostFactor` = max(0,4; 1 − Σ). Wirkt in 5.1. */
+  readonly costSaving?: Readonly<Partial<Record<CostResearchKind, number>>>;
+  /** Effizienz-Punkte auf jedes Flugzeug (Summe). Wirkt in 5.3. */
+  readonly efficiencyPoints?: number;
+  /** Satisfaction-Punkte in jeder Kabinenklasse (Summe, E19). Wirkt in 2.6.5. */
+  readonly satisfactionPoints?: number;
+  /** Faktor auf die Anziehung jedes Angebots (Produkt). Wirkt in 3.9.4 `researchDemandFactor`. */
+  readonly demandFactor?: number;
+  /** Faktor auf die Drehkreuz-Güte (Produkt). Wirkt in 3.13 `hubQuality`. */
+  readonly hubQualityFactor?: number;
+  /** Zuschlag auf den Anlauf-Start (Summe). Wirkt in 3.12 `rampFactor`. */
+  readonly rampBonus?: number;
+  /** Weniger technische Ausfälle (Anteil); Faktor max(0,4; 1 − Σ). Wirkt in Abschnitt 8. */
+  readonly defectSaving?: number;
+  /** Langsamerer Verschleiß (Anteil); Faktor max(0,4; 1 − Σ). Wirkt in Abschnitt 8. */
+  readonly wearSaving?: number;
+  /** Höherer Verkaufserlös (Anteil, Summe). Wirkt in Abschnitt 8. */
+  readonly resaleBonus?: number;
+  /** Moral-Punkte (Summe). Wirkt in 2.6.4 über das Personal (Abschnitt 8). */
+  readonly moralePoints?: number;
+}
+
+/** Art eines Projekts: öffnet eine Flugzeugklasse (6.8) oder bringt eine kleine Wirkung. */
+export type ResearchKind = 'class' | 'bonus';
+
+/** Ein Forschungs-Projekt (eine Zeile der Forschungs-Tabelle). SPEZIFIKATION 6.9. */
+export interface ResearchProjectDef {
+  /** Id wie heute (`src/lib/research.ts:100-164`). */
+  readonly id: string;
+  /** Name im Spiel (Oberflächentext, Englisch, wie heute). */
+  readonly title: string;
+  readonly kind: ResearchKind;
+  /** Rang, ab dem das Projekt erscheint. */
+  readonly rank: number;
+  /** Id des Projekts, das vorher fertig sein muss; `null` = keines. */
+  readonly requires: string | null;
+  /** Dauer in Monaten. */
+  readonly months: number;
+  /** Preis in $ von 1960, über `atCost` (E6); ungerundet (R4). */
+  readonly price1960: number;
+  /** Klasse, die das Projekt öffnet; `null` bei Bonus-Projekten. */
+  readonly opens: SizeClass | null;
+  readonly effect: ResearchEffect;
+}
+
+/** Preis eines Bonus-Projekts ohne eigenen Preis: Grundbetrag in $ von 1960 (wie heute `src/lib/research.ts:85`). SPEZIFIKATION 6.9. */
+export const RESEARCH_BONUS_PRICE_BASE_1960 = 1_200_000;
+
+/** Preis eines Bonus-Projekts ohne eigenen Preis: Zuschlag je Rang in $ von 1960. SPEZIFIKATION 6.9. */
+export const RESEARCH_BONUS_PRICE_PER_RANK_1960 = 1_300_000;
+
+/** Dauer eines Bonus-Projekts ohne eigene Dauer: `RESEARCH_BONUS_MONTHS_BASE + aufrunden(Rang / 2)` Monate (wie heute `src/lib/research.ts:86`). SPEZIFIKATION 6.9. */
+export const RESEARCH_BONUS_MONTHS_BASE = 3;
+
+/** Kein Ausfall- oder Verschleiß-Faktor aus Forschung sinkt unter diesen Wert (wie die Kosten-Faktoren). SPEZIFIKATION 6.9. */
+export const RESEARCH_EFFECT_FLOOR = RESEARCH_COST_FLOOR;
+
+function bonusProject(
+  id: string,
+  title: string,
+  rank: number,
+  effect: ResearchEffect,
+  requires: string | null = null,
+  own: { readonly price1960?: number; readonly months?: number } = {},
+): ResearchProjectDef {
+  return {
+    id,
+    title,
+    kind: 'bonus',
+    rank,
+    requires,
+    months: own.months ?? RESEARCH_BONUS_MONTHS_BASE + Math.ceil(rank / 2),
+    price1960: own.price1960 ?? RESEARCH_BONUS_PRICE_BASE_1960 + RESEARCH_BONUS_PRICE_PER_RANK_1960 * rank,
+    opens: null,
+    effect,
+  };
+}
+
+const EFF: ResearchEffect = { efficiencyPoints: EFFICIENCY_PER_RESEARCH };
+const SAT: ResearchEffect = { satisfactionPoints: 1 };
+
+/**
+ * Die 40 Bonus-Projekte: Ränge, Ketten, Dauer, Preise und Werte wie heute (`src/lib/research.ts:100-164`).
+ * Neu: „Plane type satisfaction“ (sat-1 … sat-6) wirkt als Satisfaction-Punkt (E19), Effizienz in Punkten (W12),
+ * „Alliance“ als Faktor auf die Drehkreuz-Güte (3.13), Preise ungerundet (R4). SPEZIFIKATION 6.9.
+ */
+const BONUS_PROJECTS: readonly ResearchProjectDef[] = [
+  // Startup
+  bonusProject('eff-1', 'Lean flight operations', 0, EFF),
+  bonusProject('sat-1', 'Passenger service basics', 0, SAT),
+  bonusProject('crew-1', 'Crew rostering', 0, { costSaving: { crew: 0.01 } }),
+  // Local Airline
+  bonusProject('maint-1', 'Maintenance routines', 1, { costSaving: { maintenance: 0.01 } }),
+  bonusProject('fees-1', 'Handling agreements', 1, { costSaving: { fees: 0.01 } }),
+  bonusProject('eff-2', 'Winglets and weight', 1, EFF, 'eff-1'),
+  // Regional Airline
+  bonusProject('slots', 'Slot negotiators', 2, { costSaving: { slots: 0.08 } }, null, { price1960: 4_000_000, months: 6 }),
+  bonusProject('sat-2', 'Cabin crew training', 2, SAT, 'sat-1'),
+  bonusProject('catering-1', 'Galley logistics', 2, { costSaving: { catering: 0.02 } }),
+  bonusProject('yield-1', 'Revenue management system', 2, { demandFactor: 1.015 }, null, { price1960: 6_000_000, months: 9 }),
+  bonusProject('academy', 'Crew academy', 2, { moralePoints: 5 }, null, { price1960: 5_000_000, months: 6 }),
+  // Domestic Airline
+  bonusProject('fuel-1', 'Fuel management programme', 3, { costSaving: { fuel: 0.03 } }, null, { price1960: 4_000_000, months: 6 }),
+  bonusProject('maint-2', 'Condition monitoring', 3, { costSaving: { maintenance: 0.01 } }, 'maint-1'),
+  bonusProject('crew-2', 'Crew pairing optimiser', 3, { costSaving: { crew: 0.01 } }, 'crew-1'),
+  bonusProject('planning', 'Route planning suite', 3, { rampBonus: RAMP_RESEARCH_BONUS }, null, { price1960: 7_000_000, months: 8 }),
+  // National Airline
+  bonusProject('eff-3', 'Engine upgrades', 4, EFF, 'eff-2'),
+  bonusProject('sat-3', 'Premium service concept', 4, SAT, 'sat-2'),
+  bonusProject('wear-1', 'Protective cabin materials', 4, { wearSaving: 0.03 }),
+  bonusProject('maintenance', 'Predictive maintenance', 4, { defectSaving: 0.3 }, 'maint-2', { price1960: 9_000_000, months: 9 }),
+  bonusProject('resale-1', 'Fleet remarketing', 4, { resaleBonus: 0.01 }),
+  // Continental Airline
+  bonusProject('alliance', 'Alliance and codeshare systems', 5, { hubQualityFactor: HUB_QUALITY_RESEARCH_FACTOR }, null, { price1960: 10_000_000, months: 12 }),
+  bonusProject('eff-4', 'Aerodynamic refit programme', 5, EFF, 'eff-3'),
+  bonusProject('fees-2', 'Airport partnerships', 5, { costSaving: { fees: 0.01 } }, 'fees-1'),
+  bonusProject('fuel-2', 'Fleet fuel optimisation', 5, { costSaving: { fuel: 0.03 } }, 'fuel-1', { price1960: 12_000_000, months: 12 }),
+  // International Airline
+  bonusProject('sat-4', 'Lounge and service standards', 6, SAT, 'sat-3'),
+  bonusProject('cabin', 'Cabin design studio', 6, { satisfactionPoints: 2 }, null, { price1960: 8_000_000, months: 9 }),
+  bonusProject('yield-2', 'Dynamic pricing engine', 6, { demandFactor: 1.025 }, 'yield-1', { price1960: 18_000_000, months: 12 }),
+  bonusProject('maint-3', 'Own maintenance base', 6, { costSaving: { maintenance: 0.01 } }, 'maint-2'),
+  bonusProject('catering-2', 'Central kitchen', 6, { costSaving: { catering: 0.02 } }, 'catering-1'),
+  // Intercontinental Airline
+  bonusProject('eff-5', 'Composite wings', 7, EFF, 'eff-4'),
+  bonusProject('crew-3', 'Crew base network', 7, { costSaving: { crew: 0.01 } }, 'crew-2'),
+  bonusProject('wear-2', 'Nano-coated interiors', 7, { wearSaving: 0.03 }, 'wear-1'),
+  // Flag Carrier
+  bonusProject('sat-5', 'Ambassador airline', 8, SAT, 'sat-4'),
+  bonusProject('resale-2', 'Certified pre-owned programme', 8, { resaleBonus: 0.015 }, 'resale-1'),
+  bonusProject('fees-3', 'Terminal operating rights', 8, { costSaving: { fees: 0.01 } }, 'fees-2'),
+  // Global Player
+  bonusProject('eff-6', 'Next-generation engines', 9, EFF, 'eff-5'),
+  bonusProject('maint-4', 'Self-diagnosing fleet', 9, { costSaving: { maintenance: 0.01 } }, 'maint-3'),
+  bonusProject('sat-6', "The world's favourite airline", 9, SAT, 'sat-5'),
+  bonusProject('yield-3', 'Global yield network', 9, { demandFactor: 1.01 }, 'yield-2'),
+  bonusProject('fuel-3', 'Sustainable fuel contracts', 9, { costSaving: { fuel: 0.01 } }, 'fuel-2'),
+];
+
+/** Die 5 Klassen-Projekte aus `CLASS_RESEARCH` (6.8), mit der Vorgänger-Klasse als Projekt-Id. */
+const CLASS_PROJECTS: readonly ResearchProjectDef[] = (Object.entries(CLASS_RESEARCH) as [SizeClass, ClassResearch][]).map(
+  ([sizeClass, project]) => ({
+    id: project.id,
+    title: project.title,
+    kind: 'class',
+    rank: project.rank,
+    requires: project.requires === null ? null : CLASS_RESEARCH[project.requires as Exclude<SizeClass, 'commuter'>].id,
+    months: project.months,
+    price1960: project.price1960,
+    opens: sizeClass,
+    effect: {},
+  }),
+);
+
+/**
+ * Die Forschungs-Tabelle: 45 Projekte (5 Klassen-Projekte, 40 Bonus-Projekte), nach Rang geordnet, je Rang die
+ * Klasse zuerst. Ersetzt die Einzel-Tabellen `RESEARCH_SATISFACTION_POINTS` (F23), `RESEARCH_COST_SAVINGS` und
+ * `EFFICIENCY_RESEARCH_IDS` (F29). SPEZIFIKATION 6.9.
+ */
+export const RESEARCH_PROJECTS: readonly ResearchProjectDef[] = [...CLASS_PROJECTS, ...BONUS_PROJECTS].sort(
+  (a, b) => a.rank - b.rank,
+);
+
+// ---------------------------------------------------------------------------
+// 6.10 Meilensteine
+// ---------------------------------------------------------------------------
+
+/** Stufe eines Meilensteins; „feat“ = Sonderleistung. */
+export type MilestoneTier = 'bronze' | 'silver' | 'gold' | 'feat';
+
+/** Spur eines Meilensteins (Gruppe in der Anzeige, wie heute `src/lib/milestones.ts:15`). */
+export type MilestoneTrack = 'network' | 'fleet' | 'passengers' | 'reach' | 'finance' | 'standing' | 'hub' | 'feats';
+
+/** Belohnung je Stufe: Prämie in $ von 1960 (über `atCost`) und Slot-Nachlass (E38, keine Ruf-Punkte). SPEZIFIKATION 6.10. */
+export const MILESTONE_TIER_REWARD: Readonly<Record<MilestoneTier, { readonly prize1960: number; readonly slotDiscount: number }>> = {
+  bronze: { prize1960: 500_000, slotDiscount: 0 },
+  silver: { prize1960: 3_000_000, slotDiscount: 0.02 },
+  gold: { prize1960: 15_000_000, slotDiscount: 0.03 },
+  feat: { prize1960: 2_000_000, slotDiscount: 0.01 },
+};
+
+/** Höchster Slot-Nachlass aus allen Meilensteinen zusammen (heute `src/lib/milestones.ts:137`). SPEZIFIKATION 6.10. */
+export const MILESTONE_SLOT_DISCOUNT_MAX = 0.3;
+
+/**
+ * Was ein Meilenstein misst (Feld der Eingabe `MilestoneContext`). `cash` ist ein Betrag von 1960 und wird über
+ * `atCost` umgerechnet (E6, W9); alle anderen sind Anzahlen, Punkte oder km.
+ */
+export type MilestoneMetric =
+  | 'routes'
+  | 'fleet'
+  | 'careerPax'
+  | 'regions'
+  | 'longestRouteKm'
+  | 'cash'
+  | 'profitStreak'
+  | 'reputation'
+  | 'monthTransferPax'
+  | 'widebodies'
+  | 'supersonics'
+  | 'takeovers';
+
+/** Ein Meilenstein: erreicht, wenn der Wert `metric` ≥ `threshold`. Texte daraus (E52). SPEZIFIKATION 6.10. */
+export interface MilestoneDef {
+  readonly id: string;
+  readonly track: MilestoneTrack;
+  readonly tier: MilestoneTier;
+  /** Name im Spiel (Oberflächentext, Englisch). */
+  readonly title: string;
+  readonly metric: MilestoneMetric;
+  /** Schwelle; bei `cash` in $ von 1960. */
+  readonly threshold: number;
+  /** Zusätzliche Drehkreuze (Gold einzeln, „Empire builder“; wie heute). */
+  readonly extraHubs: number;
+}
+
+function milestone(
+  id: string,
+  track: MilestoneTrack,
+  tier: MilestoneTier,
+  title: string,
+  metric: MilestoneMetric,
+  threshold: number,
+  extraHubs = 0,
+): MilestoneDef {
+  return { id, track, tier, title, metric, threshold, extraHubs };
+}
+
+/**
+ * Die 31 Meilensteine wie heute (`src/lib/milestones.ts:85-134`), mit den Änderungen aus 6.10: Kasse über
+ * `atCost`, Ruf 60 / 70 / 80, Regionen statt Kontinente, keine Ruf-Punkte. Ids wie heute außer Ruf und Regionen
+ * (F37). SPEZIFIKATION 6.10.
+ */
+export const MILESTONES: readonly MilestoneDef[] = [
+  // Network
+  milestone('first-route', 'network', 'bronze', 'First route opened', 'routes', 1),
+  milestone('routes-10', 'network', 'bronze', 'Ten routes', 'routes', 10),
+  milestone('routes-50', 'network', 'silver', 'Fifty routes', 'routes', 50),
+  milestone('routes-150', 'network', 'gold', '150 routes', 'routes', 150, 1),
+  // Fleet
+  milestone('fleet-10', 'fleet', 'bronze', 'Ten aircraft', 'fleet', 10),
+  milestone('fleet-50', 'fleet', 'silver', 'Fifty aircraft', 'fleet', 50),
+  milestone('fleet-200', 'fleet', 'gold', '200 aircraft', 'fleet', 200),
+  // Passengers, over the whole career
+  milestone('pax-1m', 'passengers', 'bronze', 'One million passengers', 'careerPax', 1_000_000),
+  milestone('pax-10m', 'passengers', 'silver', 'Ten million passengers', 'careerPax', 10_000_000),
+  milestone('pax-100m', 'passengers', 'gold', 'One hundred million passengers', 'careerPax', 100_000_000, 1),
+  // Reach
+  milestone('regions-2', 'reach', 'bronze', 'Two regions served', 'regions', 2),
+  milestone('longhaul', 'reach', 'bronze', 'First intercontinental route', 'longestRouteKm', 5000),
+  milestone('regions-4', 'reach', 'silver', 'Four regions served', 'regions', 4),
+  milestone('ultralong', 'reach', 'silver', 'Ultra long haul', 'longestRouteKm', 10_000),
+  milestone('regions-6', 'reach', 'gold', 'Every region served', 'regions', 6),
+  // Finance
+  milestone('capital-100m', 'finance', 'bronze', 'Money in the bank', 'cash', 100_000_000),
+  milestone('profit-12', 'finance', 'bronze', 'A full year in profit', 'profitStreak', 12),
+  milestone('capital-1b', 'finance', 'silver', 'The banks now call you', 'cash', 1_000_000_000),
+  milestone('profit-60', 'finance', 'silver', 'Five years without a loss', 'profitStreak', 60),
+  milestone('capital-10b', 'finance', 'gold', 'A war chest', 'cash', 10_000_000_000),
+  milestone('profit-120', 'finance', 'gold', 'A decade without a loss', 'profitStreak', 120),
+  // Standing
+  milestone('reputation-bronze', 'standing', 'bronze', 'A name people know', 'reputation', 60),
+  milestone('reputation-silver', 'standing', 'silver', 'A reputation worth having', 'reputation', 70),
+  milestone('reputation-gold', 'standing', 'gold', 'The gold standard', 'reputation', 80),
+  // Hub
+  milestone('transfer-1k', 'hub', 'bronze', '1,000 connecting passengers', 'monthTransferPax', 1_000),
+  milestone('transfer-10k', 'hub', 'silver', '10,000 connecting passengers', 'monthTransferPax', 10_000),
+  milestone('transfer-50k', 'hub', 'gold', '50,000 connecting passengers', 'monthTransferPax', 50_000),
+  // Feats
+  milestone('widebody', 'feats', 'feat', 'The wide-body age', 'widebodies', 1),
+  milestone('supersonic', 'feats', 'feat', 'Flying faster than sound', 'supersonics', 1),
+  milestone('takeover', 'feats', 'feat', 'Consolidator', 'takeovers', 1),
+  milestone('takeover-3', 'feats', 'feat', 'Empire builder', 'takeovers', 3, 1),
+];
+
+// ---------------------------------------------------------------------------
+// 6.11 Jahresziel
+// ---------------------------------------------------------------------------
+
+/** Mindest-Marge der Bezugsgröße: `GOAL_MIN_MARGIN × Vorjahreserlös`. Startwert (3.9). SPEZIFIKATION 6.11. */
+export const GOAL_MIN_MARGIN = 0.05;
+
+/** Kleinste Bezugsgröße in $ von 1960 (über `atCost`; heute 2 Mio. $ nominal, `src/lib/annualGoals.ts:58`). SPEZIFIKATION 6.11. */
+export const GOAL_PROFIT_FLOOR_1960 = 2_000_000;
+
+/** Sicheres Gewinnziel: `GOAL_STEADY_FACTOR × goalBase` (wie heute). SPEZIFIKATION 6.11. */
+export const GOAL_STEADY_FACTOR = 1.1;
+
+/** Hohes Gewinnziel: `GOAL_STRETCH_FACTOR × goalBase` (wie heute). SPEZIFIKATION 6.11. */
+export const GOAL_STRETCH_FACTOR = 1.35;
+
+/** Art des angebotenen Ziels: sicher, andere Art, hoch. */
+export type GoalTag = 'steady' | 'focus' | 'stretch';
+
+/** Prämie als Anteil der Bezugsgröße je Art. Startwerte (3.9). SPEZIFIKATION 6.11. */
+export const GOAL_REWARD_SHARE: Readonly<Record<GoalTag, number>> = {
+  steady: 0.02,
+  focus: 0.03,
+  stretch: 0.05,
+};
+
+/** Kleinste Prämie in $ von 1960 (über `atCost`). SPEZIFIKATION 6.11. */
+export const GOAL_MIN_REWARD_1960 = 250_000;
+
+/** Strafe bei verfehltem Ziel als Anteil der Prämie (E58). SPEZIFIKATION 6.11. */
+export const GOAL_MISS_PENALTY_SHARE = 0.5;
+
+/** Ziel „Strecken“: mindestens so viele Strecken mehr (wie heute `src/lib/annualGoals.ts:84`). SPEZIFIKATION 6.11. */
+export const GOAL_ROUTES_MIN_STEP = 3;
+
+/** Ziel „Strecken“: Anteil mehr Strecken (aufgerundet; wie heute). SPEZIFIKATION 6.11. */
+export const GOAL_ROUTES_SHARE = 0.2;
+
+/** Ziel „Ruf“: so viele Punkte mehr (aufgerundet; wie heute). SPEZIFIKATION 6.11. */
+export const GOAL_REPUTATION_STEP = 6;
+
+/** Ziel „Ruf“: höchstens dieser Wert (neue Skala, E36; heute 98). SPEZIFIKATION 6.11. */
+export const GOAL_REPUTATION_MAX = 90;
+
+/** Ziel „Fluggäste“: Vorjahr × Faktor (wie heute). SPEZIFIKATION 6.11. */
+export const GOAL_PAX_FACTOR = 1.2;
+
+/** Ziel „Fluggäste“: kleinstes Ziel (wie heute). SPEZIFIKATION 6.11. */
+export const GOAL_PAX_MIN = 1000;
+
+// ---------------------------------------------------------------------------
+// 6.12 Karriere-Punkte
+// ---------------------------------------------------------------------------
+
+/** Punkte je Zehnerpotenz Vermögen: `150 × log10(companyValue / atCost(1 Mio. $))` (E43). SPEZIFIKATION 6.12. */
+export const CAREER_WEALTH_POINTS = 150;
+
+/** Vermögens-Einheit in $ von 1960 (über `atCost`, W9). SPEZIFIKATION 6.12. */
+export const CAREER_WEALTH_UNIT_1960 = 1_000_000;
+
+/** Punkte je Rang (nur Normal; wie heute). SPEZIFIKATION 6.12. */
+export const CAREER_RANK_POINTS = 80;
+
+/** Punkte je Meilenstein (wie heute). SPEZIFIKATION 6.12. */
+export const CAREER_MILESTONE_POINTS = 10;
+
+/** Punkte je Ruf-Punkt (wie heute). SPEZIFIKATION 6.12. */
+export const CAREER_REPUTATION_POINTS = 2;
+
+/** Punkte je Übernahme (wie heute). SPEZIFIKATION 6.12. */
+export const CAREER_TAKEOVER_POINTS = 25;
+
+/** Punkte je fertigem Bonus-Projekt (heute 15 je Projekt, E43). SPEZIFIKATION 6.12. */
+export const CAREER_RESEARCH_POINTS = 5;
+
+/** Punkte je vollem Jahr (wie heute). SPEZIFIKATION 6.12. */
+export const CAREER_YEAR_POINTS = 5;
+
+/** Höchstens so viele Jahre zählen (wie heute). SPEZIFIKATION 6.12. */
+export const CAREER_MAX_YEARS = 60;
+
+/** Einträge je Ruhmeshalle (wie heute `src/lib/careerScore.ts:83`). SPEZIFIKATION 6.12. */
+export const HALL_SIZE = 10;

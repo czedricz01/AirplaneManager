@@ -21,7 +21,7 @@ import {
   LAUNCH_BONUS_MONTHS,
   MEAL_CATEGORIES,
   MEALS_MAX,
-  RESEARCH_SATISFACTION_POINTS,
+  RESEARCH_PROJECTS,
   SERVICE_DELIGHT,
   TYPE_APPEAL_DECAY_FROM,
   TYPE_APPEAL_DECAY_MAX,
@@ -521,7 +521,7 @@ describe('Abschnitt 2.6.4 und 2.6.5 Personal und Forschung', () => {
     assert.equal(researchPart([]), 0);
     assert.equal(researchPart(['cabin']), 2);
     assert.equal(researchPart(['sat-1', 'sat-1', 'fuel-1']), 1);
-    assert.equal(researchPart(Object.keys(RESEARCH_SATISFACTION_POINTS)), 8);
+    assert.equal(researchPart(RESEARCH_PROJECTS.map((p) => p.id)), 8);
   });
 });
 
@@ -546,7 +546,7 @@ describe('Abschnitt 2.7 Satisfaction je Klasse', () => {
       origin: { ...PLAIN_SIDE, lounge: true, stands: 99 },
       destination: { ...PLAIN_SIDE, lounge: true, stands: 99 },
       morale: 100,
-      completedResearch: Object.keys(RESEARCH_SATISFACTION_POINTS),
+      completedResearch: RESEARCH_PROJECTS.map((p) => p.id),
     };
     const low = classSatisfactionBreakdown('first', { cabinRating: 0, servicePoints: 0 }, worst);
     assert.ok(low.unclamped < 0);
