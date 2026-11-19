@@ -77,6 +77,9 @@ const M1990 = (1990 - 1960) * 12;
 const M2015 = (2015 - 1960) * 12;
 const A320 = AIRCRAFT.find((a) => a.id === 'a320ceo')!;
 
+/** Dateien mit den Entscheidungen der KI (7.3–7.17); nur sie dürfen nach der KI fragen. */
+const RIVAL_DECISION_FILES = ['rivals.ts', 'rivalMonth.ts'];
+
 /** Code-Dateien des Modells ohne Tests. */
 function modelSources(): { name: string; text: string }[] {
   return readdirSync(HERE)
@@ -85,17 +88,17 @@ function modelSources(): { name: string; text: string }[] {
 }
 
 describe('Abschnitt 7.1 Gleiche Wirtschaft', () => {
-  it('7.1: kein Modell-Pfad außer rivals.ts fragt „ist das eine KI?“ oder hängt von rivals.ts ab', () => {
+  it('7.1: kein Modell-Pfad außer den KI-Entscheidungen fragt „ist das eine KI?“ oder hängt von ihnen ab', () => {
     for (const { name, text } of modelSources()) {
-      if (name === 'rivals.ts' || name === 'index.ts') continue;
+      if (RIVAL_DECISION_FILES.includes(name) || name === 'index.ts') continue;
       assert.doesNotMatch(text, /\b(isRival|isAi|isAI|isPlayer)\b/, name);
-      assert.doesNotMatch(text, /from '\.\/rivals'/, name);
+      assert.doesNotMatch(text, /from '\.\/(rivals|rivalMonth)'/, name);
     }
   });
 
-  it('7.1/7.3: die KI-Stärke kommt nur in den Entscheidungen vor (rivals.ts), in keiner Funktion aus 7.1', () => {
+  it('7.1/7.3: die KI-Stärke kommt nur in den Entscheidungen vor (rivals.ts, rivalMonth.ts), in keiner Funktion aus 7.1', () => {
     for (const { name, text } of modelSources()) {
-      if (name === 'rivals.ts' || name === 'constants.ts' || name === 'index.ts') continue;
+      if (RIVAL_DECISION_FILES.includes(name) || name === 'constants.ts' || name === 'index.ts') continue;
       assert.doesNotMatch(text, /RivalStrength|RIVAL_STRENGTH/, name);
     }
   });

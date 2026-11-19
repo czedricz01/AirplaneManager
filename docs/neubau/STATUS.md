@@ -1,15 +1,18 @@
 # Status
 
-**Nächstes Paket: 3.7b** – Konkurrenz Teil 2 (`SPEZIFIKATION.md` 7.8–7.17): Monat der KI mit Verlierern und
-Feinabstimmung, Planung einer Strecke mit Planer-Hauptzahl, Slots/Schalter/Drehkreuze/Lounge mit Sperre durch
-Spieler-Stufe 3 (E63), Flotte (Kauf, Modernisierung, Überholung, Verkäufe), Krise, Größe, neues Drehkreuz,
-Dividende, Zuschuss, Notlage, Übernahme zum Unternehmenswert (`companyValue`), Ticker; Rest von Beispiel 7.18
-(Übernahme, Zuschuss). Weiter in `src/model/rivals.ts`. Danach 3.8 und 3.9.
+**Nächstes Paket: 3.8a** – Monatsabschluss Teil 1 (`SPEZIFIKATION.md` 8.3–8.14): Bausteine des Monats: Zufall und
+Spielstand, Weltereignisse, Krisen-Antworten, Betriebsstörungen und Vogelschläge, Personal (Moral, Streik),
+Pech-Deckel, gestrichene und gecharterte Flüge (`cancelledShare`), Verschleiß, Händler-Spanne und Gebrauchtmarkt
+(`saleProceeds`, `usedPrice`), Neukauf und Vorbestellung, Grundüberholung und Umbau (`overhaulPrice`), Kreditlinie
+mit Zwangsverkauf. Danach 3.8b (8.1, 8.2, 8.15–8.17: `closeMonth` als eine Rechnung für Spieler und KI, Kasse am
+Monatsende, Szenario-Ziele, Prüfung, Beispiel, alle offenen R2-Regeln) und 3.9.
 
-Stand: 19.11.2026 · Paket 3.7a erledigt: neutrale Eingaben der KI und Liste der fehlenden Teile, KI-Stärke,
-Persönlichkeiten, KI-Kabine nach Platz-Regel (Beispiel 7.18 genau), Service je Mahlzeit, KI-Preise mit Lage und
-einmaligem Preiskampf über dem Boden, Gründung in `src/model/rivals.ts`; Platz-Regel des Kaufdialogs in `cabin.ts`.
-1010 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.7b erledigt: Monat der KI (geglätteter Gewinn, Verlierer, Feinabstimmung), Planung mit
+Planer-Hauptzahl und Schätzfehler, Slots mit Anteil je Flughafen, Schalter ohne Überlast, Stufe 2 an Drehkreuzen,
+Lounge, Sperre durch Spieler-Stufe 3 (E63), Kauf, Modernisierung, Überholung, Not- und Leerlauf-Verkauf, Krise aus
+Ereignissen und Treibstoff-Tabelle, Größe in Sitzen, neues Drehkreuz, Dividende, Zuschuss, Notlage „in Folge“,
+Auflösung, Übernahme zum Unternehmenswert (Beispiel 7.18: 198,7 Mio. $), Ticker nach Fluggästen in
+`src/model/rivalMonth.ts`; Abflüge je Flughafen/Paar in `airportCosts.ts`. 1068 Tests grün, `tsc --noEmit` grün.
 
 Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
@@ -60,6 +63,15 @@ Spieler-Start auf `START_HUB_SETUP` (Phase 4). Wer `RIVAL_INPUTS` an die Funktio
 Paar speichert und die Zufallszahlen aus `rng` holt, regeln 3.7b / 3.8. Kabinen-Werte, `FARE_POSITION`, Preiskampf
 und Optimizer-Antworten über dem Boden, KI-Stärke-Werte prüft das Balance-Skript (3.9, Prüfregel „ähnlicher Erfolg“).
 Spielstand (5.1): alte KI-Stärke `Easy/Normal/Hard` über `rivalStrengthOf`, KI-Flugzeuge mit Kabine nach `rivalCabin`.
+
+Offen aus 3.7b (kein Blocker): 3.8 setzt die Entscheidungen aus `rivalMonth.ts` in der Reihenfolge
+`RIVAL_DECISION_STEPS` nach der Buchung zusammen und liefert die Zahlen dafür (Planer-Hauptzahl je Plan,
+`saleProceeds`, `overhaulPrice`, `creditLimit`, Gebrauchtmarkt). Dort auch die Tests „Buchung unabhängig von der
+Reihenfolge der KI“ (7.8), „Verkaufserlös KI = Spieler“, „verkaufte KI-Flugzeuge im Gebrauchtmarkt“ (7.11),
+„Dividende ändert weder Ergebnis noch Ruf“ (7.13) und „Übernahme ändert das Monatsergebnis nicht“ (7.16), F39 (10).
+Slot-Anteile, Dividenden-Grenze, `NEW_HUB_MIN_SEATS`, Zuschuss-Abschaffung und „ähnlicher Erfolg“ prüft das
+Balance-Skript (3.9). Rivalen-Ansicht, Ticker und Meldungstexte aus dem Modell: Phase 4. Spielstand (5.1): Notlage
+als `{ status, distressMonths, forSaleMonths }`.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -120,8 +132,9 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.6a | Fortschritt Teil 1 (6.1–6.8): Ruf aus Satisfaction, gestrichene Flüge, Werbe-Beitrag, Ruf-Ziel, Ruf-Änderung mit Ursachen, Farbstufen, Rang mit 3-Monats-Mittel, Flugzeugklassen | erledigt |
 | 3.6b | Fortschritt Teil 2 (6.9–6.14): Forschung mit Feldern, Meilensteine, Jahresziel, Karriere-Punkte | erledigt |
 | 3.7a | Konkurrenz Teil 1 (7.1–7.7): neutrale Eingaben, fehlende Teile, KI-Stärke, Persönlichkeiten, Kabine und Service, Preise mit Preiskampf, Gründung | erledigt |
-| 3.7b | Konkurrenz Teil 2 (7.8–7.17): Monat der KI, Planung, Slots/Schalter/Drehkreuze (E63), Flotte, Krise, Wachstum, Dividende, Zuschuss, Notlage, Übernahme, Ticker | offen |
-| 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | offen |
+| 3.7b | Konkurrenz Teil 2 (7.8–7.17): Monat der KI, Planung, Slots/Schalter/Drehkreuze (E63), Flotte, Krise, Wachstum, Dividende, Zuschuss, Notlage, Übernahme, Ticker | erledigt |
+| 3.8a | Monatsabschluss Teil 1 (8.3–8.14): Zufall und Spielstand, Ereignisse, Krisen-Antworten, Störungen, Personal, Pech-Deckel, gestrichene/gecharterte Flüge, Verschleiß, Händler-Spanne und Gebrauchtmarkt, Vorbestellung, Überholung, Kreditlinie | offen |
+| 3.8b | Monatsabschluss Teil 2 (8.1, 8.2, 8.15–8.17): `closeMonth` für Spieler und KI in einer Rechnung mit KI-Entscheidungen (7.8), Kasse am Monatsende, Szenario-Ziele, Prüfung, Beispiel 8.17, offene R2-Regeln | offen |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
 
 ## Phase 4 – Oberfläche anbinden
@@ -180,3 +193,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | 3.6a | Ruf, Rang, Flugzeugklassen in `src/model/progress.ts`: Ruf-Ziel aus Airline satisfaction (100 → 50), Abzug für gestrichene Sitze, Werbe-Beitrag im Ziel (höchstens 3), eine Ruf-Änderung mit Ursachen-Liste, Farbstufen; Rang-Tabelle `RANKS` mit neuen Ruf-Schwellen und Forschungsplätzen, Prüfung im 3-Monats-Mittel ohne Abstieg, Freischaltungen, Flughafen-Zugang, Fortschritt; 6 Flugzeugklassen (`SizeClass`) mit `CLASS_RESEARCH` und Erreichbarkeits-Test gegen die Flugzeugdaten; Paket 3.6 geteilt (F36); 43 neue Tests, 916 grün |
 | 19.11.2026 | 3.6b | Forschung, Meilensteine, Jahresziel, Karriere in `src/model/progress.ts`: Forschungs-Tabelle `RESEARCH_PROJECTS` (45 Projekte mit 15 Feldern, ersetzt `RESEARCH_SATISFACTION_POINTS`, `RESEARCH_COST_SAVINGS`, `EFFICIENCY_RESEARCH_IDS`), `researchEffects` als einzige Zusammenfassung, Preis über `atCost` ungerundet, Start-Sperre, Fortschritt, Texte aus den Feldern; 31 Meilensteine als Daten ohne Ruf-Punkte, `milestoneSlotFactor`, Drehkreuz-Zuschläge, Gewinnserie; Jahresziel mit Bezugsgröße aus Vorjahr und Erlös, Mindest-Prämie, Strafe = halbe Prämie (E58), `yearSnapshot`; Karriere-Punkte mit `companyValue` und zwei Ruhmeshallen; Bau-Festlegung F37; 51 neue Tests, 967 grün |
 | 19.11.2026 | 3.7a | Konkurrenz Teil 1 in `src/model/rivals.ts`: `RIVAL_INPUTS` (neutrale Eingaben statt „ist das eine KI?“, Test über alle Modell-Dateien) und `RIVAL_OMITTED` als Text; `RIVAL_STRENGTH` (Easy/Normal/Hard nur Verhalten); `PERSONALITIES` mit Preis-Lage, Boden, Zielgewichten, Geduld, Kaufneigung, Reserve, Drehkreuzen, Schalter-Art, Kabine und Service; `rivalCabin` nach Platz-Regel (Beispiel 7.18 genau: LCC 202 Sitze, Boutique 59/25/20/8) und `rivalService` mit Menü je Mahlzeit; `rivalFareRatio` mit Zielniveau × `satisfactionFactor`, Lage ± 15 %, Preiskampf einmal −12 % über dem Boden; Gründung (Startkasse mit `atCost`, Startausstattung wie der Spieler, Drehkreuz-Wahl ohne Spieler-Stufe 3, Startflugzeuge, Nachrücken); Platz-Regel des Kaufdialogs in `cabin.ts`; Bau-Festlegung F38 (Paket 3.7 geteilt); 43 neue Tests, 1010 grün |
+| 19.11.2026 | 3.7b | Konkurrenz Teil 2 in `src/model/rivalMonth.ts`: geglätteter Gewinn, Verlierer (ausdünnen oder streichen, Kernnetz 2), Feinabstimmung mit +2 %-Regel; Planung mit Vorauswahl (Suchbreite + 2 zufällige), 100/60/30 % der Umläufe, Planer-Hauptzahl mit Schätzfehler; Slots mit Anteil 0,25/0,10 der Grenze und Verkauf nach 6 freien Monaten, Schalter mit `deskLoad ≤ 0,8`, Stufe 2 an Drehkreuzen, Lounge (Feld `buildsLounge`), Sperre durch Spieler-Stufe 3 (E63); Kauf-Bedingungen, Typ nach Planer-Hauptzahl je Preis, Modernisierung, Überholung, Not- und Leerlauf-Verkauf; Krisenstärke aus Weltereignissen und Treibstoff-Tabelle (Juni 1974 Krise), Krisen-Fahrplan; Größe in Sitzen, neues Drehkreuz, Dividende; Zuschuss mit `atCost` (Beispiel 7.18); Notlage in Folge, Auflösung, Übernahme zum Unternehmenswert (Beispiel 7.18: 198,7 Mio. $); Ticker nach Fluggästen, Meldungs-Regel; `departuresAt`/`departuresOnPair` in `airportCosts.ts`; Paket 3.8 in 3.8a/3.8b geteilt; Bau-Festlegung F39; 58 neue Tests, 1068 grün |
