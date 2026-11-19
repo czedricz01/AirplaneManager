@@ -56,7 +56,7 @@ Stand 3.9a: 5 ok · 2 Abweichung · 12 Info (`balance/3.9a-bericht.md`).
 Die Zahlen in Fund 1 und in der Tabelle „Weitere Werte“ stammen aus diesem neuen Bericht; durch die etwas kleinere
 Marktgröße (E64, im Jahr 1990 −5 %) sinken beste Preise und Margen leicht.
 
-### Fund 1: Ein Flugzeug ist fast überall bei jedem Preis voll (B4.1, B4.5, B5.4) → Frage O60
+### Fund 1: Ein Flugzeug ist fast überall bei jedem Preis voll (B4.1, B4.5, B5.4) → entschieden: E67 (O60 = A)
 
 Die Marktgröße eines typischen Paars ist viel größer als das, was ein Flugzeug anbietet: FRA–MAD 1990 hat
 7 930 Fluggäste je Woche, ein A320ceo mit 14 Abflügen 1 876 Sitze. Ohne Rivalen hebt die Knappheit den besten Preis
@@ -156,7 +156,7 @@ Boutique 1 674 Mio. $; Median aller 2 496 Mio. $. Größtes Verhältnis 1,44 nac
 Ordnung über die ganze Zeit: Expansionist und Flag vorn, Boutique hinten (0,65–0,73). Die Rotation der Drehkreuze
 zeigt: Das Drehkreuz macht viel aus (Expansionist 4 716 in ATL bis 7 225 in LAX), aber nicht mehr als die Persönlichkeit.
 
-### Fund 5: Der Zuschuss kann weg (B7.2, 7.14) → Frage O63
+### Fund 5: Der Zuschuss kann weg (B7.2, 7.14) → entschieden: E68 (O63 = B)
 
 Ohne Zuschuss wird kein Gründer wegen Geldmangels aufgelöst (Median „nie“ bei allen); ähnlicher Erfolg gilt auch ohne
 (Faktor 1,46 / 1,77). Der Zuschuss ist mit 2–5 Mio. $ je Jahr (1960) gegenüber 300–2 500 Mio. $ Ergebnis je KI ohne
@@ -164,7 +164,7 @@ Bedeutung. Die Bedingung aus 7.14 ist erfüllt. Einzige Auflösung in allen Läu
 Zuschuss) findet 1960 keine Strecke mit Gewinn, verkauft nach 5 Monaten Leerlauf alle Flugzeuge und wird aufgelöst;
 das folgt den Regeln (Leerlauf-Verkauf 7.11, Auflösung ohne Flugzeuge) und hat mit dem Zuschuss nichts zu tun.
 
-### Fund 6: Die KI hat keine Konkurrenz; alles ist voll (B7.3) → Nachweis zu O60, Frage O64
+### Fund 6: Die KI hat keine Konkurrenz; alles ist voll (B7.3) → entschieden: E66 (O64 = B), E67 (O60 = A)
 
 - **Jedes Paar hat genau eine Gesellschaft** (1,00 je Paar, 0 % geteilte Paare, nie ein Preiskampf in 10 Läufen über
   60 Jahre). Ursache ist die Bauart: Jede KI fliegt nur von ihren Drehkreuzen; zwei KI teilen ein Paar nur, wenn eine
@@ -189,7 +189,7 @@ Platzierte Umsteiger in Märkten mit Direktangebot: Median 0 %, p90 unter 2 %. G
 Umsteiger finden keinen freien Sitz (3.13: Direktgäste zuerst). Vor der Sitz-Verteilung („Wunsch“) läge der Anteil bei
 15–34 %, ab 1995 über 25 %. Ändert O60 die Marktgröße, wird diese Regel wieder wichtig; dann `CONNECTION_APPEAL` prüfen.
 
-### Fund 9: Wachstum endet um 1995; das Geld geht in Dividenden (B7.5–B7.7) → Teil von O64
+### Fund 9: Wachstum endet um 1995; das Geld geht in Dividenden (B7.5–B7.7) → Teil von O64, entschieden: E66 (B, keine zusätzlichen Drehkreuze)
 
 - Eröffnungen je KI und Jahr: 4,6 (1960er) → 3,6 (1980er) → 0,2 (2010er); Flugzeuge je KI 27 → 110.
 - Ursache: Jede KI erreicht die Höchstzahl ihrer Drehkreuze (`maxHubs` der Persönlichkeit: 1–4) und dort ihren

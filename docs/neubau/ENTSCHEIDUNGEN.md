@@ -72,6 +72,9 @@ Claude schlägt vor, der Mensch entscheidet.
 | E63 | 19.11.2026 | **Verwaltungsstufe 3 und KI, neu entschieden (O57 = a):** Die KI kauft höchstens Stufe 2. Spieler-Stufe 3 bringt Gebühren-Nachlass (5.1), Einnahme aus fremden Landungen (5.15) **und eine Sperre**: Dort eröffnet die KI keine neuen Strecken und kein Drehkreuz; Bestehendes bleibt (wie heute `src/lib/aiSimulation.ts:1048-1051`, `:1181`). Ersetzt E60. Eine Regel nur für den Spieler (Liste 7.2). | Empfehlung aus Paket 2.8: Die Sperre ist ein bewusstes Ziel der teuren Stufe 3 (25 Mio. $ von 1960, Rang 8); die KI braucht sie nicht, weil sie keinen Rang hat. Text „Rivals cannot open new routes here“ (`src/components/AirportDetailView.tsx:589`) bleibt. |
 | E64 | 19.11.2026 | **Wachstum der Marktgröße (O61 = A):** Regel 3.3 gilt für die **Summe** der Marktgrößen aller Paare: 1960 → 2019 × 2,5 (± 10 %, Balance-Skript B3.1). `DEMAND_GROWTH_1960_2019` = **2,25** (statt 2,5). | Die Summe misst, „wie viel mehr Menschen fliegen“ (E7); das Mittel der Verhältnisse wird von kleinen Paaren mit großem Zuwachs gezogen. Mit 2,5 wuchs die Summe × 2,78, weil sich die Weltanteile der Städte verschieben; mit 2,25 × 2,51 (`balance/O61-O62-bericht.md`). |
 | E65 | 19.11.2026 | **Preiskampf ohne festen Punkt (O62 = A):** Vorgabe 7.6 lautet: Wechselseitige beste Antworten bleiben über den Kosten (B4.2); ein fester Punkt ist nicht nötig (B4.3 nur noch Info). Der Optimizer behält den besten Preis ohne Schrittgrenze. Zeigt der Langlauf (3.9b) störende Sprünge der KI-Preise, bekommt er eine Schrittgrenze `FARE_STEP` (Weg B). | Zwei gleiche Optimizer springen zwischen 1,74 und 1,36 (FRA–MAD 1990, je vier A320ceo), weil der Überlauf (3.11) wechselt; eine Dämpfung beendet das nicht. Die Preise bleiben weit über der Gewinnschwelle (0,62). |
+| E66 | 19.11.2026 | **KI tritt an fremden Drehkreuzen an (O64 = B):** In der Vorauswahl (7.9, `preselectScore`, `src/model/rivalMonth.ts:315`) bekommen Ziele, die Drehkreuz einer anderen KI sind, ein höheres Gewicht (Startwert × 2) statt durch deren Abflüge geteilt zu werden. So werden Drehkreuz-zu-Drehkreuz-Strecken unter der KI umkämpft. Keine zusätzlichen Drehkreuze in späten Jahren (C erst, wenn die KI nach O60 im späten Spiel zu klein ist). Gewicht zusammen mit E67 im Langlauf messen. | Langlauf 3.9b (Fund 6): In 10 Läufen über 60 Jahre teilte nie eine KI ein Paar mit einer anderen; ohne geteilte Paare lassen sich weder die Marktgröße (O60) noch die Optimizer-Regel (E65) prüfen. |
+| E67 | 19.11.2026 | **Marktgröße kleiner (O60 = A):** `DEMAND_SCALE` (heute 29, `src/model/constants.ts:564`) wird gesenkt, bei Bedarf zusammen mit `DISTANCE_EXP` (kurze Paare im Verhältnis kleiner). Den Faktor bestimmt das Balance-Skript **nach** E66. Ziel: typische Strecke beim besten Preis 75–90 % Auslastung, Marge 10–25 %. Danach Spezifikation 3.6 anpassen und `CONNECTION_APPEAL` (Umsteiger-Regel 3.13) neu prüfen. | Fund 1 und 6 in `BALANCE.md`: Ein Flugzeug ist fast überall bei jedem Preis voll (Margen 58–77 %); im Langlauf Auslastung 100 %, Marge im Median 40 %, also über der in O60 genannten Schwelle. Weg B („Rivalen drücken die Preise“) trat nicht ein. |
+| E68 | 19.11.2026 | **Zuschuss der KI später abschalten (O63 = B):** `RIVAL_SUBSIDY_ENABLED` (`src/model/constants.ts:2213`) bleibt vorerst `true`. Nach E66 und E67 rechnet das Balance-Skript die Prüfregel 7.14 (10 Läufe ohne Zuschuss) neu; ist sie erfüllt, wird der Zuschuss abgeschaltet (E47). | Die Regel ist heute nur erfüllt, weil der Markt zu groß ist (Fund 5, 6). Eine kleinere Marktgröße macht die KI ärmer; erst die Prüfung danach ist aussagekräftig. |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -153,49 +156,10 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
-Offen aus dem Balance-Skript (Pakete 3.9a und 3.9b, Zahlen in `BALANCE.md`, `balance/O61-O62-bericht.md` und
-`balance/3.9b-bericht.md`). Blockieren Paket 3.9c nicht. Reihenfolge: zuerst O64 (Bauart der Konkurrenz), dann O60
-(Marktgröße), dann O63; nach O60 / O64 die Langläufe neu rechnen.
-
-**O60 – Marktgröße gegenüber einem Flugzeug (B4.1, B4.5).** Ein Flugzeug allein ist fast überall bei jedem Preis voll;
-der beste Preis liegt beim 1,2- bis 4-Fachen des Marktpreises, Margen 58–77 %, ein neues Flugzeug ist nach 0,4–2,1
-Jahren bezahlt (Zahlen mit E64). E24 („ohne Rivalen etwa Marktpreis“) gilt nur, wenn die Sitze reichen.
-- A: `DEMAND_SCALE` senken (z. B. × 0,25 → 7): A320ceo FRA–MAD 1990 dann 1,48 / Marge 37 %, ATR HAM–NUE 1,95 / 52 %,
-  A330 FRA–JFK 1,10 / −4 %. Kurz bleibt einträglich, Langstrecke kaum noch; ggf. zusammen mit `DISTANCE_EXP` (kurze Paare
-  kleiner) einstellen.
-- B: Lassen; Knappheit ist gewollt, Rivalen drücken die Preise (Nachweis im Langlauf 3.9b).
-- C: `PRICE_SENSITIVITY` erhöhen, damit Fluggäste stärker auf den Preis reagieren (senkt den Knappheits-Preis; Wirkung
-  erst im Skript zu messen).
-- **Empfehlung:** vorläufig B; nach 3.9b entscheiden. Liegt dort das mittlere Preisniveau auf Paaren mit Rivalen über
-  1,5 oder die Marge typischer Strecken über 40 %, dann A (mit `DISTANCE_EXP`), Faktor aus dem Skript.
-- **Ergebnis 3.9b (Fund 6 in `BALANCE.md`):** Im laufenden Spiel hat jedes Paar genau eine KI, nie einen Preiskampf;
-  Auslastung 100 % in jedem Jahrzehnt, Marge im Median 40 % (22–54 % je Jahrzehnt). B („Rivalen drücken die Preise“)
-  tritt nicht ein. **Neue Empfehlung: A**, Faktor nach O64 mit dem Skript bestimmen (Ziel: Auslastung typischer Strecken
-  beim besten Preis 75–90 %, Marge 10–25 %).
-
-**O63 – Zuschuss der KI abschaffen (7.14, E47).** Die Bedingung aus 7.14 ist erfüllt (B7.2 ok): Ohne Zuschuss wird in
-10 Läufen über 60 Jahren kein Gründer wegen Geldmangels aufgelöst, und „ähnlicher Erfolg“ gilt (Faktor 1,46 / 1,77).
-Der Zuschuss ist mit 2–5 Mio. $ je Jahr (1960) gegenüber Hunderten Millionen Ergebnis bedeutungslos.
-- A: `RIVAL_SUBSIDY_ENABLED = false` jetzt (wie E47 vorgesehen); Zeile „Subsidy“ bleibt im Modell, ist aber 0.
-- B: erst nach O60 / O64 abschalten, weil eine kleinere Marktgröße die KI ärmer macht; dann Prüfregel neu rechnen.
-- **Empfehlung:** B. Die Regel ist heute nur erfüllt, weil der Markt zu groß ist (Fund 6). Mit A ändert sich jetzt
-  nichts Messbares; die Prüfung nach O60 ist die aussagekräftige.
-
-**O64 – Konkurrenz und Wachstum der KI (7.9, 7.13; Funde 6, 9, 10 in `BALANCE.md`).** Jede KI fliegt nur von eigenen
-Drehkreuzen; zwei KI teilen ein Paar nur, wenn eine zum Drehkreuz der anderen fliegt. In 10 Läufen über 60 Jahre kam
-das nie vor: kein Preiskampf, Auslastung immer 100 %. Zugleich endet das Wachstum um 1995, wenn jede KI ihre
-Höchstzahl an Drehkreuzen (`maxHubs` 1–4) und dort ihren Slot-Anteil (25 %) erreicht hat; danach geht das Ergebnis in
-Dividenden. Hard ist dadurch nicht erfolgreicher als Normal.
-- A: Lassen. Konkurrenz entsteht nur mit dem Spieler (dort, wo er an einem KI-Drehkreuz landet oder die KI an seinem).
-- B: Ziele der KI an fremden Drehkreuzen bevorzugen (z. B. Gewicht × 2 in `preselectScore` statt Teilen durch die
-  Abflüge anderer), damit Drehkreuz-zu-Drehkreuz-Strecken umkämpft werden; zusammen mit O60 messen.
-- C: B und mehr Drehkreuze für spätere Jahre (`maxHubs` je Persönlichkeit + 1 je 20 Jahre o. Ä.), damit die KI nach
-  1995 weiter wächst und auch an den Spokes anderer Drehkreuze antritt.
-- **Empfehlung:** B. Ohne geteilte Paare lässt sich weder O60 sinnvoll einstellen noch die Optimizer-Regel (E65)
-  prüfen. C erst, wenn sich nach O60 zeigt, dass die KI im späten Spiel zu klein ist.
+Zurzeit keine offenen Fragen. O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -228,6 +192,7 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - `SPEZIFIKATION.md` 6.15 (Vorgaben an Abschnitt 7) erfüllt in 7.1, 7.2, 7.11 (keine Klassen-Sperre der KI), 7.10 (keine Flughafen-Sperre aus Rang; Spieler-Stufe 3 sperrt neue KI-Strecken, E63) und 7.16 (Übernahme zum Unternehmenswert).
 - `SPEZIFIKATION.md` 7.19 setzt für Abschnitt 8 voraus: ein Abschluss bucht Spieler und KI in einer Aufteilung, danach KI-Entscheidungen; Verschleiß, Ausfälle, Ereignisse und Kreditlinie auch für die KI; Gebrauchtmarkt nimmt KI-Flugzeuge mit Alter, Zustand und Kabine auf; KI-Rückschlag entfällt.
 - E47 (Zuschuss abschaffen): Prüfregel in `SPEZIFIKATION.md` 7.14; E45 (ähnlicher Erfolg): Prüfregel in 7.4. Beide im Balance-Skript (3.9).
+- Reihenfolge E66 → E67 → E68: erst Konkurrenz unter der KI (E66), dann mit geteilten Paaren den Marktgrößen-Faktor bestimmen (E67), dann Zuschuss-Prüfung 7.14 neu rechnen und abschalten (E68). Danach „ähnlicher Erfolg“ (7.4), KI-Stärke (B7.8), Optimizer-Sprünge (E65) und Umsteiger (3.13) neu bewerten.
 - Vorgaben aus 3.16, 4.14, 5.19, 6.15 und 7.19 an Abschnitt 8 erfüllt in `SPEZIFIKATION.md` 8.1 (Reihenfolge, eine
   Marktaufteilung), 8.2 (Kasse am Monatsende, R11), 8.5 (Antworten als Anteil), 8.9 (`cancelledShare`, Charter je Flug),
   8.10 (Verschleiß aus geflogenen Flügen, R12), 8.11–8.13 (Spanne, Gebrauchtmarkt, Vorbestellung, Überholung relativ zu
