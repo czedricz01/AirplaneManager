@@ -52,5 +52,6 @@ Mach Paket 1.2 aus docs/neubau/STATUS.md.
 | `STATUS.md` | Phasen, Pakete, Stand, nächster Schritt |
 | `ENTSCHEIDUNGEN.md` | Getroffene und offene Entscheidungen |
 | `SPEZIFIKATION.md` | Das Soll-Modell (entsteht in Phase 2) |
+| `BALANCE.md` | Balance-Skript (`npm run balance`): Aufruf, Ergebnisse, Bewertung; Berichte in `balance/` |
 | `bestand/` | Ergebnis von Phase 1, eine Datei je Bereich |
 | `bestand/VORLAGE.md` | Aufbau einer Bestandsdatei |

@@ -1,19 +1,25 @@
 # Status
 
-**Nächstes Paket: 3.9** – Balance-Skript: ein Skript (kein Spielcode), das mit `src/model/` Beispielwerte für
-typische Strecken und Jahre rechnet und die gesammelten Prüfregeln aus den Abschnitten 2–8 ausgibt (u. a. „ähnlicher
-Erfolg“ der Persönlichkeiten 7.4, Abschaffung des Zuschusses 7.14, Umsteiger-Anteil 3.13, Marktgröße 3.3, Preiskampf
-über dem Boden 7.6). Vorher klären, ob das Paket geteilt wird (Liste der Prüfregeln unten unter „Offen aus …“).
+**Nächstes Paket: 3.9b** – Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (KI ab 1960, je Persönlichkeit
+10 Läufe): „ähnlicher Erfolg“ (7.4), Abschaffung des Zuschusses (7.14), Preise und Preiskampf mit Rivalen (7.6, Nachweis
+zu O60 und O62), Umsteiger-Anteil (3.13), Slot-Anteile, Dividende, neue Drehkreuze, KI-Stärke, Eröffnungen und Käufe je
+Jahr, Rechenzeit. Zuerst die Rechenzeit eines Laufs messen und die Flughafen-Auswahl festlegen. Liste in
+`BALANCE.md`, Abschnitt „Noch offene Prüfregeln“. Startpunkt: `src/balance/` (Gerüst aus 3.9a), `src/model/rivalMonth.ts`
+(`rivalDecisions`, `rivalRefill`, `foundRivalCompany`), `src/model/monthClose.ts` (`closeMonth`).
 
-Stand: 19.11.2026 · Paket 3.8d erledigt: KI-Schritte `openings` (freie Flugzeuge auf neue Strecken vom Drehkreuz,
-Planer-Hauptzahl, Slot-Kauf an beiden Enden mit fairem Anteil je KI) und `growth` (Kauf mit Strecke, neues Drehkreuz)
-in `rivalDecisions`; Modernisierung und Kabinen-Erneuerung im Schritt `fleet`; Bestand danach: VIP-Lounge, Verkauf
-6 Monate freier Slots, Schalter nach `deskLoad ≤ 0,8`, Fahrpläne `rivalSchedule`; Zuschuss als Zeile „Subsidy“ im
-Monatsergebnis (`subsidyIncome`, Merkmal `subsidized`); Gründung `foundRivalCompany` und Nachrücken `rivalRefill` als
-letzter Schritt von `closeMonth`; Typen-Katalog `ModelState.catalog`, Piste `ModelAirport.maxIcaoCode`; KI-Flugzeug
-mit Kabine `rivalAircraft`. Bau-Festlegungen F43. 1206 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.9a erledigt: Balance-Skript `npm run balance` (Rechnung in `src/balance/`, Aufruf
+`scripts/balance.ts`) mit 19 Prüfregeln zu den Abschnitten 1–5: 5 ok, 2 Abweichung, 12 Info; Bericht
+`docs/neubau/balance/3.9a-bericht.md`, Bewertung `docs/neubau/BALANCE.md`. Wichtigster Fund: Ein Flugzeug allein ist fast
+überall bei jedem Preis voll; bester Preis 1,3–4 × Marktpreis, Margen 59–77 % (O60). Paket 3.9 geteilt (F44).
+1215 Tests grün, `tsc --noEmit` grün.
 
-Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+Offene Fragen: O60 (Marktgröße gegenüber einem Flugzeug), O61 (Wachstum 1960 → 2019 über alle Paare), O62 (kein fester
+Punkt beim Preiskampf); Empfehlungen in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“. Keine blockiert 3.9b; O60 erst mit dem
+Ergebnis von 3.9b entscheiden, O61 und O62 jederzeit.
+
+Offen aus 3.9a (kein Blocker): Prüfregeln der Abschnitte 6 und 8 ohne Langlauf in 3.9c (Liste in `BALANCE.md`). Nach
+Entscheidungen zu O60–O62 die Konstanten ändern, `npm run balance -- --out docs/neubau/balance/<paket>-bericht.md` neu
+erzeugen und die Spezifikation (3.3, 3.6, 7.6) anpassen. Schwierigkeit (B3.5) erst nach O60 einstellen.
 
 Offen aus 3.2a (kein Blocker): Der Test „Kaufdialog-Anzeige = Modellwert“ (2.3) folgt, wenn der Kaufdialog
 auf `interiorScoreParts` umgestellt wird (Phase 4).
@@ -164,7 +170,9 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.8b | Monatsabschluss Teil 2 (8.0–8.2, 8.16): `closeMonth` für Spieler und KI in einer Rechnung, Kasse am Monatsende mit Kassen-Gleichung, Bericht, Lieferungen, Kreditlinie, Prüfung, Übergang, offene R2-Regeln | erledigt |
 | 3.8c | Monatsabschluss Teil 3 (7.8–7.16 im Abschluss, 3.13, 6.9–6.11, 8.15): KI-Entscheidungen `rivalDecisions`, Umsteiger im Abschluss, Forschung, Meilensteine, Rang, Jahresziel, Szenario-Ziele | erledigt |
 | 3.8d | Monatsabschluss Teil 4 (7.7, 7.9–7.11, 7.13, 7.14 im Abschluss): KI-Eröffnungen, Wachstum (Kauf, Modernisierung, neues Drehkreuz), Slots, Schalter, Lounge, Zuschuss, Nachrücken, Kabinen-Umbau und Fahrpläne der KI | erledigt |
-| 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
+| 3.9a | Balance-Skript Teil 1: Gerüst, Abschnitte 1–5 ohne Langlauf (Zeit und Geld, Zufriedenheit, Nachfrage über alle Paare, Preis und Kosten typischer Strecken, Preiskampf) | erledigt |
+| 3.9b | Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (Abschnitt 7, Umsteiger 3.13) | offen |
+| 3.9c | Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (Ruf, Rang, Forschung, Jahresziel, Szenario, Krisen-Antworten, Charter, Flottenmarkt, Kreditlinie) | offen |
 
 ## Phase 4 – Oberfläche anbinden
 
@@ -226,3 +234,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | 3.8a | Monatsabschluss Teil 1: `src/model/monthEvents.ts` (17 geschichtliche Ereignisse und 8 Zufalls-Vorlagen als Daten, nur über `eventDemandFactor`; Krisen-Antworten als Anteil von Treibstoff-Rechnung bzw. Erlös, `hedgedFuelTable`, `crisisResponseFactor`; Defekt je Flugzeug, Flughafen-Streik und Winterwetter für alle, Vogelschlag 0,5 % des Neupreises; Moral, Streik, Lohn-Untergrenze; Pech-Deckel mit fester Wurf-Reihenfolge und neutralem Merkmal `badLuckCap`; `disruptionShares`, `companyCancelledShare`, Charter je Flug; Verschleiß aus geflogenen Stunden) und `src/model/fleetMarket.ts` (Händler-Spanne −15 % / +5 %, Gebrauchtmarkt bis Bauende mit Weiterverkauf, Vorbestellung mit Rabatt bis 12 %, Überholung `max(4 % Neupreis, Wertgewinn)` mit Werft-Zuschlag, Umbau mit `atCost`, Kreditlinie, Zwangsverkauf, Pleite); `saleCandidate` gemeinsam mit dem Notverkauf der KI; Beispiel 8.17 (Flottenmarkt, Charter, Rückgewinnung, Kreditlinie, Defekt, Verschleiß) nachgerechnet; Spezifikation 8.9 „Folge“ berichtigt; Bau-Festlegung F40; 74 neue Tests, 1142 grün |
 | 19.11.2026 | 3.8b | Monatsabschluss Teil 2 in `src/model/monthClose.ts`: Modell-Spielstand (`ModelState`, `CompanyState` mit neutralen `CompanyInputs`, Kassenbuch `MonthLedger`, Vorbestellungen), `monthOperations` (eine Marktaufteilung je Paar und Klasse für alle, Satisfaction, Erlös, Kosten mit Abschnitt-8-Posten, Verschleiß, Wert, Vogelschlag, Einnahmen der Stufe 3) als Abschluss und Vorhersage, `closeMonth(state, decisions)` in der Reihenfolge 8.0 (Buchung, Ruf, Entscheidungen von außen, Lieferungen, Kreditlinie, Zwangsverkauf, Spielende, Gewinnserie, Bericht, Prüfung 8.16, Übergang mit Preisen, Moral, Würfen, Gebrauchtmarkt), `buyAircraft`/`sellAircraft`/`spend` für Einmalausgaben; `RIVAL_INPUTS` um `staffModel`, `forcedSale`, Krisen-Antworten ergänzt; 22 Regeltests (Kassen-Gleichung, Reihenfolge der Gesellschaften, Lieferung und Vogelschlag im Bericht, keine globalen Daten, halber Flugplan, Charter, Kreditlinie, Vorhersage = Abschluss, Preise ab X+1), 1164 grün; Paket 3.8 weiter geteilt (F41) |
 | 19.11.2026 | 3.8d | Monatsabschluss Teil 4 in `src/model/rivalMonth.ts`: Eröffnungen freier Flugzeuge mit Planer-Hauptzahl einer neuen Strecke und Slot-Kauf an beiden Enden (fairer Anteil je KI, F43), Kauf mit Strecke (Bezugs-Typ, dann bester Typ je Kaufpreis), Modernisierung, Kabinen-Erneuerung mit derselben Kabine, neues Drehkreuz, VIP-Lounge, Verkauf 6 Monate freier Slots, Schalter, Fahrpläne `rivalSchedule`; Zuschuss als Zeile „Subsidy“ (`costTotals.ts`); Gründung `foundRivalCompany` und Nachrücken `rivalRefill` als letzter Schritt von `closeMonth`; `rivalAircraft` in `rivals.ts`; 21 neue Tests (1206 grün) |
+| 19.11.2026 | 3.9a | Balance-Skript Teil 1: `npm run balance` (`src/balance/`, `scripts/balance.ts`), Beispiel-Welten mit `monthOperations`, bester Preis je Klasse, Preiskampf zweier gleicher Gesellschaften, Empfindlichkeit der Marktgröße über ein Ereignis im Beispiel-Spielstand; 19 Prüfregeln zu Abschnitten 1–5 (5 ok, 2 Abweichung, 12 Info), Bericht `balance/3.9a-bericht.md`, Bewertung `BALANCE.md`; Funde: ein Flugzeug fast überall bei jedem Preis voll (Margen 59–77 %), Marktgröße aller Paare wächst × 2,78 statt × 2,5, Preiskampf ohne festen Punkt → O60–O62; Paket 3.9 in 3.9a–c geteilt (F44); 9 neue Tests (1215 grün) |
