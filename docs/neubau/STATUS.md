@@ -1,15 +1,15 @@
 # Status
 
-**Nächstes Paket: 3.7** – Konkurrenz (`SPEZIFIKATION.md` Abschnitt 7): KI rechnet mit denselben Funktionen
-(7.1), bewusst fehlende Teile (7.2), KI-Stärke, Persönlichkeiten, Kabine, KI-Preise mit Preiskampf (E59), Gründung,
-Planung, Slots/Schalter/Drehkreuze mit Sperre durch Spieler-Stufe 3 (E63), Flotte, Krise, Wachstum, Zuschuss,
-Notlage, Übernahme zum Unternehmenswert (`companyValue` aus 3.6b); neue Datei `src/model/rivals.ts`. Abschnitt 7 ist
-groß; das Paket bei Bedarf in 3.7a/3.7b teilen (wie F28, F36). Danach 3.8 und 3.9.
+**Nächstes Paket: 3.7b** – Konkurrenz Teil 2 (`SPEZIFIKATION.md` 7.8–7.17): Monat der KI mit Verlierern und
+Feinabstimmung, Planung einer Strecke mit Planer-Hauptzahl, Slots/Schalter/Drehkreuze/Lounge mit Sperre durch
+Spieler-Stufe 3 (E63), Flotte (Kauf, Modernisierung, Überholung, Verkäufe), Krise, Größe, neues Drehkreuz,
+Dividende, Zuschuss, Notlage, Übernahme zum Unternehmenswert (`companyValue`), Ticker; Rest von Beispiel 7.18
+(Übernahme, Zuschuss). Weiter in `src/model/rivals.ts`. Danach 3.8 und 3.9.
 
-Stand: 19.11.2026 · Paket 3.6b erledigt: Forschungs-Tabelle mit Feldern (ersetzt drei Einzel-Tabellen),
-Forschungspreis und Start-Sperre, Meilensteine mit `milestoneSlotFactor`, Jahresziel mit Strafe (E58),
-Karriere-Punkte mit zwei Ruhmeshallen in `src/model/progress.ts`; Beispiel 6.14 (Karriere) nachgerechnet.
-967 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.7a erledigt: neutrale Eingaben der KI und Liste der fehlenden Teile, KI-Stärke,
+Persönlichkeiten, KI-Kabine nach Platz-Regel (Beispiel 7.18 genau), Service je Mahlzeit, KI-Preise mit Lage und
+einmaligem Preiskampf über dem Boden, Gründung in `src/model/rivals.ts`; Platz-Regel des Kaufdialogs in `cabin.ts`.
+1010 Tests grün, `tsc --noEmit` grün.
 
 Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
@@ -54,6 +54,12 @@ Offen aus 3.6b (kein Blocker): Die Felder `defectFactor`, `wearFactor`, `resaleB
 in der Kasse bucht (nicht im Monatsergebnis), regelt 3.8. Spielstand (5.1): alte Meilenstein-Ids `continents-*` und
 `reputation-60/80/95` nach Stufe auf `regions-*` und `reputation-bronze/silver/gold`, `startedOffset` → `startMonth`,
 Ruhmeshalle mit `splitHall` teilen (F37). Ziel-, Prämien- und Straf-Anteile (6.11) prüft das Balance-Skript (3.9).
+
+Offen aus 3.7a (kein Blocker): Den Kaufdialog auf `cabinSpace`, `seatSpace`, `economySeatsLeft` umstellen und den
+Spieler-Start auf `START_HUB_SETUP` (Phase 4). Wer `RIVAL_INPUTS` an die Funktionen reicht, Lage und Preiskampf je
+Paar speichert und die Zufallszahlen aus `rng` holt, regeln 3.7b / 3.8. Kabinen-Werte, `FARE_POSITION`, Preiskampf
+und Optimizer-Antworten über dem Boden, KI-Stärke-Werte prüft das Balance-Skript (3.9, Prüfregel „ähnlicher Erfolg“).
+Spielstand (5.1): alte KI-Stärke `Easy/Normal/Hard` über `rivalStrengthOf`, KI-Flugzeuge mit Kabine nach `rivalCabin`.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -113,7 +119,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.5b | Kosten Teil 2 (5.9–5.18): feste Kosten je Strecke (E57), Flughäfen, Verwaltungsstufen, Einrichtungen, Unterhalt, Wertmodell, Werbung, Einnahme, Kosten der Gesellschaft, Beispiel 5.18 | erledigt |
 | 3.6a | Fortschritt Teil 1 (6.1–6.8): Ruf aus Satisfaction, gestrichene Flüge, Werbe-Beitrag, Ruf-Ziel, Ruf-Änderung mit Ursachen, Farbstufen, Rang mit 3-Monats-Mittel, Flugzeugklassen | erledigt |
 | 3.6b | Fortschritt Teil 2 (6.9–6.14): Forschung mit Feldern, Meilensteine, Jahresziel, Karriere-Punkte | erledigt |
-| 3.7 | Konkurrenz (Abschnitt 7) | offen |
+| 3.7a | Konkurrenz Teil 1 (7.1–7.7): neutrale Eingaben, fehlende Teile, KI-Stärke, Persönlichkeiten, Kabine und Service, Preise mit Preiskampf, Gründung | erledigt |
+| 3.7b | Konkurrenz Teil 2 (7.8–7.17): Monat der KI, Planung, Slots/Schalter/Drehkreuze (E63), Flotte, Krise, Wachstum, Dividende, Zuschuss, Notlage, Übernahme, Ticker | offen |
 | 3.8 | Monatsabschluss, Ereignisse, Flottenmarkt (Abschnitt 8) | offen |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
 
@@ -172,3 +179,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | – | O54–O59 erneut abgefragt: O57 → E63 (Spieler-Stufe 3 sperrt neue KI-Strecken und -Drehkreuze; ersetzt E60), O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62); `SPEZIFIKATION.md` 7.0, 7.2, 7.7, 7.9, 7.10, 7.13 angepasst |
 | 19.11.2026 | 3.6a | Ruf, Rang, Flugzeugklassen in `src/model/progress.ts`: Ruf-Ziel aus Airline satisfaction (100 → 50), Abzug für gestrichene Sitze, Werbe-Beitrag im Ziel (höchstens 3), eine Ruf-Änderung mit Ursachen-Liste, Farbstufen; Rang-Tabelle `RANKS` mit neuen Ruf-Schwellen und Forschungsplätzen, Prüfung im 3-Monats-Mittel ohne Abstieg, Freischaltungen, Flughafen-Zugang, Fortschritt; 6 Flugzeugklassen (`SizeClass`) mit `CLASS_RESEARCH` und Erreichbarkeits-Test gegen die Flugzeugdaten; Paket 3.6 geteilt (F36); 43 neue Tests, 916 grün |
 | 19.11.2026 | 3.6b | Forschung, Meilensteine, Jahresziel, Karriere in `src/model/progress.ts`: Forschungs-Tabelle `RESEARCH_PROJECTS` (45 Projekte mit 15 Feldern, ersetzt `RESEARCH_SATISFACTION_POINTS`, `RESEARCH_COST_SAVINGS`, `EFFICIENCY_RESEARCH_IDS`), `researchEffects` als einzige Zusammenfassung, Preis über `atCost` ungerundet, Start-Sperre, Fortschritt, Texte aus den Feldern; 31 Meilensteine als Daten ohne Ruf-Punkte, `milestoneSlotFactor`, Drehkreuz-Zuschläge, Gewinnserie; Jahresziel mit Bezugsgröße aus Vorjahr und Erlös, Mindest-Prämie, Strafe = halbe Prämie (E58), `yearSnapshot`; Karriere-Punkte mit `companyValue` und zwei Ruhmeshallen; Bau-Festlegung F37; 51 neue Tests, 967 grün |
+| 19.11.2026 | 3.7a | Konkurrenz Teil 1 in `src/model/rivals.ts`: `RIVAL_INPUTS` (neutrale Eingaben statt „ist das eine KI?“, Test über alle Modell-Dateien) und `RIVAL_OMITTED` als Text; `RIVAL_STRENGTH` (Easy/Normal/Hard nur Verhalten); `PERSONALITIES` mit Preis-Lage, Boden, Zielgewichten, Geduld, Kaufneigung, Reserve, Drehkreuzen, Schalter-Art, Kabine und Service; `rivalCabin` nach Platz-Regel (Beispiel 7.18 genau: LCC 202 Sitze, Boutique 59/25/20/8) und `rivalService` mit Menü je Mahlzeit; `rivalFareRatio` mit Zielniveau × `satisfactionFactor`, Lage ± 15 %, Preiskampf einmal −12 % über dem Boden; Gründung (Startkasse mit `atCost`, Startausstattung wie der Spieler, Drehkreuz-Wahl ohne Spieler-Stufe 3, Startflugzeuge, Nachrücken); Platz-Regel des Kaufdialogs in `cabin.ts`; Bau-Festlegung F38 (Paket 3.7 geteilt); 43 neue Tests, 1010 grün |
