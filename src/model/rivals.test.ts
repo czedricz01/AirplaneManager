@@ -77,8 +77,11 @@ const M1990 = (1990 - 1960) * 12;
 const M2015 = (2015 - 1960) * 12;
 const A320 = AIRCRAFT.find((a) => a.id === 'a320ceo')!;
 
-/** Dateien mit den Entscheidungen der KI (7.3–7.17); nur sie dürfen nach der KI fragen. */
-const RIVAL_DECISION_FILES = ['rivals.ts', 'rivalMonth.ts'];
+/**
+ * Dateien mit den Entscheidungen der KI (7.3–7.17); nur sie dürfen nach der KI fragen. `monthClose.ts` setzt die
+ * Schritte des Abschlusses zusammen (8.0 Schritt 4, F41); die Buchung selbst steht neutral in `monthBooking.ts`.
+ */
+const RIVAL_DECISION_FILES = ['rivals.ts', 'rivalMonth.ts', 'monthClose.ts'];
 
 /** Code-Dateien des Modells ohne Tests. */
 function modelSources(): { name: string; text: string }[] {

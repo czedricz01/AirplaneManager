@@ -2609,3 +2609,16 @@ export const CREDIT_RATE = 0.08;
 
 /** Ab so vielen überzogenen Monaten in Folge: Zwangsverkauf, ein Flugzeug je Abschluss. SPEZIFIKATION 8.14. */
 export const OVERDRAWN_TO_FORCED_SALE = 6;
+
+// ---------------------------------------------------------------------------
+// 8.2 Bericht, 8.15 Szenario-Ziele
+// ---------------------------------------------------------------------------
+
+/** So viele Monatsberichte bleiben im Spielstand (wie heute `src/lib/monthClose.ts:1263`). SPEZIFIKATION 8.2. */
+export const REPORT_HISTORY_MONTHS = 120;
+
+/** Was ein Szenario-Ziel misst (heute `src/data/scenarios.ts`). SPEZIFIKATION 8.15. */
+export type ScenarioMetric = 'capital' | 'monthlyProfit' | 'reputation' | 'routes' | 'regions' | 'transferPax';
+
+/** Ziele in Dollar: Schwelle als Wert von 1960, geprüft mit `atCost` des Prüfmonats (E6). SPEZIFIKATION 8.15. */
+export const SCENARIO_DOLLAR_METRICS: readonly ScenarioMetric[] = ['capital', 'monthlyProfit'];

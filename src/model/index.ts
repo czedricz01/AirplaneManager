@@ -20,3 +20,5 @@ export * from './rivals';
 export * from './rivalMonth';
 export * from './monthEvents';
 export * from './fleetMarket';
+export * from './monthBooking';
+export * from './monthClose';
