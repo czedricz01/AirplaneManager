@@ -63,6 +63,7 @@ import {
   routePassengerCost,
   routeResult,
   slotShare,
+  subsidyIncome,
   type FixedWeeklyCostParts,
   type MonthlyCosts,
 } from './costTotals';
@@ -207,6 +208,31 @@ export interface ModelAirport {
   /** Größe 1 … 7 (`Airport.level`). */
   readonly size: number;
   readonly region: WorldRegion;
+  /** Größter ICAO-Code, den die Piste trägt (`Airport.maxIcaoCode`); fehlt = jede Größe. */
+  readonly maxIcaoCode?: string;
+}
+
+/**
+ * Ein Flugzeugtyp des Typen-Katalogs (Felder wie `src/data/aircraft.ts`); für Käufe, Modernisierung und Gründung der KI
+ * (7.7, 7.9, 7.11) und den Gebrauchtmarkt (8.11).
+ */
+export interface CatalogType {
+  readonly id: string;
+  readonly family: string;
+  /** Bauart der Daten: „Regional“, „Narrowbody“, „Widebody“ (zugleich Slot-Art, 5.10). */
+  readonly class: string;
+  readonly capacity: number;
+  readonly cruiseSpeed: number;
+  readonly efficiency: number;
+  readonly popularity: number;
+  /** Reichweite in km. */
+  readonly maxRange: number;
+  /** Listenpreis in $ von 1960. */
+  readonly basePrice: number;
+  /** ICAO-Code der Spannweite („A“ … „F“). */
+  readonly icaoCode: string;
+  readonly firstDeliveryOffset: number;
+  readonly lastDeliveryOffset: number | null;
 }
 
 /** Eine Werbe-Kampagne. */
@@ -248,6 +274,8 @@ export interface CompanyInputs {
   readonly recoveryEvents: readonly string[];
   /** Letzter Personalstreik (8.7). */
   readonly staffStrike?: StaffStrike;
+  /** Bekommt den Zuschuss (7.14, Zeile „Subsidy“); die KI, solange `RIVAL_SUBSIDY_ENABLED`. Fehlt = nein. */
+  readonly subsidized?: boolean;
 }
 
 /** Ein Flugzeug: Typ-Werte aus `src/data/aircraft.ts`, Kabine und Zustand. */
@@ -446,6 +474,8 @@ export interface ModelState {
   /** Weiterverkaufte Flugzeuge im Gebrauchtmarkt (8.11). */
   readonly resold: readonly ResoldPlane[];
   readonly companies: readonly CompanyState[];
+  /** Typen-Katalog (Käufe der KI, 7.11); fehlt = keine Käufe. */
+  readonly catalog?: readonly CatalogType[];
 }
 
 // ===========================================================================
@@ -1382,9 +1412,16 @@ function plannerState(state: ModelState, companyId: string, routeId: string, cha
  * rechnet damit Verlierer und Feinabstimmung (7.8, 7.9). SPEZIFIKATION 4.12, 7.9.
  */
 export function plannerRouteResult(state: ModelState, companyId: string, routeId: string, departuresPerWeek: number): number {
+  return plannerRouteFigures(state, companyId, routeId, departuresPerWeek).result * WEEKS_PER_MONTH;
+}
+
+/**
+ * Alle Zahlen einer Strecke aus der Planer-Rechnung (`plannerRouteResult`): Satisfaction, Fluggäste, Kosten je Woche.
+ * Die KI liest daraus die Satisfaction einer geplanten Strecke für ihr Preisniveau (7.6, 7.9). SPEZIFIKATION 4.12, 7.9.
+ */
+export function plannerRouteFigures(state: ModelState, companyId: string, routeId: string, departuresPerWeek: number): RouteFigures {
   const ops = monthOperations(plannerState(state, companyId, routeId, (r) => ({ ...r, departuresPerWeek })));
-  const figures = ops[companyId].routes.find((r) => r.routeId === routeId) as RouteFigures;
-  return figures.result * WEEKS_PER_MONTH;
+  return ops[companyId].routes.find((r) => r.routeId === routeId) as RouteFigures;
 }
 
 /**
@@ -1471,7 +1508,16 @@ export type CloseNewsKind =
   | 'dividend'
   | 'forSale'
   | 'recovered'
-  | 'liquidated';
+  | 'liquidated'
+  // Paket 3.8d: Eröffnungen, Wachstum, Bestand, Nachrücken (7.7, 7.9–7.11, 7.13).
+  | 'routeOpened'
+  | 'planeBought'
+  | 'modernized'
+  | 'cabinRenewed'
+  | 'slotsSold'
+  | 'loungeBuilt'
+  | 'newHub'
+  | 'newRival';
 
 /** Eine Meldung des Abschlusses. */
 export interface CloseNews {
@@ -1517,6 +1563,12 @@ export type CompanyDecisions = (company: CompanyState, ctx: DecisionContext) => 
 
 /** Keine Entscheidungen (Tests und Vorhersage). */
 export const NO_DECISIONS: CompanyDecisions = (company) => ({ company });
+
+/**
+ * Letzter Schritt nach dem Übergang (8.0, 7.19): bekommt den Spielstand für X+1 und gibt ihn mit Meldungen zurück. Die KI
+ * rückt hier nach (`rivalRefill` in `rivalMonth.ts`, 7.7); der Abschluss kennt die KI nicht (7.1).
+ */
+export type AfterClose = (state: ModelState) => { readonly state: ModelState; readonly news?: readonly CloseNews[] };
 
 /** Ergebnis eines Abschlusses. */
 export interface CloseMonthResult {
@@ -1635,9 +1687,10 @@ function progressStep(
  * Zwangsverkauf und Spielende (8.14), 6. Gewinnserie (6.10); mit Fortschritt: Meilensteine, Rang, Jahresziel (6.7–6.11),
  * Prämien und Strafe in die Kasse, 7. Kasse am Monatsende und Bericht (8.2), Szenario (8.15), Prüfung (8.16),
  * 8. Übergang zu X+1 (Forschung, Preise, Moral, Zufallsereignis, Störungen, Personalstreik unter dem Pech-Deckel,
- * Gebrauchtmarkt, Kampagnen). Rein: liest nur seine Eingabe (R12). SPEZIFIKATION 8.0, 8.1.
+ * Gebrauchtmarkt, Kampagnen), 9. `after` im Spielstand für X+1 (Nachrücken der KI, 7.7). Rein: liest nur seine
+ * Eingabe (R12). SPEZIFIKATION 8.0, 8.1.
  */
-export function closeMonth(state: ModelState, decisions: CompanyDecisions): CloseMonthResult {
+export function closeMonth(state: ModelState, decisions: CompanyDecisions, after?: AfterClose): CloseMonthResult {
   const X = state.month;
   const log: string[] = [];
   const news: CloseNews[] = [];
@@ -1657,7 +1710,7 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
         overhauls: company.ledger.overhauls,
         saleProceeds: company.ledger.saleProceeds + (extra.saleProceeds ?? 0),
       });
-    const costs = costsOf(o, company, fleetParts());
+    const costs = costsOf(o, company, fleetParts(), X);
     // Kasse: nur zahlungswirksame Posten; Käufe, Verkäufe und Krisen-Antworten sind schon bezahlt (8.2).
     const operatingCash = o.revenue - (costs.total - costs.depreciation - costs.aircraftTrades - costs.crisisResponses);
     const reputation = reputationChange(company.reputation, {
@@ -1785,7 +1838,7 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
 
     // Monatsergebnis mit allen Buchungen dieses Abschlusses außer den Entscheidungen (5.16).
     const parts = fleetParts({ tradeValueChange: extraTrade, purchases: extraPurchases, saleProceeds: extraProceeds }, valueEnd);
-    const costs = costsOf(o, bookedCompany, parts);
+    const costs = costsOf(o, bookedCompany, parts, X);
     const result = monthlyResult(o.revenue, costs);
 
     // 6 Gewinnserie (Moral 8.7, Meilensteine 6.10); mit Fortschritt Meilensteine, Rang, Jahresziel.
@@ -1860,11 +1913,14 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
 
   const next = transition({ ...state, companies: closed }, sold);
   news.push(...next.news);
-  return { state: next.state, reports, bankrupt, news, log };
+  // 9 Nachrücken (7.7) am Ende, im Spielstand für X+1.
+  const finished = after ? after(next.state) : { state: next.state };
+  news.push(...(finished.news ?? []));
+  return { state: finished.state, reports, bankrupt, news, log };
 }
 
 /** Kosten des Monats aus Schritt 2 und dem Flottenwert-Ergebnis (5.16). */
-function costsOf(o: CompanyOperations, company: CompanyState, fleet: FleetValueResultParts): MonthlyCosts {
+function costsOf(o: CompanyOperations, company: CompanyState, fleet: FleetValueResultParts, month: number): MonthlyCosts {
   return monthlyCosts({
     routes: o.routes.map((r) => ({ fuel: r.fixed.fuel, crew: r.fixed.crew, landing: r.fixed.landing, passengers: r.passengerCost })),
     airportUpkeep: o.airportUpkeep,
@@ -1874,6 +1930,7 @@ function costsOf(o: CompanyOperations, company: CompanyState, fleet: FleetValueR
     ffpBase: o.ffpBase,
     events: { charter: o.charter, crisisResponses: company.ledger.crisisResponses, interest: o.interest, damages: o.damages },
     ownerFeeIncome: o.ownerFeeIncome,
+    subsidy: subsidyIncome(month, company.inputs.subsidized ?? false),
   });
 }
 

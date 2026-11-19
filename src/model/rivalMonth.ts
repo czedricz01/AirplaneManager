@@ -1,6 +1,7 @@
 /**
  * Konkurrenz Teil b: SPEZIFIKATION 7.8–7.17 (Paket 3.7b); Entscheidungen im Monatsabschluss `rivalDecisions` und
- * Übernahme im Spielstand `takeOverCompany` (Paket 3.8c).
+ * Übernahme im Spielstand `takeOverCompany` (Paket 3.8c); Eröffnungen, Wachstum, Slots, Schalter, Lounge, Fahrpläne,
+ * Kabinen-Erneuerung, Gründung und Nachrücken `rivalRefill` im Abschluss (Paket 3.8d).
  *
  * 7.8 Monat der KI (Ablauf, geglätteter Gewinn, Verlierer, Feinabstimmung), 7.9 Planung einer Strecke,
  * 7.10 Slots, Schalter, Drehkreuze, Lounge und Sperre durch Spieler-Stufe 3 (E63), 7.11 Flotte, 7.12 Krise,
@@ -12,35 +13,58 @@
  * in [0, 1) als `u`. Das Modell kennt den Spielstand nicht (F14).
  */
 
-import { atCost, clamp, timeOf } from './basics';
-import { facilityPrice, managementTierPrice, slotLimit, slotPrice, slotResalePrice } from './airportCosts';
+import { atCost, clamp, yearOf } from './basics';
+import { subsidy1960, subsidyIncome } from './costTotals';
+import { departuresOnPair, facilityPrice, managementTierPrice, slotLimit, slotPrice, slotResalePrice } from './airportCosts';
 import { fuelTable } from './costs';
-import { creditLimit, overhaulQuote, saleCandidate, saleProceeds } from './fleetMarket';
-import { distanceKm, eventDemandFactor, type DemandEvent } from './demand';
-import { bestFareRatio, breakEvenFareLevel, marketFares, type BreakEvenClass } from './fare';
-import { aircraftValue } from './fleet';
+import { creditLimit, overhaulQuote, refitCabinCondition, refitPrice, saleCandidate, saleProceeds } from './fleetMarket';
+import { blockMinutes, citySize, distanceKm, eventDemandFactor, type DemandEvent } from './demand';
+import { bestFareRatio, breakEvenFareLevel, marketFares, type BreakEvenClass, type PartialClassFigures } from './fare';
+import { aircraftValue, newAircraftPrice } from './fleet';
 import { activeWorldEvents } from './monthEvents';
 import {
   fleetValue,
+  newLedger,
+  plannerRouteFigures,
   plannerRouteResult,
   routeClassPassengersAt,
+  type AfterClose,
   type AircraftState,
+  type CatalogType,
   type CloseNews,
   type CompanyDecisions,
   type CompanyState,
   type DecisionContext,
   type DecisionOutcome,
   type HoldingState,
+  type ModelAirport,
   type ModelState,
   type ResoldPlane,
+  type RouteSchedule,
   type RouteState,
 } from './monthClose';
+import { REAL_AIRLINES } from '../data/rivalAirlines';
 import { companyValue, hasUnlock, researchEffects, type CompanyValueInput } from './progress';
 import { deskCapacity, satisfactionFactor } from './satisfaction';
 import { rng } from './rng';
 import {
+  fictionalHubWeights,
+  fictionalRivalCount,
   isOnMarket,
   longHaulFactor,
+  mayFoundAt,
+  pickStartAircraft,
+  realRivalWeight,
+  RIVAL_INPUTS,
+  rivalAircraft,
+  rivalBuyChance,
+  rivalDeskType,
+  rivalService,
+  rivalStartCash,
+  rivalStartSetup,
+  shouldRefill,
+  startFleetKinds,
+  type HubCandidate,
   nextYieldPosition,
   priceWarStep,
   rivalCashReserve,
@@ -97,10 +121,6 @@ import {
   RIVAL_STRENGTH,
   RIVAL_SUBSIDY_ENABLED,
   SALE_TO_LIQUIDATION_MONTHS,
-  SUBSIDY_HIGH_1960,
-  SUBSIDY_HIGH_UNTIL,
-  SUBSIDY_LOW_1960,
-  SUBSIDY_LOW_FROM,
   TAKEOVER_MIN_PRICE_1960,
   TAKEOVER_MIN_TIER,
   THIN_SHARE,
@@ -109,6 +129,13 @@ import {
   CABIN_CLASSES,
   AIRCRAFT_CLASSES,
   WEEKS_PER_MONTH,
+  MINUTES_PER_WEEK,
+  PROFIT_LOOKBACK_MONTHS,
+  RAMP_MONTHS,
+  RIVAL_FIRST_DEPARTURE_MINUTE,
+  RIVAL_TURN_MINUTES,
+  MAX_MANAGEMENT_TIER,
+  SCALES,
   type AircraftClass,
   type CabinClass,
   type DeskType,
@@ -878,24 +905,16 @@ export function rivalDividend(cash: number, limit: number): number {
 // 7.14 Zuschuss (E47)
 // ---------------------------------------------------------------------------
 
-/**
- * Zuschuss je Monat in $ von 1960: 450 000 bis 1985, dann gerade fallend auf 150 000 bis 2005, danach 150 000.
- * Stetige Zeit (R5). SPEZIFIKATION 7.14.
- */
-export function subsidy1960(month: number): number {
-  const t = timeOf(month);
-  if (t <= SUBSIDY_HIGH_UNTIL) return SUBSIDY_HIGH_1960;
-  if (t >= SUBSIDY_LOW_FROM) return SUBSIDY_LOW_1960;
-  const share = (t - SUBSIDY_HIGH_UNTIL) / (SUBSIDY_LOW_FROM - SUBSIDY_HIGH_UNTIL);
-  return SUBSIDY_HIGH_1960 + (SUBSIDY_LOW_1960 - SUBSIDY_HIGH_1960) * share;
-}
+/** Zuschuss je Monat in $ von 1960 (Formel in `costTotals.ts`, F43). SPEZIFIKATION 7.14. */
+export { subsidy1960 };
 
 /**
- * Zuschuss einer KI im Monat: `atCost(subsidy1960(month), month)`, ausgeschaltet 0. Steht im Monatsergebnis der KI
- * als eigene Zeile „Subsidy“. Bis zur Abschaffung (Prüfregel 7.14 im Balance-Skript 3.9). SPEZIFIKATION 7.14.
+ * Zuschuss einer KI im Monat: `atCost(subsidy1960(month), month)`, ausgeschaltet 0. Der Abschluss bucht ihn als
+ * Zeile „Subsidy“ im Monatsergebnis für Gesellschaften mit dem Merkmal `subsidized` (`subsidyIncome`, F43).
+ * Bis zur Abschaffung (Prüfregel 7.14 im Balance-Skript 3.9). SPEZIFIKATION 7.14.
  */
 export function rivalSubsidy(month: number, enabled: boolean = RIVAL_SUBSIDY_ENABLED): number {
-  return enabled ? atCost(subsidy1960(month), month) : 0;
+  return subsidyIncome(month, true, enabled);
 }
 
 // ---------------------------------------------------------------------------
@@ -1090,6 +1109,86 @@ export function showRivalNews(kind: RivalNewsKind, touchesPlayerAirport: boolean
 }
 
 // ---------------------------------------------------------------------------
+// 7.9–7.13 Bausteine im Abschluss (Paket 3.8d)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fahrplan einer KI-Strecke (F43): die Umläufe einer Woche gleichmäßig auf die 7 Tage verteilt; am Tag der erste Abflug
+ * am Anfang der Strecke um `RIVAL_FIRST_DEPARTURE_MINUTE`, weitere im Abstand eines Umlaufs
+ * (`2 × (Blockzeit + RIVAL_TURN_MINUTES)`); Rückflug nach Blockzeit + Bodenzeit. Minuten der Woche (Montag 00:00 = 0),
+ * sortiert. Ohne Fahrplan bildet eine Strecke keine Umsteige-Verbindung (F42). SPEZIFIKATION 3.13, 7.9.
+ *
+ * @param weeklyFrequency Umläufe je Woche (Abflüge je Ende).
+ * @param blockMinutesOneWay Blockzeit einer Richtung (`blockMinutes`).
+ */
+export function rivalSchedule(weeklyFrequency: number, blockMinutesOneWay: number): RouteSchedule {
+  const n = Math.max(0, Math.round(weeklyFrequency));
+  const cycle = 2 * (blockMinutesOneWay + RIVAL_TURN_MINUTES);
+  const fromDepartures: number[] = [];
+  const toDepartures: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const day = Math.floor((i * 7) / n);
+    const nthOfDay = i - Math.ceil((day * n) / 7);
+    const out = Math.round(day * 1440 + RIVAL_FIRST_DEPARTURE_MINUTE + nthOfDay * cycle) % MINUTES_PER_WEEK;
+    fromDepartures.push(out);
+    toDepartures.push(Math.round(out + blockMinutesOneWay + RIVAL_TURN_MINUTES) % MINUTES_PER_WEEK);
+  }
+  const ascending = (a: number, b: number) => a - b;
+  return { fromDepartures: fromDepartures.sort(ascending), toDepartures: toDepartures.sort(ascending) };
+}
+
+/**
+ * Wie viele Slots eine KI an einem Flughafen im Monat noch kaufen darf (7.10, E50, F43): die kleinere Lücke aus
+ * eigenem Anteil (`rivalSlotCap − eigene Slots`) und ihrem **Teil** der freien Slots des Flughafens zu Beginn der
+ * Entscheidungen (`abrunden(frei / Zahl der entscheidenden KI)`), weniger schon in diesem Monat dort gekaufte. So hängt
+ * das Ergebnis nicht von der Reihenfolge der KI ab (7.8), und Σ Slots aller bleibt ≤ Grenze.
+ *
+ * @param freeAtStart `slotLimit − Σ gekaufte Slots aller Gesellschaften` zu Beginn der Entscheidungen.
+ */
+export function rivalBuyableSlots(
+  airportSize: number,
+  ownHub: boolean,
+  ownedTotal: number,
+  freeAtStart: number,
+  deciders: number,
+  boughtThisMonth: number,
+): number {
+  const fairShare = Math.floor(Math.max(0, freeAtStart) / Math.max(1, deciders)) - boughtThisMonth;
+  return Math.max(0, Math.min(fairShare, rivalSlotCap(airportSize, ownHub) - ownedTotal));
+}
+
+/** Passt ein Typ auf die Piste: ICAO-Code ≤ größter Code des Flughafens; ohne Angabe ja (wie `fitsAirport` heute). SPEZIFIKATION 7.9. */
+export function runwayFits(icaoCode: string | undefined, maxIcaoCode: string | undefined): boolean {
+  return !icaoCode || !maxIcaoCode || icaoCode <= maxIcaoCode;
+}
+
+/** Gab es in den letzten `PROFIT_LOOKBACK_MONTHS` Monaten (dieser eingeschlossen) ein Monatsergebnis > 0? SPEZIFIKATION 7.11. */
+export function hadRecentProfit(results: readonly number[]): boolean {
+  return results.slice(-PROFIT_LOOKBACK_MONTHS).some((r) => r > 0);
+}
+
+/**
+ * Bezugs-Typ für die Streckensuche vor einem Kauf (F43): der Typ des jüngsten eigenen Flugzeugs, wenn er noch lieferbar
+ * ist; sonst unter den lieferbaren Typen derselben Bauart der beliebteste; sonst der beliebteste lieferbare. `-1` = keiner.
+ * Den gekauften Typ wählt danach `pickPurchaseType` für die gefundene Strecke. SPEZIFIKATION 7.11.
+ */
+export function referenceTypeIndex(catalog: readonly CatalogType[], newestTypeId: string | undefined, month: number): number {
+  const onMarket = catalog.map((t) => isOnMarket(t, month));
+  const own = catalog.findIndex((t) => t.id === newestTypeId);
+  if (own >= 0 && onMarket[own]) return own;
+  const kind = own >= 0 ? catalog[own].class : undefined;
+  let best = -1;
+  for (const sameKind of kind ? [true, false] : [false]) {
+    catalog.forEach((t, i) => {
+      if (!onMarket[i] || (sameKind && t.class !== kind)) return;
+      if (best === -1 || t.popularity > catalog[best].popularity) best = i;
+    });
+    if (best >= 0) return best;
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------------------
 // 7.8 Entscheidungen im Monatsabschluss (Paket 3.8c)
 // ---------------------------------------------------------------------------
 
@@ -1120,11 +1219,29 @@ export interface RivalAgent {
   readonly overhauls: Readonly<Record<string, number>>;
   /** Monatskosten (5.16, Summe) je Monat, ältester zuerst, für die Dividenden-Grenze (7.13). */
   readonly costHistory: readonly number[];
+  /** Freie Slots je Flughafen und Slot-Art (`Flughafen|Art`) je Monat, ältester zuerst (Verkauf nach 6 Monaten, 7.10). */
+  readonly slotFree?: Readonly<Record<string, readonly number[]>>;
+  /** Monate mit Suche ohne Strecke mit erwartetem Gewinn > 0 je eigenem Drehkreuz (neues Drehkreuz, 7.13). */
+  readonly hubNoProfit?: Readonly<Record<string, number>>;
+  /** Bisherige Kabinen-Erneuerungen je Flugzeug (8.13, F43). */
+  readonly refits?: Readonly<Record<string, number>>;
 }
 
 /** Start-Zustand der Entscheidungen einer neuen KI (7.7). */
 export function newRivalAgent(personality: RivalPersonality, strength: RivalStrength): RivalAgent {
-  return { kind: 'rival', personality, strength, distress: RIVAL_HEALTHY, routes: {}, idleMonths: {}, overhauls: {}, costHistory: [] };
+  return {
+    kind: 'rival',
+    personality,
+    strength,
+    distress: RIVAL_HEALTHY,
+    routes: {},
+    idleMonths: {},
+    overhauls: {},
+    costHistory: [],
+    slotFree: {},
+    hubNoProfit: {},
+    refits: {},
+  };
 }
 
 /** Der KI-Zustand einer Gesellschaft, oder `undefined`. */
@@ -1142,9 +1259,11 @@ const sumOf = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
  * Planer (`plannerRouteResult`, R2); Zufall aus `rng` mit Zweck und Gesellschaft als Schlüssel, daher zählt die
  * Reihenfolge der KI nicht (7.8).
  *
- * Stand 3.8c: `prices`, `crisis`, `losers`, `fineTune`, `fleet` (Überholung, Leerlauf- und Notverkauf), `dividend`,
- * `distress` mit Auflösung. `openings`, `growth` (Kauf, Modernisierung, neues Drehkreuz), Slot-Kauf und -Verkauf,
- * Schalter, Lounge und Zuschuss folgen mit Paket 3.8d (F42).
+ * Schritte: `prices`, `crisis`, `losers`, `fineTune`, `fleet` (Modernisierung, Grundüberholung, Kabinen-Erneuerung,
+ * Leerlauf- und Notverkauf), `openings` (freie Flugzeuge, Slot-Kauf an beiden Enden), `growth` (Kauf mit Strecke, neues
+ * Drehkreuz; danach Bestand: Lounge, Verkauf freier Slots, Schalter, Fahrpläne), `dividend`, `distress` mit Auflösung.
+ * Typen-Katalog aus `ModelState.catalog`, Flughafen-Kandidaten aus `ModelState.airports` (F43). Den Zuschuss bucht der
+ * Abschluss (`subsidyIncome`), das Nachrücken `rivalRefill` nach dem Übergang.
  */
 export const rivalDecisions: CompanyDecisions = (company, ctx) => {
   const agent = rivalAgentOf(company);
@@ -1173,8 +1292,18 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
   let routes: RouteState[] = company.routes.map((r) => ({ ...r }));
   let aircraft: AircraftState[] = [...company.aircraft];
   let cash = company.cash;
-  const current = (): CompanyState => ({ ...company, routes, aircraft, cash });
-  const stateNow = () => ({ ...ctx.state, companies: ctx.state.companies.map((c) => (c.id === company.id ? current() : c)) });
+  let holdings: Record<string, HoldingState> = { ...company.airports };
+  const hubs: string[] = [...(company.hubs ?? [])];
+  const current = (): CompanyState => ({ ...company, routes, aircraft, cash, airports: holdings, hubs });
+  const stateWith = (c: CompanyState): ModelState => ({ ...ctx.state, companies: ctx.state.companies.map((o) => (o.id === company.id ? c : o)) });
+  const stateNow = () => stateWith(current());
+  const next = X + 1;
+  const personality = agent.personality;
+  const catalog = ctx.state.catalog ?? [];
+  const typeOf = (typeId: string) => catalog.find((t) => t.id === typeId);
+  const planeOf = (id: string) => aircraft.find((p) => p.id === id) as AircraftState;
+  let serial = 0;
+  const newId = (kind: string) => `${company.id}-${kind}${next}-${++serial}`;
 
   // 1 prices (7.6): Preiskampf je Paar, Lage je Klasse, Preisniveau ab X+1.
   routes = routes.map((r) => {
@@ -1290,28 +1419,274 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
     }
   }
 
-  // 5 fleet (7.11): Überholung, Leerlauf-Verkauf, Notverkauf; Werte am Monatsende (X + 1, nach dem Verschleiß).
+  // Gemeinsame Bausteine für Flotte, Eröffnungen und Wachstum (7.9–7.11, Paket 3.8d).
+  const severityGrowthStop = growthStopped(personality, severity);
+  const pairKeyOf = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const seatsOf = (p: AircraftState) => sumOf(CABIN_CLASSES.map((c) => p.seats[c] ?? 0));
+  const serviceFor = (plane: AircraftState, km: number): RouteState['service'] => {
+    const minutes = blockMinutes(km, plane.cruiseSpeed);
+    const service: Partial<Record<CabinClass, RouteState['service'][CabinClass]>> = {};
+    for (const c of CABIN_CLASSES) if ((plane.seats[c] ?? 0) > 0) service[c] = rivalService(personality, c, minutes);
+    return service;
+  };
+  const usedBy = (id: string, cls: AircraftClass) =>
+    sumOf(routes.filter((r) => (r.from === id || r.to === id) && planeOf(r.aircraftId)?.aircraftClass === cls).map((r) => r.departuresPerWeek / 2));
+  const ownedTotal = (id: string) => sumOf(AIRCRAFT_CLASSES.map((cls) => holdings[id]?.slots[cls] ?? 0));
+  const freeOwn = (id: string, cls: AircraftClass) => Math.max(0, (holdings[id]?.slots[cls] ?? 0) - usedBy(id, cls));
+  const deciders = ctx.state.companies.filter((c) => {
+    const a = rivalAgentOf(c);
+    return a !== undefined && a.distress.status !== 'liquidated';
+  }).length;
+  const freeAtStart = (id: string) =>
+    slotLimit(airports[id].size) - sumOf(ctx.state.companies.map((c) => sumOf(AIRCRAFT_CLASSES.map((cls) => c.airports[id]?.slots[cls] ?? 0))));
+  const bought: Record<string, number> = {};
+  const room = (id: string, cls: AircraftClass) =>
+    freeOwn(id, cls) + rivalBuyableSlots(airports[id].size, hubs.includes(id), ownedTotal(id), freeAtStart(id), deciders, bought[id] ?? 0);
+  const playerTier3At = (id: string) => others.some((o) => (o.airports[id]?.managementTier ?? 0) >= MAX_MANAGEMENT_TIER);
+  const otherRoutes = others.flatMap((o) => o.routes.map((r) => ({ origin: r.from, destination: r.to, weeklyFrequency: r.departuresPerWeek / 2 })));
+  const sizes = new Map<string, { business: number; tourism: number }>();
+  const sizeOf = (id: string) => {
+    let size = sizes.get(id);
+    if (!size) {
+      size = citySize(airports[id], next);
+      sizes.set(id, size);
+    }
+    return size;
+  };
+
+  /**
+   * Die Gesellschaft mit einer weiteren Strecke `plane` zwischen `hub` und `target`: fehlende Slots an beiden Enden
+   * gekauft (7.10), Schalter nach `rivalDesksNeeded` an beiden Enden (E55). Für die Planung und die echte Eröffnung.
+   */
+  const withRoute = (base: CompanyState, plane: AircraftState, hub: string, target: string, f: number, fareRatios: PartialClassFigures, id: string, age: number) => {
+    const km = distanceKm(airports[hub].coords, airports[target].coords);
+    const route: RouteState = { id, aircraftId: plane.id, from: hub, to: target, departuresPerWeek: 2 * f, ageMonths: age, service: serviceFor(plane, km), fareRatios };
+    const planes = base.aircraft.some((p) => p.id === plane.id) ? base.aircraft : [...base.aircraft, plane];
+    const nextRoutes = [...base.routes.filter((r) => r.id !== id), route];
+    const nextHoldings: Record<string, HoldingState> = { ...base.airports };
+    const missing: Record<string, number> = {};
+    const deskType = rivalDeskType(personality, next);
+    for (const end of [hub, target]) {
+      const h = nextHoldings[end] ?? EMPTY_HOLDING;
+      const cls = plane.aircraftClass;
+      const used = sumOf(
+        nextRoutes
+          .filter((r) => (r.from === end || r.to === end) && planes.find((p) => p.id === r.aircraftId)?.aircraftClass === cls)
+          .map((r) => r.departuresPerWeek / 2),
+      );
+      missing[end] = Math.max(0, used - (h.slots[cls] ?? 0));
+      const seatsOut = sumOf(
+        nextRoutes
+          .filter((r) => r.from === end || r.to === end)
+          .map((r) => seatsOf(planes.find((p) => p.id === r.aircraftId) as AircraftState) * (r.departuresPerWeek / 2)),
+      );
+      const desks = Math.max(h.desks.normal + h.desks.self, rivalDesksNeeded(seatsOut, deskType));
+      nextHoldings[end] = {
+        ...h,
+        slots: { ...h.slots, [cls]: (h.slots[cls] ?? 0) + missing[end] },
+        desks: { normal: deskType === 'normal' ? desks : 0, self: deskType === 'self' ? desks : 0 },
+      };
+    }
+    const slotCost = rivalSlotCost(missing[hub], missing[target], plane.aircraftClass, next);
+    return { company: { ...base, aircraft: planes, routes: nextRoutes, airports: nextHoldings }, slotCost, missing, km };
+  };
+
+  /** Preisniveau einer neuen Strecke (7.6: Lage 0, kein Preiskampf); der Optimizer plant mit `satisfactionFactor` (F43). */
+  const newRouteFares = (plane: AircraftState, satisfaction: PartialClassFigures): PartialClassFigures => {
+    const fares: Partial<Record<CabinClass, number>> = {};
+    for (const c of CABIN_CLASSES) {
+      if (!((plane.seats[c] ?? 0) > 0)) continue;
+      const factor = satisfactionFactor(satisfaction[c] ?? SCALES.satisfaction.neutral);
+      const target = rivalTargetFareRatio(personality, factor, factor);
+      fares[c] = rivalFareRatio({ personality, target, yieldPosition: 0, priceWar: false, breakEvenFull: 0 });
+    }
+    return fares;
+  };
+  const planId = `${company.id}-plan`;
+  const plannedFares = (base: CompanyState, plane: AircraftState, hub: string, target: string, f: number) => {
+    const probe = withRoute(base, plane, hub, target, f, {}, planId, RAMP_MONTHS);
+    const figures = plannerRouteFigures(stateWith(probe.company), company.id, planId, 2 * f);
+    return newRouteFares(plane, figures.satisfaction);
+  };
+  const searched = new Set<string>();
+  const profitable = new Set<string>();
+
+  /**
+   * Planung für ein freies Flugzeug (7.9): Vorauswahl je eigenem Drehkreuz, Bewertung mit der Planer-Hauptzahl einer
+   * neuen Strecke (Anlauf 1: Alter `RAMP_MONTHS`, Preise nach 7.6), Schätzfehler; der beste Plan.
+   */
+  const planOpening = (plane: AircraftState, base: CompanyState, key: string) => {
+    const type = typeOf(plane.typeId);
+    if (!type) return null;
+    const cls = plane.aircraftClass;
+    const items: { hub: string; target: string; km: number }[] = [];
+    for (const hub of [...hubs].sort()) {
+      const h = airports[hub];
+      if (!h) continue;
+      searched.add(hub);
+      const ids = Object.keys(airports)
+        .filter((id) => id !== hub)
+        .sort();
+      const hubRoom = room(hub, cls);
+      const candidates: TargetCandidate[] = ids.map((id) => {
+        const a = airports[id];
+        const size = sizeOf(id);
+        return {
+          id,
+          km: distanceKm(h.coords, a.coords),
+          business: size.business,
+          tourism: size.tourism,
+          otherDepartures: departuresOnPair(otherRoutes, hub, id),
+          runwayOk: runwayFits(type.icaoCode, a.maxIcaoCode) && runwayFits(type.icaoCode, h.maxIcaoCode),
+          slotsFree: hubRoom >= 1 && room(id, cls) >= 1,
+          playerTier3: playerTier3At(hub) || playerTier3At(id),
+          served: routes.some((r) => pairKeyOf(r.from, r.to) === pairKeyOf(hub, id)),
+        };
+      });
+      const hubSize = sizeOf(hub);
+      const chosen = preselectTargets(
+        candidates,
+        { personality, strength: agent.strength, hubBusiness: hubSize.business, hubTourism: hubSize.tourism, rangeKm: type.maxRange },
+        (k) => rng(ctx.seed, X, 'target', `${company.id}|${key}|${hub}|${k}`),
+      );
+      for (const i of chosen) items.push({ hub, target: ids[i], km: candidates[i].km });
+    }
+    if (items.length === 0) return null;
+    const maxRot = (i: number) =>
+      Math.max(1, Math.min(maxWeeklyRotations(2 * blockMinutes(items[i].km, plane.cruiseSpeed)), room(items[i].hub, cls), room(items[i].target, cls)));
+    const fares = new Map<number, PartialClassFigures>();
+    const evaluate = (i: number, f: number) => {
+      const it = items[i];
+      let ratios = fares.get(i);
+      if (!ratios) {
+        ratios = plannedFares(base, plane, it.hub, it.target, maxRot(i));
+        fares.set(i, ratios);
+      }
+      const built = withRoute(base, plane, it.hub, it.target, f, ratios, planId, RAMP_MONTHS);
+      const profit = plannerRouteResult(stateWith(built.company), company.id, planId, 2 * f);
+      if (profit > 0) profitable.add(it.hub);
+      return profit;
+    };
+    const plan = rivalPlanRoute(
+      items.map((_, i) => i),
+      maxRot,
+      evaluate,
+      agent.strength,
+      (k) => 2 * rng(ctx.seed, X, 'forecast', `${company.id}|${key}|${k}`) - 1,
+    );
+    if (!plan) return null;
+    return { ...items[plan.targetIndex], plan, fareRatios: fares.get(plan.targetIndex) as PartialClassFigures };
+  };
+
+  /** Eröffnet die Strecke: Slots kaufen (Kasse), Strecke ab X+1 mit Preisen nach 7.6 (`nextFareRatios`). */
+  const openRoute = (plane: AircraftState, hub: string, target: string, f: number, fareRatios: PartialClassFigures) => {
+    // Alter −1: Der Übergang zählt es auf 0; die Strecke fliegt ab X+1 im ersten Monat (3.12).
+    const built = withRoute(current(), plane, hub, target, f, fareRatios, newId('r'), -1);
+    const route = built.company.routes[built.company.routes.length - 1];
+    routes = built.company.routes.map((r) => (r.id === route.id ? { ...r, fareRatios: undefined, nextFareRatios: fareRatios } : r));
+    holdings = { ...built.company.airports };
+    for (const [id, n] of Object.entries(built.missing)) bought[id] = (bought[id] ?? 0) + n;
+    cash -= built.slotCost;
+    say('routeOpened', route.id, built.slotCost);
+  };
+
+  // 5 fleet (7.11): Modernisierung, Grundüberholung, Kabinen-Erneuerung, Leerlauf-Verkauf, Notverkauf; Werte am
+  // Monatsende (X + 1, nach dem Verschleiß).
   const overhauls: Record<string, number> = { ...agent.overhauls };
+  const refits: Record<string, number> = { ...(agent.refits ?? {}) };
   const sell = (planeId: string) => {
-    const plane = aircraft.find((p) => p.id === planeId) as AircraftState;
-    const proceeds = saleProceeds(aircraftValue(plane, X + 1), resaleBonus);
+    const plane = planeOf(planeId);
+    const proceeds = saleProceeds(aircraftValue(plane, next), resaleBonus);
     cash += proceeds;
     aircraft = aircraft.filter((p) => p.id !== planeId);
     routes = routes.filter((r) => r.aircraftId !== planeId);
     sold.push({ ...plane, soldMonth: X });
     say('planeSold', planeId, proceeds);
   };
+
+  // 5a Modernisierung: das älteste Flugzeug, das sie braucht; Ersatz derselben Bauart nach Planer-Hauptzahl je Preis.
+  if (catalog.length > 0 && !severityGrowthStop) {
+    const views = aircraft.map((p) => ({
+      id: p.id,
+      builtMonth: p.builtMonth,
+      typeLastDeliveryOffset: typeOf(p.typeId)?.lastDeliveryOffset ?? null,
+      airframeCondition: p.airframeCondition,
+      cabinCondition: p.cabinCondition,
+      flying: true,
+      routeResult: 0,
+      idleMonths: 0,
+    }));
+    const index = modernizationCandidate(views, X);
+    const old = index >= 0 ? aircraft[index] : undefined;
+    const route = old && routes.find((r) => r.aircraftId === old.id);
+    if (old && route) {
+      const km = kmOf(route);
+      const candidateId = `${company.id}-candidate`;
+      const options: PurchaseOption[] = catalog.map((t) => {
+        const fits =
+          t.class === old.aircraftClass &&
+          isOnMarket(t, next) &&
+          t.maxRange >= km &&
+          runwayFits(t.icaoCode, airports[route.from].maxIcaoCode) &&
+          runwayFits(t.icaoCode, airports[route.to].maxIcaoCode);
+        if (!fits) return { ...t, runwayOk: false, inRange: false, price: 0, expectedProfit: 0 };
+        const candidate = rivalAircraft(personality, t, next, candidateId);
+        const swapped: CompanyState = {
+          ...current(),
+          aircraft: [...aircraft.filter((p) => p.id !== old.id), candidate],
+          routes: routes.map((r) => (r.id === route.id ? { ...r, aircraftId: candidateId, service: serviceFor(candidate, km) } : r)),
+        };
+        return {
+          ...t,
+          runwayOk: true,
+          inRange: true,
+          price: newAircraftPrice(candidate.listPrice1960, candidate.cabinListPrice1960, next),
+          expectedProfit: plannerRouteResult(stateWith(swapped), company.id, route.id, route.departuresPerWeek),
+        };
+      });
+      const pick = pickPurchaseType(options, next);
+      if (pick >= 0) {
+        const price = options[pick].price;
+        const oldProceeds = saleProceeds(aircraftValue(old, next), resaleBonus);
+        if (mayModernize(personality, X, cash, oldProceeds, price, severityGrowthStop)) {
+          const plane = rivalAircraft(personality, catalog[pick], next, newId('a'));
+          cash -= price;
+          aircraft = [...aircraft, plane];
+          routes = routes.map((r) => (r.aircraftId === old.id ? { ...r, aircraftId: plane.id, service: serviceFor(plane, kmOf(r)) } : r));
+          sell(old.id);
+          say('modernized', plane.id, price);
+        }
+      }
+    }
+  }
+
+  // 5b Grundüberholung (8.13): hebt nur die Zelle.
   for (const plane of [...aircraft]) {
-    // Die Grundüberholung hebt nur die Zelle (8.13); ein Kabinen-Umbau der KI folgt mit 3.8d.
     if (!needsOverhaul({ airframeCondition: plane.airframeCondition, cabinCondition: 100 })) continue;
     const done = overhauls[plane.id] ?? 0;
-    const quote = overhaulQuote(plane, X + 1, done, false);
-    if (!quote || !mayOverhaul(agent.personality, X, cash, quote.price)) continue;
+    const quote = overhaulQuote(plane, next, done, false);
+    if (!quote || !mayOverhaul(personality, X, cash, quote.price)) continue;
     cash -= quote.price;
     overhauls[plane.id] = done + 1;
     aircraft = aircraft.map((p) => (p.id === plane.id ? { ...p, airframeCondition: quote.airframeAfter } : p));
     say('overhaul', plane.id, quote.price);
   }
+
+  // 5c Kabinen-Erneuerung (F43): Kabinenzustand unter `RIVAL_OVERHAUL_BELOW` → dieselbe Kabine neu (Umbau-Preis und
+  // -Zustand 8.13). Die KI baut nie auf eine andere Kabine um (7.5).
+  for (const plane of [...aircraft]) {
+    if (!needsOverhaul({ airframeCondition: 100, cabinCondition: plane.cabinCondition })) continue;
+    const done = refits[plane.id] ?? 0;
+    const price = refitPrice(plane.cabinListPrice1960, seatsOf(plane), next);
+    const after = refitCabinCondition(plane.cabinCondition, done);
+    if (!(after > plane.cabinCondition) || !mayOverhaul(personality, X, cash, price)) continue;
+    cash -= price;
+    refits[plane.id] = done + 1;
+    aircraft = aircraft.map((p) => (p.id === plane.id ? { ...p, cabinCondition: after, cabinInstalledMonth: next } : p));
+    say('cabinRenewed', plane.id, price);
+  }
+
+  // 5d Leerlauf- und Notverkauf.
   const idleMonths: Record<string, number> = {};
   for (const plane of aircraft) idleMonths[plane.id] = nextIdleMonths(agent.idleMonths[plane.id] ?? 0, routes.some((r) => r.aircraftId === plane.id));
   for (const plane of [...aircraft]) {
@@ -1333,6 +1708,178 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
   );
   if (emergency >= 0) sell(aircraft[emergency].id);
 
+  // 6 openings (7.9, 7.10): freie Flugzeuge auf neue Strecken; je Monat `actionsPerMonth` Versuche (7.3).
+  let attempts = 0;
+  const reserve = rivalCashReserve(personality, next);
+  for (const plane of [...aircraft].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    if (attempts >= RIVAL_STRENGTH[agent.strength].actionsPerMonth) break;
+    if (routes.some((r) => r.aircraftId === plane.id)) continue;
+    attempts++;
+    const found = planOpening(plane, current(), plane.id);
+    if (!found) continue;
+    const slotCost = withRoute(current(), plane, found.hub, found.target, found.plan.weeklyFrequency, {}, planId, 0).slotCost;
+    if (!mayOpenRoute(found.plan, agent.strength, rng(ctx.seed, X, 'open', `${company.id}|${plane.id}`), cash, slotCost, reserve)) continue;
+    openRoute(plane, found.hub, found.target, found.plan.weeklyFrequency, found.fareRatios);
+  }
+
+  // 7 growth (7.11, 7.13): Kauf mit Strecke, neues Drehkreuz.
+  const buyChance = rivalBuyChance(agent.strength, personality);
+  const uBuy = rng(ctx.seed, X, 'buy', company.id);
+  const allFlying = aircraft.every((p) => routes.some((r) => r.aircraftId === p.id));
+  if (catalog.length > 0 && hubs.length > 0 && allFlying && !severityGrowthStop && uBuy < buyChance) {
+    const newest = [...aircraft].sort((a, b) => b.builtMonth - a.builtMonth || (a.id < b.id ? -1 : 1))[0];
+    const ref = referenceTypeIndex(catalog, newest?.typeId, next);
+    if (ref >= 0) {
+      const candidateId = `${company.id}-candidate`;
+      const refPlane = rivalAircraft(personality, catalog[ref], next, candidateId);
+      const found = planOpening(refPlane, current(), 'buy');
+      const wanted = found !== null && mayOpenRoute(found.plan, agent.strength, rng(ctx.seed, X, 'open', `${company.id}|buy`), Infinity, 0, 0);
+      if (found && wanted) {
+        const options: PurchaseOption[] = catalog.map((t) => {
+          const fits =
+            isOnMarket(t, next) &&
+            t.maxRange >= found.km &&
+            runwayFits(t.icaoCode, airports[found.hub].maxIcaoCode) &&
+            runwayFits(t.icaoCode, airports[found.target].maxIcaoCode);
+          const cls = t.class as AircraftClass;
+          const f = Math.min(found.plan.weeklyFrequency, maxWeeklyRotations(2 * blockMinutes(found.km, t.cruiseSpeed)));
+          if (!fits || room(found.hub, cls) < f || room(found.target, cls) < f) {
+            return { ...t, runwayOk: false, inRange: false, price: 0, expectedProfit: 0 };
+          }
+          const candidate = rivalAircraft(personality, t, next, candidateId);
+          const built = withRoute(current(), candidate, found.hub, found.target, f, found.fareRatios, planId, RAMP_MONTHS);
+          return {
+            ...t,
+            runwayOk: true,
+            inRange: true,
+            price: newAircraftPrice(candidate.listPrice1960, candidate.cabinListPrice1960, next),
+            expectedProfit: plannerRouteResult(stateWith(built.company), company.id, planId, 2 * f),
+          };
+        });
+        const pick = pickPurchaseType(options, next);
+        if (pick >= 0) {
+          const plane = rivalAircraft(personality, catalog[pick], next, newId('a'));
+          const f = Math.min(found.plan.weeklyFrequency, maxWeeklyRotations(2 * blockMinutes(found.km, plane.cruiseSpeed)));
+          const price = options[pick].price;
+          const slotCost = withRoute(current(), plane, found.hub, found.target, f, {}, planId, 0).slotCost;
+          const blocker = rivalBuyBlocker({
+            personality,
+            strength: agent.strength,
+            month: next,
+            cash,
+            allFlying,
+            growthStop: severityGrowthStop,
+            routeFound: true,
+            price,
+            slotCost,
+            recentProfit: hadRecentProfit([...company.reports.map((r) => r.result), ctx.result]),
+            u: uBuy,
+            buyChance,
+          });
+          if (blocker === null) {
+            cash -= price;
+            aircraft = [...aircraft, plane];
+            say('planeBought', plane.id, price);
+            openRoute(plane, found.hub, found.target, f, plannedFares(current(), plane, found.hub, found.target, f));
+          }
+        }
+      }
+    }
+  }
+
+  // 7b Neues Drehkreuz (7.13): Ort nach Gewicht, Kauf der Verwaltungsstufen 1 und 2.
+  const hubNoProfit: Record<string, number> = {};
+  for (const hub of hubs) {
+    const before = agent.hubNoProfit?.[hub] ?? 0;
+    hubNoProfit[hub] = !searched.has(hub) ? before : profitable.has(hub) ? 0 : before + 1;
+  }
+  const uHub = rng(ctx.seed, X, 'newHub', company.id);
+  if (hubs.length > 0 && uHub < NEW_HUB_CHANCE && !severityGrowthStop) {
+    const rivalHubs = new Set(ctx.state.companies.filter((c) => rivalAgentOf(c) !== undefined).flatMap((c) => c.hubs ?? []));
+    const playerHubs = new Set(ctx.state.companies.filter((c) => rivalAgentOf(c) === undefined).flatMap((c) => c.hubs ?? []));
+    const ids = Object.keys(airports).sort();
+    const candidates: NewHubCandidate[] = ids.map((id) => {
+      const size = sizeOf(id);
+      return {
+        id,
+        level: airports[id].size,
+        demand: size.business + size.tourism,
+        region: airports[id].region,
+        rivalHub: rivalHubs.has(id) || hubs.includes(id),
+        playerHub: playerHubs.has(id),
+        playerTier3: playerTier3At(id),
+      };
+    });
+    const homeRegion = airports[hubs[0]]?.region;
+    const pick = homeRegion ? weightedPick(newHubWeights(candidates, personality, homeRegion), rng(ctx.seed, X, 'hubPlace', company.id)) : -1;
+    if (pick >= 0) {
+      const id = ids[pick];
+      const tierPrice = newHubTierPrice(airports[id].size, next);
+      const ownHubs: OwnHubView[] = hubs.map((h) => ({
+        usedSlots: sumOf(AIRCRAFT_CLASSES.map((cls) => usedBy(h, cls))),
+        airportSize: airports[h]?.size ?? 1,
+        monthsWithoutProfitableRoute: hubNoProfit[h] ?? 0,
+      }));
+      const size = rivalSize(routes.map((r) => ({ seats: seatsOf(planeOf(r.aircraftId)), weeklyFrequency: r.departuresPerWeek / 2 })));
+      if (wantsNewHub({ personality, ownHubs, size, cash, month: next, tierPrice, growthStop: severityGrowthStop, u: uHub })) {
+        cash -= tierPrice;
+        holdings[id] = { ...(holdings[id] ?? EMPTY_HOLDING), managementTier: rivalManagementTier(true) };
+        hubs.push(id);
+        hubNoProfit[id] = 0;
+        say('newHub', id, tierPrice);
+      }
+    }
+  }
+
+  // 7c Bestand nach allen Strecken (7.10): VIP-Lounge, Verkauf freier Slots, Schalter, Fahrpläne.
+  for (const hub of hubs) {
+    const h = holdings[hub];
+    if (!h) continue;
+    const premium = routes.some(
+      (r) => (r.from === hub || r.to === hub) && ((planeOf(r.aircraftId).seats.business ?? 0) > 0 || (planeOf(r.aircraftId).seats.first ?? 0) > 0),
+    );
+    if (rivalBuildsLounge(personality, h.facilities.includes('vipLounge'), premium, cash, next)) {
+      const price = facilityPrice('vipLounge', next);
+      cash -= price;
+      holdings[hub] = { ...h, facilities: [...h.facilities, 'vipLounge'] };
+      say('loungeBuilt', hub, price);
+    }
+  }
+  const slotFree: Record<string, number[]> = {};
+  for (const id of Object.keys(holdings).sort()) {
+    for (const cls of AIRCRAFT_CLASSES) {
+      const h = holdings[id];
+      const owned = h.slots[cls] ?? 0;
+      if (owned <= 0) continue;
+      const key = `${id}|${cls}`;
+      const history = [...(agent.slotFree?.[key] ?? []), Math.max(0, owned - usedBy(id, cls))].slice(-RIVAL_SLOT_IDLE_MONTHS);
+      const n = idleSlotsToSell(history);
+      if (n > 0) {
+        const proceeds = n * slotResalePrice(cls, next, company.inputs.completedResearch);
+        cash += proceeds;
+        holdings[id] = { ...h, slots: { ...h.slots, [cls]: owned - n } };
+        say('slotsSold', `${id}|${cls}`, proceeds);
+      }
+      slotFree[key] = history.map((v) => Math.max(0, v - n));
+    }
+  }
+  const deskType = rivalDeskType(personality, next);
+  const ends = new Set([...Object.keys(holdings), ...routes.flatMap((r) => [r.from, r.to])]);
+  for (const id of [...ends].sort()) {
+    const seatsOut = sumOf(routes.filter((r) => r.from === id || r.to === id).map((r) => seatsOf(planeOf(r.aircraftId)) * (r.departuresPerWeek / 2)));
+    const n = rivalDesksNeeded(seatsOut, deskType);
+    const h = holdings[id] ?? EMPTY_HOLDING;
+    const desks = { normal: deskType === 'normal' ? n : 0, self: deskType === 'self' ? n : 0 };
+    const empty = n === 0 && h.managementTier === 0 && h.facilities.length === 0 && AIRCRAFT_CLASSES.every((cls) => !(h.slots[cls] ?? 0));
+    if (empty && !hubs.includes(id)) {
+      const { [id]: _dropped, ...rest } = holdings;
+      holdings = rest;
+    } else if (h.desks.normal !== desks.normal || h.desks.self !== desks.self || !holdings[id]) {
+      holdings[id] = { ...h, desks };
+    }
+  }
+  routes = routes.map((r) => ({ ...r, schedule: rivalSchedule(r.departuresPerWeek / 2, blockMinutes(kmOf(r), planeOf(r.aircraftId).cruiseSpeed)) }));
+
   // 8 dividend (7.13): nach allen Buchungen der KI.
   const costHistory = [...agent.costHistory, ctx.costsTotal].slice(-DIVIDEND_COST_WINDOW);
   const dividend = rivalDividend(cash, dividendLimit(X, costHistory));
@@ -1342,31 +1889,174 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
   }
 
   // 9 distress (7.15) mit Auflösung: Flugzeuge in den Gebrauchtmarkt, Slots frei, Schulden verfallen.
-  const step = rivalDistressStep(agent.distress, { cash, creditLimit: creditLimit(fleetValue(aircraft, X + 1)), aircraftCount: aircraft.length });
+  const step = rivalDistressStep(agent.distress, { cash, creditLimit: creditLimit(fleetValue(aircraft, next)), aircraftCount: aircraft.length });
   if (step.event) say(step.event, undefined, step.event === 'liquidated' ? Math.max(0, -cash) : undefined);
-  let airportsAfter = company.airports;
-  let hubs = company.hubs;
+  let hubsAfter: string[] = hubs;
   if (step.state.status === 'liquidated') {
     const out = liquidate(aircraft, [], cash);
     sold.push(...out.toUsedMarket.map((p) => ({ ...p, soldMonth: X })));
     aircraft = [];
     routes = [];
-    airportsAfter = {};
-    hubs = [];
+    holdings = {};
+    hubsAfter = [];
     cash = 0;
   }
 
   const keptRoutes: Record<string, RivalRouteMemory> = {};
-  for (const r of routes) keptRoutes[r.id] = memory[r.id];
+  for (const r of routes) keptRoutes[r.id] = memory[r.id] ?? {};
   const keptIdle: Record<string, number> = {};
   for (const p of aircraft) keptIdle[p.id] = idleMonths[p.id] ?? 0;
   const keptOverhauls: Record<string, number> = {};
   for (const p of aircraft) if (overhauls[p.id]) keptOverhauls[p.id] = overhauls[p.id];
-  const nextAgent: RivalAgent = { ...agent, distress: step.state, routes: keptRoutes, idleMonths: keptIdle, overhauls: keptOverhauls, costHistory };
+  const keptRefits: Record<string, number> = {};
+  for (const p of aircraft) if (refits[p.id]) keptRefits[p.id] = refits[p.id];
+  const nextAgent: RivalAgent = {
+    ...agent,
+    distress: step.state,
+    routes: keptRoutes,
+    idleMonths: keptIdle,
+    overhauls: keptOverhauls,
+    costHistory,
+    slotFree: step.state.status === 'liquidated' ? {} : slotFree,
+    hubNoProfit: step.state.status === 'liquidated' ? {} : hubNoProfit,
+    refits: keptRefits,
+  };
+  const hubsField = company.hubs === undefined && hubsAfter.length === 0 ? {} : { hubs: hubsAfter };
   return {
-    company: { ...company, routes, aircraft, cash, airports: airportsAfter, hubs, agent: nextAgent },
+    company: { ...company, routes, aircraft, cash, airports: holdings, ...hubsField, agent: nextAgent },
     sold,
     news,
+  };
+}
+
+/** Bestand an einem Flughafen ohne Stufe, Slots, Schalter und Einrichtungen. */
+const EMPTY_HOLDING: HoldingState = { managementTier: 0, slots: {}, stands: {}, desks: { normal: 0, self: 0 }, facilities: [] };
+
+// ---------------------------------------------------------------------------
+// 7.7 Gründung und Nachrücken im Abschluss (Paket 3.8d)
+// ---------------------------------------------------------------------------
+
+/** Eine echte Gesellschaft als möglicher Nachrücker (Felder wie `src/data/rivalAirlines.ts`). */
+export interface RealRivalInput {
+  readonly code: string;
+  readonly hub: string;
+  readonly founded: number;
+  readonly ceased?: number;
+  readonly personality: RivalPersonality;
+}
+
+/** Einstellungen des Nachrückens (beim Spielstart gewählt). */
+export interface RivalRefillSettings {
+  /** Gewählte Zahl der KI. */
+  readonly wanted: number;
+  readonly strength: RivalStrength;
+  /** Echte Gesellschaften; Standard aus `src/data/rivalAirlines.ts`. */
+  readonly realAirlines?: readonly RealRivalInput[];
+}
+
+/**
+ * Gründet eine KI im Spielstand-Monat (7.7): echt (im Jahr aktiv, an ihrem Drehkreuz, gewichtet nach √Nachfrage) oder
+ * erfunden (`fictionalRivalCount` für eine KI; Drehkreuz nach `fictionalHubWeights`, Persönlichkeit gleich verteilt);
+ * nie am Drehkreuz einer anderen Gesellschaft oder mit Spieler-Stufe 3. Startkasse nach Stärke, Startflotte neu mit
+ * Kabine nach 7.5 (kommt zur Kasse dazu), Stufe 2 und ein bedienter Schalter am Drehkreuz, keine Slots, Ruf 50, Zuschuss
+ * nach 7.14. `null`, wenn kein Ort frei ist oder kein Typ lieferbar. SPEZIFIKATION 7.7.
+ *
+ * @param key Schlüssel der Zufallszahlen (mehrere Gründungen im selben Monat).
+ */
+export function foundRivalCompany(
+  state: ModelState,
+  strength: RivalStrength,
+  realAirlines: readonly RealRivalInput[] = REAL_AIRLINES,
+  key = 'refill',
+): CompanyState | null {
+  const month = state.month;
+  const year = yearOf(month);
+  const u = (purpose: string, k: string | number = 0) => rng(state.seed, month, purpose, `${key}|${k}`);
+  const living = state.companies.filter((c) => rivalAgentOf(c)?.distress.status !== 'liquidated');
+  const rivalHubs = new Set(living.filter((c) => rivalAgentOf(c) !== undefined).flatMap((c) => c.hubs ?? []));
+  const playerHubs = new Set(living.filter((c) => rivalAgentOf(c) === undefined).flatMap((c) => c.hubs ?? []));
+  const tier3 = (id: string) => living.some((c) => (c.airports[id]?.managementTier ?? 0) >= MAX_MANAGEMENT_TIER);
+  const candidateOf = (a: ModelAirport): HubCandidate => {
+    const size = citySize(a, month);
+    return { id: a.id, level: a.size, demand: size.business + size.tourism, playerHub: playerHubs.has(a.id), rivalHub: rivalHubs.has(a.id), playerTier3: tier3(a.id) };
+  };
+  const taken = new Set(state.companies.map((c) => c.id));
+
+  let personality: RivalPersonality | undefined;
+  let hub: string | undefined;
+  let id = '';
+  if (fictionalRivalCount(1, u('fictional')) === 0) {
+    const real = realAirlines.filter(
+      (r) => r.founded <= year && (r.ceased === undefined || year < r.ceased) && state.airports[r.hub] && !taken.has(`rival-${r.code}`),
+    );
+    const pick = weightedPick(
+      real.map((r) => realRivalWeight(candidateOf(state.airports[r.hub]))),
+      u('real'),
+    );
+    if (pick >= 0) {
+      personality = real[pick].personality;
+      hub = real[pick].hub;
+      id = `rival-${real[pick].code}`;
+    }
+  }
+  if (!hub) {
+    const airports = Object.values(state.airports).sort((a, b) => (a.id < b.id ? -1 : 1));
+    const pick = weightedPick(fictionalHubWeights(airports.map(candidateOf)), u('hub'));
+    if (pick < 0 || !mayFoundAt(candidateOf(airports[pick]))) return null;
+    const kinds = Object.keys(PERSONALITIES).sort() as RivalPersonality[];
+    personality = kinds[weightedPick(kinds.map(() => 1), u('personality'))];
+    hub = airports[pick].id;
+    id = `rival-f${month}-${hub}`;
+    if (taken.has(id)) return null;
+  }
+  const p = personality as RivalPersonality;
+  const catalog = state.catalog ?? [];
+  const aircraft: AircraftState[] = [];
+  startFleetKinds(strength).forEach((kind, i) => {
+    const index = pickStartAircraft(p, kind, catalog, month, (t) => u('startType', `${i}|${t}`));
+    if (index >= 0) aircraft.push(rivalAircraft(p, catalog[index], month, `${id}-a${i + 1}`));
+  });
+  if (aircraft.length === 0) return null;
+  const cash = rivalStartCash(strength, month, 2 * u('cash') - 1);
+  const setup = rivalStartSetup();
+  return {
+    id,
+    cash,
+    reputation: setup.reputation,
+    inputs: { ...RIVAL_INPUTS, campaigns: [], subsidized: true },
+    aircraft,
+    routes: [],
+    airports: {
+      [hub]: { managementTier: setup.managementTier, slots: {}, stands: {}, desks: { ...setup.desks }, facilities: [] },
+    },
+    preorders: [],
+    overdrawnMonths: 0,
+    profitStreak: 0,
+    ledger: newLedger(cash, fleetValue(aircraft, month), 0),
+    reports: [],
+    hubs: [hub],
+    agent: newRivalAgent(p, strength),
+  };
+}
+
+/**
+ * Nachrücken (7.7) als letzter Schritt des Abschlusses (`closeMonth(state, rivalDecisions, rivalRefill(...))`): fehlen
+ * KI zur gewählten Zahl (aufgelöste zählen nicht), rückt mit `RIVAL_REFILL_CHANCE` eine nach (`foundRivalCompany`), im
+ * neuen Monat (Kasse mit `atCost`, W5). SPEZIFIKATION 7.7, 7.19.
+ */
+export function rivalRefill(settings: RivalRefillSettings): AfterClose {
+  return (state) => {
+    const active = state.companies.filter((c) => {
+      const a = rivalAgentOf(c);
+      return a !== undefined && a.distress.status !== 'liquidated';
+    }).length;
+    if (!shouldRefill(active, settings.wanted, rng(state.seed, state.month, 'refill', 'chance'))) return { state };
+    const company = foundRivalCompany(state, settings.strength, settings.realAirlines ?? REAL_AIRLINES);
+    if (!company) return { state };
+    return {
+      state: { ...state, companies: [...state.companies, company] },
+      news: [{ companyId: company.id, kind: 'newRival', subject: company.hubs?.[0] }],
+    };
   };
 }
 
