@@ -1,5 +1,5 @@
 /**
- * Tests des Balance-Skripts (Paket 3.9a): Format, Bericht, Beispiel-Welten. Die Balance-Regeln selbst prüft das Skript
+ * Tests des Balance-Skripts (Pakete 3.9a, 3.9b): Format, Bericht, Beispiel-Welten, Langläufe. Die Balance-Regeln selbst prüft das Skript
  * (`npm run balance`); hier nur, dass es richtig rechnet und gleich bleibt.
  */
 
@@ -11,6 +11,8 @@ import { quantile, satisfactionSection, timeAndMoney } from './market';
 import { num, pct, renderMarkdown, verdictCounts, type Section } from './report';
 import { bestFareRatios, caseMarket, priceDuel, ROUTE_CASES, routeSections, runCase } from './routes';
 import { marketState, routeOf, runMarket, sampleMonth, seatsTotal } from './world';
+import { allModelAirports, founderHub, longRunStart, PERSONALITY_ORDER, runLong } from './longRun';
+import { competitionSections, spreadFactor, yearsToLiquidation } from './competition';
 
 const A330 = ROUTE_CASES.find((c) => c.label === 'A330-300 FRA–JFK 1995');
 
@@ -98,5 +100,56 @@ describe('Balance-Skript: Beispiel-Welten', () => {
     const sections = routeSections([r, runCase(short)], [], [[r]]);
     assert.equal(sections.length, 2);
     for (const s of sections) for (const c of s.checks) assert.ok(!c.value.includes('NaN'), `${c.id}: ${c.value}`);
+  });
+});
+
+describe('Balance-Skript: Langläufe (3.9b)', () => {
+  // Kleine Welt: die Drehkreuze von Lauf 0 und einige große Flughäfen, 2 Jahre ab 1990.
+  const ids = ['JFK', 'FRA', 'CDG', 'HND', 'ATL', 'LHR', 'ORD', 'MAD', 'FCO', 'AMS', 'MUC', 'BOS', 'MIA', 'LAX', 'ICN', 'HKG'];
+  const all = allModelAirports();
+  const airports = Object.fromEntries(ids.map((id) => [id, all[id]]));
+  const settings = { run: 0, startYear: 1990, years: 2, strength: 'easy' as const, subsidy: true, transferEveryYears: 1 };
+  const withSubsidy = runLong(settings, undefined, airports);
+  const without = runLong({ ...settings, subsidy: false }, undefined, airports);
+
+  it('jede Persönlichkeit gründet eine KI an ihrem Drehkreuz; jedes Drehkreuz einmal über 10 Läufe', () => {
+    const start = longRunStart(settings, airports);
+    assert.deepEqual(
+      start.companies.map((c) => c.hubs?.[0]),
+      PERSONALITY_ORDER.map((_, k) => founderHub(0, k)),
+    );
+    for (let k = 0; k < PERSONALITY_ORDER.length; k++) {
+      assert.equal(new Set(Array.from({ length: 10 }, (_, run) => founderHub(run, k))).size, 10);
+    }
+  });
+
+  it('runLong: Jahre mit Gründern, endlichen Werten und Umsteiger-Messung', () => {
+    assert.equal(withSubsidy.years.length, 2);
+    for (const y of withSubsidy.years) {
+      assert.equal(y.companies.filter((c) => c.founder).length, 5);
+      for (const c of y.companies) assert.ok(Number.isFinite(c.value1960) && Number.isFinite(c.result1960), c.id);
+      assert.ok(y.transfers !== undefined);
+    }
+    assert.ok(withSubsidy.years[1].companies.some((c) => c.routes > 0));
+  });
+
+  it('ohne Zuschuss: kein Dollar Zuschuss; mit Zuschuss: Zuschuss im Ergebnis', () => {
+    for (const y of without.years) for (const c of y.companies) assert.equal(c.subsidy1960, 0);
+    assert.ok(withSubsidy.years[0].companies.every((c) => c.subsidy1960 > 0));
+  });
+
+  it('competitionSections: Prüfregeln ohne NaN, Kennungen eindeutig', () => {
+    const sections = competitionSections([withSubsidy, without, runLong({ ...settings, strength: 'hard', years: 1 }, undefined, airports)]);
+    const ids2 = sections.flatMap((s) => s.checks.map((c) => c.id));
+    assert.equal(new Set(ids2).size, ids2.length);
+    for (const s of sections) for (const c of s.checks) assert.ok(!c.value.includes('NaN'), `${c.id}: ${c.value}`);
+  });
+
+  it('spreadFactor und yearsToLiquidation', () => {
+    const by = { flag: 2, lcc: 1, expansionist: 1, optimizer: 1, boutique: 0.5 };
+    assert.equal(spreadFactor({ all: 1, by }), 2);
+    assert.equal(spreadFactor({ all: 1, by: { ...by, boutique: 0 } }), Number.POSITIVE_INFINITY);
+    assert.equal(yearsToLiquidation({ ...withSubsidy, founderLiquidated: { lcc: 2003.5 } }, 'lcc'), 13.5);
+    assert.equal(yearsToLiquidation(withSubsidy, 'flag'), Number.POSITIVE_INFINITY);
   });
 });

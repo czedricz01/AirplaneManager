@@ -15,3 +15,6 @@ dist-static/
 
 # Temporary git worktrees created for isolated background agents
 .claude/worktrees/
+
+# Langläufe des Balance-Skripts (npm run balance -- --long)
+.balance-runs/

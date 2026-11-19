@@ -1,7 +1,8 @@
 /**
  * Balance-Skript (Paket 3.9): alle Abschnitte zu einem Bericht. Kein Spielcode; die Oberfläche importiert nichts von hier.
  *
- * Aufruf: `npm run balance` (Ausgabe als Markdown), `npm run balance -- --out <datei>` schreibt die Ausgabe in eine Datei.
+ * Aufruf: `npm run balance` (Ausgabe als Markdown), `npm run balance -- --out <datei>` schreibt die Ausgabe in eine Datei,
+ * `npm run balance -- --long` rechnet dazu die Langläufe der KI (Paket 3.9b, `longRun.ts`, `competition.ts`).
  */
 
 import { demandSection, satisfactionSection, timeAndMoney } from './market';
@@ -17,7 +18,7 @@ export function balanceSections(): Section[] {
 
 /** Einleitung des Berichts. */
 export const BALANCE_INTRO = [
-  'Erzeugt mit `npm run balance` aus `src/balance/` (Paket 3.9a). Alle Zahlen kommen aus den Funktionen in `src/model/`',
+  'Erzeugt mit `npm run balance` aus `src/balance/` (Pakete 3.9a, 3.9b; Langläufe mit `--long`). Alle Zahlen kommen aus den Funktionen in `src/model/`',
   'mit den Startwerten aus `src/model/constants.ts`; das Skript ändert keine Konstante. Bewertung und Empfehlungen:',
   '`docs/neubau/BALANCE.md`.',
   '',

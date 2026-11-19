@@ -152,10 +152,20 @@ export function worldCitySize(month: number, airports: readonly MarketAirport[] 
  * (Summe über alle Flughäfen; F9). SPEZIFIKATION 3.2.
  */
 export function worldScale(month: number, airports: readonly MarketAirport[] = airportsData): CitySize {
+  const cached = airports === airportsData ? WORLD_SCALE_CACHE.get(month) : undefined;
+  if (cached) return cached;
   const start = worldCitySize(0, airports);
   const now = worldCitySize(month, airports);
-  return { business: start.business / now.business, tourism: start.tourism / now.tourism };
+  const scale = { business: start.business / now.business, tourism: start.tourism / now.tourism };
+  if (airports === airportsData) WORLD_SCALE_CACHE.set(month, scale);
+  return scale;
 }
+
+/**
+ * Zwischenspeicher von `worldScale` je Monat für die Flughäfen der Daten (reine Rechnung, gleiches Ergebnis; spart die
+ * Summe über alle Flughäfen in jeder Planer-Rechnung der KI, Paket 3.9b).
+ */
+const WORLD_SCALE_CACHE = new Map<number, CitySize>();
 
 /**
  * Weltanteil einer Stadt (Code-Name `relativeSize`): `Grel = G × ΣG(1960) / ΣG(jetzt)`, ebenso `Trel`.

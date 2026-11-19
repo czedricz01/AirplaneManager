@@ -2596,7 +2596,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   bezahlbar ist. Das alte Flugzeug wird an den Markt verkauft (Händler-Spanne, Abschnitt 8) und kommt mit Alter und
   Zustand in den Gebrauchtmarkt (R13); heute fest 20 % des Listenpreises (W7).
 - **Grundüberholung:** fällt der Zellen- oder Kabinenzustand unter `RIVAL_OVERHAUL_BELOW = 60` %, lässt die KI das
-  Flugzeug zum Preis aus Abschnitt 8 überholen, wenn die Kasse es nach Reserve erlaubt.
+  Flugzeug zum Preis aus Abschnitt 8 überholen, wenn die Kasse es nach Reserve erlaubt. Die Kabine erneuert sie
+  (dieselbe Kabine, F43) nur, wenn der Kabinenzustand danach wieder mindestens `RIVAL_OVERHAUL_BELOW` ist (F45).
 - **Notverkauf** (Kasse < 0): je Monat ein Flugzeug, zuerst ein freies, sonst das der schlechtesten Strecke; Erlös
   aus dem Wertmodell mit Händler-Spanne (Abschnitt 8), nicht mehr ohne Alter (W7). Auch, wenn alle Strecken Gewinn
   machen (heute dann kein Verkauf, W11).

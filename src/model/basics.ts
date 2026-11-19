@@ -49,9 +49,16 @@ export function timeOf(month: number): number {
  * Tests und Anzeigen, die den Index selbst zeigen.
  */
 export function costIndex(month: number): number {
+  const cached = COST_INDEX_CACHE.get(month);
+  if (cached !== undefined) return cached;
   const time = Math.min(COST_INDEX_LAST_YEAR, Math.max(START_YEAR, timeOf(month)));
-  return Math.pow(1 + COST_GROWTH, time - START_YEAR);
+  const value = Math.pow(1 + COST_GROWTH, time - START_YEAR);
+  COST_INDEX_CACHE.set(month, value);
+  return value;
 }
+
+/** Zwischenspeicher von `costIndex` je Monat (reine Rechnung, gleiches Ergebnis; Rechenzeit der KI, Paket 3.9b). */
+const COST_INDEX_CACHE = new Map<number, number>();
 
 /**
  * Ein fester Betrag von 1960 in Preisen des Monats `month`:
