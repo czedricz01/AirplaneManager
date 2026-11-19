@@ -75,6 +75,7 @@ import {
   marketSizeParts,
   referenceBlockMinutes,
   worldScale,
+  type CitySize,
   type Coords,
 } from './demand';
 import {
@@ -601,7 +602,12 @@ interface TransferConnection {
  * Teilstrecken O–H und H–D, wenn die Gesellschaft O–D nicht direkt bedient. Anschlüsse aus den Fahrplänen der
  * Strecken; ohne Fahrplan keine Verbindung. Keine Verbindungen über Gesellschaften hinweg.
  */
-function transferConnections(state: ModelState, companies: readonly CompanyState[], prepared: readonly PreparedRoute[]): TransferConnection[] {
+function transferConnections(
+  state: ModelState,
+  companies: readonly CompanyState[],
+  prepared: readonly PreparedRoute[],
+  onlyPairs?: ReadonlySet<string>,
+): TransferConnection[] {
   const result: TransferConnection[] = [];
   for (const company of companies) {
     const hubs = [...new Set(company.hubs ?? [])].sort();
@@ -643,6 +649,7 @@ function transferConnections(state: ModelState, companies: readonly CompanyState
           const D = ends[j];
           const pair = pairKey(O, D);
           if (served.has(pair)) continue;
+          if (onlyPairs && !onlyPairs.has(pair)) continue;
           const legOH = atHub.filter((p) => p.pair === pairKey(O, H));
           const legHD = atHub.filter((p) => p.pair === pairKey(H, D));
           const oh = timing(legOH, O);
@@ -699,12 +706,14 @@ function checkState(state: ModelState): void {
     if (companyIds.has(c.id)) throw new Error(`closeMonth: Gesellschaft ${c.id} doppelt`);
     companyIds.add(c.id);
     if (c.inputs.staffModel) staffModels++;
+    const own = new Set<string>();
     for (const p of c.aircraft) {
       if (planeIds.has(p.id)) throw new Error(`closeMonth: Flugzeug ${p.id} doppelt`);
       planeIds.add(p.id);
+      own.add(p.id);
     }
     for (const r of c.routes) {
-      if (!c.aircraft.some((p) => p.id === r.aircraftId)) throw new Error(`closeMonth: Strecke ${r.id} ohne Flugzeug`);
+      if (!own.has(r.aircraftId)) throw new Error(`closeMonth: Strecke ${r.id} ohne Flugzeug`);
       if (!state.airports[r.from] || !state.airports[r.to]) throw new Error(`closeMonth: Strecke ${r.id} mit unbekanntem Flughafen`);
       if (r.from === r.to) throw new Error(`closeMonth: Strecke ${r.id} ohne zweites Ende`);
       if (!(r.departuresPerWeek > 0)) throw new Error(`closeMonth: Strecke ${r.id} ohne Abflüge`);
@@ -720,11 +729,120 @@ function checkState(state: ModelState): void {
  * Ohne Umsteiger (Paket 3.8c). SPEZIFIKATION 8.0, 8.1.
  */
 export function monthOperations(state: ModelState): Readonly<Record<string, CompanyOperations>> {
+  const { companies, figuresByCompany, landingAt, transferTripsByCompany } = operationsCore(state, {});
+  return companyOperations(state, companies, figuresByCompany, landingAt, transferTripsByCompany);
+}
+
+/** Fluggäste je Woche eines Paars (O–D) aus der Rechnung des Abschlusses (3.11, 3.13). */
+export interface PairPassengers {
+  readonly pair: string;
+  /** Direktgäste aller Gesellschaften. */
+  readonly direct: number;
+  /** Umsteiger, die die Marktaufteilung den Verbindungen gibt (vor der Sitz-Verteilung). */
+  readonly transferWish: number;
+  /** Umsteiger, die einen Sitz auf beiden Teilstrecken bekommen. */
+  readonly transferPlaced: number;
+}
+
+/**
+ * Fluggäste je Paar nach Art, für das Balance-Skript (3.13: Umsteiger in Märkten mit Direktangebot typisch unter
+ * 25 %). Dieselbe Rechnung wie `monthOperations` (R2); nur Paare mit Direktangebot oder Umsteige-Verbindung.
+ */
+export function pairPassengers(state: ModelState): PairPassengers[] {
+  const core = operationsCore(state, {});
+  const byPair = new Map<string, { direct: number; transferWish: number; transferPlaced: number }>();
+  const entry = (pair: string) => {
+    let e = byPair.get(pair);
+    if (!e) byPair.set(pair, (e = { direct: 0, transferWish: 0, transferPlaced: 0 }));
+    return e;
+  };
+  for (const company of core.companies) {
+    for (const r of company.routes) {
+      const passengers = core.passengersByRoute.get(`${company.id}|${r.id}`);
+      if (passengers) entry(pairKey(r.from, r.to)).direct += sum(CABIN_CLASSES.map((c) => passengers[c]));
+    }
+  }
+  for (const t of core.transfers) {
+    const e = entry(t.pair);
+    e.transferWish += t.wish;
+    e.transferPlaced += t.placed;
+  }
+  return [...byPair.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([pair, e]) => ({ pair, ...e }));
+}
+
+/**
+ * Was `operationsCore` rechnet. Ohne Angabe alles (Abschluss). Die Planer-Rechnungen brauchen nur einen Teil; sie
+ * rechnen genau die Märkte, von denen ihr Ergebnis abhängt, mit derselben Rechnung (R2) – das Ergebnis ist gleich,
+ * nur schneller (Paket 3.9b, Rechenzeit der KI).
+ */
+interface OperationsScope {
+  /** Nur die Direktgäste dieser Paare (`routeClassPassengersCurve`); keine Umsteiger-Verteilung, keine Kosten. */
+  readonly directPairs?: ReadonlySet<string>;
+  /**
+   * Nur die Zahlen dieser einen Strecke (`plannerRouteFigures`). Gilt nur, wenn die Gesellschaft keine Drehkreuze hat
+   * (Planer-Spielstand, keine Umsteiger): Dann hängen die Zahlen nur vom eigenen Paar und von den Strecken desselben
+   * Flugzeugs (Blockstunden, 5.9) ab. Hat sie Drehkreuze, wird alles gerechnet.
+   */
+  readonly route?: { readonly companyId: string; readonly routeId: string };
+}
+
+/** Ergebnis von `operationsCore`. */
+interface OperationsCore {
+  readonly companies: readonly CompanyState[];
+  /** Direktgäste je Strecke (`<Gesellschaft>|<Strecke>`). */
+  readonly passengersByRoute: ReadonlyMap<string, Record<CabinClass, number>>;
+  readonly figuresByCompany: ReadonlyMap<string, RouteFigures[]>;
+  readonly landingAt: ReadonlyMap<string, ReadonlyMap<string, number>>;
+  readonly transferTripsByCompany: ReadonlyMap<string, number>;
+  /** Umsteige-Verbindungen mit Wunsch (Marktaufteilung) und platzierten Umsteigern je Klasse und Woche. */
+  readonly transfers: readonly { readonly pair: string; readonly wish: number; readonly placed: number }[];
+}
+
+/** Vorbereitete Angebote für die Marktaufteilung (`marketContext`). */
+interface MarketContext {
+  readonly state: ModelState;
+  readonly X: number;
+  readonly world: CitySize;
+  readonly events: ReturnType<typeof activeWorldEvents>;
+  readonly companies: readonly CompanyState[];
+  /** Gesellschaft und Strecke aus `OperationsScope.route`, wenn nur sie gerechnet wird. */
+  readonly focusCompany?: CompanyState;
+  readonly narrowRouteId?: string;
+  /** Gebrauchte Paare; fehlt = alle. */
+  readonly needed?: ReadonlySet<string>;
+  readonly prepared: readonly PreparedRoute[];
+  readonly connectionsList: readonly TransferConnection[];
+  readonly preparedByPair: ReadonlyMap<string, PreparedRoute[]>;
+  readonly connectionsByPair: ReadonlyMap<string, TransferConnection[]>;
+}
+
+/**
+ * Vorbereitung von Schritt 2 (siehe `monthOperations`): Strecken und Umsteige-Verbindungen. Mit `scope` nur der Teil,
+ * den die Planer-Rechnung braucht: Eine Strecke wird nur vorbereitet, wenn ihr Paar gebraucht wird, sie als
+ * Teilstrecke einer Umsteige-Verbindung in einem gebrauchten Paar dienen kann oder (bei `scope.route`) dasselbe
+ * Flugzeug fliegt. Jede Marktaufteilung läuft genau wie im Abschluss.
+ */
+function marketContext(state: ModelState, scope: OperationsScope): MarketContext {
   checkState(state);
   const X = state.month;
   const world = worldScale(X);
   const events = activeWorldEvents(X, state.randomEvents);
   const companies = byId(state.companies);
+  const scoped = scope.route ? companies.find((c) => c.id === scope.route?.companyId) : undefined;
+  const focusCompany = scoped && (scoped.hubs ?? []).length === 0 ? scoped : undefined;
+  const narrowRoute = focusCompany?.routes.find((r) => r.id === scope.route?.routeId);
+  if (focusCompany && !narrowRoute) throw new Error(`monthOperations: Strecke ${scope.route?.companyId}/${scope.route?.routeId} fehlt`);
+  const needed: ReadonlySet<string> | undefined =
+    scope.directPairs ?? (narrowRoute ? new Set([pairKey(narrowRoute.from, narrowRoute.to)]) : undefined);
+  const neededEnds = new Set([...(needed ?? [])].flatMap((pair) => pair.split('|')));
+  /** Wird die Strecke gebraucht? Paar gebraucht, Teilstrecke an einem eigenen Drehkreuz zu einem gebrauchten Ende, oder dasselbe Flugzeug. */
+  const wanted = (company: CompanyState, route: RouteState): boolean => {
+    if (!needed) return true;
+    if (needed.has(pairKey(route.from, route.to))) return true;
+    if (narrowRoute && company === focusCompany && route.aircraftId === narrowRoute.aircraftId) return true;
+    const hubs = company.hubs ?? [];
+    return (hubs.includes(route.from) && neededEnds.has(route.to)) || (hubs.includes(route.to) && neededEnds.has(route.from));
+  };
 
   // --- Vorbereitung je Gesellschaft und Strecke: Störungen, Sitze, Satisfaction, Preise.
   const prepared: PreparedRoute[] = [];
@@ -758,6 +876,7 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
     const disruptions = state.disruptions.map((d) => ({ ...d, charter: d.charter === true && inputs.charter }));
 
     for (const route of company.routes) {
+      if (!wanted(company, route)) continue;
       const plane = planes.get(route.aircraftId) as AircraftState;
       const A = state.airports[route.from];
       const B = state.airports[route.to];
@@ -812,113 +931,173 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
   }
 
   // --- Umsteige-Verbindungen (3.13): je Gesellschaft, Drehkreuz und Paar O–D, das sie nicht direkt bedient.
-  const connectionsList = transferConnections(state, companies, prepared);
+  const connectionsList = transferConnections(state, companies, prepared, needed);
+  const preparedByPair = new Map<string, PreparedRoute[]>();
+  for (const p of prepared) {
+    const list = preparedByPair.get(p.pair);
+    if (list) list.push(p);
+    else preparedByPair.set(p.pair, [p]);
+  }
+  const connectionsByPair = new Map<string, TransferConnection[]>();
+  for (const t of connectionsList) {
+    const list = connectionsByPair.get(t.pair);
+    if (list) list.push(t);
+    else connectionsByPair.set(t.pair, [t]);
+  }
+  return { state, X, world, events, companies, focusCompany, narrowRouteId: narrowRoute?.id, needed, prepared, connectionsList, preparedByPair, connectionsByPair };
+}
+
+/** Werte eines Paars, die nicht von den Angeboten abhängen: Marktpreise, Bezugs-Flugzeit, Marktgröße, Klassen-Anteile. */
+interface PairBasics {
+  readonly A: ModelAirport;
+  readonly B: ModelAirport;
+  readonly mf: ClassFigures;
+  readonly reference: number;
+  readonly size: ReturnType<typeof marketSizeParts>;
+  readonly share: ReturnType<typeof classShares>;
+}
+
+/** `PairBasics` eines Paars im Monat des Spielstands. */
+function pairBasics(context: MarketContext, pair: string): PairBasics {
+  const { state, X, world, events } = context;
+  const [idA, idB] = pair.split('|');
+  const A = state.airports[idA];
+  const B = state.airports[idB];
+  const mf = marketFares(distanceKm(A.coords, B.coords), X);
+  const reference = referenceBlockMinutes(A.coords, B.coords);
+  const size = marketSizeParts({ a: A, b: B, month: X, world, eventFactor: eventDemandFactor(events, A.region, B.region) });
+  return { A, B, mf, reference, size, share: classShares(size.businessShare, reference) };
+}
+
+/**
+ * Eine Marktaufteilung je Klasse auf einem Paar (3.11, R1): alle Direktangebote und Umsteige-Verbindungen. Schreibt die
+ * Direktgäste je Strecke in `passengersByRoute` und den Umsteiger-Wunsch je Verbindung in `transferWish`.
+ */
+function splitPair(
+  context: MarketContext,
+  pair: string,
+  onPair: readonly PreparedRoute[],
+  viaHub: readonly TransferConnection[],
+  classes: readonly CabinClass[],
+  passengersByRoute: Map<string, Record<CabinClass, number>>,
+  transferWish: Map<string, Record<CabinClass, number>>,
+  basics: PairBasics = pairBasics(context, pair),
+): void {
+  const { X } = context;
+  const { A, B, mf, reference, size, share } = basics;
+  for (const p of onPair) passengersByRoute.set(routeKey(p), zeroClasses());
+
+  const offerIds = [...new Set(onPair.map((p) => p.company.id))].sort();
+  for (const c of classes) {
+    const offers = [];
+    for (const companyId of offerIds) {
+      const own = onPair.filter((p) => p.company.id === companyId);
+      const seats = sum(own.map((p) => p.offeredSeats[c]));
+      if (!(seats > 0)) continue;
+      const company = own[0].company;
+      const offer = directOffer(
+        own.map((p) => ({
+          id: p.route.id,
+          seatsPerFlight: p.plane.seats,
+          departuresPerWeek: p.route.departuresPerWeek,
+          fare: p.fares,
+          blockMinutes: p.minutes,
+        })),
+        mf,
+      );
+      const offerSat = directOfferSatisfaction(
+        own.map((p) => ({ satisfaction: p.satisfaction[c] ?? 0, seatsPerWeek: (p.plane.seats[c] ?? 0) * p.route.departuresPerWeek })),
+      ) as number;
+      const eff = researchEffects(company.inputs.completedResearch);
+      const campaigns = runningCampaigns(company.inputs, X);
+      const ageMonths = Math.max(...own.map((p) => p.route.ageMonths));
+      const appeal = offerAppeal(c, {
+        frequency: offer.frequency,
+        fare: offer.fare[c],
+        marketFare: mf[c],
+        satisfactionFactor: satisfactionFactor(offerSat),
+        blockMinutes: offer.blockMinutes,
+        referenceBlockMinutes: reference,
+        reputation: company.reputation,
+        ageMonths,
+        advertisingFactor: advertisingFactor(regionAdvertising(campaigns, A.region), regionAdvertising(campaigns, B.region)),
+        frequentFlyerFactor: frequentFlyerFactor(company.inputs.ffpMonthsRunning),
+        researchDemandFactor: eff.demandFactor,
+        crisisResponseFactor: activeCrisisResponseFactor(company.inputs.recoveryEvents.map(historicalEvent), X),
+        difficultyFactor: difficultyFactor(company.inputs.difficulty),
+      });
+      offers.push({ id: companyId, appeal, seats, ramp: rampFactor(ageMonths, eff.rampBonus) });
+    }
+    for (const t of viaHub) {
+      const sat = t.satisfaction[c];
+      if (sat === undefined) continue;
+      const { company } = t;
+      const eff = researchEffects(company.inputs.completedResearch);
+      const campaigns = runningCampaigns(company.inputs, X);
+      const appeal = offerAppeal(c, {
+        frequency: t.figures.frequency,
+        fare: transferFare(mf[c]),
+        marketFare: mf[c],
+        satisfactionFactor: satisfactionFactor(sat),
+        blockMinutes: t.figures.blockMinutes,
+        referenceBlockMinutes: reference,
+        reputation: company.reputation,
+        ageMonths: t.ageMonths,
+        advertisingFactor: advertisingFactor(regionAdvertising(campaigns, A.region), regionAdvertising(campaigns, B.region)),
+        frequentFlyerFactor: frequentFlyerFactor(company.inputs.ffpMonthsRunning),
+        researchDemandFactor: eff.demandFactor,
+        crisisResponseFactor: activeCrisisResponseFactor(company.inputs.recoveryEvents.map(historicalEvent), X),
+        difficultyFactor: difficultyFactor(company.inputs.difficulty),
+        connectionFactor: connectionFactor(hubQuality(t.hub, eff.hubQualityFactor)),
+      });
+      // Umsteiger sind im Markt nicht durch Sitze begrenzt; die Sitze verteilt `allocateTransferSeats` danach.
+      offers.push({ id: t.id, appeal, seats: Infinity, ramp: rampFactor(t.ageMonths, eff.rampBonus) });
+    }
+    if (offers.length === 0) continue;
+    const split = marketSplit({ potential: classPotential(c, size.marketSize, share[c]), noFlyAppeal: noFlyAppeal(c), offers });
+    for (const companyId of offerIds) {
+      const own = onPair.filter((p) => p.company.id === companyId);
+      const seatsByRoute: Record<string, number> = {};
+      for (const p of own) seatsByRoute[p.route.id] = p.offeredSeats[c];
+      const perRoute = distributeToRoutes(split.passengers[companyId] ?? 0, seatsByRoute);
+      for (const p of own) (passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>)[c] = perRoute[p.route.id];
+    }
+    for (const t of viaHub) {
+      const wish = transferWish.get(t.id) ?? zeroClasses();
+      wish[c] = split.passengers[t.id] ?? 0;
+      transferWish.set(t.id, wish);
+    }
+  }
+}
+
+/** Schlüssel einer Strecke in den Ergebnis-Tabellen: `<Gesellschaft>|<Strecke>`. */
+const routeKey = (p: PreparedRoute) => `${p.company.id}|${p.route.id}`;
+
+/** Schritt 2 bis zu den Strecken-Zahlen; siehe `monthOperations` und `marketContext`. */
+function operationsCore(state: ModelState, scope: OperationsScope): OperationsCore {
+  const context = marketContext(state, scope);
+  const { X, companies, focusCompany, narrowRouteId, needed, prepared, connectionsList, preparedByPair, connectionsByPair } = context;
 
   // --- Eine Marktaufteilung je Paar und Klasse für alle Angebote (R1), direkt und mit Umstieg.
   const passengersByRoute = new Map<string, Record<CabinClass, number>>();
-  const routeKey = (p: PreparedRoute) => `${p.company.id}|${p.route.id}`;
   const transferWish = new Map<string, Record<CabinClass, number>>();
-  const pairs = [...new Set([...prepared.map((p) => p.pair), ...connectionsList.map((t) => t.pair)])].sort();
+  const pairs = [...new Set([...prepared.map((p) => p.pair), ...connectionsList.map((t) => t.pair)])].filter((pair) => !needed || needed.has(pair)).sort();
   for (const pair of pairs) {
-    const onPair = prepared.filter((p) => p.pair === pair);
-    const viaHub = connectionsList.filter((t) => t.pair === pair);
-    const [idA, idB] = pair.split('|');
-    const A = state.airports[idA];
-    const B = state.airports[idB];
-    const km = distanceKm(A.coords, B.coords);
-    const mf = marketFares(km, X);
-    const reference = referenceBlockMinutes(A.coords, B.coords);
-    const size = marketSizeParts({ a: A, b: B, month: X, world, eventFactor: eventDemandFactor(events, A.region, B.region) });
-    const share = classShares(size.businessShare, reference);
-    for (const p of onPair) passengersByRoute.set(routeKey(p), zeroClasses());
-
-    const offerIds = [...new Set(onPair.map((p) => p.company.id))].sort();
-    for (const c of CABIN_CLASSES) {
-      const offers = [];
-      for (const companyId of offerIds) {
-        const own = onPair.filter((p) => p.company.id === companyId);
-        const seats = sum(own.map((p) => p.offeredSeats[c]));
-        if (!(seats > 0)) continue;
-        const company = own[0].company;
-        const offer = directOffer(
-          own.map((p) => ({
-            id: p.route.id,
-            seatsPerFlight: p.plane.seats,
-            departuresPerWeek: p.route.departuresPerWeek,
-            fare: p.fares,
-            blockMinutes: p.minutes,
-          })),
-          mf,
-        );
-        const offerSat = directOfferSatisfaction(
-          own.map((p) => ({ satisfaction: p.satisfaction[c] ?? 0, seatsPerWeek: (p.plane.seats[c] ?? 0) * p.route.departuresPerWeek })),
-        ) as number;
-        const eff = researchEffects(company.inputs.completedResearch);
-        const campaigns = runningCampaigns(company.inputs, X);
-        const ageMonths = Math.max(...own.map((p) => p.route.ageMonths));
-        const appeal = offerAppeal(c, {
-          frequency: offer.frequency,
-          fare: offer.fare[c],
-          marketFare: mf[c],
-          satisfactionFactor: satisfactionFactor(offerSat),
-          blockMinutes: offer.blockMinutes,
-          referenceBlockMinutes: reference,
-          reputation: company.reputation,
-          ageMonths,
-          advertisingFactor: advertisingFactor(regionAdvertising(campaigns, A.region), regionAdvertising(campaigns, B.region)),
-          frequentFlyerFactor: frequentFlyerFactor(company.inputs.ffpMonthsRunning),
-          researchDemandFactor: eff.demandFactor,
-          crisisResponseFactor: activeCrisisResponseFactor(company.inputs.recoveryEvents.map(historicalEvent), X),
-          difficultyFactor: difficultyFactor(company.inputs.difficulty),
-        });
-        offers.push({ id: companyId, appeal, seats, ramp: rampFactor(ageMonths, eff.rampBonus) });
-      }
-      for (const t of viaHub) {
-        const sat = t.satisfaction[c];
-        if (sat === undefined) continue;
-        const { company } = t;
-        const eff = researchEffects(company.inputs.completedResearch);
-        const campaigns = runningCampaigns(company.inputs, X);
-        const appeal = offerAppeal(c, {
-          frequency: t.figures.frequency,
-          fare: transferFare(mf[c]),
-          marketFare: mf[c],
-          satisfactionFactor: satisfactionFactor(sat),
-          blockMinutes: t.figures.blockMinutes,
-          referenceBlockMinutes: reference,
-          reputation: company.reputation,
-          ageMonths: t.ageMonths,
-          advertisingFactor: advertisingFactor(regionAdvertising(campaigns, A.region), regionAdvertising(campaigns, B.region)),
-          frequentFlyerFactor: frequentFlyerFactor(company.inputs.ffpMonthsRunning),
-          researchDemandFactor: eff.demandFactor,
-          crisisResponseFactor: activeCrisisResponseFactor(company.inputs.recoveryEvents.map(historicalEvent), X),
-          difficultyFactor: difficultyFactor(company.inputs.difficulty),
-          connectionFactor: connectionFactor(hubQuality(t.hub, eff.hubQualityFactor)),
-        });
-        // Umsteiger sind im Markt nicht durch Sitze begrenzt; die Sitze verteilt `allocateTransferSeats` danach.
-        offers.push({ id: t.id, appeal, seats: Infinity, ramp: rampFactor(t.ageMonths, eff.rampBonus) });
-      }
-      if (offers.length === 0) continue;
-      const split = marketSplit({ potential: classPotential(c, size.marketSize, share[c]), noFlyAppeal: noFlyAppeal(c), offers });
-      for (const companyId of offerIds) {
-        const own = onPair.filter((p) => p.company.id === companyId);
-        const seatsByRoute: Record<string, number> = {};
-        for (const p of own) seatsByRoute[p.route.id] = p.offeredSeats[c];
-        const perRoute = distributeToRoutes(split.passengers[companyId] ?? 0, seatsByRoute);
-        for (const p of own) (passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>)[c] = perRoute[p.route.id];
-      }
-      for (const t of viaHub) {
-        const wish = transferWish.get(t.id) ?? zeroClasses();
-        wish[c] = split.passengers[t.id] ?? 0;
-        transferWish.set(t.id, wish);
-      }
-    }
+    splitPair(context, pair, preparedByPair.get(pair) ?? [], connectionsByPair.get(pair) ?? [], CABIN_CLASSES, passengersByRoute, transferWish);
   }
+
+  const emptyMaps = { landingAt: new Map(), transferTripsByCompany: new Map(), figuresByCompany: new Map(), transfers: [] };
+  if (scope.directPairs) return { companies, passengersByRoute, ...emptyMaps };
+  // Mit Fokus: Umsteiger und Kosten nur für die Fokus-Gesellschaft. Ihre Sitze teilt sie mit niemandem (Schlüssel je
+  // Gesellschaft), daher hängt ihre Verteilung nicht von den Umsteigern der anderen ab.
+  const costCompanies = focusCompany ? [focusCompany] : companies;
+  const ownConnections = focusCompany ? connectionsList.filter((t) => t.company.id === focusCompany.id) : connectionsList;
 
   // --- Umsteiger auf die freien Sitze beider Teilstrecken (3.13), höchster Tarif zuerst.
   const legKey = (companyId: string, pair: string, c: CabinClass) => `${companyId}|${pair}|${c}`;
   const freeSeats: Record<string, number> = {};
   for (const p of prepared) {
+    if (focusCompany && p.company.id !== focusCompany.id) continue;
     const direct = passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>;
     for (const c of CABIN_CLASSES) {
       const key = legKey(p.company.id, p.pair, c);
@@ -926,7 +1105,7 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
     }
   }
   const demands: TransferDemand[] = [];
-  for (const t of connectionsList) {
+  for (const t of ownConnections) {
     const wish = transferWish.get(t.id);
     if (!wish) continue;
     const fares = marketFares(t.kmOriginDestination, X);
@@ -941,10 +1120,18 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
     }
   }
   const allocation = allocateTransferSeats(demands, freeSeats);
+  const transfers = ownConnections.map((t) => {
+    const wish = transferWish.get(t.id);
+    return {
+      pair: t.pair,
+      wish: wish ? sum(CABIN_CLASSES.map((c) => wish[c])) : 0,
+      placed: sum(CABIN_CLASSES.map((c) => allocation.placed[`${t.id}|${c}`] ?? 0)),
+    };
+  });
   // Je Strecke: Umsteiger-Flüsse (4.8) und Kosten je Umsteiger (5.8); verteilt nach freien Sitzen der Strecke.
   const transferFlowsByRoute = new Map<string, { flow: TransferFlow; hubId: string }[]>();
   const transferTripsByCompany = new Map<string, number>();
-  for (const t of connectionsList) {
+  for (const t of ownConnections) {
     const kmLegs = [t.kmOriginHub, t.kmHubDestination];
     for (const c of CABIN_CLASSES) {
       const placed = allocation.placed[`${t.id}|${c}`] ?? 0;
@@ -953,7 +1140,7 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
       const fare = transferFare(marketFares(t.kmOriginDestination, X)[c]);
       const shares = transferRevenueShare(fare, marketFares(kmLegs[0], X)[c], marketFares(kmLegs[1], X)[c]);
       t.legPairs.forEach((legPair, leg) => {
-        const routesOnLeg = prepared.filter((p) => p.company.id === t.company.id && p.pair === legPair);
+        const routesOnLeg = (preparedByPair.get(legPair) ?? []).filter((p) => p.company.id === t.company.id);
         const free: Record<string, number> = {};
         for (const p of routesOnLeg) {
           const direct = (passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>)[c];
@@ -981,7 +1168,7 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
 
   // --- Kosten, Erlös und Ergebnis je Strecke.
   const figuresByCompany = new Map<string, RouteFigures[]>();
-  for (const company of companies) {
+  for (const company of costCompanies) {
     const { inputs } = company;
     const research = inputs.completedResearch;
     const holding = (id: string) => company.airports[id] ?? EMPTY_HOLDING;
@@ -996,6 +1183,7 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
 
     const list: RouteFigures[] = [];
     for (const p of own) {
+      if (narrowRouteId !== undefined && p.route.id !== narrowRouteId) continue;
       const { route, plane } = p;
       const A = state.airports[route.from];
       const B = state.airports[route.to];
@@ -1097,7 +1285,18 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
     }
     figuresByCompany.set(company.id, list);
   }
+  return { companies, passengersByRoute, figuresByCompany, landingAt, transferTripsByCompany, transfers };
+}
 
+/** Schritt 2 je Gesellschaft (nach den Strecken-Zahlen): Flughäfen, Flugzeuge, Verschleiß, Werbung, Abschnitt-8-Posten. */
+function companyOperations(
+  state: ModelState,
+  companies: readonly CompanyState[],
+  figuresByCompany: ReadonlyMap<string, RouteFigures[]>,
+  landingAt: ReadonlyMap<string, ReadonlyMap<string, number>>,
+  transferTripsByCompany: ReadonlyMap<string, number>,
+): Readonly<Record<string, CompanyOperations>> {
+  const X = state.month;
   // --- Gesellschaft: Flughäfen, Flugzeuge, Verschleiß, Werbung, Abschnitt-8-Posten.
   const owners = (airportId: string) => companies.filter((c) => (c.airports[airportId]?.managementTier ?? 0) >= OWNER_TIER).length;
   const result: Record<string, CompanyOperations> = {};
@@ -1384,9 +1583,10 @@ export function checkCompany(after: CompanyState, before: CompanyState, month: n
 /**
  * Spielstand für eine Planer-Rechnung einer Strecke: die eigenen Strecken an den beiden Enden und mit demselben
  * Flugzeug (Boden-Teil, Flugzeug-Anteil), die fremden Strecken auf dem Paar; Preise, die ab X+1 gelten; ohne Störungen
- * und ohne Umsteiger (die Vorhersage eines Plans kennt keine Würfe, 8.1).
+ * und ohne Umsteiger (die Vorhersage eines Plans kennt keine Würfe, 8.1). Exportiert für den Test, dass die schnellen
+ * Planer-Rechnungen dasselbe ergeben wie `monthOperations` auf diesem Spielstand.
  */
-function plannerState(state: ModelState, companyId: string, routeId: string, change: (route: RouteState) => RouteState): ModelState {
+export function plannerState(state: ModelState, companyId: string, routeId: string, change: (route: RouteState) => RouteState): ModelState {
   const own = state.companies.find((c) => c.id === companyId);
   const target = own?.routes.find((r) => r.id === routeId);
   if (!own || !target) throw new Error(`Planer: Strecke ${companyId}/${routeId} fehlt`);
@@ -1420,8 +1620,8 @@ export function plannerRouteResult(state: ModelState, companyId: string, routeId
  * Die KI liest daraus die Satisfaction einer geplanten Strecke für ihr Preisniveau (7.6, 7.9). SPEZIFIKATION 4.12, 7.9.
  */
 export function plannerRouteFigures(state: ModelState, companyId: string, routeId: string, departuresPerWeek: number): RouteFigures {
-  const ops = monthOperations(plannerState(state, companyId, routeId, (r) => ({ ...r, departuresPerWeek })));
-  return ops[companyId].routes.find((r) => r.routeId === routeId) as RouteFigures;
+  const core = operationsCore(plannerState(state, companyId, routeId, (r) => ({ ...r, departuresPerWeek })), { route: { companyId, routeId } });
+  return (core.figuresByCompany.get(companyId) as RouteFigures[]).find((r) => r.routeId === routeId) as RouteFigures;
 }
 
 /**
@@ -1429,8 +1629,36 @@ export function plannerRouteFigures(state: ModelState, companyId: string, routeI
  * Preis (4.10, `bestFareRatio`). SPEZIFIKATION 4.10.
  */
 export function routeClassPassengersAt(state: ModelState, companyId: string, routeId: string, c: CabinClass, fareRatio: number): number {
-  const ops = monthOperations(plannerState(state, companyId, routeId, (r) => ({ ...r, fareRatios: { ...r.fareRatios, [c]: fareRatio } })));
-  return (ops[companyId].routes.find((r) => r.routeId === routeId) as RouteFigures).passengers[c];
+  return routeClassPassengersCurve(state, companyId, routeId, c)(fareRatio);
+}
+
+/**
+ * `routeClassPassengersAt` als Funktion des Preisniveaus: Der Planer-Spielstand wird einmal gebaut, je Preisniveau
+ * ändert sich nur der Preis der Strecke. Gleiches Ergebnis, für die Suche nach dem besten Preis (4.10, ~57 Preisniveaus
+ * je Klasse) aber ohne den Spielstand jedes Mal neu zu bauen (Paket 3.9b). SPEZIFIKATION 4.10.
+ */
+export function routeClassPassengersCurve(state: ModelState, companyId: string, routeId: string, c: CabinClass): (fareRatio: number) => number {
+  const base = plannerState(state, companyId, routeId, (r) => r);
+  const route = (base.companies.find((k) => k.id === companyId) as CompanyState).routes.find((r) => r.id === routeId) as RouteState;
+  const pair = pairKey(route.from, route.to);
+  const context = marketContext(base, { directPairs: new Set([pair]) });
+  const onPair = context.preparedByPair.get(pair) ?? [];
+  const viaHub = context.connectionsByPair.get(pair) ?? [];
+  const index = onPair.findIndex((p) => p.company.id === companyId && p.route.id === routeId);
+  const target = onPair[index];
+  const key = routeKey(target);
+  const basics = pairBasics(context, pair);
+  const targetMarketFares = marketFares(target.km, context.X);
+  return (fareRatio) => {
+    // Nur der Preis der Strecke ändert sich (Satisfaction, Sitze und Flugzeit hängen nicht vom Preis ab).
+    const fareRatios = { ...target.route.fareRatios, [c]: fareRatio };
+    const changed: PreparedRoute = { ...target, route: { ...target.route, fareRatios }, fares: routeFares(fareRatios, targetMarketFares) };
+    const routes = [...onPair];
+    routes[index] = changed;
+    const passengersByRoute = new Map<string, Record<CabinClass, number>>();
+    splitPair(context, pair, routes, viaHub, [c], passengersByRoute, new Map(), basics);
+    return (passengersByRoute.get(key) as Record<CabinClass, number>)[c];
+  };
 }
 
 // ===========================================================================

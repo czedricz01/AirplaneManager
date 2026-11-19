@@ -27,7 +27,7 @@ import {
   newLedger,
   plannerRouteFigures,
   plannerRouteResult,
-  routeClassPassengersAt,
+  routeClassPassengersCurve,
   type AfterClose,
   type AircraftState,
   type CatalogType,
@@ -1341,7 +1341,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
       yieldPosition[c] = position;
       const best =
         PERSONALITIES[agent.personality].farePosition === 'best'
-          ? bestFareRatio((ratio) => routeClassPassengersAt(ctx.state, company.id, r.id, c, ratio), fares[c], f.costPerPassenger[c] ?? 0)
+          ? bestFareRatio(routeClassPassengersCurve(ctx.state, company.id, r.id, c), fares[c], f.costPerPassenger[c] ?? 0)
           : undefined;
       nextFareRatios[c] = rivalFareRatio({
         personality: agent.personality,
@@ -1673,13 +1673,15 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
   }
 
   // 5c Kabinen-Erneuerung (F43): Kabinenzustand unter `RIVAL_OVERHAUL_BELOW` → dieselbe Kabine neu (Umbau-Preis und
-  // -Zustand 8.13). Die KI baut nie auf eine andere Kabine um (7.5).
+  // -Zustand 8.13). Die KI baut nie auf eine andere Kabine um (7.5). Nur, wenn die Kabine danach wieder mindestens bei
+  // `RIVAL_OVERHAUL_BELOW` ist (F45): Sonst wäre sie im nächsten Monat wieder fällig, und die KI zahlte jeden Monat den
+  // vollen Preis für weniger als einen Punkt Zustand.
   for (const plane of [...aircraft]) {
     if (!needsOverhaul({ airframeCondition: 100, cabinCondition: plane.cabinCondition })) continue;
     const done = refits[plane.id] ?? 0;
     const price = refitPrice(plane.cabinListPrice1960, seatsOf(plane), next);
     const after = refitCabinCondition(plane.cabinCondition, done);
-    if (!(after > plane.cabinCondition) || !mayOverhaul(personality, X, cash, price)) continue;
+    if (after < RIVAL_OVERHAUL_BELOW || !(after > plane.cabinCondition) || !mayOverhaul(personality, X, cash, price)) continue;
     cash -= price;
     refits[plane.id] = done + 1;
     aircraft = aircraft.map((p) => (p.id === plane.id ? { ...p, cabinCondition: after, cabinInstalledMonth: next } : p));

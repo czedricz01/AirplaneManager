@@ -326,6 +326,17 @@ describe('Abschnitt 7.11 Flotte: Modernisierung, Kabinen-Erneuerung, Kauf', () =
     assert.ok(Math.abs((news.amount ?? 0) - refitPrice(worn.cabinListPrice1960, sum(Object.values(worn.seats).map((v) => v ?? 0)), M + 1)) < 1e-6);
   });
 
+  it('7.11 (F45): keine Erneuerung, die die Kabine nicht wieder auf 60 bringt (sonst jeden Monat neu)', () => {
+    const worn = { ...rivalAircraft('flag', A320, M - 60, 'k-p1'), cabinCondition: 29.5 };
+    const holdings = { FRA: hubHolding({ slots: { Narrowbody: 7 } }), MAD: hubHolding({ managementTier: 0, slots: { Narrowbody: 7 } }) };
+    for (const done of [3, 4, 6]) {
+      const k = rival('k', { aircraft: [worn], routes: [route('k-r1', worn, 'FRA', 'MAD', 14)], airports: holdings }, 'flag', 'hard', { refits: { 'k-p1': done } });
+      const close = closeMonth(world([k]), rivalDecisions);
+      const renewed = close.news.some((n) => n.kind === 'cabinRenewed');
+      assert.equal(renewed, refitCabinCondition(29.5, done) >= 60, `bisher ${done} Erneuerungen`);
+    }
+  });
+
   it('7.11: die KI kauft (mit Strecke) nie unter die Reserve; das gekaufte Flugzeug fliegt ab X+1', () => {
     let buys = 0;
     for (let seed = 1; seed <= 40 && buys < 2; seed++) {

@@ -517,6 +517,21 @@ export interface ResearchEffects {
  * @param completedResearch Ids der fertigen Projekte.
  */
 export function researchEffects(completedResearch: readonly string[] = []): ResearchEffects {
+  const key = completedResearch.join('|');
+  const cached = RESEARCH_EFFECTS_CACHE.get(key);
+  if (cached) return cached;
+  const effects = computeResearchEffects(completedResearch);
+  RESEARCH_EFFECTS_CACHE.set(key, effects);
+  return effects;
+}
+
+/**
+ * Zwischenspeicher von `researchEffects` je Liste der fertigen Forschungen (reine Rechnung; spart die Rechnung je
+ * Angebot und Klasse in jeder Planer-Rechnung, Paket 3.9b). Die Werte sind eingefroren, damit niemand sie ändert.
+ */
+const RESEARCH_EFFECTS_CACHE = new Map<string, ResearchEffects>();
+
+function computeResearchEffects(completedResearch: readonly string[]): ResearchEffects {
   const saving: Record<CostResearchKind, number> = { fuel: 0, crew: 0, fees: 0, catering: 0, maintenance: 0, slots: 0 };
   let efficiencyPoints = 0;
   let satisfactionPoints = 0;
@@ -543,8 +558,8 @@ export function researchEffects(completedResearch: readonly string[] = []): Rese
   }
   const costFactor = {} as Record<CostResearchKind, number>;
   for (const kind of COST_RESEARCH_KINDS) costFactor[kind] = Math.max(RESEARCH_COST_FLOOR, 1 - saving[kind]);
-  return {
-    costFactor,
+  return Object.freeze({
+    costFactor: Object.freeze(costFactor),
     efficiencyPoints,
     satisfactionPoints,
     demandFactor,
@@ -554,7 +569,7 @@ export function researchEffects(completedResearch: readonly string[] = []): Rese
     wearFactor: Math.max(RESEARCH_EFFECT_FLOOR, 1 - wearSaving),
     resaleBonus,
     moralePoints,
-  };
+  });
 }
 
 /** Preis eines Projekts im Monat `month`: `atCost(price1960, month)`, ungerundet (R4, W9). SPEZIFIKATION 6.9. */
