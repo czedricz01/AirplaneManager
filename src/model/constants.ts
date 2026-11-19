@@ -2233,3 +2233,379 @@ export const TAKEOVER_MIN_PRICE_1960 = 1_000_000;
 
 /** Verwaltungsstufe, die der Spieler an jedem Flughafen mit übernommenen Slots mindestens bekommt. SPEZIFIKATION 7.16. */
 export const TAKEOVER_MIN_TIER = 1;
+
+// ===========================================================================
+// Abschnitt 8 – Monatsabschluss, Ereignisse, Flottenmarkt (Paket 3.8a)
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 8.4 Weltereignisse
+// ---------------------------------------------------------------------------
+
+/** Art der Krisen-Antwort eines geschichtlichen Ereignisses (8.5). */
+export type CrisisResponseKind = 'fuelHedge' | 'demandRecovery';
+
+/** Ein geschichtliches Weltereignis (Daten, nach Datum gelesen, nicht gespeichert). SPEZIFIKATION 8.4. */
+export interface HistoricalEventDef {
+  /** Name im Spiel (Oberflächentext, Englisch, wie heute). */
+  readonly title: string;
+  /** Meldungstext (Englisch, wie heute). */
+  readonly description: string;
+  /** Erster Spielmonat (0 = Januar 1960). */
+  readonly startMonth: number;
+  /** Dauer in Monaten. */
+  readonly months: number;
+  /** Faktor auf die Reiselust (3.5). */
+  readonly demandMultiplier: number;
+  /** Betroffene Regionen; fehlt = weltweit. */
+  readonly regions?: readonly WorldRegion[];
+  /** Krisen-Antwort, die der Spieler beim Beginn kaufen kann (8.5); nur die 6 weltweiten. */
+  readonly response?: {
+    readonly kind: CrisisResponseKind;
+    /** Rückgewinnungs-Anteil `r` (nur `demandRecovery`; heute `softensDemand`). */
+    readonly recoveryShare?: number;
+  };
+}
+
+const ev = (year: number, monthOfYear: number) => (year - START_YEAR) * 12 + monthOfYear;
+
+/**
+ * Die 17 geschichtlichen Ereignisse (6 weltweite mit Krisen-Antwort, 11 regionale), wie heute
+ * `src/lib/eventSystem.ts:68-307`. Das Feld `fuelMultiplier` entfällt; die Ölkrisen stehen in `FUEL_CRISES` (E61).
+ * Feste Preise der Antworten entfallen (E6, E35). SPEZIFIKATION 8.4, 8.5.
+ */
+export const HISTORICAL_EVENTS: readonly HistoricalEventDef[] = [
+  { title: '1973 Oil Crisis', description: 'An oil embargo has caused massive fuel shortages and skyrocketing prices.', startMonth: ev(1973, 9), months: 18, demandMultiplier: 0.9, response: { kind: 'fuelHedge' } },
+  { title: '1979 Energy Crisis', description: 'A drop in oil production has triggered a severe energy crisis.', startMonth: ev(1979, 1), months: 24, demandMultiplier: 0.85, response: { kind: 'fuelHedge' } },
+  { title: 'Gulf War Oil Shock', description: 'Geopolitical tensions have caused a short-term spike in oil prices.', startMonth: ev(1990, 7), months: 12, demandMultiplier: 0.95, response: { kind: 'fuelHedge' } },
+  { title: 'Aviation Downturn', description: 'Global passenger demand has plummeted dramatically.', startMonth: ev(2001, 8), months: 12, demandMultiplier: 0.65, response: { kind: 'demandRecovery', recoveryShare: 0.4 } },
+  { title: 'Global Financial Crisis', description: 'A severe worldwide economic crisis resulting in depressed passenger demand and volatile fuel prices.', startMonth: ev(2008, 8), months: 24, demandMultiplier: 0.75, response: { kind: 'demandRecovery', recoveryShare: 0.33 } },
+  { title: 'Global Pandemic', description: 'International borders close and aviation demand nearly vanishes.', startMonth: ev(2020, 2), months: 24, demandMultiplier: 0.2, response: { kind: 'demandRecovery', recoveryShare: 0.35 } },
+  { title: 'French General Strike', description: 'Strikes and unrest paralyse France; airports close and bookings across Western Europe collapse for weeks.', startMonth: ev(1968, 4), months: 2, demandMultiplier: 0.85, regions: ['EU'] },
+  { title: "Air Traffic Controllers' Strike", description: 'American air traffic controllers walk out and the government grounds the strikers: flights across North America are cut for months.', startMonth: ev(1981, 7), months: 5, demandMultiplier: 0.8, regions: ['NA'] },
+  { title: 'Barcelona Olympics', description: 'The Games fill Spanish hotels and the flights into Europe.', startMonth: ev(1992, 6), months: 2, demandMultiplier: 1.08, regions: ['EU'] },
+  { title: 'Pacific Rim Boom', description: 'The Asian tigers grow at ten percent a year; business travel and tourism in Asia and Oceania take off.', startMonth: ev(1993, 0), months: 36, demandMultiplier: 1.12, regions: ['AS', 'OC'] },
+  { title: 'Asian Financial Crisis', description: 'Currencies collapse from Thailand to Korea; travel in Asia and Oceania falls sharply.', startMonth: ev(1997, 6), months: 18, demandMultiplier: 0.78, regions: ['AS', 'OC'] },
+  { title: 'Sydney Olympics', description: 'The Games bring the world to Australia for a fortnight, and a month of bookings with it.', startMonth: ev(2000, 8), months: 2, demandMultiplier: 1.15, regions: ['OC'] },
+  { title: 'SARS Outbreak', description: 'A new respiratory disease spreads from Hong Kong; travellers stay away from Asia.', startMonth: ev(2003, 2), months: 5, demandMultiplier: 0.6, regions: ['AS'] },
+  { title: 'Beijing Olympics', description: 'China shows itself to the world and crowds into its airports.', startMonth: ev(2008, 7), months: 2, demandMultiplier: 1.12, regions: ['AS'] },
+  { title: 'Eyjafjallajökull Ash Cloud', description: 'An Icelandic volcano closes European airspace for days; the backlog lingers for weeks.', startMonth: ev(2010, 3), months: 2, demandMultiplier: 0.6, regions: ['EU'] },
+  { title: 'Tohoku Earthquake', description: 'Earthquake, tsunami and nuclear accident in Japan: visitors cancel and flights across Asia thin out.', startMonth: ev(2011, 2), months: 3, demandMultiplier: 0.85, regions: ['AS'] },
+  { title: 'Brazil World Cup', description: 'Fans from every continent fly to South America for the tournament.', startMonth: ev(2014, 5), months: 2, demandMultiplier: 1.15, regions: ['SA'] },
+];
+
+/** Vorlage eines Zufallsereignisses. SPEZIFIKATION 8.4. */
+export interface RandomEventTemplate {
+  readonly title: string;
+  readonly description: string;
+  /** Nachfrage-Faktor gleich verteilt in `demandMin … demandMax`. */
+  readonly demandMin: number;
+  readonly demandMax: number;
+  /** Dauer gleich verteilt in ganzen Monaten `durationMin … durationMax`. */
+  readonly durationMin: number;
+  readonly durationMax: number;
+  /** Regional: trifft eine von 6 Regionen; sonst weltweit. */
+  readonly regional: boolean;
+}
+
+/**
+ * Die 8 Vorlagen der Zufallsereignisse (heute 11, `src/lib/monthClose.ts:206-287`): 4 Pech, 4 Glück. Es entfallen
+ * die drei Treibstoff-Vorlagen (E61); das Feld `fuelMin/fuelMax` entfällt (E8). SPEZIFIKATION 8.4.
+ */
+export const RANDOM_EVENT_TEMPLATES: readonly RandomEventTemplate[] = [
+  { title: 'Volcanic Ash Disruption', description: 'An unexpected volcanic eruption has filled key coordinates with ash clouds, forcing flight path redirections and minor booking dips.', demandMin: 0.88, demandMax: 0.92, durationMin: 2, durationMax: 4, regional: false },
+  { title: 'Summer Vacation Surge', description: 'An intense, prolonged heatwave trigger-starts an unprecedented summer flight rush! All routes see major bookings.', demandMin: 1.1, demandMax: 1.15, durationMin: 2, durationMax: 3, regional: false },
+  { title: 'Global Commerce Summit', description: 'Massive international tech and economic summits catalyze a heavy surge in first/business class travelers.', demandMin: 1.05, demandMax: 1.09, durationMin: 1, durationMax: 2, regional: false },
+  { title: 'Economic Slump', description: 'A minor global economic contraction impacts customer confidence. Forward bookings are moderately slowed down.', demandMin: 0.85, demandMax: 0.9, durationMin: 3, durationMax: 6, regional: false },
+  { title: 'Wanderlust Marketing Campaign', description: 'Highly successful global advertising campaigns promote exploration and long-distance holidays.', demandMin: 1.1, demandMax: 1.15, durationMin: 3, durationMax: 4, regional: false },
+  { title: 'Regional Airspace Closure', description: 'A conflict and the airspace restrictions that follow cut the routes into and out of one part of the world.', demandMin: 0.7, demandMax: 0.82, durationMin: 2, durationMax: 4, regional: true },
+  { title: 'Regional Tourism Boom', description: 'A destination goes viral and a whole region fills with visitors.', demandMin: 1.12, demandMax: 1.2, durationMin: 3, durationMax: 6, regional: true },
+  { title: 'Regional Aviation Strike Wave', description: 'Airport and airline staff across one region take turns to strike; bookings go elsewhere.', demandMin: 0.82, demandMax: 0.9, durationMin: 2, durationMax: 3, regional: true },
+];
+
+/** Wahrscheinlichkeit eines Zufallsereignisses je Monat (heute 0,05, `src/lib/monthClose.ts:916`). SPEZIFIKATION 8.4. */
+export const RANDOM_EVENT_CHANCE = 0.05;
+
+// ---------------------------------------------------------------------------
+// 8.5 Krisen-Antworten
+// ---------------------------------------------------------------------------
+
+/** Preis-Absicherung: Anteil der Treibstoff-Rechnung des letzten Monats je Monat Dauer. Startwert (3.9). SPEZIFIKATION 8.5. */
+export const HEDGE_PRICE_SHARE = 0.2;
+
+/** Rückgewinnung: Preis = Anteil × r × (1 − f) × Dauer × Monatserlös des letzten Monats. Startwert (3.9). SPEZIFIKATION 8.5. */
+export const RECOVERY_PRICE_SHARE = 0.15;
+
+// ---------------------------------------------------------------------------
+// 8.6 Betriebsstörungen und Vogelschläge
+// ---------------------------------------------------------------------------
+
+/** Art einer Störung. SPEZIFIKATION 8.6. */
+export type DisruptionKind = 'defect' | 'airportStrike' | 'weather';
+
+/** Reihenfolge der Würfe im Übergang (für den Pech-Deckel, 8.8; F40). */
+export const DISRUPTION_KINDS: readonly DisruptionKind[] = ['defect', 'airportStrike', 'weather'];
+
+/** Defekt-Chance je Flugzeug und Monat, Grundwert (wie heute 0,01 / 3, `src/lib/disruptions.ts:64`). SPEZIFIKATION 8.6. */
+export const DEFECT_BASE = 0.01 / 3;
+
+/** … dazu je Punkt Zelle unter 100 (wie heute 0,0008 / 3). SPEZIFIKATION 8.6. */
+export const DEFECT_PER_AIRFRAME_POINT = 0.0008 / 3;
+
+/** … dazu je Jahr Alter seit dem Baumonat (wie heute 0,001 / 3, R13). SPEZIFIKATION 8.6. */
+export const DEFECT_PER_YEAR = 0.001 / 3;
+
+/** Eigener Hangar an einem Flughafen seiner Strecken: Defekt-Chance × 0,5. SPEZIFIKATION 8.6. */
+export const HANGAR_DEFECT_FACTOR = 0.5;
+
+/** Ein Defekt streicht diesen Anteil aller Flüge des Flugzeugs. SPEZIFIKATION 8.6. */
+export const DEFECT_CANCEL_SHARE = 0.5;
+
+/** Flughafen-Streik je Flughafen mit Abflügen und Monat (wie heute 0,01 / 3). SPEZIFIKATION 8.6. */
+export const AIRPORT_STRIKE_CHANCE = 0.01 / 3;
+
+/** Ein Flughafen-Streik streicht diesen Anteil aller Abflüge und Ankünfte dort, für alle Gesellschaften. SPEZIFIKATION 8.6. */
+export const AIRPORT_STRIKE_CANCEL_SHARE = 0.6;
+
+/** Winterwetter je Region und Wintermonat. SPEZIFIKATION 8.6. */
+export const WINTER_CHANCE = 0.03;
+
+/** Winterwetter streicht diesen Anteil aller Flüge mit einem Ende in der Region. SPEZIFIKATION 8.6. */
+export const WINTER_CANCEL_SHARE = 0.15;
+
+/** Regionen mit Winterwetter (wie heute). SPEZIFIKATION 8.6. */
+export const WINTER_REGIONS: readonly WorldRegion[] = ['EU', 'NA', 'AS'];
+
+/** Wintermonate als Monat im Jahr (0 = Januar): Dezember, Januar, Februar. SPEZIFIKATION 8.6. */
+export const WINTER_MONTHS: readonly number[] = [11, 0, 1];
+
+/** Vogelschlag je fliegendes Flugzeug und Monat (heute je Strecke). SPEZIFIKATION 8.6. */
+export const BIRD_STRIKE_CHANCE = 0.002;
+
+/** Vogelschlag kostet diesen Anteil des Neupreises (5.12; heute 100 000 / 200 000 / 400 000 $ fest). Startwert. SPEZIFIKATION 8.6. */
+export const BIRD_STRIKE_COST_SHARE = 0.005;
+
+/** Ab diesem gestrichenen Anteil (und mit Erlösverlust) fragt das Spiel: Charter oder streichen. SPEZIFIKATION 8.6. */
+export const MAJOR_DISRUPTION_SHARE = 0.25;
+
+/** Höchstens so viele Störungs-Fragen je Monat, größter Verlust zuerst. SPEZIFIKATION 8.6. */
+export const MAX_DISRUPTION_QUESTIONS = 3;
+
+// ---------------------------------------------------------------------------
+// 8.7 Personal: Moral und Streik (nur Spieler)
+// ---------------------------------------------------------------------------
+
+/** Lohn in Prozent des Marktlohns: untere Grenze (wie heute `src/lib/staff.ts:31`). SPEZIFIKATION 8.7, 5.1. */
+export const SALARY_PCT_MIN = 80;
+
+/** Lohn: obere Grenze. SPEZIFIKATION 8.7, 5.1. */
+export const SALARY_PCT_MAX = 130;
+
+/** Lohn: Marktlohn. SPEZIFIKATION 8.7. */
+export const SALARY_PCT_MARKET = 100;
+
+/** Moral beim Marktlohn ohne alles andere. SPEZIFIKATION 8.7. */
+export const BASE_MORALE = 50;
+
+/** Moral-Punkte je Lohn-Punkt über oder unter Marktlohn + Arbeitsmarkt-Zuschlag. SPEZIFIKATION 8.7. */
+export const MORALE_PER_PAY_POINT = 1.5;
+
+/** Gewinnserie länger als so viele Monate hebt die Moral … SPEZIFIKATION 8.7. */
+export const PROFIT_STREAK_MONTHS = 6;
+
+/** … um so viele Punkte. SPEZIFIKATION 8.7. */
+export const PROFIT_STREAK_MORALE = 5;
+
+/** Ein Streik drückt die Moral so viele Monate nach seinem Monat … SPEZIFIKATION 8.7. */
+export const STRIKE_MEMORY_MONTHS = 6;
+
+/** … um so viele Punkte. SPEZIFIKATION 8.7. */
+export const STRIKE_MORALE_PENALTY = 10;
+
+/** Anteil des Abstands zum Moral-Ziel, der je Monat geschlossen wird. SPEZIFIKATION 8.7. */
+export const MORALE_STEP = 0.2;
+
+/**
+ * Arbeitsmarkt: Lohn-Punkte über dem Marktlohn, die das Personal in diesen Jahren erwartet (Daten wie heute,
+ * `src/lib/staff.ts:110-123`). Jahre außerhalb: 0. SPEZIFIKATION 8.7.
+ */
+export const LABOUR_MARKET: readonly { readonly from: number; readonly to: number; readonly points: number }[] = [
+  { from: 1964, to: 1970, points: 6 },
+  { from: 1973, to: 1975, points: -6 },
+  { from: 1980, to: 1983, points: -4 },
+  { from: 1987, to: 1990, points: 5 },
+  { from: 1991, to: 1993, points: -5 },
+  { from: 1996, to: 2000, points: 8 },
+  { from: 2001, to: 2004, points: -6 },
+  { from: 2005, to: 2008, points: 6 },
+  { from: 2009, to: 2011, points: -5 },
+  { from: 2014, to: 2019, points: 9 },
+  { from: 2020, to: 2021, points: -8 },
+  { from: 2022, to: 2200, points: 10 },
+];
+
+/** Unter dieser Moral kann das Personal streiken. SPEZIFIKATION 8.7. */
+export const STRIKE_MORALE_THRESHOLD = 35;
+
+/** Streik-Chance je Monat und Moral-Punkt unter der Schwelle. SPEZIFIKATION 8.7. */
+export const STRIKE_CHANCE_PER_POINT = 0.006;
+
+/** Antwort „Raise pay“: Lohn + so viele Punkte. SPEZIFIKATION 8.7. */
+export const STRIKE_PAY_RAISE = 10;
+
+/** Antwort „Raise pay“: gestrichener Anteil aller Flüge. SPEZIFIKATION 8.7. */
+export const STRIKE_SETTLED_CANCEL_SHARE = 0.5;
+
+/** „Sit it out“ oder keine Antwort: gestrichener Anteil aller Flüge. SPEZIFIKATION 8.7. */
+export const STRIKE_FULL_CANCEL_SHARE = 1;
+
+// ---------------------------------------------------------------------------
+// 8.8 Pech-Deckel
+// ---------------------------------------------------------------------------
+
+/** Ein Zufalls-Pech-Ereignis beansprucht den Deckel für Dauer × diesen Faktor ab Beginn (wie heute). SPEZIFIKATION 8.8. */
+export const BAD_LUCK_CLAIM_FACTOR = 2;
+
+// ---------------------------------------------------------------------------
+// 8.9 Charter
+// ---------------------------------------------------------------------------
+
+/** Charter-Gebühr je Flug = Aufschlag × eigene Flugkosten je Flug (E32). Startwert (3.9). SPEZIFIKATION 8.9. */
+export const CHARTER_MARKUP = 1.5;
+
+// ---------------------------------------------------------------------------
+// 8.10 Verschleiß
+// ---------------------------------------------------------------------------
+
+/** Kabinen-Verschleiß je geflogene Blockstunde in Punkten (wie heute `src/lib/monthClose.ts:1512-1532`). SPEZIFIKATION 8.10. */
+export const CABIN_WEAR_PER_HOUR = 0.0012;
+
+/** Zellen-Verschleiß je geflogene Blockstunde in Punkten. SPEZIFIKATION 8.10. */
+export const AIRFRAME_WEAR_PER_HOUR = 0.00076;
+
+/** Grund-Verschleiß je Monat (auch ohne Flug). SPEZIFIKATION 8.10. */
+export const WEAR_BASE = 0.1;
+
+/** Kabinen-Verschleiß höchstens so viele Punkte je Monat (vor Forschung). SPEZIFIKATION 8.10. */
+export const CABIN_WEAR_MAX = 1;
+
+/** Zellen-Verschleiß höchstens so viele Punkte je Monat (vor Forschung). SPEZIFIKATION 8.10. */
+export const AIRFRAME_WEAR_MAX = 0.667;
+
+// ---------------------------------------------------------------------------
+// 8.11 Händler-Spanne, Verkauf, Gebrauchtmarkt
+// ---------------------------------------------------------------------------
+
+/** Der Markt kauft so viel unter `aircraftValue` (E30). Startwert (3.9). SPEZIFIKATION 8.11. */
+export const DEALER_SPREAD_SELL = 0.15;
+
+/** Der Markt verkauft so viel über `aircraftValue` (E30). Startwert (3.9). SPEZIFIKATION 8.11. */
+export const DEALER_SPREAD_BUY = 0.05;
+
+/** Neue Gebraucht-Angebote je Monat. SPEZIFIKATION 8.11. */
+export const USED_OFFERS_PER_MONTH = 6;
+
+/** Ein Typ erscheint gebraucht erst nach so vielen Jahren im Dienst. SPEZIFIKATION 8.11. */
+export const USED_MIN_SERVICE_YEARS = 5;
+
+/** Jüngstes Gebraucht-Angebot in Jahren. SPEZIFIKATION 8.11. */
+export const USED_AGE_MIN = 4;
+
+/** Ältestes Gebraucht-Angebot in Jahren. SPEZIFIKATION 8.11. */
+export const USED_AGE_MAX = 24;
+
+/** Zustand eines Gebraucht-Angebots: `start − perYear × Alter ± spread`, gekappt (wie heute `src/lib/usedMarket.ts:73-76`). SPEZIFIKATION 8.11. */
+export const USED_CONDITION = {
+  airframe: { start: 98, perYear: 2.2, spread: 7 },
+  cabin: { start: 92, perYear: 2.8, spread: 11 },
+} as const;
+
+/** Untere Grenze des Zustands eines Gebraucht-Angebots. SPEZIFIKATION 8.11. */
+export const USED_CONDITION_MIN = 20;
+
+/** Obere Grenze des Zustands eines Gebraucht-Angebots. SPEZIFIKATION 8.11. */
+export const USED_CONDITION_MAX = 95;
+
+/** Weiterverkaufte Flugzeuge bleiben so viele Monate im Markt (E49). SPEZIFIKATION 8.11. */
+export const USED_RESOLD_MONTHS = 6;
+
+/** Gezeigt werden die neuesten so vielen weiterverkauften Flugzeuge. SPEZIFIKATION 8.11. */
+export const USED_RESOLD_MAX = 12;
+
+/** Startwert des Zufallsgebers für die neuen Angebote: Der Gebrauchtmarkt würfelt nur nach Monat (8.3, F40). */
+export const USED_MARKET_SEED = 0;
+
+// ---------------------------------------------------------------------------
+// 8.12 Vorbestellung
+// ---------------------------------------------------------------------------
+
+/** Vorbestellbar: Erstauslieferung in den nächsten so vielen Monaten. SPEZIFIKATION 8.12. */
+export const PREORDER_WINDOW_MONTHS = 12;
+
+/** Höchstens so viele Flugzeuge je Bestellung. SPEZIFIKATION 8.12. */
+export const PREORDER_MAX = 12;
+
+/** Rabatt für 1 Stück. Startwert (3.9). SPEZIFIKATION 8.12. */
+export const PREORDER_DISCOUNT_BASE = 0.05;
+
+/** Rabatt je weiteres Stück. SPEZIFIKATION 8.12. */
+export const PREORDER_DISCOUNT_STEP = 0.01;
+
+/** Rabatt höchstens; muss unter `1 − (1 − DEALER_SPREAD_SELL) × (1 + größter resaleBonus)` bleiben (Test). SPEZIFIKATION 8.12. */
+export const PREORDER_DISCOUNT_MAX = 0.12;
+
+/** Anzahlung als Anteil des geschätzten Preises. SPEZIFIKATION 8.12. */
+export const PREORDER_DEPOSIT_SHARE = 0.2;
+
+/** Lieferung: Erstauslieferung + 1 + ⌊n / PREORDER_BATCH⌋ Monate (wie heute). SPEZIFIKATION 8.12. */
+export const PREORDER_BASE_WAIT = 1;
+
+/** Siehe `PREORDER_BASE_WAIT`. SPEZIFIKATION 8.12. */
+export const PREORDER_BATCH = 3;
+
+/** Ohne Geld wird die Lieferung höchstens so oft um einen Monat verschoben, danach storniert. SPEZIFIKATION 8.12. */
+export const PREORDER_MAX_DELAYS = 3;
+
+/** Storno durch den Spieler: dieser Anteil der Anzahlung zurück. SPEZIFIKATION 8.12. */
+export const PREORDER_REFUND_SHARE = 0.5;
+
+/** Erstkunde: Lieferung höchstens so viele Monate nach der Erstauslieferung (2.2 `launchBonus`). SPEZIFIKATION 8.12. */
+export const LAUNCH_WINDOW_MONTHS = 12;
+
+// ---------------------------------------------------------------------------
+// 8.13 Grundüberholung und Kabinen-Umbau
+// ---------------------------------------------------------------------------
+
+/** Zellen-Punkte der k-ten Überholung (k = 1, 2, …); danach keine weitere (wie heute `src/App.tsx:222-229`). SPEZIFIKATION 8.13. */
+export const OVERHAUL_POINTS: readonly number[] = [50, 50, 40, 30];
+
+/** Überholung kostet mindestens diesen Anteil des Neupreises (5.12). Startwert (3.9). SPEZIFIKATION 8.13. */
+export const OVERHAUL_PRICE_SHARE = 0.04;
+
+/** Überholung ohne eigenen Hangar an einem Flughafen der Strecken: so viel teurer (fremde Werft, E62). SPEZIFIKATION 8.13. */
+export const EXTERNAL_OVERHAUL_SURCHARGE = 0.25;
+
+/** Umbau-Lohn je Sitz in $ von 1960 (neu mit Index, W8). SPEZIFIKATION 8.13. */
+export const REFIT_PER_SEAT_1960 = 1_000;
+
+/** Kabinenzustand nach dem Umbau: `max(jetzt, START − STEP × bisherige Umbauten, MIN)` (wie heute). SPEZIFIKATION 8.13. */
+export const REFIT_CONDITION_START = 90;
+
+/** Siehe `REFIT_CONDITION_START`. SPEZIFIKATION 8.13. */
+export const REFIT_CONDITION_STEP = 10;
+
+/** Siehe `REFIT_CONDITION_START`. SPEZIFIKATION 8.13. */
+export const REFIT_CONDITION_MIN = 30;
+
+// ---------------------------------------------------------------------------
+// 8.14 Kreditlinie, Zwangsverkauf, Spielende (E34)
+// ---------------------------------------------------------------------------
+
+/** Kreditgrenze = Anteil des Flottenwerts am Monatsende. Startwert (3.9). SPEZIFIKATION 8.14. */
+export const CREDIT_LIMIT_SHARE = 0.5;
+
+/** Zins je Jahr auf die negative Kasse am Monatsanfang. Startwert (3.9). SPEZIFIKATION 8.14. */
+export const CREDIT_RATE = 0.08;
+
+/** Ab so vielen überzogenen Monaten in Folge: Zwangsverkauf, ein Flugzeug je Abschluss. SPEZIFIKATION 8.14. */
+export const OVERDRAWN_TO_FORCED_SALE = 6;

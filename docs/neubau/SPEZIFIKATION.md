@@ -3040,8 +3040,10 @@ Charter-Kosten im Monat              = Σ Strecken charterFee × geplante Abschn
   Flugzeug steht; seine Flugkosten entfallen (E32). Teilen sich zwei gecharterte Ursachen eine Strecke, zählt jeder Flug
   einmal (heute anteilig geteilt, Störungen:429-511).
 - `CHARTER_MARKUP = 1,5` (Startwert, Balance-Skript 3.9). Posten „Charter“ (5.16), gebucht im Abschluss von X+1.
-- Folge: Charter lohnt, wenn Erlös je Flug − Kosten je Fluggast > `(CHARTER_MARKUP − 1) × flightOpsCost` je Flug, also
-  fast immer auf einer Strecke mit Gewinn (Beispiel 8.17; heute nie, W4).
+- Folge: Charter lohnt gegenüber Streichen, wenn Erlös je Flug − Kosten je Fluggast > `CHARTER_MARKUP × flightOpsCost`
+  je Flug (die eigenen Flugkosten entfallen in beiden Fällen), also fast immer auf einer Strecke mit Gewinn
+  (Beispiel 8.17; heute nie, W4). *(Berichtigt in 3.8a, F40: vorher stand `CHARTER_MARKUP − 1`, das ist der
+  Vergleich mit dem eigenen Flug.)*
 - Die Frage nennt Gebühr, geretteten Erlös und die gesparten eigenen Flugkosten aus dem Modell (R2).
 - Regeln (Tests): `cancelledShare = 0` ohne Störung; Charter für alle Ursachen → `cancelledShare = 0` und Ruf-Abzug 0;
   Erlös mit Charter = Erlös ohne Störung; Kosten mit Charter = Kosten ohne Störung − eigene Flugkosten der gecharterten

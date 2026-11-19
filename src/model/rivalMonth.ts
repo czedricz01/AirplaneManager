@@ -14,6 +14,7 @@
 import { atCost, clamp, timeOf } from './basics';
 import { facilityPrice, managementTierPrice, slotLimit, slotPrice } from './airportCosts';
 import { fuelTable } from './costs';
+import { saleCandidate } from './fleetMarket';
 import { eventDemandFactor, type DemandEvent } from './demand';
 import { companyValue, hasUnlock, type CompanyValueInput } from './progress';
 import { deskCapacity } from './satisfaction';
@@ -629,18 +630,12 @@ export function mayOverhaul(personality: RivalPersonality, month: number, cash: 
 
 /**
  * Notverkauf bei Kasse < 0 (7.11): je Monat ein Flugzeug, zuerst ein freies, sonst das der schlechtesten Strecke
- * (auch wenn alle Strecken Gewinn machen, W11). −1 = keines (Kasse ≥ 0 oder keine Flugzeuge). Erlös aus dem
- * Wertmodell mit Händler-Spanne (8.11). SPEZIFIKATION 7.11.
+ * (auch wenn alle Strecken Gewinn machen, W11). −1 = keines (Kasse ≥ 0 oder keine Flugzeuge). Dieselbe Wahl wie der
+ * Zwangsverkauf des Spielers (`saleCandidate`, 8.14). Erlös aus dem Wertmodell mit Händler-Spanne (8.11). SPEZIFIKATION 7.11.
  */
 export function emergencySaleCandidate(planes: readonly RivalPlaneView[], cash: number): number {
-  if (!(cash < 0) || planes.length === 0) return -1;
-  const idle = planes.findIndex((p) => !p.flying);
-  if (idle !== -1) return idle;
-  let worst = 0;
-  planes.forEach((p, i) => {
-    if (p.routeResult < planes[worst].routeResult) worst = i;
-  });
-  return worst;
+  if (!(cash < 0)) return -1;
+  return saleCandidate(planes);
 }
 
 /** Monate ohne Strecke: + 1 ohne Strecke, sonst 0. Die Uhr läuft auch in der Krise (R14, W9). SPEZIFIKATION 7.11. */
