@@ -156,8 +156,9 @@ O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C 
 O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
-Offen aus dem Balance-Skript (Paket 3.9a, Zahlen in `BALANCE.md` und `balance/O61-O62-bericht.md`). Blockiert
-Paket 3.9b nicht; O60 sollte erst mit dessen Ergebnis (Preise mit Rivalen) entschieden werden.
+Offen aus dem Balance-Skript (Pakete 3.9a und 3.9b, Zahlen in `BALANCE.md`, `balance/O61-O62-bericht.md` und
+`balance/3.9b-bericht.md`). Blockieren Paket 3.9c nicht. Reihenfolge: zuerst O64 (Bauart der Konkurrenz), dann O60
+(Marktgröße), dann O63; nach O60 / O64 die Langläufe neu rechnen.
 
 **O60 – Marktgröße gegenüber einem Flugzeug (B4.1, B4.5).** Ein Flugzeug allein ist fast überall bei jedem Preis voll;
 der beste Preis liegt beim 1,2- bis 4-Fachen des Marktpreises, Margen 58–77 %, ein neues Flugzeug ist nach 0,4–2,1
@@ -170,6 +171,31 @@ Jahren bezahlt (Zahlen mit E64). E24 („ohne Rivalen etwa Marktpreis“) gilt n
   erst im Skript zu messen).
 - **Empfehlung:** vorläufig B; nach 3.9b entscheiden. Liegt dort das mittlere Preisniveau auf Paaren mit Rivalen über
   1,5 oder die Marge typischer Strecken über 40 %, dann A (mit `DISTANCE_EXP`), Faktor aus dem Skript.
+- **Ergebnis 3.9b (Fund 6 in `BALANCE.md`):** Im laufenden Spiel hat jedes Paar genau eine KI, nie einen Preiskampf;
+  Auslastung 100 % in jedem Jahrzehnt, Marge im Median 40 % (22–54 % je Jahrzehnt). B („Rivalen drücken die Preise“)
+  tritt nicht ein. **Neue Empfehlung: A**, Faktor nach O64 mit dem Skript bestimmen (Ziel: Auslastung typischer Strecken
+  beim besten Preis 75–90 %, Marge 10–25 %).
+
+**O63 – Zuschuss der KI abschaffen (7.14, E47).** Die Bedingung aus 7.14 ist erfüllt (B7.2 ok): Ohne Zuschuss wird in
+10 Läufen über 60 Jahren kein Gründer wegen Geldmangels aufgelöst, und „ähnlicher Erfolg“ gilt (Faktor 1,46 / 1,77).
+Der Zuschuss ist mit 2–5 Mio. $ je Jahr (1960) gegenüber Hunderten Millionen Ergebnis bedeutungslos.
+- A: `RIVAL_SUBSIDY_ENABLED = false` jetzt (wie E47 vorgesehen); Zeile „Subsidy“ bleibt im Modell, ist aber 0.
+- B: erst nach O60 / O64 abschalten, weil eine kleinere Marktgröße die KI ärmer macht; dann Prüfregel neu rechnen.
+- **Empfehlung:** B. Die Regel ist heute nur erfüllt, weil der Markt zu groß ist (Fund 6). Mit A ändert sich jetzt
+  nichts Messbares; die Prüfung nach O60 ist die aussagekräftige.
+
+**O64 – Konkurrenz und Wachstum der KI (7.9, 7.13; Funde 6, 9, 10 in `BALANCE.md`).** Jede KI fliegt nur von eigenen
+Drehkreuzen; zwei KI teilen ein Paar nur, wenn eine zum Drehkreuz der anderen fliegt. In 10 Läufen über 60 Jahre kam
+das nie vor: kein Preiskampf, Auslastung immer 100 %. Zugleich endet das Wachstum um 1995, wenn jede KI ihre
+Höchstzahl an Drehkreuzen (`maxHubs` 1–4) und dort ihren Slot-Anteil (25 %) erreicht hat; danach geht das Ergebnis in
+Dividenden. Hard ist dadurch nicht erfolgreicher als Normal.
+- A: Lassen. Konkurrenz entsteht nur mit dem Spieler (dort, wo er an einem KI-Drehkreuz landet oder die KI an seinem).
+- B: Ziele der KI an fremden Drehkreuzen bevorzugen (z. B. Gewicht × 2 in `preselectScore` statt Teilen durch die
+  Abflüge anderer), damit Drehkreuz-zu-Drehkreuz-Strecken umkämpft werden; zusammen mit O60 messen.
+- C: B und mehr Drehkreuze für spätere Jahre (`maxHubs` je Persönlichkeit + 1 je 20 Jahre o. Ä.), damit die KI nach
+  1995 weiter wächst und auch an den Spokes anderer Drehkreuze antritt.
+- **Empfehlung:** B. Ohne geteilte Paare lässt sich weder O60 sinnvoll einstellen noch die Optimizer-Regel (E65)
+  prüfen. C erst, wenn sich nach O60 zeigt, dass die KI im späten Spiel zu klein ist.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 

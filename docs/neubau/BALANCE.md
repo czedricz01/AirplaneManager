@@ -14,6 +14,14 @@ npm run balance
 npm run balance -- --out docs/neubau/balance/O61-O62-bericht.md
 ```
 
+Mit den Langläufen der KI (Paket 3.9b, 26 Läufe, mit 4 Prozessen etwa 45 min):
+
+```bash
+npm run balance -- --long --jobs 4 --out docs/neubau/balance/3.9b-bericht.md
+```
+
+Weitere Optionen: `--runs`, `--years`, `--strength-runs`, `--cache`, `--reuse` (siehe `scripts/balance.ts`).
+
 | Datei | Inhalt |
 |---|---|
 | `scripts/balance.ts` | Aufruf (Konsole oder Datei mit `--out`) |
@@ -22,9 +30,13 @@ npm run balance -- --out docs/neubau/balance/O61-O62-bericht.md
 | `src/balance/world.ts` | Beispiel-Welten: kleiner `ModelState` mit einer oder zwei Gesellschaften, gerechnet mit `monthOperations` (dieselbe Rechnung wie Planer und Abschluss, R2) |
 | `src/balance/market.ts` | Abschnitte 1–3: Zeit und Geld, Zufriedenheit, Nachfrage (alle 115 440 Städtepaare) |
 | `src/balance/routes.ts` | Abschnitte 4–5: typische Strecken beim gewinnbesten Preis, Empfindlichkeit der Marktgröße, Preiskampf |
-| `src/balance/balance.test.ts` | Tests des Skripts (Format, Beispiel-Welten) |
+| `src/balance/longRun.ts` | Langlauf ohne Spieler: Gründer je Persönlichkeit, `closeMonth` Monat für Monat, Messwerte je Jahr (3.9b) |
+| `src/balance/competition.ts` | Auswertung der Langläufe: Prüfregeln B7.x und B3.13, Tabellen (3.9b) |
+| `scripts/balance-run.ts` | ein Langlauf in eigenem Prozess (für `--jobs`) |
+| `src/balance/balance.test.ts` | Tests des Skripts (Format, Beispiel-Welten, kurze Langläufe) |
 | `docs/neubau/balance/3.9a-bericht.md` | Ausgabe des Skripts (Stand 3.9a, vor E64 und E65) |
-| `docs/neubau/balance/O61-O62-bericht.md` | Ausgabe des Skripts nach E64 (`DEMAND_GROWTH_1960_2019` = 2,25) und E65 (aktueller Stand) |
+| `docs/neubau/balance/O61-O62-bericht.md` | Ausgabe des Skripts nach E64 (`DEMAND_GROWTH_1960_2019` = 2,25) und E65 |
+| `docs/neubau/balance/3.9b-bericht.md` | Ausgabe mit Langläufen (aktueller Stand: 10 ok · 0 Abweichung · 20 Info) |
 
 Der Code liegt in `src/balance/`, damit `npm run lint` ihn prüft (`scripts/` ist davon ausgenommen). Die Oberfläche
 importiert nichts von dort.
@@ -120,13 +132,80 @@ Optimizer eine Schrittgrenze `FARE_STEP`.
 | B5.4 | Kaufpreis nach 0,4–2,1 Jahren eingespielt | Folge von Fund 1. |
 | B5.6 | LCC ÷ Flag mit gleichem A320ceo allein auf FRA–MAD 1990: 0,65 | Die Flag-Kabine hat weniger Sitze und verkauft sie bei Knappheit teurer. Hängt an O60; „ähnlicher Erfolg“ prüft 3.9b. |
 
-## Noch offene Prüfregeln
+## Ergebnis Paket 3.9b (Langläufe, Abschnitt 7 und 3.13)
 
-**Paket 3.9b – Langläufe mit `closeMonth` (Abschnitt 7, 3.13):** „ähnlicher Erfolg“ der Persönlichkeiten (7.4, 10 Läufe
-je Persönlichkeit ohne Spieler, Median des Unternehmenswerts nach 20 und 40 Jahren innerhalb Faktor 2), Abschaffung des
-Zuschusses (7.14), Preise und Preiskampf im laufenden Spiel (7.6, Nachweis zu O60; störende Sprünge der Optimizer-Preise nach E65), Umsteiger-Anteil unter 25 % in
-Märkten mit Direktangebot (3.13), Slot-Anteile (7.10), Dividenden-Grenze und `NEW_HUB_MIN_SEATS` (7.13), KI-Stärke-Werte
-(7.3), Zahl der Eröffnungen und Käufe je Jahr, `RIVAL_TURN_MINUTES`, Rechenzeit der KI-Planung mit allen Flughäfen.
+**Ergebnis: 10 ok · 0 Abweichung · 20 Info** (alle Abschnitte; neu: B7.1–B7.9, B3.13). Zahlen:
+`docs/neubau/balance/3.9b-bericht.md`. Rahmen (F46): 26 Läufe ab Januar 1960 ohne Spieler, je Persönlichkeit ein
+Gründer, Drehkreuze in fester Rotation über JFK, LHR, FRA, ORD, CDG, LAX, HND, SIN, ATL, SYD; alle 628 Flughäfen;
+10 × Normal mit Zuschuss, 10 × Normal ohne Zuschuss (60 Jahre), je 3 × Easy und Hard (40 Jahre).
+
+### Vorarbeit: Rechenzeit und ein Fehler
+
+- **Rechenzeit:** Mit der alten Planer-Rechnung dauerte ein Monat mit 5 KI um 1965 schon über 4 s (jedes der ~400
+  Preisniveaus der Optimizer-Preissuche rechnete alle Märkte aller Gesellschaften). Jetzt rechnen die Planer-Rechnungen
+  nur die gebrauchten Märkte: gleiches Ergebnis, etwa 135-mal schneller (F46). Ein Lauf über 60 Jahre dauert 6–8 min,
+  um 2010 etwa 0,9 s je Monat bei ~560 KI-Strecken (B7.9). Für das Spiel (Phase 4) reicht das; mehr KI kosten
+  entsprechend mehr.
+- **Fehler F45:** Die KI erneuerte verbrauchte Kabinen jeden Monat zum vollen Preis (bis 2 000 Erneuerungen je Jahr).
+  Behoben vor den Läufen.
+
+### Fund 4: Ähnlicher Erfolg gilt (B7.1, 7.4) → ok
+
+Median des Unternehmenswerts (Preise 1960) nach 40 Jahren: Expansionist 4 146, Flag 3 680, LCC 2 393, Optimizer 2 318,
+Boutique 1 674 Mio. $; Median aller 2 496 Mio. $. Größtes Verhältnis 1,44 nach 20 und 1,66 nach 40 Jahren (Grenze 2).
+Ordnung über die ganze Zeit: Expansionist und Flag vorn, Boutique hinten (0,65–0,73). Die Rotation der Drehkreuze
+zeigt: Das Drehkreuz macht viel aus (Expansionist 4 716 in ATL bis 7 225 in LAX), aber nicht mehr als die Persönlichkeit.
+
+### Fund 5: Der Zuschuss kann weg (B7.2, 7.14) → Frage O63
+
+Ohne Zuschuss wird kein Gründer wegen Geldmangels aufgelöst (Median „nie“ bei allen); ähnlicher Erfolg gilt auch ohne
+(Faktor 1,46 / 1,77). Der Zuschuss ist mit 2–5 Mio. $ je Jahr (1960) gegenüber 300–2 500 Mio. $ Ergebnis je KI ohne
+Bedeutung. Die Bedingung aus 7.14 ist erfüllt. Einzige Auflösung in allen Läufen: LCC in SIN (Lauf 5, mit und ohne
+Zuschuss) findet 1960 keine Strecke mit Gewinn, verkauft nach 5 Monaten Leerlauf alle Flugzeuge und wird aufgelöst;
+das folgt den Regeln (Leerlauf-Verkauf 7.11, Auflösung ohne Flugzeuge) und hat mit dem Zuschuss nichts zu tun.
+
+### Fund 6: Die KI hat keine Konkurrenz; alles ist voll (B7.3) → Nachweis zu O60, Frage O64
+
+- **Jedes Paar hat genau eine Gesellschaft** (1,00 je Paar, 0 % geteilte Paare, nie ein Preiskampf in 10 Läufen über
+  60 Jahre). Ursache ist die Bauart: Jede KI fliegt nur von ihren Drehkreuzen; zwei KI teilen ein Paar nur, wenn eine
+  zum Drehkreuz der anderen fliegt. Das kommt nicht vor. Auch der Spieler trifft eine KI nur auf Strecken, die an einem
+  KI-Drehkreuz enden.
+- **Auslastung 100 %** im Median in jedem Jahrzehnt; Marge im Median 22 % (1970er, Ölkrisen) bis 54 % (1990er), über alles
+  40 %. Das bestätigt Fund 1 im laufenden Spiel: Der Markt ist für die Sitze einer KI zu groß.
+- **Preise:** Median Preisniveau Economy 0,94–0,98; die KI nimmt die Knappheit nicht mit (Flag ≈ 1,07, LCC 0,85,
+  Expansionist 0,88, Boutique 1,03). Nur der Optimizer (bester Preis) liegt bei 1,3–1,75.
+- **Folge für O60:** Die Empfehlung in O60 sagte „A, wenn die Marge typischer Strecken über 40 % liegt“; das ist der
+  Fall. Dass Rivalen die Preise drücken (O60 B), findet ohne geteilte Paare nicht statt.
+
+### Fund 7: Optimizer-Preise springen selten (B7.4, E65) → kein `FARE_STEP` nötig
+
+Monatliche Änderung im Median 0,02, p90 0,08–0,10; Schritte ≥ 0,25 in 0,5–2,6 % der Strecken-Monate (andere
+Persönlichkeiten 0–0,1 %). Ohne geteilte Paare gibt es keinen Zyklus wie in Fund 3. Nach E65 bekommt der Optimizer
+damit keine Schrittgrenze. Neu zu prüfen, wenn O64 Konkurrenz unter der KI bringt.
+
+### Fund 8: Umsteiger-Regel erfüllt, aber nur, weil kein Sitz frei ist (B3.13) → ok, Hinweis
+
+Platzierte Umsteiger in Märkten mit Direktangebot: Median 0 %, p90 unter 2 %. Grund: Alle Flugzeuge sind voll, die
+Umsteiger finden keinen freien Sitz (3.13: Direktgäste zuerst). Vor der Sitz-Verteilung („Wunsch“) läge der Anteil bei
+15–34 %, ab 1995 über 25 %. Ändert O60 die Marktgröße, wird diese Regel wieder wichtig; dann `CONNECTION_APPEAL` prüfen.
+
+### Fund 9: Wachstum endet um 1995; das Geld geht in Dividenden (B7.5–B7.7) → Teil von O64
+
+- Eröffnungen je KI und Jahr: 4,6 (1960er) → 3,6 (1980er) → 0,2 (2010er); Flugzeuge je KI 27 → 110.
+- Ursache: Jede KI erreicht die Höchstzahl ihrer Drehkreuze (`maxHubs` der Persönlichkeit: 1–4) und dort ihren
+  Slot-Anteil (25 %). Neue Drehkreuze: 8 je Lauf über 60 Jahre, fast alle bis 1990.
+- Fast das ganze Ergebnis geht in die Dividende (ab den 1980ern 1,5–2,4 Mrd. $ je KI und Jahr in Preisen von 1960); die Kasse
+  bleibt bei 1–2,6 Mrd. $. Slot-Haltungen an der eigenen Grenze nur 2–3 % (die Grenze bindet nur an den Drehkreuzen);
+  größter Anteil aller KI an einem Flughafen 30 %.
+- Nachrücker gibt es fast nie (nur nach der einen Auflösung), weil keine KI pleitegeht.
+
+### Fund 10: KI-Stärke wirkt nur zwischen Easy und Normal (B7.8)
+
+Median Unternehmenswert der Gründer nach 40 Jahren: Easy 1 535, Normal 2 496, Hard 2 379 Mio. $ (3 / 10 / 3 Läufe).
+Hard kauft mehr (120 statt 106 Flugzeuge je Gründer), verdient aber nicht mehr: Wachstum endet an Drehkreuzen und Slots
+(Fund 9), nicht am Geschick. Mit nur 3 Läufen je Stärke ist das ein Hinweis, kein Beweis; erst nach O60 / O64 neu messen.
+
+## Noch offene Prüfregeln
 
 **Paket 3.9c – Abschnitte 6 und 8 ohne Langlauf:** Ruf-Steigungen (6.1), `CANCELLED_REPUTATION_WEIGHT`, Werbe-Beitrag,
 Ruf-Schwellen der Ränge, Klassen-Forschung aus höchstens 12 Monatsergebnissen (6.8), Ziel-, Prämien- und Straf-Anteile
