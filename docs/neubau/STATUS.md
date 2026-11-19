@@ -1,18 +1,17 @@
 # Status
 
-**Nächstes Paket: 3.8a** – Monatsabschluss Teil 1 (`SPEZIFIKATION.md` 8.3–8.14): Bausteine des Monats: Zufall und
-Spielstand, Weltereignisse, Krisen-Antworten, Betriebsstörungen und Vogelschläge, Personal (Moral, Streik),
-Pech-Deckel, gestrichene und gecharterte Flüge (`cancelledShare`), Verschleiß, Händler-Spanne und Gebrauchtmarkt
-(`saleProceeds`, `usedPrice`), Neukauf und Vorbestellung, Grundüberholung und Umbau (`overhaulPrice`), Kreditlinie
-mit Zwangsverkauf. Danach 3.8b (8.1, 8.2, 8.15–8.17: `closeMonth` als eine Rechnung für Spieler und KI, Kasse am
-Monatsende, Szenario-Ziele, Prüfung, Beispiel, alle offenen R2-Regeln) und 3.9.
+**Nächstes Paket: 3.8b** – Monatsabschluss Teil 2 (`SPEZIFIKATION.md` 8.1, 8.2, 8.15–8.17): `closeMonth` in
+`src/model/monthClose.ts` als reine Funktion, eine Marktaufteilung für Spieler und KI, Reihenfolge aus 8.0 mit den
+KI-Entscheidungen (`RIVAL_DECISION_STEPS`, 7.8) und den Bausteinen aus 3.8a (`monthEvents.ts`, `fleetMarket.ts`);
+Kasse am Monatsende mit Kassen-Gleichung, Bericht `monthReport`, Szenario-Ziele, Prüfung auf ungültige Zahlen,
+Beispiel 8.17 und die offenen R2- und Abschluss-Tests (Liste unten). Danach 3.9 (Balance-Skript).
 
-Stand: 19.11.2026 · Paket 3.7b erledigt: Monat der KI (geglätteter Gewinn, Verlierer, Feinabstimmung), Planung mit
-Planer-Hauptzahl und Schätzfehler, Slots mit Anteil je Flughafen, Schalter ohne Überlast, Stufe 2 an Drehkreuzen,
-Lounge, Sperre durch Spieler-Stufe 3 (E63), Kauf, Modernisierung, Überholung, Not- und Leerlauf-Verkauf, Krise aus
-Ereignissen und Treibstoff-Tabelle, Größe in Sitzen, neues Drehkreuz, Dividende, Zuschuss, Notlage „in Folge“,
-Auflösung, Übernahme zum Unternehmenswert (Beispiel 7.18: 198,7 Mio. $), Ticker nach Fluggästen in
-`src/model/rivalMonth.ts`; Abflüge je Flughafen/Paar in `airportCosts.ts`. 1068 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.8a erledigt: Weltereignisse (17 geschichtliche, 8 Zufalls-Vorlagen) nur über die
+Nachfrage, Krisen-Antworten als Anteil (Absicherung, Rückgewinnung), Störungen je Flugzeug / Flughafen / Region für alle
+mit Vogelschlag als Anteil des Neupreises, Personal (Moral, Streik, Lohn-Untergrenze), Pech-Deckel mit fester
+Wurf-Reihenfolge, gestrichene und gecharterte Flüge mit Charter je Flug, Verschleiß aus geflogenen Stunden in
+`src/model/monthEvents.ts`; Händler-Spanne, Gebrauchtmarkt mit Bauende und Weiterverkauf, Vorbestellung, Überholung
+und Umbau, Kreditlinie mit Zwangsverkauf in `src/model/fleetMarket.ts`. 1142 Tests grün, `tsc --noEmit` grün.
 
 Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
@@ -72,6 +71,16 @@ Reihenfolge der KI“ (7.8), „Verkaufserlös KI = Spieler“, „verkaufte KI-
 Slot-Anteile, Dividenden-Grenze, `NEW_HUB_MIN_SEATS`, Zuschuss-Abschaffung und „ähnlicher Erfolg“ prüft das
 Balance-Skript (3.9). Rivalen-Ansicht, Ticker und Meldungstexte aus dem Modell: Phase 4. Spielstand (5.1): Notlage
 als `{ status, distressMonths, forSaleMonths }`.
+
+Offen aus 3.8a (kein Blocker): 3.8b setzt die Bausteine in `closeMonth` zusammen (Reihenfolge 8.0) und prüft dort
+„Buchung unabhängig von der Reihenfolge der KI“ (7.8), „Dividende ändert weder Ergebnis noch Ruf“ (7.13), „Übernahme
+ändert das Monatsergebnis nicht“ (7.16), die Kassen-Gleichung (8.2), Vogelschlag und Lieferung im Bericht dieses Monats
+(8.6, 8.12), „ein Test mit `closeMonth` ändert keine globalen Daten“ (8.3) und „ein halber Flugplan bringt höchstens die
+Hälfte weniger Fluggäste“ mit der Marktaufteilung (8.9). `HEDGE_PRICE_SHARE`, `RECOVERY_PRICE_SHARE`, `CHARTER_MARKUP`,
+Spanne, Rabatt, `OVERHAUL_PRICE_SHARE`, Verschleiß, `CREDIT_LIMIT_SHARE`, `CREDIT_RATE` prüft das Balance-Skript (3.9).
+Phase 4: Fragen (Krise, Charter, Streik), Gebrauchtmarkt (Verkäufer-Text) und Kopfzeile „Credit used“ aus dem Modell.
+Spielstand (5.1): Zufallsereignisse in den Spielstand, Störungen als `{ month, kind, target, share, charter? }`, Streik
+als `{ month, answer?, agreedPct? }`.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -133,7 +142,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.6b | Fortschritt Teil 2 (6.9–6.14): Forschung mit Feldern, Meilensteine, Jahresziel, Karriere-Punkte | erledigt |
 | 3.7a | Konkurrenz Teil 1 (7.1–7.7): neutrale Eingaben, fehlende Teile, KI-Stärke, Persönlichkeiten, Kabine und Service, Preise mit Preiskampf, Gründung | erledigt |
 | 3.7b | Konkurrenz Teil 2 (7.8–7.17): Monat der KI, Planung, Slots/Schalter/Drehkreuze (E63), Flotte, Krise, Wachstum, Dividende, Zuschuss, Notlage, Übernahme, Ticker | erledigt |
-| 3.8a | Monatsabschluss Teil 1 (8.3–8.14): Zufall und Spielstand, Ereignisse, Krisen-Antworten, Störungen, Personal, Pech-Deckel, gestrichene/gecharterte Flüge, Verschleiß, Händler-Spanne und Gebrauchtmarkt, Vorbestellung, Überholung, Kreditlinie | offen |
+| 3.8a | Monatsabschluss Teil 1 (8.3–8.14): Zufall und Spielstand, Ereignisse, Krisen-Antworten, Störungen, Personal, Pech-Deckel, gestrichene/gecharterte Flüge, Verschleiß, Händler-Spanne und Gebrauchtmarkt, Vorbestellung, Überholung, Kreditlinie | erledigt |
 | 3.8b | Monatsabschluss Teil 2 (8.1, 8.2, 8.15–8.17): `closeMonth` für Spieler und KI in einer Rechnung mit KI-Entscheidungen (7.8), Kasse am Monatsende, Szenario-Ziele, Prüfung, Beispiel 8.17, offene R2-Regeln | offen |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
 
@@ -194,3 +203,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | 3.6b | Forschung, Meilensteine, Jahresziel, Karriere in `src/model/progress.ts`: Forschungs-Tabelle `RESEARCH_PROJECTS` (45 Projekte mit 15 Feldern, ersetzt `RESEARCH_SATISFACTION_POINTS`, `RESEARCH_COST_SAVINGS`, `EFFICIENCY_RESEARCH_IDS`), `researchEffects` als einzige Zusammenfassung, Preis über `atCost` ungerundet, Start-Sperre, Fortschritt, Texte aus den Feldern; 31 Meilensteine als Daten ohne Ruf-Punkte, `milestoneSlotFactor`, Drehkreuz-Zuschläge, Gewinnserie; Jahresziel mit Bezugsgröße aus Vorjahr und Erlös, Mindest-Prämie, Strafe = halbe Prämie (E58), `yearSnapshot`; Karriere-Punkte mit `companyValue` und zwei Ruhmeshallen; Bau-Festlegung F37; 51 neue Tests, 967 grün |
 | 19.11.2026 | 3.7a | Konkurrenz Teil 1 in `src/model/rivals.ts`: `RIVAL_INPUTS` (neutrale Eingaben statt „ist das eine KI?“, Test über alle Modell-Dateien) und `RIVAL_OMITTED` als Text; `RIVAL_STRENGTH` (Easy/Normal/Hard nur Verhalten); `PERSONALITIES` mit Preis-Lage, Boden, Zielgewichten, Geduld, Kaufneigung, Reserve, Drehkreuzen, Schalter-Art, Kabine und Service; `rivalCabin` nach Platz-Regel (Beispiel 7.18 genau: LCC 202 Sitze, Boutique 59/25/20/8) und `rivalService` mit Menü je Mahlzeit; `rivalFareRatio` mit Zielniveau × `satisfactionFactor`, Lage ± 15 %, Preiskampf einmal −12 % über dem Boden; Gründung (Startkasse mit `atCost`, Startausstattung wie der Spieler, Drehkreuz-Wahl ohne Spieler-Stufe 3, Startflugzeuge, Nachrücken); Platz-Regel des Kaufdialogs in `cabin.ts`; Bau-Festlegung F38 (Paket 3.7 geteilt); 43 neue Tests, 1010 grün |
 | 19.11.2026 | 3.7b | Konkurrenz Teil 2 in `src/model/rivalMonth.ts`: geglätteter Gewinn, Verlierer (ausdünnen oder streichen, Kernnetz 2), Feinabstimmung mit +2 %-Regel; Planung mit Vorauswahl (Suchbreite + 2 zufällige), 100/60/30 % der Umläufe, Planer-Hauptzahl mit Schätzfehler; Slots mit Anteil 0,25/0,10 der Grenze und Verkauf nach 6 freien Monaten, Schalter mit `deskLoad ≤ 0,8`, Stufe 2 an Drehkreuzen, Lounge (Feld `buildsLounge`), Sperre durch Spieler-Stufe 3 (E63); Kauf-Bedingungen, Typ nach Planer-Hauptzahl je Preis, Modernisierung, Überholung, Not- und Leerlauf-Verkauf; Krisenstärke aus Weltereignissen und Treibstoff-Tabelle (Juni 1974 Krise), Krisen-Fahrplan; Größe in Sitzen, neues Drehkreuz, Dividende; Zuschuss mit `atCost` (Beispiel 7.18); Notlage in Folge, Auflösung, Übernahme zum Unternehmenswert (Beispiel 7.18: 198,7 Mio. $); Ticker nach Fluggästen, Meldungs-Regel; `departuresAt`/`departuresOnPair` in `airportCosts.ts`; Paket 3.8 in 3.8a/3.8b geteilt; Bau-Festlegung F39; 58 neue Tests, 1068 grün |
+| 19.11.2026 | 3.8a | Monatsabschluss Teil 1: `src/model/monthEvents.ts` (17 geschichtliche Ereignisse und 8 Zufalls-Vorlagen als Daten, nur über `eventDemandFactor`; Krisen-Antworten als Anteil von Treibstoff-Rechnung bzw. Erlös, `hedgedFuelTable`, `crisisResponseFactor`; Defekt je Flugzeug, Flughafen-Streik und Winterwetter für alle, Vogelschlag 0,5 % des Neupreises; Moral, Streik, Lohn-Untergrenze; Pech-Deckel mit fester Wurf-Reihenfolge und neutralem Merkmal `badLuckCap`; `disruptionShares`, `companyCancelledShare`, Charter je Flug; Verschleiß aus geflogenen Stunden) und `src/model/fleetMarket.ts` (Händler-Spanne −15 % / +5 %, Gebrauchtmarkt bis Bauende mit Weiterverkauf, Vorbestellung mit Rabatt bis 12 %, Überholung `max(4 % Neupreis, Wertgewinn)` mit Werft-Zuschlag, Umbau mit `atCost`, Kreditlinie, Zwangsverkauf, Pleite); `saleCandidate` gemeinsam mit dem Notverkauf der KI; Beispiel 8.17 (Flottenmarkt, Charter, Rückgewinnung, Kreditlinie, Defekt, Verschleiß) nachgerechnet; Spezifikation 8.9 „Folge“ berichtigt; Bau-Festlegung F40; 74 neue Tests, 1142 grün |
