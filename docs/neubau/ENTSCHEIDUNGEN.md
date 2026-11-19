@@ -75,6 +75,7 @@ Claude schlägt vor, der Mensch entscheidet.
 | E66 | 19.11.2026 | **KI tritt an fremden Drehkreuzen an (O64 = B):** In der Vorauswahl (7.9, `preselectScore`, `src/model/rivalMonth.ts:315`) bekommen Ziele, die Drehkreuz einer anderen KI sind, ein höheres Gewicht (Startwert × 2) statt durch deren Abflüge geteilt zu werden. So werden Drehkreuz-zu-Drehkreuz-Strecken unter der KI umkämpft. Keine zusätzlichen Drehkreuze in späten Jahren (C erst, wenn die KI nach O60 im späten Spiel zu klein ist). Gewicht zusammen mit E67 im Langlauf messen. | Langlauf 3.9b (Fund 6): In 10 Läufen über 60 Jahre teilte nie eine KI ein Paar mit einer anderen; ohne geteilte Paare lassen sich weder die Marktgröße (O60) noch die Optimizer-Regel (E65) prüfen. |
 | E67 | 19.11.2026 | **Marktgröße kleiner (O60 = A):** `DEMAND_SCALE` (heute 29, `src/model/constants.ts:564`) wird gesenkt, bei Bedarf zusammen mit `DISTANCE_EXP` (kurze Paare im Verhältnis kleiner). Den Faktor bestimmt das Balance-Skript **nach** E66. Ziel: typische Strecke beim besten Preis 75–90 % Auslastung, Marge 10–25 %. Danach Spezifikation 3.6 anpassen und `CONNECTION_APPEAL` (Umsteiger-Regel 3.13) neu prüfen. | Fund 1 und 6 in `BALANCE.md`: Ein Flugzeug ist fast überall bei jedem Preis voll (Margen 58–77 %); im Langlauf Auslastung 100 %, Marge im Median 40 %, also über der in O60 genannten Schwelle. Weg B („Rivalen drücken die Preise“) trat nicht ein. |
 | E68 | 19.11.2026 | **Zuschuss der KI später abschalten (O63 = B):** `RIVAL_SUBSIDY_ENABLED` (`src/model/constants.ts:2213`) bleibt vorerst `true`. Nach E66 und E67 rechnet das Balance-Skript die Prüfregel 7.14 (10 Läufe ohne Zuschuss) neu; ist sie erfüllt, wird der Zuschuss abgeschaltet (E47). | Die Regel ist heute nur erfüllt, weil der Markt zu groß ist (Fund 5, 6). Eine kleinere Marktgröße macht die KI ärmer; erst die Prüfung danach ist aussagekräftig. |
+| E69 | 19.11.2026 | **Preise der Krisen-Antworten (O65 = C):** `HEDGE_PRICE_SHARE` (`src/model/constants.ts:2344`) 0,2 → 0,35, damit sich die Preis-Absicherung etwa 1- bis 2,6-fach lohnt (1973 2,6; 1979 1,4; 1990 1,05). `RECOVERY_PRICE_SHARE` (`src/model/constants.ts:2347`, heute 0,15) bleibt vorerst; nach E67 misst das Balance-Skript die Rückgewinnung neu (B8.2) und legt den Anteil so fest, dass sie sich ebenfalls etwa 1- bis 2,5-fach lohnt. Umsetzung und `SPEZIFIKATION.md` 8.5 in Paket 3.9d. | Fund 16 in `BALANCE.md`: Beide Antworten lohnen sich mehrfach (Absicherung 1,8- bis 4,6-fach, Rückgewinnung 2,5- bis 5,1-fach) und sind damit keine Abwägung. Die Absicherung hängt nur an der Treibstoff-Tabelle und ist heute schon eindeutig zu billig; die Rückgewinnung hängt an der Marktgröße, die E67 ändert. |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -157,24 +158,14 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
 
-Offen aus dem Balance-Skript (Paket 3.9c, Zahlen in `BALANCE.md` Fund 16 und `balance/3.9c-bericht.md`). Blockiert
-Paket 3.9d nicht.
+O65 am 19.11.2026 entschieden (E69); Umsetzung in Paket 3.9d.
 
-**O65 – Preise der Krisen-Antworten (8.5, `HEDGE_PRICE_SHARE`, `RECOVERY_PRICE_SHARE`).** Beide Antworten lohnen sich
-mehrfach: Die Preis-Absicherung spart das 4,6- (1973), 2,5- (1979) und 1,8-Fache (1990) ihres Preises. Die
-Rückgewinnung bringt heute das 4,7- bis 5,1-Fache als Mehr-Ergebnis, bei einem Markt × 0,25 (Richtung E67) das 2,5- bis
-3,5-Fache. Eine Antwort ist damit keine Abwägung, sondern immer richtig, sofern die Kasse reicht.
-- A: Lassen. Die Antwort belohnt, wer aufpasst und Geld bereit hat; die Spezifikation verlangt keine Grenze.
-- B: Anteile anheben, damit sich eine Antwort etwa 1- bis 2,5-fach lohnt: `HEDGE_PRICE_SHARE` 0,2 → 0,35 (1973 2,6;
-  1979 1,4; 1990 1,05) und `RECOVERY_PRICE_SHARE` 0,15 → 0,3 (heute 2,3–2,6; bei × 0,25 1,3–1,7).
-- C: Absicherung wie B jetzt; Rückgewinnung erst nach E67 (3.9d) neu messen und dann festlegen.
-- **Empfehlung:** C. Die Absicherung hängt nur an der Treibstoff-Tabelle und ist heute schon eindeutig zu billig; die
-  Rückgewinnung hängt an der Marktgröße, die 3.9d ändert.
+Zurzeit keine offenen Fragen.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -207,6 +198,7 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - `SPEZIFIKATION.md` 6.15 (Vorgaben an Abschnitt 7) erfüllt in 7.1, 7.2, 7.11 (keine Klassen-Sperre der KI), 7.10 (keine Flughafen-Sperre aus Rang; Spieler-Stufe 3 sperrt neue KI-Strecken, E63) und 7.16 (Übernahme zum Unternehmenswert).
 - `SPEZIFIKATION.md` 7.19 setzt für Abschnitt 8 voraus: ein Abschluss bucht Spieler und KI in einer Aufteilung, danach KI-Entscheidungen; Verschleiß, Ausfälle, Ereignisse und Kreditlinie auch für die KI; Gebrauchtmarkt nimmt KI-Flugzeuge mit Alter, Zustand und Kabine auf; KI-Rückschlag entfällt.
 - E47 (Zuschuss abschaffen): Prüfregel in `SPEZIFIKATION.md` 7.14; E45 (ähnlicher Erfolg): Prüfregel in 7.4. Beide im Balance-Skript (3.9).
+- E69 (Rückgewinnung) erst nach E67: Der Preis-Anteil der Rückgewinnung wird mit der neuen Marktgröße gemessen.
 - Reihenfolge E66 → E67 → E68: erst Konkurrenz unter der KI (E66), dann mit geteilten Paaren den Marktgrößen-Faktor bestimmen (E67), dann Zuschuss-Prüfung 7.14 neu rechnen und abschalten (E68). Danach „ähnlicher Erfolg“ (7.4), KI-Stärke (B7.8), Optimizer-Sprünge (E65) und Umsteiger (3.13) neu bewerten.
 - Vorgaben aus 3.16, 4.14, 5.19, 6.15 und 7.19 an Abschnitt 8 erfüllt in `SPEZIFIKATION.md` 8.1 (Reihenfolge, eine
   Marktaufteilung), 8.2 (Kasse am Monatsende, R11), 8.5 (Antworten als Anteil), 8.9 (`cancelledShare`, Charter je Flug),

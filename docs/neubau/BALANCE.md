@@ -254,7 +254,7 @@ bringt im Mittel mehr als ein sicher erreichtes sicheres Ziel, wenn es mit minde
 (Strafe = halbe Prämie, E58); das sichere Ziel lohnt ab 33 %. Die Mindestprämie bindet in keinem Beispiel (Ergebnisse
 groß, Fund 1); wo sie bindet, sind beide Prämien gleich und das hohe Ziel lohnt nie. Erst nach E67 bewerten.
 
-### Fund 16: Krisen-Antworten lohnen sich mehrfach (B8.1, B8.2) → Frage O65
+### Fund 16: Krisen-Antworten lohnen sich mehrfach (B8.1, B8.2) → entschieden: E69 (O65 = C)
 
 | Antwort | Ersparnis bzw. Mehr-Ergebnis ÷ Preis |
 |---|---|
@@ -265,7 +265,8 @@ groß, Fund 1); wo sie bindet, sind beide Prämien gleich und das hohe Ziel lohn
 - Die Absicherung hängt nur an der Treibstoff-Tabelle (gleiche Menge wie vor der Krise), nicht an der Marktgröße.
 - Die Rückgewinnung holt 15–32 % des Ergebnis-Verlusts zurück; mit kleinerem Markt weniger (volle Flugzeuge verlieren
   zuerst nur „Knappheit“).
-- Beide Antworten sind damit keine Abwägung, sondern immer richtig. Ob das so bleiben soll: O65.
+- Beide Antworten sind damit keine Abwägung, sondern immer richtig. Entschieden (E69): Absicherung 0,2 → 0,35;
+  Rückgewinnung nach E67 neu messen und festlegen (Paket 3.9d).
 
 ### Fund 17: Charter lohnt auf jeder Strecke mit Gewinn (B8.3) → ok
 

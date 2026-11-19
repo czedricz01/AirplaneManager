@@ -1,18 +1,21 @@
 # Status
 
-**Nächstes Paket: 3.9d** – E66, E67, E68 umsetzen: (1) `preselectScore` (`src/model/rivalMonth.ts:315`) gewichtet Ziele an
+**Nächstes Paket: 3.9d** – E66, E67, E68, E69 umsetzen: (1) `preselectScore` (`src/model/rivalMonth.ts:315`) gewichtet Ziele an
 fremden KI-Drehkreuzen höher (Startwert × 2); (2) mit `npm run balance` den Faktor für `DEMAND_SCALE`
 (`src/model/constants.ts:564`, ggf. mit `DISTANCE_EXP`) bestimmen, Ziel Auslastung 75–90 %, Marge 10–25 %;
 Spezifikation 3.6 und 7.9 anpassen; (3) `npm run balance -- --long --out docs/neubau/balance/3.9d-bericht.md` neu
 rechnen, Prüfregel 7.14 ohne Zuschuss prüfen und bei Erfolg `RIVAL_SUBSIDY_ENABLED = false` (E68); „ähnlicher
 Erfolg“, KI-Stärke, Optimizer-Sprünge (E65) und Umsteiger mit `CONNECTION_APPEAL` neu bewerten; dazu die Prüfregeln aus
-3.9c, die an der Marktgröße hängen: B6.7 (Klassen-Forschung, kann für Rang 1, 2, 5 kippen), B6.8, B8.2, B8.8.
+3.9c, die an der Marktgröße hängen: B6.7 (Klassen-Forschung, kann für Rang 1, 2, 5 kippen), B6.8, B8.2, B8.8;
+(4) E69: `HEDGE_PRICE_SHARE` 0,2 → 0,35 (`src/model/constants.ts:2344`); nach E67 die Rückgewinnung (B8.2) neu messen
+und `RECOVERY_PRICE_SHARE` (`src/model/constants.ts:2347`) so festlegen, dass sie sich etwa 1- bis 2,5-fach lohnt;
+`SPEZIFIKATION.md` 8.5 anpassen.
 
 Stand: 19.11.2026 · Paket 3.9c erledigt: Abschnitte 6 und 8 im Balance-Skript (`src/balance/career.ts`,
 `src/balance/events.ts`), Bericht `docs/neubau/balance/3.9c-bericht.md` (15 ok · 0 Abweichung · 21 Info), Funde 11–21
-in `BALANCE.md`; keine Konstante geändert. Neue Frage O65 (Preise der Krisen-Antworten).
+in `BALANCE.md`; keine Konstante geändert. O65 entschieden: E69 (Absicherung teurer, Rückgewinnung nach E67).
 
-Offene Fragen: O65 (Preise der Krisen-Antworten, `ENTSCHEIDUNGEN.md`; kein Blocker für 3.9d).
+Offene Fragen: keine.
 
 Offen aus 3.9c (kein Blocker): Alle Zahlen stammen aus dem heutigen, zu großen Markt. Nach E67 den Bericht neu
 erzeugen; kippt B6.7, die Preise in `CLASS_RESEARCH` senken (6.8). Ruf-Meilenstein Gold (80) erreicht keine
@@ -177,7 +180,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.9a | Balance-Skript Teil 1: Gerüst, Abschnitte 1–5 ohne Langlauf (Zeit und Geld, Zufriedenheit, Nachfrage über alle Paare, Preis und Kosten typischer Strecken, Preiskampf) | erledigt |
 | 3.9b | Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (Abschnitt 7, Umsteiger 3.13) | erledigt |
 | 3.9c | Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (Ruf, Rang, Forschung, Jahresziel, Szenario, Krisen-Antworten, Charter, Flottenmarkt, Kreditlinie) | erledigt |
-| 3.9d | E66–E68 umsetzen: KI an fremden Drehkreuzen, Marktgröße per Skript einstellen, Langläufe neu, Zuschuss abschalten | offen |
+| 3.9d | E66–E69 umsetzen: KI an fremden Drehkreuzen, Marktgröße per Skript einstellen, Langläufe neu, Zuschuss abschalten, Preise der Krisen-Antworten | offen |
 
 ## Phase 4 – Oberfläche anbinden
 
@@ -244,3 +247,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | 3.9b | Balance-Skript Teil 2: Langläufe ohne Spieler (`src/balance/longRun.ts`, `competition.ts`, `scripts/balance-run.ts`, `npm run balance -- --long`), 26 Läufe; Bericht `balance/3.9b-bericht.md` (10 ok, 0 Abweichung, 20 Info), Funde 4–10 in `BALANCE.md`; Planer-Rechnungen nur auf gebrauchten Märkten (F46, ~135-mal schneller, gleiches Ergebnis), Fehler KI-Kabinen-Erneuerung (F45); neue Fragen O63, O64, O60 mit neuer Empfehlung A. |
 | 19.11.2026 | – | O60, O63, O64 entschieden: E66 (KI an fremden Drehkreuzen), E67 (Marktgröße kleiner, Faktor per Skript), E68 (Zuschuss nach E66/E67 abschalten); neues Paket 3.9d |
 | 19.11.2026 | 3.9c | Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (`src/balance/career.ts`, `events.ts`), 17 neue Prüfregeln B6.1–B6.8, B8.1–B8.9; Bericht `balance/3.9c-bericht.md` (15 ok, 0 Abweichung, 21 Info), Funde 11–21 in `BALANCE.md`: Ruf-Skala, Werbung, Charter, Flottenmarkt, Szenario-Ruf 55 ok; Klassen-Forschung heute ok, nach E67 neu prüfen; Krisen-Antworten lohnen sich 1,8- bis 5-fach → neue Frage O65; Bau-Festlegung F47; 9 neue Tests (1233 grün). |
+| 19.11.2026 | – | O65 entschieden: E69 (`HEDGE_PRICE_SHARE` 0,2 → 0,35; `RECOVERY_PRICE_SHARE` nach E67 neu messen); Umsetzung in Paket 3.9d |
