@@ -2616,3 +2616,13 @@ export const OVERDRAWN_TO_FORCED_SALE = 6;
 
 /** So viele Monatsberichte bleiben im Spielstand (wie heute `src/lib/monthClose.ts:1263`). SPEZIFIKATION 8.2. */
 export const REPORT_HISTORY_MONTHS = 120;
+
+// ---------------------------------------------------------------------------
+// 8.15 Szenario-Ziele
+// ---------------------------------------------------------------------------
+
+/** Was ein Szenario-Ziel misst (heute `src/data/scenarios.ts`). SPEZIFIKATION 8.15. */
+export type ScenarioMetric = 'capital' | 'monthlyProfit' | 'reputation' | 'routes' | 'regions' | 'transferPax';
+
+/** Ziele in Dollar: Schwelle als Wert von 1960, geprüft mit `atCost` des Prüfmonats (E6). SPEZIFIKATION 8.15. */
+export const SCENARIO_DOLLAR_METRICS: readonly ScenarioMetric[] = ['capital', 'monthlyProfit'];

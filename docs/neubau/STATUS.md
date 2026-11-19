@@ -1,17 +1,19 @@
 # Status
 
-**Nächstes Paket: 3.8c** – Monatsabschluss Teil 3 (`SPEZIFIKATION.md` 7.8–7.16 im Abschluss, 3.13, 6.9–6.11,
-8.15): KI-Entscheidungen als `rivalDecisions` in `src/model/rivalMonth.ts` (Reihenfolge `RIVAL_DECISION_STEPS`, Planer-
-Hauptzahl aus `monthOperations`), Umsteiger in der Marktaufteilung von `monthOperations`, Spieler-Fortschritt im Abschluss
-(Forschung im Übergang, Meilensteine, Rang, Jahresziel, Prämien in die Kasse), Szenario-Ziele (8.15) und die Tests 7.13
-und 7.16. Danach 3.9 (Balance-Skript).
+**Nächstes Paket: 3.8d** – Monatsabschluss Teil 4 (`SPEZIFIKATION.md` 7.7, 7.9–7.11, 7.13, 7.14 im Abschluss):
+die KI-Schritte `openings` (freie Flugzeuge auf neue Strecken mit `rivalPlanRoute` und `plannerRouteResult`, Slot-Kauf an
+beiden Enden, Schalter, Fahrpläne) und `growth` (Kauf, Modernisierung, neues Drehkreuz) in `rivalDecisions`
+(`src/model/rivalMonth.ts`), Slot-Verkauf nach 6 freien Monaten, VIP-Lounge, Zuschuss (7.14), Nachrücken (7.7) und
+Kabinen-Umbau der KI. Eingaben: Typen-Katalog und Flughafen-Kandidaten. Danach 3.9 (Balance-Skript).
 
-Stand: 19.11.2026 · Paket 3.8b erledigt: `closeMonth(state, decisions)` in `src/model/monthClose.ts` als reine Funktion
-mit eigenem Modell-Spielstand (`ModelState`, `CompanyState`, Kassenbuch `MonthLedger`); Buchung aller Gesellschaften in
-einer Marktaufteilung je Paar und Klasse (`monthOperations`, zugleich die Vorhersage), Verschleiß, Wert, Ruf,
-Lieferungen, Kreditlinie mit Zwangsverkauf und Spielende, Gewinnserie, Bericht `MonthReport` mit Kasse nach allen
-Buchungen, Prüfung auf ungültige Zahlen, Übergang zu X+1 (Preise, Moral, Würfe, Gebrauchtmarkt, Kampagnen). Paket 3.8b
-geteilt (F41). 1164 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.8c erledigt: Umsteiger in der Marktaufteilung von `monthOperations` (Fahrplan je Strecke,
+Drehkreuze, freie Sitze, Erlös- und Kostenanteile); `rivalDecisions` in `src/model/rivalMonth.ts` (Preise, Krise,
+Verlierer, Feinabstimmung, Überholung, Leerlauf- und Notverkauf, Dividende, Notlage mit Auflösung), wirkt ab X+1
+(`decisionsCash`, `decisionsValueChange`); Übernahme `takeOverCompany`; Fortschritt im Abschluss (Meilensteine, Rang,
+Jahresziel mit Angebot, Forschung im Übergang, Prämien in die Kasse); Szenario-Ziele `scenarioStep`; Planer-Hauptzahl
+`plannerRouteResult`; Meldungen `CloseNews`. PR #118 (paralleler Stand 3.8b) geschlossen; übernommen daraus Szenario-
+Schritt, Konstanten `ScenarioMetric`, Aufbau der KI-Schritte und die Testideen 6.11, 7.13, 7.16, 8.15. Paket 3.8c
+geteilt (F42). 1185 Tests grün, `tsc --noEmit` grün.
 
 Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
@@ -82,12 +84,15 @@ Phase 4: Fragen (Krise, Charter, Streik), Gebrauchtmarkt (Verkäufer-Text) und K
 Spielstand (5.1): Zufallsereignisse in den Spielstand, Störungen als `{ month, kind, target, share, charter? }`, Streik
 als `{ month, answer?, agreedPct? }`.
 
-Offen aus 3.8b (kein Blocker): 3.8c baut `rivalDecisions` (KI-Schritt 4), Umsteiger, Fortschritt (Schritt 6 ohne
-Gewinnserie), Szenario-Ziele und prüft „Dividende ändert weder Ergebnis noch Ruf“ (7.13) und „Übernahme ändert das
-Monatsergebnis nicht“ (7.16). Offen für 3.8c: In welchem Bericht stehen KI-Käufe aus Schritt 4 (heute nur als
-`decisionsCash`)? Phase 4 / 5.1: alten Spielstand in `ModelState` umwandeln (Typ-Werte, Interior score, Service je
+Offen aus 3.8b (kein Blocker): Phase 4 / 5.1: alten Spielstand in `ModelState` umwandeln (Typ-Werte, Interior score, Service je
 Klasse, Kassenbuch), Einweg-Umläufe, Störungs-Antworten des Spielers je Gesellschaft. Ein voll ausgelastetes A320 auf
 FRA–MAD (14 Abflüge) bleibt bei jedem Preis voll; ob die Marktgröße zu groß ist, prüft das Balance-Skript (3.9).
+
+Offen aus 3.8c (kein Blocker): Entscheidungen der KI stehen im Bericht X als `decisionsCash` / `decisionsValueChange`,
+nicht im Ergebnis (F42). 3.8d: Eröffnungen, Wachstum, Slots, Schalter, Lounge, Zuschuss, Nachrücken, Kabinen-Umbau
+und Fahrpläne der KI (ohne Fahrplan bietet auch die KI keine Umsteiger an). Phase 4: Fahrpläne der Spieler-Strecken als
+`RouteSchedule`, Wahl des Jahresziels aus `goalOffers`, Meldungstexte zu `CloseNews`, Szenario-Daten in Werte von 1960
+(5.1). Balance-Skript (3.9): Umsteiger-Anteil unter 25 % in Märkten mit Direktangebot (3.13), Szenario-Ziele.
 
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
@@ -151,7 +156,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.7b | Konkurrenz Teil 2 (7.8–7.17): Monat der KI, Planung, Slots/Schalter/Drehkreuze (E63), Flotte, Krise, Wachstum, Dividende, Zuschuss, Notlage, Übernahme, Ticker | erledigt |
 | 3.8a | Monatsabschluss Teil 1 (8.3–8.14): Zufall und Spielstand, Ereignisse, Krisen-Antworten, Störungen, Personal, Pech-Deckel, gestrichene/gecharterte Flüge, Verschleiß, Händler-Spanne und Gebrauchtmarkt, Vorbestellung, Überholung, Kreditlinie | erledigt |
 | 3.8b | Monatsabschluss Teil 2 (8.0–8.2, 8.16): `closeMonth` für Spieler und KI in einer Rechnung, Kasse am Monatsende mit Kassen-Gleichung, Bericht, Lieferungen, Kreditlinie, Prüfung, Übergang, offene R2-Regeln | erledigt |
-| 3.8c | Monatsabschluss Teil 3 (7.8–7.16 im Abschluss, 3.13, 6.9–6.11, 8.15): KI-Entscheidungen `rivalDecisions`, Umsteiger im Abschluss, Forschung, Meilensteine, Rang, Jahresziel, Szenario-Ziele | offen |
+| 3.8c | Monatsabschluss Teil 3 (7.8–7.16 im Abschluss, 3.13, 6.9–6.11, 8.15): KI-Entscheidungen `rivalDecisions`, Umsteiger im Abschluss, Forschung, Meilensteine, Rang, Jahresziel, Szenario-Ziele | erledigt |
+| 3.8d | Monatsabschluss Teil 4 (7.7, 7.9–7.11, 7.13, 7.14 im Abschluss): KI-Eröffnungen, Wachstum (Kauf, Modernisierung, neues Drehkreuz), Slots, Schalter, Lounge, Zuschuss, Nachrücken, Kabinen-Umbau und Fahrpläne der KI | offen |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
 
 ## Phase 4 – Oberfläche anbinden
