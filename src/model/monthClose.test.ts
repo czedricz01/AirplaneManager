@@ -145,7 +145,9 @@ describe('Abschnitt 8.1 Ablauf des Monatsabschlusses', () => {
 
   it('7.8: Entscheidungen ändern keine Zahl des laufenden Monats; ihre Kasse steht im Bericht', () => {
     const s = world([company('pl', PLAYER), company('ai', NEUTRAL)]);
-    const decide = (c: CompanyState) => (c.id === 'ai' ? { ...c, cash: c.cash - 1_000_000, routes: c.routes.map((r) => ({ ...r, nextFareRatios: { economy: 0.8 } })) } : c);
+    const decide = (c: CompanyState) => ({
+      company: c.id === 'ai' ? { ...c, cash: c.cash - 1_000_000, routes: c.routes.map((r) => ({ ...r, nextFareRatios: { economy: 0.8 } })) } : c,
+    });
     const without = closeMonth(s, NO_DECISIONS);
     const withDecisions = closeMonth(s, decide);
     for (const id of ['pl', 'ai']) {
@@ -205,7 +207,13 @@ describe('Abschnitt 8.2 Kasse am Monatsende und Bericht', () => {
       const other = Object.values(r.otherSpending).reduce((a, b) => a + b, 0);
       close(
         r.cashEnd - r.cashStart,
-        r.result - (r.fleetValueEnd - r.fleetValueStart) - (r.depositsEnd - r.depositsStart) - other + r.decisionsCash,
+        r.result -
+          (r.fleetValueEnd - r.decisionsValueChange - r.fleetValueStart) -
+          (r.depositsEnd - r.depositsStart) -
+          other +
+          r.decisionsCash +
+          r.milestonePrizes +
+          r.goalCash,
         1e-9,
       );
       assert.equal(r.cashEnd, companyAfter(result.state, id).cash);
@@ -334,7 +342,7 @@ describe('Abschnitt 8.14 Kreditlinie im Abschluss', () => {
 describe('Abschnitt 8.16 Prüfung auf ungültige Zahlen', () => {
   it('8.16: ein ungültiger Wert steht im Log und behält den Wert vom Beginn des Abschlusses', () => {
     const s = world([company('ai', NEUTRAL)]);
-    const result = closeMonth(s, (c) => ({ ...c, cash: Number.NaN }));
+    const result = closeMonth(s, (c) => ({ company: { ...c, cash: Number.NaN } }));
     assert.equal(companyAfter(result.state, 'ai').cash, 50_000_000);
     assert.equal(result.log.length, 1);
     assert.match(result.log[0], /cash/);

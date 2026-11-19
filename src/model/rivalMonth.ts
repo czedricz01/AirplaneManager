@@ -1,5 +1,6 @@
 /**
- * Konkurrenz Teil b: SPEZIFIKATION 7.8–7.17 (Paket 3.7b).
+ * Konkurrenz Teil b: SPEZIFIKATION 7.8–7.17 (Paket 3.7b); Entscheidungen im Monatsabschluss `rivalDecisions` und
+ * Übernahme im Spielstand `takeOverCompany` (Paket 3.8c).
  *
  * 7.8 Monat der KI (Ablauf, geglätteter Gewinn, Verlierer, Feinabstimmung), 7.9 Planung einer Strecke,
  * 7.10 Slots, Schalter, Drehkreuze, Lounge und Sperre durch Spieler-Stufe 3 (E63), 7.11 Flotte, 7.12 Krise,
@@ -12,13 +13,44 @@
  */
 
 import { atCost, clamp, timeOf } from './basics';
-import { facilityPrice, managementTierPrice, slotLimit, slotPrice } from './airportCosts';
+import { facilityPrice, managementTierPrice, slotLimit, slotPrice, slotResalePrice } from './airportCosts';
 import { fuelTable } from './costs';
-import { saleCandidate } from './fleetMarket';
-import { eventDemandFactor, type DemandEvent } from './demand';
-import { companyValue, hasUnlock, type CompanyValueInput } from './progress';
-import { deskCapacity } from './satisfaction';
-import { isOnMarket, longHaulFactor, rivalCashReserve, rivalPatience, targetWeight, weightedPick } from './rivals';
+import { creditLimit, overhaulQuote, saleCandidate, saleProceeds } from './fleetMarket';
+import { distanceKm, eventDemandFactor, type DemandEvent } from './demand';
+import { bestFareRatio, breakEvenFareLevel, marketFares, type BreakEvenClass } from './fare';
+import { aircraftValue } from './fleet';
+import { activeWorldEvents } from './monthEvents';
+import {
+  fleetValue,
+  plannerRouteResult,
+  routeClassPassengersAt,
+  type AircraftState,
+  type CloseNews,
+  type CompanyDecisions,
+  type CompanyState,
+  type DecisionContext,
+  type DecisionOutcome,
+  type HoldingState,
+  type ModelState,
+  type ResoldPlane,
+  type RouteState,
+} from './monthClose';
+import { companyValue, hasUnlock, researchEffects, type CompanyValueInput } from './progress';
+import { deskCapacity, satisfactionFactor } from './satisfaction';
+import { rng } from './rng';
+import {
+  isOnMarket,
+  longHaulFactor,
+  nextYieldPosition,
+  priceWarStep,
+  rivalCashReserve,
+  rivalFareRatio,
+  rivalPatience,
+  rivalTargetFareRatio,
+  targetWeight,
+  weightedPick,
+  type PriceWarState,
+} from './rivals';
 import {
   AVG_PROFIT_KEEP,
   CORE_NETWORK,
@@ -74,7 +106,11 @@ import {
   THIN_SHARE,
   WEEKLY_OPERATING_MINUTES,
   WORLD_REGIONS,
+  CABIN_CLASSES,
+  AIRCRAFT_CLASSES,
+  WEEKS_PER_MONTH,
   type AircraftClass,
+  type CabinClass,
   type DeskType,
   type RivalPersonality,
   type RivalStrength,
@@ -1051,4 +1087,353 @@ export const RIVAL_NEWS_IF_PLAYER_AIRPORT: readonly RivalNewsKind[] = ['priceWar
  */
 export function showRivalNews(kind: RivalNewsKind, touchesPlayerAirport: boolean): boolean {
   return !RIVAL_NEWS_IF_PLAYER_AIRPORT.includes(kind) || touchesPlayerAirport;
+}
+
+// ---------------------------------------------------------------------------
+// 7.8 Entscheidungen im Monatsabschluss (Paket 3.8c)
+// ---------------------------------------------------------------------------
+
+/** Was die KI je Strecke behält (7.6, 7.8, 7.12). */
+export interface RivalRouteMemory {
+  /** Geglätteter Gewinn (`smoothedProfit`, Monatswert). */
+  readonly avgProfit?: number;
+  /** Umläufe je Woche vor der ersten Krisen-Kürzung; fehlt = nicht gekürzt. */
+  readonly fullFrequency?: number;
+  /** Lage je Klasse (`nextYieldPosition`). */
+  readonly yieldPosition?: Readonly<Partial<Record<CabinClass, number>>>;
+  readonly priceWar?: PriceWarState;
+}
+
+/**
+ * Zustand der KI-Entscheidungen (`CompanyState.agent`; 7.3–7.15). Eine Gesellschaft ohne diesen Zustand trifft keine
+ * KI-Entscheidungen.
+ */
+export interface RivalAgent {
+  readonly kind: 'rival';
+  readonly personality: RivalPersonality;
+  readonly strength: RivalStrength;
+  readonly distress: RivalDistressState;
+  readonly routes: Readonly<Record<string, RivalRouteMemory>>;
+  /** Monate ohne Strecke je Flugzeug (7.11). */
+  readonly idleMonths: Readonly<Record<string, number>>;
+  /** Bisherige Grundüberholungen je Flugzeug (8.13). */
+  readonly overhauls: Readonly<Record<string, number>>;
+  /** Monatskosten (5.16, Summe) je Monat, ältester zuerst, für die Dividenden-Grenze (7.13). */
+  readonly costHistory: readonly number[];
+}
+
+/** Start-Zustand der Entscheidungen einer neuen KI (7.7). */
+export function newRivalAgent(personality: RivalPersonality, strength: RivalStrength): RivalAgent {
+  return { kind: 'rival', personality, strength, distress: RIVAL_HEALTHY, routes: {}, idleMonths: {}, overhauls: {}, costHistory: [] };
+}
+
+/** Der KI-Zustand einer Gesellschaft, oder `undefined`. */
+export function rivalAgentOf(company: CompanyState): RivalAgent | undefined {
+  const agent = company.agent as Partial<RivalAgent> | undefined;
+  return agent && agent.kind === 'rival' ? (agent as RivalAgent) : undefined;
+}
+
+const sumOf = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
+
+/**
+ * Entscheidungen einer KI nach der Buchung (7.8), in der Reihenfolge `RIVAL_DECISION_STEPS`. Sie wirken ab X+1:
+ * Preise als `nextFareRatios` (4.5), Flugpläne, Verkäufe, Überholungen, Dividende und Notlage ändern keine Zahl des
+ * Monats X (der Abschluss bucht sie als `decisionsCash` / `decisionsValueChange`). Zahlen aus derselben Rechnung wie der
+ * Planer (`plannerRouteResult`, R2); Zufall aus `rng` mit Zweck und Gesellschaft als Schlüssel, daher zählt die
+ * Reihenfolge der KI nicht (7.8).
+ *
+ * Stand 3.8c: `prices`, `crisis`, `losers`, `fineTune`, `fleet` (Überholung, Leerlauf- und Notverkauf), `dividend`,
+ * `distress` mit Auflösung. `openings`, `growth` (Kauf, Modernisierung, neues Drehkreuz), Slot-Kauf und -Verkauf,
+ * Schalter, Lounge und Zuschuss folgen mit Paket 3.8d (F42).
+ */
+export const rivalDecisions: CompanyDecisions = (company, ctx) => {
+  const agent = rivalAgentOf(company);
+  if (!agent || agent.distress.status === 'liquidated') return { company };
+  return rivalMonth(company, agent, ctx);
+};
+
+function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionContext): DecisionOutcome {
+  const X = ctx.month;
+  const news: CloseNews[] = [];
+  const sold: ResoldPlane[] = [];
+  const say = (kind: CloseNews['kind'], subject?: string, amount?: number) => news.push({ companyId: company.id, kind, subject, amount });
+  const figures = new Map(ctx.operations.routes.map((r) => [r.routeId, r]));
+  const airports = ctx.state.airports;
+  const pairOf = (r: RouteState) => (r.from < r.to ? `${r.from}|${r.to}` : `${r.to}|${r.from}`);
+  const kmOf = (r: RouteState) => distanceKm(airports[r.from].coords, airports[r.to].coords);
+  const others = ctx.state.companies.filter((c) => c.id !== company.id);
+  const resaleBonus = researchEffects(company.inputs.completedResearch).resaleBonus;
+
+  const memory: Record<string, RivalRouteMemory> = {};
+  for (const r of company.routes) {
+    const f = figures.get(r.id);
+    const old = agent.routes[r.id];
+    memory[r.id] = f ? { ...old, avgProfit: smoothedProfit(old?.avgProfit, f.result * WEEKS_PER_MONTH) } : { ...old };
+  }
+  let routes: RouteState[] = company.routes.map((r) => ({ ...r }));
+  let aircraft: AircraftState[] = [...company.aircraft];
+  let cash = company.cash;
+  const current = (): CompanyState => ({ ...company, routes, aircraft, cash });
+  const stateNow = () => ({ ...ctx.state, companies: ctx.state.companies.map((c) => (c.id === company.id ? current() : c)) });
+
+  // 1 prices (7.6): Preiskampf je Paar, Lage je Klasse, Preisniveau ab X+1.
+  routes = routes.map((r) => {
+    const f = figures.get(r.id);
+    if (!f) return r;
+    const m = memory[r.id];
+    const fares = marketFares(kmOf(r), X);
+    const competitors = others.flatMap((o) => o.routes.filter((x) => pairOf(x) === pairOf(r)));
+    const ownEconomy = (r.fareRatios?.economy ?? 1) * fares.economy;
+    const war = priceWarStep(m.priceWar ?? {}, {
+      personality: agent.personality,
+      month: X,
+      routeAgeMonths: r.ageMonths,
+      avgProfit: m.avgProfit ?? 0,
+      lastRivalOpeningMonth: competitors.length > 0 ? X - Math.min(...competitors.map((o) => o.ageMonths)) : undefined,
+      undercutInEconomy: competitors.some((o) => (o.fareRatios?.economy ?? 1) * fares.economy < ownEconomy),
+      competitorPresent: competitors.length > 0,
+    });
+    if (war.event) say(war.event === 'started' ? 'priceWarStarted' : 'priceWarEnded', r.id);
+    const plane = aircraft.find((p) => p.id === r.aircraftId) as AircraftState;
+    const classes: Partial<Record<CabinClass, BreakEvenClass>> = {};
+    for (const c of CABIN_CLASSES) {
+      const seats = (plane.seats[c] ?? 0) * r.departuresPerWeek;
+      if (seats > 0) classes[c] = { seatsPerWeek: seats, marketFare: fares[c], costPerPassenger: f.costPerPassenger[c] ?? 0 };
+    }
+    const fixedFull = f.flightOpsFull + f.fixed.slotShare + f.fixed.aircraftShare;
+    const breakEvenFull = Object.keys(classes).length > 0 ? breakEvenFareLevel(1, fixedFull, classes) : 0;
+    const yieldPosition: Partial<Record<CabinClass, number>> = {};
+    const nextFareRatios: Partial<Record<CabinClass, number>> = {};
+    for (const c of CABIN_CLASSES) {
+      const seats = f.offeredSeats[c];
+      if (!((plane.seats[c] ?? 0) > 0)) continue;
+      const load = seats > 0 ? (f.passengers[c] + f.transferPassengers[c]) / seats : 0;
+      const position = nextYieldPosition(m.yieldPosition?.[c] ?? 0, load);
+      yieldPosition[c] = position;
+      const best =
+        PERSONALITIES[agent.personality].farePosition === 'best'
+          ? bestFareRatio((ratio) => routeClassPassengersAt(ctx.state, company.id, r.id, c, ratio), fares[c], f.costPerPassenger[c] ?? 0)
+          : undefined;
+      nextFareRatios[c] = rivalFareRatio({
+        personality: agent.personality,
+        target: rivalTargetFareRatio(agent.personality, satisfactionFactor(f.satisfaction[c] ?? 100), best),
+        yieldPosition: position,
+        priceWar: war.state.startedMonth !== undefined,
+        breakEvenFull,
+      });
+    }
+    memory[r.id] = { ...m, priceWar: war.state, yieldPosition };
+    return { ...r, nextFareRatios };
+  });
+
+  // 2 crisis (7.12): Krisen-Fahrplan.
+  const severity = crisisSeverity(activeWorldEvents(X, ctx.state.randomEvents), X);
+  const inCrisis = isCrisis(severity);
+  routes = routes.map((r) => {
+    const f = figures.get(r.id);
+    const m = memory[r.id];
+    const now = r.departuresPerWeek / 2;
+    const full = m.fullFrequency ?? now;
+    const seats = f ? sumOf(CABIN_CLASSES.map((c) => f.offeredSeats[c])) : 0;
+    const pax = f ? sumOf(CABIN_CLASSES.map((c) => f.passengers[c] + f.transferPassengers[c])) : 0;
+    const next = crisisFrequency({ current: now, full, loadFactor: seats > 0 ? pax / seats : undefined, inCrisis });
+    memory[r.id] = { ...m, fullFrequency: inCrisis || next < full ? full : undefined };
+    if (next < now) say('scheduleCut', r.id);
+    return next === now ? r : { ...r, departuresPerWeek: 2 * next };
+  });
+
+  // Planer-Hauptzahl mit dem jeweils aktuellen Plan dieser KI (R2).
+  const expectedProfitAt: ExpectedProfitAt = (routeId, weeklyFrequency) => plannerRouteResult(stateNow(), company.id, routeId, 2 * weeklyFrequency);
+  const view = (): RivalRouteView[] =>
+    routes.map((r) => ({ id: r.id, weeklyFrequency: r.departuresPerWeek / 2, ageMonths: r.ageMonths, avgProfit: memory[r.id].avgProfit ?? 0 }));
+
+  // 3 losers (7.8).
+  for (const d of loserDecisions(view(), agent.personality, agent.strength, expectedProfitAt)) {
+    if (d.action === 'close') {
+      routes = routes.filter((r) => r.id !== d.routeId);
+      say('routeClosed', d.routeId);
+    } else {
+      routes = routes.map((r) => (r.id === d.routeId ? { ...r, departuresPerWeek: 2 * d.weeklyFrequency } : r));
+      say('scheduleCut', d.routeId);
+    }
+  }
+
+  // 4 fineTune (7.8): höchstens bis zu den höchsten Umläufen des Flugzeugs und den freien eigenen Slots (7.10).
+  if (fineTuneThisMonth(agent.strength, rng(ctx.seed, X, 'fineTune', company.id))) {
+    for (const v of view()) {
+      const r = routes.find((x) => x.id === v.id) as RouteState;
+      const plane = aircraft.find((p) => p.id === r.aircraftId) as AircraftState;
+      const f = figures.get(r.id);
+      if (!f) continue;
+      const otherRotations = sumOf(routes.filter((x) => x.aircraftId === plane.id && x.id !== r.id).map((x) => x.departuresPerWeek / 2));
+      const slotRoom = Math.min(
+        ...[r.from, r.to].map((id) => {
+          const owned = company.airports[id]?.slots[plane.aircraftClass] ?? 0;
+          const used = sumOf(
+            routes
+              .filter((x) => (x.from === id || x.to === id) && aircraft.find((p) => p.id === x.aircraftId)?.aircraftClass === plane.aircraftClass)
+              .map((x) => x.departuresPerWeek / 2),
+          );
+          return owned - used;
+        }),
+      );
+      const alt = fineTune(
+        {
+          route: v,
+          maxRotations: Math.max(1, maxWeeklyRotations(2 * f.blockMinutes) - otherRotations),
+          slotRoom,
+          crisisReduced: memory[r.id].fullFrequency !== undefined && v.weeklyFrequency < (memory[r.id].fullFrequency as number),
+        },
+        expectedProfitAt,
+      );
+      if (alt !== null) routes = routes.map((x) => (x.id === r.id ? { ...x, departuresPerWeek: 2 * alt } : x));
+    }
+  }
+
+  // 5 fleet (7.11): Überholung, Leerlauf-Verkauf, Notverkauf; Werte am Monatsende (X + 1, nach dem Verschleiß).
+  const overhauls: Record<string, number> = { ...agent.overhauls };
+  const sell = (planeId: string) => {
+    const plane = aircraft.find((p) => p.id === planeId) as AircraftState;
+    const proceeds = saleProceeds(aircraftValue(plane, X + 1), resaleBonus);
+    cash += proceeds;
+    aircraft = aircraft.filter((p) => p.id !== planeId);
+    routes = routes.filter((r) => r.aircraftId !== planeId);
+    sold.push({ ...plane, soldMonth: X });
+    say('planeSold', planeId, proceeds);
+  };
+  for (const plane of [...aircraft]) {
+    // Die Grundüberholung hebt nur die Zelle (8.13); ein Kabinen-Umbau der KI folgt mit 3.8d.
+    if (!needsOverhaul({ airframeCondition: plane.airframeCondition, cabinCondition: 100 })) continue;
+    const done = overhauls[plane.id] ?? 0;
+    const quote = overhaulQuote(plane, X + 1, done, false);
+    if (!quote || !mayOverhaul(agent.personality, X, cash, quote.price)) continue;
+    cash -= quote.price;
+    overhauls[plane.id] = done + 1;
+    aircraft = aircraft.map((p) => (p.id === plane.id ? { ...p, airframeCondition: quote.airframeAfter } : p));
+    say('overhaul', plane.id, quote.price);
+  }
+  const idleMonths: Record<string, number> = {};
+  for (const plane of aircraft) idleMonths[plane.id] = nextIdleMonths(agent.idleMonths[plane.id] ?? 0, routes.some((r) => r.aircraftId === plane.id));
+  for (const plane of [...aircraft]) {
+    if (!routes.some((r) => r.aircraftId === plane.id) && sellIdle(idleMonths[plane.id], inCrisis)) sell(plane.id);
+  }
+  const planeResult = (id: string) => sumOf(ctx.operations.routes.filter((r) => r.aircraftId === id).map((r) => r.result));
+  const emergency = emergencySaleCandidate(
+    aircraft.map((p) => ({
+      id: p.id,
+      builtMonth: p.builtMonth,
+      typeLastDeliveryOffset: null,
+      airframeCondition: p.airframeCondition,
+      cabinCondition: p.cabinCondition,
+      flying: routes.some((r) => r.aircraftId === p.id),
+      routeResult: planeResult(p.id),
+      idleMonths: idleMonths[p.id] ?? 0,
+    })),
+    cash,
+  );
+  if (emergency >= 0) sell(aircraft[emergency].id);
+
+  // 8 dividend (7.13): nach allen Buchungen der KI.
+  const costHistory = [...agent.costHistory, ctx.costsTotal].slice(-DIVIDEND_COST_WINDOW);
+  const dividend = rivalDividend(cash, dividendLimit(X, costHistory));
+  if (dividend > 0) {
+    cash -= dividend;
+    say('dividend', undefined, dividend);
+  }
+
+  // 9 distress (7.15) mit Auflösung: Flugzeuge in den Gebrauchtmarkt, Slots frei, Schulden verfallen.
+  const step = rivalDistressStep(agent.distress, { cash, creditLimit: creditLimit(fleetValue(aircraft, X + 1)), aircraftCount: aircraft.length });
+  if (step.event) say(step.event, undefined, step.event === 'liquidated' ? Math.max(0, -cash) : undefined);
+  let airportsAfter = company.airports;
+  let hubs = company.hubs;
+  if (step.state.status === 'liquidated') {
+    const out = liquidate(aircraft, [], cash);
+    sold.push(...out.toUsedMarket.map((p) => ({ ...p, soldMonth: X })));
+    aircraft = [];
+    routes = [];
+    airportsAfter = {};
+    hubs = [];
+    cash = 0;
+  }
+
+  const keptRoutes: Record<string, RivalRouteMemory> = {};
+  for (const r of routes) keptRoutes[r.id] = memory[r.id];
+  const keptIdle: Record<string, number> = {};
+  for (const p of aircraft) keptIdle[p.id] = idleMonths[p.id] ?? 0;
+  const keptOverhauls: Record<string, number> = {};
+  for (const p of aircraft) if (overhauls[p.id]) keptOverhauls[p.id] = overhauls[p.id];
+  const nextAgent: RivalAgent = { ...agent, distress: step.state, routes: keptRoutes, idleMonths: keptIdle, overhauls: keptOverhauls, costHistory };
+  return {
+    company: { ...company, routes, aircraft, cash, airports: airportsAfter, hubs, agent: nextAgent },
+    sold,
+    news,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 7.16 Übernahme im Spielstand (Paket 3.8c)
+// ---------------------------------------------------------------------------
+
+/** Unternehmenswert einer Gesellschaft im Monat (6.12): Kasse, Flugzeuge, Slots zum Verkaufswert (5.10), Anzahlungen. */
+export function companyValueOf(company: CompanyState, month: number): CompanyValueInput {
+  let slotResaleValue = 0;
+  for (const holding of Object.values(company.airports)) {
+    for (const cls of AIRCRAFT_CLASSES) slotResaleValue += (holding.slots[cls] ?? 0) * slotResalePrice(cls, month, company.inputs.completedResearch);
+  }
+  return {
+    cash: company.cash,
+    aircraftValues: company.aircraft.map((p) => aircraftValue(p, month)),
+    slotResaleValue,
+    preorderDeposits: company.preorders.reduce((sum, p) => sum + p.deposit, 0),
+  };
+}
+
+/**
+ * Übernahme einer KI durch die Gesellschaft `buyerId` während des Monats (7.16, E48): Preis = Unternehmenswert der KI
+ * (`takeoverPrice`); der Käufer bekommt ihre Kasse (auch negativ), alle Flugzeuge abgestellt mit Alter, Zustand und
+ * Kabine, alle Slots und Schalter je Flughafen und dort mindestens Stufe 1, an ihren Drehkreuzen Stufe 2. Strecken,
+ * Einrichtungen und Ruf der KI verfallen; kein Ruf-Sprung (E38); Übernahmen + 1. Die KI verschwindet.
+ *
+ * Buchung (5.13, 5.16): Die Flugzeuge gehen zum Wert ins Kassenbuch (Kauf zum Wert, ergebnisneutral); der Rest
+ * `Preis − KI-Kasse − Σ Flugzeugwerte` ist eine Einmalausgabe `takeover` ohne Ergebnis-Wirkung. So ändert die
+ * Übernahme das Monatsergebnis nicht. Rang und Status prüft `mayTakeOver`. SPEZIFIKATION 7.16.
+ */
+export function takeOverCompany(state: ModelState, buyerId: string, rivalId: string): ModelState {
+  const buyer = state.companies.find((c) => c.id === buyerId);
+  const rival = state.companies.find((c) => c.id === rivalId);
+  if (!buyer || !rival || buyer === rival) throw new Error(`takeOverCompany: ${buyerId} / ${rivalId} fehlt`);
+  const month = state.month;
+  const price = takeoverPrice(companyValueOf(rival, month), month);
+  const planesValue = rival.aircraft.reduce((sum, p) => sum + aircraftValue(p, month), 0);
+  const rest = price - rival.cash - planesValue;
+
+  const airports: Record<string, HoldingState> = { ...buyer.airports };
+  const rivalHubs = new Set(rival.hubs ?? []);
+  for (const [id, h] of Object.entries(rival.airports)) {
+    const mine = airports[id];
+    const slots: Partial<Record<AircraftClass, number>> = { ...(mine?.slots ?? {}) };
+    for (const cls of AIRCRAFT_CLASSES) if (h.slots[cls]) slots[cls] = (slots[cls] ?? 0) + (h.slots[cls] ?? 0);
+    airports[id] = {
+      managementTier: Math.max(mine?.managementTier ?? 0, rivalHubs.has(id) ? RIVAL_HUB_TIER : TAKEOVER_MIN_TIER),
+      slots,
+      stands: mine?.stands ?? {},
+      desks: { normal: (mine?.desks.normal ?? 0) + h.desks.normal, self: (mine?.desks.self ?? 0) + h.desks.self },
+      facilities: mine?.facilities ?? [],
+    };
+  }
+  const l = buyer.ledger;
+  const bought: CompanyState = {
+    ...buyer,
+    cash: buyer.cash - price + rival.cash,
+    aircraft: [...buyer.aircraft, ...rival.aircraft],
+    airports,
+    progress: buyer.progress ? { ...buyer.progress, takeovers: buyer.progress.takeovers + 1 } : buyer.progress,
+    ledger: {
+      ...l,
+      purchases: l.purchases + planesValue,
+      tradeValueChange: l.tradeValueChange + planesValue,
+      otherSpending: { ...l.otherSpending, takeover: (l.otherSpending.takeover ?? 0) + rest },
+    },
+  };
+  return { ...state, companies: state.companies.filter((c) => c.id !== rivalId).map((c) => (c.id === buyerId ? bought : c)) };
 }

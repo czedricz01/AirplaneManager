@@ -1,33 +1,36 @@
 /**
- * Monatsabschluss: SPEZIFIKATION 8.0–8.2 und 8.16 (Paket 3.8b). Setzt die Bausteine der Abschnitte 2–8 zu einem
- * Zeitschritt zusammen.
+ * Monatsabschluss: SPEZIFIKATION 8.0–8.2, 8.15 und 8.16 (Pakete 3.8b, 3.8c). Setzt die Bausteine der Abschnitte 2–8
+ * zu einem Zeitschritt zusammen.
  *
  * - `closeMonth(state, decisions)` ist eine **reine Funktion** (R12): Spielstand rein, Spielstand für X+1, Berichte
  *   und Log raus. Aller Zufall kommt aus `rng` mit dem `seed` des Spielstands (8.3).
  * - **Eine Rechnung für alle** (R1, E44, 7.8): Spieler und KI stehen gleichberechtigt in `companies`. Jede Gesellschaft
  *   unterscheidet sich nur durch ihre Eingaben (`CompanyInputs`; KI: die neutralen Werte aus `RIVAL_INPUTS`, 7.2).
  *   Diese Datei fragt nie „ist das eine KI?“ (Test 7.1).
- * - **KI-Entscheidungen** (Schritt 4, 7.8) kommen als Funktion `decisions` von außen: Sie stehen in `rivalMonth.ts`
- *   (Paket 3.8c), das diese Datei nicht kennt. So kann die Buchung nicht von ihnen abhängen.
+ * - **KI-Entscheidungen** (Schritt 4, 7.8) kommen als Funktion `decisions` von außen: `rivalDecisions` in
+ *   `rivalMonth.ts`, das diese Datei nicht kennt. So kann die Buchung nicht von ihnen abhängen; sie wirken ab X+1.
+ * - **Umsteiger** (3.13) sind Angebote in derselben Marktaufteilung; danach kommen sie auf die freien Sitze.
+ * - **Fortschritt** (6.7–6.11, 8.15) rechnet Schritt 6 nur für eine Gesellschaft mit `progress` (Spieler, 7.2).
  * - Der Spielstand enthält, was sich nur durch Einstellungen ändert (Kabine, Service-Auswahl, Interior score), als
  *   fertige Werte; alles, was sich mit Monat, Zustand, Ruf oder Markt ändert, rechnet der Abschluss (F41).
- *
- * Nicht hier (Paket 3.8c): Umsteiger im Abschluss (3.13), KI-Entscheidungen, Gewinnserie-Folgen, Meilensteine, Rang,
- * Jahresziel, Forschung im Übergang, Szenario-Ziele (8.15).
  */
 
-import { difficultyFactor } from './basics';
+import { atCost, difficultyFactor, yearOf } from './basics';
 import { cabinRating } from './cabin';
 import {
   CABIN_CLASSES,
+  MINUTES_PER_WEEK,
   OWNER_TIER,
+  RANK_AVERAGE_MONTHS,
   REPORT_HISTORY_MONTHS,
+  SCENARIO_DOLLAR_METRICS,
   WEEKS_PER_MONTH,
   type AircraftClass,
   type CabinClass,
   type CampaignTier,
   type Difficulty,
   type FacilityKind,
+  type ScenarioMetric,
   type WorldRegion,
 } from './constants';
 import {
@@ -38,6 +41,7 @@ import {
   costPerPassengerParts,
   crewCost,
   ffpCostPerPassenger,
+  transferCostPerPassengerParts,
   fuelCost,
   fuelPrice,
   handlingFee,
@@ -72,7 +76,16 @@ import {
   worldScale,
   type Coords,
 } from './demand';
-import { marketFares, monthlyRevenue, routeFares, routeRevenue, type ClassFigures, type PartialClassFigures } from './fare';
+import {
+  marketFares,
+  monthlyRevenue,
+  routeFares,
+  routeRevenue,
+  transferRevenueShare,
+  type ClassFigures,
+  type PartialClassFigures,
+  type TransferFlow,
+} from './fare';
 import {
   aircraftUpkeep,
   aircraftValue,
@@ -133,9 +146,31 @@ import {
   offerAppeal,
   rampFactor,
 } from './marketSplit';
-import { nextProfitStreak, reputationChange, researchEffects, type ReputationChange } from './progress';
+import {
+  advanceResearch,
+  annualGoalOffers,
+  chosenGoal,
+  isDecember,
+  milestonePrize,
+  milestonePrizeTotal,
+  newMilestones,
+  nextProfitStreak,
+  nextRank,
+  rankStats,
+  reputationChange,
+  researchEffects,
+  settleGoal,
+  sizeClassOf,
+  yearSnapshot,
+  type AnnualGoal,
+  type MilestoneContext,
+  type RankStats,
+  type ReputationChange,
+  type ResearchState,
+} from './progress';
 import {
   airlineSatisfaction,
+  connectionOfferSatisfaction,
   deskLoad as deskLoadOf,
   directOfferSatisfaction,
   satisfaction,
@@ -147,6 +182,17 @@ import {
   type GroundSide,
   type ServiceSelection,
 } from './satisfaction';
+import {
+  allocateTransferSeats,
+  connectionFactor,
+  hubQuality,
+  transferClasses,
+  transferFare,
+  transferOffer,
+  type HubFacilities,
+  type TransferDemand,
+  type TransferOfferFigures,
+} from './transfers';
 
 // ===========================================================================
 // Spielstand im Modell (8.3)
@@ -245,6 +291,17 @@ export interface RouteState {
   readonly ageMonths: number;
   /** Service-Auswahl je Klasse (2.5, 5.7). */
   readonly service: Readonly<Partial<Record<CabinClass, ServiceSelection>>>;
+  /**
+   * Fahrplan in Minuten der Woche (Montag 00:00 = 0): Abflüge in `from` und in `to`. Nur für Umsteige-Anschlüsse
+   * (3.13, F18); ohne Fahrplan bildet die Strecke keine Verbindung (F42).
+   */
+  readonly schedule?: RouteSchedule;
+}
+
+/** Fahrplan einer Strecke (Minuten der Woche). */
+export interface RouteSchedule {
+  readonly fromDepartures: readonly number[];
+  readonly toDepartures: readonly number[];
 }
 
 /** Was eine Gesellschaft an einem Flughafen hat (5.10, 5.11). */
@@ -317,8 +374,61 @@ export interface CompanyState {
   readonly ledger: MonthLedger;
   /** Berichte, ältester zuerst, höchstens `REPORT_HISTORY_MONTHS` (8.2). */
   readonly reports: readonly MonthReport[];
+  /** Drehkreuze (Flughafen-Kennungen): Umsteige-Verbindungen (3.13). */
+  readonly hubs?: readonly string[];
+  /**
+   * Fortschritt (Rang, Forschung, Meilensteine, Jahresziel, Szenario; 6.7–6.11, 8.15). Nur eine Gesellschaft mit
+   * Fortschritts-Modell hat ihn (Spieler; KI nach 7.2 ohne). Der Abschluss rechnet Schritt 6 nur, wenn er da ist.
+   */
+  readonly progress?: CompanyProgress;
   /** Zustand der Entscheidungen (KI: Persönlichkeit, Stärke, Notlage …); der Abschluss liest ihn nicht. */
   readonly agent?: unknown;
+}
+
+/** Fortschritt einer Gesellschaft (6.7–6.11, 8.15). */
+export interface CompanyProgress {
+  /** Erster Spielmonat (Rang-Jahre, 6.7). */
+  readonly startMonth: number;
+  readonly rank: number;
+  /** Rang-Werte je Monat, ältester zuerst, höchstens `RANK_AVERAGE_MONTHS` (6.7). */
+  readonly rankHistory: readonly RankStats[];
+  /** Forschung (6.9); `inputs.completedResearch` ist immer `research.done`. */
+  readonly research: ResearchState;
+  /** Erreichte Meilensteine (Ids, 6.10). */
+  readonly milestones: readonly string[];
+  /** Fluggäste seit Spielstart (Meilensteine). */
+  readonly careerPax: number;
+  /** Übernahmen (6.12, 7.16). */
+  readonly takeovers: number;
+  /** Laufendes Jahresziel (6.11). */
+  readonly goal?: AnnualGoal;
+  /** Angebot des letzten Dezembers; `goal` ist das gewählte (ohne Wahl das sichere). */
+  readonly goalOffers?: readonly AnnualGoal[];
+  /** Laufendes Szenario (8.15). */
+  readonly scenario?: ScenarioState;
+}
+
+/** Ein Ziel eines Szenarios (8.15). */
+export interface ScenarioTarget {
+  readonly id: string;
+  readonly metric: ScenarioMetric;
+  /** Schwelle; bei Dollar-Zielen als Wert von 1960 (`SCENARIO_DOLLAR_METRICS`, E6). */
+  readonly target: number;
+  /** Zählt nur im Abschluss des Stichtags. */
+  readonly atDeadline?: boolean;
+}
+
+/** Ein laufendes Szenario (8.15). */
+export interface ScenarioState {
+  readonly win: readonly ScenarioTarget[];
+  /** Kasse unter −`creditLimit` an so vielen Monatsenden in Folge verliert (`capitalFloor`, Lesart von E34). */
+  readonly floorMonths: number;
+  /** Letzter Monat, dessen Abschluss zählt. */
+  readonly deadline: number;
+  readonly floorStreak: number;
+  /** Erreichte Ziele (Ids, sortiert). */
+  readonly met: readonly string[];
+  readonly status: 'running' | 'won' | 'lost';
 }
 
 /** Der Spielstand, so weit das Modell ihn braucht (8.3). */
@@ -357,8 +467,13 @@ export interface RouteFigures {
   readonly fares: ClassFigures;
   /** Direktgäste je Woche (3.11). */
   readonly passengers: ClassFigures;
+  /** Umsteiger je Woche auf dieser Strecke (3.13, nach den Direktgästen auf freien Sitzen). */
+  readonly transferPassengers: ClassFigures;
+  /** Erlös je Woche mit dem Anteil der Umsteiger (4.7, 4.8). */
   readonly revenue: number;
   readonly passengerCost: PassengerCostParts;
+  /** `costPerPassenger` je Klasse mit Sitzen (5.8, Direktgast). */
+  readonly costPerPassenger: PartialClassFigures;
   /** Feste Kosten mit den geflogenen Abschnitten (8.9). */
   readonly fixed: FixedWeeklyCostParts;
   /** `flightOpsCost` beim vollen Flugplan (für die Charter-Gebühr, 8.9). */
@@ -373,8 +488,12 @@ export interface CompanyOperations {
   readonly routes: readonly RouteFigures[];
   /** Monatserlös (4.9). */
   readonly revenue: number;
-  /** Fluggäste im Monat. */
+  /** Fluggäste im Monat, jede Teilstrecke gezählt (Umsteiger doppelt, wie `rankStats`, 6.7). */
   readonly passengers: number;
+  /** Fluggäste je Woche, jede Teilstrecke gezählt (Rang, 6.7). */
+  readonly weeklyPassengers: number;
+  /** Umsteiger-Reisen im Monat (jede Reise einmal; Meilensteine, Szenario). */
+  readonly transferPassengers: number;
   /** Flugzeuge nach Verschleiß (8.10), gleiche Reihenfolge. */
   readonly aircraftAfterWear: readonly AircraftState[];
   /** Σ `aircraftValue` am Monatsende (Monat X + 1) nach Verschleiß. */
@@ -424,6 +543,121 @@ interface PreparedRoute {
   readonly offeredSeats: ClassFigures;
   readonly satisfaction: PartialClassFigures;
   readonly fares: ClassFigures;
+}
+
+/** Eine Umsteige-Verbindung O–H–D einer Gesellschaft (3.13). */
+interface TransferConnection {
+  /** Eindeutig im Markt O–D: `<Gesellschaft>@<Drehkreuz>|<Paar>`. */
+  readonly id: string;
+  readonly company: CompanyState;
+  readonly hubId: string;
+  /** Paar O–D. */
+  readonly pair: string;
+  /** Paare der Teilstrecken O–H und H–D. */
+  readonly legPairs: readonly [string, string];
+  readonly kmOriginHub: number;
+  readonly kmHubDestination: number;
+  readonly kmOriginDestination: number;
+  readonly figures: TransferOfferFigures;
+  /** `offerSatisfaction` je Klasse der Verbindung (2.8). */
+  readonly satisfaction: PartialClassFigures;
+  readonly hub: HubFacilities;
+  /** Alter des Angebots: das jüngere der beiden Teilstrecken-Angebote (Anlauf 3.12). */
+  readonly ageMonths: number;
+}
+
+/**
+ * Umsteige-Verbindungen aller Gesellschaften (3.13, F18, F42): je Drehkreuz H und Paar O–D aus zwei eigenen
+ * Teilstrecken O–H und H–D, wenn die Gesellschaft O–D nicht direkt bedient. Anschlüsse aus den Fahrplänen der
+ * Strecken; ohne Fahrplan keine Verbindung. Keine Verbindungen über Gesellschaften hinweg.
+ */
+function transferConnections(state: ModelState, companies: readonly CompanyState[], prepared: readonly PreparedRoute[]): TransferConnection[] {
+  const result: TransferConnection[] = [];
+  for (const company of companies) {
+    const hubs = [...new Set(company.hubs ?? [])].sort();
+    if (hubs.length === 0) continue;
+    const own = prepared.filter((p) => p.company.id === company.id);
+    const served = new Set(own.map((p) => p.pair));
+    for (const H of hubs) {
+      if (!state.airports[H]) continue;
+      const atHub = own.filter((p) => p.route.from === H || p.route.to === H);
+      const ends = [...new Set(atHub.map((p) => (p.route.from === H ? p.route.to : p.route.from)))].sort();
+      const timing = (legs: readonly PreparedRoute[], far: string) => {
+        const arrivals: number[] = [];
+        const departures: number[] = [];
+        for (const p of legs) {
+          const schedule = p.route.schedule;
+          if (!schedule) continue;
+          const fromFar = p.route.from === far;
+          for (const t of fromFar ? schedule.fromDepartures : schedule.toDepartures) arrivals.push((t + p.minutes) % MINUTES_PER_WEEK);
+          departures.push(...(fromFar ? schedule.toDepartures : schedule.fromDepartures));
+        }
+        return { arrivals, departures };
+      };
+      const meanMinutes = (legs: readonly PreparedRoute[]) =>
+        sum(legs.map((p) => p.minutes * p.route.departuresPerWeek)) / sum(legs.map((p) => p.route.departuresPerWeek));
+      const seatsOf = (legs: readonly PreparedRoute[]) => {
+        const seats = zeroClasses();
+        for (const p of legs) for (const c of CABIN_CLASSES) seats[c] += p.offeredSeats[c];
+        return seats;
+      };
+      const legSatisfaction = (legs: readonly PreparedRoute[], c: CabinClass) =>
+        directOfferSatisfaction(
+          legs
+            .filter((p) => (p.plane.seats[c] ?? 0) > 0)
+            .map((p) => ({ satisfaction: p.satisfaction[c] ?? 0, seatsPerWeek: (p.plane.seats[c] ?? 0) * p.route.departuresPerWeek })),
+        ) as number;
+      for (let i = 0; i < ends.length; i++) {
+        for (let j = i + 1; j < ends.length; j++) {
+          const O = ends[i];
+          const D = ends[j];
+          const pair = pairKey(O, D);
+          if (served.has(pair)) continue;
+          const legOH = atHub.filter((p) => p.pair === pairKey(O, H));
+          const legHD = atHub.filter((p) => p.pair === pairKey(H, D));
+          const oh = timing(legOH, O);
+          const hd = timing(legHD, D);
+          const minutesOH = meanMinutes(legOH);
+          const minutesHD = meanMinutes(legHD);
+          const kmOriginDestination = distanceKm(state.airports[O].coords, state.airports[D].coords);
+          const figures = transferOffer({
+            kmOriginHub: legOH[0].km,
+            kmHubDestination: legHD[0].km,
+            kmOriginDestination,
+            blockMinutesOriginHub: minutesOH,
+            blockMinutesHubDestination: minutesHD,
+            outbound: { arrivals: oh.arrivals, departures: hd.departures },
+            inbound: { arrivals: hd.arrivals, departures: oh.departures },
+          });
+          if (!figures) continue;
+          const satisfaction: Partial<Record<CabinClass, number>> = {};
+          for (const c of transferClasses(seatsOf(legOH), seatsOf(legHD))) {
+            satisfaction[c] = connectionOfferSatisfaction([
+              { offerSatisfaction: legSatisfaction(legOH, c), blockMinutes: minutesOH },
+              { offerSatisfaction: legSatisfaction(legHD, c), blockMinutes: minutesHD },
+            ]) as number;
+          }
+          if (Object.keys(satisfaction).length === 0) continue;
+          const h = company.airports[H] ?? EMPTY_HOLDING;
+          result.push({
+            id: `${company.id}@${H}|${pair}`,
+            company,
+            hubId: H,
+            pair,
+            legPairs: [pairKey(O, H), pairKey(H, D)],
+            kmOriginHub: legOH[0].km,
+            kmHubDestination: legHD[0].km,
+            kmOriginDestination,
+            figures,
+            satisfaction,
+            hub: { level: h.managementTier, lounge: h.facilities.includes('vipLounge'), catering: h.facilities.includes('catering') },
+            ageMonths: Math.min(Math.max(...legOH.map((p) => p.route.ageMonths)), Math.max(...legHD.map((p) => p.route.ageMonths))),
+          });
+        }
+      }
+    }
+  }
+  return result;
 }
 
 /** Prüft den Spielstand auf Fehler, die die Rechnung falsch machen würden. */
@@ -547,12 +781,17 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
     }
   }
 
-  // --- Eine Marktaufteilung je Paar und Klasse für alle Angebote (R1).
+  // --- Umsteige-Verbindungen (3.13): je Gesellschaft, Drehkreuz und Paar O–D, das sie nicht direkt bedient.
+  const connectionsList = transferConnections(state, companies, prepared);
+
+  // --- Eine Marktaufteilung je Paar und Klasse für alle Angebote (R1), direkt und mit Umstieg.
   const passengersByRoute = new Map<string, Record<CabinClass, number>>();
   const routeKey = (p: PreparedRoute) => `${p.company.id}|${p.route.id}`;
-  const pairs = [...new Set(prepared.map((p) => p.pair))].sort();
+  const transferWish = new Map<string, Record<CabinClass, number>>();
+  const pairs = [...new Set([...prepared.map((p) => p.pair), ...connectionsList.map((t) => t.pair)])].sort();
   for (const pair of pairs) {
     const onPair = prepared.filter((p) => p.pair === pair);
+    const viaHub = connectionsList.filter((t) => t.pair === pair);
     const [idA, idB] = pair.split('|');
     const A = state.airports[idA];
     const B = state.airports[idB];
@@ -604,6 +843,31 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
         });
         offers.push({ id: companyId, appeal, seats, ramp: rampFactor(ageMonths, eff.rampBonus) });
       }
+      for (const t of viaHub) {
+        const sat = t.satisfaction[c];
+        if (sat === undefined) continue;
+        const { company } = t;
+        const eff = researchEffects(company.inputs.completedResearch);
+        const campaigns = runningCampaigns(company.inputs, X);
+        const appeal = offerAppeal(c, {
+          frequency: t.figures.frequency,
+          fare: transferFare(mf[c]),
+          marketFare: mf[c],
+          satisfactionFactor: satisfactionFactor(sat),
+          blockMinutes: t.figures.blockMinutes,
+          referenceBlockMinutes: reference,
+          reputation: company.reputation,
+          ageMonths: t.ageMonths,
+          advertisingFactor: advertisingFactor(regionAdvertising(campaigns, A.region), regionAdvertising(campaigns, B.region)),
+          frequentFlyerFactor: frequentFlyerFactor(company.inputs.ffpMonthsRunning),
+          researchDemandFactor: eff.demandFactor,
+          crisisResponseFactor: activeCrisisResponseFactor(company.inputs.recoveryEvents.map(historicalEvent), X),
+          difficultyFactor: difficultyFactor(company.inputs.difficulty),
+          connectionFactor: connectionFactor(hubQuality(t.hub, eff.hubQualityFactor)),
+        });
+        // Umsteiger sind im Markt nicht durch Sitze begrenzt; die Sitze verteilt `allocateTransferSeats` danach.
+        offers.push({ id: t.id, appeal, seats: Infinity, ramp: rampFactor(t.ageMonths, eff.rampBonus) });
+      }
       if (offers.length === 0) continue;
       const split = marketSplit({ potential: classPotential(c, size.marketSize, share[c]), noFlyAppeal: noFlyAppeal(c), offers });
       for (const companyId of offerIds) {
@@ -613,6 +877,67 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
         const perRoute = distributeToRoutes(split.passengers[companyId] ?? 0, seatsByRoute);
         for (const p of own) (passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>)[c] = perRoute[p.route.id];
       }
+      for (const t of viaHub) {
+        const wish = transferWish.get(t.id) ?? zeroClasses();
+        wish[c] = split.passengers[t.id] ?? 0;
+        transferWish.set(t.id, wish);
+      }
+    }
+  }
+
+  // --- Umsteiger auf die freien Sitze beider Teilstrecken (3.13), höchster Tarif zuerst.
+  const legKey = (companyId: string, pair: string, c: CabinClass) => `${companyId}|${pair}|${c}`;
+  const freeSeats: Record<string, number> = {};
+  for (const p of prepared) {
+    const direct = passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>;
+    for (const c of CABIN_CLASSES) {
+      const key = legKey(p.company.id, p.pair, c);
+      freeSeats[key] = (freeSeats[key] ?? 0) + Math.max(0, p.offeredSeats[c] - direct[c]);
+    }
+  }
+  const demands: TransferDemand[] = [];
+  for (const t of connectionsList) {
+    const wish = transferWish.get(t.id);
+    if (!wish) continue;
+    const fares = marketFares(t.kmOriginDestination, X);
+    for (const c of CABIN_CLASSES) {
+      if (!(wish[c] > 0)) continue;
+      demands.push({
+        id: `${t.id}|${c}`,
+        legs: [legKey(t.company.id, t.legPairs[0], c), legKey(t.company.id, t.legPairs[1], c)],
+        passengers: wish[c],
+        fare: transferFare(fares[c]),
+      });
+    }
+  }
+  const allocation = allocateTransferSeats(demands, freeSeats);
+  // Je Strecke: Umsteiger-Flüsse (4.8) und Kosten je Umsteiger (5.8); verteilt nach freien Sitzen der Strecke.
+  const transferFlowsByRoute = new Map<string, { flow: TransferFlow; hubId: string }[]>();
+  const transferTripsByCompany = new Map<string, number>();
+  for (const t of connectionsList) {
+    const kmLegs = [t.kmOriginHub, t.kmHubDestination];
+    for (const c of CABIN_CLASSES) {
+      const placed = allocation.placed[`${t.id}|${c}`] ?? 0;
+      if (!(placed > 0)) continue;
+      transferTripsByCompany.set(t.company.id, (transferTripsByCompany.get(t.company.id) ?? 0) + placed);
+      const fare = transferFare(marketFares(t.kmOriginDestination, X)[c]);
+      const shares = transferRevenueShare(fare, marketFares(kmLegs[0], X)[c], marketFares(kmLegs[1], X)[c]);
+      t.legPairs.forEach((legPair, leg) => {
+        const routesOnLeg = prepared.filter((p) => p.company.id === t.company.id && p.pair === legPair);
+        const free: Record<string, number> = {};
+        for (const p of routesOnLeg) {
+          const direct = (passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>)[c];
+          free[routeKey(p)] = Math.max(0, p.offeredSeats[c] - direct);
+        }
+        const perRoute = distributeToRoutes(placed, free);
+        for (const p of routesOnLeg) {
+          const n = perRoute[routeKey(p)];
+          if (!(n > 0)) continue;
+          const list = transferFlowsByRoute.get(routeKey(p)) ?? [];
+          list.push({ flow: { cabinClass: c, passengers: n, revenuePerPassenger: leg === 0 ? shares.originHub : shares.hubDestination }, hubId: t.hubId });
+          transferFlowsByRoute.set(routeKey(p), list);
+        }
+      });
     }
   }
 
@@ -682,20 +1007,44 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
       const capability = serviceCapability({ aircraftClass: plane.aircraftClass, hasWifi: plane.hasWifi, hasPremiumGalley: plane.hasPremiumGalley, cateringFacility });
       const passengers = passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>;
       const direct: Partial<Record<CabinClass, { passengers: number; cost: PassengerCostParts }>> = {};
+      const costPerPassenger: Partial<Record<CabinClass, number>> = {};
       for (const c of CABIN_CLASSES) {
-        if (!(passengers[c] > 0)) continue;
+        if (!((plane.seats[c] ?? 0) > 0)) continue;
         const selection = route.service[c] ?? { meals: [], extras: [], onboardService: [] };
-        direct[c] = {
-          passengers: passengers[c],
-          cost: costPerPassengerParts({
-            cateringCost: cateringCost(selection, p.minutes, capability, X, research),
-            ends,
-            ffpCostPerPassenger: ffpCostPerPassenger(ffpActive, X),
-          }),
-        };
+        const cost = costPerPassengerParts({
+          cateringCost: cateringCost(selection, p.minutes, capability, X, research),
+          ends,
+          ffpCostPerPassenger: ffpCostPerPassenger(ffpActive, X),
+        });
+        costPerPassenger[c] = cost.total;
+        if (passengers[c] > 0) direct[c] = { passengers: passengers[c], cost };
       }
-      const passengerCost = routePassengerCost(direct);
-      const revenue = routeRevenue({ directPassengers: passengers, fares: p.fares });
+      const flows = transferFlowsByRoute.get(routeKey(p)) ?? [];
+      const transferPassengers = zeroClasses();
+      const transfer: Partial<Record<CabinClass, { passengers: number; cost: PassengerCostParts }>> = {};
+      for (const { flow, hubId } of flows) {
+        const c = flow.cabinClass;
+        transferPassengers[c] += flow.passengers;
+        const selection = route.service[c] ?? { meals: [], extras: [], onboardService: [] };
+        const outerIndex = A.id === hubId ? 1 : 0;
+        const cost = transferCostPerPassengerParts({
+          cateringCost: cateringCost(selection, p.minutes, capability, X, research),
+          outer: ends[outerIndex],
+          hub: ends[1 - outerIndex],
+          ffpCostPerPassenger: ffpCostPerPassenger(ffpActive, X),
+        });
+        // Mittlerer Kostensatz je Klasse (eine Strecke kann an beiden Enden Drehkreuz sein).
+        const before = transfer[c];
+        const n0 = before?.passengers ?? 0;
+        const n = n0 + flow.passengers;
+        const mix = (k: 'catering' | 'fees' | 'ffp') => ((before?.cost[k] ?? 0) * n0 + cost[k] * flow.passengers) / n;
+        const catering = mix('catering');
+        const fees = mix('fees');
+        const ffp = mix('ffp');
+        transfer[c] = { passengers: n, cost: { catering, fees, ffp, total: catering + fees + ffp } };
+      }
+      const passengerCost = routePassengerCost(direct, transfer);
+      const revenue = routeRevenue({ directPassengers: passengers, fares: p.fares, transfers: flows.map((f) => f.flow) });
       list.push({
         routeId: route.id,
         aircraftId: plane.id,
@@ -707,8 +1056,10 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
         satisfaction: p.satisfaction,
         fares: p.fares,
         passengers,
+        transferPassengers,
         revenue,
         passengerCost,
+        costPerPassenger,
         fixed,
         flightOpsFull: full.fuel + full.crew + full.landing,
         result: routeResult({ revenue, passengerCost: passengerCost.total, fixedWeeklyCost: fixed.total }),
@@ -776,11 +1127,12 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
     const birdStrikes = company.aircraft.filter((p) => flying.has(p.id) && rollBirdStrike(state.seed, X, p.id)).map((p) => p.id);
     const damages = sum(birdStrikes.map((id) => birdStrikeCost((company.aircraft.find((p) => p.id === id) as AircraftState).listPrice1960, X)));
 
+    const weeklyPassengers = sum(routes.map((r) => sum(CABIN_CLASSES.map((c) => r.passengers[c] + r.transferPassengers[c]))));
     const satisfactionEntries: { satisfaction: number; passengers: number }[] = [];
     for (const r of routes) {
       for (const c of CABIN_CLASSES) {
         const s = r.satisfaction[c];
-        if (s !== undefined) satisfactionEntries.push({ satisfaction: s, passengers: r.passengers[c] });
+        if (s !== undefined) satisfactionEntries.push({ satisfaction: s, passengers: r.passengers[c] + r.transferPassengers[c] });
       }
     }
 
@@ -788,7 +1140,9 @@ export function monthOperations(state: ModelState): Readonly<Record<string, Comp
       companyId: company.id,
       routes,
       revenue: monthlyRevenue(routes.map((r) => r.revenue)),
-      passengers: sum(routes.map((r) => sum(CABIN_CLASSES.map((c) => r.passengers[c])))) * WEEKS_PER_MONTH,
+      passengers: weeklyPassengers * WEEKS_PER_MONTH,
+      weeklyPassengers,
+      transferPassengers: (transferTripsByCompany.get(company.id) ?? 0) * WEEKS_PER_MONTH,
       aircraftAfterWear,
       fleetValueEnd,
       birdStrikes,
@@ -920,8 +1274,17 @@ export interface MonthReport {
   readonly fleetValueResult: FleetValueResultParts;
   /** Einmalausgaben je Art, die nicht im Ergebnis stehen. */
   readonly otherSpending: Readonly<Record<string, number>>;
-  /** Kassen-Änderung durch Entscheidungen nach der Buchung (KI: Dividende, Käufe …; 7.8). */
+  /** Kassen-Änderung durch Entscheidungen nach der Buchung (KI: Dividende, Verkäufe, Überholungen …; 7.8). */
   readonly decisionsCash: number;
+  /**
+   * Wertänderung der Flotte durch Entscheidungen nach der Buchung (Verkauf −Wert, Überholung +Wertgewinn). Sie wirkt
+   * ab X+1 und steht daher nicht im Monatsergebnis (7.8); `fleetValueEnd` enthält sie.
+   */
+  readonly decisionsValueChange: number;
+  /** Prämien der Meilensteine (6.10), in die Kasse, nicht ins Ergebnis. */
+  readonly milestonePrizes: number;
+  /** Jahresziel im Dezember: + Prämie oder − Strafe (6.11), in die Kasse, nicht ins Ergebnis; sonst 0. */
+  readonly goalCash: number;
   readonly deliveries: readonly DeliveryLine[];
   /** Zwangsverkäufe (Flugzeug-Kennungen, 8.14). */
   readonly forcedSales: readonly string[];
@@ -936,8 +1299,10 @@ export interface MonthReport {
   readonly depositsEnd: number;
   readonly creditLimit: number;
   readonly creditState: CreditState;
-  /** Fluggäste im Monat. */
+  /** Fluggäste im Monat, jede Teilstrecke gezählt (6.7). */
   readonly passengers: number;
+  /** Umsteiger-Reisen im Monat (3.13). */
+  readonly transferPassengers: number;
   readonly cancelledShare: number;
   readonly airlineSatisfaction: number;
   /** Ruf-Änderung mit Ursachen (6.5). */
@@ -983,8 +1348,139 @@ export function checkCompany(after: CompanyState, before: CompanyState, month: n
 
 
 // ===========================================================================
+// Planer-Zahlen aus derselben Rechnung (4.12, 7.9, R2)
+// ===========================================================================
+
+/**
+ * Spielstand für eine Planer-Rechnung einer Strecke: die eigenen Strecken an den beiden Enden und mit demselben
+ * Flugzeug (Boden-Teil, Flugzeug-Anteil), die fremden Strecken auf dem Paar; Preise, die ab X+1 gelten; ohne Störungen
+ * und ohne Umsteiger (die Vorhersage eines Plans kennt keine Würfe, 8.1).
+ */
+function plannerState(state: ModelState, companyId: string, routeId: string, change: (route: RouteState) => RouteState): ModelState {
+  const own = state.companies.find((c) => c.id === companyId);
+  const target = own?.routes.find((r) => r.id === routeId);
+  if (!own || !target) throw new Error(`Planer: Strecke ${companyId}/${routeId} fehlt`);
+  const pair = pairKey(target.from, target.to);
+  const ends = new Set([target.from, target.to]);
+  const companies = state.companies.map((c) => {
+    const routes = c.routes
+      .filter((r) =>
+        c.id === companyId ? r.aircraftId === target.aircraftId || ends.has(r.from) || ends.has(r.to) : pairKey(r.from, r.to) === pair,
+      )
+      .map((r) => {
+        const next: RouteState = { ...r, fareRatios: r.nextFareRatios ?? r.fareRatios, nextFareRatios: undefined };
+        return c.id === companyId && r.id === routeId ? change(next) : next;
+      });
+    return { ...c, hubs: [], routes };
+  });
+  return { ...state, disruptions: [], companies };
+}
+
+/**
+ * Planer-Hauptzahl einer Strecke (4.12): erwarteter Gewinn je Monat (`routeResult × WEEKS_PER_MONTH`) mit
+ * `departuresPerWeek` Abflügen und allen Angeboten des Paars; dieselbe Rechnung wie der Abschluss (R2). Die KI
+ * rechnet damit Verlierer und Feinabstimmung (7.8, 7.9). SPEZIFIKATION 4.12, 7.9.
+ */
+export function plannerRouteResult(state: ModelState, companyId: string, routeId: string, departuresPerWeek: number): number {
+  const ops = monthOperations(plannerState(state, companyId, routeId, (r) => ({ ...r, departuresPerWeek })));
+  const figures = ops[companyId].routes.find((r) => r.routeId === routeId) as RouteFigures;
+  return figures.result * WEEKS_PER_MONTH;
+}
+
+/**
+ * Direktgäste je Woche einer Strecke in Klasse `c` beim Preisniveau `fareRatio` (alles andere fest); für den besten
+ * Preis (4.10, `bestFareRatio`). SPEZIFIKATION 4.10.
+ */
+export function routeClassPassengersAt(state: ModelState, companyId: string, routeId: string, c: CabinClass, fareRatio: number): number {
+  const ops = monthOperations(plannerState(state, companyId, routeId, (r) => ({ ...r, fareRatios: { ...r.fareRatios, [c]: fareRatio } })));
+  return (ops[companyId].routes.find((r) => r.routeId === routeId) as RouteFigures).passengers[c];
+}
+
+// ===========================================================================
+// 8.15 Szenario-Ziele
+// ===========================================================================
+
+/** Werte eines Abschlusses für die Szenario-Ziele (8.15). */
+export interface ScenarioValues {
+  /** Kasse am Monatsende nach allen Buchungen (R11). */
+  readonly capital: number;
+  /** Monatsergebnis (5.16). */
+  readonly monthlyProfit: number;
+  /** Ruf nach der Ruf-Änderung (6.5). */
+  readonly reputation: number;
+  readonly routes: number;
+  readonly regions: number;
+  readonly transferPax: number;
+  readonly creditLimit: number;
+  /** Spielende (8.14). */
+  readonly bankrupt: boolean;
+}
+
+/** Schwelle eines Ziels im Monat: Dollar-Ziele als Wert von 1960 über `atCost` (E6). SPEZIFIKATION 8.15. */
+export function scenarioTarget(target: Pick<ScenarioTarget, 'metric' | 'target'>, month: number): number {
+  return SCENARIO_DOLLAR_METRICS.includes(target.metric) ? atCost(target.target, month) : target.target;
+}
+
+/**
+ * Szenario nach dem Abschluss von `month` (8.15): Ziele mit den Werten dieses Abschlusses; verloren bei Spielende (8.14)
+ * oder Kasse unter −`creditLimit` an `floorMonths` Monatsenden in Folge; gewonnen, wenn alle Ziele erreicht sind;
+ * nach dem Stichtag sonst verloren. SPEZIFIKATION 8.15.
+ */
+export function scenarioStep(s: ScenarioState, values: ScenarioValues, month: number): ScenarioState {
+  if (s.status !== 'running') return s;
+  const floorStreak = values.capital < -values.creditLimit ? s.floorStreak + 1 : 0;
+  if (values.bankrupt || floorStreak >= s.floorMonths) return { ...s, floorStreak, status: 'lost' };
+  const met = new Set(s.met);
+  for (const t of s.win) {
+    if (t.atDeadline && month !== s.deadline) continue;
+    if (values[t.metric] >= scenarioTarget(t, month)) met.add(t.id);
+  }
+  const won = s.win.every((t) => met.has(t.id));
+  const status = won ? 'won' : month >= s.deadline ? 'lost' : 'running';
+  return { ...s, floorStreak, met: [...met].sort(), status };
+}
+
+// ===========================================================================
 // Ablauf (8.0, 8.1)
 // ===========================================================================
+
+/** Art einer Meldung des Abschlusses (Texte in Phase 4, E52). */
+export type CloseNewsKind =
+  | 'delivery'
+  | 'deliveryDelayed'
+  | 'preorderCancelled'
+  | 'forcedSale'
+  | 'bankrupt'
+  | 'milestone'
+  | 'rankUp'
+  | 'goalMet'
+  | 'goalMissed'
+  | 'goalOffered'
+  | 'researchDone'
+  | 'scenarioWon'
+  | 'scenarioLost'
+  | 'staffStrike'
+  | 'randomEvent'
+  // Entscheidungen der KI (7.8; `rivalMonth.ts`).
+  | 'priceWarStarted'
+  | 'priceWarEnded'
+  | 'scheduleCut'
+  | 'routeClosed'
+  | 'planeSold'
+  | 'overhaul'
+  | 'dividend'
+  | 'forSale'
+  | 'recovered'
+  | 'liquidated';
+
+/** Eine Meldung des Abschlusses. */
+export interface CloseNews {
+  readonly companyId: string;
+  readonly kind: CloseNewsKind;
+  /** Strecke, Flugzeug, Meilenstein, Projekt, Ereignis … */
+  readonly subject?: string;
+  readonly amount?: number;
+}
 
 /** Was eine Entscheidungs-Funktion (Schritt 4) bekommt. */
 export interface DecisionContext {
@@ -995,18 +1491,32 @@ export interface DecisionContext {
   readonly operations: CompanyOperations;
   /** Monatsergebnis vor Lieferungen und Kreditlinie. */
   readonly result: number;
-  /** Spielstand nach Buchung und Ruf aller Gesellschaften (nur lesen). */
+  /** Kosten des Monats (5.16, Summe) vor Lieferungen und Kreditlinie (Dividenden-Grenze, 7.13). */
+  readonly costsTotal: number;
+  /** Spielstand nach Buchung und Ruf aller Gesellschaften (nur lesen; Planer-Rechnungen ab X+1). */
   readonly state: ModelState;
+}
+
+/** Was eine Entscheidungs-Funktion zurückgibt. */
+export interface DecisionOutcome {
+  /**
+   * Die Gesellschaft nach den Entscheidungen. Kasse und Flotte ändert sie direkt (nicht über das Kassenbuch); die
+   * Änderungen stehen im Bericht als `decisionsCash` und `decisionsValueChange`.
+   */
+  readonly company: CompanyState;
+  /** An den Markt verkaufte Flugzeuge (Gebrauchtmarkt, 8.11). */
+  readonly sold?: readonly ResoldPlane[];
+  readonly news?: readonly CloseNews[];
 }
 
 /**
  * Entscheidungen einer Gesellschaft nach der Buchung (Schritt 4, 7.8); wirken ab X+1. Die KI-Entscheidungen stehen in
- * `rivalMonth.ts` (Paket 3.8c); für Gesellschaften ohne Entscheidungen gibt sie die Gesellschaft unverändert zurück.
+ * `rivalMonth.ts` (`rivalDecisions`); Gesellschaften ohne Entscheidungen bleiben unverändert.
  */
-export type CompanyDecisions = (company: CompanyState, ctx: DecisionContext) => CompanyState;
+export type CompanyDecisions = (company: CompanyState, ctx: DecisionContext) => DecisionOutcome;
 
 /** Keine Entscheidungen (Tests und Vorhersage). */
-export const NO_DECISIONS: CompanyDecisions = (company) => company;
+export const NO_DECISIONS: CompanyDecisions = (company) => ({ company });
 
 /** Ergebnis eines Abschlusses. */
 export interface CloseMonthResult {
@@ -1016,21 +1526,121 @@ export interface CloseMonthResult {
   readonly reports: Readonly<Record<string, MonthReport>>;
   /** Gesellschaften mit Spielende (Pleite, 8.14). */
   readonly bankrupt: readonly string[];
+  /** Meldungen (Texte in Phase 4). */
+  readonly news: readonly CloseNews[];
   /** Fehler aus der Prüfung (8.16). */
   readonly log: readonly string[];
 }
 
+/** Regionen der Strecken-Enden einer Gesellschaft (`regionOf`, R15). */
+function routeEndRegions(state: ModelState, routes: readonly RouteState[]): WorldRegion[] {
+  return routes.flatMap((r) => [state.airports[r.from].region, state.airports[r.to].region]);
+}
+
+/** Ergebnis von Schritt 6 für eine Gesellschaft mit Fortschritt. */
+interface ProgressStep {
+  readonly progress: CompanyProgress;
+  readonly milestonePrizes: number;
+  readonly goalCash: number;
+  readonly news: CloseNews[];
+}
+
+/**
+ * Schritt 6 (6.7, 6.10, 6.11): Meilensteine mit der Kasse nach allen übrigen Buchungen (ohne die Prämien dieses
+ * Abschlusses, 8.1), Rang über das 3-Monats-Mittel, im Dezember Jahresziel messen und das Angebot für das neue Jahr
+ * machen (ohne Wahl gilt das sichere). Prämien und Strafe gehen in die Kasse, nicht ins Ergebnis.
+ */
+function progressStep(
+  state: ModelState,
+  company: CompanyState,
+  o: CompanyOperations,
+  values: { readonly cash: number; readonly reputation: number; readonly result: number; readonly revenue: number },
+): ProgressStep {
+  const X = state.month;
+  const p = company.progress as CompanyProgress;
+  const news: CloseNews[] = [];
+  const regions = routeEndRegions(state, company.routes);
+  const careerPax = p.careerPax + o.passengers - o.transferPassengers;
+  const classes = company.aircraft.map((a) => sizeClassOf({ class: a.aircraftClass, capacity: a.capacity, cruiseSpeed: a.cruiseSpeed }));
+  const context: MilestoneContext = {
+    routes: company.routes.length,
+    fleet: company.aircraft.length,
+    careerPax,
+    regions: new Set(regions).size,
+    longestRouteKm: Math.max(0, ...company.routes.map((r) => distanceKm(state.airports[r.from].coords, state.airports[r.to].coords))),
+    cash: values.cash,
+    profitStreak: company.profitStreak,
+    reputation: values.reputation,
+    monthTransferPax: o.transferPassengers,
+    widebodies: classes.filter((c) => c === 'widebody' || c === 'jumbo').length,
+    supersonics: classes.filter((c) => c === 'supersonic').length,
+    takeovers: p.takeovers,
+  };
+  const earned = newMilestones(p.milestones, context, X);
+  const milestonePrizes = milestonePrizeTotal(earned, X);
+  for (const m of earned) news.push({ companyId: company.id, kind: 'milestone', subject: m.id, amount: milestonePrize(m, X) });
+
+  const stats = rankStats({
+    routes: company.routes.length,
+    weeklyPassengers: o.weeklyPassengers,
+    reputation: values.reputation,
+    routeEndRegions: regions,
+    monthsPlayed: X - p.startMonth,
+  });
+  const rankHistory = [...p.rankHistory, stats].slice(-RANK_AVERAGE_MONTHS);
+  const rank = nextRank(p.rank, rankHistory);
+  if (rank > p.rank) news.push({ companyId: company.id, kind: 'rankUp', amount: rank });
+
+  let goal = p.goal;
+  let goalOffers = p.goalOffers;
+  let goalCash = 0;
+  if (isDecember(X)) {
+    const year = yearOf(X);
+    const history = [
+      ...company.reports.filter((r) => Number.isFinite(r?.month)),
+      { month: X, result: values.result, revenue: values.revenue, passengers: o.passengers },
+    ].map((r) => ({ year: yearOf(r.month), result: r.result, revenue: r.revenue, passengers: r.passengers }));
+    const snapshot = yearSnapshot(history, year, { routes: company.routes.length, regions: new Set(regions).size, reputation: values.reputation });
+    if (goal && goal.year === year) {
+      const settled = settleGoal(goal, snapshot);
+      goalCash = settled.cash;
+      news.push({ companyId: company.id, kind: settled.met ? 'goalMet' : 'goalMissed', subject: goal.kind, amount: settled.cash });
+    }
+    goalOffers = annualGoalOffers({
+      year: year + 1,
+      month: X,
+      lastYearProfit: snapshot.profit,
+      lastYearRevenue: snapshot.revenue,
+      lastYearPax: snapshot.pax,
+      routes: snapshot.routes,
+      regions: snapshot.regions,
+      reputation: snapshot.reputation,
+    });
+    goal = chosenGoal(goalOffers);
+    news.push({ companyId: company.id, kind: 'goalOffered', amount: goalOffers.length });
+  }
+
+  return {
+    progress: { ...p, careerPax, milestones: [...p.milestones, ...earned.map((m) => m.id)], rankHistory, rank, goal, goalOffers },
+    milestonePrizes,
+    goalCash,
+    news,
+  };
+}
+
 /**
  * Der einzige Zeitschritt des Spiels (8.1). Reihenfolge wie 8.0:
- * 1. Stand von X (Spielstand), 2. Rechnen für alle in einer Marktaufteilung (`monthOperations`), Verschleiß, Wert und
- * Kasse, 3. Ruf (6.5), 4. Entscheidungen (`decisions`, 7.8), 5. Lieferungen (8.12), Kreditlinie, Zwangsverkauf und
- * Spielende (8.14), 6. Gewinnserie (6.10), 7. Kasse am Monatsende und Bericht (8.2), Prüfung (8.16), 8. Übergang zu X+1
- * (Preise, Moral, Zufallsereignis, Störungen, Personalstreik unter dem Pech-Deckel, Gebrauchtmarkt, Kampagnen).
- * Rein: liest nur seine Eingabe (R12). SPEZIFIKATION 8.0, 8.1.
+ * 1. Stand von X (Spielstand), 2. Rechnen für alle in einer Marktaufteilung mit Umsteigern (`monthOperations`),
+ * Verschleiß, Wert und Kasse, 3. Ruf (6.5), 4. Entscheidungen (`decisions`, 7.8), 5. Lieferungen (8.12), Kreditlinie,
+ * Zwangsverkauf und Spielende (8.14), 6. Gewinnserie (6.10); mit Fortschritt: Meilensteine, Rang, Jahresziel (6.7–6.11),
+ * Prämien und Strafe in die Kasse, 7. Kasse am Monatsende und Bericht (8.2), Szenario (8.15), Prüfung (8.16),
+ * 8. Übergang zu X+1 (Forschung, Preise, Moral, Zufallsereignis, Störungen, Personalstreik unter dem Pech-Deckel,
+ * Gebrauchtmarkt, Kampagnen). Rein: liest nur seine Eingabe (R12). SPEZIFIKATION 8.0, 8.1.
  */
 export function closeMonth(state: ModelState, decisions: CompanyDecisions): CloseMonthResult {
   const X = state.month;
   const log: string[] = [];
+  const news: CloseNews[] = [];
   const ops = monthOperations(state);
   const before = new Map(state.companies.map((c) => [c.id, c]));
 
@@ -1055,34 +1665,46 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
       cancelledShare: o.cancelledShare,
       campaigns: runningCampaigns(company.inputs, X).map((c) => c.tier),
     });
-    return {
-      company: { ...company, cash: company.cash + operatingCash, reputation: reputation.reputation, aircraft: o.aircraftAfterWear },
-      reputation,
-      result: monthlyResult(o.revenue, costs),
-      fleetParts,
-    };
+    const bookedCompany: CompanyState = { ...company, cash: company.cash + operatingCash, reputation: reputation.reputation, aircraft: o.aircraftAfterWear };
+    return { company: bookedCompany, booked: bookedCompany, reputation, result: monthlyResult(o.revenue, costs), costsTotal: costs.total, fleetParts };
   });
 
   // Schritt 4: Entscheidungen nach der Buchung; sie sehen den gebuchten Stand aller Gesellschaften.
   const bookedState: ModelState = { ...state, companies: booked.map((b) => b.company) };
+  const sold: ResoldPlane[] = [];
   const decided = booked.map((b) => {
-    const cashBefore = b.company.cash;
-    const company = decisions(b.company, { month: X, seed: state.seed, operations: ops[b.company.id], result: b.result, state: bookedState });
-    return { ...b, company, decisionsCash: company.cash - cashBefore };
+    const outcome = decisions(b.company, {
+      month: X,
+      seed: state.seed,
+      operations: ops[b.company.id],
+      result: b.result,
+      costsTotal: b.costsTotal,
+      state: bookedState,
+    });
+    sold.push(...(outcome.sold ?? []));
+    news.push(...(outcome.news ?? []));
+    // Das Kassenbuch des Monats bleibt das der Buchung: Entscheidungen wirken ab X+1 (7.8).
+    const company: CompanyState = { ...outcome.company, ledger: b.company.ledger };
+    return {
+      ...b,
+      company,
+      decisionsCash: company.cash - b.company.cash,
+      decisionsValueChange: fleetValue(company.aircraft, X + 1) - fleetValue(b.company.aircraft, X + 1),
+    };
   });
 
   // Schritte 5–7 je Gesellschaft.
   const reports: Record<string, MonthReport> = {};
   const bankrupt: string[] = [];
-  const sold: ResoldPlane[] = [];
-  const closed = decided.map(({ company: start, reputation, decisionsCash, fleetParts }) => {
+  const closed = decided.map(({ company: start, booked: bookedCompany, reputation, decisionsCash, decisionsValueChange, fleetParts }) => {
     const o = ops[start.id];
     const eff = researchEffects(start.inputs.completedResearch);
     let company = start;
     let extraTrade = 0;
     let extraPurchases = 0;
     let extraProceeds = 0;
-    let valueEnd = fleetValue(company.aircraft, X + 1);
+    // Wert am Monatsende für das Ergebnis: ohne die Entscheidungen (sie wirken ab X+1, 7.8).
+    let valueEnd = o.fleetValueEnd;
     const deliveries: DeliveryLine[] = [];
 
     // 5a Lieferungen (8.12): bezahlt, wenn die Kasse nach allen übrigen Buchungen den Rest deckt.
@@ -1110,18 +1732,21 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
         extraTrade += sum(planes.map((p) => aircraftValue(p, X)));
         valueEnd += fleetValue(planes, X + 1);
         deliveries.push({ preorderId: order.id, outcome, amount: balance });
+        news.push({ companyId: company.id, kind: 'delivery', subject: order.id, amount: balance });
       } else if (outcome === 'delay') {
         preorders.push({ ...order, deliveryMonth: order.deliveryMonth + 1, delays: order.delays + 1 });
         deliveries.push({ preorderId: order.id, outcome, amount: 0 });
+        news.push({ companyId: company.id, kind: 'deliveryDelayed', subject: order.id });
       } else {
         extraPurchases += order.deposit; // Anzahlung verloren: Aufwand „Aircraft trades“.
         deliveries.push({ preorderId: order.id, outcome, amount: order.deposit });
+        news.push({ companyId: company.id, kind: 'preorderCancelled', subject: order.id, amount: order.deposit });
       }
     }
     company = { ...company, preorders };
 
-    // 5b Kreditlinie, Zwangsverkauf, Spielende (8.14).
-    const stateBeforeSale = creditState(company.cash, creditLimit(valueEnd));
+    // 5b Kreditlinie, Zwangsverkauf, Spielende (8.14); Kreditgrenze aus der Flotte nach den Entscheidungen.
+    const stateBeforeSale = creditState(company.cash, creditLimit(valueEnd + decisionsValueChange));
     const overdrawnMonths = nextOverdrawnMonths(company.overdrawnMonths, stateBeforeSale);
     const forcedSales: string[] = [];
     if (company.inputs.forcedSale) {
@@ -1147,21 +1772,58 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
         valueEnd -= value;
         forcedSales.push(plane.id);
         sold.push({ ...plane, soldMonth: X });
+        news.push({ companyId: company.id, kind: 'forcedSale', subject: plane.id, amount: proceeds });
       }
     }
-    const limit = creditLimit(valueEnd);
+    const limit = creditLimit(valueEnd + decisionsValueChange);
     const credit = creditState(company.cash, limit);
-    if (company.inputs.forcedSale && isBankrupt(credit, company.aircraft.length)) bankrupt.push(company.id);
+    const isOver = company.inputs.forcedSale && isBankrupt(credit, company.aircraft.length);
+    if (isOver) {
+      bankrupt.push(company.id);
+      news.push({ companyId: company.id, kind: 'bankrupt' });
+    }
 
-    // 7 Bericht mit allen Buchungen dieses Abschlusses.
+    // Monatsergebnis mit allen Buchungen dieses Abschlusses außer den Entscheidungen (5.16).
     const parts = fleetParts({ tradeValueChange: extraTrade, purchases: extraPurchases, saleProceeds: extraProceeds }, valueEnd);
-    const costs = costsOf(o, start, parts);
+    const costs = costsOf(o, bookedCompany, parts);
     const result = monthlyResult(o.revenue, costs);
 
-    // 6 Gewinnserie (Moral 8.7, Meilensteine 6.10).
+    // 6 Gewinnserie (Moral 8.7, Meilensteine 6.10); mit Fortschritt Meilensteine, Rang, Jahresziel.
     company = { ...company, overdrawnMonths, profitStreak: nextProfitStreak(company.profitStreak, result, company.routes.length) };
-    company = checkCompany(company, before.get(company.id) as CompanyState, X + 1, log);
+    let milestonePrizes = 0;
+    let goalCash = 0;
+    if (company.progress) {
+      const step = progressStep(state, company, o, { cash: company.cash, reputation: reputation.reputation, result, revenue: o.revenue });
+      milestonePrizes = step.milestonePrizes;
+      goalCash = step.goalCash;
+      news.push(...step.news);
+      company = { ...company, cash: company.cash + milestonePrizes + goalCash, progress: step.progress };
+    }
 
+    // 7 Szenario (8.15) mit der Kasse am Monatsende nach allen Buchungen (R11).
+    if (company.progress?.scenario) {
+      const scenario = scenarioStep(
+        company.progress.scenario,
+        {
+          capital: company.cash,
+          monthlyProfit: result,
+          reputation: reputation.reputation,
+          routes: company.routes.length,
+          regions: new Set(routeEndRegions(state, company.routes)).size,
+          transferPax: o.transferPassengers,
+          creditLimit: limit,
+          bankrupt: isOver,
+        },
+        X,
+      );
+      if (scenario.status !== company.progress.scenario.status) {
+        news.push({ companyId: company.id, kind: scenario.status === 'won' ? 'scenarioWon' : 'scenarioLost' });
+      }
+      company = { ...company, progress: { ...company.progress, scenario } };
+    }
+
+    // 7 Prüfung (8.16) und Bericht.
+    company = checkCompany(company, before.get(company.id) as CompanyState, X + 1, log);
     const report: MonthReport = {
       month: X,
       companyId: company.id,
@@ -1169,20 +1831,24 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
       costs,
       result,
       fleetValueResult: parts,
-      otherSpending: start.ledger.otherSpending,
+      otherSpending: bookedCompany.ledger.otherSpending,
       decisionsCash,
+      decisionsValueChange,
+      milestonePrizes,
+      goalCash,
       deliveries,
       forcedSales,
       birdStrikes: o.birdStrikes,
-      cashStart: start.ledger.cashAtStart,
+      cashStart: bookedCompany.ledger.cashAtStart,
       cashEnd: company.cash,
-      fleetValueStart: start.ledger.fleetValueAtStart,
-      fleetValueEnd: valueEnd,
-      depositsStart: start.ledger.depositsAtStart,
+      fleetValueStart: bookedCompany.ledger.fleetValueAtStart,
+      fleetValueEnd: valueEnd + decisionsValueChange,
+      depositsStart: bookedCompany.ledger.depositsAtStart,
       depositsEnd: depositsOf(company.preorders),
       creditLimit: limit,
       creditState: credit,
       passengers: o.passengers,
+      transferPassengers: o.transferPassengers,
       cancelledShare: o.cancelledShare,
       airlineSatisfaction: o.airlineSatisfaction,
       reputation,
@@ -1192,7 +1858,9 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions): Clos
     return { ...company, reports: [...company.reports, report].slice(-REPORT_HISTORY_MONTHS) };
   });
 
-  return { state: transition({ ...state, companies: closed }, sold), reports, bankrupt, log };
+  const next = transition({ ...state, companies: closed }, sold);
+  news.push(...next.news);
+  return { state: next.state, reports, bankrupt, news, log };
 }
 
 /** Kosten des Monats aus Schritt 2 und dem Flottenwert-Ergebnis (5.16). */
@@ -1210,14 +1878,22 @@ function costsOf(o: CompanyOperations, company: CompanyState, fleet: FleetValueR
 }
 
 /**
- * Schritt 8: Übergang zu X+1. Preise ab X+1 (4.5), Strecken einen Monat älter, Moral (8.7), Würfe unter dem Pech-Deckel
- * (8.8: Zufallsereignis, Störungen, Personalstreik), Gebrauchtmarkt (8.11), abgelaufene Kampagnen, neues Kassenbuch.
- * SPEZIFIKATION 8.0.
+ * Schritt 8: Übergang zu X+1. Forschung fertig zu Beginn von X+1 (6.9), Preise ab X+1 (4.5), Strecken einen Monat
+ * älter, Moral (8.7), Würfe unter dem Pech-Deckel (8.8: Zufallsereignis, Störungen, Personalstreik), Gebrauchtmarkt
+ * (8.11), abgelaufene Kampagnen, neues Kassenbuch. SPEZIFIKATION 8.0.
  */
-function transition(state: ModelState, sold: readonly ResoldPlane[]): ModelState {
+function transition(state: ModelState, sold: readonly ResoldPlane[]): { readonly state: ModelState; readonly news: CloseNews[] } {
   const next = state.month + 1;
+  const news: CloseNews[] = [];
   const companies = state.companies.map((company) => {
-    const { inputs } = company;
+    let { inputs } = company;
+    let progress = company.progress;
+    if (progress) {
+      const advanced = advanceResearch(progress.research, next);
+      for (const id of advanced.completed) news.push({ companyId: company.id, kind: 'researchDone', subject: id });
+      progress = { ...progress, research: advanced.state };
+      inputs = { ...inputs, completedResearch: advanced.state.done };
+    }
     const morale = inputs.staffModel
       ? nextMorale(
           inputs.morale,
@@ -1232,6 +1908,7 @@ function transition(state: ModelState, sold: readonly ResoldPlane[]): ModelState
       : inputs.morale;
     return {
       ...company,
+      progress,
       inputs: {
         ...inputs,
         morale,
@@ -1278,16 +1955,21 @@ function transition(state: ModelState, sold: readonly ResoldPlane[]): ModelState
     previousBadLuck: state.badLuck,
     morale: staffCompany?.inputs.morale,
   });
+  if (roll.randomEvent) news.push({ companyId: '', kind: 'randomEvent', subject: roll.randomEvent.title });
+  if (roll.staffStrike && staffCompany) news.push({ companyId: staffCompany.id, kind: 'staffStrike' });
 
   return {
-    ...state,
-    month: next,
-    randomEvents: roll.randomEvent ? [...state.randomEvents, roll.randomEvent] : state.randomEvents,
-    disruptions: roll.disruptions,
-    badLuck: roll.badLuck,
-    resold: resoldInMarket([...state.resold, ...sold], next),
-    companies: companies.map((c) =>
-      roll.staffStrike && c.inputs.staffModel ? { ...c, inputs: { ...c.inputs, staffStrike: { month: next } } } : c,
-    ),
+    state: {
+      ...state,
+      month: next,
+      randomEvents: roll.randomEvent ? [...state.randomEvents, roll.randomEvent] : state.randomEvents,
+      disruptions: roll.disruptions,
+      badLuck: roll.badLuck,
+      resold: resoldInMarket([...state.resold, ...sold], next),
+      companies: companies.map((c) =>
+        roll.staffStrike && c.inputs.staffModel ? { ...c, inputs: { ...c.inputs, staffStrike: { month: next } } } : c,
+      ),
+    },
+    news,
   };
 }
