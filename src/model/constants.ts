@@ -2049,6 +2049,15 @@ export const RIVAL_DECISION_STEPS = [
   'distress',
 ] as const;
 
+/**
+ * Fahrplan der KI (F43): erster Abflug am Drehkreuz je Tag, Minuten nach Mitternacht (06:00). Weitere Umläufe des Tages
+ * folgen im Abstand eines Umlaufs. SPEZIFIKATION 7.9 (Fahrpläne für Umsteiger 3.13).
+ */
+export const RIVAL_FIRST_DEPARTURE_MINUTE = 6 * 60;
+
+/** Fahrplan der KI (F43): Bodenzeit am Ziel und am Drehkreuz zwischen Ankunft und nächstem Abflug, Minuten. */
+export const RIVAL_TURN_MINUTES = 45;
+
 /** Ein Schritt aus `RIVAL_DECISION_STEPS`. */
 export type RivalDecisionStep = (typeof RIVAL_DECISION_STEPS)[number];
 

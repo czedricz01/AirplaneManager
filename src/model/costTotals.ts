@@ -9,8 +9,20 @@
  * genau einmal zählt.
  */
 
-import { atCost } from './basics';
-import { CABIN_CLASSES, CAMPAIGN_COST_1960, FFP_BASE_COST_1960, WEEKS_PER_MONTH, type CabinClass, type CampaignLevel } from './constants';
+import { atCost, timeOf } from './basics';
+import {
+  CABIN_CLASSES,
+  CAMPAIGN_COST_1960,
+  FFP_BASE_COST_1960,
+  RIVAL_SUBSIDY_ENABLED,
+  SUBSIDY_HIGH_1960,
+  SUBSIDY_HIGH_UNTIL,
+  SUBSIDY_LOW_1960,
+  SUBSIDY_LOW_FROM,
+  WEEKS_PER_MONTH,
+  type CabinClass,
+  type CampaignLevel,
+} from './constants';
 import type { PassengerCostParts } from './costs';
 import type { FleetValueResultParts } from './fleet';
 
@@ -224,6 +236,8 @@ export interface MonthlyCostsInput {
   readonly events: MonthEventCosts;
   /** `ownerFeeIncome` je Flughafen, je Woche. */
   readonly ownerFeeIncome: readonly number[];
+  /** Zuschuss des Monats (`subsidyIncome`, 7.14); fehlt = 0. */
+  readonly subsidy?: number;
 }
 
 /** Kosten der Gesellschaft im Monat, nach den Zeilen des Berichts. Kosten positiv; `airportIncome` mindert. */
@@ -247,7 +261,9 @@ export interface MonthlyCosts {
   readonly damages: number;
   /** `ownerFeeIncome` (positiv; wird abgezogen). */
   readonly airportIncome: number;
-  /** Σ Kosten − `airportIncome`. */
+  /** Zeile „Subsidy“ (7.14; positiv, wird abgezogen); 0 ohne Zuschuss. */
+  readonly subsidy: number;
+  /** Σ Kosten − `airportIncome` − `subsidy`. */
   readonly total: number;
 }
 
@@ -274,6 +290,7 @@ export function monthlyCosts(input: MonthlyCostsInput): MonthlyCosts {
   const marketing = sum(input.campaigns) + input.ffpBase + ffpPassengers;
   const { charter, crisisResponses, interest, damages } = input.events;
   const airportIncome = sum(input.ownerFeeIncome) * W;
+  const subsidy = input.subsidy ?? 0;
   const total =
     fuel +
     crew +
@@ -289,7 +306,8 @@ export function monthlyCosts(input: MonthlyCostsInput): MonthlyCosts {
     crisisResponses +
     interest +
     damages -
-    airportIncome;
+    airportIncome -
+    subsidy;
   return {
     fuel,
     crew,
@@ -306,8 +324,34 @@ export function monthlyCosts(input: MonthlyCostsInput): MonthlyCosts {
     interest,
     damages,
     airportIncome,
+    subsidy,
     total,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 7.14 Zuschuss (E47)
+// ---------------------------------------------------------------------------
+
+/**
+ * Zuschuss je Monat in $ von 1960: 450 000 bis 1985, dann gerade fallend auf 150 000 bis 2005, danach 150 000.
+ * Stetige Zeit (R5). SPEZIFIKATION 7.14.
+ */
+export function subsidy1960(month: number): number {
+  const t = timeOf(month);
+  if (t <= SUBSIDY_HIGH_UNTIL) return SUBSIDY_HIGH_1960;
+  if (t >= SUBSIDY_LOW_FROM) return SUBSIDY_LOW_1960;
+  const share = (t - SUBSIDY_HIGH_UNTIL) / (SUBSIDY_LOW_FROM - SUBSIDY_HIGH_UNTIL);
+  return SUBSIDY_HIGH_1960 + (SUBSIDY_LOW_1960 - SUBSIDY_HIGH_1960) * share;
+}
+
+/**
+ * Zuschuss einer Gesellschaft mit dem Merkmal `subsidized` (die KI, 7.14) im Monat: `atCost(subsidy1960(month), month)`;
+ * ohne Merkmal oder ausgeschaltet 0. Zeile „Subsidy“ im Monatsergebnis (`monthlyCosts.subsidy`). Hier statt in
+ * `rivalMonth.ts`, weil der Abschluss ihn bucht und die KI nicht kennt (7.1, F43). SPEZIFIKATION 7.14.
+ */
+export function subsidyIncome(month: number, subsidized: boolean, enabled: boolean = RIVAL_SUBSIDY_ENABLED): number {
+  return subsidized && enabled ? atCost(subsidy1960(month), month) : 0;
 }
 
 /** Monatsergebnis: Monatserlös (4.9) − `monthlyCosts`. SPEZIFIKATION 5.16. */

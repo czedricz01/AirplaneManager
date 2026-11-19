@@ -11,19 +11,24 @@
 
 import { atCost, clamp } from './basics';
 import {
+  cabinListPrice,
   cabinSpace,
   deliverableExtras,
   economySeatsLeft,
+  interiorScore,
   isDeliverable,
   seatSpace,
   type CabinFit,
   type ClassInterior,
+  type PricedClass,
 } from './cabin';
+import type { AircraftState, CatalogType } from './monthClose';
 import { isDeskTypeAvailable } from './airportCosts';
 import { flightTimeIndex, mealWeight, type ServiceSelection } from './satisfaction';
 import { sizeClassOf, type SizeClassInput } from './progress';
 import {
   CABIN_CLASSES,
+  type AircraftClass,
   FARE_RATIO_MAX,
   FARE_RATIO_MIN,
   FARE_STEP,
@@ -255,6 +260,45 @@ export function rivalCabin(personality: RivalPersonality, aircraft: SizeClassInp
   }
   seats.economy = economySeatsLeft(space, others, interiors.economy);
   return { seats, interiors, fit };
+}
+
+/**
+ * Ein neues KI-Flugzeug eines Katalog-Typs im Monat `month` mit der Kabine nach 7.5 (`rivalCabin`): Sitze je Klasse,
+ * `interiorScore` je Klasse mit Sitzen (2.3) und Kabinen-Listenpreis (`cabinListPrice`, 5.13) wie beim Spieler;
+ * WLAN und Premium-Catering aus den eingebauten Extras. Alter 0, Zustand 100. Kein Erstkunde (7.1: keine
+ * Vorbestellung). SPEZIFIKATION 7.5, 7.7, 7.11.
+ */
+export function rivalAircraft(personality: RivalPersonality, type: CatalogType, month: number, id: string): AircraftState {
+  const cabin = rivalCabin(personality, type, month);
+  const seats: Partial<Record<CabinClass, number>> = {};
+  const scores: Partial<Record<CabinClass, number>> = {};
+  const priced: Partial<Record<CabinClass, PricedClass>> = {};
+  for (const c of CABIN_CLASSES) {
+    if (!(cabin.seats[c] > 0)) continue;
+    seats[c] = cabin.seats[c];
+    scores[c] = interiorScore(c, cabin.interiors[c], cabin.fit);
+    priced[c] = { seats: cabin.seats[c], interior: cabin.interiors[c] };
+  }
+  return {
+    id,
+    typeId: type.id,
+    family: type.family,
+    aircraftClass: type.class as AircraftClass,
+    capacity: type.capacity,
+    cruiseSpeed: type.cruiseSpeed,
+    efficiency: type.efficiency,
+    catalogAppeal: type.popularity,
+    hasWifi: cabin.fit.extras.includes('wifi'),
+    hasPremiumGalley: cabin.fit.extras.includes('catering'),
+    seats,
+    interiorScore: scores,
+    listPrice1960: type.basePrice,
+    builtMonth: month,
+    cabinListPrice1960: cabinListPrice(priced, cabin.fit),
+    cabinInstalledMonth: month,
+    airframeCondition: 100,
+    cabinCondition: 100,
+  };
 }
 
 /**

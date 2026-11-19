@@ -1,19 +1,17 @@
 # Status
 
-**Nächstes Paket: 3.8d** – Monatsabschluss Teil 4 (`SPEZIFIKATION.md` 7.7, 7.9–7.11, 7.13, 7.14 im Abschluss):
-die KI-Schritte `openings` (freie Flugzeuge auf neue Strecken mit `rivalPlanRoute` und `plannerRouteResult`, Slot-Kauf an
-beiden Enden, Schalter, Fahrpläne) und `growth` (Kauf, Modernisierung, neues Drehkreuz) in `rivalDecisions`
-(`src/model/rivalMonth.ts`), Slot-Verkauf nach 6 freien Monaten, VIP-Lounge, Zuschuss (7.14), Nachrücken (7.7) und
-Kabinen-Umbau der KI. Eingaben: Typen-Katalog und Flughafen-Kandidaten. Danach 3.9 (Balance-Skript).
+**Nächstes Paket: 3.9** – Balance-Skript: ein Skript (kein Spielcode), das mit `src/model/` Beispielwerte für
+typische Strecken und Jahre rechnet und die gesammelten Prüfregeln aus den Abschnitten 2–8 ausgibt (u. a. „ähnlicher
+Erfolg“ der Persönlichkeiten 7.4, Abschaffung des Zuschusses 7.14, Umsteiger-Anteil 3.13, Marktgröße 3.3, Preiskampf
+über dem Boden 7.6). Vorher klären, ob das Paket geteilt wird (Liste der Prüfregeln unten unter „Offen aus …“).
 
-Stand: 19.11.2026 · Paket 3.8c erledigt: Umsteiger in der Marktaufteilung von `monthOperations` (Fahrplan je Strecke,
-Drehkreuze, freie Sitze, Erlös- und Kostenanteile); `rivalDecisions` in `src/model/rivalMonth.ts` (Preise, Krise,
-Verlierer, Feinabstimmung, Überholung, Leerlauf- und Notverkauf, Dividende, Notlage mit Auflösung), wirkt ab X+1
-(`decisionsCash`, `decisionsValueChange`); Übernahme `takeOverCompany`; Fortschritt im Abschluss (Meilensteine, Rang,
-Jahresziel mit Angebot, Forschung im Übergang, Prämien in die Kasse); Szenario-Ziele `scenarioStep`; Planer-Hauptzahl
-`plannerRouteResult`; Meldungen `CloseNews`. PR #118 (paralleler Stand 3.8b) geschlossen; übernommen daraus Szenario-
-Schritt, Konstanten `ScenarioMetric`, Aufbau der KI-Schritte und die Testideen 6.11, 7.13, 7.16, 8.15. Paket 3.8c
-geteilt (F42). 1185 Tests grün, `tsc --noEmit` grün.
+Stand: 19.11.2026 · Paket 3.8d erledigt: KI-Schritte `openings` (freie Flugzeuge auf neue Strecken vom Drehkreuz,
+Planer-Hauptzahl, Slot-Kauf an beiden Enden mit fairem Anteil je KI) und `growth` (Kauf mit Strecke, neues Drehkreuz)
+in `rivalDecisions`; Modernisierung und Kabinen-Erneuerung im Schritt `fleet`; Bestand danach: VIP-Lounge, Verkauf
+6 Monate freier Slots, Schalter nach `deskLoad ≤ 0,8`, Fahrpläne `rivalSchedule`; Zuschuss als Zeile „Subsidy“ im
+Monatsergebnis (`subsidyIncome`, Merkmal `subsidized`); Gründung `foundRivalCompany` und Nachrücken `rivalRefill` als
+letzter Schritt von `closeMonth`; Typen-Katalog `ModelState.catalog`, Piste `ModelAirport.maxIcaoCode`; KI-Flugzeug
+mit Kabine `rivalAircraft`. Bau-Festlegungen F43. 1206 Tests grün, `tsc --noEmit` grün.
 
 Offene Fragen: keine (siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
 
@@ -94,6 +92,14 @@ und Fahrpläne der KI (ohne Fahrplan bietet auch die KI keine Umsteiger an). Pha
 `RouteSchedule`, Wahl des Jahresziels aus `goalOffers`, Meldungstexte zu `CloseNews`, Szenario-Daten in Werte von 1960
 (5.1). Balance-Skript (3.9): Umsteiger-Anteil unter 25 % in Märkten mit Direktangebot (3.13), Szenario-Ziele.
 
+Offen aus 3.8d (kein Blocker): Phase 4 füllt `ModelState.catalog` (aus `src/data/aircraft.ts`) und alle Flughäfen mit
+`maxIcaoCode`, ruft `closeMonth(state, rivalDecisions, rivalRefill({ wanted, strength }))` auf und zeigt die neuen
+Meldungen (`routeOpened`, `planeBought`, `modernized`, `cabinRenewed`, `slotsSold`, `loungeBuilt`, `newHub`, `newRival`)
+und die Zeile „Subsidy“. Rechenzeit der KI-Planung mit allen Flughäfen (Vorauswahl über alle, Bewertung nur der
+Suchbreite) prüft das Balance-Skript (3.9). Balance-Skript: Zahl der Eröffnungen und Käufe je Jahr, Slot-Anteile,
+`RIVAL_TURN_MINUTES`, Zuschuss-Abschaffung (7.14), „ähnlicher Erfolg“ (7.4). Spielstand (5.1): KI-Agent mit `slotFree`,
+`hubNoProfit`, `refits`; KI-Strecken mit Fahrplan; `inputs.subsidized` für die KI.
+
 Status-Werte: `offen` · `läuft` · `erledigt` · `wartet` (auf Entscheidung)
 
 ---
@@ -157,7 +163,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.8a | Monatsabschluss Teil 1 (8.3–8.14): Zufall und Spielstand, Ereignisse, Krisen-Antworten, Störungen, Personal, Pech-Deckel, gestrichene/gecharterte Flüge, Verschleiß, Händler-Spanne und Gebrauchtmarkt, Vorbestellung, Überholung, Kreditlinie | erledigt |
 | 3.8b | Monatsabschluss Teil 2 (8.0–8.2, 8.16): `closeMonth` für Spieler und KI in einer Rechnung, Kasse am Monatsende mit Kassen-Gleichung, Bericht, Lieferungen, Kreditlinie, Prüfung, Übergang, offene R2-Regeln | erledigt |
 | 3.8c | Monatsabschluss Teil 3 (7.8–7.16 im Abschluss, 3.13, 6.9–6.11, 8.15): KI-Entscheidungen `rivalDecisions`, Umsteiger im Abschluss, Forschung, Meilensteine, Rang, Jahresziel, Szenario-Ziele | erledigt |
-| 3.8d | Monatsabschluss Teil 4 (7.7, 7.9–7.11, 7.13, 7.14 im Abschluss): KI-Eröffnungen, Wachstum (Kauf, Modernisierung, neues Drehkreuz), Slots, Schalter, Lounge, Zuschuss, Nachrücken, Kabinen-Umbau und Fahrpläne der KI | offen |
+| 3.8d | Monatsabschluss Teil 4 (7.7, 7.9–7.11, 7.13, 7.14 im Abschluss): KI-Eröffnungen, Wachstum (Kauf, Modernisierung, neues Drehkreuz), Slots, Schalter, Lounge, Zuschuss, Nachrücken, Kabinen-Umbau und Fahrpläne der KI | erledigt |
 | 3.9 | Balance-Skript: Beispielwerte für typische Strecken und Jahre | offen |
 
 ## Phase 4 – Oberfläche anbinden
@@ -219,3 +225,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | 3.7b | Konkurrenz Teil 2 in `src/model/rivalMonth.ts`: geglätteter Gewinn, Verlierer (ausdünnen oder streichen, Kernnetz 2), Feinabstimmung mit +2 %-Regel; Planung mit Vorauswahl (Suchbreite + 2 zufällige), 100/60/30 % der Umläufe, Planer-Hauptzahl mit Schätzfehler; Slots mit Anteil 0,25/0,10 der Grenze und Verkauf nach 6 freien Monaten, Schalter mit `deskLoad ≤ 0,8`, Stufe 2 an Drehkreuzen, Lounge (Feld `buildsLounge`), Sperre durch Spieler-Stufe 3 (E63); Kauf-Bedingungen, Typ nach Planer-Hauptzahl je Preis, Modernisierung, Überholung, Not- und Leerlauf-Verkauf; Krisenstärke aus Weltereignissen und Treibstoff-Tabelle (Juni 1974 Krise), Krisen-Fahrplan; Größe in Sitzen, neues Drehkreuz, Dividende; Zuschuss mit `atCost` (Beispiel 7.18); Notlage in Folge, Auflösung, Übernahme zum Unternehmenswert (Beispiel 7.18: 198,7 Mio. $); Ticker nach Fluggästen, Meldungs-Regel; `departuresAt`/`departuresOnPair` in `airportCosts.ts`; Paket 3.8 in 3.8a/3.8b geteilt; Bau-Festlegung F39; 58 neue Tests, 1068 grün |
 | 19.11.2026 | 3.8a | Monatsabschluss Teil 1: `src/model/monthEvents.ts` (17 geschichtliche Ereignisse und 8 Zufalls-Vorlagen als Daten, nur über `eventDemandFactor`; Krisen-Antworten als Anteil von Treibstoff-Rechnung bzw. Erlös, `hedgedFuelTable`, `crisisResponseFactor`; Defekt je Flugzeug, Flughafen-Streik und Winterwetter für alle, Vogelschlag 0,5 % des Neupreises; Moral, Streik, Lohn-Untergrenze; Pech-Deckel mit fester Wurf-Reihenfolge und neutralem Merkmal `badLuckCap`; `disruptionShares`, `companyCancelledShare`, Charter je Flug; Verschleiß aus geflogenen Stunden) und `src/model/fleetMarket.ts` (Händler-Spanne −15 % / +5 %, Gebrauchtmarkt bis Bauende mit Weiterverkauf, Vorbestellung mit Rabatt bis 12 %, Überholung `max(4 % Neupreis, Wertgewinn)` mit Werft-Zuschlag, Umbau mit `atCost`, Kreditlinie, Zwangsverkauf, Pleite); `saleCandidate` gemeinsam mit dem Notverkauf der KI; Beispiel 8.17 (Flottenmarkt, Charter, Rückgewinnung, Kreditlinie, Defekt, Verschleiß) nachgerechnet; Spezifikation 8.9 „Folge“ berichtigt; Bau-Festlegung F40; 74 neue Tests, 1142 grün |
 | 19.11.2026 | 3.8b | Monatsabschluss Teil 2 in `src/model/monthClose.ts`: Modell-Spielstand (`ModelState`, `CompanyState` mit neutralen `CompanyInputs`, Kassenbuch `MonthLedger`, Vorbestellungen), `monthOperations` (eine Marktaufteilung je Paar und Klasse für alle, Satisfaction, Erlös, Kosten mit Abschnitt-8-Posten, Verschleiß, Wert, Vogelschlag, Einnahmen der Stufe 3) als Abschluss und Vorhersage, `closeMonth(state, decisions)` in der Reihenfolge 8.0 (Buchung, Ruf, Entscheidungen von außen, Lieferungen, Kreditlinie, Zwangsverkauf, Spielende, Gewinnserie, Bericht, Prüfung 8.16, Übergang mit Preisen, Moral, Würfen, Gebrauchtmarkt), `buyAircraft`/`sellAircraft`/`spend` für Einmalausgaben; `RIVAL_INPUTS` um `staffModel`, `forcedSale`, Krisen-Antworten ergänzt; 22 Regeltests (Kassen-Gleichung, Reihenfolge der Gesellschaften, Lieferung und Vogelschlag im Bericht, keine globalen Daten, halber Flugplan, Charter, Kreditlinie, Vorhersage = Abschluss, Preise ab X+1), 1164 grün; Paket 3.8 weiter geteilt (F41) |
+| 19.11.2026 | 3.8d | Monatsabschluss Teil 4 in `src/model/rivalMonth.ts`: Eröffnungen freier Flugzeuge mit Planer-Hauptzahl einer neuen Strecke und Slot-Kauf an beiden Enden (fairer Anteil je KI, F43), Kauf mit Strecke (Bezugs-Typ, dann bester Typ je Kaufpreis), Modernisierung, Kabinen-Erneuerung mit derselben Kabine, neues Drehkreuz, VIP-Lounge, Verkauf 6 Monate freier Slots, Schalter, Fahrpläne `rivalSchedule`; Zuschuss als Zeile „Subsidy“ (`costTotals.ts`); Gründung `foundRivalCompany` und Nachrücken `rivalRefill` als letzter Schritt von `closeMonth`; `rivalAircraft` in `rivals.ts`; 21 neue Tests (1206 grün) |
