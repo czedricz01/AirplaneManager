@@ -375,12 +375,12 @@ describe('Beispiel 5.18 (ganz): Erlös, Kosten und Ergebnis je Woche', () => {
    * Toleranz (F32): Erlös und Kosten ± 0,1 %, Ergebnis ± 0,25 %, Anteile ± 0,5 Prozentpunkte, je Fluggast ± 0,5 Cent.
    */
   const CASES = [
-    ['Caravelle III', PARIS, 1962, 14, { economy: 80 }, 138_373, 118_610, 19_764, [0.19, 0.38, 0.22, 0.05, 0.11], 11.72],
-    ['ATR 72-200', PARIS, 1990, 14, { economy: 68 }, 164_258, 131_298, 32_960, [0.10, 0.40, 0.24, 0.08, 0.16], 16.36],
-    ['A320ceo', MADRID, 1990, 7, { economy: 150, business: 12 }, 406_377, 252_074, 154_303, [0.20, 0.29, 0.15, 0.05, 0.30], 16.36],
-    ['A320ceo', MADRID, 2020, 7, { economy: 150, business: 12 }, 581_226, 399_516, 181_710, [0.27, 0.26, 0.13, 0.05, 0.27], 23.40],
-    ['A330-300', NEW_YORK, 1995, 7, { economy: 250, business: 30 }, 2_517_187, 914_924, 1_602_263, [0.53, 0.11, 0.08, 0.08, 0.20], 17.89],
-    ['A330-300', NEW_YORK, 2020, 7, { economy: 250, business: 30 }, 3_391_784, 1_707_833, 1_683_952, [0.66, 0.08, 0.06, 0.06, 0.14], 24.10],
+    ['Caravelle III', PARIS, 1962, 14, { economy: 80 }, 125_135, 118_610, 6_527, [0.19, 0.38, 0.22, 0.05, 0.11], 11.72],
+    ['ATR 72-200', PARIS, 1990, 14, { economy: 68 }, 148_543, 131_298, 17_246, [0.10, 0.40, 0.24, 0.08, 0.16], 16.36],
+    ['A320ceo', MADRID, 1990, 7, { economy: 150, business: 12 }, 351_396, 252_074, 99_244, [0.20, 0.29, 0.15, 0.05, 0.30], 16.36],
+    ['A320ceo', MADRID, 2020, 7, { economy: 150, business: 12 }, 502_588, 399_516, 102_912, [0.27, 0.26, 0.13, 0.05, 0.27], 23.40],
+    ['A330-300', NEW_YORK, 1995, 7, { economy: 250, business: 30 }, 1_461_853, 914_924, 546_873, [0.53, 0.11, 0.08, 0.08, 0.20], 17.89],
+    ['A330-300', NEW_YORK, 2020, 7, { economy: 250, business: 30 }, 1_969_774, 1_707_833, 261_819, [0.66, 0.08, 0.06, 0.06, 0.14], 24.10],
   ] as const;
 
   for (const [name, to, year, roundTrips, seats, revenue, cost, result, shares, perPax] of CASES) {
@@ -402,15 +402,15 @@ describe('Beispiel 5.18 (ganz): Erlös, Kosten und Ergebnis je Woche', () => {
     });
   }
 
-  it('5.18: Gewinnschwelle A320ceo FRA–MAD 1990: feste Kosten 214 965 $, Preisniveau 0,62 voll, 0,80 bei 75 %', () => {
+  it('5.18: Gewinnschwelle A320ceo FRA–MAD 1990: feste Kosten 214 965 $, Preisniveau 0,72 voll, 0,92 bei 75 %', () => {
     const r = weeklyRoute('A320ceo', MADRID, 1990, 7, { economy: 150, business: 12 }, AI);
     closeRel(r.fixed.total, 214_965, 0.001);
     const classes = {
       economy: { seatsPerWeek: r.seatsPerWeek.economy as number, marketFare: r.fares.economy, costPerPassenger: r.perPax.total },
       business: { seatsPerWeek: r.seatsPerWeek.business as number, marketFare: r.fares.business, costPerPassenger: r.perPax.total },
     };
-    close(breakEvenFareLevel(1, r.fixed.total, classes), 0.62, 0.005);
-    close(breakEvenFareLevel(0.75, r.fixed.total, classes), 0.8, 0.005);
+    close(breakEvenFareLevel(1, r.fixed.total, classes), 0.72, 0.005);
+    close(breakEvenFareLevel(0.75, r.fixed.total, classes), 0.92, 0.005);
   });
 
   it('5.18: Kaufpreis ohne Kabinen-Ausstattung = Listenpreis × Kostenindex (E54)', () => {

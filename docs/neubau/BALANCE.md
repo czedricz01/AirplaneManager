@@ -345,8 +345,95 @@ Zuschuss, mit E66. Median je Strecke und Monat (Juli), Mittel über die Jahrzehn
 Mit `HEDGE_PRICE_SHARE` 0,35 spart die Absicherung das 2,64- (1973), 1,42- (1979) und 1,05-Fache (1990) ihres Preises
 (vorher 4,62 / 2,49 / 1,84). Die Rückgewinnung (B8.2, heute 2,5–5,1) wird erst nach O66 festgelegt.
 
+## Ergebnis Paket 3.9d, Rest (E70, E67, E68, E69)
+
+Umgesetzt (F49): Marktgröße `DEMAND_SCALE` 29 → 14,5 und `DISTANCE_EXP` 0,5 → 0,3 (`src/model/constants.ts:554`, `:564`);
+Preis-Faktor je Flugzeit-Index `FARE_TIME_FACTOR` 1,04 … 0,50 (`src/model/constants.ts:723`, früher `SHORT_HAUL_FARE_FACTOR`
+1,15 … 1); `RECOVERY_PRICE_SHARE` 0,15 → 0,25. Bericht mit Langläufen: `balance/3.9d-bericht.md` (16 ok · 4 Abweichung ·
+28 Info; ohne Langlauf 15 ok · 0 Abweichung). Der Zuschuss bleibt an (E68, Fund 28). Neue Frage **O67** (Fund 26, 27).
+
+### Fund 25: Kalibrierung – die Marge kommt aus dem Preis, die Marktgröße stellt die Auslastung des Spielers ein → E70 umgesetzt
+
+Hilfsrechnung in Kopien des Codes (nicht im Projekt), je Variante 2 Läufe (Normal, mit Zuschuss). „Preis“ = Faktor auf den
+Marktpreis gegenüber vorher, kurz / mittel / lang (Index 1–2 / 3–4 / 6–8). Marge und Auslastung der KI: Median je Strecke
+und Monat, Median über die Jahre; „aufgelöst“ = Gründer, die bis zum Ende aufgelöst sind.
+
+| Variante | Marktgröße | Preis kurz / mittel / lang | Jahre | Auslastung KI | Marge KI | aufgelöst | Spieler A320ceo FRA–MAD 1990 (bester Preis, beste Abflugzahl) |
+|---|---|---|---|---|---|---|---|
+| vorher (3.9d Teil 1) | × 1 | 1 / 1 / 1 | 40 | 100 % | 47 % | 0 von 20 | 97 % / 73 % |
+| A | × 0,5 | 1 / 0,9 / 0,6 | 40 | 100 % | 26 % | 1 von 10 | 87 % / 51 % |
+| B | × 0,3 | 1 / 0,9 / 0,6 | 40 | 100 % | 20 % | 4 von 10 | 81 % / 32 % |
+| E | × 0,5 | 0,92 / 0,82 / 0,55 | 60 | 100 % | 26 % | 1 von 10 | 86 % / 47 % |
+| F | × 0,4 | 0,95 / 0,85 / 0,57 | 60 | 100 % | 25 % | 2 von 10 | 83 % / 40 % |
+| G | × 0,4 | 0,88 / 0,79 / 0,53 | 60 | 100 % | 21 % | 3 von 10 | 82 % / 35 % |
+| H | × 0,3 | 0,92 / 0,82 / 0,55 | 60 | 100 % | 19 % | 5 von 10 | 81 % / 26 % |
+| K = gewählt | × 0,5 | 0,9 / 0,8 / 0,55 | 60 | 100 % | 23 % | 2 von 10 | 86 % / 46 % |
+
+- Eine kleinere Marktgröße senkt die Marge der KI nur mit vielen Auflösungen (E → H, × 0,5 → × 0,3: 26 → 19 %, 1 → 5
+  Gründer aufgelöst); der Preis senkt sie fast eins zu eins (F → G, × 0,95 → × 0,88: 25 → 21 %).
+- Gewählt: Marktgröße × 0,5, Preis wie K. Damit liegt die KI im Langlauf (10 Läufe) bei 23 % Marge, kurz / mittel /
+  lang ähnlich (Fund 26), und ein Spieler allein ist beim besten Preis auf Mittelstrecke zu 86–88 % ausgelastet
+  (Langstrecke mit wenigen Flügen 89–99 %, Bericht Abschnitt 4), nicht mehr überall voll (B4.1: keine Strecke bleibt
+  beim höchsten Preis voll).
+- Schwankung: Über die Jahrzehnte folgt die Marge dem Treibstoff (1970er 9 %, 1990er 30 %, 2000er 22 %, 2010er 32 %).
+
+### Fund 26: Marge der KI im Ziel, Auslastung bleibt 100 % (B7.10) → O67
+
+Langlauf (10 Läufe × 60 Jahre, Normal, mit Zuschuss): Marge im Mittel der Jahre **23 %** (Ziel E67: 10–25 %), kurz /
+mittel / lang 1990er 29 / 31 / 29 %, 2010er 32 / 33 / 31 % (vorher 41 / 49 / 66 %). Die Auslastung bleibt **100 %**:
+Die KI wählt die Flugzahl nach der Planer-Hauptzahl, und auf einem Paar ohne Konkurrenz (99 % der Paare, Fund 22) ist der
+gewinnbeste Plan einer, der voll ist. Unter 100 % fällt die Auslastung nur mit Konkurrenz auf demselben Paar (Weg B aus
+O66). B7.10 ist deshalb „Abweichung“, nur wegen der Auslastung.
+
+### Fund 27: „Ähnlicher Erfolg“ gilt nicht mehr (B7.1, B7.2a); Gründer an SIN, SYD, HND lösen sich 1960 auf → O67
+
+Unternehmenswert der Gründer (Median, Preise von 1960), Faktor zum Median aller: nach 20 Jahren **2,69** (Optimizer 2,69,
+Flag 2,59), nach 40 Jahren **2,50** (Boutique 0,40, Expansionist 1,77); Ziel ≤ 2 (7.4). Vorher (3.9b) 1,44 / 1,66.
+
+- **Boutique** ist dauerhaft schwach (0,4 des Medians ab 1990). Sie hat die teuerste Kabine und die wenigsten Sitze; bei
+  kleinerem Markt und tieferem Preis bleibt davon weniger übrig.
+- **Flag und Optimizer** sind in den ersten 20 Jahren stark (Preis Y 1,2 bzw. 1,4–1,9), weil sie allein auf ihren Paaren
+  über dem Marktpreis verkaufen; Expansionist holt bis 2000 auf.
+- **Frühe Auflösung:** 7 von 50 Gründern (Normal, mit Zuschuss) sind im Mai 1960 aufgelöst, 6 davon mit Drehkreuz SIN,
+  einer SYD bzw. HND. Ohne Zuschuss dieselben 7. Bei der kleineren Marktgröße finden sie 1960 dort keine Strecke mit
+  Gewinn, verkaufen die leeren Flugzeuge und werden aufgelöst (7.11, 7.15). Ein Spieler mit Start an diesen Drehkreuzen
+  1960 hätte dasselbe Problem.
+- KI-Stärke (B7.8): Easy 553 < Normal 921 < Hard 971 Mio. $ nach 40 Jahren; Reihenfolge stimmt, Normal und Hard liegen
+  nahe beieinander (vorher Hard knapp unter Normal).
+
+### Fund 28: Zuschuss bleibt an (E68), hat aber keine messbare Wirkung (B7.2)
+
+Prüfregel 7.14 ist **nicht** erfüllt, weil „ähnlicher Erfolg“ auch ohne Zuschuss nicht gilt (Faktor 4,56 / 2,77). Die
+Zahl der Auflösungen ist ohne Zuschuss gleich (7 von 50, alle im Mai 1960), Median der Jahre bis zur Auflösung je
+Persönlichkeit „nie“. Der Zuschuss beträgt 2–5 Mio. $ (1960) je KI und Jahr gegen ein Ergebnis von 21–346 Mio. $. Nach
+E68 bleibt `RIVAL_SUBSIDY_ENABLED = true`, bis 7.14 erfüllt ist; der Zuschuss ist aber nicht der Grund für das
+Ergebnis. Das klärt O67.
+
+### Fund 29: Typische Strecken mit gewinnbester Abflugzahl; B4.2, B5.5, B6.7, B8.2, B8.3 → umgesetzt
+
+- Mit fester Abflugzahl 14 waren alle Langstrecken bei der kleineren Marktgröße halb leer (A330-300 FRA–JFK 46–48 %) und
+  B5.5 und B8.3 fielen. Eine gut geführte Strecke wählt auch die Flugzahl: Der Bericht nimmt jetzt die gewinnbeste gerade
+  Zahl bis 14 (F49). Ergebnis: B5.5 **ok** (11 von 11 mit Gewinn), Marge kurz/mittel Ø 42 %, lang Ø 27 % (B5.2,
+  vorher 70 / 66 %), Auslastung beim besten Preis 86–100 %.
+- B6.7 **ok**: Klassen-Forschung aus 3,3–9,1 Monatsergebnissen (Rang 5: 7,1; bei Marge 10 %: 20). `CLASS_RESEARCH`
+  bleibt unverändert.
+- B4.2 **ok** nach angepasstem Fall: Zwei gleiche Gesellschaften mit je einem A320ceo antworten mit 1,61 (Gewinn
+  125 515 $ je Woche); mit je zwei Flugzeugen bleibt der Preis bei 0,92 über der Schwelle 0,76, aber 62 % Auslastung
+  bringen Verlust (Überkapazität, nicht Unterbieten).
+- B8.2 (E69): Rückgewinnung mit `RECOVERY_PRICE_SHARE` 0,25 lohnt sich 1,9- bis 2,4-fach (kleiner Markt 1,2- bis 1,7-fach),
+  vorher 3,2- bis 4,0-fach. Ziel 1- bis 2,5-fach erfüllt.
+- B8.3 **ok**: Charter lohnt auf jeder Strecke mit Gewinn. B8.8: Kreditlinie = 14–38 Monate fester Kosten, Zins bei voller
+  Nutzung 13–87 % des Monatsergebnisses (vorher 2–28 %), weil das Ergebnis kleiner ist.
+
+### Fund 30: Umsteiger, Optimizer-Sprünge → keine Änderung nötig
+
+- Umsteiger (3.13, B3.13 ok): Der Wunsch-Anteil vor der Sitz-Verteilung liegt jetzt bei 10–16 % (vorher 15–34 %), also
+  auch ohne Sitz-Grenze unter 25 %. `CONNECTION_APPEAL` bleibt 0,5.
+- Optimizer-Sprünge (E65, B7.4): 0,6–2,7 % der Strecken-Monate mit Schritt ≥ 0,25, p90 0,08–0,12. Nicht störend; keine
+  Schrittgrenze `FARE_STEP`.
+- Geteilte Paare bleiben bei 0–1 % (Fund 22); Preiskampf 0,0–0,1 % der Strecken.
+
 ## Noch offene Prüfregeln
 
-Keine Prüfregel der Abschnitte 1–8 ist mehr ohne Skript. Nach O66 (Rest von Paket 3.9d) den ganzen Bericht neu
-erzeugen, mit Langläufen; besonders B7.10 (Ziel aus E67), B6.7 (Klassen-Forschung), B6.8 (Jahresziel), B8.2
-(Rückgewinnung) und B8.8 (Kreditlinie) hängen an Marktgröße und Marge.
+Keine Prüfregel der Abschnitte 1–8 ist mehr ohne Skript. Abweichungen im Bericht 3.9d: B7.1, B7.2a, B7.2 (ähnlicher
+Erfolg, Zuschuss) und B7.10 (nur Auslastung) → O67.

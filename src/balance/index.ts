@@ -9,13 +9,13 @@ import { careerSection } from './career';
 import { eventSection, smallMarketResults } from './events';
 import { demandSection, satisfactionSection, timeAndMoney } from './market';
 import { renderMarkdown, type Section } from './report';
-import { ROUTE_CASES, routeSections, runCase } from './routes';
+import { ROUTE_CASES, routeCaseResults, routeSections } from './routes';
 
 export { renderMarkdown, verdictCounts, type Check, type Section, type Table, type Verdict } from './report';
 
 /** Alle Abschnitte des Berichts ohne Langlauf (Pakete 3.9a und 3.9c: Abschnitte 1–6 und 8 der Spezifikation). */
 export function balanceSections(): Section[] {
-  const results = ROUTE_CASES.map((c) => runCase(c));
+  const results = routeCaseResults();
   return [
     timeAndMoney(),
     satisfactionSection(),

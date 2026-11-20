@@ -646,9 +646,9 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
 - Einheit und Bereich: Faktor > 0; 1 bei 450 min.
 - Formel: `distanceFactor = (max(referenceBlockMinutes, DISTANCE_MIN) / DISTANCE_REF) ^ (−DISTANCE_EXP)`.
   Sinkt bis zur längsten Strecke weiter, ohne Untergrenze (heute ab ≈ 758 min fest 0,4).
-- Konstanten (Startwerte): `DISTANCE_REF = 450` min, `DISTANCE_MIN = 45` min, `DISTANCE_EXP = 0,5`.
-  Werte: 45 min 3,16 · 90 min 2,24 · 150 min 1,73 · 300 min 1,22 · 810 min 0,75 · 1 200 min 0,61.
-  Kurz : lang (45 min : 20 h) = 5,2 (heute 6,9). Endgültig aus dem Balance-Skript (3.9).
+- Konstanten: `DISTANCE_REF = 450` min, `DISTANCE_MIN = 45` min, `DISTANCE_EXP = 0,3` (Balance-Skript, Paket 3.9d,
+  E70; Startwert 0,5). Werte: 45 min 2,00 · 90 min 1,62 · 150 min 1,39 · 300 min 1,13 · 810 min 0,84 · 1 200 min 0,75.
+  Kurz : lang (45 min : 20 h) = 2,7 (Startwert 5,2, heute 6,9).
 - Hängt ab von: `referenceBlockMinutes` (nie vom Flugzeug).
 - Regeln (Tests): fällt streng mit der Bezugs-Flugzeit ab `DISTANCE_MIN`; 13 h und 20 h verschieden.
 
@@ -671,7 +671,9 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
 - Hängt ab von: 3.1–3.5. **Nicht** von Flugzeug, Gesellschaft, Ruf, Preis, Satisfaction, Schwierigkeit.
 - Wirkt auf: Potenzial je Klasse (3.10).
 - Konstanten: `LINK_EXP = 0,448351` (heute `:683`; bestimmt nur noch den Abstand großer zu kleinen Paaren);
-  `DEMAND_SCALE = 29` (heute `:683`, ohne den Normal-Abzug 0,9, E4). Endgültig aus dem Balance-Skript.
+  `DEMAND_SCALE = 14,5` (Balance-Skript, Paket 3.9d, E67, E70; Startwert 29 wie heute `:683` ohne den Normal-Abzug 0,9, E4).
+  Damit ist ein Flugzeug allein beim besten Preis und der gewinnbesten Flugzahl auf Mittelstrecke zu 86–88 % ausgelastet
+  (Langstrecke mit wenigen Flügen 89–99 %), nicht mehr überall voll (Bericht `balance/3.9d-bericht.md`, Abschnitt 4).
 - Regeln (Tests): gleich für Spieler, KI, Planer, Umsteiger-Rechnung (W1, W9); ändert sich nicht mit der
   Schwierigkeit; größere Städte → nie kleiner; kürzere Bezugs-Flugzeit → nie kleiner.
 - Anzeige: Planer Schritt 1, Flughafen- und Streckenansicht („Market size“, je Klasse aufgeschlüsselt).
@@ -1015,8 +1017,8 @@ Marktpreis Start–Ziel × 0,9 ─► Umsteiger-Tarif ─► Umsteiger (3.13) �
 - Bedeutung: Was ein Economy-Ticket auf diesem Paar „normal“ kostet, in Preisen von 1960.
 - Einheit und Bereich: $ (Wert 1960) > 0, ungerundet.
 - Formel:
-  `baseFareEconomy = (FARE_BASE_1960 + FARE_PER_KM_1960 × Entfernung) × shortHaulFareFactor`
-  mit `shortHaulFareFactor = byTimeIndex(SHORT_HAUL_FARE_FACTOR, flightTimeIndex(referenceBlockMinutes))`
+  `baseFareEconomy = (FARE_BASE_1960 + FARE_PER_KM_1960 × Entfernung) × fareTimeFactor`
+  mit `fareTimeFactor = byTimeIndex(FARE_TIME_FACTOR, flightTimeIndex(referenceBlockMinutes))`
   (gerade Linie zwischen den Tabellenwerten, wie heute `:721-726`).
 - Neu: Der Flugzeit-Index kommt aus der **Bezugs-Flugzeit** (3.1), nicht aus der Flugzeit des eingesetzten
   Flugzeugs. Nur so ist der Marktpreis für alle Angebote eines Paars gleich (3.16). Heute hängt er am
@@ -1025,9 +1027,12 @@ Marktpreis Start–Ziel × 0,9 ─► Umsteiger-Tarif ─► Umsteiger (3.13) �
 - Neu ungerundet (heute `Math.round`, `:733`).
 - Hängt ab von: Entfernung (km, Großkreis), `referenceBlockMinutes`.
 - Wirkt auf: `marketFare` (4.3), sonst nichts.
-- Konstanten (wie heute; endgültig aus dem Balance-Skript 3.9, Ziel E7):
-  `FARE_BASE_1960 = 30` $, `FARE_PER_KM_1960 = 0,05` $/km,
-  `SHORT_HAUL_FARE_FACTOR` je Index 1 … 8 = 1,15 · 1,15 · 1,10 · 1,10 · 1,05 · 1 · 1 · 1.
+- Konstanten: `FARE_BASE_1960 = 30` $, `FARE_PER_KM_1960 = 0,05` $/km (wie heute);
+  `FARE_TIME_FACTOR` je Index 1 … 8 = 1,04 · 1,04 · 0,90 · 0,86 · 0,72 · 0,59 · 0,54 · 0,50 (Balance-Skript, Paket 3.9d,
+  E70). Heute heißt die Tabelle `SHORT_HAUL_FARE_FACTOR` (1,15 · 1,15 · 1,10 · 1,10 · 1,05 · 1 · 1 · 1, nur
+  Kurzstrecken-Zuschlag). Neu: Zuschlag auf Kurzstrecken, Abschlag auf Mittel- und Langstrecken, gegenüber heute
+  etwa × 0,9 (Kurz), × 0,85 (Mittel), × 0,6 (Lang). Grund (Fund 1, 23 in `BALANCE.md`): Eine volle Langstrecke deckte
+  ihre Kosten schon beim 0,3-Fachen des Marktpreises; die Marge hing am Preis gegen die Kosten, nicht an der Marktgröße.
 - Regeln (Tests): längere Entfernung → nie billiger; Preis je km fällt mit der Entfernung (nie steigend);
   gleich für alle Flugzeuge und Gesellschaften; 1 Minute mehr Bezugs-Flugzeit ändert ihn stetig (kein Sprung).
 - Anzeige: keine eigene; erklärt im Glossar (Paket 4.1).
@@ -1144,8 +1149,8 @@ Marktpreis Start–Ziel × 0,9 ─► Umsteiger-Tarif ─► Umsteiger (3.13) �
   **im Verhältnis ihrer Marktpreise** in `c` verteilt:
   `Anteil(O–H) = marketFare_OH(c) / (marketFare_OH(c) + marketFare_HD(c))`, Rest an H–D.
 - Neu: nach Marktpreis statt nach Entfernung (heute `src/lib/transferUtils.ts:470-474`). Grund: Kurze
-  Teilstrecken haben einen höheren Preis je km (Kurzstrecken-Zuschlag, Grundbetrag 30 $); nach Entfernung
-  bekäme der Zubringer fast nichts (Beispiel 4.13: 7 % statt 15 %). So wird jede Teilstrecke im Planer
+  Teilstrecken haben einen höheren Preis je km (Preis-Faktor je Flugzeit, Grundbetrag 30 $); nach Entfernung
+  bekäme der Zubringer fast nichts (Beispiel 4.13: 7 % statt 22 %). So wird jede Teilstrecke im Planer
   fair bewertet.
 - Die Summe der Anteile ist genau `transferFare` (Test). Umsteiger zählen als Fluggäste beider Teilstrecken
   (Kosten je Fluggast, Abschnitt 5).
@@ -1226,10 +1231,12 @@ Grundpreise 1960 (Bezugs-Flugzeit mit 800 km/h; Klassen-Verhältnis in Klammern)
 
 | Paar | km | Bezugs-Flugzeit | Index | Economy | Premium | Business | First | Economy 2020 |
 |---|---|---|---|---|---|---|---|---|
-| Frankfurt–Paris | 449 | 44 min | 1,24 | 60 $ | 81 $ (1,34) | 124 $ (2,06) | 188 $ (3,12) | 123 $ |
-| Frankfurt–Madrid | 1 420 | 119 min | 2,48 | 114 $ | 173 $ (1,52) | 269 $ (2,37) | 425 $ (3,74) | 233 $ |
-| Frankfurt–New York | 6 189 | 483 min | 6,19 | 339 $ | 705 $ (2,08) | 1 119 $ (3,30) | 1 899 $ (5,59) | 694 $ |
-| London–Sydney | 17 020 | 1 312 min | 8 | 881 $ | 2 070 $ (2,35) | 3 304 $ (3,75) | 5 727 $ (6,50) | 1 802 $ |
+| Frankfurt–Paris | 449 | 44 min | 1,24 | 55 $ | 73 $ (1,34) | 112 $ (2,06) | 170 $ (3,12) | 112 $ |
+| Frankfurt–Madrid | 1 420 | 119 min | 2,48 | 98 $ | 150 $ (1,52) | 233 $ (2,37) | 368 $ (3,74) | 201 $ |
+| Frankfurt–New York | 6 189 | 483 min | 6,19 | 197 $ | 410 $ (2,08) | 650 $ (3,30) | 1 103 $ (5,59) | 403 $ |
+| London–Sydney | 17 020 | 1 312 min | 8 | 441 $ | 1 035 $ (2,35) | 1 652 $ (3,75) | 2 863 $ (6,50) | 901 $ |
+
+(Bis Paket 3.9d mit dem alten Preis-Faktor: 60 / 114 / 339 / 881 $ Economy.)
 
 Bester Preis, Economy, Daten wie 3.15 (Marktgröße × Klassen-Anteil 1 000, Marktpreis 100 $,
 `PRICE_SENSITIVITY` 2,2), Bezugsangebot:
@@ -1241,12 +1248,12 @@ Bester Preis, Economy, Daten wie 3.15 (Marktgröße × Klassen-Anteil 1 000, Mar
 | allein, 20 $ Kosten je Fluggast | 118 $ | 831 | 81 690 $ | gewinnbest, nicht erlösbest |
 | gleicher Rivale zu 100 $ | 70 $ | 1 000 | 69 880 $ | beim Marktpreis 64 706 $ (3.15) |
 
-Umsteiger Paris–New York über Frankfurt, Economy: Marktpreis O–D 322 $ → `transferFare` 290 $. Anteil
-Paris–Frankfurt 60 / (60 + 339) = 15 % → 44 $; Frankfurt–New York 246 $ (nach Entfernung heute 7 % → 20 $).
+Umsteiger Paris–New York über Frankfurt, Economy: Marktpreis O–D 189 $ → `transferFare` 170 $. Anteil
+Paris–Frankfurt 55 / (55 + 197) = 22 % → 37 $; Frankfurt–New York 133 $ (nach Entfernung heute 7 % → 12 $).
 
 Gewinnschwelle (Kosten nur zur Veranschaulichung): Frankfurt–Madrid, 150 Economy + 12 Business, 14 Flüge
-je Woche, feste Kosten 150 000 $ je Woche, 15 $ je Fluggast, `L` = 0,75 → Preisniveau 0,82: Economy 94 $,
-Business 221 $.
+je Woche, feste Kosten 150 000 $ je Woche, 15 $ je Fluggast, `L` = 0,75 → Preisniveau 0,95: Economy 94 $,
+Business 222 $.
 
 ### 4.14 Vorgaben an andere Abschnitte
 - **Abschnitt 5 (Kosten):** je Strecke `costPerPassenger(route, c)` (alles, was mit den Fluggästen wächst) und
@@ -1773,23 +1780,23 @@ kein Frequent flyer, keine Forschung. Je Woche, in $ (Hilfsskript, nicht im Proj
 
 | Fall | Erlös | Kosten | Ergebnis | Treibstoff | Landung | Je Fluggast | Besatzung | Flugzeug-Anteil |
 |---|---|---|---|---|---|---|---|---|
-| Caravelle III, FRA–CDG 1962, 14 Umläufe, 80 Y | 138 373 | 118 610 | **+19 764** | 19 % | 38 % | 22 % (11,72 $) | 5 % | 11 % |
-| ATR 72-200, FRA–CDG 1990, 14 Umläufe, 68 Y | 164 258 | 131 298 | **+32 960** | 10 % | 40 % | 24 % (16,36 $) | 8 % | 16 % |
-| A320ceo, FRA–MAD 1990, 7 Umläufe, 150 Y + 12 J | 406 377 | 252 074 | **+154 303** | 20 % | 29 % | 15 % (16,36 $) | 5 % | 30 % |
-| A320ceo, FRA–MAD 2020 | 581 226 | 399 516 | **+181 710** | 27 % | 26 % | 13 % (23,40 $) | 5 % | 27 % |
-| A330-300, FRA–JFK 1995, 7 Umläufe, 250 Y + 30 J | 2 517 187 | 914 924 | **+1 602 263** | 53 % | 11 % | 8 % (17,89 $) | 8 % | 20 % |
-| A330-300, FRA–JFK 2020 | 3 391 784 | 1 707 833 | **+1 683 952** | 66 % | 8 % | 6 % (24,10 $) | 6 % | 14 % |
+| Caravelle III, FRA–CDG 1962, 14 Umläufe, 80 Y | 125 135 | 118 610 | **+6 527** | 19 % | 38 % | 22 % (11,72 $) | 5 % | 11 % |
+| ATR 72-200, FRA–CDG 1990, 14 Umläufe, 68 Y | 148 543 | 131 298 | **+17 246** | 10 % | 40 % | 24 % (16,36 $) | 8 % | 16 % |
+| A320ceo, FRA–MAD 1990, 7 Umläufe, 150 Y + 12 J | 351 396 | 252 074 | **+99 244** | 20 % | 29 % | 15 % (16,36 $) | 5 % | 30 % |
+| A320ceo, FRA–MAD 2020 | 502 588 | 399 516 | **+102 912** | 27 % | 26 % | 13 % (23,40 $) | 5 % | 27 % |
+| A330-300, FRA–JFK 1995, 7 Umläufe, 250 Y + 30 J | 1 461 853 | 914 924 | **+546 873** | 53 % | 11 % | 8 % (17,89 $) | 8 % | 20 % |
+| A330-300, FRA–JFK 2020 | 1 969 774 | 1 707 833 | **+261 819** | 66 % | 8 % | 6 % (24,10 $) | 6 % | 14 % |
 
 Slot-Anteil jeweils 0–6 %. Lesart:
 - Mit Marktpreis × Kostenindex (E7) und Treibstoff ohne Hard-Zuschlag bringt jede Länge in jedem Jahrzehnt
   bei voller Maschine Gewinn (heute 2020 beide Strecken im Minus, W1, W2). Volle Maschinen sind aber nicht
   der Normalfall; die Marge bei erwarteter Auslastung prüft das Balance-Skript (3.9).
-- Langstrecke ist jetzt sehr einträglich (Ergebnis 64 % des Erlöses 1995). Grund: Der Marktpreis wächst mit
-  dem Kostenindex, Treibstoff nicht im selben Maß, und `satisfactionFactor` 1 ist mit Erdnüsse auf 7 Stunden
-  unrealistisch. Hinweis für 3.9: Grundpreis je km für Langstrecke und Treibstoff-Formel gemeinsam prüfen.
+- Langstrecke war mit dem alten Preis-Faktor sehr einträglich (Ergebnis 64 % des Erlöses 1995). Grund: Der
+  Marktpreis wächst mit dem Kostenindex, Treibstoff nicht im selben Maß. Seit Paket 3.9d (E70, `FARE_TIME_FACTOR`
+  in 4.1) liegt sie bei voller Maschine bei 37 % (1995) bzw. 13 % (2020), Mittelstrecke bei 28 % bzw. 20 %.
 - Die Landegebühr bleibt auf Kurzstrecke der größte Posten (26–40 %).
 - Gewinnschwelle (4.11), A320ceo FRA–MAD 1990: feste Kosten 214 965 $, je Fluggast 16,36 $ →
-  Preisniveau 0,62 bei voller Maschine, 0,80 bei 75 % Auslastung.
+  Preisniveau 0,72 bei voller Maschine, 0,92 bei 75 % Auslastung (vor E70: 0,62 und 0,80).
 
 ### 5.19 Vorgaben an andere Abschnitte
 - **Abschnitt 6 (Fortschritt):** Forschungs-Einsparungen je Art (5.1) und Effizienz-Punkte (5.3) als Felder je
@@ -2944,7 +2951,9 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
     für die Dauer, mit `f` = `demandMultiplier` des Ereignisses und `r` = Rückgewinnungs-Anteil aus den Daten
     (heute `softensDemand` 0,4 / 0,33 / 0,35, `src/lib/gameState.ts:440-456`).
   - Preis: `RECOVERY_PRICE_SHARE × r × (1 − f) × Dauer × Monatserlös des letzten Monats`.
-  - `RECOVERY_PRICE_SHARE = 0,15` (Startwert).
+  - `RECOVERY_PRICE_SHARE = 0,25` (E69, Paket 3.9d; Startwert 0,15). Mit der Marktgröße und den Preisen aus E70 lohnt
+    sich die Rückgewinnung 2001 / 2008 / 2020 etwa 2,4- / 2,4- / 1,9-fach (A320ceo FRA–MAD allein, Balance-Skript B8.2),
+    mit kleinerem Markt (× 0,25) 1,2- bis 1,7-fach.
   - Hinweis: Als Faktor auf die Anziehung holt die Antwort weniger zurück als heute als Faktor auf die Nachfrage, weil
     „Nicht fliegen“ mitzählt (Beispiel 8.17). Stärke und Preis prüft das Balance-Skript (3.9).
 - Konstanten-Felder je Ereignis in den Daten: Art der Antwort und `r`; feste Preise entfallen.
@@ -3225,17 +3234,19 @@ Zahlen mit den Startwerten (Hilfsskript, nicht im Projekt). `costIndex` 1990 = 1
 | Überholung 1995, Alter 5, Zelle 85 → 100 (Kabine 80) | Wertgewinn 3,24 Mio. $; Anteil 2,43 → Preis 3,24 Mio. $ | 200 000 $ |
 
 **Charter oder streichen**, A320ceo FRA–MAD 1990 (Werte aus 5.18, 14 Abschnitte je Woche), je betroffenem Flug:
-Erlös 29 027 $, Kosten je Fluggast 2 701 $, eigene Flugkosten 9 723 $, Charter-Gebühr 14 584 $.
-Charter − Streichen = 29 027 − 2 701 − 14 584 = **+11 742 $** je Flug (heute in allen vier Beispielen −175 000 bis
+Erlös 25 100 $ (Preise aus E70; vorher 29 027 $), Kosten je Fluggast 2 701 $, eigene Flugkosten 9 723 $, Charter-Gebühr 14 584 $.
+Charter − Streichen = 25 100 − 2 701 − 14 584 = **+7 815 $** je Flug (vorher +11 742 $) (heute in allen vier Beispielen −175 000 bis
 −770 000 $, W4), dazu kein Ruf-Abzug.
 
 **Rückgewinnung** (Bezugsangebot allein im Markt, Economy, Preis-Empfindlichkeit 2,2):
 
 | Krise | `f` / `r` / Dauer | `crisisResponseFactor` | Fluggäste mit Antwort | zurückgeholt | Preis (× Monatserlös) | Mehr-Erlös (× Monatserlös) |
 |---|---|---|---|---|---|---|
-| 2001 | 0,65 / 0,4 / 12 | 1,215 | × 1,088 | 16 % des Ausfalls | 0,25 | 0,68 |
-| 2008 | 0,75 / 0,33 / 24 | 1,110 | × 1,047 | 14 % | 0,30 | 0,85 |
-| 2020 | 0,20 / 0,35 / 24 | 2,400 | × 1,361 | 9 % | 1,01 | 1,73 |
+| 2001 | 0,65 / 0,4 / 12 | 1,215 | × 1,088 | 16 % des Ausfalls | 0,42 | 0,68 |
+| 2008 | 0,75 / 0,33 / 24 | 1,110 | × 1,047 | 14 % | 0,50 | 0,85 |
+| 2020 | 0,20 / 0,35 / 24 | 2,400 | × 1,361 | 9 % | 1,68 | 1,73 |
+
+Preis mit `RECOVERY_PRICE_SHARE` 0,25 (E69, Paket 3.9d; vorher 0,15: 0,25 / 0,30 / 1,01).
 
 Heute holt die Antwort 40 / 33 / 35 % des Ausfalls zurück, für 5 / 8 / 25 Mio. $ fest. Gegen Rivalen wirkt sie stärker
 (Anteil statt nur „Nicht fliegen“).

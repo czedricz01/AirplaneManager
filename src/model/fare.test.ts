@@ -37,7 +37,7 @@ import {
   routeFares,
   routeRevenue,
   routeRevenueParts,
-  shortHaulFareFactor,
+  fareTimeFactor,
   transferRevenueShare,
   uniformFareRatios,
   type RouteClassMarket,
@@ -103,16 +103,16 @@ describe('Abschnitt 4.1 Grundpreis Economy', () => {
   it('4.1: 1 Minute mehr Bezugs-Flugzeit ändert den Preis stetig (kein Sprung)', () => {
     for (let minutes = 20; minutes <= 900; minutes += 1) {
       const step = Math.abs(baseFareEconomy(1000, minutes + 1) - baseFareEconomy(1000, minutes));
-      assert.ok(step < 0.1, `${minutes} min: Sprung ${step}`);
+      assert.ok(step < 0.25, `${minutes} min: Sprung ${step}`);
     }
   });
 
-  it('4.1: Kurzstrecken-Zuschlag als gerade Linie zwischen den Tabellenwerten', () => {
-    assertClose(shortHaulFareFactor(1), 1.15);
-    assertClose(shortHaulFareFactor(4.5), 1.075);
-    assertClose(shortHaulFareFactor(8), 1);
-    assertClose(shortHaulFareFactor(0), 1.15);
-    assertClose(shortHaulFareFactor(12), 1);
+  it('4.1: Preis-Faktor je Flugzeit-Index als gerade Linie zwischen den Tabellenwerten', () => {
+    assertClose(fareTimeFactor(1), 1.04);
+    assertClose(fareTimeFactor(4.5), 0.79);
+    assertClose(fareTimeFactor(8), 0.5);
+    assertClose(fareTimeFactor(0), 1.04);
+    assertClose(fareTimeFactor(12), 0.5);
   });
 
   it('4.1: ungültige Eingabe wird nicht versteckt (F2)', () => {
@@ -314,16 +314,16 @@ describe('Abschnitt 4.8 Umsteiger-Tarif und Aufteilung', () => {
   it('4.8, 4.13: Paris–New York über Frankfurt, Economy', () => {
     const od = marketFare('economy', distanceKm(PARIS, NEW_YORK), 0);
     const tariff = transferFare(od);
-    assertClose(od, 322, 0.5);
-    assertClose(tariff, 290, 0.5);
+    assertClose(od, 189, 0.5);
+    assertClose(tariff, 170, 0.5);
     const shares = transferRevenueShare(
       tariff,
       marketFare('economy', distanceKm(PARIS, FRANKFURT), 0),
       marketFare('economy', distanceKm(FRANKFURT, NEW_YORK), 0),
     );
-    assertClose(shares.originHub / tariff, 0.15, 0.005);
-    assertClose(shares.originHub, 44, 0.5);
-    assertClose(shares.hubDestination, 246, 0.5);
+    assertClose(shares.originHub / tariff, 0.22, 0.005);
+    assertClose(shares.originHub, 37, 0.5);
+    assertClose(shares.hubDestination, 133, 0.5);
   });
 });
 
@@ -427,12 +427,11 @@ describe('Abschnitt 4.11 Gewinnschwelle', () => {
     business: { seatsPerWeek: 12 * 14, marketFare: madrid.business, costPerPassenger: 15 },
   };
 
-  it('4.11, 4.13: Frankfurt–Madrid bei L = 0,75 → Preisniveau 0,82, Economy 94 $, Business 221 $', () => {
+  it('4.11, 4.13: Frankfurt–Madrid bei L = 0,75 → Preisniveau 0,95, Economy 94 $, Business 222 $', () => {
     const level = breakEvenFareLevel(0.75, 150000, classes);
-    assertClose(level, 0.82, 0.005);
+    assertClose(level, 0.95, 0.005);
     assertClose(level * madrid.economy, 94, 0.5);
-    // Spezifikation rechnet mit dem gerundeten Niveau 0,82; genau 0,824 × 269,5 = 222 $ (F25).
-    assertClose(level * madrid.business, 221, 1);
+    assertClose(level * madrid.business, 222, 0.5);
   });
 
   it('4.11: höhere Auslastung → nie höhere Schwelle', () => {
@@ -470,10 +469,10 @@ describe('Abschnitt 4.12 Planer-Zahlen (ohne Kosten)', () => {
 
 describe('Abschnitt 4.13 Beispiel: Grundpreise', () => {
   const rows: [km: number, minutes: number, eco: number, pre: number, bus: number, first: number, eco2020: number][] = [
-    [449, 44, 60, 81, 124, 188, 123],
-    [1420, 119, 114, 173, 269, 425, 233],
-    [6189, 483, 339, 705, 1119, 1899, 694],
-    [17020, 1312, 881, 2070, 3304, 5727, 1802],
+    [449, 44, 55, 73, 112, 170, 112],
+    [1420, 119, 98, 150, 233, 368, 201],
+    [6189, 483, 197, 410, 650, 1103, 403],
+    [17020, 1312, 441, 1035, 1652, 2863, 901],
   ];
   for (const [km, minutes, ...expected] of rows) {
     it(`4.13: ${km} km`, () => {
