@@ -9,10 +9,14 @@
 
 import { CONNECTION_APPEAL, type RivalPersonality } from '../model/constants';
 import { num, pct, type Check, type Section, type Table } from './report';
-import { BIG_STEP, PERSONALITY_ORDER, founderHub, spreadOf, type CompanyYear, type LongRunResult, type YearStats } from './longRun';
+import { BIG_STEP, LENGTH_BANDS, PERSONALITY_ORDER, founderHub, spreadOf, type CompanyYear, type LengthBand, type LongRunResult, type YearStats } from './longRun';
 
 /** Erfolg gilt als „ähnlich“, wenn der Median jeder Persönlichkeit innerhalb dieses Faktors um den Median aller liegt (7.4). */
 export const SIMILAR_FACTOR = 2;
+
+/** Ziel der Marktgröße (E67): Auslastung und Marge einer typischen Strecke (Median der KI-Strecken). */
+export const LOAD_TARGET: readonly [number, number] = [0.75, 0.9];
+export const MARGIN_TARGET: readonly [number, number] = [0.1, 0.25];
 
 /** Jahre bis zur Auflösung, deren Median ohne Zuschuss überschritten sein muss (7.14). */
 export const SUBSIDY_YEARS = 40;
@@ -176,6 +180,27 @@ function marketTable(runs: readonly LongRunResult[]): Table {
     header: ['Jahrzehnt', 'Preis Y p10', 'Preis Y Median', 'Preis Y p90', 'Preiskampf', 'Gesellschaften je Paar', 'Paare mit ≥ 2', 'Auslastung (Median)', 'Marge (Median)', 'Strecken mit Verlust'],
     rows,
     note: 'Preis Y = Preisniveau Economy (`fareRatio`) je Strecke und Monat. Auslastung und Marge je Strecke und Monat aus dem Bericht des Abschlusses.',
+  };
+}
+
+const BAND_NAMES: Readonly<Record<LengthBand, string>> = { short: 'kurz', medium: 'mittel', long: 'lang' };
+
+/** Auslastung und Marge je Länge (Median je Jahr, Mittel der Jahre eines Jahrzehnts); nur Läufe mit `byLength`. */
+function lengthTable(runs: readonly LongRunResult[]): Table {
+  const pick = (b: LengthBand, k: 'load' | 'margin') => (y: YearStats) => y.byLength?.[b][k].median ?? Number.NaN;
+  const count = (b: LengthBand) => (y: YearStats) => y.byLength?.[b].load.n ?? Number.NaN;
+  const rows = decadesOf(runs).map((d) => [
+    `${d}er`,
+    ...LENGTH_BANDS.flatMap((b) => [
+      `${pct(decadeMean(runs, d, pick(b, 'load')))} / ${pct(decadeMean(runs, d, pick(b, 'margin')))}`,
+      num(decadeMean(runs, d, count(b)) / 12, 0),
+    ]),
+  ]);
+  return {
+    title: 'Auslastung / Marge je Streckenlänge (Median je Jahr, Mittel der Jahre, Haupt-Läufe; E67)',
+    header: ['Jahrzehnt', ...LENGTH_BANDS.flatMap((b) => [BAND_NAMES[b], 'Strecken'])],
+    rows,
+    note: 'kurz unter 1 000 km, mittel bis 3 500 km, lang darüber (Großkreis). „Strecken“ = KI-Strecken je Monat und Lauf.',
   };
 }
 
@@ -369,6 +394,16 @@ export function competitionSections(runs: readonly LongRunResult[]): Section[] {
       value: `Optimizer ${pct(mean(allYears.map((y) => y.optimizerBigSteps)), 1)} der Strecken-Monate (p90 ${ratio(mean(allYears.map((y) => y.optimizerStep.p90)))}), andere ${pct(mean(allYears.map((y) => y.otherBigSteps)), 1)}`,
       verdict: 'info',
     });
+    const loadMedian = mean(allYears.map((y) => y.loadFactor.median));
+    const marginMedian = mean(allYears.map((y) => y.margin.median));
+    const inRange = (v: number, [lo, hi]: readonly [number, number]) => v >= lo && v <= hi;
+    checks.push({
+      id: 'B7.10',
+      spec: '3.6, E67',
+      rule: `Marktgröße: typische KI-Strecke ${pct(LOAD_TARGET[0])}–${pct(LOAD_TARGET[1])} Auslastung, Marge ${pct(MARGIN_TARGET[0])}–${pct(MARGIN_TARGET[1])} (Median, Mittel der Jahre)`,
+      value: `Auslastung ${pct(loadMedian)}, Marge ${pct(marginMedian)}`,
+      verdict: inRange(loadMedian, LOAD_TARGET) && inRange(marginMedian, MARGIN_TARGET) ? 'ok' : 'abweichung',
+    });
     const transferYears = allYears.filter((y) => y.transfers).map((y) => y.transfers as NonNullable<YearStats['transfers']>);
     if (transferYears.length > 0) {
       const typical = median(transferYears.map((t) => t.placedShare.median));
@@ -409,7 +444,9 @@ export function competitionSections(runs: readonly LongRunResult[]): Section[] {
       value: `${num(decadeMean(main, lastDecade, (y) => y.ms / 12), 0)} ms je Monat in den ${lastDecade}ern; ${num(mean(main.map((r) => r.ms / 60_000)), 1)} min je Lauf`,
       verdict: 'info',
     });
-    tables.push(marketTable(main), fareByPersonalityTable(main), stepTable(main), transferTable(main), growthTable(main), moneyTable(main));
+    tables.push(marketTable(main));
+    if (main.some((r) => r.years.some((y) => y.byLength))) tables.push(lengthTable(main));
+    tables.push(fareByPersonalityTable(main), stepTable(main), transferTable(main), growthTable(main), moneyTable(main));
   }
   if (g.strength.length > 0) {
     const t = strengthTable(g.strength, main);

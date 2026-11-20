@@ -11,7 +11,7 @@ import { quantile, satisfactionSection, timeAndMoney } from './market';
 import { num, pct, renderMarkdown, verdictCounts, type Section } from './report';
 import { bestFareRatios, caseMarket, priceDuel, ROUTE_CASES, routeSections, runCase } from './routes';
 import { marketState, routeOf, runMarket, sampleMonth, seatsTotal } from './world';
-import { allModelAirports, founderHub, longRunStart, PERSONALITY_ORDER, runLong } from './longRun';
+import { allModelAirports, founderHub, lengthBand, longRunStart, PERSONALITY_ORDER, runLong } from './longRun';
 import { competitionSections, spreadFactor, yearsToLiquidation } from './competition';
 import { careerSection, equipmentResults, goalCase, monthsToRecover, RANK_CASES, reputationAfter, runRankCase, satisfactionForReputation } from './career';
 import { eventSection, hedgeCases, MAX_RESALE_BONUS, oilShockCases, recoveryCase, spreadCase } from './events';
@@ -135,6 +135,17 @@ describe('Balance-Skript: Langläufe (3.9b)', () => {
       assert.ok(y.transfers !== undefined);
     }
     assert.ok(withSubsidy.years[1].companies.some((c) => c.routes > 0));
+  });
+
+  it('runLong: Auslastung und Marge je Längen-Band zählen jede Strecke genau einmal (E67)', () => {
+    for (const y of withSubsidy.years) {
+      const bands = y.byLength;
+      assert.ok(bands !== undefined);
+      assert.equal(bands.short.load.n + bands.medium.load.n + bands.long.load.n, y.loadFactor.n);
+    }
+    assert.equal(lengthBand(999), 'short');
+    assert.equal(lengthBand(1000), 'medium');
+    assert.equal(lengthBand(3500), 'long');
   });
 
   it('ohne Zuschuss: kein Dollar Zuschuss; mit Zuschuss: Zuschuss im Ergebnis', () => {

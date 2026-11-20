@@ -1,21 +1,19 @@
 # Status
 
-**Nächstes Paket: 3.9d** – E66, E67, E68, E69 umsetzen: (1) `preselectScore` (`src/model/rivalMonth.ts:315`) gewichtet Ziele an
-fremden KI-Drehkreuzen höher (Startwert × 2); (2) mit `npm run balance` den Faktor für `DEMAND_SCALE`
-(`src/model/constants.ts:564`, ggf. mit `DISTANCE_EXP`) bestimmen, Ziel Auslastung 75–90 %, Marge 10–25 %;
-Spezifikation 3.6 und 7.9 anpassen; (3) `npm run balance -- --long --out docs/neubau/balance/3.9d-bericht.md` neu
-rechnen, Prüfregel 7.14 ohne Zuschuss prüfen und bei Erfolg `RIVAL_SUBSIDY_ENABLED = false` (E68); „ähnlicher
-Erfolg“, KI-Stärke, Optimizer-Sprünge (E65) und Umsteiger mit `CONNECTION_APPEAL` neu bewerten; dazu die Prüfregeln aus
-3.9c, die an der Marktgröße hängen: B6.7 (Klassen-Forschung, kann für Rang 1, 2, 5 kippen), B6.8, B8.2, B8.8;
-(4) E69: `HEDGE_PRICE_SHARE` 0,2 → 0,35 (`src/model/constants.ts:2344`); nach E67 die Rückgewinnung (B8.2) neu messen
-und `RECOVERY_PRICE_SHARE` (`src/model/constants.ts:2347`) so festlegen, dass sie sich etwa 1- bis 2,5-fach lohnt;
-`SPEZIFIKATION.md` 8.5 anpassen.
+**Nächstes Paket: 3.9d, Rest** – wartet auf **O66** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“): Wie die KI eine Marge
+von 10–25 % erreicht (Marktgröße allein reicht nicht). Danach: (1) Marktgröße und, je nach O66, Preise nach der
+Entscheidung einstellen (`DEMAND_SCALE`, `DISTANCE_EXP` in `src/model/constants.ts`; Spezifikation 3.4, 3.6, ggf. 4.1);
+(2) `npm run balance -- --long --out docs/neubau/balance/3.9d-bericht.md` neu rechnen; Prüfregel B7.10 (E67), 7.14
+ohne Zuschuss prüfen und bei Erfolg `RIVAL_SUBSIDY_ENABLED = false` (E68); „ähnlicher Erfolg“, KI-Stärke,
+Optimizer-Sprünge (E65), Umsteiger mit `CONNECTION_APPEAL`, B6.7, B6.8, B8.8 neu bewerten; (3) Rückgewinnung (B8.2) neu
+messen und `RECOVERY_PRICE_SHARE` (`src/model/constants.ts`, 8.5) so festlegen, dass sie sich 1- bis 2,5-fach lohnt.
 
-Stand: 19.11.2026 · Paket 3.9c erledigt: Abschnitte 6 und 8 im Balance-Skript (`src/balance/career.ts`,
-`src/balance/events.ts`), Bericht `docs/neubau/balance/3.9c-bericht.md` (15 ok · 0 Abweichung · 21 Info), Funde 11–21
-in `BALANCE.md`; keine Konstante geändert. O65 entschieden: E69 (Absicherung teurer, Rückgewinnung nach E67).
+Stand: 20.11.2026 · Paket 3.9d Teil 1 erledigt: E66 (`PRESELECT_RIVAL_HUB_WEIGHT` = 2, `src/model/rivalMonth.ts:319`),
+E69-Absicherung (`HEDGE_PRICE_SHARE` 0,35), Langlauf misst Auslastung und Marge je Länge (Prüfregel B7.10); Kalibrier-Läufe
+zeigen: Auch bei Marktgröße × 0,3 bleibt die KI voll (Marge 47 → 31 %), weil jede KI ihre Paare allein fliegt
+(Funde 22–24 in `BALANCE.md`, F48); `DEMAND_SCALE` unverändert. Kurzbericht `docs/neubau/balance/3.9d-bericht.md`.
 
-Offene Fragen: keine.
+Offene Fragen: **O66** (Marge der KI: nur Marktgröße / mehr Konkurrenz / Preis gegen Kosten; Empfehlung C).
 
 Offen aus 3.9c (kein Blocker): Alle Zahlen stammen aus dem heutigen, zu großen Markt. Nach E67 den Bericht neu
 erzeugen; kippt B6.7, die Preise in `CLASS_RESEARCH` senken (6.8). Ruf-Meilenstein Gold (80) erreicht keine
@@ -180,7 +178,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.9a | Balance-Skript Teil 1: Gerüst, Abschnitte 1–5 ohne Langlauf (Zeit und Geld, Zufriedenheit, Nachfrage über alle Paare, Preis und Kosten typischer Strecken, Preiskampf) | erledigt |
 | 3.9b | Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (Abschnitt 7, Umsteiger 3.13) | erledigt |
 | 3.9c | Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (Ruf, Rang, Forschung, Jahresziel, Szenario, Krisen-Antworten, Charter, Flottenmarkt, Kreditlinie) | erledigt |
-| 3.9d | E66–E69 umsetzen: KI an fremden Drehkreuzen, Marktgröße per Skript einstellen, Langläufe neu, Zuschuss abschalten, Preise der Krisen-Antworten | offen |
+| 3.9d | E66–E69 umsetzen: KI an fremden Drehkreuzen, Marktgröße per Skript einstellen, Langläufe neu, Zuschuss abschalten, Preise der Krisen-Antworten | wartet (Teil 1 erledigt: E66, Absicherung; Rest nach O66) |
 
 ## Phase 4 – Oberfläche anbinden
 
@@ -248,3 +246,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 19.11.2026 | – | O60, O63, O64 entschieden: E66 (KI an fremden Drehkreuzen), E67 (Marktgröße kleiner, Faktor per Skript), E68 (Zuschuss nach E66/E67 abschalten); neues Paket 3.9d |
 | 19.11.2026 | 3.9c | Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (`src/balance/career.ts`, `events.ts`), 17 neue Prüfregeln B6.1–B6.8, B8.1–B8.9; Bericht `balance/3.9c-bericht.md` (15 ok, 0 Abweichung, 21 Info), Funde 11–21 in `BALANCE.md`: Ruf-Skala, Werbung, Charter, Flottenmarkt, Szenario-Ruf 55 ok; Klassen-Forschung heute ok, nach E67 neu prüfen; Krisen-Antworten lohnen sich 1,8- bis 5-fach → neue Frage O65; Bau-Festlegung F47; 9 neue Tests (1233 grün). |
 | 19.11.2026 | – | O65 entschieden: E69 (`HEDGE_PRICE_SHARE` 0,2 → 0,35; `RECOVERY_PRICE_SHARE` nach E67 neu messen); Umsetzung in Paket 3.9d |
+| 20.11.2026 | 3.9d (Teil 1) | E66 umgesetzt (`TargetCandidate.otherRivalHub`, `PRESELECT_RIVAL_HUB_WEIGHT` = 2, Spezifikation 7.9), `HEDGE_PRICE_SHARE` 0,35 (E69, Spezifikation 8.5); Langlauf mit Auslastung / Marge je Länge und Prüfregel B7.10 (F48); 16 Kalibrier-Läufe zu E67: Auslastung bleibt bei jeder Marktgröße 100 %, Marge × 1 47 %, × 0,5 37 %, × 0,3 31 %; E66 teilt nur 1–3 % der Paare → neue Frage O66, `DEMAND_SCALE` unverändert; Kurzbericht `balance/3.9d-bericht.md` (15 ok, 0 Abweichung, 21 Info); 2 neue Tests (1235 grün) |

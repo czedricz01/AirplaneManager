@@ -228,6 +228,13 @@ describe('Abschnitt 7.9 Planung einer Strecke', () => {
     near(preselectScore(long, lcc) / preselectScore(short, lcc), 0.4);
   });
 
+  it('7.9 (E66): Drehkreuz einer anderen KI zählt × 2, ihre Abflüge teilen nicht', () => {
+    const plain = preselectScore(target(), ctx);
+    near(preselectScore(target({ otherRivalHub: true }), ctx), 2 * plain);
+    near(preselectScore(target({ otherRivalHub: true, otherDepartures: 28 }), ctx), 2 * plain);
+    near(preselectScore(target({ otherDepartures: 28 }), ctx), plain / 3);
+  });
+
   it('7.3/7.9: die besten Suchbreite Ziele + 2 zufällige', () => {
     const many = Array.from({ length: 20 }, (_, i) => target({ id: String(i), business: 10 + i }));
     for (const strength of RIVAL_STRENGTHS) {

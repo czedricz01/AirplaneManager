@@ -212,9 +212,9 @@ describe('Abschnitt 8.5 Krisen-Antworten', () => {
     near(crisisResponsePrice(rec, { fuelBill: 0, revenue: 2e7 }), 2 * crisisResponsePrice(rec, { fuelBill: 0, revenue: 1e7 }), 1e-6);
   });
 
-  it('8.17: Absicherung 1973 bei 1 Mio. $ Rechnung kostet 3,6 Mio. $ und spart mehr', () => {
+  it('8.17: Absicherung 1973 bei 1 Mio. $ Rechnung kostet 6,3 Mio. $ und spart mehr (E69)', () => {
     const e = historicalEvent('1973 Oil Crisis');
-    near(hedgePrice(1e6, e.months), 3.6e6, 1e-6);
+    near(hedgePrice(1e6, e.months), 6.3e6, 1e-6);
     let ratio = 0;
     for (let month = e.startMonth; month < e.startMonth + e.months; month++) ratio += fuelTable(month) / fuelTable(e.startMonth - 1);
     ratio /= e.months;
