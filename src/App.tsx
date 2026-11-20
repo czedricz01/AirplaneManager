@@ -1933,6 +1933,7 @@ export default function App() {
           config,
           baseInteriorPop,
           refitsDone: refits + 1,
+          cabinInstalledAt: currentDateOffset,
           conditionInterior: Math.min(100, refitCabinCondition(p.conditionInterior, refits))
         };
       }));
