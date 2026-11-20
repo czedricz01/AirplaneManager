@@ -67,6 +67,7 @@ import {
   type CostResearchKind,
   type GoalTag,
   type MilestoneDef,
+  START_CAPITAL_TIERS_1960,
   type MilestoneMetric,
   type RankDef,
   type RankRequirement,
@@ -255,8 +256,18 @@ export function rankStats(input: RankStatsInput): RankStats {
     monthlyPax: input.weeklyPassengers * WEEKS_PER_MONTH,
     reputation: input.reputation,
     regions: new Set(input.routeEndRegions).size,
-    years: Math.floor(input.monthsPlayed / 12),
+    years: yearsPlayed(input.monthsPlayed),
   };
+}
+
+/**
+ * Volle Jahre im Geschäft: `⌊max(0, Spielmonate) / 12⌋`. Eine Funktion für Rang (6.7), Karriere-Punkte (6.12) und
+ * Ruhmeshalle (statt dreier Kopien in `src/App.tsx`, Bestand 1.8 Art D). SPEZIFIKATION 6.7.
+ *
+ * @param monthsPlayed Spielmonate seit Spielstart (Monat − Startmonat).
+ */
+export function yearsPlayed(monthsPlayed: number): number {
+  return Math.floor(Math.max(0, monthsPlayed) / 12);
 }
 
 /**
@@ -587,6 +598,18 @@ export interface ActiveResearch {
 export interface ResearchState {
   readonly done: readonly string[];
   readonly active: readonly ActiveResearch[];
+}
+
+/**
+ * Startkasse des Spielers zur gewählten Stufe: `atCost(Stufe in $ von 1960, Startmonat)` (E6, E11), wie die
+ * Startkasse der KI (7.7). Eine unbekannte Stufe ist ein Fehler. SPEZIFIKATION 6.13.
+ *
+ * @param tier1960 ein Wert aus `START_CAPITAL_TIERS_1960`.
+ * @param startMonth Spielmonat des Spielstarts.
+ */
+export function startCapital(tier1960: number, startMonth: number): number {
+  if (!START_CAPITAL_TIERS_1960.includes(tier1960)) throw new Error(`Unbekannte Startkapital-Stufe ${tier1960}`);
+  return atCost(tier1960, startMonth);
 }
 
 /**

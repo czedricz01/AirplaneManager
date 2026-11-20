@@ -83,6 +83,22 @@ export function monthOf(offset: number): number {
   return 1 + (offset % 12);
 }
 
+/**
+ * Month-on-month change as the top bar shows it: "+3.2%", "-1.5%" or "0%".
+ * "0%" too when there is no earlier value to compare with (before ≤ 0).
+ */
+export function formatTrend(now: number, before: number): string {
+  if (!(before > 0)) return '0%';
+  const diff = ((now - before) / before) * 100;
+  if (diff === 0) return '0%';
+  return diff > 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
+}
+
+/** A starting-budget tier as the new-game screen labels it and the save stores it: "$25M". */
+export function budgetLabel(amount: number): string {
+  return `$${Math.round(amount / 1_000_000)}M`;
+}
+
 /** Litres in a US gallon; the fuel price is kept per gallon and shown per litre. */
 export const LITRES_PER_GALLON = 3.78541;
 

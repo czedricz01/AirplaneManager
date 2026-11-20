@@ -1,12 +1,18 @@
 # Status
 
-**Nächstes Paket: 4.2** (Regeln aus `App.tsx` ins Modell). Keine offene Frage.
+**Nächstes Paket: wartet auf O68** (Reihenfolge in Phase 4: erst der Monatsabschluss auf dem Modell, dann die
+Ansichten?). Empfehlung A: neue Pakete 4.2b „Brücke Spielstand → `ModelState`“ und 4.2c „`App.tsx` bucht mit
+`closeMonth` des Modells“ vor 4.3.
 
-Stand: 20.11.2026 · Paket 4.1 erledigt (F52): Glossar und Erklärtexte in `src/model/glossary.ts`, jede Zahl aus
-`src/model/constants.ts` oder einer Modell-Funktion (Test: keine Zahl außer 0, 1, 2, 100 in der Datei).
-`src/components/InfoTooltip.tsx` nutzt die Texte; neue Namen nach E9 („Satisfaction“, „Flight-time index“, neu „Cabin
-rating“, „Type appeal“). Lounge- und Stand-Text in `AirportDetailView.tsx` aus den Konstanten. Erstes Mal, dass eine
-Ansicht `src/model/` liest.
+Stand: 20.11.2026 · Paket 4.2 erledigt (F53): Regeln aus `src/App.tsx` mit gleichem Wert im alten und neuen Modell
+lesen jetzt das Modell (Überholungs-Punkte, Umbau-Zustand, Start-Ruf, Startausstattung, Saison der Kopfzeile, Monat der
+Treibstoff-Absicherung, Jahre im Geschäft über neues `yearsPlayed`); Ruf + 2 bei Übernahme entfernt (E38); Startkasse
+mit Kostenindex (`startCapital`, 6.13). Der Rest (Überholungs-Preis, „× 4“, Treibstoff- und Ereignis-Quelle,
+Übernahme-Preis) hängt am alten Monatsabschluss → O68.
+
+Offen aus 4.2 (wartet auf O68): `src/App.tsx:713`, `:723`, `:730` „× 4“ → `WEEKS_PER_MONTH`; `GENERAL_CHECK_COST`
+(`src/App.tsx:223`) → `overhaulQuote`; Treibstoffpreis unter der Absicherung aus der alten Tabelle (`src/App.tsx:645`);
+Ereignis-Faktor der Kopfzeile aus `src/lib/eventSystem.ts` (`src/App.tsx:868`); `takeoverQuote` → `takeoverPrice`.
 
 Offen aus 4.1 (kein Blocker): Drei Glossar-Einträge bleiben alt in `InfoTooltip.tsx`, bis ihre Ansicht umgestellt ist:
 `desks` (4.3: Schalter-Pflicht E18), `utilization` (4.4: Zeitplan ins Modell), `breakEven` (4.5: Regler mit zwei
@@ -190,7 +196,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | Nr. | Paket | Status |
 |---|---|---|
 | 4.1 | Glossar und Erklärtexte aus den Konstanten erzeugen (Startpunkt: `src/components/InfoTooltip.tsx`, `bestand/8-oberflaeche.md` Abschnitt „Texte mit festen Zahlen“, `src/model/constants.ts`) | erledigt |
-| 4.2 | Regeln aus `App.tsx` ins Modell (`src/App.tsx`; `bestand/8-oberflaeche.md` W8, Art D „Jahre im Geschäft“) | offen |
+| 4.2 | Regeln aus `App.tsx` ins Modell (`src/App.tsx`; `bestand/8-oberflaeche.md` W8, Art D „Jahre im Geschäft“) | erledigt |
 | 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | offen |
 | 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | offen |
 | 4.5 | Preis und Satisfaction der Strecke (Planer Schritt 3/4, `RouteConfigOverlay.tsx`, `RouteDetailView.tsx`, `RoutesView.tsx`; W5, Klassen-Faktoren, Debug-Anzeige; Glossar `breakEven`) | offen |
@@ -262,3 +268,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | – | O67 entschieden: E71 (A, Paket 3.9e „Persönlichkeiten“) |
 | 20.11.2026 | 3.9e | E71 umgesetzt: Gründung nur mit möglicher Gewinn-Strecke (`rivalHubViable`), Überschall nie Startflugzeug (F50), LCC Preis-Lage 0,95, Boutique Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeug-Gewichte (Kalibrierung mit 4 Varianten, F51); Langläufe: ähnlicher Erfolg 1,36 / 1,60 (ohne Zuschuss 1,81 / 1,70), 0 Auflösungen; Zuschuss abgeschaltet (E68); Bericht `balance/3.9e-bericht.md` (20 ok, 0 Abweichung, 28 Info); 3 neue Tests (1238 grün). Phase 3 abgeschlossen |
 | 20.11.2026 | 4.1 | Glossar und Erklärtexte aus den Konstanten: `src/model/glossary.ts` (18 Einträge, `loungeEffectText`, Zahlen-Texte), `InfoTooltip.tsx` übernimmt sie (3 Einträge bleiben bis 4.3–4.5), Lounge- und Stand-Text in `AirportDetailView.tsx`, Flotten-Spalte erklärt Cabin rating; Pakete 4.2–4.7 eingetragen; Bau-Festlegung F52; 9 neue Tests (1247 grün) |
+| 20.11.2026 | 4.2 | Regeln aus `App.tsx`: gleiche Werte aufs Modell umgestellt (`overhaulPoints`, `refitCabinCondition`, `START_REPUTATION`, `START_HUB_SETUP`, `seasonFactor`, neu `yearsPlayed`, `hedgeLockMonth`, `startCapital` mit `START_CAPITAL_TIERS_1960`), Ruf + 2 bei Übernahme entfernt (E38), Trend-Text `formatTrend`; Bau-Festlegung F53; neue Frage O68 (Monatsabschluss vor den Ansichten umstellen); 5 neue Tests (1252 grün) |
