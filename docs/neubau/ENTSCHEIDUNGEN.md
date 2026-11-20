@@ -76,6 +76,7 @@ Claude schlägt vor, der Mensch entscheidet.
 | E67 | 19.11.2026 | **Marktgröße kleiner (O60 = A):** `DEMAND_SCALE` (heute 29, `src/model/constants.ts:564`) wird gesenkt, bei Bedarf zusammen mit `DISTANCE_EXP` (kurze Paare im Verhältnis kleiner). Den Faktor bestimmt das Balance-Skript **nach** E66. Ziel: typische Strecke beim besten Preis 75–90 % Auslastung, Marge 10–25 %. Danach Spezifikation 3.6 anpassen und `CONNECTION_APPEAL` (Umsteiger-Regel 3.13) neu prüfen. | Fund 1 und 6 in `BALANCE.md`: Ein Flugzeug ist fast überall bei jedem Preis voll (Margen 58–77 %); im Langlauf Auslastung 100 %, Marge im Median 40 %, also über der in O60 genannten Schwelle. Weg B („Rivalen drücken die Preise“) trat nicht ein. |
 | E68 | 19.11.2026 | **Zuschuss der KI später abschalten (O63 = B):** `RIVAL_SUBSIDY_ENABLED` (`src/model/constants.ts:2213`) bleibt vorerst `true`. Nach E66 und E67 rechnet das Balance-Skript die Prüfregel 7.14 (10 Läufe ohne Zuschuss) neu; ist sie erfüllt, wird der Zuschuss abgeschaltet (E47). | Die Regel ist heute nur erfüllt, weil der Markt zu groß ist (Fund 5, 6). Eine kleinere Marktgröße macht die KI ärmer; erst die Prüfung danach ist aussagekräftig. |
 | E69 | 19.11.2026 | **Preise der Krisen-Antworten (O65 = C):** `HEDGE_PRICE_SHARE` (`src/model/constants.ts:2344`) 0,2 → 0,35, damit sich die Preis-Absicherung etwa 1- bis 2,6-fach lohnt (1973 2,6; 1979 1,4; 1990 1,05). `RECOVERY_PRICE_SHARE` (`src/model/constants.ts:2347`, heute 0,15) bleibt vorerst; nach E67 misst das Balance-Skript die Rückgewinnung neu (B8.2) und legt den Anteil so fest, dass sie sich ebenfalls etwa 1- bis 2,5-fach lohnt. Umsetzung und `SPEZIFIKATION.md` 8.5 in Paket 3.9d. | Fund 16 in `BALANCE.md`: Beide Antworten lohnen sich mehrfach (Absicherung 1,8- bis 4,6-fach, Rückgewinnung 2,5- bis 5,1-fach) und sind damit keine Abwägung. Die Absicherung hängt nur an der Treibstoff-Tabelle und ist heute schon eindeutig zu billig; die Rückgewinnung hängt an der Marktgröße, die E67 ändert. |
+| E70 | 20.11.2026 | **Marge der KI über Preis gegen Kosten (O66 = C):** Ziel aus E67 bleibt (typische Strecke beim besten Preis 75–90 % Auslastung, Marge 10–25 %). Weg: Marktpreise senken, Langstrecke stärker als Kurz- und Mittelstrecke, über den Grundpreis (`FARE_BASE_1960`, `FARE_PER_KM_1960`, 4.1); dazu Marktgröße kleiner (`DEMAND_SCALE`, Richtung × 0,3) mit flacherem Entfernungs-Faktor (`DISTANCE_EXP`, Richtung 0,3), damit auch ein Spieler allein nicht überall voll ist. Die genauen Werte misst das Balance-Skript mit Langläufen (Rest von Paket 3.9d); danach Spezifikation 3.4, 3.6, 4.1 anpassen. Weg B (mehr Konkurrenz unter der KI) folgt nur, wenn die KI im späten Spiel zu wenig Konkurrenz hat. | Fund 23 in `BALANCE.md`: Jede KI fliegt ihre Paare allein und wählt so wenige Flüge, dass sie voll ist; die Marge hängt dann am Preis gegen die Kosten (volle Mittelstrecke deckt ihre Kosten beim 0,6-Fachen, Langstrecke beim 0,3-Fachen des Marktpreises, 5.18). Eine kleinere Marktgröße allein senkt die Marge kaum (× 0,3: 31 %). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -159,42 +160,16 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
 
 O65 am 19.11.2026 entschieden (E69); Umsetzung in Paket 3.9d.
 
-Offen aus Paket 3.9d (Zahlen in `BALANCE.md` Fund 22 und 23). **Blockiert den Rest von Paket 3.9d** (E67, E68,
-Rückgewinnung aus E69, Langläufe neu).
+O66 am 20.11.2026 entschieden (E70); Umsetzung im Rest von Paket 3.9d.
 
-**O66 – Wie erreicht die KI eine Marge von 10–25 % (E67)?** E67 sollte das über eine kleinere Marktgröße schaffen. Die
-Langläufe (je 4 Läufe × 40 Jahre) zeigen: Das geht nicht.
-
-| Marktgröße | Auslastung (Median) | Marge (Median) | lang: Marge | aufgelöste Gründer (von 20) |
-|---|---|---|---|---|
-| × 1 (heute, mit E66) | 100 % | 47 % | 42–66 % | 0 |
-| × 0,5 | 100 % | 37 % | 32–57 % | 2 |
-| × 0,3 | 100 % | 31 % | 27–53 % | 2 |
-| × 0,3, `DISTANCE_EXP` 0,3 | 100 % | 29 % | 29–51 % | 6 |
-
-Grund: Jede KI fliegt ihre Paare **allein** (auch mit E66 teilen nur 1–3 % der Paare zwei KI). Wer allein fliegt, wählt
-so wenige Flüge, dass er voll ist; die Marge hängt dann am Preis gegen die Kosten (eine volle Mittelstrecke deckt ihre
-Kosten schon beim 0,6-Fachen des Marktpreises, eine Langstrecke beim 0,3-Fachen; Spezifikation 5.18). Eine kleinere
-Marktgröße senkt die Marge nur langsam, macht die KI ärmer und kleiner und löst mehr Gründer auf.
-- A: **Nur Marktgröße.** `DEMAND_SCALE` × 0,5 (29 → 14,5); Ziel aus E67 für die KI auf „Marge um 35 %“ lockern. Rest von
-  3.9d sofort weiter. Langstrecke bleibt sehr einträglich.
-- B: **Erst mehr Konkurrenz unter der KI.** E66 verstärken (Gewicht 2 → 5) oder Weg C aus O64 (KI kauft an fremden
-  Drehkreuzen Slots wie an eigenen; heute hält der Besitzer dort fast alle Slots), dann Marktgröße neu messen. Ob geteilte
-  Paare die Marge wirklich senken, ist offen; die Preiskampf-Regeln (7.6) lassen Preise über den Kosten.
-- C: **Preis gegen Kosten.** Marktpreise senken, Langstrecke stärker: Grundpreis (`FARE_PER_KM_1960`, 4.1) so, dass
-  Mittelstrecke etwa × 0,8 und Langstrecke etwa × 0,6 kostet (Schätzung: Marge `1 − (1 − m) ÷ Faktor` → um 20 %), dazu
-  Marktgröße × 0,3 mit `DISTANCE_EXP` 0,3, damit auch ein Spieler allein nicht überall voll ist (A320ceo allein auf
-  FRA–MAD oder ATL–ORD beim besten Preis 80 % statt 97 % Auslastung). Ein neues Paket misst die genauen Werte mit dem Balance-Skript.
-- **Empfehlung:** C. Die Marge kommt aus dem Verhältnis Preis zu Kosten, nicht aus der Marktgröße; Spezifikation 5.18
-  nennt die zu hohe Langstrecken-Marge schon als Prüfpunkt. B kann danach folgen, wenn die KI im späten Spiel zu wenig
-  Konkurrenz hat.
+Zurzeit keine offene Frage.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -228,6 +203,7 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - `SPEZIFIKATION.md` 7.19 setzt für Abschnitt 8 voraus: ein Abschluss bucht Spieler und KI in einer Aufteilung, danach KI-Entscheidungen; Verschleiß, Ausfälle, Ereignisse und Kreditlinie auch für die KI; Gebrauchtmarkt nimmt KI-Flugzeuge mit Alter, Zustand und Kabine auf; KI-Rückschlag entfällt.
 - E47 (Zuschuss abschaffen): Prüfregel in `SPEZIFIKATION.md` 7.14; E45 (ähnlicher Erfolg): Prüfregel in 7.4. Beide im Balance-Skript (3.9).
 - E69 (Rückgewinnung) erst nach E67: Der Preis-Anteil der Rückgewinnung wird mit der neuen Marktgröße gemessen.
+- E70 präzisiert E67: Die Marge kommt über den Grundpreis (4.1), die Marktgröße stellt die Auslastung ein.
 - Reihenfolge E66 → E67 → E68: erst Konkurrenz unter der KI (E66), dann mit geteilten Paaren den Marktgrößen-Faktor bestimmen (E67), dann Zuschuss-Prüfung 7.14 neu rechnen und abschalten (E68). Danach „ähnlicher Erfolg“ (7.4), KI-Stärke (B7.8), Optimizer-Sprünge (E65) und Umsteiger (3.13) neu bewerten.
 - Vorgaben aus 3.16, 4.14, 5.19, 6.15 und 7.19 an Abschnitt 8 erfüllt in `SPEZIFIKATION.md` 8.1 (Reihenfolge, eine
   Marktaufteilung), 8.2 (Kasse am Monatsende, R11), 8.5 (Antworten als Anteil), 8.9 (`cancelledShare`, Charter je Flug),
