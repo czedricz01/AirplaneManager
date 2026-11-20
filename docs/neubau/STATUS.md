@@ -1,24 +1,35 @@
 # Status
 
-**Nächstes Paket: 4.2c** – Brücke Teil 2: Eingaben, Kasse und Fortschritt des Spielers in `src/lib/modelBridge.ts`
-(`CompanyInputs` aus Forschung, Lohn, Moral, Werbung, Frequent flyer, Schwierigkeit, Krisen-Antworten, Streik;
-Kassenbuch aus `capital` und `monthlyCapex`; Vorbestellungen; `CompanyProgress` aus `career`, `milestones`,
-`annualGoal`, `scenario`; Berichte; Lieferungen als neue Flugzeuge der Flotte), mit Test „hin und zurück“.
-Zu lesen: `src/lib/modelBridge.ts`, `src/lib/gameState.ts` (Marketing, Staff, Career, ScenarioState),
-`src/lib/research.ts`, `src/lib/preorders.ts`, `src/lib/annualGoals.ts`, `src/lib/gameTypes.ts` (MonthlyReport),
-`src/model/monthClose.ts` (`CompanyInputs`, `MonthLedger`, `PreorderState`, `CompanyProgress`, `MonthReport`),
-`src/model/progress.ts` (`ResearchState`, `AnnualGoal`), F54 in `ENTSCHEIDUNGEN.md`.
+**Nächstes Paket: 4.2d** – Brücke Teil 3: KI und Welt-Zustand in `src/lib/` (KI-Gesellschaften als `CompanyState` mit
+`agent` aus der alten `AiAirline`, Ansicht der Konkurrenz daraus; Zufallsereignisse, Störungen, Pech, Gebrauchtmarkt und
+`seed` als `ModelState`), mit Test „hin und zurück“.
+Zu lesen: `src/lib/modelBridge.ts`, `src/lib/modelBridgeCompany.ts` (nur die Kopf-Kommentare), `src/components/CompetitorsView.tsx`
+(`AiAirline`), `src/lib/aiSimulation.ts` (nur Typen und Aufbau), `src/lib/disruptions.ts`, `src/lib/usedMarket.ts`,
+`src/lib/eventSystem.ts` (Zufallsereignisse), `src/model/monthClose.ts` (`ModelState`, `CompanyState.agent`),
+`src/model/rivalMonth.ts` (Agent-Zustand der KI), `src/model/monthEvents.ts` (`Disruption`, `WorldEvent`), F54 und F55 in
+`ENTSCHEIDUNGEN.md`.
 
-Stand: 20.11.2026 · O68 = A (E72): erst der Monatsabschluss auf dem Modell, dann die Ansichten. Pakete 4.2b–4.2e
-(F54). Paket 4.2b erledigt: `src/lib/modelBridge.ts` liest Welt (Flughäfen, Katalog) und den Betrieb des Spielers
-(Flugzeuge mit Kabine, Strecken mit Preisniveau und Fahrplan, Bestand an Flughäfen) als Modell-Werte und schreibt
-zurück, was der Abschluss ändert; „hin und zurück“ ändert nichts; 19 Regeltests (1271 grün).
+Stand: 20.11.2026 · O68 = A (E72). Pakete 4.2b–4.2e (F54). 4.2b erledigt (Welt und Betrieb). Paket 4.2c erledigt:
+`src/lib/modelBridgeCompany.ts` liest Eingaben, Kassenbuch, Vorbestellungen, Fortschritt und Berichte des Spielers als
+Modell-Werte und schreibt zurück, was der Abschluss ändert (Lieferungen als Flugzeuge der Flotte); „hin und zurück“ ändert
+nichts; ein ganzer Monat mit `closeMonth` über die Brücke getestet; 18 Regeltests (1289 grün).
 
-Offen aus 4.2b (kein Blocker): Lieferungen (`newAircraft`) legt 4.2c als Flugzeuge der Flotte an (Kennzeichen,
-Kabine der Vorbestellung). `popularity` / `efficiency` am Flugzeug schreibt noch der alte Abschluss; die Brücke liest
-sie nicht (Katalog), Anzeige aus dem Modell in 4.2e / 4.6. Einweg-Umläufe zählen als ein Abschnitt; das Modell teilt
-die Abflüge halb auf beide Enden (wie bisher bei der KI). Vor diesem Paket umgebaute Flugzeuge haben kein
-`cabinInstalledAt` und gelten als beim Kauf eingerichtet (5.1). `allModelAirports` im Balance-Skript
+Offen aus 4.2c (kein Blocker): (1) 4.2e: neues Spielstand-Feld `ledgerValues` (Flottenwert und Anzahlungen am Monatsanfang,
+Wertänderung durch Geschäfte; Kauf, Verkauf, Umbau, Überholung rufen `withTradeValue`); ohne es zeigt „Aircraft trades“ im
+ersten Monat nach dem Laden 0. (2) 4.2d: `renamed` aus `deliveredAircraft` auf die Störungen des nächsten Monats anwenden.
+(3) 4.2e: Charter-Kosten einer Störung zahlt die Oberfläche heute sofort („Decision: …“, landet in `otherSpending`); das
+Modell bucht Charter im Abschluss (8.9) – mit den Störungen (4.2d) die sofortige Zahlung entfernen, sonst doppelt.
+(4) Lieferung einen Monat später als heute (Modell liefert im Abschluss des Liefermonats, 8.12); Preis bei Lieferung aus dem
+Modell, `unitPrice` der Bestellung nur Anzeige (4.6). (5) Jahresziel: Ruf-Prämie und Ruf-Strafe alter Ziele entfallen (E58);
+Anzeige der Geld-Strafe in 4.7. (6) Meilensteine: Die Oberfläche behält bis 5.1 die alten Kennungen (`continents-*`,
+`reputation-60/80/95`); die Brücke übersetzt. (7) Szenario: Dollar-Ziele gelten als $ des Startmonats (in 1960er $
+umgerechnet); `minWeeklyFlights` (Deregulation) und die eigene Untergrenze (−5 M$, 0 $) kennt das Modell nicht (8.15:
+Kreditlinie) – in 5.1 / 5.3 prüfen. (8) `appReport` ist eine Übergangs-Anzeige; die Monatsansicht stellt 4.7 um.
+
+Offen aus 4.2b (kein Blocker): Lieferungen legt seit 4.2c `deliveredAircraft` an. `popularity` / `efficiency` am Flugzeug
+schreibt noch der alte Abschluss; die Brücke liest sie nicht (Katalog), Anzeige aus dem Modell in 4.2e / 4.6. Einweg-Umläufe
+zählen als ein Abschnitt; das Modell teilt die Abflüge halb auf beide Enden (wie bisher bei der KI). Vor diesem Paket umgebaute
+Flugzeuge haben kein `cabinInstalledAt` und gelten als beim Kauf eingerichtet (5.1). `allModelAirports` im Balance-Skript
 (`src/balance/longRun.ts:66`) wiederholt `modelAirports` (aufräumen in 5.2).
 
 Offen aus 4.2 (kommt mit 4.2e): `src/App.tsx:713`, `:723`, `:730` „× 4“ → `WEEKS_PER_MONTH`; `GENERAL_CHECK_COST`
@@ -209,7 +220,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.1 | Glossar und Erklärtexte aus den Konstanten erzeugen (Startpunkt: `src/components/InfoTooltip.tsx`, `bestand/8-oberflaeche.md` Abschnitt „Texte mit festen Zahlen“, `src/model/constants.ts`) | erledigt |
 | 4.2 | Regeln aus `App.tsx` ins Modell (`src/App.tsx`; `bestand/8-oberflaeche.md` W8, Art D „Jahre im Geschäft“) | erledigt |
 | 4.2b | Brücke Teil 1: Welt und Betrieb des Spielers (`src/lib/modelBridge.ts`: Flughäfen, Katalog, Flugzeuge mit Kabine, Strecken, Bestand an Flughäfen; E72, F54) | erledigt |
-| 4.2c | Brücke Teil 2: Eingaben, Kasse, Vorbestellungen, Fortschritt und Berichte des Spielers; Lieferungen in die Flotte | offen |
+| 4.2c | Brücke Teil 2: Eingaben, Kasse, Vorbestellungen, Fortschritt und Berichte des Spielers; Lieferungen in die Flotte (`src/lib/modelBridgeCompany.ts`; F55) | erledigt |
 | 4.2d | Brücke Teil 3: KI und Welt-Zustand (KI im Modell-Format speichern, alte `AiAirline` umwandeln, Ansicht der Konkurrenz daraus; Zufall, Ereignisse, Störungen, Pech, Gebrauchtmarkt) | offen |
 | 4.2e | `App.tsx` bucht mit `closeMonth` des Modells (`rivalDecisions`, `rivalRefill`; Bericht, Meldungen; offene Punkte aus 4.2) | offen |
 | 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | offen |
@@ -286,3 +297,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | 4.2 | Regeln aus `App.tsx`: gleiche Werte aufs Modell umgestellt (`overhaulPoints`, `refitCabinCondition`, `START_REPUTATION`, `START_HUB_SETUP`, `seasonFactor`, neu `yearsPlayed`, `hedgeLockMonth`, `startCapital` mit `START_CAPITAL_TIERS_1960`), Ruf + 2 bei Übernahme entfernt (E38), Trend-Text `formatTrend`; Bau-Festlegung F53; neue Frage O68 (Monatsabschluss vor den Ansichten umstellen); 5 neue Tests (1252 grün) |
 | 20.11.2026 | – | O68 entschieden: E72 (A, erst der Monatsabschluss, dann die Ansichten) |
 | 20.11.2026 | 4.2b | Brücke Teil 1 in `src/lib/modelBridge.ts`: Welt (`modelAirports`, `modelCatalog`), Kabine (Schalter des Kaufdialogs → `interiorScore`, `cabinListPrice`), Flugzeuge (`aircraftState`, neues Feld `cabinInstalledAt`), Bestand (`holdingState`), Strecken (`routeState`: Flugabschnitte, Fahrplan in Minuten, Preisniveau aus $, Alter, Service), Zurückschreiben nach `closeMonth` (Zustand, Preise in $ des neuen Monats, verkaufte Flugzeuge); Teilung 4.2b–4.2e (F54); 19 neue Tests (1271 grün) |
+| 20.11.2026 | 4.2c | Brücke Teil 2 in `src/lib/modelBridgeCompany.ts`: Eingaben (Forschung, Lohn, Moral, Kampagnen, Frequent flyer, Schwierigkeit, Krisen-Antworten aus `eventChoices`, Streik), Kassenbuch aus `capital` und `monthlyCapex` mit `LedgerValues`, Vorbestellungen (Standard-Kabine) und Lieferungen als Flugzeuge der Flotte, Fortschritt (Rang-Werte aus Berichten, Forschung, Meilensteine mit Kennungs-Übersetzung, Jahresziel, Szenario mit neuen Feldern `floorStreak`/`met`), Berichte in beide Richtungen; ein Monat mit `closeMonth` über die Brücke; F55; 18 neue Tests (1289 grün) |
