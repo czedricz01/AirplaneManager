@@ -21,6 +21,7 @@ import {
   MILESTONES,
   RESEARCH_COST_FLOOR,
   RESEARCH_PROJECTS,
+  START_CAPITAL_TIERS_1960,
   START_REPUTATION,
   type MilestoneMetric,
   type ResearchEffect,
@@ -56,8 +57,10 @@ import {
   researchStartBlocker,
   settleGoal,
   splitHall,
+  startCapital,
   startResearch,
   startingResearch,
+  yearsPlayed,
   yearSnapshot,
   type AnnualGoal,
   type CareerInput,
@@ -657,5 +660,24 @@ describe('Abschnitt 6.13 Startwerte', () => {
     const free = startingResearch(MAX_RANK);
     assert.equal(openSizeClasses(free.done).size, 6);
     assert.equal(completedBonusResearch(free.done), 0);
+  });
+
+  it('6.13: Startkasse = Stufe in $ von 1960 × Kostenindex des Startmonats; unbekannte Stufe ist ein Fehler', () => {
+    assert.deepEqual(START_CAPITAL_TIERS_1960, [25_000_000, 50_000_000, 100_000_000, 200_000_000]);
+    assert.equal(startCapital(25_000_000, 0), 25_000_000);
+    const month1990 = 30 * 12;
+    assert.equal(startCapital(50_000_000, month1990), 50_000_000 * costIndex(month1990));
+    assert.ok(startCapital(50_000_000, month1990) > 50_000_000);
+    assert.throws(() => startCapital(30_000_000, 0));
+  });
+});
+
+describe('Abschnitt 6.7 Jahre im Geschäft (Paket 4.2)', () => {
+  it('6.7: volle Jahre seit Spielstart, nie negativ', () => {
+    assert.equal(yearsPlayed(0), 0);
+    assert.equal(yearsPlayed(11), 0);
+    assert.equal(yearsPlayed(12), 1);
+    assert.equal(yearsPlayed(59), 4);
+    assert.equal(yearsPlayed(-5), 0);
   });
 });

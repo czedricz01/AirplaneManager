@@ -16,7 +16,9 @@ import type { ViewState } from '../../lib/gameTypes';
 const HubPickerModal = React.lazy(() => import('../HubPickerModal').then(m => ({ default: m.HubPickerModal })));
 import { maxAirportLevel } from '../../lib/airportAccess';
 import { rankDef } from '../../lib/airlineRank';
-import { formatCurrency, yearOf } from '../../lib/format';
+import { budgetLabel, formatCurrency, yearOf } from '../../lib/format';
+import { START_CAPITAL_TIERS_1960 } from '../../model/constants';
+import { startCapital } from '../../model/progress';
 import { writeString } from '../../lib/safeStorage';
 
 export interface NewGameScreenProps {
@@ -185,8 +187,9 @@ export function NewGameScreen({
                           {formatCurrency(newGameScenario.capital)} and the scenario's fleet
                         </div>
                       ) : (
+                      <>
                       <div className="flex flex-wrap gap-4">
-                        {['$25M', '$50M', '$100M', '$200M'].map((budget) => (
+                        {START_CAPITAL_TIERS_1960.map(budgetLabel).map((budget) => (
                           <button
                             key={budget}
                             onClick={() => setStartingBudget(budget)}
@@ -196,6 +199,10 @@ export function NewGameScreen({
                           </button>
                         ))}
                       </div>
+                      <p className="text-2xs text-muted">
+                        In dollars of 1960. You start with {formatCurrency(startCapital(START_CAPITAL_TIERS_1960.find(t => budgetLabel(t) === startingBudget) ?? START_CAPITAL_TIERS_1960[0], startDateOffset))} in {yearOf(startDateOffset)}.
+                      </p>
+                      </>
                       )}
                     </div>
 

@@ -1116,6 +1116,13 @@ export const REPUTATION_NEUTRAL = SCALES.reputation.neutral;
 /** Ruf jeder Gesellschaft beim Start, Spieler und KI (E36, E11). SPEZIFIKATION 6.13. */
 export const START_REPUTATION = 50;
 
+/**
+ * Startkapital-Stufen des Spielers in $ von 1960, wählbar beim neuen Spiel (E11; heute nominal, `src/App.tsx:1595-1598`).
+ * Startkasse = `atCost(Stufe, Startmonat)` wie die Startkasse der KI (7.7, E6). Szenarien bringen ihre eigene Kasse.
+ * SPEZIFIKATION 6.13.
+ */
+export const START_CAPITAL_TIERS_1960: readonly number[] = [25_000_000, 50_000_000, 100_000_000, 200_000_000];
+
 /** Abzug im Ruf-Ziel je Anteil gestrichener Sitze: 1 % gestrichen → −1 Punkt. Startwert (3.9). SPEZIFIKATION 6.2. */
 export const CANCELLED_REPUTATION_WEIGHT = 100;
 

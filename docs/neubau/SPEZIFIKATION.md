@@ -2199,6 +2199,9 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
 
 ### 6.13 Startwerte (E11)
 - `START_REPUTATION = 50` für Spieler und KI (E36; heute Spieler 50, KI rechnet immer neutral).
+- Startkasse des Spielers: `startCapital(Stufe, Startmonat) = atCost(Stufe, Startmonat)` mit
+  `START_CAPITAL_TIERS_1960` = 25 / 50 / 100 / 200 Mio. $ von 1960 (E6, E11; wie die Startkasse der KI, 7.7). Szenarien
+  bringen ihre eigene Kasse (8.15). Startausstattung am Drehkreuz: `START_HUB_SETUP` (7.7), gleich für Spieler und KI.
 - Startrang: Normal 0 oder die Untergrenze des Szenarios; Free Mode 9 (wie heute).
 - Start-Forschung: Klassen-Projekte bis zum Startrang fertig (6.8); sonst nichts.
 - Keine Meilensteine, kein Jahresziel im ersten Jahr (das erste Angebot kommt im ersten Dezember).

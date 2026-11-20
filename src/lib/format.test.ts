@@ -1,7 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatCurrency, formatNumber, formatMoneyCompact, formatMonthLong, formatMonthOffset, formatNumberCompact, formatSignedCurrency, setDecimalSymbol } from './format';
+import { formatCurrency, formatNumber, formatMoneyCompact, formatMonthLong, formatMonthOffset, formatNumberCompact, formatSignedCurrency, formatTrend, budgetLabel, setDecimalSymbol } from './format';
+
+test('a starting budget is labelled in whole millions, as saves store it', () => {
+  assert.equal(budgetLabel(25_000_000), '$25M');
+  assert.equal(budgetLabel(200_000_000), '$200M');
+});
+
+test('the month-on-month trend has a sign and one decimal, and is 0% without an earlier value', () => {
+  assert.equal(formatTrend(1.1, 1.0), '+10.0%');
+  assert.equal(formatTrend(0.95, 1.0), '-5.0%');
+  assert.equal(formatTrend(1.0, 1.0), '0%');
+  assert.equal(formatTrend(1.0, 0), '0%');
+});
 
 test('currency follows the decimal-separator setting', () => {
   setDecimalSymbol('.');

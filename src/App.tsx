@@ -146,7 +146,12 @@ import { SaveLoadOverlay } from "./components/SaveLoadOverlay";
 import { Button } from "./components/ui/Button";
 import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
-import { formatCurrency, formatNumber, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
+import { budgetLabel, formatCurrency, formatNumber, formatTrend, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
+import { START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION } from "./model/constants";
+import { seasonFactor as modelSeasonFactor } from "./model/demand";
+import { overhaulPoints, refitCabinCondition } from "./model/fleetMarket";
+import { hedgeLockMonth } from "./model/monthEvents";
+import { startCapital, yearsPlayed } from "./model/progress";
 import { generateAiAirlines } from "./lib/aiSimulation";
 import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
 export type { GameMessage };
@@ -220,14 +225,9 @@ export const GENERAL_CHECK_COST = 200000;
 /** One empty list for "nothing sold this month", so the market's props stay equal between renders. */
 const NO_SOLD_IDS: string[] = [];
 
-/** How much airframe condition a general check restores. The fifth and later checks
- *  restore nothing, so the UI must not charge for them. */
-export function getGeneralCheckRestore(checksDone: number): number {
-  if (checksDone === 0) return 50;
-  if (checksDone === 1) return 50;
-  if (checksDone === 2) return 40;
-  if (checksDone === 3) return 30;
-  return 0;
+/** The starting-budget tier (dollars of 1960) behind the label a save or the new-game screen holds; $25M if unknown. */
+function startCapitalTier(label: string): number {
+  return START_CAPITAL_TIERS_1960.find(t => budgetLabel(t) === label) ?? START_CAPITAL_TIERS_1960[0];
 }
 
 export default function App() {
@@ -250,7 +250,7 @@ export default function App() {
    */
   const [eventChoices, setEventChoices] = useState<Record<string, string>>({});
   /** Airline reputation, 0-100. Starts neutral: nobody has heard of you yet. */
-  const [reputation, setReputation] = useState(50);
+  const [reputation, setReputation] = useState(START_REPUTATION);
   /** Rank, career passengers and the annual goals on offer. */
   const [career, setCareer] = useState<Career>(() => createGameSystems().career);
   /** Milestone ids already awarded, so each is announced once. */
@@ -637,30 +637,19 @@ export default function App() {
    * if fuel gets cheaper during the event, the locked price is the worse deal.
    */
   const priceAtOffset = (offset: number) => {
-    const market = rawPriceAtOffset(offset);
-    for (const ev of getActiveEvents(offset)) {
-      const choiceId = eventChoices[eventKey(ev)];
-      if (!choiceId) continue;
-      const choice = ev.choices?.find(c => c.id === choiceId);
-      if (choice?.hedgesFuel) {
-        return rawPriceAtOffset(Math.max(0, ev.startOffset - 1));
-      }
-    }
-    return market;
+    const hedged = getActiveEvents(offset)
+      .filter(ev => ev.choices?.find(c => c.id === eventChoices[eventKey(ev)])?.hedgesFuel)
+      .map(ev => ({ startMonth: ev.startOffset, months: ev.duration }));
+    // Which month's price the hedge holds is the model's rule (8.5); the price itself
+    // still comes from the old table until the month close runs on the model.
+    return rawPriceAtOffset(Math.max(0, hedgeLockMonth(hedged, offset) ?? offset));
   };
 
   const getFuelData = (offset: number) => {
     // The fuel programmes cut what the airline burns, so what it pays.
     const price = priceAtOffset(offset) * researchFx.fuelFactor;
 
-    let trend = "0%";
-    if (offset > 0) {
-      const prevPrice = priceAtOffset(offset - 1) * researchFx.fuelFactor;
-      if (prevPrice > 0) {
-        const diff = ((price - prevPrice) / prevPrice) * 100;
-        trend = diff > 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
-      }
-    }
+    const trend = offset > 0 ? formatTrend(price, priceAtOffset(offset - 1) * researchFx.fuelFactor) : "0%";
 
     return { price, trend };
   };
@@ -715,7 +704,8 @@ export default function App() {
    * This month's profit and weekly passengers per route, for the map's profit
    * heatmap. The forecast rather than the last closed month, so a route opened
    * or repriced today shows its colour straight away. Profit is the weekly
-   * figure times four, as the monthly report books it.
+   * figure times four, as the old monthly close books it. The three "× 4" here
+   * become the model's WEEKS_PER_MONTH together with the close (docs/neubau F53).
    */
   const routeHeat = useMemo(() => {
     const profit: Record<string, number> = {};
@@ -791,7 +781,7 @@ export default function App() {
   const commonality = useMemo(() => fleetCommonality(fleet), [fleet]);
 
   /** The figures the rank is judged on, as they stand now, for the Career tab. */
-  const yearsInBusiness = Math.max(0, Math.floor((currentDateOffset - startDateOffset) / 12));
+  const yearsInBusiness = yearsPlayed(currentDateOffset - startDateOffset);
   const rankStats = useMemo<RankStats>(() => ({
     routes: routes.length,
     monthlyPax: reportHistory.length > 0 ? Math.max(0, reportHistory[reportHistory.length - 1].paxTotal ?? 0) : 0,
@@ -845,8 +835,8 @@ export default function App() {
     takeovers: career.takeovers,
     // A Free Mode airline starts with every class developed; those do not count.
     projectsDone: Math.max(0, career.research.done.length - (freeMode ? CLASS_PROJECTS.length : 0)),
-    years: Math.floor((currentDateOffset - startDateOffset) / 12)
-  }), [capital, fleetValue, career.rank, freeMode, milestones.length, reputation, career.takeovers, career.research.done.length, currentDateOffset, startDateOffset]);
+    years: yearsInBusiness
+  }), [capital, fleetValue, career.rank, freeMode, milestones.length, reputation, career.takeovers, career.research.done.length, yearsInBusiness]);
 
   /** Files the career in the hall of fame and shows the final report; the game can carry on. */
   const handleRetire = () => {
@@ -856,7 +846,7 @@ export default function App() {
       code: airlineCode,
       score: score.total,
       rank: career.rank,
-      years: Math.floor((currentDateOffset - startDateOffset) / 12),
+      years: yearsInBusiness,
       netWorth: capital + fleetValue,
       filed: new Date().toISOString(),
       mode: career.mode
@@ -874,28 +864,11 @@ export default function App() {
     return hub ? regionOf(hub.coords) : 'EU';
   }, [selectedHub]);
 
+  /** The top bar's "Demand": the model's tourism season (northern) times the world events' factor. */
   const getBaseGlobalDemand = (offset: number) => {
-    const mvValues = [0.89, 0.91, 0.92, 0.96, 1.03, 1.10, 1.15, 1.14, 1.06, 0.95, 0.88, 1.00];
-    const mNum = monthOf(offset);
-    const mFactor = mvValues[mNum - 1] || 1.0;
-    const { demandMult } = getEventMultipliers(offset);
-    
-    let trend = "";
-    if (offset > 0) {
-      const prevMNum = 1 + ((offset - 1) % 12);
-      const prevMFactor = mvValues[prevMNum - 1] || 1.0;
-      const { demandMult: prevMult } = getEventMultipliers(offset - 1);
-      const currentVal = mFactor * demandMult;
-      const prevVal = prevMFactor * prevMult;
-      const diff = ((currentVal - prevVal) / prevVal) * 100;
-      if (diff > 0) trend = `+${diff.toFixed(1)}%`;
-      else if (diff < 0) trend = `${diff.toFixed(1)}%`;
-      else trend = "0%";
-    } else {
-      trend = "0%";
-    }
-
-    return { value: mFactor * demandMult, trend };
+    const valueAt = (o: number) => modelSeasonFactor(o) * getEventMultipliers(o).demandMult;
+    const value = valueAt(offset);
+    return { value, trend: offset > 0 ? formatTrend(value, valueAt(offset - 1)) : "0%" };
   };
 
   const globalDemandData = useMemo(
@@ -1592,11 +1565,8 @@ export default function App() {
     const gameDifficulty = chosen?.difficulty ?? difficulty;
     const rivalCount = chosen?.rivals.count ?? aiAirlinesCount;
     const rivalDifficulty = chosen?.rivals.difficulty ?? aiDifficulty;
-    let initialCapital = 25000000; // Default for $25M
-    if (startingBudget === '$50M') initialCapital = 50000000;
-    if (startingBudget === '$100M') initialCapital = 100000000;
-    if (startingBudget === '$200M') initialCapital = 200000000;
-    if (chosen) initialCapital = chosen.capital;
+    // The chosen tier in dollars of 1960, at the start month's prices (6.13); a scenario brings its own cash.
+    const initialCapital = chosen ? chosen.capital : startCapital(startCapitalTier(startingBudget), start);
 
     // A new game starts clean: no events, messages or open
     // editors carried over from a game played earlier.
@@ -1607,7 +1577,7 @@ export default function App() {
     const mode: GameMode = chosen ? 'normal' : newGameMode;
     const startRank = mode === 'free'
       ? FREE_MODE_RANK
-      : startingRank({ routes: 0, monthlyPax: 0, reputation: 50, regions: 0, years: 0 }, chosen?.startRank ?? 0);
+      : startingRank({ routes: 0, monthlyPax: 0, reputation: START_REPUTATION, regions: 0, years: 0 }, chosen?.startRank ?? 0);
     const systems: GameSystems = {
       ...createGameSystems(),
       career: {
@@ -1644,10 +1614,10 @@ export default function App() {
     setFleet(startFleet);
     setAirportManagement({ 
       [hub]: {
-        level: 2,
-        slots: { regional: 0, narrowbody: 0, widebody: 0 },
+        level: START_HUB_SETUP.managementTier,
+        slots: { regional: START_HUB_SETUP.slots, narrowbody: START_HUB_SETUP.slots, widebody: START_HUB_SETUP.slots },
         stands: { narrowbody: 0, widebody: 0 },
-        desks: { normal: 1, self: 0 }
+        desks: { ...START_HUB_SETUP.desks }
       }
     });
     setRoutes([]);
@@ -1659,7 +1629,7 @@ export default function App() {
     // the Oil Shock scenario opens in the 1973 crisis -- is asked it now:
     // the question is otherwise only put when an event begins.
     setPendingDecision(getActiveEvents(start).find(ev => ev.choices && ev.choices.length > 0) ?? null);
-    setReputation(50);
+    setReputation(START_REPUTATION);
     setMilestones([]);
     setProfitStreak(0);
     setAnnualGoal(null);
@@ -1864,7 +1834,7 @@ export default function App() {
     setAirportManagement(prev => ({ ...prev, [deal.hub]: withTakenSlots(prev[deal.hub], deal.slots) }));
     setAiAirlines(prev => prev.filter(a => a.id !== aiId));
     setCareer(prev => ({ ...prev, takeovers: prev.takeovers + 1 }));
-    setReputation(prev => Math.min(100, prev + 2));
+    // No reputation bonus for a takeover: reputation moves only through its target (E38).
     setAppAlert(
       `SUCCESS: ${target.name} is yours for ${formatCurrency(quote.price)}. ${deal.aircraft.length} aircraft joined your fleet` +
       `${deal.slots.narrowbody + deal.slots.regional + deal.slots.widebody > 0 ? ` and you took over its slots at ${deal.hub}` : ''}. ` +
@@ -1956,15 +1926,14 @@ export default function App() {
       const registration = (aircraft as OwnedAircraft).registration;
       setFleet(prev => prev.map(p => {
         if (p.registration !== registration) return p;
-        // Each refit restores less than the one before: 90%, 80%, ... never under 30%.
+        // Each refit restores less than the one before: 90%, 80%, ... never under 30% (model, 8.13).
         const refits = p.refitsDone || 0;
-        const restorePercent = Math.max(30, 90 - refits * 10);
         return {
           ...p,
           config,
           baseInteriorPop,
           refitsDone: refits + 1,
-          conditionInterior: Math.min(100, Math.max(p.conditionInterior, restorePercent))
+          conditionInterior: Math.min(100, refitCabinCondition(p.conditionInterior, refits))
         };
       }));
     } else {
@@ -2788,7 +2757,8 @@ export default function App() {
                           const plane = fleet.find(p => p.registration === registration);
                           if (!plane) return;
 
-                          const restore = getGeneralCheckRestore(plane.generalChecksDone || 0);
+                          // Points per check from the model (8.13); the fifth and later restore nothing.
+                          const restore = overhaulPoints(plane.generalChecksDone || 0);
                           // A fifth check restores nothing, so do not take the money for it.
                           if (restore <= 0) {
                             setAppAlert(`${registration} has had all four general checks. Further checks would restore nothing — retire or replace the airframe.`);

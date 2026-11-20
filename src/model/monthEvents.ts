@@ -209,8 +209,19 @@ export function crisisResponseKind(event: HistoricalEventDef): CrisisResponseKin
  * @param hedgedEvents Ereignisse, für die diese Gesellschaft die Absicherung gekauft hat (KI: keine).
  */
 export function hedgedFuelTable(hedgedEvents: readonly Pick<WorldEvent, 'startMonth' | 'months'>[], month: number): number | undefined {
+  const locked = hedgeLockMonth(hedgedEvents, month);
+  return locked === undefined ? undefined : fuelTable(locked);
+}
+
+/**
+ * Monat, dessen Treibstoffpreis die Absicherung festhält: der Monat vor Beginn des ersten laufenden abgesicherten
+ * Ereignisses; sonst `undefined` (dann gilt der Preis des Monats). Die Regel hinter `hedgedFuelTable`, getrennt von
+ * der Preisquelle, damit die Kopfzeile sie nutzt, solange sie den Preis noch aus `src/lib/` liest (Paket 4.2).
+ * SPEZIFIKATION 8.5.
+ */
+export function hedgeLockMonth(hedgedEvents: readonly Pick<WorldEvent, 'startMonth' | 'months'>[], month: number): number | undefined {
   const running = hedgedEvents.find((e) => isEventActive(e, month));
-  return running ? fuelTable(running.startMonth - 1) : undefined;
+  return running ? running.startMonth - 1 : undefined;
 }
 
 /**

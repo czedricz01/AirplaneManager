@@ -51,6 +51,7 @@ import {
   flownHours,
   flownLegs,
   hedgePrice,
+  hedgeLockMonth,
   hedgedFuelTable,
   historicalEvent,
   isBadLuckEvent,
@@ -255,6 +256,15 @@ describe('Abschnitt 8.5 Krisen-Antworten', () => {
     assert.equal(hedgedFuelTable([e], e.startMonth + e.months), undefined);
     assert.equal(fuelPrice(e.startMonth + e.months, [], hedgedFuelTable([e], e.startMonth + e.months)), fuelPrice(e.startMonth + e.months));
     assert.equal(activeCrisisResponseFactor([historicalEvent('Aviation Downturn')], historicalEvent('Aviation Downturn').startMonth + 12), 1);
+  });
+
+  it('8.5: Monat der Absicherung = Monat vor Beginn, solange das Ereignis läuft (Paket 4.2, Kopfzeile)', () => {
+    const e = historicalEvent('1973 Oil Crisis');
+    assert.equal(hedgeLockMonth([e], e.startMonth - 1), undefined);
+    assert.equal(hedgeLockMonth([e], e.startMonth), e.startMonth - 1);
+    assert.equal(hedgeLockMonth([e], e.startMonth + e.months - 1), e.startMonth - 1);
+    assert.equal(hedgeLockMonth([e], e.startMonth + e.months), undefined);
+    assert.equal(hedgedFuelTable([e], e.startMonth + 3), fuelTable(hedgeLockMonth([e], e.startMonth + 3) ?? -1));
   });
 
   it('8.5: Ereignis ohne Antwort ist ein Fehler', () => {
