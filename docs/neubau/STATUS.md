@@ -1,16 +1,27 @@
 # Status
 
-**Nächstes Paket: wartet auf O68** (Reihenfolge in Phase 4: erst der Monatsabschluss auf dem Modell, dann die
-Ansichten?). Empfehlung A: neue Pakete 4.2b „Brücke Spielstand → `ModelState`“ und 4.2c „`App.tsx` bucht mit
-`closeMonth` des Modells“ vor 4.3.
+**Nächstes Paket: 4.2c** – Brücke Teil 2: Eingaben, Kasse und Fortschritt des Spielers in `src/lib/modelBridge.ts`
+(`CompanyInputs` aus Forschung, Lohn, Moral, Werbung, Frequent flyer, Schwierigkeit, Krisen-Antworten, Streik;
+Kassenbuch aus `capital` und `monthlyCapex`; Vorbestellungen; `CompanyProgress` aus `career`, `milestones`,
+`annualGoal`, `scenario`; Berichte; Lieferungen als neue Flugzeuge der Flotte), mit Test „hin und zurück“.
+Zu lesen: `src/lib/modelBridge.ts`, `src/lib/gameState.ts` (Marketing, Staff, Career, ScenarioState),
+`src/lib/research.ts`, `src/lib/preorders.ts`, `src/lib/annualGoals.ts`, `src/lib/gameTypes.ts` (MonthlyReport),
+`src/model/monthClose.ts` (`CompanyInputs`, `MonthLedger`, `PreorderState`, `CompanyProgress`, `MonthReport`),
+`src/model/progress.ts` (`ResearchState`, `AnnualGoal`), F54 in `ENTSCHEIDUNGEN.md`.
 
-Stand: 20.11.2026 · Paket 4.2 erledigt (F53): Regeln aus `src/App.tsx` mit gleichem Wert im alten und neuen Modell
-lesen jetzt das Modell (Überholungs-Punkte, Umbau-Zustand, Start-Ruf, Startausstattung, Saison der Kopfzeile, Monat der
-Treibstoff-Absicherung, Jahre im Geschäft über neues `yearsPlayed`); Ruf + 2 bei Übernahme entfernt (E38); Startkasse
-mit Kostenindex (`startCapital`, 6.13). Der Rest (Überholungs-Preis, „× 4“, Treibstoff- und Ereignis-Quelle,
-Übernahme-Preis) hängt am alten Monatsabschluss → O68.
+Stand: 20.11.2026 · O68 = A (E72): erst der Monatsabschluss auf dem Modell, dann die Ansichten. Pakete 4.2b–4.2e
+(F54). Paket 4.2b erledigt: `src/lib/modelBridge.ts` liest Welt (Flughäfen, Katalog) und den Betrieb des Spielers
+(Flugzeuge mit Kabine, Strecken mit Preisniveau und Fahrplan, Bestand an Flughäfen) als Modell-Werte und schreibt
+zurück, was der Abschluss ändert; „hin und zurück“ ändert nichts; 19 Regeltests (1271 grün).
 
-Offen aus 4.2 (wartet auf O68): `src/App.tsx:713`, `:723`, `:730` „× 4“ → `WEEKS_PER_MONTH`; `GENERAL_CHECK_COST`
+Offen aus 4.2b (kein Blocker): Lieferungen (`newAircraft`) legt 4.2c als Flugzeuge der Flotte an (Kennzeichen,
+Kabine der Vorbestellung). `popularity` / `efficiency` am Flugzeug schreibt noch der alte Abschluss; die Brücke liest
+sie nicht (Katalog), Anzeige aus dem Modell in 4.2e / 4.6. Einweg-Umläufe zählen als ein Abschnitt; das Modell teilt
+die Abflüge halb auf beide Enden (wie bisher bei der KI). Vor diesem Paket umgebaute Flugzeuge haben kein
+`cabinInstalledAt` und gelten als beim Kauf eingerichtet (5.1). `allModelAirports` im Balance-Skript
+(`src/balance/longRun.ts:66`) wiederholt `modelAirports` (aufräumen in 5.2).
+
+Offen aus 4.2 (kommt mit 4.2e): `src/App.tsx:713`, `:723`, `:730` „× 4“ → `WEEKS_PER_MONTH`; `GENERAL_CHECK_COST`
 (`src/App.tsx:223`) → `overhaulQuote`; Treibstoffpreis unter der Absicherung aus der alten Tabelle (`src/App.tsx:645`);
 Ereignis-Faktor der Kopfzeile aus `src/lib/eventSystem.ts` (`src/App.tsx:868`); `takeoverQuote` → `takeoverPrice`.
 
@@ -197,6 +208,10 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 |---|---|---|
 | 4.1 | Glossar und Erklärtexte aus den Konstanten erzeugen (Startpunkt: `src/components/InfoTooltip.tsx`, `bestand/8-oberflaeche.md` Abschnitt „Texte mit festen Zahlen“, `src/model/constants.ts`) | erledigt |
 | 4.2 | Regeln aus `App.tsx` ins Modell (`src/App.tsx`; `bestand/8-oberflaeche.md` W8, Art D „Jahre im Geschäft“) | erledigt |
+| 4.2b | Brücke Teil 1: Welt und Betrieb des Spielers (`src/lib/modelBridge.ts`: Flughäfen, Katalog, Flugzeuge mit Kabine, Strecken, Bestand an Flughäfen; E72, F54) | erledigt |
+| 4.2c | Brücke Teil 2: Eingaben, Kasse, Vorbestellungen, Fortschritt und Berichte des Spielers; Lieferungen in die Flotte | offen |
+| 4.2d | Brücke Teil 3: KI und Welt-Zustand (KI im Modell-Format speichern, alte `AiAirline` umwandeln, Ansicht der Konkurrenz daraus; Zufall, Ereignisse, Störungen, Pech, Gebrauchtmarkt) | offen |
+| 4.2e | `App.tsx` bucht mit `closeMonth` des Modells (`rivalDecisions`, `rivalRefill`; Bericht, Meldungen; offene Punkte aus 4.2) | offen |
 | 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | offen |
 | 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | offen |
 | 4.5 | Preis und Satisfaction der Strecke (Planer Schritt 3/4, `RouteConfigOverlay.tsx`, `RouteDetailView.tsx`, `RoutesView.tsx`; W5, Klassen-Faktoren, Debug-Anzeige; Glossar `breakEven`) | offen |
@@ -269,3 +284,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | 3.9e | E71 umgesetzt: Gründung nur mit möglicher Gewinn-Strecke (`rivalHubViable`), Überschall nie Startflugzeug (F50), LCC Preis-Lage 0,95, Boutique Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeug-Gewichte (Kalibrierung mit 4 Varianten, F51); Langläufe: ähnlicher Erfolg 1,36 / 1,60 (ohne Zuschuss 1,81 / 1,70), 0 Auflösungen; Zuschuss abgeschaltet (E68); Bericht `balance/3.9e-bericht.md` (20 ok, 0 Abweichung, 28 Info); 3 neue Tests (1238 grün). Phase 3 abgeschlossen |
 | 20.11.2026 | 4.1 | Glossar und Erklärtexte aus den Konstanten: `src/model/glossary.ts` (18 Einträge, `loungeEffectText`, Zahlen-Texte), `InfoTooltip.tsx` übernimmt sie (3 Einträge bleiben bis 4.3–4.5), Lounge- und Stand-Text in `AirportDetailView.tsx`, Flotten-Spalte erklärt Cabin rating; Pakete 4.2–4.7 eingetragen; Bau-Festlegung F52; 9 neue Tests (1247 grün) |
 | 20.11.2026 | 4.2 | Regeln aus `App.tsx`: gleiche Werte aufs Modell umgestellt (`overhaulPoints`, `refitCabinCondition`, `START_REPUTATION`, `START_HUB_SETUP`, `seasonFactor`, neu `yearsPlayed`, `hedgeLockMonth`, `startCapital` mit `START_CAPITAL_TIERS_1960`), Ruf + 2 bei Übernahme entfernt (E38), Trend-Text `formatTrend`; Bau-Festlegung F53; neue Frage O68 (Monatsabschluss vor den Ansichten umstellen); 5 neue Tests (1252 grün) |
+| 20.11.2026 | – | O68 entschieden: E72 (A, erst der Monatsabschluss, dann die Ansichten) |
+| 20.11.2026 | 4.2b | Brücke Teil 1 in `src/lib/modelBridge.ts`: Welt (`modelAirports`, `modelCatalog`), Kabine (Schalter des Kaufdialogs → `interiorScore`, `cabinListPrice`), Flugzeuge (`aircraftState`, neues Feld `cabinInstalledAt`), Bestand (`holdingState`), Strecken (`routeState`: Flugabschnitte, Fahrplan in Minuten, Preisniveau aus $, Alter, Service), Zurückschreiben nach `closeMonth` (Zustand, Preise in $ des neuen Monats, verkaufte Flugzeuge); Teilung 4.2b–4.2e (F54); 19 neue Tests (1271 grün) |
