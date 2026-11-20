@@ -1,6 +1,10 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
+import { MODEL_GLOSSARY, type GlossaryEntry, type GlossaryKey } from '../model/glossary';
+import { BOARDING_MIN, WEEK_MIN } from '../lib/scheduleUtils';
+
+const MINUTES_PER_HOUR = 60;
 
 /**
  * The explain-this-term affordance.
@@ -88,23 +92,16 @@ export const InfoTooltip = ({
 
 /**
  * The terms the game prices with, in one place so the wording cannot drift
- * between the screens that use them. Each entry says what the number is, which
- * way is better, and -- where it matters -- what it costs you to ignore.
+ * between the screens that use them. The texts live in the model
+ * (`src/model/glossary.ts`) and take every number from its constants (E52).
+ *
+ * Kept here until the view that shows the rule moves to the model:
+ * - `breakEven`: the planner slider still marks BE99 / BE75 / BE35 (package 4.5).
+ * - `desks`: the old rules still allow an airport without desks (package 4.3).
+ * - `utilization`: the schedule rules are not in the model yet (package 4.4).
  */
-export const GLOSSARY: Record<string, { title: string; desc: string }> = {
-  sat: {
-    title: 'SAT (Satisfaction)',
-    desc:
-      'How well this cabin meets what passengers expect for the class and the length of the flight.\n\n' +
-      '100% means you met expectations exactly. Above that, passengers tolerate a higher fare; below it, they will only book at a discount.\n\n' +
-      'It starts at 100 and moves by three parts, each against what the class expects: the cabin of that class (counts more on long flights), meals, extras and service (a longer flight calls for more of them; none at all costs most on a long haul), and the airports (check-in, lounge, stands; count less on long flights). Check-in queues, staff morale and cancelled flights come on top. It cannot go above 160%.',
-  },
-  loadFactor: {
-    title: 'Load Factor (LF)',
-    desc:
-      'The share of your seats that are actually filled.\n\n' +
-      'It is the link between price and profit: a high fare on a half-empty aircraft can earn less than a low fare on a full one.',
-  },
+export const GLOSSARY: Record<GlossaryKey | 'utilization', GlossaryEntry> = {
+  ...MODEL_GLOSSARY,
   breakEven: {
     title: 'Break-even price',
     desc:
@@ -112,90 +109,16 @@ export const GLOSSARY: Record<string, { title: string; desc: string }> = {
       'The left end of the slider is break-even if you fill 99% of seats — the cheapest fare that could ever work. The right end is break-even at 35% — what you would have to charge if the aircraft flew nearly empty.\n\n' +
       'The marked point is break-even at 75%, a realistic full-year average. Price below it and you are betting on filling more seats than that.',
   },
-  timeClass: {
-    title: 'Time-Class',
-    desc:
-      'A flight-length bucket from 1 (under an hour) to 8 (over twelve hours). It is not a cabin class.\n\n' +
-      'It tells how many meals a cabin must serve. Three more things follow the flight time itself, without steps between the classes: how many passengers the route generates (short hops generate far more), the base fare, and how much service passengers expect.',
-  },
-  icaoCode: {
-    title: 'Max ICAO Code',
-    desc:
-      'The largest aircraft this airport can physically handle, A (smallest) through F (largest).\n\n' +
-      'It is a hard gate: an aircraft with a bigger code will not appear in the route planner for this airport at all. A regional turboprop is around B or C, a narrowbody C, a widebody D or E, and F is reserved for the very largest types.',
-  },
-  airportLevel: {
-    title: 'Airport Level (L1-L7)',
-    desc:
-      'The size of the airport itself, which you cannot change.\n\n' +
-      'It sets how many slots exist in total (300 per level, shared with every other airline here), what landing and handling fees cost, and how large an aircraft the runway takes.\n\n' +
-      'Not to be confused with Management Tier (T1-T3), which is what you buy to operate here.',
-  },
-  managementTier: {
-    title: 'Management Tier (T1-T3)',
-    desc:
-      'Your own standing at this airport, bought once per airport.\n\n' +
-      'T1 is required before you can fly here at all and includes one check-in desk. T2 waives stand rent and lets stands exceed slots. T3 is the full base.\n\n' +
-      'The price scales with the airport level, so a tier at a major hub costs many times what it costs at a small field.',
-  },
-  slots: {
-    title: 'Slots',
-    desc:
-      'Permission for one departure per week. A route flying five times a week needs five slots at each end.\n\n' +
-      'Slots are bought once (CAPEX) and then rented weekly. They are finite: the airport has 300 per level in total and rival airlines take from the same pool, so a busy hub can simply run out.',
-  },
-  stands: {
-    title: 'Stands',
-    desc:
-      'Parking positions for your aircraft, rented weekly rather than bought.\n\n' +
-      'A stand for every slot, at both ends of a route, adds up to 2 satisfaction points (a little more on short flights, less on long ones). With fewer stands the bonus shrinks in proportion. From management tier T2 upwards the rent is waived.',
-  },
   desks: {
     title: 'Check-in Desks',
     desc:
       'Where your passengers are processed, rented weekly. The rent follows the use: an idle desk costs a fifth of its full rate, a full one the whole rate, so a desk for one small aircraft a day is cheap.\n\n' +
       'This is the harshest penalty in the game: with no desks at all every class loses about 15 satisfaction points, and premium classes lose 10 if you offer only self-service. A desk never makes things worse. The penalty is worked out at both ends of a route and averaged. Desks also have a capacity — overloading them costs satisfaction again.',
   },
-  deskLoad: {
-    title: 'Desk Load',
-    desc:
-      'How much of your check-in capacity at this airport your schedule already uses, across every route.\n\n' +
-      'Above 80% the queue starts costing satisfaction on all of them, not just this route: about 2 points at 90%, 4 at 100% and up to 20 from 110%.',
-  },
-  efficiency: {
-    title: 'Efficiency',
-    desc:
-      'How much fuel this aircraft burns, 0-100, where higher is better.\n\n' +
-      'Fuel is the largest variable cost on almost every route, so this is usually the most important number on an aircraft after its capacity and range.',
-  },
-  conditionInterior: {
-    title: 'Interior Condition',
-    desc:
-      'Wear on the cabin, falling with every block hour flown.\n\n' +
-      'It scales the interior part of the aircraft satisfaction (a fully worn cabin keeps 40% of its appeal; the type\'s own popularity is not affected), so a tired cabin quietly lowers the fare passengers will pay. A refit restores it, but each successive refit restores less.',
-  },
-  conditionGeneral: {
-    title: 'Airframe Condition',
-    desc:
-      'Wear on the airframe itself, falling with block hours and slowly even when parked.\n\n' +
-      'It sets what the aircraft is worth if you sell it. A general check restores some of it, and each check restores less than the last.',
-  },
-  businessTourism: {
-    title: 'Business / Tourism',
-    desc:
-      'How much traffic this city generates of each kind, in the currently selected year. Both grow over the decades.\n\n' +
-      'Demand on a route comes from the pairing of the two ends, weighted heavily toward the smaller of them: a huge hub paired with a small field produces a small route.',
-  },
-  capex: {
-    title: 'CAPEX vs. weekly rent',
-    desc:
-      'CAPEX is a one-off purchase price. It comes out of your capital the moment you buy, and the monthly report lists it below the line.\n\n' +
-      'A weekly rate is recurring upkeep that appears in every month from now on. Slots cost both; desks and stands are rent only.',
-  },
   utilization: {
     title: 'Utilization',
     desc:
-      'How much of the aircraft\'s week is already committed to flying, out of the 168 hours available.\n\n' +
-      'It counts flight time, turnarounds and the fixed 30 minutes before and after each leg, so it reaches 100% well before the aircraft is literally airborne all week.',
+      `How much of the aircraft's week is already committed to flying, out of the ${WEEK_MIN / MINUTES_PER_HOUR} hours available.\n\n` +
+      `It counts flight time, turnarounds and the fixed ${BOARDING_MIN} minutes before and after each leg, so it reaches 100% well before the aircraft is literally airborne all week.`,
   },
 };

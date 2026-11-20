@@ -736,7 +736,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                           Eff.<InfoTooltip size={11} {...GLOSSARY.efficiency} /> {getSortIcon('efficiency')}
                         </th>
                         <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('popularity')}>
-                          Comb. Sat<InfoTooltip size={11} {...GLOSSARY.sat} /> {getSortIcon('popularity')}
+                          Comb. Sat<InfoTooltip size={11} {...GLOSSARY.cabinRating} /> {getSortIcon('popularity')}
                         </th>
                         <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('conditionInterior')}>
                           Int. Cond<InfoTooltip size={11} {...GLOSSARY.conditionInterior} /> {getSortIcon('conditionInterior')}
