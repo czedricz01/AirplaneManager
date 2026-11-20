@@ -224,9 +224,9 @@ describe('Abschnitt 8.5 Krisen-Antworten', () => {
 
   it('8.17: Rückgewinnung: Faktor und Preis je Krise', () => {
     const cases: [string, number, number][] = [
-      ['Aviation Downturn', 1.215, 0.252],
-      ['Global Financial Crisis', 1.11, 0.297],
-      ['Global Pandemic', 2.4, 1.008],
+      ['Aviation Downturn', 1.215, 0.42],
+      ['Global Financial Crisis', 1.11, 0.495],
+      ['Global Pandemic', 2.4, 1.68],
     ];
     for (const [title, factor, price] of cases) {
       const e = historicalEvent(title);
@@ -516,11 +516,11 @@ describe('Abschnitt 8.9 Gestrichene und gecharterte Flüge', () => {
     );
   });
 
-  it('8.17: Charter oder streichen, A320ceo FRA–MAD 1990: Gebühr 14 584 $, Vorteil +11 742 $ je Flug', () => {
+  it('8.17: Charter oder streichen, A320ceo FRA–MAD 1990: Gebühr 14 584 $, Vorteil +7 815 $ je Flug', () => {
     const fee = charterFee(9_723 * 14, 14);
     near(fee, 14_584.5, 1e-6);
-    near(charterAdvantage(29_027, 2_701, 14_584), 11_742, 1e-9);
-    assert.ok(charterAdvantage(29_027, 2_701, fee) > 0);
+    near(charterAdvantage(25_100, 2_701, 14_584), 7_815, 1e-9);
+    assert.ok(charterAdvantage(25_100, 2_701, fee) > 0);
     assert.equal(charterFee(1000, 0), 0);
   });
 

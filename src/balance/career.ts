@@ -36,7 +36,7 @@ import { reputationFactor } from '../model/marketSplit';
 import { defectChance } from '../model/monthEvents';
 import { goalBase, goalReward, milestoneDef, reputationChange, reputationTarget, researchPrice } from '../model/progress';
 import { musd, num, pct, type Check, type Section, type Table } from './report';
-import { runCase, type CaseResult, type RouteCase } from './routes';
+import { bestDeparturesCase, runCase, type CaseResult, type RouteCase } from './routes';
 import { monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, seatsTotal } from './world';
 
 // ---------------------------------------------------------------------------
@@ -180,7 +180,7 @@ export interface RankCaseResult {
 }
 
 export function runRankCase(rc: RankCase): RankCaseResult {
-  const result = runCase(rc.route);
+  const result = runCase(bestDeparturesCase(rc.route));
   const pax = seatsTotal(result.route.passengers) + seatsTotal(result.route.transferPassengers);
   const resultPerPax = result.route.result / pax;
   const revenuePerPax = result.route.revenue / pax;

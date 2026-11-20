@@ -550,8 +550,8 @@ export const DISTANCE_REF = 450;
 /** Kürzere Bezugs-Flugzeiten (min) zählen wie diese. Startwert (3.9). SPEZIFIKATION 3.4. */
 export const DISTANCE_MIN = 45;
 
-/** Wie stark der Entfernungs-Faktor mit der Flugzeit fällt (Hochzahl). Startwert (3.9). SPEZIFIKATION 3.4. */
-export const DISTANCE_EXP = 0.5;
+/** Wie stark der Entfernungs-Faktor mit der Flugzeit fällt (Hochzahl). Aus dem Balance-Skript (E70, Paket 3.9d; Start 0,5). SPEZIFIKATION 3.4. */
+export const DISTANCE_EXP = 0.3;
 
 // ---------------------------------------------------------------------------
 // 3.6 Marktgröße
@@ -560,8 +560,8 @@ export const DISTANCE_EXP = 0.5;
 /** Hochzahl der Verflechtung (Abstand großer zu kleinen Paaren; heute `src/lib/financeUtils.ts:683`). SPEZIFIKATION 3.6. */
 export const LINK_EXP = 0.448351;
 
-/** Maßstab der Marktgröße, Fluggäste je Woche (heute 29 × 0,9 bei Normal, ohne den Abzug, E4). Startwert (3.9). SPEZIFIKATION 3.6. */
-export const DEMAND_SCALE = 29;
+/** Maßstab der Marktgröße, Fluggäste je Woche (heute 29 × 0,9 bei Normal; E67, E70: halbiert). Aus dem Balance-Skript (Paket 3.9d). SPEZIFIKATION 3.6. */
+export const DEMAND_SCALE = 14.5;
 
 // ---------------------------------------------------------------------------
 // 3.7 Klassen-Anteil
@@ -716,10 +716,11 @@ export const FARE_BASE_1960 = 30;
 export const FARE_PER_KM_1960 = 0.05;
 
 /**
- * Kurzstrecken-Zuschlag je Flugzeit-Index 1 … 8 (Stelle 0 = Index 1). Dazwischen gerade Linie
- * (heute `SHORT_HAUL_FARE_FACTOR`, `src/lib/financeUtils.ts:720`). SPEZIFIKATION 4.1.
+ * Preis-Faktor je Flugzeit-Index 1 … 8 (Stelle 0 = Index 1): Zuschlag auf Kurzstrecken, Abschlag auf Mittel- und
+ * Langstrecken. Dazwischen gerade Linie (heute `SHORT_HAUL_FARE_FACTOR` 1,15 … 1, `src/lib/financeUtils.ts:720`).
+ * Werte aus dem Balance-Skript (E70, Paket 3.9d: Marge der KI um 20 %). SPEZIFIKATION 4.1.
  */
-export const SHORT_HAUL_FARE_FACTOR: readonly number[] = [1.15, 1.15, 1.1, 1.1, 1.05, 1, 1, 1];
+export const FARE_TIME_FACTOR: readonly number[] = [1.04, 1.04, 0.9, 0.86, 0.72, 0.59, 0.54, 0.5];
 
 // ---------------------------------------------------------------------------
 // 4.2 Klassen-Verhältnis
@@ -2352,8 +2353,11 @@ export const RANDOM_EVENT_CHANCE = 0.05;
  */
 export const HEDGE_PRICE_SHARE = 0.35;
 
-/** Rückgewinnung: Preis = Anteil × r × (1 − f) × Dauer × Monatserlös des letzten Monats. Startwert (3.9). SPEZIFIKATION 8.5. */
-export const RECOVERY_PRICE_SHARE = 0.15;
+/**
+ * Rückgewinnung: Preis = Anteil × r × (1 − f) × Dauer × Monatserlös des letzten Monats (E69, Paket 3.9d: 0,15 → 0,25,
+ * lohnt sich mit der Marktgröße aus E70 etwa 1,2- bis 2,4-fach). SPEZIFIKATION 8.5.
+ */
+export const RECOVERY_PRICE_SHARE = 0.25;
 
 // ---------------------------------------------------------------------------
 // 8.6 Betriebsstörungen und Vogelschläge

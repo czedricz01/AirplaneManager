@@ -21,7 +21,10 @@ export interface RouteCase {
   readonly to: string;
   readonly typeId: string;
   readonly year: number;
-  /** Abflüge je Woche (beide Richtungen). */
+  /**
+   * Abflüge je Woche (beide Richtungen). Im Bericht die Obergrenze: `bestDeparturesCase` wählt die gewinnbeste gerade
+   * Zahl bis dahin („gut geführt“, Paket 3.9d).
+   */
   readonly departures: number;
   readonly personality: RivalPersonality;
   /** Kurzstrecke (für die Landegebühr-Regel). */
@@ -143,6 +146,30 @@ export function runCase(c: RouteCase, demandScale = 1): CaseResult {
   };
 }
 
+/**
+ * Der Fall mit der gewinnbesten geraden Abflugzahl von 2 bis `c.departures` (jeweils beim besten Preis): Eine gut
+ * geführte Strecke wählt auch die Zahl der Flüge (Paket 3.9d, nach der kleineren Marktgröße aus E67, E70).
+ */
+export function bestDeparturesCase(c: RouteCase, demandScale = 1): RouteCase {
+  let best = c;
+  let bestResult = Number.NEGATIVE_INFINITY;
+  for (let departures = 2; departures <= c.departures; departures += 2) {
+    const candidate = { ...c, departures };
+    const ratios = bestFareRatios(caseMarket(candidate, undefined, departures, demandScale), 'a');
+    const result = routeOf(runMarket(caseMarket(candidate, ratios, departures, demandScale)), 'a').result;
+    if (result > bestResult) {
+      best = candidate;
+      bestResult = result;
+    }
+  }
+  return best;
+}
+
+/** Die typischen Strecken des Berichts: je Fall die gewinnbeste Abflugzahl beim besten Preis. */
+export function routeCaseResults(cases: readonly RouteCase[] = ROUTE_CASES): CaseResult[] {
+  return cases.map((c) => runCase(bestDeparturesCase(c)));
+}
+
 const ratioText = (r: PartialClassFigures) =>
   CABIN_CLASSES.filter((c) => r[c] !== undefined).map((c) => num(r[c] as number, 2)).join(' / ');
 
@@ -227,7 +254,7 @@ export function scaleSensitivity(scales: readonly number[] = DEMAND_SCALES, labe
 
 /** Abschnitt 4 (Preis) und 5 (Kosten) aus denselben Fällen. */
 export function routeSections(
-  results: readonly CaseResult[] = ROUTE_CASES.map((c) => runCase(c)),
+  results: readonly CaseResult[] = routeCaseResults(),
   duels: readonly PriceDuel[] = defaultDuels(),
   sensitivity: readonly (readonly CaseResult[])[] = scaleSensitivity(),
 ): Section[] {
@@ -235,6 +262,7 @@ export function routeSections(
   const priceRows = results.map((r) => [
     r.c.label,
     num(r.marketSize),
+    String(r.c.departures),
     num(r.seatsPerWeek),
     pct(r.loadAtMarket),
     pct(r.loadAtMax),
@@ -245,9 +273,9 @@ export function routeSections(
   ]);
   const priceTable: Table = {
     title: 'Preis und Auslastung typischer Strecken (eine Gesellschaft, Mai)',
-    header: ['Strecke', 'Marktgröße', 'Sitze je Woche', 'Auslastung bei Marktpreis', `Auslastung bei Preisniveau ${num(FARE_RATIO_MAX)}`, 'Bester Preis (Niveau je Klasse)', 'Auslastung beim besten Preis', 'Gewinnschwelle voll', 'Gewinnschwelle bei dieser Auslastung'],
+    header: ['Strecke', 'Marktgröße', 'Abflüge je Woche', 'Sitze je Woche', 'Auslastung bei Marktpreis', `Auslastung bei Preisniveau ${num(FARE_RATIO_MAX)}`, 'Bester Preis (Niveau je Klasse)', 'Auslastung beim besten Preis', 'Gewinnschwelle voll', 'Gewinnschwelle bei dieser Auslastung'],
     rows: priceRows,
-    note: 'Bester Preis nach 4.10 (gewinnbest, Kosten je Fluggast abgezogen). Gewinnschwelle als Preisniveau für alle Klassen (4.11).',
+    note: 'Bester Preis nach 4.10 (gewinnbest, Kosten je Fluggast abgezogen). Abflüge: gewinnbeste gerade Zahl bis 14 (787-9: 8) beim besten Preis (`bestDeparturesCase`). Gewinnschwelle als Preisniveau für alle Klassen (4.11).',
   };
 
   const fullAtMax = results.filter((r) => r.loadAtMax > 0.99);
@@ -278,9 +306,9 @@ export function routeSections(
   priceChecks.push({
     id: 'B4.2',
     spec: '4.10, 7.6',
-    rule: 'Wechselseitige beste Antworten zweier gleicher Gesellschaften bleiben über den Kosten (Ergebnis > 0, Preis über der Gewinnschwelle voller Maschine), nicht gegen 0',
-    value: duels.map((d) => `${d.departures} Abflüge: tiefster Preis Y ${num(lowest(d), 2)}, Schwelle ${num(d.breakEvenFull, 2)}`).join('; '),
-    verdict: duels.every((d) => d.route.result > 0 && lowest(d) > d.breakEvenFull) ? 'ok' : 'abweichung',
+    rule: 'Wechselseitige beste Antworten zweier gleicher Gesellschaften bleiben über den Kosten (Preis über der Gewinnschwelle voller Maschine), nicht gegen 0; mit einem Flugzeug je Gesellschaft (erster Fall) auch Ergebnis > 0. Ein Verlust mit mehr Sitzen, als der Markt füllt, kommt aus der Überkapazität, nicht aus dem Unterbieten (Paket 3.9d)',
+    value: duels.map((d) => `${d.departures} Abflüge: tiefster Preis Y ${num(lowest(d), 2)}, Schwelle ${num(d.breakEvenFull, 2)}, Ergebnis ${usd(d.route.result)}`).join('; '),
+    verdict: duels.every((d) => lowest(d) > d.breakEvenFull) && (duels[0]?.route.result ?? 0) > 0 ? 'ok' : 'abweichung',
   });
   priceChecks.push({
     id: 'B4.3',
@@ -300,7 +328,7 @@ export function routeSections(
     title: 'Preiskampf: zwei gleiche Gesellschaften (A320ceo, Flag-Ausstattung) auf FRA–MAD 1990, abwechselnd bester Preis',
     header: ['Abflüge je Gesellschaft', 'Erste Antwort Y', 'Verlauf Y (Gesellschaft a)', 'fest', 'Endpreis (Niveau je Klasse)', 'Gewinnschwelle voll', 'Auslastung', 'Ergebnis je Woche'],
     rows: duelRows,
-    note: 'Jede Runde: a antwortet auf b, dann b auf a (`bestFareRatios`). 14 Abflüge = ein Flugzeug, 56 = vier Flugzeuge je Gesellschaft (eine Strecke, viele Sitze).',
+    note: 'Jede Runde: a antwortet auf b, dann b auf a (`bestFareRatios`). 14 Abflüge = ein Flugzeug, 28 = zwei Flugzeuge je Gesellschaft (eine Strecke, mehr Sitze als der Markt füllt; bis Paket 3.9d 56 = vier Flugzeuge, bei der kleineren Marktgröße nur noch Überkapazität).',
   };
 
   // ---- Abschnitt 5 ----
@@ -417,5 +445,5 @@ export function routeSections(
 /** Die beiden Preiskampf-Fälle: ein Flugzeug (Sitze knapp) und vier (Sitze reichlich) je Gesellschaft. */
 export function defaultDuels(): PriceDuel[] {
   const base = { from: 'FRA', to: 'MAD', month: sampleMonth(1990) };
-  return [14, 56].map((departures) => priceDuel(base, { typeId: 'a320ceo', personality: 'flag', departures }));
+  return [14, 28].map((departures) => priceDuel(base, { typeId: 'a320ceo', personality: 'flag', departures }));
 }

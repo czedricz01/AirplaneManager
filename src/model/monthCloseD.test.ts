@@ -374,7 +374,10 @@ describe('Abschnitt 7.13 Neues Drehkreuz', () => {
       const holdings: Record<string, HoldingState> = { FRA: hubHolding({ slots: { Narrowbody: 63 } }) };
       for (const id of ['MAD', 'CDG', 'FCO']) holdings[id] = hubHolding({ managementTier: 0, slots: { Narrowbody: 21 } });
       const k = rival('k', { aircraft: planes, routes, airports: holdings }, 'expansionist', 'hard', { hubNoProfit: { FRA: 5 } });
-      const close = closeMonth(world([k], { seed }), rivalDecisions);
+      // Nachfrage-Boom, damit die drei Strecken voll bleiben und nicht ausgedünnt werden: der Test prüft den Ort,
+      // nicht die Marktgröße (`DEMAND_SCALE`, E70).
+      const boom = [{ title: 'Test: boom', startMonth: M, months: 24, demandMultiplier: 4 }];
+      const close = closeMonth(world([k], { seed, randomEvents: boom }), rivalDecisions);
       const hubNews = close.news.find((n) => n.companyId === 'k' && n.kind === 'newHub');
       if (!hubNews) continue;
       opened++;

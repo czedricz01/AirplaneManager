@@ -24,7 +24,7 @@ import {
   FARE_RATIO_MAX,
   FARE_RATIO_MIN,
   REFERENCE_SPEED,
-  SHORT_HAUL_FARE_FACTOR,
+  FARE_TIME_FACTOR,
   WEEKS_PER_MONTH,
   type CabinClass,
 } from './constants';
@@ -52,12 +52,11 @@ export type PartialClassFigures = Readonly<Partial<Record<CabinClass, number>>>;
 // ---------------------------------------------------------------------------
 
 /**
- * Kurzstrecken-Zuschlag beim Flugzeit-Index `timeIndex` (1 … 8, stufenlos): gerade Linie zwischen den
- * Tabellenwerten `SHORT_HAUL_FARE_FACTOR` (wie heute `byTimeIndex`, `src/lib/financeUtils.ts:271-276`).
- * SPEZIFIKATION 4.1.
+ * Preis-Faktor beim Flugzeit-Index `timeIndex` (1 … 8, stufenlos): gerade Linie zwischen den Tabellenwerten
+ * `FARE_TIME_FACTOR` (wie heute `byTimeIndex`, `src/lib/financeUtils.ts:271-276`). SPEZIFIKATION 4.1.
  */
-export function shortHaulFareFactor(timeIndex: number): number {
-  const table = SHORT_HAUL_FARE_FACTOR;
+export function fareTimeFactor(timeIndex: number): number {
+  const table = FARE_TIME_FACTOR;
   const t = clamp(timeIndex, 1, table.length);
   const low = Math.floor(t);
   const high = Math.min(table.length, low + 1);
@@ -66,7 +65,7 @@ export function shortHaulFareFactor(timeIndex: number): number {
 
 /**
  * Was ein Economy-Ticket auf einem Paar „normal“ kostet, in $ von 1960:
- * `(FARE_BASE_1960 + FARE_PER_KM_1960 × Entfernung) × shortHaulFareFactor(flightTimeIndex(referenceMinutes))`.
+ * `(FARE_BASE_1960 + FARE_PER_KM_1960 × Entfernung) × fareTimeFactor(flightTimeIndex(referenceMinutes))`.
  * Der Index kommt aus der **Bezugs-Flugzeit**, nie aus dem Flugzeug (3.16). SPEZIFIKATION 4.1.
  *
  * @param greatCircleKm Großkreis-Entfernung des Paars (`distanceKm`).
@@ -74,7 +73,7 @@ export function shortHaulFareFactor(timeIndex: number): number {
  */
 export function baseFareEconomy(greatCircleKm: number, referenceMinutes: number): number {
   return (
-    (FARE_BASE_1960 + FARE_PER_KM_1960 * greatCircleKm) * shortHaulFareFactor(flightTimeIndex(referenceMinutes))
+    (FARE_BASE_1960 + FARE_PER_KM_1960 * greatCircleKm) * fareTimeFactor(flightTimeIndex(referenceMinutes))
   );
 }
 

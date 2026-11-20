@@ -240,12 +240,12 @@ describe('Abschnitt 3.3 Nachfrage-Wachstum', () => {
 });
 
 describe('Abschnitt 3.4 Entfernungs-Faktor', () => {
-  it('3.4: Werte der Spezifikation (45 min 3,16 … 1 200 min 0,61; 1 bei 450 min)', () => {
+  it('3.4: Werte der Spezifikation (45 min 2,00 … 1 200 min 0,75; 1 bei 450 min)', () => {
     const expected: [number, number][] = [
-      [45, 3.16], [90, 2.24], [150, 1.73], [300, 1.22], [450, 1], [810, 0.75], [1200, 0.61],
+      [45, 2.0], [90, 1.62], [150, 1.39], [300, 1.13], [450, 1], [810, 0.84], [1200, 0.75],
     ];
     for (const [minutes, factor] of expected) assertClose(distanceFactor(minutes), factor, 0.005);
-    assertClose(distanceFactor(45) / distanceFactor(1200), 5.2, 0.05);
+    assertClose(distanceFactor(45) / distanceFactor(1200), 2.68, 0.01);
   });
 
   it('3.4: unter DISTANCE_MIN gleich, darüber streng fallend, ohne Untergrenze', () => {
