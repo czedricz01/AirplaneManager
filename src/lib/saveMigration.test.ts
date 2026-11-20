@@ -250,6 +250,9 @@ test('a scenario game keeps its scenario, repaired where it has to be', () => {
   assert.equal('result' in odd.scenario, false, 'a running scenario has no result');
 
   assert.equal(migrateSave({ ...v2Save(), scenario: { id: 'moon-landing' } }).scenario, null, 'an unknown scenario is played on as a free game');
+  const tracked = migrateSave({ ...v2Save(), scenario: { id: 'jet-age', startedOffset: 0, status: 'running', floorStreak: 2, met: ['capital', 7] } });
+  assert.equal(tracked.scenario.floorStreak, 2, 'the model bridge keeps its month-ends below the credit line');
+  assert.deepEqual(tracked.scenario.met, ['capital'], 'and the goals already met, ids only');
   assert.equal(migrateSave({ ...v2Save(), scenario: 'jet-age' }).scenario, null);
 });
 

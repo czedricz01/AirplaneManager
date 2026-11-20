@@ -410,7 +410,16 @@ function migrateScenario(s: unknown, startDateOffset: number, currentDateOffset:
   const result = status !== 'running' && Number.isFinite(rawResult.offset)
     ? { offset: Math.round(rawResult.offset), reason: isString(rawResult.reason) ? rawResult.reason : '' }
     : undefined;
-  return { id: src.id, startedOffset, status, ...(result ? { result } : {}) };
+  const floorStreak = Number.isFinite(src.floorStreak) ? Math.max(0, Math.round(src.floorStreak)) : undefined;
+  const met = Array.isArray(src.met) ? src.met.filter(isString) : undefined;
+  return {
+    id: src.id,
+    startedOffset,
+    status,
+    ...(result ? { result } : {}),
+    ...(floorStreak !== undefined ? { floorStreak } : {}),
+    ...(met ? { met } : {}),
+  };
 }
 
 function migrateMessages(messages: unknown): any[] {

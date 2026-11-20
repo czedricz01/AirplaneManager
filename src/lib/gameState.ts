@@ -236,6 +236,10 @@ export interface ScenarioState {
   status: ScenarioStatus;
   /** When and why it was decided; absent while running. */
   result?: { offset: number; reason: string };
+  /** Month-ends in a row below the credit line (model 8.15); absent = 0. Written by the model bridge. */
+  floorStreak?: number;
+  /** Ids of the win goals already met (model 8.15); absent = none. Written by the model bridge. */
+  met?: string[];
 }
 
 /**
