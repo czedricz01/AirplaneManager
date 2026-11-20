@@ -421,11 +421,34 @@ const NO_COSTS: MonthlyCosts = {
  * einer Summe; alles andere leer. Die Anzeige liest weiter den gespeicherten Bericht.
  */
 export function historyReport(r: MonthlyReport, companyId: string): MonthReport {
-  const revenue = Number.isFinite(r.routeRevenues) ? r.routeRevenues : 0;
-  const result = Number.isFinite(r.totalProfit) ? r.totalProfit : 0;
-  const cash = Number.isFinite(r.capitalAfter) ? (r.capitalAfter as number) : 0;
+  return plainReport(reportMonth(r), companyId, {
+    revenue: Number.isFinite(r.routeRevenues) ? r.routeRevenues : 0,
+    result: Number.isFinite(r.totalProfit) ? r.totalProfit : 0,
+    cash: Number.isFinite(r.capitalAfter) ? (r.capitalAfter as number) : 0,
+    passengers: Number.isFinite(r.paxTotal) ? (r.paxTotal as number) : 0,
+    transferPassengers: Number.isFinite(r.transferPax) ? (r.transferPax as number) : 0,
+    reputation: r.reputation ?? 0,
+  });
+}
+
+/** Was ein Bericht aus der Zeit vor dem Modell weiß (`plainReport`). */
+export interface PlainReportValues {
+  readonly revenue: number;
+  readonly result: number;
+  readonly cash: number;
+  readonly passengers: number;
+  readonly transferPassengers: number;
+  readonly reputation: number;
+}
+
+/**
+ * Ein Bericht nur mit Monat, Erlös, Ergebnis, Kasse, Fluggästen und Ruf; Kosten = Erlös − Ergebnis in einer Summe,
+ * alles andere leer. Für Berichte aus der Zeit vor dem Modell (Spieler: `historyReport`; KI: `rivalRecord`, 4.2d).
+ */
+export function plainReport(month: number, companyId: string, v: PlainReportValues): MonthReport {
+  const { revenue, result, cash } = v;
   return {
-    month: reportMonth(r),
+    month,
     companyId,
     revenue,
     costs: { ...NO_COSTS, total: revenue - result },
@@ -447,11 +470,11 @@ export function historyReport(r: MonthlyReport, companyId: string): MonthReport 
     depositsEnd: 0,
     creditLimit: 0,
     creditState: cash >= 0 ? 'healthy' : 'credit',
-    passengers: Number.isFinite(r.paxTotal) ? (r.paxTotal as number) : 0,
-    transferPassengers: Number.isFinite(r.transferPax) ? (r.transferPax as number) : 0,
+    passengers: v.passengers,
+    transferPassengers: v.transferPassengers,
     cancelledShare: 0,
     airlineSatisfaction: 0,
-    reputation: { reputation: r.reputation ?? 0, target: r.reputation ?? 0, causes: [] },
+    reputation: { reputation: v.reputation, target: v.reputation, causes: [] },
     routes: [],
   };
 }

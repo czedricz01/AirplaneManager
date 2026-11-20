@@ -1,22 +1,32 @@
 # Status
 
-**Nächstes Paket: 4.2d** – Brücke Teil 3: KI und Welt-Zustand in `src/lib/` (KI-Gesellschaften als `CompanyState` mit
-`agent` aus der alten `AiAirline`, Ansicht der Konkurrenz daraus; Zufallsereignisse, Störungen, Pech, Gebrauchtmarkt und
-`seed` als `ModelState`), mit Test „hin und zurück“.
-Zu lesen: `src/lib/modelBridge.ts`, `src/lib/modelBridgeCompany.ts` (nur die Kopf-Kommentare), `src/components/CompetitorsView.tsx`
-(`AiAirline`), `src/lib/aiSimulation.ts` (nur Typen und Aufbau), `src/lib/disruptions.ts`, `src/lib/usedMarket.ts`,
-`src/lib/eventSystem.ts` (Zufallsereignisse), `src/model/monthClose.ts` (`ModelState`, `CompanyState.agent`),
-`src/model/rivalMonth.ts` (Agent-Zustand der KI), `src/model/monthEvents.ts` (`Disruption`, `WorldEvent`), F54 und F55 in
-`ENTSCHEIDUNGEN.md`.
+**Nächstes Paket: 4.2e** – `App.tsx` bucht mit `closeMonth` des Modells: Spielstand über die Brücke (Teile 1–3) in `ModelState`,
+`closeMonth(state, rivalDecisions, rivalRefill(...))`, Ergebnis zurück; neue Spielstand-Felder `rivals`, `modelWorld`, `ledgerValues`;
+Bericht und Meldungen; offene Punkte aus 4.2–4.2d. Ist das Paket zu groß für eine Sitzung, zuerst teilen (wie F54).
+Zu lesen: `src/App.tsx` (Monatsabschluss `handleAdvanceMonth` `src/App.tsx:1157`, Laden um `:1486`, Übernahme `handleTakeover` `:1819`), `src/lib/monthClose.ts`
+(alter Abschluss, nur Aufbau und Rückgabe), `src/lib/modelBridge.ts`, `src/lib/modelBridgeCompany.ts`, `src/lib/modelBridgeWorld.ts`
+(nur Kopf-Kommentare und Signaturen), `src/lib/saveMigration.ts` (Felder), `src/model/monthClose.ts` (`closeMonth`, `CloseMonthResult`,
+`CloseNews`), F54–F56 in `ENTSCHEIDUNGEN.md`.
 
-Stand: 20.11.2026 · O68 = A (E72). Pakete 4.2b–4.2e (F54). 4.2b erledigt (Welt und Betrieb). Paket 4.2c erledigt:
-`src/lib/modelBridgeCompany.ts` liest Eingaben, Kassenbuch, Vorbestellungen, Fortschritt und Berichte des Spielers als
-Modell-Werte und schreibt zurück, was der Abschluss ändert (Lieferungen als Flugzeuge der Flotte); „hin und zurück“ ändert
-nichts; ein ganzer Monat mit `closeMonth` über die Brücke getestet; 18 Regeltests (1289 grün).
+Stand: 20.11.2026 · O68 = A (E72). Pakete 4.2b–4.2e (F54). 4.2b, 4.2c erledigt. Paket 4.2d erledigt:
+`src/lib/modelBridgeWorld.ts` speichert KI (`RivalRecord`: `CompanyState` mit `agent` + Name, Kürzel, Farbe) und Welt-Zustand
+(`WorldState`: Zufall, Ereignisse, Störungen, Pech, Weiterverkauf) im Format des Modells, wandelt alte `AiAirline` und alte
+Ereignisse/Störungen um und baut die alten Listen als Ansicht daraus; „hin und zurück“ ändert nichts; ein Monat mit KI über die
+Brücke getestet; 15 Regeltests (1304 grün).
+
+Offen aus 4.2d (kein Blocker): (1) 4.2e: neue Spielstand-Felder `rivals` (`RivalRecord[]`) und `modelWorld` (`WorldState`), Laden über
+`modelRivals` / `modelWorld`; die Kennung einer KI wechselt von `ai_<kürzel>` zu `rival-<Kürzel>` (Übernahme `src/App.tsx:1819`, Karte,
+`buildRivalOffers` lesen die Ansicht). (2) 4.2e: Störungs-Fragen (`buildDisruptionDecision`) mit der Ansicht `playerDisruptions`; ein Defekt
+hat jetzt die Kennung des Flugzeugs (`dis_<Monat>_technical_<Kennzeichen>`); die Antwort über `applyDisruptionAnswers`. (3) 4.7:
+„Aggression“ in der Konkurrenz-Ansicht (`src/components/CompetitorsView.tsx:766`) hat kein Gegenstück im Modell (entfernen oder
+Persönlichkeit zeigen); Frist bis zur Auflösung (`CompetitorsView.tsx:455`) aus dem Modell. (4) 4.6: Gebrauchtmarkt-Ansicht aus
+`usedOffers` + `resoldInMarket` (Kennungen `<Monat>:<n>` wie `usedListings`, `career.usedSold` passt weiter). (5) 5.1: `rivalRecord` und
+`modelWorld` in `saveMigration.ts`. (6) Alte Zufallsereignisse, die nur den Treibstoff verteuerten, gelten im Modell nicht mehr als
+Pech (E8, `isBadLuckEvent`).
 
 Offen aus 4.2c (kein Blocker): (1) 4.2e: neues Spielstand-Feld `ledgerValues` (Flottenwert und Anzahlungen am Monatsanfang,
 Wertänderung durch Geschäfte; Kauf, Verkauf, Umbau, Überholung rufen `withTradeValue`); ohne es zeigt „Aircraft trades“ im
-ersten Monat nach dem Laden 0. (2) 4.2d: `renamed` aus `deliveredAircraft` auf die Störungen des nächsten Monats anwenden.
+ersten Monat nach dem Laden 0. (2) erledigt in 4.2d (`renameDisruptions`; 4.2e reicht `renamed` an `applyModelWorld`).
 (3) 4.2e: Charter-Kosten einer Störung zahlt die Oberfläche heute sofort („Decision: …“, landet in `otherSpending`); das
 Modell bucht Charter im Abschluss (8.9) – mit den Störungen (4.2d) die sofortige Zahlung entfernen, sonst doppelt.
 (4) Lieferung einen Monat später als heute (Modell liefert im Abschluss des Liefermonats, 8.12); Preis bei Lieferung aus dem
@@ -221,7 +231,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.2 | Regeln aus `App.tsx` ins Modell (`src/App.tsx`; `bestand/8-oberflaeche.md` W8, Art D „Jahre im Geschäft“) | erledigt |
 | 4.2b | Brücke Teil 1: Welt und Betrieb des Spielers (`src/lib/modelBridge.ts`: Flughäfen, Katalog, Flugzeuge mit Kabine, Strecken, Bestand an Flughäfen; E72, F54) | erledigt |
 | 4.2c | Brücke Teil 2: Eingaben, Kasse, Vorbestellungen, Fortschritt und Berichte des Spielers; Lieferungen in die Flotte (`src/lib/modelBridgeCompany.ts`; F55) | erledigt |
-| 4.2d | Brücke Teil 3: KI und Welt-Zustand (KI im Modell-Format speichern, alte `AiAirline` umwandeln, Ansicht der Konkurrenz daraus; Zufall, Ereignisse, Störungen, Pech, Gebrauchtmarkt) | offen |
+| 4.2d | Brücke Teil 3: KI und Welt-Zustand (KI im Modell-Format speichern, alte `AiAirline` umwandeln, Ansicht der Konkurrenz daraus; Zufall, Ereignisse, Störungen, Pech, Gebrauchtmarkt; `src/lib/modelBridgeWorld.ts`; F56) | erledigt |
 | 4.2e | `App.tsx` bucht mit `closeMonth` des Modells (`rivalDecisions`, `rivalRefill`; Bericht, Meldungen; offene Punkte aus 4.2) | offen |
 | 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | offen |
 | 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | offen |
@@ -298,3 +308,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | – | O68 entschieden: E72 (A, erst der Monatsabschluss, dann die Ansichten) |
 | 20.11.2026 | 4.2b | Brücke Teil 1 in `src/lib/modelBridge.ts`: Welt (`modelAirports`, `modelCatalog`), Kabine (Schalter des Kaufdialogs → `interiorScore`, `cabinListPrice`), Flugzeuge (`aircraftState`, neues Feld `cabinInstalledAt`), Bestand (`holdingState`), Strecken (`routeState`: Flugabschnitte, Fahrplan in Minuten, Preisniveau aus $, Alter, Service), Zurückschreiben nach `closeMonth` (Zustand, Preise in $ des neuen Monats, verkaufte Flugzeuge); Teilung 4.2b–4.2e (F54); 19 neue Tests (1271 grün) |
 | 20.11.2026 | 4.2c | Brücke Teil 2 in `src/lib/modelBridgeCompany.ts`: Eingaben (Forschung, Lohn, Moral, Kampagnen, Frequent flyer, Schwierigkeit, Krisen-Antworten aus `eventChoices`, Streik), Kassenbuch aus `capital` und `monthlyCapex` mit `LedgerValues`, Vorbestellungen (Standard-Kabine) und Lieferungen als Flugzeuge der Flotte, Fortschritt (Rang-Werte aus Berichten, Forschung, Meilensteine mit Kennungs-Übersetzung, Jahresziel, Szenario mit neuen Feldern `floorStreak`/`met`), Berichte in beide Richtungen; ein Monat mit `closeMonth` über die Brücke; F55; 18 neue Tests (1289 grün) |
+| 20.11.2026 | 4.2d | Brücke Teil 3 in `src/lib/modelBridgeWorld.ts`: KI als `RivalRecord` (`CompanyState` mit `agent`, Name, Kürzel, Farbe), Umwandlung alter `AiAirline` (Kennung `rival-<Kürzel>`, Kabine nach `rivalCabin`, Slots und Schalter wie bei einer Eröffnung, Gedächtnis, Notlage, Berichte), Ansicht `rivalView`, Namen und Farben neu gegründeter KI (BOAC/British Airways nach Jahr); Welt als `WorldState` (Startwert, Ereignisse ohne Treibstoff-Faktor, Störungen je Flugzeug, Pech, Weiterverkauf), Ansicht der Störungen, Charter-Antwort, neue Kennungen gelieferter Flugzeuge; `plainReport` in Teil 2; F56; 15 neue Tests (1304 grün) |
