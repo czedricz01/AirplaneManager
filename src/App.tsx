@@ -51,20 +51,19 @@ import {
 import {
   STRIKE_OPTION_RAISE,
   STRIKE_PAY_RAISE,
-  STRIKE_REPUTATION_PENALTY,
   setSalary,
-  settleStrikeWithPayRise,
-  strikeCancelShare
+  settleStrikeWithPayRise
 } from "./lib/staff";
 import {
   DISRUPTION_OPTION_CHARTER,
   type BirdStrike,
-  cancelReputationPenalty,
-  combineCancelShares,
   describeRouteCancellations,
-  disruptionCancelShares,
   disruptionTitle
 } from "./lib/disruptions";
+import { withTradeValue, type LedgerValues } from "./lib/modelBridgeCompany";
+import type { RivalRecord, WorldState } from "./lib/modelBridgeWorld";
+import { planesValue } from "./lib/modelMonth";
+import { modelMonthClose } from "./lib/modelMonthClose";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
   milestonePerks
@@ -141,7 +140,7 @@ import {
   type ScenarioState,
   type ChronicleEntry
 } from "./lib/gameState";
-import { nextMessageId, reserveMessageIds, createWelcomeMessage } from "./lib/messages";
+import { capMessages, nextMessageId, reserveMessageIds, createWelcomeMessage } from "./lib/messages";
 import { SaveLoadOverlay } from "./components/SaveLoadOverlay";
 import { Button } from "./components/ui/Button";
 import { useStableCallback } from "./lib/useStableCallback";
@@ -208,7 +207,7 @@ import { SettingsDialog } from "./components/app/SettingsDialog";
 import { GameTopBar } from "./components/app/GameTopBar";
 import { GameNavigation } from "./components/app/GameNavigation";
 import { GameDialogs } from "./components/app/GameDialogs";
-import { addCapexItem, applyMonthClose, buildRivalOffers, closeMonth, offsetToDateStr, reportOffset, scenarioCapitalHistory, scenarioRoutes } from "./lib/monthClose";
+import { addCapexItem, buildRivalOffers, offsetToDateStr, reportOffset, scenarioCapitalHistory, scenarioRoutes } from "./lib/monthClose";
 import {
   SaveMetadata,
   listSaves,
@@ -404,6 +403,16 @@ export default function App() {
   const [aiAirlinesCount, setAiAirlinesCount] = useState(6);
   const [aiDifficulty, setAiDifficulty] = useState("Normal");
   const [aiAirlines, setAiAirlines] = useState<AiAirline[]>([]);
+  /**
+   * The model's own state, saved with the game (docs/neubau F56, F57): the rivals and the world (random seed,
+   * events, disruptions, bad luck, resold aircraft) in the model's format, the ledger values of the month and the
+   * month-ends over the credit line. `aiAirlines`, `randomEvents` and `disruptions` are views of them. Null until the
+   * first month closes on the model; the close then builds them from the views.
+   */
+  const [rivals, setRivals] = useState<readonly RivalRecord[] | null>(null);
+  const [modelWorld, setModelWorld] = useState<WorldState | null>(null);
+  const [ledgerValues, setLedgerValues] = useState<LedgerValues | null>(null);
+  const [overdrawnMonths, setOverdrawnMonths] = useState(0);
 
   /** Last closed month's profit per route id, for the route list's money column. */
   const routeProfits = useMemo(() => {
@@ -438,6 +447,17 @@ export default function App() {
   };
 
   /**
+   * Notes what a trade during the month did to the fleet's value in the model's ledger (5.13, docs/neubau F55):
+   * `before` and `after` are the aircraft it touched (a purchase: none before; a sale: none after). Without ledger
+   * values for this month (a save from before 4.2f, or a game whose first month has not closed) the close counts
+   * the trade at value, and there is nothing to note.
+   */
+  const noteTrade = (before: readonly OwnedAircraft[], after: readonly OwnedAircraft[], month: number) => {
+    const change = planesValue(after, month) - planesValue(before, month);
+    if (change !== 0) setLedgerValues(prev => (prev && prev.month === month ? withTradeValue(prev, change) : prev));
+  };
+
+  /**
    * What answering a decision does, by kind. Each system that puts questions
    * to the player adds its handler here. By the time one runs, the option's
    * cost has been paid and the decision has left the queue. A handler must
@@ -454,8 +474,8 @@ export default function App() {
         setStaff(prev => settleStrikeWithPayRise(prev, strikeOffset));
         setToast(`Pay raised by ${STRIKE_PAY_RAISE} points: half the flights operate during the strike`);
       } else {
-        setReputation(prev => Math.max(0, prev - STRIKE_REPUTATION_PENALTY));
-        setToast(`Strike sat out: no flights this month, reputation -${STRIKE_REPUTATION_PENALTY}`);
+        // The grounded flights weigh on reputation through its target at the month's close (6.3), no jump now (E38).
+        setToast('Strike sat out: no flights this month. Stranded passengers weigh on reputation at the month\'s end');
       }
     },
     // A disruption of 25% or more: charter a replacement and nothing is
@@ -469,14 +489,8 @@ export default function App() {
         setDisruptions(prev => prev.map(d => (d.id === target.id ? { ...d, mitigated: true } : d)));
         setToast(`Replacement aircraft chartered: ${disruptionTitle(target)}. Billed at the month's end.`);
       } else {
-        // Flights a strike or another disruption cancels anyway strand nobody more.
-        const strikeShare = strikeCancelShare(staff, target.offset);
-        const others = disruptionCancelShares(disruptions.filter(d => d.id !== target.id), target.offset) ?? {};
-        const penalty = cancelReputationPenalty(target, id => combineCancelShares(strikeShare, others[id]));
-        if (penalty > 0) setReputation(prev => Math.max(0, prev - penalty));
-        setToast(penalty > 0
-          ? `Flights cancelled: ${disruptionTitle(target)}, reputation -${formatNumber(penalty, penalty % 1 === 0 ? 0 : 1)}`
-          : `Flights cancelled: ${disruptionTitle(target)}. They were grounded anyway: no reputation lost`);
+        // Cancelled flights weigh on reputation through its target at the month's close (6.3), no jump now (E38).
+        setToast(`Flights cancelled: ${disruptionTitle(target)}. Stranded passengers weigh on reputation at the month's end`);
       }
     }
   };
@@ -1153,14 +1167,57 @@ export default function App() {
     showPlanner();
   };
 
-  /** Ends the month. The work is in lib/monthClose; this hands it the state and applies what it returns. */
+  /**
+   * Ends the month on the model (docs/neubau 4.2f): `modelMonthClose` runs `closeMonth` through the bridge and
+   * returns every field for the new month, with what only the interface shows (messages, questions, chronicle,
+   * newspaper). This sets them.
+   */
   const handleAdvanceMonth = () => {
-    const commands = closeMonth({
-      getFuelData, currentDateOffset, airportManagement, difficulty, rivalOffers, routes, fleet, playerMods, researchFx, aiAirlines, marketing, disruptions, reputation, eventChoices, staff, profitStreak, career, capital, milestones, yearsInBusiness, randomEvents, pendingDecisions, monthlyCapex, selectedHub, aiAirlinesCount, aiDifficulty, airlineCode, branding, annualGoal, reportHistory, startDateOffset, fleetValue, freeMode, airlineName, chronicle, homeRegion, scenario, scenarioStars, userId, getBaseGlobalDemand, latestReport, gameSettings, autosaveInterval
+    const close = modelMonthClose({
+      month: currentDateOffset, startMonth: startDateOffset, airlineCode, brandingColor: branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
+      capital, monthlyCapex, ledgerValues, overdrawnMonths, fleet, routes, airportManagement, reputation, profitStreak, staff, marketing, eventChoices,
+      career, milestones, annualGoal, scenario, reportHistory, aiAirlines, rivals, modelWorld, randomEvents, disruptions,
+      airlineName, chronicle, homeRegion, scenarioStars, gameSettings, autosaveInterval, freeMode, latestReport, fleetValue, getFuelData, getBaseGlobalDemand
     });
-    applyMonthClose(commands, {
-      setProfitStreak, setMilestones, setStaff, setCapital, setMonthlyCapex, setAiAirlines, setRandomEventsState, setDisruptions, setBirdStrikeAlerts, setAnnualGoal, setGoalOfferOpen, setReputation, setCareer, setPendingDecision, setReportHistory, setScenarioStars, setScenario, setScenarioResultOpen, setChronicle, setEdition, setIsNewspaperOpen, setMarketing, setMessages, setPendingAutosave, setCurrentDateOffset, setRoutes, setView, setFleet, setPendingDecisions
-    });
+    const m = close.month;
+    setCapital(m.capital);
+    setMonthlyCapex([...m.monthlyCapex]);
+    setLedgerValues(m.ledgerValues ?? null);
+    setOverdrawnMonths(m.overdrawnMonths);
+    setFleet([...m.fleet]);
+    setRoutes([...m.routes]);
+    setAirportManagement({ ...m.airportManagement });
+    setReputation(m.reputation);
+    setProfitStreak(m.profitStreak);
+    setStaff(m.staff);
+    setMarketing(m.marketing);
+    setCareer(m.career);
+    setMilestones([...m.milestones]);
+    setAnnualGoal(m.annualGoal);
+    setScenario(m.scenario);
+    setReportHistory([...m.reportHistory]);
+    setRivals(m.rivals);
+    setAiAirlines([...m.aiAirlines]);
+    setModelWorld(m.modelWorld);
+    setRandomEventsState([...m.randomEvents]);
+    setDisruptions([...m.disruptions]);
+    setChronicle([...close.chronicle]);
+    setEdition(close.edition);
+    if (close.openNewspaper) setIsNewspaperOpen(true);
+    if (close.scenarioStars) {
+      setScenarioStars(close.scenarioStars);
+      writeJson(`neo_scenario_stars:${userId || 'local'}`, close.scenarioStars);
+    }
+    if (close.scenarioResultOpen) setScenarioResultOpen(true);
+    if (close.goalOfferOpen) setGoalOfferOpen(true);
+    if (close.crisisQuestion) setPendingDecision(close.crisisQuestion);
+    if (close.decisions.length > 0) setPendingDecisions(prev => [...prev, ...close.decisions]);
+    if (close.birdStrikeAlerts.length > 0) setBirdStrikeAlerts(prev => [...prev, ...close.birdStrikeAlerts]);
+    if (close.messages.length > 0) setMessages(prev => capMessages([...close.messages, ...prev]));
+    if (m.log.length > 0) logWarn('month', 'The month close reported invalid values', m.log);
+    if (close.autosave) setPendingAutosave(true);
+    setCurrentDateOffset(m.month);
+    setView('monthly-overview');
   };
 
   const [sessionKey, setSessionKey] = useState(Date.now());
@@ -1264,6 +1321,10 @@ export default function App() {
       aiAirlinesCount,
       aiDifficulty,
       aiAirlines,
+      rivals,
+      modelWorld,
+      ledgerValues,
+      overdrawnMonths,
       monthlyCapex,
       reportHistory,
       eventChoices,
@@ -1340,6 +1401,12 @@ export default function App() {
       return colors.every((c, i) => c === prev[i].color)
         ? prev
         : prev.map((ai, i) => ({ ...ai, color: colors[i] }));
+    });
+    // The model's state keeps the colours too (F56); a rival only it holds (wound up) keeps its colour.
+    setRivals(prev => {
+      if (!prev) return prev;
+      const colors = recolorClashingRivals(prev.map(r => ({ code: r.code, color: r.color })), next.color);
+      return colors.every((c, i) => c === prev[i].color) ? prev : prev.map((r, i) => ({ ...r, color: colors[i] }));
     });
   }, []);
 
@@ -1513,6 +1580,11 @@ export default function App() {
     // Saves from before rival airlines existed get a fresh set, founded as of
     // the save's current date so only carriers flying in that year appear.
     setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode, saveObj.branding.color));
+    // The model's state (4.2f); a save from before it has none, and the first close builds it from the views.
+    setRivals(Array.isArray(saveObj.rivals) ? saveObj.rivals : null);
+    setModelWorld(saveObj.modelWorld && typeof saveObj.modelWorld === 'object' ? saveObj.modelWorld : null);
+    setLedgerValues(saveObj.ledgerValues && typeof saveObj.ledgerValues === 'object' ? saveObj.ledgerValues : null);
+    setOverdrawnMonths(Number.isFinite(saveObj.overdrawnMonths) ? saveObj.overdrawnMonths : 0);
     setMonthlyCapex(saveObj.monthlyCapex);
     setReportHistory(saveObj.reportHistory);
     setEventChoices(saveObj.eventChoices);
@@ -1622,6 +1694,10 @@ export default function App() {
     });
     setRoutes([]);
     setAiAirlines(generateAiAirlines(rivalCount, rivalDifficulty, hub, start, airlineCode, systems.branding.color));
+    setRivals(null);
+    setModelWorld(null);
+    setLedgerValues(null);
+    setOverdrawnMonths(0);
     setMonthlyCapex([]);
     setReportHistory([]);
     setEventChoices({});
@@ -1674,6 +1750,7 @@ export default function App() {
     // the jump in capital instead of leaving it unaccounted for.
     setCapital(prev => prev + value);
     setMonthlyCapex(prev => addCapexItem(prev, 'Aircraft Sales', -value));
+    noteTrade([plane], [], marketingCtx.current.currentDateOffset);
     setFleet(prev => prev.filter(p => p.registration !== plane.registration));
     setRoutes(prev => prev.filter(r => r.aircraft !== plane.registration));
     
@@ -1800,7 +1877,9 @@ export default function App() {
       purchasedAt: currentDateOffset - listing.ageMonths
     });
     spend(listing.price, 'Used Aircraft');
-    setFleet(prev => [...prev, withDevelopment({ ...plane, conditionGeneral: listing.conditionGeneral, conditionInterior: listing.conditionInterior })]);
+    const bought = withDevelopment({ ...plane, conditionGeneral: listing.conditionGeneral, conditionInterior: listing.conditionInterior });
+    noteTrade([], [bought], currentDateOffset);
+    setFleet(prev => [...prev, bought]);
     setCareer(prev => ({
       ...prev,
       usedSold: {
@@ -1830,9 +1909,13 @@ export default function App() {
     }
     const deal = buildTakeover(target, fleet.map(p => p.registration));
     spend(quote.price, 'Airline Takeover');
+    noteTrade([], deal.aircraft, currentDateOffset);
     setFleet(prev => [...prev, ...deal.aircraft]);
     setAirportManagement(prev => ({ ...prev, [deal.hub]: withTakenSlots(prev[deal.hub], deal.slots) }));
+    // The view's id is the model's (`rival-<code>`, F56): the airline leaves the model's state too, or the next
+    // close would bring it back. Before the first close on the model there is no such state yet.
     setAiAirlines(prev => prev.filter(a => a.id !== aiId));
+    setRivals(prev => (prev ? prev.filter(r => r.company.id !== aiId) : prev));
     setCareer(prev => ({ ...prev, takeovers: prev.takeovers + 1 }));
     // No reputation bonus for a takeover: reputation moves only through its target (E38).
     setAppAlert(
@@ -1924,9 +2007,8 @@ export default function App() {
 
     if (isRenovating) {
       const registration = (aircraft as OwnedAircraft).registration;
-      setFleet(prev => prev.map(p => {
-        if (p.registration !== registration) return p;
-        // Each refit restores less than the one before: 90%, 80%, ... never under 30% (model, 8.13).
+      /** Each refit restores less than the one before: 90%, 80%, ... never under 30% (model, 8.13). */
+      const refitted = (p: OwnedAircraft): OwnedAircraft => {
         const refits = p.refitsDone || 0;
         return {
           ...p,
@@ -1936,7 +2018,10 @@ export default function App() {
           cabinInstalledAt: currentDateOffset,
           conditionInterior: Math.min(100, refitCabinCondition(p.conditionInterior, refits))
         };
-      }));
+      };
+      const old = fleet.find(p => p.registration === registration);
+      if (old) noteTrade([old], [refitted(old)], currentDateOffset);
+      setFleet(prev => prev.map(p => (p.registration === registration ? refitted(p) : p)));
     } else {
       const newPlanes = createOwnedAircraft(aircraft, quantity, {
         config,
@@ -1945,7 +2030,9 @@ export default function App() {
         existingRegistrations: fleet.map(p => p.registration),
         purchasedAt: currentDateOffset
       });
-      setFleet(prev => [...prev, ...newPlanes.map(withDevelopment)]);
+      const bought = newPlanes.map(withDevelopment);
+      noteTrade([], bought, currentDateOffset);
+      setFleet(prev => [...prev, ...bought]);
 
       if (isPurchasingForRoute) {
         // Bought from the planner: go back to it with the new aircraft, unless
@@ -2771,14 +2858,13 @@ export default function App() {
                           }
 
                           spend(GENERAL_CHECK_COST, 'General Checks');
-                          setFleet(prev => prev.map(p => {
-                            if (p.registration !== registration) return p;
-                            return {
-                              ...p,
-                              generalChecksDone: (p.generalChecksDone || 0) + 1,
-                              conditionGeneral: Math.min(100, p.conditionGeneral + restore)
-                            };
-                          }));
+                          const checked = (p: OwnedAircraft): OwnedAircraft => ({
+                            ...p,
+                            generalChecksDone: (p.generalChecksDone || 0) + 1,
+                            conditionGeneral: Math.min(100, p.conditionGeneral + restore)
+                          });
+                          noteTrade([plane], [checked(plane)], currentDateOffset);
+                          setFleet(prev => prev.map(p => (p.registration === registration ? checked(p) : p)));
                         }}
                         infrastructure={airportManagement[selectedAirport.id] || {
                           level: 0,

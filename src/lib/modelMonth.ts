@@ -15,6 +15,7 @@ import type { OwnedAircraft } from '../components/MyFleetView';
 import type { AiAirline } from '../components/CompetitorsView';
 import { yearOf } from '../model/basics';
 import { MILESTONES, RANKS, REPORT_HISTORY_MONTHS, RESEARCH_PROJECTS, type RivalStrength } from '../model/constants';
+import { birdStrikeCost } from '../model/monthEvents';
 import { closeMonth, type CloseNews, type CompanyState, type MonthReport, type ModelAirport, type ModelState } from '../model/monthClose';
 import { rivalDecisions, rivalRefill, showRivalNews, type RivalNewsKind } from '../model/rivalMonth';
 import { rivalStrengthOf } from '../model/rivals';
@@ -24,7 +25,8 @@ import { formatCurrency } from './format';
 import type { Career, Disruption as AppDisruption, Marketing, ScenarioState as AppScenario, Staff } from './gameState';
 import type { AirportInfrastructure, GameMessage, MonthlyReport, SimulatedRoute } from './gameTypes';
 import { nextMessageId } from './messages';
-import { applyModelOperations, catalogType, modelAirports, modelOperations, type RouteContext } from './modelBridge';
+import { fleetValue } from '../model/monthClose';
+import { aircraftState, applyModelOperations, catalogType, modelAirports, modelOperations, type RouteContext } from './modelBridge';
 import {
   appReport,
   applyCompanyInputs,
@@ -142,6 +144,14 @@ export function rivalStrength(aiDifficulty: string): RivalStrength {
   }
 }
 
+/**
+ * Wert von Flugzeugen der Flotte im Monat `month` nach dem Wertmodell (5.13). Für die Wertänderung durch Geschäfte im
+ * Kassenbuch (`withTradeValue`, F55): Kauf + Wert, Verkauf − Wert, Umbau und Überholung Wert nachher − vorher.
+ */
+export function planesValue(planes: readonly OwnedAircraft[], month: number, catalog: readonly Aircraft[] = aircraftList): number {
+  return fleetValue(planes.map((p) => aircraftState(p, catalog)), month);
+}
+
 /** Der Spielstand als Modell: `ModelState` des Monats X, die KI und der Welt-Zustand, wie gelesen. */
 export interface ModelGame {
   readonly state: ModelState;
@@ -244,6 +254,18 @@ export interface AppMonth {
   readonly log: readonly string[];
   /** Neue Kennungen gelieferter Flugzeuge (Modell → Kennzeichen). */
   readonly renamed: Readonly<Record<string, string>>;
+  /** Vogelschläge des Spielers im Monat X (8.6) mit Reparatur-Kosten, für den Hinweis der Oberfläche. */
+  readonly birdStrikes: readonly { readonly registration: string; readonly cost: number }[];
+}
+
+/** Texte, die nur die Oberfläche kennt (F58): Jahresziel aus `describeGoal`, Szenario mit Titel und Sternen. */
+export interface NewsTexts {
+  /** Beschreibung des Jahresziels, das dieser Abschluss abrechnet. */
+  readonly goal?: string;
+  /** Titel des laufenden Szenarios und Sterne, falls es in diesem Abschluss gewonnen wird. */
+  readonly scenario?: { readonly title: string; readonly stars: number };
+  /** Arten, die die Oberfläche selbst meldet (z. B. `randomEvent` mit der Ereignis-Meldung der Oberfläche). */
+  readonly skipKinds?: readonly CloseNews['kind'][];
 }
 
 /**
@@ -251,7 +273,12 @@ export interface AppMonth {
  * Oberfläche. Lieferungen bekommen Kennzeichen am Heimat-Drehkreuz; Defekte des neuen Monats zeigen auf diese.
  * `newId` vergibt die Kennungen der Nachrichten (Standard `nextMessageId`).
  */
-export function runModelMonth(g: AppGame, env: ModelEnv = defaultModelEnv(), newId: () => number = nextMessageId): AppMonth {
+export function runModelMonth(
+  g: AppGame,
+  env: ModelEnv = defaultModelEnv(),
+  newId: () => number = nextMessageId,
+  texts: NewsTexts = {},
+): AppMonth {
   const before = modelGame(g, env);
   const result = closeMonth(before.state, rivalDecisions, rivalRefill({ wanted: g.aiAirlinesCount, strength: rivalStrength(g.aiDifficulty) }));
   const next = result.state;
@@ -312,6 +339,13 @@ export function runModelMonth(g: AppGame, env: ModelEnv = defaultModelEnv(), new
     catalog: env.catalog,
     renamed: delivered.renamed,
     newId,
+    texts,
+  });
+
+  const planesBefore = before.state.companies.find((c) => c.id === PLAYER_ID)?.aircraft ?? [];
+  const birdStrikes = (modelReport?.birdStrikes ?? []).flatMap((id) => {
+    const p = planesBefore.find((x) => x.id === id);
+    return p ? [{ registration: id, cost: birdStrikeCost(p.listPrice1960, g.month) }] : [];
   });
 
   return {
@@ -344,6 +378,7 @@ export function runModelMonth(g: AppGame, env: ModelEnv = defaultModelEnv(), new
     news: result.news,
     log: result.log,
     renamed: delivered.renamed,
+    birdStrikes,
   };
 }
 
@@ -381,6 +416,8 @@ export interface NewsContext {
   /** Modell-Kennung → Kennzeichen gelieferter Flugzeuge. */
   readonly renamed?: Readonly<Record<string, string>>;
   readonly newId: () => number;
+  /** Texte der Oberfläche (Jahresziel, Szenario). */
+  readonly texts?: NewsTexts;
 }
 
 /** Datum einer Nachricht wie im alten Abschluss: `MM/JJJJ`. */
@@ -414,6 +451,7 @@ export function closeNewsMessages(news: readonly CloseNews[], ctx: NewsContext):
   const push = (text: string, details?: GameMessage['details']) =>
     out.push({ id: ctx.newId(), text, isRead: false, dateStr: dateStr(ctx.month), ...(details ? { details } : {}) });
   for (const n of news) {
+    if (ctx.texts?.skipKinds?.includes(n.kind)) continue;
     if (n.companyId === PLAYER_ID && PLAYER_KINDS.has(n.kind)) {
       const msg = playerNewsText(n, ctx);
       if (msg) push(msg.text, msg.details);
@@ -540,20 +578,37 @@ function playerNewsText(n: CloseNews, ctx: NewsContext): { text: string; details
       const def = RANKS[n.amount ?? -1];
       return def ? { text: `RANK: your airline is now a ${def.title}.` } : undefined;
     }
-    case 'goalMet':
-      return { text: `GOAL MET: the board pays a bonus of ${money(n.amount)}.` };
-    case 'goalMissed':
-      return { text: `GOAL MISSED: the board charges ${money(Math.abs(n.amount ?? 0))}.` };
+    case 'goalMet': {
+      const goal = ctx.texts?.goal;
+      return {
+        text: `GOAL MET: ${goal ? `${goal}. ` : ''}The board pays a bonus of ${money(n.amount)}.`,
+        ...(goal ? { details: { title: `${yearOf(ctx.month)} annual result`, source: 'Board of Directors', content: `Goal for ${yearOf(ctx.month)}: ${goal}\n\nThe board is satisfied and pays a bonus of ${money(n.amount)}.` } } : {}),
+      };
+    }
+    case 'goalMissed': {
+      const goal = ctx.texts?.goal;
+      const charge = money(Math.abs(n.amount ?? 0));
+      return {
+        text: `GOAL MISSED: ${goal ? `${goal}. ` : ''}The board charges ${charge}.`,
+        ...(goal ? { details: { title: `${yearOf(ctx.month)} annual result`, source: 'Board of Directors', content: `Goal for ${yearOf(ctx.month)}: ${goal}\n\nThe board expected more and charges ${charge}, half the bonus.` } } : {}),
+      };
+    }
     case 'goalOffered':
       return { text: `GOALS FOR ${yearOf(ctx.month) + 1}: the board asks you to choose one.` };
     case 'researchDone': {
       const p = RESEARCH_PROJECTS.find((x) => x.id === n.subject);
       return { text: `DEVELOPMENT: "${p?.title ?? n.subject}" is complete.` };
     }
-    case 'scenarioWon':
-      return { text: 'SCENARIO WON.' };
-    case 'scenarioLost':
-      return { text: 'SCENARIO LOST.' };
+    case 'scenarioWon': {
+      const sc = ctx.texts?.scenario;
+      if (!sc) return { text: 'SCENARIO WON.' };
+      const stars = Math.max(0, Math.min(3, sc.stars));
+      return { text: `SCENARIO WON: ${sc.title} (${'\u2605'.repeat(stars)}${'\u2606'.repeat(3 - stars)}).` };
+    }
+    case 'scenarioLost': {
+      const sc = ctx.texts?.scenario;
+      return { text: sc ? `SCENARIO LOST: ${sc.title}.` : 'SCENARIO LOST.' };
+    }
     case 'staffStrike':
       return { text: `STRIKE: your staff walk out in ${dateStr(ctx.month + 1)}.` };
     default:
