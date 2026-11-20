@@ -2124,6 +2124,32 @@ export function companyValueOf(company: CompanyState, month: number): CompanyVal
 }
 
 /**
+ * Bestand des Käufers nach einer Übernahme (7.16): je Flughafen der KI Slots und Schalter addiert, Stufe mindestens
+ * `TAKEOVER_MIN_TIER`, an Drehkreuzen der KI `RIVAL_HUB_TIER`; Stände und Einrichtungen bleiben die des Käufers
+ * (Einrichtungen der KI verfallen). Flughäfen ohne Bestand der KI bleiben dieselben Objekte. SPEZIFIKATION 7.16.
+ */
+export function takeoverHoldings(
+  buyerAirports: Readonly<Record<string, HoldingState>>,
+  rival: Pick<CompanyState, 'airports' | 'hubs'>,
+): Record<string, HoldingState> {
+  const airports: Record<string, HoldingState> = { ...buyerAirports };
+  const rivalHubs = new Set(rival.hubs ?? []);
+  for (const [id, h] of Object.entries(rival.airports)) {
+    const mine = airports[id];
+    const slots: Partial<Record<AircraftClass, number>> = { ...(mine?.slots ?? {}) };
+    for (const cls of AIRCRAFT_CLASSES) if (h.slots[cls]) slots[cls] = (slots[cls] ?? 0) + (h.slots[cls] ?? 0);
+    airports[id] = {
+      managementTier: Math.max(mine?.managementTier ?? 0, rivalHubs.has(id) ? RIVAL_HUB_TIER : TAKEOVER_MIN_TIER),
+      slots,
+      stands: mine?.stands ?? {},
+      desks: { normal: (mine?.desks.normal ?? 0) + h.desks.normal, self: (mine?.desks.self ?? 0) + h.desks.self },
+      facilities: mine?.facilities ?? [],
+    };
+  }
+  return airports;
+}
+
+/**
  * Übernahme einer KI durch die Gesellschaft `buyerId` während des Monats (7.16, E48): Preis = Unternehmenswert der KI
  * (`takeoverPrice`); der Käufer bekommt ihre Kasse (auch negativ), alle Flugzeuge abgestellt mit Alter, Zustand und
  * Kabine, alle Slots und Schalter je Flughafen und dort mindestens Stufe 1, an ihren Drehkreuzen Stufe 2. Strecken,
@@ -2142,20 +2168,7 @@ export function takeOverCompany(state: ModelState, buyerId: string, rivalId: str
   const planesValue = rival.aircraft.reduce((sum, p) => sum + aircraftValue(p, month), 0);
   const rest = price - rival.cash - planesValue;
 
-  const airports: Record<string, HoldingState> = { ...buyer.airports };
-  const rivalHubs = new Set(rival.hubs ?? []);
-  for (const [id, h] of Object.entries(rival.airports)) {
-    const mine = airports[id];
-    const slots: Partial<Record<AircraftClass, number>> = { ...(mine?.slots ?? {}) };
-    for (const cls of AIRCRAFT_CLASSES) if (h.slots[cls]) slots[cls] = (slots[cls] ?? 0) + (h.slots[cls] ?? 0);
-    airports[id] = {
-      managementTier: Math.max(mine?.managementTier ?? 0, rivalHubs.has(id) ? RIVAL_HUB_TIER : TAKEOVER_MIN_TIER),
-      slots,
-      stands: mine?.stands ?? {},
-      desks: { normal: (mine?.desks.normal ?? 0) + h.desks.normal, self: (mine?.desks.self ?? 0) + h.desks.self },
-      facilities: mine?.facilities ?? [],
-    };
-  }
+  const airports = takeoverHoldings(buyer.airports, rival);
   const l = buyer.ledger;
   const bought: CompanyState = {
     ...buyer,

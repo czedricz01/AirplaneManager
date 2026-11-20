@@ -1,15 +1,21 @@
 # Status
 
-**Nächstes Paket: 4.2g** – Offene Punkte aus 4.2: „× 4“ → `WEEKS_PER_MONTH` (`src/App.tsx:728`, `:738`, `:745`); Überholung mit
-`overhaulQuote` (`src/model/fleetMarket.ts:290`) statt `GENERAL_CHECK_COST` (`src/App.tsx:222`, `:2855`–`:2860`); Treibstoffpreis unter der
-Absicherung aus der Tabelle des Modells (`src/App.tsx:659`); Ereignis-Faktor der Kopfzeile aus den Ereignissen des Modells (`src/App.tsx:883`);
-Übernahme mit `takeoverPrice` (`src/model/rivalMonth.ts:1034`) statt `takeoverQuote` (`src/App.tsx:1901`).
-Zu lesen: diese Stellen in `src/App.tsx`, `src/lib/takeover.ts` (`takeoverQuote`, `buildTakeover`), F57 und F58 in `ENTSCHEIDUNGEN.md`.
+**Nächstes Paket: 4.3** – Flughafen und Infrastruktur: Flughafen-Ansicht, Flughafen-Liste und Infrastruktur-Teil im Planer
+rechnen Gebühren, Schalter, Stände, Slots und Einrichtungen aus dem Modell (W1–W3); Glossar `desks` (Schalter-Pflicht E18/E55);
+Grundüberholung an jedem Flughafen anbieten (E62, Preis schon aus dem Modell, F59).
+Zu lesen: `src/components/AirportDetailView.tsx`, `src/components/AirportsView.tsx`, Infrastruktur-Teil in
+`src/components/RoutePlannerView.tsx`, `bestand/8-oberflaeche.md` (W1–W3, Art C), `src/model/airportCosts.ts`, E18, E55, E62, F52, F59.
 
-Stand: 20.11.2026 · Paket 4.2f erledigt: `App.tsx` bucht den Monat mit dem Modell (`modelMonthClose` in `src/lib/modelMonthClose.ts`
-über `runModelMonth`); neue Spielstand-Felder `rivals`, `modelWorld`, `ledgerValues`, `overdrawnMonths` gespeichert und geladen; Geschäfte
-melden ihre Wertänderung (`withTradeValue`); Fragen ohne Ruf-Sprung; Übernahme auch aus `rivals`; Zeitung, Chronik, Szenario-Sterne,
-Jahresziel-Dialog wie bisher; 11 Regeltests (1328 grün); im Browser 5 Monate, Speichern und Laden geprüft (F58).
+Stand: 20.11.2026 · Paket 4.2g erledigt: Geschäfte und Kopfzeile nach dem Modell (`src/lib/modelTrades.ts`): „× 4“ →
+`WEEKS_PER_MONTH`; Treibstoff des Spielers ganz aus dem Modell (Tabelle, Forschung, Absicherung); Ereignis-Faktor der Kopfzeile aus
+`worldEventDemandFactor`; Überholungs-Preis aus `overhaulQuote` (auch in der Flughafen-Ansicht); Übernahme zum Unternehmenswert mit
+Kasse, Slots und Schaltern der KI je Flughafen; Fehler behoben: Übernahme buchte den Flugzeugwert als Gewinn; 12 Regeltests
+(1340 grün); im Browser zwei Übernahmen vor und nach einem Abschluss geprüft (F59).
+
+Offen aus 4.2g (kein Blocker): (1) 4.6: Flugzeuge einer Übernahme bekommen die einfache Economy-Kabine (`buildTakeover`) statt der
+Kabine der KI. (2) 4.3: Überholung nur an Flughäfen mit Hangar angeboten (E62: überall, ohne Hangar 25 % teurer; der Preis rechnet das
+schon). (3) 5.2: `takeoverQuote`, `withTakenSlots` (`src/lib/takeover.ts`), `getJetFuelPrice` (nur noch Planer-Ersatzwert und alter
+KI-Code) entfernen. (4) Überholung in der Flughafen-Ansicht nicht im Browser geklickt (nur Regeltests).
 
 Offen aus 4.2f (kein Blocker): (1) 4.3–4.7: Ansichten, Planer und Kopfzeile zeigen die Vorschau noch aus dem alten Modell, gebucht wird
 mit dem neuen (E72) – Zahlen können bis dahin abweichen. (2) 4.6: Kauf- und Verkaufspreise der Dialoge sind alt; die Abweichung zum Wert
@@ -42,12 +48,12 @@ zählen als ein Abschnitt; das Modell teilt die Abflüge halb auf beide Enden (w
 Flugzeuge haben kein `cabinInstalledAt` und gelten als beim Kauf eingerichtet (5.1). `allModelAirports` im Balance-Skript
 (`src/balance/longRun.ts:66`) wiederholt `modelAirports` (aufräumen in 5.2).
 
-Offen aus 4.2 (kommt mit 4.2g): siehe „Nächstes Paket“ oben (Zeilen nach 4.2f).
+Offen aus 4.2: erledigt in 4.2g (F59).
 
 Offen aus 4.1 (kein Blocker): Drei Glossar-Einträge bleiben alt in `InfoTooltip.tsx`, bis ihre Ansicht umgestellt ist:
 `desks` (4.3: Schalter-Pflicht E18), `utilization` (4.4: Zeitplan ins Modell), `breakEven` (4.5: Regler mit zwei
-Marken 4.11). Feste Zahlen in Ansichten (`bestand/8-oberflaeche.md` Art C): Schalter-Abzug und „General Check (200k)“
-in `AirportDetailView.tsx` → 4.3; Debug-Formel im Planer → 4.5 (E52: nur Aufschlüsselung des Modells); Preise und
+Marken 4.11). Feste Zahlen in Ansichten (`bestand/8-oberflaeche.md` Art C): Schalter-Abzug in `AirportDetailView.tsx`
+→ 4.3 („General Check (200k)“ erledigt in 4.2g); Debug-Formel im Planer → 4.5 (E52: nur Aufschlüsselung des Modells); Preise und
 Jahre der Kabinen-Extras in `ConfigurePurchaseView.tsx` → 4.6. Spalten-Namen „Comb. Sat“ (Flotte) und „Class“
 (Strecken) nach E9 umbenennen: 4.6 / 4.5. Bis dahin beschreiben einige Texte (Schalter-Last als Mittel beider Enden,
 Verschleiß nur aus Flugstunden, Überholung) schon die neue Regel.
@@ -232,7 +238,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.2d | Brücke Teil 3: KI und Welt-Zustand (KI im Modell-Format speichern, alte `AiAirline` umwandeln, Ansicht der Konkurrenz daraus; Zufall, Ereignisse, Störungen, Pech, Gebrauchtmarkt; `src/lib/modelBridgeWorld.ts`; F56) | erledigt |
 | 4.2e | Zusammensetzung der Brücke (`src/lib/modelMonth.ts`: `modelGame`, `runModelMonth` mit `rivalDecisions`/`rivalRefill`, Meldungstexte; F57) | erledigt |
 | 4.2f | `App.tsx` bucht mit `runModelMonth` (Monatsabschluss, neue Spielstand-Felder, `withTradeValue`, Fragen, Charter, Übernahme, Zeitung, Chronik; F57, F58) | erledigt |
-| 4.2g | Offene Punkte aus 4.2 (× 4 → `WEEKS_PER_MONTH`, Überholungs-Preis, Treibstoff unter der Absicherung, Ereignis-Faktor der Kopfzeile, Übernahme-Preis) | offen |
+| 4.2g | Offene Punkte aus 4.2 (× 4 → `WEEKS_PER_MONTH`, Überholungs-Preis, Treibstoff unter der Absicherung, Ereignis-Faktor der Kopfzeile, Übernahme-Preis) | erledigt |
 | 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | offen |
 | 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | offen |
 | 4.5 | Preis und Satisfaction der Strecke (Planer Schritt 3/4, `RouteConfigOverlay.tsx`, `RouteDetailView.tsx`, `RoutesView.tsx`; W5, Klassen-Faktoren, Debug-Anzeige; Glossar `breakEven`) | offen |
@@ -311,3 +317,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | 4.2d | Brücke Teil 3 in `src/lib/modelBridgeWorld.ts`: KI als `RivalRecord` (`CompanyState` mit `agent`, Name, Kürzel, Farbe), Umwandlung alter `AiAirline` (Kennung `rival-<Kürzel>`, Kabine nach `rivalCabin`, Slots und Schalter wie bei einer Eröffnung, Gedächtnis, Notlage, Berichte), Ansicht `rivalView`, Namen und Farben neu gegründeter KI (BOAC/British Airways nach Jahr); Welt als `WorldState` (Startwert, Ereignisse ohne Treibstoff-Faktor, Störungen je Flugzeug, Pech, Weiterverkauf), Ansicht der Störungen, Charter-Antwort, neue Kennungen gelieferter Flugzeuge; `plainReport` in Teil 2; F56; 15 neue Tests (1304 grün) |
 | 20.11.2026 | 4.2e | Zusammensetzung in `src/lib/modelMonth.ts`: `modelGame` (ganzer Spielstand → `ModelState`, Spieler mit Drehkreuzen Heimat + Stufe 2/3, KI, Welt mit Charter-Antworten), `runModelMonth` (`closeMonth` mit `rivalDecisions`/`rivalRefill`, alle Felder für X+1, Lieferungen mit Kennzeichen, neues Feld `overdrawnMonths`), `closeNewsMessages` (Texte, KI-Meldungen nach 7.17); Teilung 4.2e/4.2f/4.2g (F57); 13 neue Tests (1317 grün) |
 | 20.11.2026 | 4.2f | `App.tsx` bucht den Monat mit dem Modell: `src/lib/modelMonthClose.ts` (`modelMonthClose` über `runModelMonth`, dazu Ereignis-Meldungen, Krisen-, Streik- und Störungs-Fragen, Vogelschlag-Hinweise, Chronik, Zeitung mit Marktanteil, Szenario-Sterne, Jahresziel-Dialog, Autosave), neue Spielstand-Felder `rivals`, `modelWorld`, `ledgerValues`, `overdrawnMonths`, `withTradeValue` bei allen Geschäften, Fragen ohne Ruf-Sprung (E38), Übernahme auch aus `rivals`; Fund im Browser: Zeitung meldete beim ersten Abschluss jede KI als aufgelöst und neu (behoben, `rivalViewsBefore`); F58; 11 neue Tests (1328 grün) |
+| 20.11.2026 | 4.2g | Geschäfte und Kopfzeile nach dem Modell in `src/lib/modelTrades.ts`: „× 4“ → `WEEKS_PER_MONTH` (3 Stellen), Treibstoff des Spielers aus `fuelPrice` mit `hedgedFuelTable` (ohne Hard-Zuschlag, ohne Ereignis-Faktor; auch für die Vorschau), Ereignis-Faktor der Kopfzeile aus `worldEventDemandFactor`, Grundüberholung mit `overhaulQuote` und Hangar an den Strecken des Flugzeugs (`GENERAL_CHECK_COST` entfernt, Preis in der Flughafen-Ansicht), Übernahme mit `takeoverPrice`, Kasse der KI, Slots und Schaltern je Flughafen (`takeoverHoldings` im Modell), Angebot in der Konkurrenz-Ansicht; Fehler: Übernahme buchte den Flugzeugwert als Gewinn (jetzt Kauf zum Wert + Rest); F59; 12 neue Tests (1340 grün) |

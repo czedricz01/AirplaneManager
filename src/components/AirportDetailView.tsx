@@ -39,6 +39,8 @@ interface Props {
   fleet: OwnedAircraft[];
   routes?: SimulatedRoute[];
   onPerformGeneralCheck: (reg: string) => void;
+  /** Price of a general check of this aircraft now, from the model (8.13, E62); null when no further check is possible. */
+  overhaulPrice?: (reg: string) => number | null;
   aiAirlines?: any[];
   /** Passengers changing planes here this month, from the network pricing. */
   transferHub?: HubTransferStats;
@@ -66,12 +68,15 @@ export function AirportDetailView({
   fleet,
   routes = [],
   onPerformGeneralCheck,
+  overhaulPrice,
   aiAirlines = [],
   transferHub,
   gates
 }: Props) {
   const [showCostBreakdown, setShowCostBreakdown] = React.useState(false);
   const [selectedAircraftForCheck, setSelectedAircraftForCheck] = React.useState<string>("");
+  /** What the check of the picked aircraft costs (model, 8.13); null without a pick or a possible check. */
+  const checkPrice = selectedAircraftForCheck && overhaulPrice ? overhaulPrice(selectedAircraftForCheck) : null;
   const [showMgmtModal, setShowMgmtModal] = React.useState(false);
 
   const level = airport.level;
@@ -460,7 +465,7 @@ export function AirportDetailView({
                     {infrastructure.hubFacilities?.hangar && (
                       <div className="mt-4 border-t border-line pt-4 flex flex-col gap-2">
                         <div className="text-2xs text-muted uppercase tracking-label">
-                          Perform General Check (200k)
+                          Perform General Check
                         </div>
                         <div className="flex gap-2">
                           <select 
@@ -479,7 +484,7 @@ export function AirportDetailView({
                             })}
                           </select>
                           <button 
-                            disabled={!selectedAircraftForCheck || capital < 200000}
+                            disabled={!selectedAircraftForCheck || checkPrice === null || capital < checkPrice}
                             onClick={() => {
                               onPerformGeneralCheck(selectedAircraftForCheck);
                               setSelectedAircraftForCheck("");
@@ -489,6 +494,9 @@ export function AirportDetailView({
                             Service
                           </button>
                         </div>
+                        {selectedAircraftForCheck && checkPrice !== null && (
+                          <div className="text-2xs text-muted">Price: {formatCurrency(checkPrice)}</div>
+                        )}
                       </div>
                     )}
                   </div>
