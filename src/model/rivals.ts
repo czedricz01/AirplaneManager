@@ -61,6 +61,7 @@ import {
   START_AIRCRAFT_WEIGHTS,
   START_HUB_SETUP,
   START_REPUTATION,
+  SUPERSONIC_MIN_KMH,
   YIELD_MAX,
   type CabinClass,
   type CampaignTier,
@@ -548,6 +549,8 @@ export function startFleetKinds(strength: RivalStrength): readonly ('narrowbody'
 /** Was die Wahl der Startflugzeuge von einem Typ braucht (Felder aus `src/data/aircraft.ts`). */
 export interface StartAircraftInput {
   readonly class: string;
+  /** Reisegeschwindigkeit, km/h (Überschall ist nie Startflugzeug, F50). */
+  readonly cruiseSpeed: number;
   readonly popularity: number;
   readonly efficiency: number;
   readonly capacity: number;
@@ -594,7 +597,9 @@ export function pickStartAircraft(
   month: number,
   noise: (index: number) => number,
 ): number {
-  const onMarket = types.map((t) => isOnMarket(t, month));
+  // Überschall nie (F50): Die Daten führen die Concorde als „Narrowbody“; mit Beliebtheit 99 gewönne sie sonst ab
+  // 1976 jede Wahl, und keine Gründung hätte eine Strecke mit Gewinn (E71).
+  const onMarket = types.map((t) => isOnMarket(t, month) && t.cruiseSpeed <= SUPERSONIC_MIN_KMH);
   const ofKind = types.map((t, i) => onMarket[i] && t.class.toLowerCase() === kind);
   const pool = ofKind.some(Boolean) ? ofKind : onMarket;
   let best = -1;

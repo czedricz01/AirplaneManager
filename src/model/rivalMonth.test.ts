@@ -23,6 +23,7 @@ import {
   RIVAL_DECISION_STEPS,
   RIVAL_SLOT_SHARE_HUB,
   RIVAL_SLOT_SHARE_OTHER,
+  RIVAL_SUBSIDY_ENABLED,
   RIVAL_STRENGTHS,
   TAKEOVER_MIN_PRICE_1960,
   type DeskType,
@@ -586,7 +587,9 @@ describe('Abschnitt 7.13 Wachstum, Größe und Dividende', () => {
     assert.equal(wantsNewHub(hubInput({ u: 0.04 })), false);
     assert.equal(wantsNewHub(hubInput({ growthStop: true })), false);
     assert.equal(wantsNewHub(hubInput({ size: 19_999 })), false);
-    assert.equal(wantsNewHub(hubInput({ personality: 'boutique' })), false); // MAX_HUBS 1
+    const two = [hubInput().ownHubs[0], hubInput().ownHubs[0]];
+    assert.equal(wantsNewHub(hubInput({ personality: 'boutique', ownHubs: two })), false); // MAX_HUBS 2
+    assert.equal(wantsNewHub(hubInput({ personality: 'boutique' })), true);
     const notFull = [{ usedSlots: 10, airportSize: 5, monthsWithoutProfitableRoute: 2 }];
     assert.equal(wantsNewHub(hubInput({ ownHubs: notFull })), false);
     assert.equal(wantsNewHub(hubInput({ ownHubs: [{ ...notFull[0], monthsWithoutProfitableRoute: 3 }] })), true);
@@ -634,16 +637,22 @@ describe('Abschnitt 7.13 Wachstum, Größe und Dividende', () => {
 
 describe('Abschnitt 7.14 Zuschuss', () => {
   it('7.14/7.18: Zuschuss mit atCost: 1960 450 000 $, 1985 606 000 $, 1995 455 000 $, 2005 257 000 $', () => {
-    near(rivalSubsidy(at(1960)), 450_000, 1);
-    near(rivalSubsidy(at(1985)), 606_000, 1000);
-    near(rivalSubsidy(at(1995)), 455_000, 1000);
-    near(rivalSubsidy(at(2005)), 257_000, 1000);
+    // Formel mit Schalter an (abgeschafft seit E68, Paket 3.9e).
+    near(rivalSubsidy(at(1960), true), 450_000, 1);
+    near(rivalSubsidy(at(1985), true), 606_000, 1000);
+    near(rivalSubsidy(at(1995), true), 455_000, 1000);
+    near(rivalSubsidy(at(2005), true), 257_000, 1000);
     assert.equal(subsidy1960(at(1995)), 300_000);
     assert.equal(subsidy1960(at(2030)), 150_000);
   });
 
   it('7.14: ausgeschaltet → kein Dollar Zuschuss in keinem Monat', () => {
     for (let m = 0; m < 12 * 80; m++) assert.equal(rivalSubsidy(m, false), 0);
+  });
+
+  it('7.14 (E68): der Zuschuss ist abgeschafft, auch für KI mit Merkmal `subsidized`', () => {
+    assert.equal(RIVAL_SUBSIDY_ENABLED, false);
+    for (let m = 0; m < 12 * 80; m += 5) assert.equal(rivalSubsidy(m), 0);
   });
 });
 

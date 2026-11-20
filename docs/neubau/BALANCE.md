@@ -435,5 +435,66 @@ Ergebnis. Das klärt O67.
 
 ## Noch offene Prüfregeln
 
-Keine Prüfregel der Abschnitte 1–8 ist mehr ohne Skript. Abweichungen im Bericht 3.9d: B7.1, B7.2a, B7.2 (ähnlicher
-Erfolg, Zuschuss) und B7.10 (nur Auslastung) → O67.
+Keine Prüfregel der Abschnitte 1–8 ist mehr ohne Skript. Bericht 3.9e: keine Abweichung (20 ok · 0 Abweichung ·
+28 Info); die Abweichungen aus 3.9d (B7.1, B7.2a, B7.2, B7.10) sind mit E71 behoben (Fund 31–33).
+
+## Ergebnis Paket 3.9e (E71: Persönlichkeiten, Gründung, Zuschuss)
+
+Umgesetzt (F50, F51): Gründung nur an Drehkreuzen mit möglicher Gewinn-Strecke (`rivalHubViable`, Spezifikation 7.7),
+nie Überschall als Startflugzeug, Persönlichkeiten nachgestellt (Spezifikation 7.4, 7.7), B7.10 urteilt nur über die
+Marge. Bericht mit Langläufen: `balance/3.9e-bericht.md`.
+
+### Fund 31: Kalibrierung – LCC und Boutique scheiterten am Startflugzeug und an der Preis-Lage → umgesetzt
+
+Hilfsrechnung in Kopien der Werte (nicht im Projekt): je Variante 10 Läufe × 40 Jahre (1960–1999), Normal, mit
+Zuschuss, mit Gründungs-Regel E71. Zahlen: Unternehmenswert der Gründer (Median, Preise von 1960) ÷ Median aller;
+„Faktor“ = größtes Verhältnis in beide Richtungen (Ziel ≤ 2, 7.4).
+
+| Variante | Faktor 20 / 40 Jahre | nach 20 Jahren: Flag · LCC · Expansionist · Optimizer · Boutique | nach 40 Jahren: dieselben | Marge KI |
+|---|---|---|---|---|
+| Stand 3.9d + Gründungs-Regel | 2,06 / 2,67 | 1,73 · 0,58 · 1,27 · 2,06 · 0,78 | 1,44 · 1,10 · 1,78 · 0,76 · **0,37** | 21 % |
+| V1: Startflugzeuge (LCC Sitze 0,05, Boutique Reichweite 0,001), Boutique Kaufneigung 0,9, 2 Drehkreuze | 2,86 / 1,93 | 1,30 · **0,35** · 0,97 · 1,42 · 1,17 | 1,20 · 0,99 · 1,93 · 0,74 · 0,79 | 22 % |
+| **V2a = gewählt:** V1 + LCC Preis-Lage 0,95 | **1,36 / 1,60** | 1,01 · 0,82 · 0,74 · 1,27 · 0,92 | 1,16 · 0,96 · 1,60 · 0,81 · 0,78 | 22 % |
+| V2b: V2a + LCC vorsichtiger beim Kauf (45 % der Kasse, Reserve 10 Mio. $) | 1,40 / 1,75 | 1,24 · 0,97 · 0,72 · 1,29 · 1,06 | 1,15 · 0,97 · 1,75 · 0,70 · 0,76 | 22 % |
+
+- **Gründungs-Regel allein** beendet die frühen Auflösungen (0 statt 7 von 50), ändert den Faktor aber kaum. Die LCC
+  fand in 2 von 10 Läufen an keinem der 10 Drehkreuze eine Strecke mit Gewinn: Ihr erstes Startflugzeug war eine DC-8
+  (Gewicht Sitze 0,15), und mit einem Versuch je Monat (Normal) plant sie nur dieses.
+- **Startflugzeuge:** Mit Sitze 0,05 (LCC) und Reichweite 0,001 (Boutique) nehmen beide 1960 meist eine Caravelle; an
+  den 10 Drehkreuzen ist dann 1960 in 85–90 % der Fälle eine Strecke mit Gewinn möglich (vorher 50 %). Damit holt
+  Boutique auf (0,37 → 0,79 nach 40 Jahren).
+- **LCC in der Ölkrise:** In V1 schrumpft die LCC 1974–1980 von 45 auf 8 Strecken (Ergebnis je Strecke 1970 etwa die
+  Hälfte der Flag). Die Preis-Lage 0,95 statt 0,90 gibt ihr genug Marge, um die Krise zu überstehen (0,35 → 0,82).
+- Flag und Optimizer (stark in den ersten 20 Jahren) brauchten keine eigene Dämpfung: Mit stärkeren LCC und Boutique
+  liegen sie nach 20 Jahren bei 1,0 bzw. 1,3 des Medians. Die Marge der KI bleibt im Ziel (22 %).
+- Fehler gefunden (F50): Die Concorde steht in den Daten als „Narrowbody“ und wäre ab 1976 das Startflugzeug jeder
+  neuen KI; im Januar 1980 (Ölkrise) ist an keinem großen Drehkreuz eine Strecke mit Gewinn möglich, sonst an 9 von 10.
+
+### Fund 32: „Ähnlicher Erfolg“ gilt mit und ohne Zuschuss; keine Auflösung (B7.1, B7.2a, B7.2) → ok
+
+Langläufe 10 × 60 Jahre, Normal (`balance/3.9e-bericht.md`, Abschnitt 7):
+
+| | Faktor nach 20 / 40 Jahren | schwächste / stärkste nach 40 Jahren | aufgelöste Gründer |
+|---|---|---|---|
+| mit Zuschuss (B7.1) | **1,36 / 1,60** (vorher 2,69 / 2,50) | Boutique 0,78 / Expansionist 1,60 | 0 von 50 (vorher 7) |
+| ohne Zuschuss (B7.2a) | **1,81 / 1,70** (vorher 4,56 / 2,77) | Boutique 0,78 / Expansionist 1,70 | 0 von 50 |
+
+- Nach 50 und 60 Jahren (nicht Teil der Regel) liegt der Faktor bei 1,63 / 1,71 (mit) bzw. 1,59 / 1,88 (ohne
+  Zuschuss); der Optimizer fällt nach 2000 auf 0,6–0,7 zurück (wenig Käufe, 2 Drehkreuze), der Expansionist steigt auf
+  1,7–1,9. Das ist Stil, kein Fehler; in Phase 5.3 beobachten.
+- Ohne Zuschuss ist der Optimizer in den ersten 20 Jahren am stärksten (1,73–1,81): Er verkauft allein auf seinen Paaren
+  zum besten Preis (Preisniveau Y 1,4–1,9).
+- Gründer, die an ihrem festen Drehkreuz keine Strecke mit Gewinn fanden, wichen auf das nächste freie aus: in jedem
+  Lauf mit SIN als festem Drehkreuz (Lauf 1, 3, 5, 7, 9 → ATL) und einmal SYD (Boutique, Lauf 1 → JFK). Von SIN ist
+  1960 keine Strecke mit Gewinn möglich. Schwächster Einzelfall: LCC in SYD (Lauf 7) mit 92 Mio. $ nach 60 Jahren.
+- KI-Stärke (B7.8, 3 Läufe × 40 Jahre): Easy 592 < Normal 1 045 ≈ Hard 1 025 Mio. $; Normal und Hard bleiben nahe
+  (Phase 5.3, wie in 3.9a vermerkt).
+- Marge der KI 23 % (B7.10 **ok**), Auslastung 100 % (Info, E71). Geteilte Paare bleiben selten (1,00 Gesellschaften je
+  Paar); Weg B aus O66 (mehr Konkurrenz unter der KI) bleibt offen für Phase 5.3.
+
+### Fund 33: Zuschuss abgeschaltet (E68, B7.2) → umgesetzt
+
+Prüfregel 7.14 ist erfüllt: Ohne Zuschuss ist der Median der Jahre bis zur Auflösung je Persönlichkeit „nie“, und
+„ähnlicher Erfolg“ gilt (Fund 32). Nach E68 ist `RIVAL_SUBSIDY_ENABLED = false` (`src/model/constants.ts`). Die Zeile
+„Subsidy“ bleibt im Monatsergebnis (immer 0). Das Balance-Skript rechnet „ohne Zuschuss“ nur noch, solange der Schalter
+an ist; B7.1 heißt dann „Zuschuss abgeschafft“, B7.2 steht als Info im Bericht.

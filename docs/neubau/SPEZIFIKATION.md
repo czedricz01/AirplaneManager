@@ -2404,15 +2404,15 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   |---|---|---|---|---|---|
   | Angriffslust `aggression` | 8 | 9 | 4 | 6 | 5 |
   | Kabine, Service | 7.5 | 7.5 | 7.5 | 7.5 | 7.5 |
-  | Preis-Lage `FARE_POSITION` (7.6) | 0,90 | 0,95 | bester Preis (4.10) | 1,00 | 1,00 |
+  | Preis-Lage `FARE_POSITION` (7.6) | 0,95 (vor E71: 0,90) | 0,95 | bester Preis (4.10) | 1,00 | 1,00 |
   | Preis-Boden im Preiskampf `FARE_FLOOR` | 0,60 | 0,65 | 0,75 | 0,75 | 0,75 |
   | Zielgewicht Geschäft / Tourismus (7.9) | 0,6 / 1,4 | 1 / 1 | 1 / 1 | 1,5 / 0,5 | 1,5 / 0,5 |
   | Langstrecken-Abzug über 3 500 km | × 0,4 | – | – | – | – |
   | Geduld (Monate bis zum Urteil, 7.8) | 4 + 2 | 5 + 3 | 3 | 6 | 6 |
-  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,7 | 1 | 0,6 |
+  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,7 | 1 | 0,9 (vor E71: 0,6) |
   | Preis ≤ Anteil der Kasse beim Kauf | 65 % | 65 % | 45 % | 45 % | 45 % |
   | Reserve nach Kauf `CASH_RESERVE_1960` | 5 Mio. $ | 5 Mio. $ | 10 Mio. $ | 10 Mio. $ | 10 Mio. $ |
-  | Drehkreuze höchstens `MAX_HUBS` (7.13) | 3 | 4 | 2 | 3 | 1 |
+  | Drehkreuze höchstens `MAX_HUBS` (7.13) | 3 | 4 | 2 | 3 | 2 (vor E71: 1) |
   | Wachstumsstopp ab Krisenstärke (7.12) | 0,35 | 0,5 | 0,25 | 0,25 | 0,25 |
   | Schalter-Art (7.10) | Selbstbedienung, wo lieferbar | bedient | bedient | bedient | bedient |
 
@@ -2423,13 +2423,15 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
     Kosten je Sitz.
   - **Weniger Personal je Sitz:** reine Economy braucht 1 Flugbegleiter je 50 Sitze statt je 10–35 (5.4).
   - **Kein Service:** keine Verpflegungskosten (5.7); dafür niedrigere Satisfaction und damit niedrigere
-    Zahlungsbereitschaft (2.10), die die Preis-Lage 0,90 ausgleicht.
+    Zahlungsbereitschaft (2.10), die die Preis-Lage 0,95 ausgleicht.
   - **Einheitliche Flotte:** Kauf aus wenigen Familien senkt die Wartung (`commonalityFactor`, 5.12); alle KI kaufen
     bevorzugt Typen ihrer vorhandenen Familien (7.11).
 - **Ähnlicher Erfolg (E45)** ist eine Prüfregel für das Balance-Skript (3.9), keine Formel: Je Persönlichkeit 10 Läufe
   ohne Spieler, Start 1960, KI-Stärke Normal; der Median des Unternehmenswerts (`companyValue`, 6.12) in Preisen von
   1960 liegt nach 20 und nach 40 Jahren bei jeder Persönlichkeit innerhalb des Faktors 2 des Medians aller
-  (heute Faktor 25 und mehr, W1). Stellschrauben: `FARE_POSITION`, Kabinen-Werte (7.5), Zielgewichte.
+  (heute Faktor 25 und mehr, W1). Stellschrauben: `FARE_POSITION`, Kabinen-Werte (7.5), Zielgewichte, Kaufneigung,
+  Drehkreuze, Gewichte der Startflugzeuge (7.7). Eingestellt in Paket 3.9e (E71): LCC Preis-Lage 0,95, Boutique
+  Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeuge ohne DC-8-Sog (`BALANCE.md` Fund 31).
 - Persönlichkeiten echter Gesellschaften: aus den Daten (`src/data/rivalAirlines.ts`), wie heute.
 - Regeln (Tests): `PERSONALITIES` und `AGGRESSION` gibt es nur einmal (heute Kopie in `src/lib/saveMigration.ts:57-58`);
   jede Persönlichkeit hat in jeder Zeile einen Wert.
@@ -2519,12 +2521,21 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   Persönlichkeits-Faktor (E45).
 - Startflotte: Anzahl nach Stärke (7.3), neue Flugzeuge des Startmonats (Alter 0, Zustand 100), Kabine nach 7.5;
   das erste Narrowbody (wo lieferbar), die anderen Regional; Typ nach Persönlichkeit wie heute (`:661-677`), auf
-  Easy nicht mehr schwächer. Die Startflotte kommt zur Kasse hinzu (wie heute).
+  Easy nicht mehr schwächer. Nie Überschall (F50: Die Daten führen die Concorde als „Narrowbody“; mit Beliebtheit 99
+  wäre sie ab 1976 jedes Startflugzeug). Gewichte `START_AIRCRAFT_WEIGHTS` seit E71: LCC Sitze 0,05 (vorher 0,15),
+  Boutique Reichweite 0,001 (vorher 0,02). Die Startflotte kommt zur Kasse hinzu (wie heute).
 - Ruf 50 (6.13).
+- **Nur mit möglicher Gewinn-Strecke (E71):** Gegründet wird nur, wenn vom Drehkreuz im Gründungsmonat mindestens
+  eine Strecke mit Gewinn möglich ist (`rivalHubViable`): Die neue KI plant wie in ihrem ersten Abschluss (7.9) mit
+  ihrer Startflotte auf dem Spielstand mit allen Gesellschaften; mindestens ein geprüftes Ziel hat eine
+  Planer-Hauptzahl > 0 (ohne Schätzfehler). Sonst keine Gründung in diesem Monat (das Nachrücken versucht es im
+  nächsten wieder). Grund: Ohne diese Regel lösten sich 1960 Gründer an SIN, SYD und HND nach fünf Monaten auf
+  (`BALANCE.md` Fund 27). Phase 4 zeigt dieselbe Prüfung als Hinweis beim Spieler-Start.
 - **Nachrücken** (heute `src/lib/monthClose.ts:849-860`): Fehlen KI zur gewählten Anzahl, je Monat mit
   `RIVAL_REFILL_CHANCE = 0,15` eine neue nach denselben Regeln, im aktuellen Monat (Kasse mit `atCost`, W5).
 - Regeln (Tests): gleiche Startkasse in Preisen von 1960 für eine KI von 1960 und von 2010; die Startausstattung am
-  Drehkreuz gleicht der des Spielers.
+  Drehkreuz gleicht der des Spielers; ohne mögliche Gewinn-Strecke keine Gründung (E71), und die Probe ändert den
+  Spielstand nicht.
 
 ### 7.8 Monat der KI (Ablauf)
 - **Buchung:** Erlös, Kosten, Wertänderung, Ruf und Kasse der KI bucht der Monatsabschluss mit denselben Funktionen
@@ -2667,6 +2678,9 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - Schalter `RIVAL_SUBSIDY_ENABLED`, Startwert an. **Abschaffung**, sobald das Balance-Skript (3.9) ohne Zuschuss
   zeigt: In 10 Läufen 1960–2020 je Persönlichkeit (KI-Stärke Normal, ohne Spieler) ist der Median der Jahre bis zur
   Auflösung über 40 (oder keine Auflösung), und die Prüfregel „ähnlicher Erfolg“ (7.4) gilt.
+- **Abgeschafft** in Paket 3.9e (E68): Ohne Zuschuss löst sich in 10 Läufen über 60 Jahre kein Gründer auf, Faktor
+  „ähnlicher Erfolg“ 1,81 nach 20 und 1,70 nach 40 Jahren (`balance/3.9e-bericht.md`, B7.2). `RIVAL_SUBSIDY_ENABLED =
+  false`; die Zeile „Subsidy“ bleibt im Ergebnis (immer 0), bis Phase 5.2 alten Code aufräumt.
 - Regel (Test): ausgeschaltet → kein Dollar Zuschuss in keinem Monat.
 
 ### 7.15 Notlage, Verkauf, Auflösung (E34, E49)
@@ -2740,10 +2754,10 @@ KI-Preise, Economy, Marktpreis 100 $ (Satisfaction angenommen):
 
 | Fall | Zielniveau | Preis |
 |---|---|---|
-| LCC, Satisfaction 85 (`satisfactionFactor` 0,925) | 0,90 × 0,925 = 0,83 | 83 $ |
+| LCC, Satisfaction 85 (`satisfactionFactor` 0,925) | 0,95 × 0,925 = 0,88 | 88 $ (vor E71: 0,90 → 83 $) |
 | Flag, Satisfaction 115 (`satisfactionFactor` 1,112) | 1,00 × 1,112 = 1,11 | 111 $ |
-| LCC im Preiskampf | 0,83 × 0,88 = 0,73 | 73 $ |
-| LCC im Preiskampf, dazu volle Lage −15 % (leere Maschinen) | 0,83 × 0,85 × 0,88 = 0,62 | 62 $ (Boden 0,60) |
+| LCC im Preiskampf | 0,88 × 0,88 = 0,77 | 77 $ |
+| LCC im Preiskampf, dazu volle Lage −15 % (leere Maschinen) | 0,88 × 0,85 × 0,88 = 0,66 | 66 $ (Boden 0,60) |
 
 Übernahme einer KI zum Verkauf im Jahr 2010: 10 × A320ceo, gekauft 1990 (Liste 40 Mio. $ × `costIndex` 1990 1,430 =
 57,2 Mio. $), Alter 20, Zustand 100, Kabine ohne Aufpreis → je 20,6 Mio. $; 280 Slots (10 Strecken, 14 Abflüge an

@@ -37,6 +37,7 @@ import {
   rivalAgentOf,
   rivalBuyableSlots,
   rivalDecisions,
+  rivalHubViable,
   rivalRefill,
   rivalSchedule,
   rivalSlotCap,
@@ -56,6 +57,8 @@ function airport(id: string, region: WorldRegion): ModelAirport {
   return { id, coords: a.coords, stats: a.stats, size: a.level, region, maxIcaoCode: a.maxIcaoCode };
 }
 const AIRPORTS = { FRA: airport('FRA', 'EU'), MAD: airport('MAD', 'EU'), CDG: airport('CDG', 'EU'), FCO: airport('FCO', 'EU') };
+/** Nachfrage × 2 über 24 Monate ab M (Test-Welt mit nur vier Flughäfen). */
+const BOOM = [{ title: 'Test: boom', startMonth: M, months: 24, demandMultiplier: 2 }];
 
 const NEUTRAL: CompanyInputs = { ...RIVAL_INPUTS, campaigns: [] };
 const PLAYER: CompanyInputs = { ...NEUTRAL, badLuckCap: true, charter: true, staffModel: true, forcedSale: true };
@@ -393,7 +396,9 @@ describe('Abschnitt 7.13 Neues Drehkreuz', () => {
 
 describe('Abschnitt 7.7 Gründung und Nachrücken', () => {
   it('7.7: die neue KI hat Startkasse nach Stärke, Startflotte mit Kabine, Stufe 2 und einen bedienten Schalter am Drehkreuz, Ruf 50, Zuschuss', () => {
-    const state = world([player()]);
+    // Nachfrage-Boom, damit jedes Drehkreuz der kleinen Test-Welt eine Strecke mit Gewinn hat (E71): Der Test prüft
+    // die Startwerte, nicht die Marktgröße.
+    const state = world([player()], { randomEvents: BOOM });
     for (const strength of ['easy', 'normal', 'hard'] as const) {
       const k = foundRivalCompany(state, strength, []);
       assert.ok(k);
@@ -419,7 +424,7 @@ describe('Abschnitt 7.7 Gründung und Nachrücken', () => {
     ];
     let reals = 0;
     for (let seed = 1; seed <= 30; seed++) {
-      const k = foundRivalCompany(world([player()], { seed }), 'normal', real);
+      const k = foundRivalCompany(world([player()], { seed, randomEvents: BOOM }), 'normal', real);
       assert.ok(k);
       assert.notEqual(k.id, 'rival-XX');
       if (k.id === 'rival-LH') {
@@ -433,6 +438,23 @@ describe('Abschnitt 7.7 Gründung und Nachrücken', () => {
       const k = foundRivalCompany(world([taken], { seed }), 'normal', real);
       assert.ok(!k || !(k.hubs ?? []).includes('FRA'));
     }
+  });
+
+  it('7.7 (E71): gegründet wird nur an einem Drehkreuz, von dem im Gründungsmonat eine Strecke mit Gewinn möglich ist', () => {
+    const crash = [{ title: 'Test: crash', startMonth: M, months: 24, demandMultiplier: 0.02 }];
+    for (let seed = 1; seed <= 10; seed++) {
+      assert.equal(foundRivalCompany(world([player()], { seed, randomEvents: crash }), 'normal', []), null);
+      const k = foundRivalCompany(world([player()], { seed, randomEvents: BOOM }), 'normal', []);
+      assert.ok(k && rivalHubViable(world([player()], { seed, randomEvents: BOOM }), k));
+    }
+    // Die Probe ändert nichts: gleiche Gesellschaft vorher und nachher, und sie plant wie im ersten Abschluss.
+    const state = world([player()], { randomEvents: BOOM });
+    const k = foundRivalCompany(state, 'normal', []) as CompanyState;
+    const copy = JSON.stringify(k);
+    rivalHubViable(state, k);
+    assert.equal(JSON.stringify(k), copy);
+    const first = closeMonth({ ...state, companies: [...state.companies, k] }, rivalDecisions);
+    assert.ok(first.news.some((n) => n.companyId === k.id && n.kind === 'routeOpened'));
   });
 
   it('7.7: fehlen KI zur gewählten Zahl, rückt am Ende des Abschlusses mit RIVAL_REFILL_CHANCE eine nach (im Monat X+1)', () => {

@@ -1767,7 +1767,8 @@ const NO_SERVICE: RivalClassService = { menu: [], extras: [], onboardService: []
 export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> = {
   lcc: {
     aggression: 8,
-    farePosition: 0.9,
+    // 0,90 → 0,95 (E71, Paket 3.9e): Mit 0,90 brach die LCC in den Ölkrisen ein (Faktor 0,35 nach 20 Jahren).
+    farePosition: 0.95,
     fareFloor: 0.6,
     targetWeight: { business: 0.6, tourism: 1.4 },
     longHaulFactor: 0.4,
@@ -1885,10 +1886,11 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     targetWeight: { business: 1.5, tourism: 0.5 },
     longHaulFactor: 1,
     patienceBase: 6,
-    buyFactor: 0.6,
+    // Kaufneigung 0,6 → 0,9 und Drehkreuze 1 → 2 (E71, Paket 3.9e): Boutique lag nach 40 Jahren bei 0,37 des Medians.
+    buyFactor: 0.9,
     purchaseCashShare: 0.45,
     cashReserve1960: 10_000_000,
-    maxHubs: 1,
+    maxHubs: 2,
     growthStopSeverity: 0.25,
     deskChoice: 'served',
     buildsLounge: true,
@@ -2023,15 +2025,18 @@ export const START_AIRCRAFT_AGE_PENALTY = 0.2;
 /** Siehe `START_AIRCRAFT_AGE_PENALTY`: Spanne des Zufalls (± die Hälfte). SPEZIFIKATION 7.7. */
 export const START_AIRCRAFT_NOISE = 15;
 
-/** Gewichte der Persönlichkeit bei der Wahl der Startflugzeuge (wie heute `:664-668`). SPEZIFIKATION 7.7. */
+/**
+ * Gewichte der Persönlichkeit bei der Wahl der Startflugzeuge (wie heute `:664-668`; E71, Paket 3.9e: LCC `capacity`
+ * 0,15 → 0,05, Boutique `range` 0,02 → 0,001, sonst nahmen beide 1960 eine DC-8 ohne Strecke mit Gewinn). SPEZIFIKATION 7.7.
+ */
 export const START_AIRCRAFT_WEIGHTS: Readonly<
   Record<RivalPersonality, { readonly capacity: number; readonly efficiency: number; readonly popularity: number; readonly range: number }>
 > = {
-  lcc: { capacity: 0.15, efficiency: 0.6, popularity: 0, range: 0 },
+  lcc: { capacity: 0.05, efficiency: 0.6, popularity: 0, range: 0 },
   expansionist: { capacity: 0, efficiency: 0, popularity: 0, range: 0 },
   optimizer: { capacity: 0, efficiency: 1.2, popularity: 0, range: 0 },
   flag: { capacity: 0, efficiency: 0, popularity: 1.5, range: 0 },
-  boutique: { capacity: 0, efficiency: 0, popularity: 0, range: 0.02 },
+  boutique: { capacity: 0, efficiency: 0, popularity: 0, range: 0.001 },
 };
 
 // ---------------------------------------------------------------------------
@@ -2213,11 +2218,15 @@ export const DIVIDEND_RESERVE_MONTHS = 12;
 export const DIVIDEND_COST_WINDOW = 12;
 
 // ---------------------------------------------------------------------------
-// 7.14 Zuschuss (E47, bis zur Abschaffung)
+// 7.14 Zuschuss (E47, abgeschafft in Paket 3.9e nach E68)
 // ---------------------------------------------------------------------------
 
-/** Zuschuss an. Abschaffung, sobald das Balance-Skript (3.9) die Prüfregel aus 7.14 erfüllt. SPEZIFIKATION 7.14. */
-export const RIVAL_SUBSIDY_ENABLED = true;
+/**
+ * Zuschuss aus (E68, Paket 3.9e): Das Balance-Skript erfüllt die Prüfregel aus 7.14 (ohne Zuschuss keine Auflösung
+ * eines Gründers in 10 Läufen über 60 Jahre, „ähnlicher Erfolg“ Faktor 1,81 / 1,70). Die Zeile „Subsidy“ bleibt
+ * (immer 0). SPEZIFIKATION 7.14.
+ */
+export const RIVAL_SUBSIDY_ENABLED = false;
 
 /** Zuschuss je Monat in $ von 1960 bis `SUBSIDY_HIGH_UNTIL` (wie heute nominal, `:47-65`). SPEZIFIKATION 7.14. */
 export const SUBSIDY_HIGH_1960 = 450_000;
