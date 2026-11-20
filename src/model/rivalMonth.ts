@@ -111,6 +111,7 @@ import {
   PLAYER_HUB_AGGRESSION_PIVOT,
   PLAYER_HUB_WEIGHT,
   PRESELECT_CROWDING_DEPARTURES,
+  PRESELECT_RIVAL_HUB_WEIGHT,
   PRESELECT_RANGE_SHARE,
   RIVAL_HUB_TIER,
   RIVAL_OVERHAUL_BELOW,
@@ -271,6 +272,8 @@ export interface TargetCandidate {
   readonly tourism: number;
   /** Abflüge je Woche anderer Gesellschaften auf dem Paar. */
   readonly otherDepartures: number;
+  /** Ist das Ziel Drehkreuz einer anderen KI (E66)? Dann zählt es × `PRESELECT_RIVAL_HUB_WEIGHT` statt geteilt. */
+  readonly otherRivalHub?: boolean;
   /** Passt die Piste für das Flugzeug? */
   readonly runwayOk: boolean;
   /** Freie Slots an beiden Enden (7.10: `rivalSlotRoom` > 0 an beiden Enden)? */
@@ -309,18 +312,22 @@ export function isEligibleTarget(target: TargetCandidate, rangeKm: number): bool
 
 /**
  * Wert eines Ziels in der Vorauswahl (billig, ohne Modell-Rechnung; wie heute `:503-521`):
- * `√(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × Langstrecken-Faktor
- *  / (1 + Abflüge anderer / 14)`. Nicht erlaubte Ziele 0. SPEZIFIKATION 7.9.
+ * `√(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × Langstrecken-Faktor × Andrang`.
+ * Andrang = `1 / (1 + Abflüge anderer / 14)`; ist das Ziel Drehkreuz einer anderen KI, stattdessen
+ * `PRESELECT_RIVAL_HUB_WEIGHT` (E66). Nicht erlaubte Ziele 0. SPEZIFIKATION 7.9.
  */
 export function preselectScore(target: TargetCandidate, ctx: PreselectContext): number {
   if (!isEligibleTarget(target, ctx.rangeKm)) return 0;
   const hub = targetWeight(ctx.personality, ctx.hubBusiness, ctx.hubTourism);
   const dest = targetWeight(ctx.personality, target.business, target.tourism);
+  const crowding = target.otherRivalHub
+    ? PRESELECT_RIVAL_HUB_WEIGHT
+    : 1 / (1 + target.otherDepartures / PRESELECT_CROWDING_DEPARTURES);
   return (
-    (Math.sqrt(Math.max(0, hub * dest)) *
-      Math.min(1, target.km / (PRESELECT_RANGE_SHARE * ctx.rangeKm)) *
-      longHaulFactor(ctx.personality, target.km)) /
-    (1 + target.otherDepartures / PRESELECT_CROWDING_DEPARTURES)
+    Math.sqrt(Math.max(0, hub * dest)) *
+    Math.min(1, target.km / (PRESELECT_RANGE_SHARE * ctx.rangeKm)) *
+    longHaulFactor(ctx.personality, target.km) *
+    crowding
   );
 }
 
@@ -1444,6 +1451,12 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
     freeOwn(id, cls) + rivalBuyableSlots(airports[id].size, hubs.includes(id), ownedTotal(id), freeAtStart(id), deciders, bought[id] ?? 0);
   const playerTier3At = (id: string) => others.some((o) => (o.airports[id]?.managementTier ?? 0) >= MAX_MANAGEMENT_TIER);
   const otherRoutes = others.flatMap((o) => o.routes.map((r) => ({ origin: r.from, destination: r.to, weeklyFrequency: r.departuresPerWeek / 2 })));
+  const otherRivalHubs = new Set(
+    others.filter((o) => {
+      const a = rivalAgentOf(o);
+      return a !== undefined && a.distress.status !== 'liquidated';
+    }).flatMap((o) => o.hubs ?? []),
+  );
   const sizes = new Map<string, { business: number; tourism: number }>();
   const sizeOf = (id: string) => {
     let size = sizes.get(id);
@@ -1537,6 +1550,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
           business: size.business,
           tourism: size.tourism,
           otherDepartures: departuresOnPair(otherRoutes, hub, id),
+          otherRivalHub: otherRivalHubs.has(id),
           runwayOk: runwayFits(type.icaoCode, a.maxIcaoCode) && runwayFits(type.icaoCode, h.maxIcaoCode),
           slotsFree: hubRoom >= 1 && room(id, cls) >= 1,
           playerTier3: playerTier3At(hub) || playerTier3At(id),

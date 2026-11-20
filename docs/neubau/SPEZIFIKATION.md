@@ -2543,8 +2543,10 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 ### 7.9 Planung einer Strecke (Code-Name: `rivalPlanRoute`)
 - Bedeutung: Wohin eine KI ein freies Flugzeug schickt.
 - **Vorauswahl** (billig, ohne Modell-Rechnung; heute `:503-521`):
-  `score = √(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × LCC-Abzug / (1 + Abflüge
-  anderer Gesellschaften auf dem Paar / 14)`, mit `Gewicht = Geschäft × g_B + Tourismus × g_T` (7.4).
+  `score = √(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × LCC-Abzug × Andrang`, mit
+  `Gewicht = Geschäft × g_B + Tourismus × g_T` (7.4) und `Andrang = 1 / (1 + Abflüge anderer Gesellschaften auf dem
+  Paar / 14)`. Ist das Ziel Drehkreuz einer anderen (nicht aufgelösten) KI, gilt stattdessen
+  `Andrang = PRESELECT_RIVAL_HUB_WEIGHT = 2` (E66): Drehkreuz-zu-Drehkreuz-Strecken werden unter der KI umkämpft.
   Nur Ziele in Reichweite, ab `MIN_ROUTE_KM = 150`, mit passender Piste, mit freien Slots an beiden Enden (7.10),
   nicht mit Spieler-Stufe 3 an einem der beiden Enden (7.10, E63), nicht schon bedient. Die besten `Suchbreite`
   + 2 zufällige (7.3).
@@ -2555,7 +2557,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   heute `abrunden(7 × 18 h / Blockzeit eines Umlaufs)`, 1 … 21 (`:105-108`, `:281-285`).
 - Eröffnung: Kasse ≥ Kaufpreis der fehlenden Slots + Reserve (7.4); keine Pauschale mehr (heute 1,5 Mio. $, `:96`).
 - Regeln (Tests): Planer und KI rechnen für denselben Plan dieselbe Zahl; ein Ziel ohne freie Slots wird nie gewählt;
-  Hard (Schätzfehler 0) wählt unter den bewerteten Plänen immer den mit dem höchsten erwarteten Gewinn.
+  Hard (Schätzfehler 0) wählt unter den bewerteten Plänen immer den mit dem höchsten erwarteten Gewinn; ein fremdes
+  KI-Drehkreuz zählt doppelt, gleich wie viele Abflüge dort schon sind (E66).
 
 ### 7.10 Slots, Schalter, Drehkreuze und Einrichtungen der KI
 - **Slots (E50, 1.6, 5.10):** Die KI kauft vor einer Eröffnung oder Erweiterung die fehlenden Slots an **beiden**
@@ -2933,7 +2936,9 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
   - Wirkung: `fuelTable(month)` dieser Gesellschaft = `fuelTable(Monat vor Beginn)` für die Dauer des Ereignisses
     (5.2), in beide Richtungen (fällt der Preis, zahlt sie trotzdem den gesicherten).
   - Preis: `HEDGE_PRICE_SHARE × Treibstoff-Rechnung des letzten Monats × Dauer in Monaten`.
-  - `HEDGE_PRICE_SHARE = 0,2` (Startwert; heute 4 Mio. $ für 18 Monate, also 0,22 bei 1 Mio. $ Rechnung je Monat).
+  - `HEDGE_PRICE_SHARE = 0,35` (E69; Startwert war 0,2, heute 4 Mio. $ für 18 Monate, also 0,22 bei 1 Mio. $ Rechnung
+    je Monat). Mit 0,35 lohnt sich die Absicherung 1973 / 1979 / 1990 etwa 2,6- / 1,4- / 1,05-fach (Balance-Skript B8.1),
+    ist also eine Abwägung und nicht immer richtig.
 - **Rückgewinnung** (Code-Name: `demandRecovery`; Krisen 2001, 2008, 2020):
   - Wirkung: `crisisResponseFactor = (f + (1 − f) × r) / f` auf die Anziehung aller Angebote der Gesellschaft (3.9.7)
     für die Dauer, mit `f` = `demandMultiplier` des Ereignisses und `r` = Rückgewinnungs-Anteil aus den Daten
@@ -3236,7 +3241,7 @@ Heute holt die Antwort 40 / 33 / 35 % des Ausfalls zurück, für 5 / 8 / 25 Mio.
 (Anteil statt nur „Nicht fliegen“).
 
 **Preis-Absicherung** 1973 (E61, Ausschlag bis × 2,0 mit je 3 Monaten An- und Abstieg, im Mittel × 1,83 über 18 Monate),
-Treibstoff-Rechnung 1 Mio. $ je Monat: Preis 0,2 × 1 × 18 = 3,6 Mio. $, Ersparnis ≈ 0,83 × 18 = 15 Mio. $.
+Treibstoff-Rechnung 1 Mio. $ je Monat: Preis 0,35 × 1 × 18 = 6,3 Mio. $ (E69), Ersparnis ≈ 0,83 × 18 = 15 Mio. $.
 
 **Kreditlinie**: 10 × A320ceo zu je 20,6 Mio. $ → Grenze 103 Mio. $; Kasse −50 Mio. $ → Zinsen 333 333 $ je Monat.
 

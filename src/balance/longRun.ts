@@ -13,6 +13,7 @@ import { aircraftList } from '../data/aircraft';
 import { airports as registryAirports } from '../data/airportRegistry';
 import { regionOf } from '../lib/geoUtils';
 import { costIndex } from '../model/basics';
+import { distanceKm } from '../model/demand';
 import { START_YEAR, CABIN_CLASSES, type RivalPersonality, type RivalStrength, type WorldRegion } from '../model/constants';
 import {
   closeMonth,
@@ -133,6 +134,15 @@ function refillFor(s: LongRunSettings): AfterClose {
 // Messwerte
 // ---------------------------------------------------------------------------
 
+/** Längen-Bänder der Strecken (Großkreis): kurz unter 1 000 km, mittel bis 3 500 km, lang darüber. */
+export type LengthBand = 'short' | 'medium' | 'long';
+export const LENGTH_BANDS: readonly LengthBand[] = ['short', 'medium', 'long'];
+
+/** Band einer Strecke nach Entfernung in km. */
+export function lengthBand(km: number): LengthBand {
+  return km < 1000 ? 'short' : km < 3500 ? 'medium' : 'long';
+}
+
 /** Verteilung einer Größe: Anzahl, Median, 10. und 90. Perzentil, Mittel. */
 export interface Spread {
   readonly n: number;
@@ -193,6 +203,8 @@ export interface YearStats {
   readonly margin: Spread;
   /** Anteil der Strecken-Monate mit Verlust. */
   readonly losingShare: number;
+  /** Auslastung und Marge je Längen-Band (E67, Paket 3.9d); fehlt in älteren Ergebnissen. */
+  readonly byLength?: Readonly<Record<LengthBand, { readonly load: Spread; readonly margin: Spread }>>;
   /** Anzahl Gesellschaften je bedientem Paar (Januar). */
   readonly offersPerPair: Spread;
   /** Anteil der bedienten Paare mit ≥ 2 Gesellschaften (Januar). */
@@ -345,6 +357,8 @@ export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, air
     const loads: number[] = [];
     const margins: number[] = [];
     let losing = 0;
+    const bandLoads: Record<LengthBand, number[]> = { short: [], medium: [], long: [] };
+    const bandMargins: Record<LengthBand, number[]> = { short: [], medium: [], long: [] };
     const news: Record<string, number> = {};
     let dividends = 0;
     const reports = new Map<string, MonthReport[]>();
@@ -372,6 +386,14 @@ export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, air
         }
       }
       previousFare = fareNow;
+      const bandOf = new Map<string, LengthBand>();
+      for (const c of state.companies) {
+        for (const r of c.routes) {
+          const a = state.airports[r.from];
+          const b = state.airports[r.to];
+          if (a && b) bandOf.set(`${c.id}|${r.id}`, lengthBand(distanceKm(a.coords, b.coords)));
+        }
+      }
 
       const close = closeMonth(state, rivalDecisions, after);
       for (const n of close.news) {
@@ -391,6 +413,9 @@ export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, air
           const pax = sumOf(CABIN_CLASSES.map((k) => r.passengers[k] + r.transferPassengers[k]));
           if (seats > 0) loads.push(pax / seats);
           if (r.revenue > 0) margins.push(r.result / r.revenue);
+          const band = bandOf.get(`${id}|${r.routeId}`);
+          if (band && seats > 0) bandLoads[band].push(pax / seats);
+          if (band && r.revenue > 0) bandMargins[band].push(r.result / r.revenue);
           if (r.result < 0) losing++;
         }
       }
@@ -430,6 +455,11 @@ export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, air
       loadFactor: spreadOf(loads),
       margin: spreadOf(margins),
       losingShare: loads.length > 0 ? losing / loads.length : 0,
+      byLength: {
+        short: { load: spreadOf(bandLoads.short), margin: spreadOf(bandMargins.short) },
+        medium: { load: spreadOf(bandLoads.medium), margin: spreadOf(bandMargins.medium) },
+        long: { load: spreadOf(bandLoads.long), margin: spreadOf(bandMargins.long) },
+      },
       offersPerPair: spreadOf(offerCounts),
       sharedPairs: offerCounts.length > 0 ? offerCounts.filter((n) => n >= 2).length / offerCounts.length : 0,
       news,

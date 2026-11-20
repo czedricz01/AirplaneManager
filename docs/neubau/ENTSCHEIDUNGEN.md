@@ -154,6 +154,7 @@ jederzeit ändern. Sie ändern keine Spielregel.
 | F45 | 3.9b | **KI-Kabinen-Erneuerung nur bis zur Schwelle:** Die KI erneuert eine Kabine (F43 (7)) nur, wenn ihr Zustand danach mindestens `RIVAL_OVERHAUL_BELOW` (60) ist. Vorher: Nach 6 Erneuerungen hebt `refitCabinCondition` die Kabine nur noch auf 30 (8.13); die KI erneuerte dann **jeden Monat** zum vollen Umbau-Preis für weniger als einen Punkt Zustand (im Langlauf bis 2 000 Erneuerungen je Jahr bei ~530 Flugzeugen). Jetzt bleibt eine verbrauchte Kabine, bis die Modernisierung (7.11) das Flugzeug ersetzt. Test in `monthCloseD.test.ts`. | Fehler, kein Balance-Wert: 7.11 lässt die KI bei Kabinenzustand < 60 handeln, damit die Kabine wieder brauchbar ist; eine Erneuerung, nach der sie sofort wieder fällig ist, erfüllt das nicht. |
 | F46 | 3.9b | **Balance-Skript Teil 2 (Langläufe):** (1) **Lauf:** Start Januar 1960, 60 Jahre, ohne Spieler; je Persönlichkeit eine Gründer-KI (`founderCompany`, wie `foundRivalCompany` mit fester Persönlichkeit und festem Drehkreuz); Lauf `i` gibt Persönlichkeit `k` das Drehkreuz `FOUNDER_HUBS[(i + 2k) mod 10]` (JFK, LHR, FRA, ORD, CDG, LAX, HND, SIN, ATL, SYD), so hat jede Persönlichkeit über 10 Läufe jedes Drehkreuz einmal; Nachrücken bis 5 KI (`rivalRefill`); Seed `1000 + i`. (2) **Flughafen-Auswahl:** alle 628 Flughäfen der Daten (`airportRegistry.airports`, wie das Spiel), ganzer Typen-Katalog. Rechenzeit damit 7–10 min je Lauf (≈ 1 s je Monat um 2000). (3) **Läufe:** 10 × Normal mit Zuschuss, 10 × Normal ohne Zuschuss (nur `inputs.subsidized = false` je KI, auch für Nachrücker; keine Konstante geändert), je 3 × Easy und Hard mit Zuschuss über 40 Jahre. `npm run balance -- --long` rechnet sie in `--jobs` Prozessen (`scripts/balance-run.ts`), Ergebnisse je Lauf in `.balance-runs/` (nicht im Repository). (4) **Maße:** Unternehmenswert in Preisen von 1960 = `companyValue ÷ costIndex`, aufgelöste Gründer = 0; „nach 20 Jahren“ = Januar 1980. Preis-Sprung = |Δ Preisniveau Economy| ≥ 0,25 in einem Monat. Umsteiger-Anteil je Paar O–D mit Direktangebot und Verbindung = platzierte Umsteiger ÷ (Direktgäste + Umsteiger), „typisch“ = Median je Paar; dazu der Anteil vor der Sitz-Verteilung. (5) **Rechenzeit der Planer-Rechnungen:** `plannerRouteFigures` und `routeClassPassengersAt` rechnen nur die Märkte, von denen ihr Ergebnis abhängt (`operationsCore` mit Scope; neue `routeClassPassengersCurve` baut den Planer-Spielstand einmal je Strecke und Klasse, je Preisniveau nur die Marktaufteilung des Paars); `costIndex`, `worldScale` und `researchEffects` mit Zwischenspeicher. Ergebnis gleich (Test `plannerScope.test.ts`; Prüfsumme jedes Abschlusses über 30 Monate mit 5 KI gleich dem alten Code), etwa 135-mal schneller. Neu exportiert: `pairPassengers` (Fluggäste je Paar nach Art) und `plannerState` (für den Test). | Die Prüfregeln 7.4 und 7.14 verlangen 10 Läufe je Persönlichkeit über 40–60 Jahre; mit der alten Planer-Rechnung dauerte schon ein Monat um 1965 über 4 s (je Preisniveau der ganze Markt aller Gesellschaften, ~400 Preisniveaus je Klasse und Strecke). Feste Drehkreuz-Rotation, weil die Lage den Erfolg stärker bestimmt als die Persönlichkeit. |
 | F47 | 3.9c | **Balance-Skript Teil 3 (Abschnitte 6 und 8 ohne Langlauf):** (1) **Dateien:** `src/balance/career.ts` (Abschnitt 6) und `src/balance/events.ts` (Abschnitt 8); `balanceSections` rechnet die typischen Strecken (`ROUTE_CASES`) einmal und gibt sie an Abschnitt 4–5 und 8; Bericht `balance/3.9c-bericht.md` ohne Langläufe. (2) **„Übliche Satisfaction“ (E36, B6.1)** = Median der Airline satisfaction aller 5 Ausstattungen (Kabine und Service nach Persönlichkeit, 7.5) auf A320ceo FRA–MAD 1990 und A330-300 FRA–JFK 1995, ohne Forschung; Grenze 40 … 60. (3) **Gesellschaft an der Rang-Schwelle (B6.7, B6.8):** frühester Monat des Rangs aus der Tabelle in 6.8, eine typische Strecke mit einem Flugzeug der bis dahin offenen Klassen beim besten Preis; Monatsergebnis = Fluggäste der Schwelle × Strecken-Ergebnis je Fluggast (5.9, ohne Kosten der Gesellschaft); daneben 10 % Marge auf denselben Erlös. Jahresziel: hohes Ziel lohnt ab Chance `(R_sicher / R_hoch + k) / (1 + k)`, `k = GOAL_MISS_PENALTY_SHARE`. (4) **Krisen-Antworten:** Absicherung über `fuelTable` mit gleicher Menge wie im Monat vor dem Beginn; Rückgewinnung auf A320ceo FRA–MAD allein mit dem besten Preis des Monats vor der Krise (fest), Mehr-Ergebnis = Σ Strecken-Ergebnis mit − ohne Antwort; Marktgröße × 1 und × 0,25 (Richtung E67). (5) **Typischer Zustand nach Alter** = Mitte des Gebrauchtmarkts (`USED_CONDITION`, 8.11). (6) **Szenario „Oil Shock“:** Ausstattungen über Persönlichkeiten (LCC, Flag, Boutique), Zelle 60, Kabine 60 oder 90 (Umbau); Satisfaction nach Fluggästen über LHR–CDG (Trident 2E) und LHR–JFK (707-320B); dafür neues Feld `OfferSpec.condition` in `src/balance/world.ts`. | Wie F44: ein Bericht, den jeder mit einem Befehl neu erzeugt. Weil die Margen heute zu hoch sind (Fund 1), zeigt jede Regel, die am Ergebnis hängt, einen Vergleich mit kleinerem Markt; so ist sichtbar, was nach E67 kippen kann. |
+| F48 | 3.9d | **Teil 1 von 3.9d (E66, E69-Absicherung, Messung zu E67):** (1) **E66:** neues Feld `TargetCandidate.otherRivalHub` (optional, fehlt = `false`); gesetzt, wenn das Ziel Drehkreuz einer anderen, nicht aufgelösten KI ist (Drehkreuze des Spielers zählen nicht); Konstante `PRESELECT_RIVAL_HUB_WEIGHT = 2` ersetzt dann den Andrang-Teiler. (2) **Langlauf je Länge:** `YearStats.byLength` (kurz < 1 000 km, mittel bis 3 500 km, lang darüber, Großkreis) mit Auslastung und Marge; Tabelle „Auslastung / Marge je Streckenlänge“ und Prüfregel **B7.10** (Ziel aus E67: Median Auslastung 75–90 %, Marge 10–25 %, sonst Abweichung). (3) **Kalibrier-Läufe zu E67** (4 Varianten × 4 Läufe × 40 Jahre, Normal, mit Zuschuss) als Hilfsrechnung in Kopien des Codes, nicht im Projekt; Zahlen in `BALANCE.md` Fund 23. `DEMAND_SCALE` und `DISTANCE_EXP` unverändert (O66). | Ein Messwert je Länge zeigt, ob eine Änderung der Marktgröße kurze und lange Strecken gleich trifft (Fund 1). Die Kalibrierung ändert keine Konstante, solange O66 offen ist. |
 
 ## Offen
 
@@ -165,7 +166,35 @@ O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
 
 O65 am 19.11.2026 entschieden (E69); Umsetzung in Paket 3.9d.
 
-Zurzeit keine offenen Fragen.
+Offen aus Paket 3.9d (Zahlen in `BALANCE.md` Fund 22 und 23). **Blockiert den Rest von Paket 3.9d** (E67, E68,
+Rückgewinnung aus E69, Langläufe neu).
+
+**O66 – Wie erreicht die KI eine Marge von 10–25 % (E67)?** E67 sollte das über eine kleinere Marktgröße schaffen. Die
+Langläufe (je 4 Läufe × 40 Jahre) zeigen: Das geht nicht.
+
+| Marktgröße | Auslastung (Median) | Marge (Median) | lang: Marge | aufgelöste Gründer (von 20) |
+|---|---|---|---|---|
+| × 1 (heute, mit E66) | 100 % | 47 % | 42–66 % | 0 |
+| × 0,5 | 100 % | 37 % | 32–57 % | 2 |
+| × 0,3 | 100 % | 31 % | 27–53 % | 2 |
+| × 0,3, `DISTANCE_EXP` 0,3 | 100 % | 29 % | 29–51 % | 6 |
+
+Grund: Jede KI fliegt ihre Paare **allein** (auch mit E66 teilen nur 1–3 % der Paare zwei KI). Wer allein fliegt, wählt
+so wenige Flüge, dass er voll ist; die Marge hängt dann am Preis gegen die Kosten (eine volle Mittelstrecke deckt ihre
+Kosten schon beim 0,6-Fachen des Marktpreises, eine Langstrecke beim 0,3-Fachen; Spezifikation 5.18). Eine kleinere
+Marktgröße senkt die Marge nur langsam, macht die KI ärmer und kleiner und löst mehr Gründer auf.
+- A: **Nur Marktgröße.** `DEMAND_SCALE` × 0,5 (29 → 14,5); Ziel aus E67 für die KI auf „Marge um 35 %“ lockern. Rest von
+  3.9d sofort weiter. Langstrecke bleibt sehr einträglich.
+- B: **Erst mehr Konkurrenz unter der KI.** E66 verstärken (Gewicht 2 → 5) oder Weg C aus O64 (KI kauft an fremden
+  Drehkreuzen Slots wie an eigenen; heute hält der Besitzer dort fast alle Slots), dann Marktgröße neu messen. Ob geteilte
+  Paare die Marge wirklich senken, ist offen; die Preiskampf-Regeln (7.6) lassen Preise über den Kosten.
+- C: **Preis gegen Kosten.** Marktpreise senken, Langstrecke stärker: Grundpreis (`FARE_PER_KM_1960`, 4.1) so, dass
+  Mittelstrecke etwa × 0,8 und Langstrecke etwa × 0,6 kostet (Schätzung: Marge `1 − (1 − m) ÷ Faktor` → um 20 %), dazu
+  Marktgröße × 0,3 mit `DISTANCE_EXP` 0,3, damit auch ein Spieler allein nicht überall voll ist (A320ceo allein auf
+  FRA–MAD oder ATL–ORD beim besten Preis 80 % statt 97 % Auslastung). Ein neues Paket misst die genauen Werte mit dem Balance-Skript.
+- **Empfehlung:** C. Die Marge kommt aus dem Verhältnis Preis zu Kosten, nicht aus der Marktgröße; Spezifikation 5.18
+  nennt die zu hohe Langstrecken-Marge schon als Prüfpunkt. B kann danach folgen, wenn die KI im späten Spiel zu wenig
+  Konkurrenz hat.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 

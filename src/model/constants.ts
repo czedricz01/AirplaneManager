@@ -2093,6 +2093,12 @@ export const PRESELECT_RANGE_SHARE = 0.2;
 /** Vorauswahl: Abflüge anderer Gesellschaften auf dem Paar teilen durch `1 + Abflüge / 14`. SPEZIFIKATION 7.9. */
 export const PRESELECT_CROWDING_DEPARTURES = 14;
 
+/**
+ * Vorauswahl: Ziele, die Drehkreuz einer anderen KI sind, zählen × 2 statt durch deren Abflüge geteilt (E66), damit
+ * Drehkreuz-zu-Drehkreuz-Strecken unter der KI umkämpft werden. SPEZIFIKATION 7.9.
+ */
+export const PRESELECT_RIVAL_HUB_WEIGHT = 2;
+
 /** Bewertete Flugzahlen je Ziel als Anteil der höchsten Umläufe. SPEZIFIKATION 7.9. */
 export const PLAN_FREQUENCY_SHARES: readonly number[] = [1, 0.6, 0.3];
 
@@ -2340,8 +2346,11 @@ export const RANDOM_EVENT_CHANCE = 0.05;
 // 8.5 Krisen-Antworten
 // ---------------------------------------------------------------------------
 
-/** Preis-Absicherung: Anteil der Treibstoff-Rechnung des letzten Monats je Monat Dauer. Startwert (3.9). SPEZIFIKATION 8.5. */
-export const HEDGE_PRICE_SHARE = 0.2;
+/**
+ * Preis-Absicherung: Anteil der Treibstoff-Rechnung des letzten Monats je Monat Dauer (E69: 0,2 → 0,35, lohnt sich
+ * 1973 / 1979 / 1990 etwa 2,6- / 1,4- / 1,05-fach). SPEZIFIKATION 8.5.
+ */
+export const HEDGE_PRICE_SHARE = 0.35;
 
 /** Rückgewinnung: Preis = Anteil × r × (1 − f) × Dauer × Monatserlös des letzten Monats. Startwert (3.9). SPEZIFIKATION 8.5. */
 export const RECOVERY_PRICE_SHARE = 0.15;

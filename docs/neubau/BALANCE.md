@@ -39,7 +39,8 @@ Weitere Optionen: `--runs`, `--years`, `--strength-runs`, `--cache`, `--reuse` (
 | `docs/neubau/balance/3.9a-bericht.md` | Ausgabe des Skripts (Stand 3.9a, vor E64 und E65) |
 | `docs/neubau/balance/O61-O62-bericht.md` | Ausgabe des Skripts nach E64 (`DEMAND_GROWTH_1960_2019` = 2,25) und E65 |
 | `docs/neubau/balance/3.9b-bericht.md` | Ausgabe mit Langläufen (Abschnitte 1–5, 7: 10 ok · 0 Abweichung · 20 Info) |
-| `docs/neubau/balance/3.9c-bericht.md` | Ausgabe ohne Langläufe (aktueller Stand, Abschnitte 1–6 und 8: 15 ok · 0 Abweichung · 21 Info) |
+| `docs/neubau/balance/3.9c-bericht.md` | Ausgabe ohne Langläufe (Stand 3.9c, Abschnitte 1–6 und 8: 15 ok · 0 Abweichung · 21 Info) |
+| `docs/neubau/balance/3.9d-bericht.md` | Ausgabe ohne Langläufe nach E66 und `HEDGE_PRICE_SHARE` 0,35 (aktueller Stand: 15 ok · 0 Abweichung · 21 Info) |
 
 Der Code liegt in `src/balance/`, damit `npm run lint` ihn prüft (`scripts/` ist davon ausgenommen). Die Oberfläche
 importiert nichts von dort.
@@ -301,8 +302,51 @@ Nach 39 Monaten (Okt. 1973 bis Dez. 1976, Start 50): LCC-Kabine 30,9; Flag-Kabin
 einem Umbau (Zustand 90) Flag 58,2 und Boutique 57,6. Das Ziel braucht also einen Kabinen-Umbau, wie der Kommentar im
 Szenario sagt. Die Dollar-Beträge aller Szenarien als Wert von 1960 stehen im Bericht (für Phase 5.1).
 
+## Ergebnis Paket 3.9d, Teil 1 (E66, Absicherung, Messung zu E67)
+
+Umgesetzt: E66 (Vorauswahl, `PRESELECT_RIVAL_HUB_WEIGHT` = 2, `src/model/rivalMonth.ts:319`) und der erste Teil von
+E69 (`HEDGE_PRICE_SHARE` 0,35, `src/model/constants.ts`). Neu im Langlauf: Auslastung und Marge je Streckenlänge und
+Prüfregel B7.10 (F48). Kurzbericht ohne Langläufe: `balance/3.9d-bericht.md` (15 ok · 0 Abweichung · 21 Info).
+Die Marktgröße (E67) ist **nicht** geändert: Ihr Ziel ist so nicht erreichbar (Fund 23) → Frage O66.
+
+### Fund 22: E66 bringt die KI an fremde Drehkreuze, aber kaum auf dieselben Paare → Teil von O66
+
+Mit E66 fliegen KI zu fremden Drehkreuzen (Lauf 0, 1965: JFK–ATL, ATL–FRA, CDG–JFK, SEA–JFK). Geteilte Paare bleiben
+aber selten: 1 % (1960er) bis 3 % (1990er) statt 0 %. Grund: Die zweite KI fliegt dasselbe Paar fast nie zurück, und am
+Drehkreuz hält der Besitzer fast alle Slots (JFK 1965: Flag 511, alle anderen 13). Eine Hilfsrechnung je Jahr
+(Drehkreuze und Slots, Sitzung 3.9d, nicht im Projekt) zeigt das.
+
+### Fund 23: Eine kleinere Marktgröße senkt die Marge der KI kaum; die Auslastung bleibt 100 % → O66
+
+Kalibrier-Läufe (Hilfsrechnung in Kopien des Codes, F48): je Variante 4 Läufe × 40 Jahre (1960–1999), Normal, mit
+Zuschuss, mit E66. Median je Strecke und Monat (Juli), Mittel über die Jahrzehnte:
+
+| Marktgröße | Auslastung | Marge | Marge 1970er (Ölkrisen) | Marge kurz / mittel / lang (1990er) | Preis Y | Strecken (1990er, je Lauf und Monat) | aufgelöste Gründer |
+|---|---|---|---|---|---|---|---|
+| × 1 | 100 % | 47 % | 26 % | 41 / 49 / 66 % | 0,96–0,99 | 501 | 0 von 20 |
+| × 0,5 | 100 % | 37 % | 20 % | 37 / 45 / 57 % | 0,99–1,04 | 471 | 2 |
+| × 0,3 | 100 % | 31 % | 18 % | 33 / 37 / 53 % | 1,01–1,10 | 389 | 2 |
+| × 0,3, `DISTANCE_EXP` 0,3 | 100 % | 29 % | 15 % | 30 / 36 / 51 % | 1,09–1,14 | 391 | 6 |
+
+- Jede KI fliegt ihre Paare allein (Fund 22) und wählt so wenige Flüge (100 / 60 / 30 % der Umläufe), dass sie voll ist.
+  Die Auslastung bleibt deshalb bei 100 %, gleich wie klein der Markt ist; nur Langstrecken fallen auf 84–99 %.
+- Die Marge hängt dann am Preis gegen die Kosten. Eine volle Mittelstrecke deckt ihre Kosten beim 0,6-Fachen des
+  Marktpreises, eine Langstrecke beim 0,3-Fachen (A330-300 FRA–JFK 1995, Fund 1, Spezifikation 5.18).
+- Eine kleinere Marktgröße verschiebt die KI auf Kurzstrecken (bei × 0,3 die Hälfte der Strecken), macht sie ärmer
+  (Kasse der Gründer nach 40 Jahren im Median 2 707 → 1 450 → 746 Mio. $) und löst mehr Gründer auf.
+- Für die Ziele aus E67 (Auslastung 75–90 %, Marge 10–25 %) bräuchte es eine Marktgröße unter × 0,2; dann würde die KI in
+  den 1970ern im Median Verlust machen.
+- Typische Strecken allein (Abschnitt 4, Hilfsrechnung mit `runCase`): Ohne Rivalen hebt der beste Preis die Marge über
+  die Knappheit. Für Kurz- und Mittelstrecke passt × 0,25 bis × 0,3 mit `DISTANCE_EXP` 0,3 (A320ceo FRA–MAD 1990: 70–80 %
+  Auslastung, Marge 22–32 %); Langstrecken mit 14 Abflügen sind dann halb leer (A330-300 FRA–JFK 24–29 %).
+
+### Fund 24: Preis-Absicherung ist jetzt eine Abwägung (B8.1) → E69 umgesetzt
+
+Mit `HEDGE_PRICE_SHARE` 0,35 spart die Absicherung das 2,64- (1973), 1,42- (1979) und 1,05-Fache (1990) ihres Preises
+(vorher 4,62 / 2,49 / 1,84). Die Rückgewinnung (B8.2, heute 2,5–5,1) wird erst nach O66 festgelegt.
+
 ## Noch offene Prüfregeln
 
-Keine Prüfregel der Abschnitte 1–8 ist mehr ohne Skript. Nach E66–E68 (Paket 3.9d) den ganzen Bericht neu erzeugen,
-mit Langläufen; besonders B6.7 (Klassen-Forschung), B6.8 (Jahresziel), B8.2 (Rückgewinnung) und B8.8 (Kreditlinie)
-hängen an der Marktgröße.
+Keine Prüfregel der Abschnitte 1–8 ist mehr ohne Skript. Nach O66 (Rest von Paket 3.9d) den ganzen Bericht neu
+erzeugen, mit Langläufen; besonders B7.10 (Ziel aus E67), B6.7 (Klassen-Forschung), B6.8 (Jahresziel), B8.2
+(Rückgewinnung) und B8.8 (Kreditlinie) hängen an Marktgröße und Marge.
