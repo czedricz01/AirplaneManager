@@ -32,6 +32,7 @@ import {
   RIVAL_STRENGTH,
   RIVAL_STRENGTHS,
   START_HUB_SETUP,
+  SUPERSONIC_MIN_KMH,
   YIELD_MAX,
   type CabinClass,
   type RivalPersonality,
@@ -213,7 +214,7 @@ describe('Abschnitt 7.4 Persönlichkeiten', () => {
     near(rivalBuyChance('hard', 'lcc'), 0.85);
     near(rivalBuyChance('hard', 'expansionist'), 0.9);
     near(rivalBuyChance('hard', 'flag'), 0.85);
-    near(rivalBuyChance('easy', 'boutique'), 0.12 * 0.6);
+    near(rivalBuyChance('easy', 'boutique'), 0.12 * 0.9);
   });
 
   it('7.4: Reserve mit atCost', () => {
@@ -350,12 +351,12 @@ describe('Abschnitt 7.6 KI-Preise', () => {
   it('7.18: Beispiel KI-Preise bei Marktpreis 100 $', () => {
     const lcc = rivalTargetFareRatio('lcc', satisfactionFactor(85));
     near(satisfactionFactor(85), 0.925, 1e-9);
-    near(lcc * 100, 83.25, 1e-9);
+    near(lcc * 100, 87.875, 1e-9);
     near(rivalTargetFareRatio('flag', satisfactionFactor(115)) * 100, 111.2, 0.1);
     const war = rivalFareRatio({ personality: 'lcc', target: lcc, yieldPosition: 0, priceWar: true, breakEvenFull: 0.5 });
-    near(war * 100, 73.26, 1e-6);
+    near(war * 100, 77.33, 1e-6);
     const deep = rivalFareRatio({ personality: 'lcc', target: lcc, yieldPosition: -0.15, priceWar: true, breakEvenFull: 0.5 });
-    near(deep * 100, 62.27, 0.01);
+    near(deep * 100, 65.73, 0.01);
     assert.ok(deep >= 0.6);
   });
 
@@ -508,6 +509,17 @@ describe('Abschnitt 7.7 Gründung und Startwerte', () => {
       }
     }
     assert.equal(pickStartAircraft('lcc', 'regional', [], 0, () => 0), -1);
+  });
+
+  it('7.7 (F50): nie Überschall als Startflugzeug, auch nicht in den Jahren der Concorde', () => {
+    for (let month = 0; month < 12 * 60; month += 6) {
+      for (const p of PERSONALITY_IDS) {
+        for (const u of [0, 0.5, 0.99]) {
+          const i = pickStartAircraft(p, 'narrowbody', AIRCRAFT, month, () => u);
+          if (i >= 0) assert.ok(AIRCRAFT[i].cruiseSpeed <= SUPERSONIC_MIN_KMH, `${p} ${month}: ${AIRCRAFT[i].id}`);
+        }
+      }
+    }
   });
 
   it('7.7: nie am Spieler-Drehkreuz, an KI-Drehkreuzen oder mit Spieler-Stufe 3; Größe 4, sonst 2', () => {

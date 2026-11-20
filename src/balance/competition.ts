@@ -7,7 +7,7 @@
  * - Stärke-Läufe: Easy und Hard mit Zuschuss (KI-Stärke-Werte, 7.3).
  */
 
-import { CONNECTION_APPEAL, type RivalPersonality } from '../model/constants';
+import { CONNECTION_APPEAL, RIVAL_SUBSIDY_ENABLED, type RivalPersonality } from '../model/constants';
 import { num, pct, type Check, type Section, type Table } from './report';
 import { BIG_STEP, LENGTH_BANDS, PERSONALITY_ORDER, founderHub, spreadOf, type CompanyYear, type LengthBand, type LongRunResult, type YearStats } from './longRun';
 
@@ -139,7 +139,7 @@ function founderTable(runs: readonly LongRunResult[]): Table {
       ...PERSONALITY_ORDER.map((p, k) => {
         const c = last?.companies.find((x) => x.id === `f-${p}`);
         const liq = r.founderLiquidated[p];
-        return `${founderHub(r.settings.run, k)}: ${liq !== undefined ? `aufgelöst ${num(liq, 0)}` : musd1960(c?.value1960 ?? Number.NaN)}`;
+        return `${r.founderHubs?.[p] ?? founderHub(r.settings.run, k)}: ${liq !== undefined ? `aufgelöst ${num(liq, 0)}` : musd1960(c?.value1960 ?? Number.NaN)}`;
       }),
     ];
   });
@@ -147,7 +147,7 @@ function founderTable(runs: readonly LongRunResult[]): Table {
     title: 'Gründer je Lauf am Ende (Drehkreuz: Unternehmenswert in Preisen von 1960)',
     header: ['Lauf', ...PERSONALITY_ORDER],
     rows,
-    note: 'Jede Persönlichkeit hat über die 10 Läufe jedes der 10 Drehkreuze genau einmal (`founderHub`).',
+    note: 'Feste Drehkreuze nach `founderHub` (über 10 Läufe jedes einmal je Persönlichkeit); ist von dort keine Strecke mit Gewinn möglich, das nächste freie aus `FOUNDER_HUBS` (E71).',
   };
 }
 
@@ -356,8 +356,19 @@ export function competitionSections(runs: readonly LongRunResult[]): Section[] {
   const tables: Table[] = [];
 
   if (g.main.length > 0) {
-    checks.push(similarCheck('B7.1', g.main, 'mit Zuschuss'));
-    tables.push(valueTable('Unternehmenswert der Gründer mit Zuschuss (Median, Preise von 1960; in Klammern ÷ Median aller)', g.main, '„Faktor“ = größtes Verhältnis einer Persönlichkeit zum Median aller, in beide Richtungen. Aufgelöste Gründer zählen mit 0.'));
+    // Nach der Abschaffung (E68) bekommt auch eine KI mit Merkmal `subsidized` keinen Dollar: „Haupt-Läufe“ = ohne Zuschuss.
+    const mainLabel = RIVAL_SUBSIDY_ENABLED ? 'mit Zuschuss' : 'Zuschuss abgeschafft';
+    checks.push(similarCheck('B7.1', g.main, mainLabel));
+    if (!RIVAL_SUBSIDY_ENABLED && g.noSubsidy.length === 0) {
+      checks.push({
+        id: 'B7.2',
+        spec: '7.14',
+        rule: 'Abschaffung des Zuschusses',
+        value: 'abgeschafft (E68, `RIVAL_SUBSIDY_ENABLED = false`); die Haupt-Läufe sind Läufe ohne Zuschuss',
+        verdict: 'info',
+      });
+    }
+    tables.push(valueTable(`Unternehmenswert der Gründer, ${mainLabel} (Median, Preise von 1960; in Klammern ÷ Median aller)`, g.main, '„Faktor“ = größtes Verhältnis einer Persönlichkeit zum Median aller, in beide Richtungen. Aufgelöste Gründer zählen mit 0.'));
     tables.push(founderTable(g.main));
   }
   if (g.noSubsidy.length > 0) {
@@ -400,9 +411,9 @@ export function competitionSections(runs: readonly LongRunResult[]): Section[] {
     checks.push({
       id: 'B7.10',
       spec: '3.6, E67',
-      rule: `Marktgröße: typische KI-Strecke ${pct(LOAD_TARGET[0])}–${pct(LOAD_TARGET[1])} Auslastung, Marge ${pct(MARGIN_TARGET[0])}–${pct(MARGIN_TARGET[1])} (Median, Mittel der Jahre)`,
-      value: `Auslastung ${pct(loadMedian)}, Marge ${pct(marginMedian)}`,
-      verdict: inRange(loadMedian, LOAD_TARGET) && inRange(marginMedian, MARGIN_TARGET) ? 'ok' : 'abweichung',
+      rule: `Marktgröße: typische KI-Strecke mit Marge ${pct(MARGIN_TARGET[0])}–${pct(MARGIN_TARGET[1])} (Median, Mittel der Jahre). Auslastung nur Info (E71): Ziel ${pct(LOAD_TARGET[0])}–${pct(LOAD_TARGET[1])} gilt für den Spieler beim besten Preis; die KI fliegt ihre Paare meist allein und wählt eine volle Maschine`,
+      value: `Marge ${pct(marginMedian)}; Auslastung ${pct(loadMedian)} (Info)`,
+      verdict: inRange(marginMedian, MARGIN_TARGET) ? 'ok' : 'abweichung',
     });
     const transferYears = allYears.filter((y) => y.transfers).map((y) => y.transfers as NonNullable<YearStats['transfers']>);
     if (transferYears.length > 0) {

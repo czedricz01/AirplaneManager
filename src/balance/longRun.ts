@@ -28,7 +28,7 @@ import {
 } from '../model/monthClose';
 import { companyValue } from '../model/progress';
 import { RIVAL_INPUTS, pickStartAircraft, rivalAircraft, rivalStartCash, rivalStartSetup, startFleetKinds } from '../model/rivals';
-import { companyValueOf, newRivalAgent, rivalAgentOf, rivalDecisions, rivalRefill, rivalSize, rivalSlotCap } from '../model/rivalMonth';
+import { companyValueOf, newRivalAgent, rivalAgentOf, rivalDecisions, rivalHubViable, rivalRefill, rivalSize, rivalSlotCap } from '../model/rivalMonth';
 import { slotLimit } from '../model/airportCosts';
 import { rng } from '../model/rng';
 import { quantile } from './market';
@@ -102,11 +102,15 @@ export function founderCompany(personality: RivalPersonality, hub: string, stren
   };
 }
 
-/** Der Start-Spielstand eines Laufs. */
+/**
+ * Der Start-Spielstand eines Laufs. Gründung nur an Drehkreuzen mit möglicher Gewinn-Strecke (E71, `rivalHubViable`):
+ * Ist das feste Drehkreuz `founderHub(run, k)` es nicht, nimmt der Gründer das nächste freie aus `FOUNDER_HUBS`, das es
+ * ist. Ohne ein solches fällt der Gründer weg.
+ */
 export function longRunStart(s: LongRunSettings, airports: Record<string, ModelAirport> = allModelAirports()): ModelState {
   const month = (s.startYear - START_YEAR) * 12;
   const seed = 1000 + s.run;
-  return {
+  const base: ModelState = {
     month,
     seed,
     airports,
@@ -115,8 +119,22 @@ export function longRunStart(s: LongRunSettings, airports: Record<string, ModelA
     badLuck: false,
     resold: [],
     catalog: aircraftList,
-    companies: PERSONALITY_ORDER.map((p, k) => founderCompany(p, founderHub(s.run, k), s.strength, month, seed, s.subsidy)),
+    companies: [],
   };
+  const companies: CompanyState[] = [];
+  PERSONALITY_ORDER.forEach((p, k) => {
+    const first = FOUNDER_HUBS.indexOf(founderHub(s.run, k));
+    for (let step = 0; step < FOUNDER_HUBS.length; step++) {
+      const hub = FOUNDER_HUBS[(first + step) % FOUNDER_HUBS.length];
+      if (companies.some((c) => c.hubs?.includes(hub))) continue;
+      const company = founderCompany(p, hub, s.strength, month, seed, s.subsidy);
+      if (rivalHubViable({ ...base, companies }, company)) {
+        companies.push(company);
+        return;
+      }
+    }
+  });
+  return { ...base, companies };
 }
 
 /** Nachrücken; ohne Zuschuss bekommt auch die neue KI keinen. */
@@ -249,6 +267,8 @@ export interface LongRunResult {
   readonly years: readonly YearStats[];
   /** Jahr der Auflösung je Gründer (fehlt = nicht aufgelöst). */
   readonly founderLiquidated: Readonly<Partial<Record<RivalPersonality, number>>>;
+  /** Tatsächliches Drehkreuz je Gründer (E71: kann vom festen `founderHub` abweichen; fehlt = nicht gegründet). */
+  readonly founderHubs?: Readonly<Partial<Record<RivalPersonality, string>>>;
   readonly ms: number;
 }
 
@@ -339,6 +359,11 @@ function slotStats(state: ModelState): { holdings: number; atCap: number; maxSha
 export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, airports?: Record<string, ModelAirport>): LongRunResult {
   const started = Date.now();
   let state = longRunStart(s, airports);
+  const founderHubs: Partial<Record<RivalPersonality, string>> = {};
+  for (const c of state.companies) {
+    const p = rivalAgentOf(c)?.personality;
+    if (p && c.hubs?.[0]) founderHubs[p] = c.hubs[0];
+  }
   const after = refillFor(s);
   const transferEvery = s.transferEveryYears ?? 5;
   const years: YearStats[] = [];
@@ -473,5 +498,5 @@ export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, air
     years.push(stats);
     onYear?.(stats);
   }
-  return { settings: s, years, founderLiquidated, ms: Date.now() - started };
+  return { settings: s, years, founderLiquidated, founderHubs, ms: Date.now() - started };
 }

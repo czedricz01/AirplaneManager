@@ -6,7 +6,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CABIN_CLASSES } from '../model/constants';
+import { CABIN_CLASSES, RIVAL_SUBSIDY_ENABLED } from '../model/constants';
 import { quantile, satisfactionSection, timeAndMoney } from './market';
 import { num, pct, renderMarkdown, verdictCounts, type Section } from './report';
 import { bestFareRatios, caseMarket, priceDuel, ROUTE_CASES, routeSections, runCase } from './routes';
@@ -148,9 +148,9 @@ describe('Balance-Skript: Langläufe (3.9b)', () => {
     assert.equal(lengthBand(3500), 'long');
   });
 
-  it('ohne Zuschuss: kein Dollar Zuschuss; mit Zuschuss: Zuschuss im Ergebnis', () => {
+  it('ohne Zuschuss: kein Dollar Zuschuss; mit Zuschuss: Zuschuss im Ergebnis, solange er nicht abgeschafft ist (E68)', () => {
     for (const y of without.years) for (const c of y.companies) assert.equal(c.subsidy1960, 0);
-    assert.ok(withSubsidy.years[0].companies.every((c) => c.subsidy1960 > 0));
+    assert.ok(withSubsidy.years[0].companies.every((c) => (RIVAL_SUBSIDY_ENABLED ? c.subsidy1960 > 0 : c.subsidy1960 === 0)));
   });
 
   it('competitionSections: Prüfregeln ohne NaN, Kennungen eindeutig', () => {

@@ -1,19 +1,18 @@
 # Status
 
-**Nächstes Paket: wartet auf O67** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“): „Ähnlicher Erfolg“ der KI und
-Auslastungs-Ziel nach E70. Bei A folgt Paket **3.9e** (Persönlichkeiten nachstellen, Gründung nur an Drehkreuzen mit
-möglicher Gewinn-Strecke, Langläufe neu, danach Zuschuss abschalten nach E68); bei B oder C folgt **4.1** (Glossar und
-Erklärtexte aus den Konstanten). Phase 4 hängt nicht von O67 ab.
+**Nächstes Paket: 4.1** (Glossar und Erklärtexte aus den Konstanten). Phase 3 ist abgeschlossen; keine offene Frage.
 
-Stand: 20.11.2026 · Paket 3.9d erledigt: E70 umgesetzt (`DEMAND_SCALE` 14,5, `DISTANCE_EXP` 0,3, Preis-Tabelle
-`FARE_TIME_FACTOR` 1,04 … 0,50 statt `SHORT_HAUL_FARE_FACTOR`, `src/model/constants.ts:554`, `:564`, `:723`),
-`RECOVERY_PRICE_SHARE` 0,25 (E69); Marge der KI 47 → 23 % (Ziel 10–25 %), Spieler allein beim besten Preis 86–99 %
-Auslastung. Balance-Skript: typische Strecken mit gewinnbester Abflugzahl, Preiskampf mit 28 statt 56 Abflügen (F49).
-Bericht `docs/neubau/balance/3.9d-bericht.md` (16 ok · 4 Abweichung · 28 Info), Bewertung `BALANCE.md` Funde 25–30.
-Zuschuss bleibt an (E68: 7.14 nicht erfüllt, weil „ähnlicher Erfolg“ auch ohne Zuschuss nicht gilt).
+Stand: 20.11.2026 · Paket 3.9e erledigt (E71, O67 = A): Gründung nur an Drehkreuzen mit möglicher Gewinn-Strecke
+(`rivalHubViable`, `src/model/rivalMonth.ts`), nie Überschall als Startflugzeug (F50), Persönlichkeiten nachgestellt
+(LCC Preis-Lage 0,95; Boutique Kaufneigung 0,9, 2 Drehkreuze; Startflugzeug-Gewichte, `src/model/constants.ts`), B7.10
+urteilt nur über die Marge. Langläufe: „ähnlicher Erfolg“ Faktor 1,36 / 1,60 (ohne Zuschuss 1,81 / 1,70), keine
+Auflösung; 7.14 erfüllt → Zuschuss abgeschaltet (E68, `RIVAL_SUBSIDY_ENABLED = false`). Bericht
+`docs/neubau/balance/3.9e-bericht.md` (20 ok · 0 Abweichung · 28 Info), Bewertung `BALANCE.md` Funde 31–33.
 
-Offene Fragen: **O67** (ähnlicher Erfolg B7.1 Faktor 2,5–2,7; Auslastung der KI 100 %; 7 Gründer im Mai 1960 an SIN/SYD/HND
-aufgelöst; Empfehlung A).
+Offen aus 3.9e (kein Blocker): Nach 50–60 Jahren fällt der Optimizer auf 0,6–0,7 des Medians, der Expansionist steigt
+auf 1,7–1,9 (Regel gilt nur nach 20 und 40 Jahren); KI-Stärke Normal ≈ Hard; geteilte Paare selten (Weg B aus O66).
+Alles in Phase 5.3 beobachten. Phase 4: `rivalHubViable` als Hinweis beim Spieler-Start (Drehkreuz ohne mögliche
+Gewinn-Strecke, z. B. SIN 1960); die Zeile „Subsidy“ (immer 0) entfernt Phase 5.2.
 
 Offen aus 3.9c (kein Blocker): B6.7 bleibt nach E70 ok (`CLASS_RESEARCH` unverändert). Ruf-Meilenstein Gold (80) erreicht keine
 KI-Ausstattung (bestes Ruf-Ziel 76,3); gewollt selten, in Phase 5.3 mit Spieler-Ausstattung ansehen.
@@ -177,13 +176,13 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 3.9b | Balance-Skript Teil 2: Langläufe mit `closeMonth` ohne Spieler (Abschnitt 7, Umsteiger 3.13) | erledigt |
 | 3.9c | Balance-Skript Teil 3: Abschnitte 6 und 8 ohne Langlauf (Ruf, Rang, Forschung, Jahresziel, Szenario, Krisen-Antworten, Charter, Flottenmarkt, Kreditlinie) | erledigt |
 | 3.9d | E66–E70 umsetzen: KI an fremden Drehkreuzen, Marktgröße und Preise per Skript einstellen, Langläufe neu, Zuschuss-Prüfung, Preise der Krisen-Antworten | erledigt |
-| 3.9e | Persönlichkeiten nachstellen („ähnlicher Erfolg“ 7.4), Gründung nur an Drehkreuzen mit Gewinn-Strecke, Langläufe neu, Zuschuss abschalten (E68) | wartet auf O67 (nur bei A) |
+| 3.9e | Persönlichkeiten nachstellen („ähnlicher Erfolg“ 7.4), Gründung nur an Drehkreuzen mit Gewinn-Strecke, Langläufe neu, Zuschuss abschalten (E68) | erledigt |
 
 ## Phase 4 – Oberfläche anbinden
 
 | Nr. | Paket | Status |
 |---|---|---|
-| 4.1 | Glossar und Erklärtexte aus den Konstanten erzeugen | offen |
+| 4.1 | Glossar und Erklärtexte aus den Konstanten erzeugen (Startpunkt: `src/components/InfoTooltip.tsx`, `bestand/8-oberflaeche.md` Abschnitt „Texte mit festen Zahlen“, `src/model/constants.ts`) | offen |
 | 4.2+ | Ansichten nacheinander auf `src/model/` umstellen (Vorschlag 4.2–4.7 in `bestand/8-oberflaeche.md`) | offen |
 
 ## Phase 5 – Abschluss
@@ -248,3 +247,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | 3.9d (Teil 1) | E66 umgesetzt (`TargetCandidate.otherRivalHub`, `PRESELECT_RIVAL_HUB_WEIGHT` = 2, Spezifikation 7.9), `HEDGE_PRICE_SHARE` 0,35 (E69, Spezifikation 8.5); Langlauf mit Auslastung / Marge je Länge und Prüfregel B7.10 (F48); 16 Kalibrier-Läufe zu E67: Auslastung bleibt bei jeder Marktgröße 100 %, Marge × 1 47 %, × 0,5 37 %, × 0,3 31 %; E66 teilt nur 1–3 % der Paare → neue Frage O66, `DEMAND_SCALE` unverändert; Kurzbericht `balance/3.9d-bericht.md` (15 ok, 0 Abweichung, 21 Info); 2 neue Tests (1235 grün) |
 | 20.11.2026 | – | O66 entschieden: E70 (Marge der KI über Preis gegen Kosten: Grundpreis senken, Langstrecke stärker, Marktgröße kleiner) |
 | 20.11.2026 | 3.9d (Rest) | E70 umgesetzt: `DEMAND_SCALE` 29 → 14,5, `DISTANCE_EXP` 0,5 → 0,3, `FARE_TIME_FACTOR` 1,04 … 0,50 (Kalibrierung mit 8 Varianten), `RECOVERY_PRICE_SHARE` 0,25 (E69); Spezifikation 3.4, 3.6, 4.1, 4.8, 4.13, 5.18, 8.5, 8.17; Balance-Skript mit gewinnbester Abflugzahl; Langläufe neu: Marge KI 23 %, Auslastung 100 %, ähnlicher Erfolg kippt (Faktor 2,5–2,7), Zuschuss bleibt (E68); neue Frage O67 |
+| 20.11.2026 | – | O67 entschieden: E71 (A, Paket 3.9e „Persönlichkeiten“) |
+| 20.11.2026 | 3.9e | E71 umgesetzt: Gründung nur mit möglicher Gewinn-Strecke (`rivalHubViable`), Überschall nie Startflugzeug (F50), LCC Preis-Lage 0,95, Boutique Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeug-Gewichte (Kalibrierung mit 4 Varianten, F51); Langläufe: ähnlicher Erfolg 1,36 / 1,60 (ohne Zuschuss 1,81 / 1,70), 0 Auflösungen; Zuschuss abgeschaltet (E68); Bericht `balance/3.9e-bericht.md` (20 ok, 0 Abweichung, 28 Info); 3 neue Tests (1238 grün). Phase 3 abgeschlossen |

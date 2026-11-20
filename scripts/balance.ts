@@ -5,7 +5,7 @@
  *   npm run balance -- --out <datei> → Bericht in eine Datei
  *   npm run balance -- --long        → dazu die Langläufe der KI (Abschnitt 7, 3.13; Paket 3.9b), etwa 1–2 Stunden
  *
- * Optionen der Langläufe: `--runs <n>` (Läufe je Art, Standard 10), `--years <n>` (Standard 60), `--strength-runs <n>`
+ * Optionen der Langläufe: `--runs <n>` (Läufe je Art, Standard 10; „ohne Zuschuss“ nur, solange `RIVAL_SUBSIDY_ENABLED`), `--years <n>` (Standard 60), `--strength-runs <n>`
  * (Läufe je Stärke Easy/Hard, Standard 3, über 40 Jahre), `--jobs <n>` (gleichzeitige Prozesse, Standard 4),
  * `--cache <ordner>` (Ergebnisse je Lauf als JSON, Standard `.balance-runs`), `--reuse` (vorhandene Ergebnisse nicht
  * neu rechnen).
@@ -19,6 +19,7 @@ import { join } from 'node:path';
 import { balanceReport, balanceSections, verdictCounts } from '../src/balance/index';
 import { competitionSections } from '../src/balance/competition';
 import type { LongRunResult, LongRunSettings } from '../src/balance/longRun';
+import { RIVAL_SUBSIDY_ENABLED } from '../src/model/constants';
 
 const args = process.argv.slice(2);
 const option = (name: string, fallback: string) => {
@@ -35,7 +36,8 @@ function longRunSettings(): LongRunSettings[] {
   const strengthRuns = Number(option('--strength-runs', '3'));
   const list: LongRunSettings[] = [];
   for (let run = 0; run < runs; run++) list.push({ run, startYear: 1960, years, strength: 'normal', subsidy: true });
-  for (let run = 0; run < runs; run++) list.push({ run, startYear: 1960, years, strength: 'normal', subsidy: false });
+  // Läufe ohne Zuschuss nur, solange es ihn gibt (abgeschafft nach E68, Paket 3.9e): sonst gleichen sie den Haupt-Läufen.
+  if (RIVAL_SUBSIDY_ENABLED) for (let run = 0; run < runs; run++) list.push({ run, startYear: 1960, years, strength: 'normal', subsidy: false });
   for (const strength of ['easy', 'hard'] as const) {
     for (let run = 0; run < strengthRuns; run++) list.push({ run, startYear: 1960, years: Math.min(40, years), strength, subsidy: true });
   }

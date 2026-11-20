@@ -24,6 +24,7 @@ import { aircraftValue, newAircraftPrice } from './fleet';
 import { activeWorldEvents } from './monthEvents';
 import {
   fleetValue,
+  monthOperations,
   newLedger,
   plannerRouteFigures,
   plannerRouteResult,
@@ -2035,7 +2036,7 @@ export function foundRivalCompany(
   if (aircraft.length === 0) return null;
   const cash = rivalStartCash(strength, month, 2 * u('cash') - 1);
   const setup = rivalStartSetup();
-  return {
+  const company: CompanyState = {
     id,
     cash,
     reputation: setup.reputation,
@@ -2053,6 +2054,34 @@ export function foundRivalCompany(
     hubs: [hub],
     agent: newRivalAgent(p, strength),
   };
+  return rivalHubViable(state, company) ? company : null;
+}
+
+/**
+ * Ist vom Drehkreuz einer neuen KI im Gründungsmonat eine Strecke mit Gewinn möglich (E71)? Probe: Die Gesellschaft
+ * plant so, wie sie es in ihrem ersten Abschluss tut (`rivalDecisions`, 7.9), auf dem Spielstand mit allen anderen
+ * Gesellschaften; möglich heißt Planer-Hauptzahl > 0 (ohne Schätzfehler) für mindestens ein geprüftes Ziel. Die Probe
+ * ändert den Spielstand nicht. Gilt für jede Gründung (7.7); Phase 4 nutzt dieselbe Prüfung als Hinweis beim
+ * Spieler-Start. SPEZIFIKATION 7.7.
+ *
+ * @param company Die neue Gesellschaft mit genau einem Drehkreuz (`hubs[0]`), ohne Strecken.
+ */
+export function rivalHubViable(state: ModelState, company: CompanyState): boolean {
+  const agent = rivalAgentOf(company);
+  const hub = company.hubs?.[0];
+  if (!agent || !hub) return false;
+  // Startwert 1: Bleibt das Drehkreuz ungeprüft (kein Ziel erreichbar), kommt 1 zurück, nicht 0.
+  const probe: CompanyState = { ...company, agent: { ...agent, hubNoProfit: { [hub]: 1 } } };
+  const operations = monthOperations({ ...state, companies: [probe] })[probe.id];
+  const outcome = rivalDecisions(probe, {
+    month: state.month,
+    seed: state.seed,
+    operations,
+    result: 0,
+    costsTotal: 0,
+    state: { ...state, companies: [...state.companies.filter((c) => c.id !== probe.id), probe] },
+  });
+  return rivalAgentOf(outcome.company)?.hubNoProfit?.[hub] === 0;
 }
 
 /**

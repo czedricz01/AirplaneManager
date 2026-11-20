@@ -4,7 +4,7 @@
 
 import { airportsData } from '../data/airports';
 import { costIndex, difficultyFactor } from '../model/basics';
-import { CABIN_CLASSES, type CabinClass, type RivalPersonality } from '../model/constants';
+import { CABIN_CLASSES, PERSONALITIES, type CabinClass, type RivalPersonality } from '../model/constants';
 import { fuelTable } from '../model/costs';
 import {
   blockMinutes,
@@ -140,7 +140,7 @@ export function satisfactionSection(): Section {
   checks.push({
     id: 'B2.2',
     spec: '2.6.2, 7.4',
-    rule: 'Stärke der Service-Abzüge: Satisfaction der LCC (kein Service, dichte Kabine) auf Kurzstrecke; Ausgleich über Preis-Lage 0,90 (7.4)',
+    rule: `Stärke der Service-Abzüge: Satisfaction der LCC (kein Service, dichte Kabine) auf Kurzstrecke; Ausgleich über Preis-Lage ${num(PERSONALITIES.lcc.farePosition as number, 2)} (7.4)`,
     value: `LCC Economy FRA–CDG: ${num(lccShortGap, 0)} → Faktor ${num(satisfactionFactor(lccShortGap), 2)}`,
     verdict: 'info',
   });
