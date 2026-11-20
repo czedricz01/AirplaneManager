@@ -21,3 +21,4 @@ export * from './rivalMonth';
 export * from './monthEvents';
 export * from './fleetMarket';
 export * from './monthClose';
+export * from './glossary';

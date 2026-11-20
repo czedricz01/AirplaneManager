@@ -1,13 +1,20 @@
 # Status
 
-**Nächstes Paket: 4.1** (Glossar und Erklärtexte aus den Konstanten). Phase 3 ist abgeschlossen; keine offene Frage.
+**Nächstes Paket: 4.2** (Regeln aus `App.tsx` ins Modell). Keine offene Frage.
 
-Stand: 20.11.2026 · Paket 3.9e erledigt (E71, O67 = A): Gründung nur an Drehkreuzen mit möglicher Gewinn-Strecke
-(`rivalHubViable`, `src/model/rivalMonth.ts`), nie Überschall als Startflugzeug (F50), Persönlichkeiten nachgestellt
-(LCC Preis-Lage 0,95; Boutique Kaufneigung 0,9, 2 Drehkreuze; Startflugzeug-Gewichte, `src/model/constants.ts`), B7.10
-urteilt nur über die Marge. Langläufe: „ähnlicher Erfolg“ Faktor 1,36 / 1,60 (ohne Zuschuss 1,81 / 1,70), keine
-Auflösung; 7.14 erfüllt → Zuschuss abgeschaltet (E68, `RIVAL_SUBSIDY_ENABLED = false`). Bericht
-`docs/neubau/balance/3.9e-bericht.md` (20 ok · 0 Abweichung · 28 Info), Bewertung `BALANCE.md` Funde 31–33.
+Stand: 20.11.2026 · Paket 4.1 erledigt (F52): Glossar und Erklärtexte in `src/model/glossary.ts`, jede Zahl aus
+`src/model/constants.ts` oder einer Modell-Funktion (Test: keine Zahl außer 0, 1, 2, 100 in der Datei).
+`src/components/InfoTooltip.tsx` nutzt die Texte; neue Namen nach E9 („Satisfaction“, „Flight-time index“, neu „Cabin
+rating“, „Type appeal“). Lounge- und Stand-Text in `AirportDetailView.tsx` aus den Konstanten. Erstes Mal, dass eine
+Ansicht `src/model/` liest.
+
+Offen aus 4.1 (kein Blocker): Drei Glossar-Einträge bleiben alt in `InfoTooltip.tsx`, bis ihre Ansicht umgestellt ist:
+`desks` (4.3: Schalter-Pflicht E18), `utilization` (4.4: Zeitplan ins Modell), `breakEven` (4.5: Regler mit zwei
+Marken 4.11). Feste Zahlen in Ansichten (`bestand/8-oberflaeche.md` Art C): Schalter-Abzug und „General Check (200k)“
+in `AirportDetailView.tsx` → 4.3; Debug-Formel im Planer → 4.5 (E52: nur Aufschlüsselung des Modells); Preise und
+Jahre der Kabinen-Extras in `ConfigurePurchaseView.tsx` → 4.6. Spalten-Namen „Comb. Sat“ (Flotte) und „Class“
+(Strecken) nach E9 umbenennen: 4.6 / 4.5. Bis dahin beschreiben einige Texte (Schalter-Last als Mittel beider Enden,
+Verschleiß nur aus Flugstunden, Überholung) schon die neue Regel.
 
 Offen aus 3.9e (kein Blocker): Nach 50–60 Jahren fällt der Optimizer auf 0,6–0,7 des Medians, der Expansionist steigt
 auf 1,7–1,9 (Regel gilt nur nach 20 und 40 Jahren); KI-Stärke Normal ≈ Hard; geteilte Paare selten (Weg B aus O66).
@@ -182,8 +189,13 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 
 | Nr. | Paket | Status |
 |---|---|---|
-| 4.1 | Glossar und Erklärtexte aus den Konstanten erzeugen (Startpunkt: `src/components/InfoTooltip.tsx`, `bestand/8-oberflaeche.md` Abschnitt „Texte mit festen Zahlen“, `src/model/constants.ts`) | offen |
-| 4.2+ | Ansichten nacheinander auf `src/model/` umstellen (Vorschlag 4.2–4.7 in `bestand/8-oberflaeche.md`) | offen |
+| 4.1 | Glossar und Erklärtexte aus den Konstanten erzeugen (Startpunkt: `src/components/InfoTooltip.tsx`, `bestand/8-oberflaeche.md` Abschnitt „Texte mit festen Zahlen“, `src/model/constants.ts`) | erledigt |
+| 4.2 | Regeln aus `App.tsx` ins Modell (`src/App.tsx`; `bestand/8-oberflaeche.md` W8, Art D „Jahre im Geschäft“) | offen |
+| 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | offen |
+| 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | offen |
+| 4.5 | Preis und Satisfaction der Strecke (Planer Schritt 3/4, `RouteConfigOverlay.tsx`, `RouteDetailView.tsx`, `RoutesView.tsx`; W5, Klassen-Faktoren, Debug-Anzeige; Glossar `breakEven`) | offen |
+| 4.6 | Kauf, Kabine, Flotte (`ConfigurePurchaseView.tsx`, `AircraftDetailsModal.tsx`, `MyFleetView.tsx`, `AircraftMarketPanel.tsx`; W4, Art D Alter und Wiederverkauf, Texte der Kabinen-Extras) | offen |
+| 4.7 | Kennzahlen und Anzeigen (`app/GameTopBar.tsx`, `MyCompanyView.tsx`, `app/MonthlyReportScreen.tsx`, `LiveTraffic.tsx`, `CompetitorsView.tsx`; W7, Ereignis-Abschwächung) | offen |
 
 ## Phase 5 – Abschluss
 
@@ -249,3 +261,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | 3.9d (Rest) | E70 umgesetzt: `DEMAND_SCALE` 29 → 14,5, `DISTANCE_EXP` 0,5 → 0,3, `FARE_TIME_FACTOR` 1,04 … 0,50 (Kalibrierung mit 8 Varianten), `RECOVERY_PRICE_SHARE` 0,25 (E69); Spezifikation 3.4, 3.6, 4.1, 4.8, 4.13, 5.18, 8.5, 8.17; Balance-Skript mit gewinnbester Abflugzahl; Langläufe neu: Marge KI 23 %, Auslastung 100 %, ähnlicher Erfolg kippt (Faktor 2,5–2,7), Zuschuss bleibt (E68); neue Frage O67 |
 | 20.11.2026 | – | O67 entschieden: E71 (A, Paket 3.9e „Persönlichkeiten“) |
 | 20.11.2026 | 3.9e | E71 umgesetzt: Gründung nur mit möglicher Gewinn-Strecke (`rivalHubViable`), Überschall nie Startflugzeug (F50), LCC Preis-Lage 0,95, Boutique Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeug-Gewichte (Kalibrierung mit 4 Varianten, F51); Langläufe: ähnlicher Erfolg 1,36 / 1,60 (ohne Zuschuss 1,81 / 1,70), 0 Auflösungen; Zuschuss abgeschaltet (E68); Bericht `balance/3.9e-bericht.md` (20 ok, 0 Abweichung, 28 Info); 3 neue Tests (1238 grün). Phase 3 abgeschlossen |
+| 20.11.2026 | 4.1 | Glossar und Erklärtexte aus den Konstanten: `src/model/glossary.ts` (18 Einträge, `loungeEffectText`, Zahlen-Texte), `InfoTooltip.tsx` übernimmt sie (3 Einträge bleiben bis 4.3–4.5), Lounge- und Stand-Text in `AirportDetailView.tsx`, Flotten-Spalte erklärt Cabin rating; Pakete 4.2–4.7 eingetragen; Bau-Festlegung F52; 9 neue Tests (1247 grün) |

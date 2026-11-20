@@ -8,6 +8,8 @@ import type { AirportInfrastructure, SimulatedRoute } from '../lib/gameTypes';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
+import { STAND_POINTS } from '../model/constants';
+import { loungeEffectText } from '../model/glossary';
 
 import { getAirportUpkeep, baseLandingFee, DESK_FIXED_SHARE, getSlotPurchaseCost, SLOT_CAPEX_LABEL, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';
@@ -330,7 +332,7 @@ export function AirportDetailView({
                   {avail.stands && (
                     <div className="space-y-4 pt-4 border-t border-line">
                       <div className="flex justify-between items-center">
-                        <SectionLabel icon={<Anchor size={12} className="text-ink"/>} label="Gate/Stand Upgrades (up to +2 SAT pts)" />
+                        <SectionLabel icon={<Anchor size={12} className="text-ink"/>} label={`Gate/Stand Upgrades (up to +${STAND_POINTS} satisfaction)`} />
                         {hubAutoUpgrade ? (
                           <span className="text-2xs text-ink font-semibold uppercase tracking-label">Automatic Hub Upgrade Enabled</span>
                         ) : (
@@ -496,7 +498,7 @@ export function AirportDetailView({
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="text-ink font-semibold text-sm">VIP Lounge</div>
-                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">+4 SAT pts (Bus/First), +1 (PE)</div>
+                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">{loungeEffectText()}</div>
                         {gates?.vipLounge && !infrastructure.hubFacilities?.vipLounge && (
                           <div className="text-2xs text-bad mt-2 normal-case max-w-xs">{gates.vipLounge}</div>
                         )}
