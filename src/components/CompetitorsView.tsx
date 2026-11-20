@@ -1,5 +1,5 @@
 import { clickOnKey } from '../lib/a11y';
-import { takeoverQuote } from '../lib/takeover';
+import type { TakeoverOffer } from '../lib/modelTrades';
 import { SALE_TO_LIQUIDATION_MONTHS } from '../lib/aiSimulation';
 import { Button } from './ui/Button';
 import React, { useState, useMemo } from 'react';
@@ -113,8 +113,8 @@ interface Props {
   playerColor?: string;
   /** The month shown, for the size of the rivals' subsidy. */
   currentDateOffset?: number;
-  /** The player's rank, which decides whether a takeover is allowed. */
-  rank?: number;
+  /** The takeover offer for a rival (price, rank and status from the model, 7.16); missing = no offer shown. */
+  takeoverOffer?: (ai: AiAirline) => TakeoverOffer | null;
   /** Buys the rival with this id; the game checks the rank and the cash again. */
   onTakeover?: (aiId: string) => void;
 }
@@ -139,7 +139,7 @@ function CompetitorsViewImpl({
   playerRouteProfits,
   playerColor,
   currentDateOffset = 0,
-  rank = 0,
+  takeoverOffer,
   onTakeover
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -448,9 +448,10 @@ function CompetitorsViewImpl({
             </div>
 
             {!selectedAirline.isPlayer && (selectedAirline.forSale || onTakeover) && (() => {
-              const quote = takeoverQuote(selectedAirline as any, rank);
+              const quote = takeoverOffer?.(selectedAirline as AiAirline);
+              if (!quote) return null;
               const forSale = !!selectedAirline.forSale;
-              const affordable = playerCapital >= quote.price;
+              const affordable = playerCapital >= quote.netPrice;
               const monthsLeft = forSale && selectedAirline.forSaleSince !== undefined
                 ? Math.max(0, SALE_TO_LIQUIDATION_MONTHS - (currentDateOffset - selectedAirline.forSaleSince))
                 : null;
@@ -463,14 +464,16 @@ function CompetitorsViewImpl({
                     <div className="text-muted">
                       {forSale
                         ? `Wound up in ${monthsLeft} month${monthsLeft === 1 ? '' : 's'} if nobody buys it. `
-                        : 'A healthy airline costs two and a half times as much. '}
-                      You get its {quote.aircraft} aircraft and its slots at {selectedAirline.hub}; its {quote.routes} route{quote.routes === 1 ? ' is' : 's are'} not
-                      taken over, and the competitor is gone.
+                        : 'Not for sale: you bid its full value. '}
+                      The price is the airline&apos;s value: its cash, aircraft and slots. You get its {quote.aircraft} aircraft, its cash
+                      ({formatCurrency(quote.rivalCash)}) and its slots and desks at {quote.airports} airport{quote.airports === 1 ? '' : 's'};
+                      its {quote.routes} route{quote.routes === 1 ? ' is' : 's are'} not taken over, and the competitor is gone.
                     </div>
                     {quote.blocked && <div className="text-bad mt-1">{quote.blocked}</div>}
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <span className="font-mono text-lg font-semibold">{formatCurrency(quote.price)}</span>
+                    <span className="text-2xs text-muted">You pay {formatCurrency(quote.netPrice)} after its cash</span>
                     <Button
                       variant="primary"
                       disabled={!onTakeover || !!quote.blocked || !affordable}

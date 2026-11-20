@@ -32,7 +32,7 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { AccountScopeContext } from "./lib/accountScope";
 import { syncAllPendingConfigs } from "./lib/configStore";
-import { getJetFuelPrice, getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
+import { getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials } from "./lib/transferUtils";
 import { regionsServed } from "./lib/chronicle";
 import { type Edition } from "./lib/newspaper";
@@ -61,8 +61,9 @@ import {
   disruptionTitle
 } from "./lib/disruptions";
 import { withTradeValue, type LedgerValues } from "./lib/modelBridgeCompany";
-import type { RivalRecord, WorldState } from "./lib/modelBridgeWorld";
-import { planesValue } from "./lib/modelMonth";
+import { modelWorldEvent, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
+import { defaultModelEnv, planesValue } from "./lib/modelMonth";
+import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
 import { modelMonthClose } from "./lib/modelMonthClose";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
 import {
@@ -86,7 +87,7 @@ import {
 } from "./lib/annualGoals";
 import { setFeeFactor, setResaleBonus, setSlotPriceFactor } from "./lib/economyContext";
 import { ageYears, fleetCommonality } from "./lib/fleetCosts";
-import { buildTakeover, takeoverQuote, withTakenSlots } from "./lib/takeover";
+import { buildTakeover } from "./lib/takeover";
 import {
   cancelRefund,
   createOrder,
@@ -146,10 +147,9 @@ import { Button } from "./components/ui/Button";
 import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { budgetLabel, formatCurrency, formatNumber, formatTrend, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
-import { START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION } from "./model/constants";
+import { START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, WEEKS_PER_MONTH } from "./model/constants";
 import { seasonFactor as modelSeasonFactor } from "./model/demand";
-import { overhaulPoints, refitCabinCondition } from "./model/fleetMarket";
-import { hedgeLockMonth } from "./model/monthEvents";
+import { refitCabinCondition } from "./model/fleetMarket";
 import { startCapital, yearsPlayed } from "./model/progress";
 import { generateAiAirlines } from "./lib/aiSimulation";
 import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
@@ -187,7 +187,7 @@ const MyCompanyView = React.lazy(() => import("./components/MyCompanyView").then
 const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").then(m => ({ default: m.CompetitorsView })));
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getEventMultipliers, getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, eventKey } from "./lib/eventSystem";
+import { getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, eventKey } from "./lib/eventSystem";
 import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
 import { scenarioById, type Scenario } from "./data/scenarios";
 import { monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
@@ -218,8 +218,6 @@ import {
   findLegacyLocalSaves,
   importLegacyLocalSaves,
 } from "./lib/cloudSaves";
-
-export const GENERAL_CHECK_COST = 200000;
 
 /** One empty list for "nothing sold this month", so the market's props stay equal between renders. */
 const NO_SOLD_IDS: string[] = [];
@@ -638,32 +636,25 @@ export default function App() {
 
   // Price comes from the shared model; only the month-on-month trend string is
   // computed here, so the top bar can never disagree with what routes are billed.
-  const rawPriceAtOffset = (offset: number) =>
-    getJetFuelPrice(yearOf(offset), monthOf(offset), difficulty);
 
   /**
-   * The fuel price the PLAYER pays, which is the market price unless a hedge is
-   * in force. getFuelPriceForAi deliberately does not go through here: the
-   * rivals keep paying the market rate, which is what makes the hedge worth
-   * buying.
-   *
-   * A hedge locks the price at the month before the event began, both ways --
-   * if fuel gets cheaper during the event, the locked price is the worse deal.
+   * The fuel price the PLAYER pays per gallon, as the model's month close books it (5.2, 8.5): the model's table
+   * with its crises and the fuel research; while a bought hedge runs, the table value of the month before the
+   * event began, both ways -- if fuel gets cheaper during the event, the locked price is the worse deal. No
+   * difficulty surcharge and no event factor (E8). The rivals pay the table, which is what makes the hedge worth buying.
    */
   const priceAtOffset = (offset: number) => {
     const hedged = getActiveEvents(offset)
       .filter(ev => ev.choices?.find(c => c.id === eventChoices[eventKey(ev)])?.hedgesFuel)
       .map(ev => ({ startMonth: ev.startOffset, months: ev.duration }));
-    // Which month's price the hedge holds is the model's rule (8.5); the price itself
-    // still comes from the old table until the month close runs on the model.
-    return rawPriceAtOffset(Math.max(0, hedgeLockMonth(hedged, offset) ?? offset));
+    return playerFuelPerGallon(offset, career.research.done, hedged);
   };
 
   const getFuelData = (offset: number) => {
-    // The fuel programmes cut what the airline burns, so what it pays.
-    const price = priceAtOffset(offset) * researchFx.fuelFactor;
+    // The fuel programmes are in the model's price already (researchCostFactor).
+    const price = priceAtOffset(offset);
 
-    const trend = offset > 0 ? formatTrend(price, priceAtOffset(offset - 1) * researchFx.fuelFactor) : "0%";
+    const trend = offset > 0 ? formatTrend(price, priceAtOffset(offset - 1)) : "0%";
 
     return { price, trend };
   };
@@ -672,7 +663,7 @@ export default function App() {
   const fuelData = useMemo(
     () => getFuelData(currentDateOffset),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentDateOffset, difficulty, eventChoices, randomEvents, researchFx]
+    [currentDateOffset, eventChoices, randomEvents, career.research.done]
   );
 
   /**
@@ -718,14 +709,13 @@ export default function App() {
    * This month's profit and weekly passengers per route, for the map's profit
    * heatmap. The forecast rather than the last closed month, so a route opened
    * or repriced today shows its colour straight away. Profit is the weekly
-   * figure times four, as the old monthly close books it. The three "× 4" here
-   * become the model's WEEKS_PER_MONTH together with the close (docs/neubau F53).
+   * figure times the model's weeks per month, as the month close books it.
    */
   const routeHeat = useMemo(() => {
     const profit: Record<string, number> = {};
     const pax: Record<string, number> = {};
     network.finById.forEach((fin, id) => {
-      profit[id] = (fin.estWeeklyProfit || 0) * 4;
+      profit[id] = (fin.estWeeklyProfit || 0) * WEEKS_PER_MONTH;
       pax[id] = fin.paxPerWeek || 0;
     });
     return { profit, pax };
@@ -735,14 +725,14 @@ export default function App() {
   const projectedMonthlyPax = useMemo(() => {
     let week = 0;
     network.finById.forEach(fin => { week += fin.paxPerWeek || 0; });
-    return week * 4;
+    return week * WEEKS_PER_MONTH;
   }, [network]);
 
   /** Crew and ground staff this month at the current forecast and pay, for the staff screen. */
   const monthlyCrewCost = useMemo(() => {
     let week = 0;
     network.finById.forEach(fin => { week += fin.costsBreakdown?.crew || 0; });
-    return week * 4;
+    return week * WEEKS_PER_MONTH;
   }, [network]);
 
   /**
@@ -878,9 +868,15 @@ export default function App() {
     return hub ? regionOf(hub.coords) : 'EU';
   }, [selectedHub]);
 
-  /** The top bar's "Demand": the model's tourism season (northern) times the world events' factor. */
+  /** The world events the model knows: its saved state, or before the first close on the model the old list. */
+  const worldEvents = useMemo(
+    () => modelWorld?.randomEvents ?? randomEvents.map(modelWorldEvent),
+    [modelWorld, randomEvents]
+  );
+
+  /** The top bar's "Demand": the model's tourism season (northern) times its world event factor (7.12). */
   const getBaseGlobalDemand = (offset: number) => {
-    const valueAt = (o: number) => modelSeasonFactor(o) * getEventMultipliers(o).demandMult;
+    const valueAt = (o: number) => modelSeasonFactor(o) * worldEventFactor(o, worldEvents);
     const value = valueAt(offset);
     return { value, trend: offset > 0 ? formatTrend(value, valueAt(offset - 1)) : "0%" };
   };
@@ -888,7 +884,7 @@ export default function App() {
   const globalDemandData = useMemo(
     () => getBaseGlobalDemand(currentDateOffset),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentDateOffset, randomEvents]
+    [currentDateOffset, worldEvents]
   );
 
   const handleAirlineCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1890,28 +1886,44 @@ export default function App() {
     setToast(`Bought a ${(listing.ageMonths / 12).toFixed(1)}-year-old ${spec.manufacturer} ${spec.type} for ${formatCurrency(listing.price)}`);
   };
 
+  /** A rival as the model holds it, for a takeover (7.16): its saved state, or before the first close the old airline converted. */
+  const rivalForTakeover = (ai: AiAirline) => {
+    const env = defaultModelEnv();
+    return takeoverRival(ai, rivals, { month: currentDateOffset, airports: env.airports, catalog: env.catalog });
+  };
+
+  /** The takeover offer the competitors screen shows: the same figures handleTakeover books. */
+  const quoteTakeover = (ai: AiAirline) => {
+    const rival = rivalForTakeover(ai);
+    return rival ? takeoverOffer(rival, career.rank, currentDateOffset) : null;
+  };
+
   /**
-   * Buys a rival airline: its aircraft join the fleet, its slots at its home
-   * airport become the player's, and it leaves the game. The price and the
-   * rank needed come from takeoverQuote.
+   * Buys a rival airline (7.16, E48): the price is its company value; its cash, aircraft and slots and desks at
+   * every airport become the player's, and it leaves the game. Price, rank and status come from takeoverOffer.
+   * The aircraft are booked as a purchase at value and the rest as a one-off, so the month's result does not change.
    */
   const handleTakeover = (aiId: string) => {
     const target = aiAirlines.find(a => a.id === aiId);
     if (!target) return;
-    const quote = takeoverQuote(target, career.rank);
+    const rival = rivalForTakeover(target);
+    if (!rival) return;
+    const quote = takeoverOffer(rival, career.rank, currentDateOffset);
     if (quote.blocked) {
       setAppAlert(quote.blocked);
       return;
     }
-    if (capital < quote.price) {
-      setAppAlert(`Buying ${target.name} costs ${formatCurrency(quote.price)}, but you only have ${formatCurrency(capital)}.`);
+    if (capital < quote.netPrice) {
+      setAppAlert(`Buying ${target.name} costs ${formatCurrency(quote.netPrice)} after its cash, but you only have ${formatCurrency(capital)}.`);
       return;
     }
     const deal = buildTakeover(target, fleet.map(p => p.registration));
-    spend(quote.price, 'Airline Takeover');
+    const pay = takeoverPayments(quote, planesValue(deal.aircraft, currentDateOffset));
+    spend(pay.aircraft, 'Aircraft Purchases');
+    spend(pay.rest, 'Airline Takeover');
     noteTrade([], deal.aircraft, currentDateOffset);
     setFleet(prev => [...prev, ...deal.aircraft]);
-    setAirportManagement(prev => ({ ...prev, [deal.hub]: withTakenSlots(prev[deal.hub], deal.slots) }));
+    setAirportManagement(prev => ({ ...prev, ...takeoverAirports(prev, rival) }));
     // The view's id is the model's (`rival-<code>`, F56): the airline leaves the model's state too, or the next
     // close would bring it back. Before the first close on the model there is no such state yet.
     setAiAirlines(prev => prev.filter(a => a.id !== aiId));
@@ -1919,8 +1931,9 @@ export default function App() {
     setCareer(prev => ({ ...prev, takeovers: prev.takeovers + 1 }));
     // No reputation bonus for a takeover: reputation moves only through its target (E38).
     setAppAlert(
-      `SUCCESS: ${target.name} is yours for ${formatCurrency(quote.price)}. ${deal.aircraft.length} aircraft joined your fleet` +
-      `${deal.slots.narrowbody + deal.slots.regional + deal.slots.widebody > 0 ? ` and you took over its slots at ${deal.hub}` : ''}. ` +
+      `SUCCESS: ${target.name} is yours for ${formatCurrency(quote.price)} (${formatCurrency(quote.netPrice)} after its cash). ` +
+      `${deal.aircraft.length} aircraft joined your fleet` +
+      `${quote.airports > 0 ? ` and you took over its slots and desks at ${quote.airports} airport${quote.airports === 1 ? '' : 's'}` : ''}. ` +
       `The airline's routes are gone; plan new ones with your new aircraft.`
     );
   };
@@ -2170,6 +2183,7 @@ export default function App() {
   const onStartResearch = useStableCallback(handleStartResearch);
   const onRetire = useStableCallback(handleRetire);
   const onTakeover = useStableCallback(handleTakeover);
+  const takeoverOfferFor = useStableCallback(quoteTakeover);
   const onOpenProgression = useStableCallback(() => openWindow('progression'));
   const soldUsedIds = career.usedSold.offset === currentDateOffset ? career.usedSold.ids : NO_SOLD_IDS;
   const rivalNames = useMemo(() => aiAirlines.map(a => a.name), [aiAirlines]);
@@ -2588,7 +2602,7 @@ export default function App() {
                           playerRouteProfits={routeProfits}
                           playerColor={branding.color}
                           currentDateOffset={currentDateOffset}
-                          rank={career.rank}
+                          takeoverOffer={takeoverOfferFor}
                           onTakeover={onTakeover}
                         />
                       </React.Suspense>
@@ -2841,27 +2855,32 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         aiAirlines={aiAirlines}
+                        overhaulPrice={(registration) => {
+                          const plane = fleet.find(p => p.registration === registration);
+                          return plane ? playerOverhaulQuote(plane, routes, airportManagement, currentDateOffset)?.price ?? null : null;
+                        }}
                         onPerformGeneralCheck={(registration) => {
                           const plane = fleet.find(p => p.registration === registration);
                           if (!plane) return;
 
-                          // Points per check from the model (8.13); the fifth and later restore nothing.
-                          const restore = overhaulPoints(plane.generalChecksDone || 0);
+                          // Price and points from the model (8.13): at least 4 % of the new price and never less
+                          // than the value it adds, 25 % more without an own hangar on the aircraft's routes (E62).
+                          const quote = playerOverhaulQuote(plane, routes, airportManagement, currentDateOffset);
                           // A fifth check restores nothing, so do not take the money for it.
-                          if (restore <= 0) {
+                          if (!quote) {
                             setAppAlert(`${registration} has had all four general checks. Further checks would restore nothing — retire or replace the airframe.`);
                             return;
                           }
-                          if (capital < GENERAL_CHECK_COST) {
-                            setAppAlert(`A general check costs ${formatCurrency(GENERAL_CHECK_COST)}. You do not have the capital.`);
+                          if (capital < quote.price) {
+                            setAppAlert(`A general check of ${registration} costs ${formatCurrency(quote.price)}. You do not have the capital.`);
                             return;
                           }
 
-                          spend(GENERAL_CHECK_COST, 'General Checks');
+                          spend(quote.price, 'General Checks');
                           const checked = (p: OwnedAircraft): OwnedAircraft => ({
                             ...p,
                             generalChecksDone: (p.generalChecksDone || 0) + 1,
-                            conditionGeneral: Math.min(100, p.conditionGeneral + restore)
+                            conditionGeneral: quote.airframeAfter
                           });
                           noteTrade([plane], [checked(plane)], currentDateOffset);
                           setFleet(prev => prev.map(p => (p.registration === registration ? checked(p) : p)));
