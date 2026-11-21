@@ -26,7 +26,7 @@ import {
 } from '../lib/destinationFilter';
 
 const HIDDEN_AIRCRAFT_KEY = 'planner_hidden_aircraft';
-import { blockMinutes, rawBlockMinutes, dailyRunCapacity, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, occupiedIntervals, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
+import { BOARDING_MIN, blockMinutes, findMaxFlightStarts, getUsedWeeklySlots as sharedUsedWeeklySlots, maxTripsPerDay, occupiedIntervals, scheduleSlotsAt, tripsUtilization, getTurnoverMinutes as turnoverForClass } from '../lib/scheduleUtils';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { createTimerBag } from '../lib/timerBag';
 import {
@@ -479,12 +479,7 @@ function RoutePlannerInner({
   }, [airports, airportManagement, originSearch]);
 
   function getLongestFreeBlock(aircraftRegistration: string) {
-    const aircraftRoutes = routes.filter(r => r.aircraft === aircraftRegistration && r.id !== initialRouteId);
-    const occupied = aircraftRoutes.flatMap(r => r.schedule?.map(s => {
-      const cycleMin = rawBlockMinutes(s);
-      const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
-      return { start, end: start + Math.ceil(cycleMin / 5) * 5 };
-    }) || []).sort((a, b) => a.start - b.start);
+    const occupied = occupiedIntervals(routes, aircraftRegistration, initialRouteId).sort((a, b) => a.start - b.start);
 
     if (occupied.length === 0) return 10080;
 
@@ -510,14 +505,6 @@ function RoutePlannerInner({
     }
     
     return maxGap;
-  }
-
-  // Longest run of back-to-back round trips the aircraft's other routes leave
-  // room for on each day. Only the other routes count: the trips of this
-  // route are rebuilt from Multiple Ops whenever a day is toggled, so they
-  // must not lower the limit (it would also shrink Multiple Ops under them).
-  function getOpsCapacityForDays(aircraftRegistration: string, days: number[]) {
-    return dailyRunCapacity(occupiedIntervals(routes, aircraftRegistration, initialRouteId), days);
   }
 
   function getFlightDurationMinutes(dest?: Airport) {
@@ -569,7 +556,7 @@ function RoutePlannerInner({
 
       // Time constraint filtering
       const testDurMin = getFlightDurationMinutes(a);
-      const blockTime = Math.ceil((30 + testDurMin * 2 + turnMin + 30) / 5) * 5;
+      const blockTime = blockMinutes({ durMin: testDurMin, turnoverMin: turnMin });
 
       return blockTime <= longestFree;
     });
@@ -600,7 +587,7 @@ function RoutePlannerInner({
     const cycleMin = blockMinutes({ durMin: dur, turnoverMin: turnoverForClass(selectedAircraft.class) });
     const occupied = occupiedIntervals(routes, selectedAircraft.registration, initialRouteId);
     const perWeek = Math.max(0, findMaxFlightStarts(occupied, cycleMin, 2100).bestCount);
-    const perDay = Math.floor(dailyRunCapacity(occupied, []) / cycleMin);
+    const perDay = maxTripsPerDay(occupied, cycleMin);
     return { cycleMin, perWeek, perDay };
   }, [selectedAircraft, selectedOrigin, selectedDest, routes, initialRouteId]);
 
@@ -644,16 +631,7 @@ function RoutePlannerInner({
       }
 
       // Utilization check
-      let usedMins = 0;
-      (routesByAircraft.get(ac.registration) || []).forEach(r => {
-         if (r.schedule) {
-            r.schedule.forEach((s: any) => {
-               const cycleMin = rawBlockMinutes(s);
-               usedMins += Math.ceil(cycleMin / 5) * 5;
-            });
-         }
-      });
-      const utilPercent = (usedMins / 10080) * 100;
+      const utilPercent = tripsUtilization((routesByAircraft.get(ac.registration) || []).flatMap(r => r.schedule || [])) * 100;
       if (utilPercent >= 95) return false;
 
       // Check if any flight is possible
@@ -687,17 +665,8 @@ function RoutePlannerInner({
 
   // One aircraft card of the step-1 selection list; a hidden one offers "show" instead of "hide".
   const renderAircraftCard = (ac: OwnedAircraft, isHidden: boolean) => {
-    let usedMins = 0;
     // Grouped once above; this used to filter every route per card.
-    (routesByAircraft.get(ac.registration) || []).forEach(r => {
-       if (r.schedule) {
-          r.schedule.forEach((s: any) => {
-             const cycleMin = rawBlockMinutes(s);
-             usedMins += cycleMin;
-          });
-       }
-    });
-    const utilPercent = Math.round((usedMins / 10080) * 100);
+    const utilPercent = Math.round(tripsUtilization((routesByAircraft.get(ac.registration) || []).flatMap(r => r.schedule || [])) * 100);
 
     return (
       <div 
@@ -866,20 +835,10 @@ function RoutePlannerInner({
 
   const weeklyUtilization = useMemo(() => {
     if (!selectedAircraft) return 0;
-    const aircraftRoutes = routes.filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId);
-    let totalMinutes = aircraftRoutes.reduce((acc, r) => {
-      const tripsMinutes = (r.schedule || []).reduce((sAcc, s) => {
-        const cycleMin = rawBlockMinutes(s);
-        return sAcc + cycleMin;
-      }, 0);
-      return acc + tripsMinutes;
-    }, 0);
-    const draftMinutes = schedule.reduce((acc, s) => {
-      const cycleMin = rawBlockMinutes(s);
-      return acc + cycleMin;
-    }, 0);
-    totalMinutes += draftMinutes;
-    return Math.min(100, (totalMinutes / 10080) * 100);
+    const otherTrips = routes
+      .filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId)
+      .flatMap(r => r.schedule || []);
+    return Math.min(100, tripsUtilization([...otherTrips, ...schedule]) * 100);
   }, [selectedAircraft, routes, schedule]);
 
   
@@ -1243,8 +1202,7 @@ function RoutePlannerInner({
       const allEnds = [
         ...occupied.map(occ => (occ.end % 1440)),
         ...schedule.map(s => {
-          const c = rawBlockMinutes(s);
-          return ((s.startHour * 60 + s.startMin) + Math.ceil(c / 5) * 5) % 1440;
+          return ((s.startHour * 60 + s.startMin) + blockMinutes(s)) % 1440;
         })
       ];
 
@@ -1487,14 +1445,12 @@ function RoutePlannerInner({
 
     const durMin = getFlightDurationMinutes();
     const turnMin = getTurnoverMinutes();
-    const totalDurRaw = rawBlockMinutes({ durMin, turnoverMin: turnMin });
-    const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
+    const cycleMin = blockMinutes({ durMin, turnoverMin: turnMin });
 
     const existingTrips = routes
       .filter(r => r.aircraft === selectedAircraft.registration && r.id !== initialRouteId)
       .flatMap(r => r.schedule?.map(s => {
-          const exCycleRaw = rawBlockMinutes(s);
-          const exCycle = Math.ceil(exCycleRaw / 5) * 5;
+          const exCycle = blockMinutes(s);
           const start = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
           return { start, end: start + exCycle };
       }) || []);
@@ -1596,20 +1552,16 @@ function RoutePlannerInner({
   const [multipleOps, setMultipleOps] = useState(1);
   const [maximizeFlights, setMaximizeFlights] = useState(false);
 
-  // How many round trips a day can physically hold for the selected aircraft.
-  // Computed once instead of three times inline, and clamped through an effect
-  // rather than a setTimeout fired from the middle of render.
+  // How many round trips a day can hold for the selected aircraft (E51, the
+  // same rule as the schedule editor): the longest run its other routes leave
+  // on a day. Only the other routes count: the trips of this route are
+  // rebuilt from Multiple Ops whenever a day is toggled, so they must not
+  // lower the limit. The control never goes below 1. Clamped through an
+  // effect rather than a setTimeout fired from the middle of render.
   const maxMultipleOps = useMemo(() => {
-    if (!selectedAircraft) return 1;
-    const legMin = getFlightDurationMinutes();
-    const turnMin = getTurnoverMinutes();
-    const totalDurRaw = 30 + legMin + turnMin + legMin + 30;
-    if (totalDurRaw >= 720) return 1;
-    const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
-    if (cycleMin <= 0) return 1;
-    const maxDayFree = getOpsCapacityForDays(selectedAircraft.registration, []);
-    return Math.max(1, Math.floor(maxDayFree / cycleMin));
-  }, [selectedAircraft, selectedOrigin, selectedDest, routes, initialRouteId]);
+    if (!tripCapacity) return 1;
+    return Math.max(1, tripCapacity.perDay);
+  }, [tripCapacity]);
 
   useEffect(() => {
     if (multipleOps > maxMultipleOps) setMultipleOps(maxMultipleOps);
@@ -1624,8 +1576,7 @@ function RoutePlannerInner({
     ];
 
     return rawBlocks.flatMap(({ s, isBusy, orig, dest }) => {
-      const totalDurRaw = rawBlockMinutes(s);
-      const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
+      const cycleMin = blockMinutes(s);
       const blockStartAbs = s.startHour * 60 + s.startMin; 
       
       let blocksArr = [];
@@ -1917,7 +1868,7 @@ function RoutePlannerInner({
                            <div className="text-base font-semibold text-ink leading-tight">{selectedAircraft.registration}</div>
                            <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
                              <span className="text-accent">{selectedAircraft.type}</span>
-                             <span>{(weeklyUtilization).toFixed(0)}% USE</span>
+                             <span className="flex items-center">{(weeklyUtilization).toFixed(0)}% USE<InfoTooltip size={10} {...GLOSSARY.utilization} /></span>
                              <span className={getPlaneSat(selectedAircraft) < 50 ? 'text-bad' : 'text-accent'}>{getPlaneSat(selectedAircraft)}% SAT</span>
                            </div>
                         </div>
@@ -1952,7 +1903,7 @@ function RoutePlannerInner({
                        {tripCapacity && (
                          <div className="grid grid-cols-2 gap-2 text-2xs">
                             <div className="bg-accent/5 p-2 border border-accent/20 rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Trips / week</span><span className="font-semibold text-accent">{tripCapacity.perWeek}</span></div>
-                            <div className="bg-accent/5 p-2 border border-accent/20 rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label">Trips / day</span><span className="font-semibold text-accent">{tripCapacity.perDay}</span></div>
+                            <div className="bg-accent/5 p-2 border border-accent/20 rounded-sm flex justify-between items-center"><span className="text-muted uppercase tracking-label flex items-center">Trips / day<InfoTooltip size={10} {...GLOSSARY.utilization} /></span><span className="font-semibold text-accent">{tripCapacity.perDay}</span></div>
                          </div>
                        )}
                     </div>
@@ -2292,14 +2243,14 @@ function RoutePlannerInner({
                    </div>
                    <div className="flex justify-between text-xs text-muted">
                      <span>{selectedOrigin.id}</span>
-                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
-                        {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
+                     <span className={getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + scheduleSlotsAt(schedule, true) > (airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
+                        {getUsedWeeklySlots(selectedOrigin.id, selectedAircraft.class, initialRouteId) + scheduleSlotsAt(schedule, true)} / {airportManagement[selectedOrigin.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
                    <div className="flex justify-between text-xs text-muted">
                      <span>{selectedDest.id}</span>
-                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
-                        {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + schedule.length} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
+                     <span className={getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + scheduleSlotsAt(schedule, false) > (airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0) ? 'text-bad' : 'text-accent font-semibold'}>
+                        {getUsedWeeklySlots(selectedDest.id, selectedAircraft.class, initialRouteId) + scheduleSlotsAt(schedule, false)} / {airportManagement[selectedDest.id]?.slots?.[selectedAircraft.class.toLowerCase() as 'regional' | 'narrowbody' | 'widebody'] || 0}
                      </span>
                    </div>
                 </div>
@@ -2400,8 +2351,7 @@ function RoutePlannerInner({
 
                           const durMin = getFlightDurationMinutes();
                           const turnMin = getTurnoverMinutes();
-                          const totalDurRaw = rawBlockMinutes({ durMin, turnoverMin: turnMin });
-                          const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
+                          const cycleMin = blockMinutes({ durMin, turnoverMin: turnMin });
                           
                           const newTrips: ScheduledTrip[] = [];
 
@@ -2550,8 +2500,7 @@ function RoutePlannerInner({
                               const allEnds = [
                                 ...occupied.map(occ => (occ.end % 1440)),
                                 ...schedule.map(s => {
-                                  const c = rawBlockMinutes(s);
-                                  return ((s.startHour * 60 + s.startMin) + Math.ceil(c / 5) * 5) % 1440;
+                                  return ((s.startHour * 60 + s.startMin) + blockMinutes(s)) % 1440;
                                 })
                               ];
 
@@ -2627,7 +2576,7 @@ function RoutePlannerInner({
 
                                 for (const s of newTrips) {
                                   const exStart = ((s.dayId - 1) * 24 * 60) + (s.startHour * 60 + s.startMin);
-                                  const exCycle = Math.ceil((30 + s.durMin + s.turnoverMin + s.durMin + 30) / 5) * 5;
+                                  const exCycle = blockMinutes(s);
                                   if (checkOverlap(newStart, newEnd, exStart, exStart + exCycle)) {
                                     conflict = true; break;
                                   }
@@ -2744,10 +2693,10 @@ function RoutePlannerInner({
                              
                              {uniqueFlights.map((s: any) => {
                                const base = s.startHour * 60 + s.startMin;
-                               const dep1 = formatTime(base + 30);
-                               const arr1 = formatTime(base + 30 + s.durMin);
-                               const dep2 = formatTime(base + 30 + s.durMin + turnMin);
-                               const arr2 = formatTime(base + 30 + s.durMin + turnMin + durMin);
+                               const dep1 = formatTime(base + BOARDING_MIN);
+                               const arr1 = formatTime(base + BOARDING_MIN + s.durMin);
+                               const dep2 = formatTime(base + BOARDING_MIN + s.durMin + turnMin);
+                               const arr2 = formatTime(base + BOARDING_MIN + s.durMin + turnMin + durMin);
                                const daysStr = s.days.sort((a: number, b: number) => a - b).map((d: number) => dayNames[d - 1]).join(", ");
                                
                                return (
@@ -2848,8 +2797,7 @@ function RoutePlannerInner({
                           
                           {allBlocks.filter(b => b.dayId === day.id).map(b => {
                               const startAbs = Math.round(b.s.startHour * 60 + b.s.startMin);
-                              const totalDurRaw = rawBlockMinutes(b.s);
-                              const cycleMin = Math.ceil(totalDurRaw / 5) * 5;
+                              const cycleMin = blockMinutes(b.s);
                               const endAbs = startAbs + cycleMin;
                               
                               const formatT = (m: number) => {

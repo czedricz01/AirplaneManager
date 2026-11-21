@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 import {
@@ -11,6 +13,7 @@ import {
   maxFlightStarts,
   getTurnoverMinutes,
   getUsedWeeklySlots,
+  maxTripsPerDay,
   minuteToTripStart,
   occupiedIntervals,
   tripInterval,
@@ -98,9 +101,9 @@ test('minuteToTripStart wraps into the week', () => {
 test('slots are counted per aircraft class, excluding the route being edited', () => {
   const fleet = new Map([['A', { class: 'Regional' }], ['B', { class: 'Narrowbody' }]]);
   const routes = [
-    { id: 'r1', origin: 'FRA', destination: 'CDG', aircraft: 'A', schedule: [1, 2, 3] },
-    { id: 'r2', origin: 'MUC', destination: 'FRA', aircraft: 'B', schedule: [1, 2] },
-    { id: 'r3', origin: 'FRA', destination: 'LHR', aircraft: 'B', schedule: [1] }
+    { id: 'r1', origin: 'FRA', destination: 'CDG', aircraft: 'A', schedule: [{}, {}, {}] },
+    { id: 'r2', origin: 'MUC', destination: 'FRA', aircraft: 'B', schedule: [{}, {}] },
+    { id: 'r3', origin: 'FRA', destination: 'LHR', aircraft: 'B', schedule: [{}] }
   ];
   assert.equal(getUsedWeeklySlots(routes, fleet, 'FRA', 'narrowbody'), 3);
   assert.equal(getUsedWeeklySlots(routes, fleet, 'FRA', 'Regional'), 3);
@@ -205,4 +208,33 @@ test('dailyRunCapacity is zero when a day has no free minute', () => {
   assert.equal(dailyRunCapacity(occ), 0);
   // Tuesday 00:00 is busy until Wednesday: nothing may start on Tuesday.
   assert.equal(dailyRunCapacity(occ, [3]), 1440);
+});
+
+test('E51: flights per day count the aircraft\'s other routes (planner and editor alike)', () => {
+  // Other routes fly 08:00-20:00 every day: 12 h left for a run of 3 h trips.
+  const occ = [1, 2, 3, 4, 5, 6, 7].map(d => ({ start: (d - 1) * 1440 + 480, end: (d - 1) * 1440 + 1200 }));
+  assert.equal(maxTripsPerDay(occ, 180), 4);
+  // The editor used to divide the whole day: 8.
+  assert.equal(maxTripsPerDay([], 180), 8);
+  assert.equal(maxTripsPerDay(occ, 13 * 60), 0);
+});
+
+test('1.6: a one-way trip takes a slot at its origin only', () => {
+  const fleet = new Map([['A', { class: 'Narrowbody' }]]);
+  const routes = [
+    { id: 'r1', origin: 'FRA', destination: 'CDG', aircraft: 'A', schedule: [{}, { isOneWay: true }] },
+    { id: 'r2', origin: 'CDG', destination: 'FRA', aircraft: 'A', schedule: [{ isOneWay: true }] }
+  ];
+  assert.equal(getUsedWeeklySlots(routes, fleet, 'FRA', 'narrowbody'), 2);
+  assert.equal(getUsedWeeklySlots(routes, fleet, 'CDG', 'narrowbody'), 2);
+});
+
+test('W6: planner and schedule editor take block time and flights per day from the shared rule', () => {
+  for (const file of ['RoutePlannerView.tsx', 'RouteScheduleEditView.tsx']) {
+    const source = readFileSync(fileURLToPath(new URL(`../components/${file}`, import.meta.url)), 'utf8');
+    assert.ok(source.includes('maxTripsPerDay('), `${file}: maxTripsPerDay`);
+    assert.ok(!/Math\.ceil\([^)]*\/ 5\) \* 5/.test(source), `${file}: own rounding of the block`);
+    assert.ok(!source.includes('rawBlockMinutes'), `${file}: rawBlockMinutes`);
+    assert.ok(!/DAY_MIN \/ cycleMin|1440 \/ cycleMin/.test(source), `${file}: whole day / block`);
+  }
 });

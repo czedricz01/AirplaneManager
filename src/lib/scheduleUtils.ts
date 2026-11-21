@@ -8,6 +8,10 @@
  * one-way legs, and read `startHour` as the departure time while everything
  * else reads it as the start of the block.
  *
+ * The rules themselves (block time, turnaround, flights per day, slots per
+ * end, utilisation) live in the model, `src/model/schedule.ts` (E51, W6);
+ * this file places the trips in the week.
+ *
  * Conventions, fixed here:
  *   - The week has WEEK_MIN minutes; Monday 00:00 is minute 0.
  *   - A trip's `dayId/startHour/startMin` is the START OF ITS BLOCK. The
@@ -17,9 +21,21 @@
  *     5 minutes, the granularity of every schedule control.
  */
 
-export const WEEK_MIN = 10080;
-export const DAY_MIN = 1440;
-export const BOARDING_MIN = 30;
+import {
+  BOARDING_MINUTES,
+  MINUTES_PER_DAY,
+  MINUTES_PER_WEEK,
+  tripBlockMinutes,
+  tripSlotsAt,
+  tripsPerDay,
+  turnaroundMinutes,
+  weeklyUtilization,
+  type AircraftClass
+} from '../model';
+
+export const WEEK_MIN = MINUTES_PER_WEEK;
+export const DAY_MIN = MINUTES_PER_DAY;
+export const BOARDING_MIN = BOARDING_MINUTES;
 
 export interface TripLike {
   dayId: number;
@@ -35,15 +51,28 @@ export interface Interval {
   end: number;
 }
 
-/** Turnaround at the outstation, by aircraft class. */
-export function getTurnoverMinutes(aircraftClass: string | undefined | null): number {
+/** The model's aircraft class for a class name of the fleet ("narrowbody", "Widebody" ...); unknown names count as narrowbody. */
+function modelClass(aircraftClass: string | undefined | null): AircraftClass {
   const c = String(aircraftClass || '').toLowerCase();
-  if (c === 'regional') return 30;
-  if (c === 'widebody') return 90;
-  return 60;
+  if (c === 'regional') return 'Regional';
+  if (c === 'widebody') return 'Widebody';
+  return 'Narrowbody';
 }
 
-/** Minutes the aircraft is committed to one trip, before rounding. */
+/** Turnaround at the outstation, by aircraft class (`turnaroundMinutes`). */
+export function getTurnoverMinutes(aircraftClass: string | undefined | null): number {
+  return turnaroundMinutes(modelClass(aircraftClass));
+}
+
+/** Minutes the aircraft is committed to one trip, rounded up to 5 (`tripBlockMinutes`). */
+export function blockMinutes(trip: Pick<TripLike, 'durMin' | 'turnoverMin' | 'isOneWay'>): number {
+  return tripBlockMinutes(Number(trip.durMin) || 0, Number(trip.turnoverMin) || 0, !!trip.isOneWay);
+}
+
+/**
+ * Block before rounding. Only the old month close (`src/lib/monthClose.ts`,
+ * no longer called) still uses it; it goes with that file in package 5.2.
+ */
 export function rawBlockMinutes(trip: Pick<TripLike, 'durMin' | 'turnoverMin' | 'isOneWay'>): number {
   const dur = Number(trip.durMin) || 0;
   const turn = Number(trip.turnoverMin) || 0;
@@ -52,9 +81,18 @@ export function rawBlockMinutes(trip: Pick<TripLike, 'durMin' | 'turnoverMin' | 
     : BOARDING_MIN + dur + turn + dur + BOARDING_MIN;
 }
 
-/** Minutes the aircraft is committed to one trip, rounded up to 5. */
-export function blockMinutes(trip: Pick<TripLike, 'durMin' | 'turnoverMin' | 'isOneWay'>): number {
-  return Math.ceil(rawBlockMinutes(trip) / 5) * 5;
+/** Share of the week an aircraft's trips commit it, 0..1 (`weeklyUtilization`). */
+export function tripsUtilization(trips: Pick<TripLike, 'durMin' | 'turnoverMin' | 'isOneWay'>[]): number {
+  return weeklyUtilization(trips.map(blockMinutes));
+}
+
+/**
+ * Round trips of `cycleMin` that fit back to back on one day (E51): the
+ * longest run the aircraft's other trips (`occupied`) leave on the tightest
+ * of `days` (all seven when empty). 0 when none fits.
+ */
+export function maxTripsPerDay(occupied: Interval[], cycleMin: number, days: number[] = []): number {
+  return tripsPerDay(cycleMin, dailyRunCapacity(occupied, days));
 }
 
 /** Minute of the week at which a trip's block starts. */
@@ -104,11 +142,23 @@ export function occupiedIntervals(
 }
 
 /**
+ * Slots a timetable takes at one end of its route (1.6, `tripSlotsAt`): one
+ * per departure there. Every trip departs at the origin; only trips with a
+ * return leg depart at the destination.
+ */
+export function scheduleSlotsAt(trips: { isOneWay?: boolean }[] | undefined, atOrigin: boolean): number {
+  let n = 0;
+  for (const t of trips || []) n += tripSlotsAt(atOrigin, !!t.isOneWay);
+  return n;
+}
+
+/**
  * Weekly departures scheduled at an airport by aircraft of one class. Slots
  * are rented per class, so only aircraft of that class count against them.
+ * A one-way trip takes a slot at its origin only (1.6).
  */
 export function getUsedWeeklySlots(
-  routes: { id: string; origin: string; destination: string; aircraft: string; schedule?: unknown[] }[],
+  routes: { id: string; origin: string; destination: string; aircraft: string; schedule?: { isOneWay?: boolean }[] }[],
   fleetByRegistration: Map<string, { class: string }>,
   airportId: string | null | undefined,
   aircraftClass: string,
@@ -122,7 +172,7 @@ export function getUsedWeeklySlots(
     if (r.origin !== airportId && r.destination !== airportId) continue;
     const ac = fleetByRegistration.get(r.aircraft);
     if (!ac || String(ac.class).toLowerCase() !== wanted) continue;
-    count += r.schedule?.length || 0;
+    count += scheduleSlotsAt(r.schedule, r.origin === airportId);
   }
   return count;
 }

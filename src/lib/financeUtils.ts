@@ -1,5 +1,5 @@
 import { LITRES_PER_GALLON } from './format';
-import { Airport, calculateDistance, getAirportStats } from '../data/airports';
+import { Airport, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
 import { routeCancelShare, routeDemandFactor, type PlayerModifiers } from './gameState';
@@ -7,6 +7,7 @@ import { getFeeFactor } from './economyContext';
 import { resaleAgeFactor } from './fleetCosts';
 import { hubFeeFactor } from './hubOwnership';
 import { realCostIndex } from './realCosts';
+import { REFERENCE_SPEED, distanceKm, timetableLegMinutes } from '../model';
 
 export function getAirportUpkeep(
   airport: Airport,
@@ -177,15 +178,13 @@ export function weeklyDeskPassengers(
   return pax;
 }
 /**
- * Block time for one leg, in minutes.
+ * Block time for one leg, in minutes, as the timetable stores it: the model's
+ * flight time (`timetableLegMinutes`, `blockMinutes` of section 3.1) rounded.
+ * The planner, the schedule editor and the month close read the same figure.
  *
- * This is the single flight-time model. It used to exist twice, and the two
- * copies disagreed: the planner used this acceleration model while the schedule
- * editor used `distance / aircraft.speed * 60 + 20`. `speed` is not a field on
- * any aircraft — the data calls it `cruiseSpeed` — so that second copy produced
- * NaN, which `getFlightTimeClass` below silently turned into class 8 (the
- * longest, worst-paying bucket) because every `<` comparison against NaN fails.
- * Editing a short-haul schedule therefore collapsed that route's demand to 40%.
+ * It used to exist twice, and the two copies disagreed: the schedule editor
+ * once used `distance / aircraft.speed * 60 + 20`, and `speed` is not a field
+ * on any aircraft, so it produced NaN.
  *
  * Returns 0 when the inputs are unusable, so callers never propagate NaN.
  */
@@ -195,27 +194,9 @@ export function getFlightDurationMinutes(
   aircraft: { cruiseSpeed?: number } | null | undefined
 ): number {
   if (!origin?.coords || !dest?.coords || !aircraft) return 0;
-
-  const dKm = calculateDistance(origin.coords[0], origin.coords[1], dest.coords[0], dest.coords[1]);
-  if (!Number.isFinite(dKm)) return 0;
-
-  // Great-circle tracks are not flown exactly; airways add a few percent.
-  const dCurved = dKm * 1.02;
-
-  const vCruise = Number(aircraft.cruiseSpeed) || 800;
-  const aAccel = 6000; // km/h^2
-  const aDecel = 4000;
-
-  const tAccelH = vCruise / aAccel;
-  const sAccel = 0.5 * aAccel * tAccelH * tAccelH;
-
-  const tDecelH = vCruise / aDecel;
-  const sDecel = 0.5 * aDecel * tDecelH * tDecelH;
-
-  const sCruise = Math.max(0, dCurved - sAccel - sDecel);
-  const tCruiseH = sCruise / vCruise;
-
-  const total = Math.round((tAccelH + tCruiseH + tDecelH) * 60);
+  const km = distanceKm(origin.coords, dest.coords);
+  if (!Number.isFinite(km)) return 0;
+  const total = timetableLegMinutes(km, Number(aircraft.cruiseSpeed) || REFERENCE_SPEED);
   return Number.isFinite(total) ? total : 0;
 }
 
