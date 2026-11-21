@@ -7,6 +7,7 @@
 import { yearOf } from './basics';
 import {
   AIRFRAME_VALUE_SHARE,
+  BOARDING_MINUTES,
   CABIN_CLASSES,
   CABIN_EXPECTATION,
   CABIN_LIMIT,
@@ -34,6 +35,9 @@ import {
   LOUNGE_POINTS,
   MAX_MANAGEMENT_TIER,
   MEALS_MAX,
+  MINUTES_PER_DAY,
+  MINUTES_PER_HOUR,
+  MINUTES_PER_WEEK,
   MORALE_NEUTRAL,
   OVERHAUL_POINTS,
   OWNER_FEE_SHARE,
@@ -43,6 +47,7 @@ import {
   RESEARCH_PROJECTS,
   SAT_PER_MORALE_POINT,
   SCALES,
+  SCHEDULE_STEP_MINUTES,
   SELF_DESK_FROM,
   SERVICE_DELIGHT,
   SLOT_RESALE_SHARE,
@@ -50,6 +55,7 @@ import {
   STAND_POINTS,
   STANDS_MIN_AIRPORT_SIZE,
   TIER_PRICE_1960,
+  TURNAROUND_MINUTES,
   TYPE_APPEAL_SHARE,
   WEAR_FLOOR,
 } from './constants';
@@ -230,12 +236,12 @@ export type GlossaryKey =
   | 'conditionInterior'
   | 'conditionGeneral'
   | 'businessTourism'
-  | 'capex';
+  | 'capex'
+  | 'utilization';
 
 /**
  * Alle Begriffe, die das Spiel erklärt, an einer Stelle (Wortlaut kann zwischen Ansichten nicht auseinanderlaufen).
  * Jeder Eintrag sagt, was die Zahl ist, welche Richtung besser ist und, wo es zählt, was sie kostet.
- * „Utilization“ hängt am Zeitplan und steht bis Paket 4.4 in `src/components/InfoTooltip.tsx`.
  */
 export const MODEL_GLOSSARY: Readonly<Record<GlossaryKey, GlossaryEntry>> = {
   sat: {
@@ -353,5 +359,12 @@ export const MODEL_GLOSSARY: Readonly<Record<GlossaryKey, GlossaryEntry>> = {
     desc:
       'CAPEX is a one-off purchase price. It comes out of your capital the moment you buy, and the monthly report lists it below the line.\n\n' +
       `A weekly rate is recurring upkeep that appears in every month from now on. Slots cost both; desks and stands are rent only (stands are free from tier T${textNumber(FREE_STANDS_FROM_TIER)}).`,
+  },
+  utilization: {
+    title: 'Utilization',
+    desc:
+      `How much of the aircraft's week is already committed to flying, out of the ${textNumber(MINUTES_PER_WEEK / MINUTES_PER_HOUR)} hours available.\n\n` +
+      `Each round trip blocks the aircraft for ${textNumber(BOARDING_MINUTES)} minutes of boarding, the flight out, the turnaround (${textNumber(TURNAROUND_MINUTES.Regional)} minutes for regional aircraft, ${textNumber(TURNAROUND_MINUTES.Narrowbody)} for narrowbodies, ${textNumber(TURNAROUND_MINUTES.Widebody)} for widebodies), the flight back and ${textNumber(BOARDING_MINUTES)} minutes of deboarding, rounded up to ${textNumber(SCHEDULE_STEP_MINUTES)} minutes. So it reaches 100% well before the aircraft is literally airborne all week.\n\n` +
+      `Trips a day counts the round trips that fit back to back into the longest free stretch the aircraft's other routes leave on a day; a trip of ${textNumber(MINUTES_PER_DAY / 2 / MINUTES_PER_HOUR)} hours or more flies at most once a day.`,
   },
 };

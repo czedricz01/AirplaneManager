@@ -24,8 +24,10 @@ import {
   getTurnoverMinutes,
   getUsedWeeklySlots,
   maxFlightStarts,
+  maxTripsPerDay,
   minuteToTripStart,
   occupiedIntervals,
+  scheduleSlotsAt,
   tripInterval,
   tripStartMinute
 } from '../lib/scheduleUtils';
@@ -210,8 +212,9 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   }, []);
   const cycleMin = blockMinutes(tripTemplate);
 
-  // Round trips that fit into one day back to back (the planner's limit).
-  const maxMultipleOps = cycleMin >= DAY_MIN / 2 ? 1 : Math.max(1, Math.floor(DAY_MIN / cycleMin));
+  // Round trips that fit into one day back to back, next to the aircraft's
+  // other routes: the planner's rule (E51). The control never goes below 1.
+  const maxMultipleOps = useMemo(() => Math.max(1, maxTripsPerDay(occupied, cycleMin)), [occupied, cycleMin]);
   const [multipleOps, setMultipleOps] = useState<number>(() => {
     const perDay = new Map<number, number>();
     for (const t of route.schedule || []) perDay.set(Number(t.dayId), (perDay.get(Number(t.dayId)) || 0) + 1);
@@ -232,14 +235,19 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
   }, []);
 
   // Weekly slots this route may use at each end, for the aircraft's class.
+  // A trip takes a slot where it departs (1.6): every trip at the origin, only
+  // trips with a return leg at the destination.
   const fleetByRegistration = useMemo(() => new Map(fleet.map(a => [a.registration, a])), [fleet]);
   const slotKey = String(aircraft.class || '').toLowerCase() as 'regional' | 'narrowbody' | 'widebody';
-  const slotInfo = [route.origin, route.destination].map(id => ({
+  const slotInfo = [route.origin, route.destination].map((id, i) => ({
     id,
+    atOrigin: i === 0,
     used: getUsedWeeklySlots(allRoutes, fleetByRegistration, id, aircraft.class, route.id),
     cap: airportManagement[id]?.slots?.[slotKey] || 0
   }));
-  const slotRoom = Math.max(0, Math.min(...slotInfo.map(a => a.cap - a.used)));
+  const slotRoom = Math.max(0, Math.min(...slotInfo
+    .filter(a => a.atOrigin || !tripTemplate.isOneWay)
+    .map(a => a.cap - a.used)));
 
   const makeTrip = (weekMin: number, op: number, groupId: string, isGroupLead: boolean): ScheduledTrip => ({
     id: Math.random().toString(),
@@ -565,8 +573,8 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
               {slotInfo.map(a => (
                 <div key={a.id} className="flex justify-between text-2xs text-muted">
                   <span>{a.id}</span>
-                  <span className={a.used + schedule.length > a.cap ? 'text-bad' : 'text-accent font-semibold'}>
-                    {a.used + schedule.length} / {a.cap}
+                  <span className={a.used + scheduleSlotsAt(schedule, a.atOrigin) > a.cap ? 'text-bad' : 'text-accent font-semibold'}>
+                    {a.used + scheduleSlotsAt(schedule, a.atOrigin)} / {a.cap}
                   </span>
                 </div>
               ))}

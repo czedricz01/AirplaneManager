@@ -25,6 +25,7 @@ import {
   checkOverlap,
   getTurnoverMinutes,
   getUsedWeeklySlots,
+  scheduleSlotsAt,
   minuteToTripStart,
   occupiedIntervals,
   tripInterval,
@@ -408,7 +409,7 @@ export function checkReassignment(
         const r = moving.find(m => m.id === p.id)!;
         return r.origin === apId || r.destination === apId;
       })
-      .reduce((sum, p) => sum + p.schedule.length, 0);
+      .reduce((sum, p) => sum + scheduleSlotsAt(p.schedule, moving.find(m => m.id === p.id)!.origin === apId), 0);
     const after = others + added;
     const rented = ctx.airportManagement[apId]?.slots?.[slotKey] || 0;
     if (after > rented && after > before) {

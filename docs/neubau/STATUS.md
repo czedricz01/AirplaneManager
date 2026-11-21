@@ -1,17 +1,28 @@
 # Status
 
-**Nächstes Paket: 4.4** – Zeitplan: Planer Schritt 2 und `RouteScheduleEditView.tsx` rechnen Umlaufzeit und Flüge je Tag mit einer
-Regel aus dem Modell (W6, E51); belegte Slots je Klasse (`getUsedWeeklySlots`) passend zu `departuresAt`; Glossar `utilization`.
-Zu lesen: `src/components/RouteScheduleEditView.tsx`, Zeitplan-Teil (Schritt 2) in `src/components/RoutePlannerView.tsx`,
-`src/lib/scheduleUtils.ts`, `bestand/8-oberflaeche.md` (W6, Art B „Umlaufzeit“), `src/model/demand.ts` (`blockMinutes`), E51, F52, F60.
+**Nächstes Paket: 4.5** – Preis und Satisfaction der Strecke: Planer Schritt 3/4, `RouteConfigOverlay.tsx`, `RouteDetailView.tsx`,
+`RoutesView.tsx` zeigen Preise, Klassen-Faktoren, Gewinnschwelle (W5, Glossar `breakEven`), Satisfaction-Aufschlüsselung und Prognose
+aus dem Modell (`plannerRouteFigures`, `satisfactionBreakdown`, `bestFare`, `breakEvenFareLevel`); Debug-Anzeige nur als Aufschlüsselung
+des Modells (E52); Spalte „Class“ nach E9.
+Zu lesen: Schritt 3/4 in `src/components/RoutePlannerView.tsx`, `src/components/RouteConfigOverlay.tsx`, `src/components/RouteDetailView.tsx`,
+`src/components/RoutesView.tsx`, `bestand/8-oberflaeche.md` (W5, Art B „Startpreise und Klassen-Faktoren“, „Klassen-Gewinnschwelle“, Art C
+Debug-Formel), `src/model/monthClose.ts` (`plannerRouteFigures`), `src/model/fare.ts` (`bestFare`, `breakEvenFareLevel`), E9, E52, F52, F60 (8),
+offene Punkte aus 4.3 (2), 4.2e (5), 4.1 und 3.4 unten.
 
-Stand: 21.11.2026 · Paket 4.3 erledigt: Flughafen-Ansicht, Flughafen-Liste und Infrastruktur-Teil im Planer rechnen alle Preise,
-Mieten, Gebühren, Slot-Grenze und Schalter-Last aus dem Modell (`src/lib/modelAirport.ts`, F60): Slot-Grenze mit den **gekauften** Slots
-der KI (E50), Preise mit Kostenindex (W1, W3), Wochen-Unterhalt = Abschluss (Regeltest), Schalter-Pflicht „mindestens ein Schalter
-gleich welcher Art“ (E18, E55), Grundüberholung an jedem Flughafen (E62), Texte der Stufen und Einrichtungen aus den Konstanten;
-15 Regeltests (1355 grün); im Browser Slot-Kauf, Schalter-Sperre, Überholung ohne Hangar und KI-Slots nach einem Abschluss geprüft.
+Stand: 21.11.2026 · Paket 4.4 erledigt: Planer Schritt 2 und Zeitplan-Editor rechnen Umlaufzeit, Flüge je Tag, belegte Slots je Ende und
+Auslastung mit einer Regel aus dem Modell (`src/model/schedule.ts`, F61): Flüge je Tag zählen die übrigen Strecken desselben Flugzeugs
+(E51, auch im Editor), ein Slot je Abflug (1.6: Einweg nur am Start), Flugzeit im Fahrplan = `blockMinutes` (3.1) gerundet, alle Kopien der
+Umlaufzeit im Planer ersetzt, Glossar `utilization` aus den Konstanten; 10 neue Tests (1365 grün); im Browser geprüft: zweite Strecke auf
+demselben Flugzeug – Planer und Editor bieten beide höchstens 6 Umläufe je Tag (der Editor bot bisher 7), Slots je Ende 14/20 und 7/20.
 
-Offen aus 4.3 (kein Blocker): (1) 4.4: belegte Slots je Klasse zählt weiter `getUsedWeeklySlots` (Einweg-Flug zählt an beiden Enden).
+Offen aus 4.4 (kein Blocker): (1) 5.1: Der Abschluss teilt die Abflüge eines Einweg-Umlaufs für die Stand-Belegung halb auf beide Enden
+(`src/model/monthClose.ts:861`); die Oberfläche zählt nach 1.6 nur den Start. Einweg-Umläufe gibt es nur in alten Spielständen. (2) 5.3: Die KI
+rechnet „höchste Umläufe“ weiter mit `maxWeeklyRotations` (7 × 18 h, ohne Bodenzeit); 7.9 verlangt die Planer-Funktion, das ändert die
+Balance → mit dem Balance-Skript umstellen. (3) 5.2: `rawBlockMinutes` (nur alter Abschluss) entfernen; die übrigen Zeitplan-Suchen des Planers
+(„Select All“, „Max Flights“ in Schritt 2, `findOptimalConfig`) sind eigene Kopien von `findDayRunStart`, `findCommonRunStart`,
+`maxFlightStarts` und könnten diese nutzen (gleiche Regeln, nur doppelter Code).
+
+Offen aus 4.3 (kein Blocker): (1) erledigt in 4.4.
 (2) 4.5: Satisfaction-Aufschlüsselung im Planer Schritt 3/4 nutzt noch `getDeskSim` (alter Abzug für Selbstbedienung); Transfer-Fluggäste
 der Flughafen-Ansicht aus der alten Netz-Vorschau. (3) Widebody-Slots erst ab Flughafengröße 3 ist eine Regel nur der Oberfläche
 (`WIDEBODY_SLOTS_FROM_SIZE`); in 5.3 prüfen, ob die KI sie auch einhält. (4) 5.1: alte Spielstände mit Stufe ≥ 1 und 0 Schaltern bekommen
@@ -56,7 +67,7 @@ Flugzeuge haben kein `cabinInstalledAt` und gelten als beim Kauf eingerichtet (5
 Offen aus 4.2: erledigt in 4.2g (F59).
 
 Offen aus 4.1 (kein Blocker): Drei Glossar-Einträge bleiben alt in `InfoTooltip.tsx`, bis ihre Ansicht umgestellt ist:
-`desks` (erledigt in 4.3), `utilization` (4.4: Zeitplan ins Modell), `breakEven` (4.5: Regler mit zwei
+`desks` (erledigt in 4.3), `utilization` (erledigt in 4.4), `breakEven` (4.5: Regler mit zwei
 Marken 4.11). Feste Zahlen in Ansichten (`bestand/8-oberflaeche.md` Art C): Schalter-Abzug in `AirportDetailView.tsx`
 erledigt in 4.3; Debug-Formel im Planer → 4.5 (E52: nur Aufschlüsselung des Modells); Preise und
 Jahre der Kabinen-Extras in `ConfigurePurchaseView.tsx` → 4.6. Spalten-Namen „Comb. Sat“ (Flotte) und „Class“
@@ -245,7 +256,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.2f | `App.tsx` bucht mit `runModelMonth` (Monatsabschluss, neue Spielstand-Felder, `withTradeValue`, Fragen, Charter, Übernahme, Zeitung, Chronik; F57, F58) | erledigt |
 | 4.2g | Offene Punkte aus 4.2 (× 4 → `WEEKS_PER_MONTH`, Überholungs-Preis, Treibstoff unter der Absicherung, Ereignis-Faktor der Kopfzeile, Übernahme-Preis) | erledigt |
 | 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | erledigt |
-| 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | offen |
+| 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | erledigt |
 | 4.5 | Preis und Satisfaction der Strecke (Planer Schritt 3/4, `RouteConfigOverlay.tsx`, `RouteDetailView.tsx`, `RoutesView.tsx`; W5, Klassen-Faktoren, Debug-Anzeige; Glossar `breakEven`) | offen |
 | 4.6 | Kauf, Kabine, Flotte (`ConfigurePurchaseView.tsx`, `AircraftDetailsModal.tsx`, `MyFleetView.tsx`, `AircraftMarketPanel.tsx`; W4, Art D Alter und Wiederverkauf, Texte der Kabinen-Extras) | offen |
 | 4.7 | Kennzahlen und Anzeigen (`app/GameTopBar.tsx`, `MyCompanyView.tsx`, `app/MonthlyReportScreen.tsx`, `LiveTraffic.tsx`, `CompetitorsView.tsx`; W7, Ereignis-Abschwächung) | offen |
@@ -324,3 +335,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 20.11.2026 | 4.2f | `App.tsx` bucht den Monat mit dem Modell: `src/lib/modelMonthClose.ts` (`modelMonthClose` über `runModelMonth`, dazu Ereignis-Meldungen, Krisen-, Streik- und Störungs-Fragen, Vogelschlag-Hinweise, Chronik, Zeitung mit Marktanteil, Szenario-Sterne, Jahresziel-Dialog, Autosave), neue Spielstand-Felder `rivals`, `modelWorld`, `ledgerValues`, `overdrawnMonths`, `withTradeValue` bei allen Geschäften, Fragen ohne Ruf-Sprung (E38), Übernahme auch aus `rivals`; Fund im Browser: Zeitung meldete beim ersten Abschluss jede KI als aufgelöst und neu (behoben, `rivalViewsBefore`); F58; 11 neue Tests (1328 grün) |
 | 20.11.2026 | 4.2g | Geschäfte und Kopfzeile nach dem Modell in `src/lib/modelTrades.ts`: „× 4“ → `WEEKS_PER_MONTH` (3 Stellen), Treibstoff des Spielers aus `fuelPrice` mit `hedgedFuelTable` (ohne Hard-Zuschlag, ohne Ereignis-Faktor; auch für die Vorschau), Ereignis-Faktor der Kopfzeile aus `worldEventDemandFactor`, Grundüberholung mit `overhaulQuote` und Hangar an den Strecken des Flugzeugs (`GENERAL_CHECK_COST` entfernt, Preis in der Flughafen-Ansicht), Übernahme mit `takeoverPrice`, Kasse der KI, Slots und Schaltern je Flughafen (`takeoverHoldings` im Modell), Angebot in der Konkurrenz-Ansicht; Fehler: Übernahme buchte den Flugzeugwert als Gewinn (jetzt Kauf zum Wert + Rest); F59; 12 neue Tests (1340 grün) |
 | 21.11.2026 | 4.3 | Flughafen und Infrastruktur nach dem Modell in `src/lib/modelAirport.ts`: `AirportPricing` (Monat, Forschung, Meilensteine, gekaufte Slots der KI) aus `App.tsx` an Flughafen-Ansicht, -Liste und Planer; Slot-Grenze aller Gesellschaften in Slots (E50); Slot-, Stufen- und Einrichtungs-Preise mit Kostenindex (W1, W3), Verkauf zu `slotResalePrice`; Mieten, Unterhalt, Gebühren und Schalter-Last wie der Abschluss (Test gegen `monthOperations`); Schalter-Pflicht mit einem Schalter beliebiger Art (E18, E55, macht den Premium-Abzug erreichbar); Grundüberholung an jedem Flughafen (E62); Texte der Stufen, des Hangars, der Küche und der Drehkreuz-Güte aus den Konstanten; `getSlotPurchaseCost` und globaler Slot-Faktor entfernt; F60; 15 neue Tests (1355 grün) |
+| 21.11.2026 | 4.4 | Zeitplan nach dem Modell in `src/model/schedule.ts` (F61): Konstanten Bodenzeit, Wende je Bauart, 5-Minuten-Raster; `tripBlockMinutes` ersetzt alle Kopien der Umlaufzeit im Planer; `tripsPerDay` (E51) für Planer und Zeitplan-Editor mit den übrigen Strecken des Flugzeugs (Editor bisher ganzer Tag, W6); Slots je Ende nach 1.6 (`tripSlotsAt`, `scheduleSlotsAt`; Einweg nur am Start) in `getUsedWeeklySlots`, Planer, Editor und Flugzeugwechsel; `getFlightDurationMinutes` aus `blockMinutes` (3.1); Auslastung `weeklyUtilization` einheitlich; Glossar `utilization` ins Modell (Tooltip an „% USE“ und „Trips / day“); 10 neue Tests (1365 grün); im Browser Planer und Editor mit zwei Strecken auf einem Flugzeug geprüft |

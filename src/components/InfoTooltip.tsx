@@ -2,9 +2,6 @@ import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
 import { MODEL_GLOSSARY, type GlossaryEntry, type GlossaryKey } from '../model/glossary';
-import { BOARDING_MIN, WEEK_MIN } from '../lib/scheduleUtils';
-
-const MINUTES_PER_HOUR = 60;
 
 /**
  * The explain-this-term affordance.
@@ -97,9 +94,8 @@ export const InfoTooltip = ({
  *
  * Kept here until the view that shows the rule moves to the model:
  * - `breakEven`: the planner slider still marks BE99 / BE75 / BE35 (package 4.5).
- * - `utilization`: the schedule rules are not in the model yet (package 4.4).
  */
-export const GLOSSARY: Record<GlossaryKey | 'utilization', GlossaryEntry> = {
+export const GLOSSARY: Record<GlossaryKey, GlossaryEntry> = {
   ...MODEL_GLOSSARY,
   breakEven: {
     title: 'Break-even price',
@@ -107,11 +103,5 @@ export const GLOSSARY: Record<GlossaryKey | 'utilization', GlossaryEntry> = {
       'The fare at which this route covers its costs exactly, at a given load factor.\n\n' +
       'The left end of the slider is break-even if you fill 99% of seats — the cheapest fare that could ever work. The right end is break-even at 35% — what you would have to charge if the aircraft flew nearly empty.\n\n' +
       'The marked point is break-even at 75%, a realistic full-year average. Price below it and you are betting on filling more seats than that.',
-  },
-  utilization: {
-    title: 'Utilization',
-    desc:
-      `How much of the aircraft's week is already committed to flying, out of the ${WEEK_MIN / MINUTES_PER_HOUR} hours available.\n\n` +
-      `It counts flight time, turnarounds and the fixed ${BOARDING_MIN} minutes before and after each leg, so it reaches 100% well before the aircraft is literally airborne all week.`,
   },
 };

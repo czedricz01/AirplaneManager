@@ -2665,3 +2665,26 @@ export type ScenarioMetric = 'capital' | 'monthlyProfit' | 'reputation' | 'route
 
 /** Ziele in Dollar: Schwelle als Wert von 1960, geprüft mit `atCost` des Prüfmonats (E6). SPEZIFIKATION 8.15. */
 export const SCENARIO_DOLLAR_METRICS: readonly ScenarioMetric[] = ['capital', 'monthlyProfit'];
+
+// ---------------------------------------------------------------------------
+// Zeitplan (Umlaufzeit, Flüge je Tag; 1.1, 1.6, E51, `bestand/8-oberflaeche.md` W6)
+// ---------------------------------------------------------------------------
+
+/** Minuten einer Stunde (Anzeige und Uhrzeit im Fahrplan). */
+export const MINUTES_PER_HOUR = 60;
+
+/** Minuten eines Tages (Fahrplan: ein Tag der Woche). */
+export const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
+
+/** Bodenzeit vor jedem Abflug und nach jeder Ankunft eines Umlaufs (Einsteigen, Aussteigen; heute `src/lib/scheduleUtils.ts:22`). */
+export const BOARDING_MINUTES = 30;
+
+/** Wendezeit am Ziel je Bauart (heute `getTurnoverMinutes`, `src/lib/scheduleUtils.ts:39-44`). */
+export const TURNAROUND_MINUTES: Readonly<Record<AircraftClass, number>> = {
+  Regional: 30,
+  Narrowbody: 60,
+  Widebody: 90,
+};
+
+/** Raster aller Zeiten im Fahrplan; die Umlaufzeit wird darauf aufgerundet (heute `blockMinutes`, `scheduleUtils.ts:56-58`). */
+export const SCHEDULE_STEP_MINUTES = 5;
