@@ -1,19 +1,37 @@
 import { clickOnKey } from '../lib/a11y';
 import React, { useMemo } from 'react';
 import { formatCurrency, formatNumber, yearOf } from '../lib/format';
-import { realCostIndex } from '../lib/realCosts';
 import { Airport, getAirportStats } from '../data/airports';
 import { X, Target, Lock, Crown, Anchor, Plus, Minus, Info, ArrowRightLeft } from 'lucide-react';
 import type { AirportInfrastructure, SimulatedRoute } from '../lib/gameTypes';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
-import { STAND_POINTS } from '../model/constants';
-import { loungeEffectText } from '../model/glossary';
+import { DESK_CAPACITY, OVERHAUL_POINTS, STAND_POINTS, type DeskType, type FacilityKind } from '../model/constants';
+import { cateringEffectText, CLASS_LABEL, hangarEffectText, hubQualityText, loungeEffectText, managementTierFeatures } from '../model/glossary';
 
-import { getAirportUpkeep, baseLandingFee, DESK_FIXED_SHARE, getSlotPurchaseCost, SLOT_CAPEX_LABEL, applyInfrastructureChange, getDeskSim, getManagementUnlockCost, getInfraAvailability } from '../lib/financeUtils';
+import { SLOT_CAPEX_LABEL, applyInfrastructureChange } from '../lib/financeUtils';
+import {
+  airportCosts,
+  deskSellLimit,
+  facilityBuyPrice,
+  infraAvailability,
+  playerHubQuality,
+  slotBuyPrice,
+  slotCapacity,
+  slotSalePrice,
+  tierPrice,
+  type AirportPricing,
+  type SlotKind
+} from '../lib/modelAirport';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';
-import { hubQuality, MIN_CONNECTION_MIN, MAX_CONNECTION_MIN, type HubTransferStats } from '../lib/transferUtils';
+import { MIN_CONNECTION_MIN, MAX_CONNECTION_MIN, type HubTransferStats } from '../lib/transferUtils';
+
+/** The cabins that lose points without a staffed desk (E55), for the desk line. */
+const PREMIUM_CABIN_NAMES = (['premium', 'business', 'first'] as const).map(c => CLASS_LABEL[c]).join('/');
+
+/** Satisfaction points with a sign and one decimal. */
+const points = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatNumber(Math.abs(n), 1)}`;
 
 interface Props {
   airport: Airport;
@@ -41,7 +59,8 @@ interface Props {
   onPerformGeneralCheck: (reg: string) => void;
   /** Price of a general check of this aircraft now, from the model (8.13, E62); null when no further check is possible. */
   overhaulPrice?: (reg: string) => number | null;
-  aiAirlines?: any[];
+  /** Month, research, milestones and the rivals' slots: everything the model's prices here need. */
+  pricing: AirportPricing;
   /** Passengers changing planes here this month, from the network pricing. */
   transferHub?: HubTransferStats;
   /**
@@ -69,7 +88,7 @@ export function AirportDetailView({
   routes = [],
   onPerformGeneralCheck,
   overhaulPrice,
-  aiAirlines = [],
+  pricing,
   transferHub,
   gates
 }: Props) {
@@ -81,11 +100,12 @@ export function AirportDetailView({
 
   const level = airport.level;
   const currentYear = yearOf(currentDateOffset);
+  const month = pricing.month;
   
   const hubAutoUpgrade = infrastructure.level >= 2;
-  // Same rules and prices as the route planner.
-  const avail = getInfraAvailability(airport, currentYear);
-  const unlockCost = (tier: number) => getManagementUnlockCost(level, tier);
+  // Same rules and prices as the route planner, all from the model (5.10, 5.11).
+  const avail = infraAvailability(level, month);
+  const unlockCost = (tier: number) => tierPrice(tier, level, month);
 
   const handleStartRouteClick = () => {
     if (gates?.airport) {
@@ -101,51 +121,23 @@ export function AirportDetailView({
     }
   };
 
-  const upkeepData = useMemo(() => {
-    return getAirportUpkeep(airport, infrastructure, routes, fleet, currentYear);
-  }, [airport, infrastructure, routes, fleet, currentYear]);
-
-  const {
-    slotCosts,
-    standUpgradeCosts,
-    deskCosts,
-    deskCostsNow,
-    deskCapacities,
-    passengerData
-  } = upkeepData;
-  /** A desk's weekly cost: at today's use, and the range from idle to full. */
-  const deskInfo = (kind: 'normal' | 'self') =>
-    `Cap: ${formatNumber(deskCapacities[kind])} pax/wk | ${formatCurrency(Math.floor(deskCosts[kind] * DESK_FIXED_SHARE))}–${formatCurrency(deskCosts[kind])}/wk by use`;
-
-  // Check-in load and its SAT effect exactly as the economy computes them. This
-  // screen used its own formula (all seats both ways, a different penalty), so
-  // it could show an overload the routes never paid for, and the reverse.
-  const deskSim = useMemo(
-    () => getDeskSim(airport.id, { [airport.id]: infrastructure }, routes, fleet),
-    [airport.id, infrastructure, routes, fleet]
+  // Rents, fees and the desk load exactly as the month close books them (model 5.10, 5.11, 2.6.3): the same
+  // functions and the same departing seats, in the money of this month.
+  const costs = useMemo(
+    () => airportCosts(airport.id, level, infrastructure, routes, fleet, pricing),
+    [airport.id, level, infrastructure, routes, fleet, pricing]
   );
-  const deskLoad = deskSim.load;
-  const satDeduction = deskSim.sat;
-  const hasNoDesks = !infrastructure.desks.normal && !infrastructure.desks.self;
-  const selfServiceOnly = !infrastructure.desks.normal && !!infrastructure.desks.self;
+  const desks = costs.desks;
+  /** A desk's capacity and its weekly rent from idle to full use. */
+  const deskInfo = (kind: DeskType) =>
+    `Cap: ${formatNumber(DESK_CAPACITY[kind])} seats/wk | ${formatCurrency(costs.deskRent[kind].idle)}–${formatCurrency(costs.deskRent[kind].full)}/wk by use`;
+  const deskLoadPct = Number.isFinite(desks.load) ? desks.load * 100 : Infinity;
 
-  const costBreakdown = upkeepData;
-  const weeklyExpenses = costBreakdown.total;
+  const weeklyExpenses = costs.upkeep.total;
+  const breakdown = costs.breakdown;
 
-  const totalSlots = level * 300;
-  const usedSlots = infrastructure.slots.regional + infrastructure.slots.narrowbody + infrastructure.slots.widebody;
-  
-  const aiSlotsUsed = useMemo(() => {
-    return aiAirlines.reduce((sum, aiItem) => {
-      if (!aiItem.routes) return sum;
-      return sum + aiItem.routes.reduce((routeSum: number, r: any) => {
-        if (r.origin === airport.id || r.destination === airport.id) {
-          return routeSum + (r.departures || 0);
-        }
-        return routeSum;
-      }, 0);
-    }, 0);
-  }, [aiAirlines, airport.id]);
+  // Every airline here draws on the same pool of slots (E50): the player's and the rivals' bought slots.
+  const slotCap = slotCapacity(airport.id, level, infrastructure, pricing);
 
   const utilizedSlots = useMemo(() => {
     const fleetByRegistration = new Map(fleet.map(f => [f.registration, f]));
@@ -153,20 +145,29 @@ export function AirportDetailView({
     return { regional: used('regional'), narrowbody: used('narrowbody'), widebody: used('widebody') };
   }, [airport.id, routes, fleet]);
 
-  const availableSlots = Math.max(0, totalSlots - usedSlots - aiSlotsUsed); 
+  const availableSlots = slotCap.free;
 
     // We no longer calculate max aircraft string here since we use ICAO codes
 
 
-  // Only slots carry a one-off purchase price. Desks and stands are rented: their
-  // cost shows up as weekly upkeep in getAirportUpkeep, never as an upfront charge.
-  // The route planner used to bill their weekly rate as a one-off fee, so the same
-  // desk cost money in one screen and nothing in the other.
+  // Only slots carry a one-off purchase price (model 5.10). Desks and stands are rented: their
+  // cost shows up as weekly upkeep (airportCosts), never as an upfront charge.
   const buyItem = (type: 'slots' | 'desks' | 'stands', subType: string, amount: number, isShift?: boolean) => {
-    const requestedAmount = amount * (isShift ? 10 : 1);
+    let requestedAmount = amount * (isShift ? 10 : 1);
     const unit = type === 'slots' ? 'slot' : type === 'stands' ? 'stand' : 'desk';
     const plural = (n: number) => `${Math.abs(n)} ${unit}${Math.abs(n) === 1 ? '' : 's'}`;
 
+    // Every airport you manage keeps at least one check-in desk (E18, E55): routes check in at both ends.
+    if (type === 'desks' && requestedAmount < 0) {
+      const limit = deskSellLimit(infrastructure, subType as DeskType);
+      if (limit === 0) {
+        onNotify?.(`${airport.id} needs at least one check-in desk while you manage it. Buy another desk before selling this one.`);
+        return;
+      }
+      requestedAmount = Math.max(requestedAmount, -limit);
+    }
+
+    const slotKind = subType as SlotKind;
     const result = applyInfrastructureChange({
       infra: infrastructure,
       type, subType,
@@ -175,7 +176,8 @@ export function AirportDetailView({
       autoBuyStands: !!infrastructure.autoBuyStands,
       availableSlots,
       utilizedSlots: utilizedSlots[subType as 'regional' | 'narrowbody' | 'widebody'] || 0,
-      costPerUnit: type === 'slots' ? getSlotPurchaseCost(subType) : 0,
+      costPerUnit: type === 'slots' ? slotBuyPrice(slotKind, pricing) : 0,
+      refundPerUnit: type === 'slots' ? slotSalePrice(slotKind, pricing) : 0,
     });
 
     if (result.actualAmount === 0) {
@@ -208,6 +210,40 @@ export function AirportDetailView({
     }
 
     onUpdateInfrastructure(result.infra);
+  };
+
+  /** Builds a hangar, lounge or kitchen: the model's price of this month (5.11), paid at once. */
+  const buyFacility = (kind: FacilityKind, label: string, gate?: string | null) => {
+    if (gate) {
+      onNotify?.(gate);
+      return;
+    }
+    const price = facilityBuyPrice(kind, month);
+    if (capital < price) {
+      onNotify?.(`A ${label.toLowerCase()} at ${airport.id} costs ${formatCurrency(price)}, but you only have ${formatCurrency(capital)}.`);
+      return;
+    }
+    onSubtractCapital(price);
+    onUpdateInfrastructure({
+      ...infrastructure,
+      hubFacilities: { ...infrastructure.hubFacilities, [kind]: true }
+    });
+  };
+
+  const facility = (kind: FacilityKind, label: string, effect: string, gate?: string | null) => {
+    const price = facilityBuyPrice(kind, month);
+    return (
+      <FacilityCard
+        label={label}
+        effect={effect}
+        owned={infrastructure.hubFacilities?.[kind] === true}
+        price={price}
+        upkeep={costs.facilityUpkeep[kind]}
+        gate={gate}
+        affordable={capital >= price}
+        onBuy={() => buyFacility(kind, label, gate)}
+      />
+    );
   };
 
   return (
@@ -256,7 +292,7 @@ export function AirportDetailView({
           } />
           <Metric label="Business" value={formatNumber(getAirportStats(airport, currentYear).business)} />
           <Metric label="Tourism" value={formatNumber(getAirportStats(airport, currentYear).tourism)} />
-          <Metric label="Weekly Seats" value={formatNumber(passengerData.total)} />
+          <Metric label="Departing Seats / wk" value={formatNumber(desks.departingSeats)} />
           <div className="flex flex-col relative group min-w-[100px]">
             <span className="text-muted text-2xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-ink transition-colors" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setShowCostBreakdown(!showCostBreakdown)}>
               Weekly Costs <Info size={8} />
@@ -270,35 +306,26 @@ export function AirportDetailView({
                   <button onClick={() => setShowCostBreakdown(false)} className="text-muted hover:text-ink"><X size={12}/></button>
                 </div>
                 <div className="space-y-1 text-muted text-2xs">
-                  {costBreakdown.slots.regional > 0 && <div className="flex justify-between"><span>Reg Slot Admin:</span> <span>{formatCurrency(costBreakdown.slots.regional)}</span></div>}
-                  {costBreakdown.slots.narrowbody > 0 && <div className="flex justify-between"><span>NB Slot Admin:</span> <span>{formatCurrency(costBreakdown.slots.narrowbody)}</span></div>}
-                  {costBreakdown.slots.widebody > 0 && <div className="flex justify-between"><span>WB Slot Admin:</span> <span>{formatCurrency(costBreakdown.slots.widebody)}</span></div>}
-                  {costBreakdown.stands.regional > 0 && <div className="flex justify-between"><span>Reg Stands:</span> <span>{formatCurrency(costBreakdown.stands.regional)}</span></div>}
-                  {costBreakdown.stands.narrowbody > 0 && <div className="flex justify-between"><span>NB Stands:</span> <span>{formatCurrency(costBreakdown.stands.narrowbody)}</span></div>}
-                  {costBreakdown.stands.widebody > 0 && <div className="flex justify-between"><span>WB Stands:</span> <span>{formatCurrency(costBreakdown.stands.widebody)}</span></div>}
-                  {costBreakdown.desks.normal > 0 && <div className="flex justify-between"><span>Check-in:</span> <span>{formatCurrency(costBreakdown.desks.normal)}</span></div>}
-                  {costBreakdown.desks.self > 0 && <div className="flex justify-between"><span>Self-Check:</span> <span>{formatCurrency(costBreakdown.desks.self)}</span></div>}
-                  {(costBreakdown.facilities.hangar > 0 || costBreakdown.facilities.vip > 0 || costBreakdown.facilities.catering > 0) && <div className="flex justify-between pt-2 border-t border-line"><span>Facilities:</span> <span>{formatCurrency(costBreakdown.facilities.hangar + costBreakdown.facilities.vip + costBreakdown.facilities.catering)}</span></div>}
+                  {breakdown.slots.regional > 0 && <div className="flex justify-between"><span>Reg Slot Rent:</span> <span>{formatCurrency(breakdown.slots.regional)}</span></div>}
+                  {breakdown.slots.narrowbody > 0 && <div className="flex justify-between"><span>NB Slot Rent:</span> <span>{formatCurrency(breakdown.slots.narrowbody)}</span></div>}
+                  {breakdown.slots.widebody > 0 && <div className="flex justify-between"><span>WB Slot Rent:</span> <span>{formatCurrency(breakdown.slots.widebody)}</span></div>}
+                  {breakdown.stands.regional > 0 && <div className="flex justify-between"><span>Reg Stands:</span> <span>{formatCurrency(breakdown.stands.regional)}</span></div>}
+                  {breakdown.stands.narrowbody > 0 && <div className="flex justify-between"><span>NB Stands:</span> <span>{formatCurrency(breakdown.stands.narrowbody)}</span></div>}
+                  {breakdown.stands.widebody > 0 && <div className="flex justify-between"><span>WB Stands:</span> <span>{formatCurrency(breakdown.stands.widebody)}</span></div>}
+                  {breakdown.desks.normal > 0 && <div className="flex justify-between"><span>Check-in:</span> <span>{formatCurrency(breakdown.desks.normal)}</span></div>}
+                  {breakdown.desks.self > 0 && <div className="flex justify-between"><span>Self-Check:</span> <span>{formatCurrency(breakdown.desks.self)}</span></div>}
+                  {costs.upkeep.facilities > 0 && <div className="flex justify-between pt-2 border-t border-line"><span>Facilities:</span> <span>{formatCurrency(costs.upkeep.facilities)}</span></div>}
                   <div className="flex justify-between pt-2 mt-2 border-t border-rule text-ink font-semibold"><span>Total/wk:</span> <span className="text-accent">{formatCurrency(weeklyExpenses)}</span></div>
                 </div>
               </div>
             )}
           </div>
-          <Metric label="Available Slots" info="slots" value={`${Math.max(0, totalSlots - usedSlots - aiSlotsUsed)} / ${totalSlots}`} color={aiSlotsUsed > 0 ? "text-accent" : "text-ink"} />
+          <Metric label="Available Slots" info="slots" value={`${slotCap.free} / ${slotCap.total}`} color={slotCap.rivals > 0 ? "text-accent" : "text-ink"} />
           <Metric label="Max ICAO Code" value={airport.maxIcaoCode} info="icaoCode" />
-          {(() => {
-             const hubBonus = infrastructure.level >= 2;
-             const costIndex = realCostIndex(currentYear);
-             const paxUnitFee = ((hubBonus ? 0.475 : 0.5) + (level >= 5 ? 5 : level >= 3 ? 4 : 3)) * costIndex;
-             // Landing fees go by seats; this is one seat of a jet. Turboprops pay 15% less.
-             const landingFeePerSeat = baseLandingFee(level, 'Narrowbody', 180) / 180 * (hubBonus ? 0.95 : 1) * costIndex;
-             return (
-               <>
-                 <Metric label="Landing Fee per Seat" value={formatCurrency(landingFeePerSeat)} />
-                 <Metric label="Pax Handling Fee" value={`${formatCurrency(paxUnitFee)} / pax`} />
-               </>
-             );
-          })()}
+          {/* The model's fees for you here (5.5, 5.6): one seat of a jet landing, and check-in plus handling of one
+              departing passenger, with your management tier and research. */}
+          <Metric label="Landing Fee per Seat" value={formatCurrency(costs.landingPerSeat)} />
+          <Metric label="Pax Handling Fee" value={`${formatCurrency(costs.checkInPerPassenger + costs.handlingPerPassenger)} / pax`} />
         </div>
 
 
@@ -325,10 +352,10 @@ export function AirportDetailView({
                   <div className="space-y-4">
                     <SectionLabel icon={<Plus size={12}/>} label="Flight Slots" />
                     <div className="grid grid-cols-1 gap-2">
-                        <InfaRow label="Regional" count={infrastructure.slots.regional} used={utilizedSlots.regional} showUtilBar={true} purchaseCost={getSlotPurchaseCost('regional')} cost={slotCosts.regional} onBuy={(n, isShift) => buyItem('slots', 'regional', n, isShift)} />
-                        <InfaRow label="Narrowbody" count={infrastructure.slots.narrowbody} used={utilizedSlots.narrowbody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('narrowbody')} cost={slotCosts.narrowbody} onBuy={(n, isShift) => buyItem('slots', 'narrowbody', n, isShift)} />
+                        <InfaRow label="Regional" count={infrastructure.slots.regional} used={utilizedSlots.regional} showUtilBar={true} purchaseCost={slotBuyPrice('regional', pricing)} cost={costs.slotRent.regional} onBuy={(n, isShift) => buyItem('slots', 'regional', n, isShift)} />
+                        <InfaRow label="Narrowbody" count={infrastructure.slots.narrowbody} used={utilizedSlots.narrowbody} showUtilBar={true} purchaseCost={slotBuyPrice('narrowbody', pricing)} cost={costs.slotRent.narrowbody} onBuy={(n, isShift) => buyItem('slots', 'narrowbody', n, isShift)} />
                        {avail.widebodySlots && (
-                         <InfaRow label="Widebody" count={infrastructure.slots.widebody} used={utilizedSlots.widebody} showUtilBar={true} purchaseCost={getSlotPurchaseCost('widebody')} cost={slotCosts.widebody} onBuy={(n, isShift) => buyItem('slots', 'widebody', n, isShift)} />
+                         <InfaRow label="Widebody" count={infrastructure.slots.widebody} used={utilizedSlots.widebody} showUtilBar={true} purchaseCost={slotBuyPrice('widebody', pricing)} cost={costs.slotRent.widebody} onBuy={(n, isShift) => buyItem('slots', 'widebody', n, isShift)} />
                        )}
                     </div>
                   </div>
@@ -362,14 +389,14 @@ export function AirportDetailView({
                          <InfaRow 
                            label="NB Gate Stand" 
                            count={hubAutoUpgrade ? infrastructure.slots.narrowbody : infrastructure.stands.narrowbody} 
-                           cost={hubAutoUpgrade ? 0 : standUpgradeCosts.narrowbody} 
+                           cost={costs.standRent.narrowbody} 
                            onBuy={(n, isShift) => buyItem('stands', 'narrowbody', n, isShift)}
                            disabled={hubAutoUpgrade} 
                          />
                          <InfaRow 
                            label="WB Gate Stand" 
                            count={hubAutoUpgrade ? infrastructure.slots.widebody : infrastructure.stands.widebody} 
-                           cost={hubAutoUpgrade ? 0 : standUpgradeCosts.widebody} 
+                           cost={costs.standRent.widebody} 
                            onBuy={(n, isShift) => buyItem('stands', 'widebody', n, isShift)}
                            disabled={hubAutoUpgrade} 
                          />
@@ -381,21 +408,22 @@ export function AirportDetailView({
                   <div className="space-y-4 pt-4 border-t border-line">
                     <div className="flex justify-between items-center">
                       <SectionLabel icon={<Info size={12} className="text-accent"/>} label="Passenger Processing" />
-                      <div className={`text-2xs font-semibold px-2 py-0.5 rounded-sm ${satDeduction < 0 || (!infrastructure.desks.normal && !infrastructure.desks.self) ? 'bg-bad/10 text-bad' : 'bg-accent/10 text-accent'}`}>
-                         SAT Impact: {hasNoDesks ? 'about -15 SAT pts (No Desks)' : (satDeduction === 0 ? '0.0' : `${formatNumber(satDeduction, 1)}%${deskLoad > 80 ? ' (Load)' : ' (Self-check share)'}`)}{selfServiceOnly ? ' | Premium cabins -10 quality pts (no staffed desk)' : ''}
+                      {/* Points at this end of a route (2.6.3, E55), before the average of both ends and the ground weight. */}
+                      <div className={`text-2xs font-semibold px-2 py-0.5 rounded-sm ${desks.overloadPoints < 0 || desks.premiumPenalty < 0 ? 'bg-bad/10 text-bad' : 'bg-accent/10 text-accent'}`}>
+                         Satisfaction here: {desks.missing ? `${points(desks.overloadPoints)} (no desk)` : `${points(desks.overloadPoints)} load`}{desks.premiumPenalty < 0 ? ` | ${PREMIUM_CABIN_NAMES} ${points(desks.premiumPenalty)} (no staffed desk)` : ''}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
-                       <InfaRow label="Standard Desk" count={infrastructure.desks.normal} cost={deskCostsNow.normal} onBuy={(n, isShift) => buyItem('desks', 'normal', n, isShift)} info={deskInfo('normal')} />
+                       <InfaRow label="Standard Desk" count={infrastructure.desks.normal} disableRemove={deskSellLimit(infrastructure, 'normal') === 0} cost={costs.deskRent.normal.now} onBuy={(n, isShift) => buyItem('desks', 'normal', n, isShift)} info={deskInfo('normal')} />
                        {avail.selfCheckIn && (
-                         <InfaRow label="Self-Check-In" count={infrastructure.desks.self} cost={deskCostsNow.self} onBuy={(n, isShift) => buyItem('desks', 'self', n, isShift)} info={`${deskInfo('self')} | -1 SAT`} />
+                         <InfaRow label="Self-Check-In" count={infrastructure.desks.self} disableRemove={deskSellLimit(infrastructure, 'self') === 0} cost={costs.deskRent.self.now} onBuy={(n, isShift) => buyItem('desks', 'self', n, isShift)} info={deskInfo('self')} />
                        )}
                     </div>
                     <div className="mt-2 text-2xs text-muted space-y-1">
-                       <div className="flex justify-between"><span>Weekly seats (check-in):</span> <span className="text-ink">{formatNumber(deskSim.myPax)} / {formatNumber(deskSim.cap)}</span></div>
-                       <div className="flex justify-between"><span>Current Weekly Load:</span> <span className={deskLoad > 90 ? 'text-bad' : 'text-ink'}>{formatNumber(deskLoad, 1)}%</span></div>
+                       <div className="flex justify-between"><span>Departing seats / desk capacity:</span> <span className="text-ink">{formatNumber(desks.departingSeats)} / {formatNumber(desks.capacity)}</span></div>
+                       <div className="flex justify-between"><span className="flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span> <span className={deskLoadPct > 90 ? 'text-bad' : 'text-ink'}>{Number.isFinite(deskLoadPct) ? `${formatNumber(deskLoadPct, 1)}%` : 'no desk'}</span></div>
                        <div className="w-full h-1 bg-surface rounded-full overflow-hidden">
-                         <div className={`h-full transition-all ${deskLoad > 100 ? 'bg-bad' : deskLoad > 80 ? 'bg-accent' : 'bg-accent/20'}`} style={{ width: `${Math.min(100, deskLoad)}%` }}></div>
+                         <div className={`h-full transition-all ${deskLoadPct > 100 ? 'bg-bad' : deskLoadPct > 80 ? 'bg-accent' : 'bg-accent/20'}`} style={{ width: `${Math.min(100, deskLoadPct)}%` }}></div>
                        </div>
                     </div>
                   </div>
@@ -424,7 +452,7 @@ export function AirportDetailView({
 
           {/* Right Column: Strategic Expansion */}
           <div className="flex flex-col gap-3">
-            <TransferHubCard stats={transferHub} quality={hubQuality(infrastructure)} />
+            <TransferHubCard stats={transferHub} quality={playerHubQuality(infrastructure, pricing.completedResearch)} />
             {infrastructure.level >= 2 ? (
               <div className="bg-surface border border-line p-4 flex flex-col gap-3">
                 <div className="relative z-10 flex flex-col">
@@ -433,139 +461,12 @@ export function AirportDetailView({
                     Hub Operations
                   </div>
                 </div>
-                
+
+                {/* Prices and upkeep from the model (5.11), in the money of this month. */}
                 <div className="relative z-10 grid grid-cols-1 gap-4">
-                  {/* Maintenance Hangar */}
-                  <div className="bg-surface border border-line p-4">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="text-ink font-semibold text-sm">Maintenance Hangar</div>
-                        <div className="text-2xs text-muted mt-1 uppercase tracking-label w-64">Allows general checks at this hub</div>
-                      </div>
-                      {infrastructure.hubFacilities?.hangar ? (
-                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
-                      ) : (
-                        <button 
-                          onClick={() => {
-                            if (capital >= 250000) {
-                              onSubtractCapital(250000);
-                              onUpdateInfrastructure({
-                                ...infrastructure,
-                                hubFacilities: { ...infrastructure.hubFacilities, hangar: true }
-                              });
-                            }
-                          }}
-                          disabled={capital < 250000}
-                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
-                        >
-                          Construct - {formatCurrency(250000)}
-                        </button>
-                      )}
-                    </div>
-                    {infrastructure.hubFacilities?.hangar && (
-                      <div className="mt-4 border-t border-line pt-4 flex flex-col gap-2">
-                        <div className="text-2xs text-muted uppercase tracking-label">
-                          Perform General Check
-                        </div>
-                        <div className="flex gap-2">
-                          <select 
-                            className="flex-1 bg-ground/40 border border-line text-ink text-xs p-2 outline-none"
-                            value={selectedAircraftForCheck}
-                            onChange={(e) => setSelectedAircraftForCheck(e.target.value)}
-                          >
-                            <option value="">-- Select Aircraft --</option>
-                            {fleet.map(plane => {
-                              const checks = plane.generalChecksDone || 0;
-                              return (
-                                <option key={plane.registration} value={plane.registration} disabled={checks >= 4}>
-                                  {plane.registration} - {plane.type} (GC: {Math.floor(plane.conditionGeneral)}%, Checks: {checks}/4)
-                                </option>
-                              );
-                            })}
-                          </select>
-                          <button 
-                            disabled={!selectedAircraftForCheck || checkPrice === null || capital < checkPrice}
-                            onClick={() => {
-                              onPerformGeneralCheck(selectedAircraftForCheck);
-                              setSelectedAircraftForCheck("");
-                            }}
-                            className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
-                          >
-                            Service
-                          </button>
-                        </div>
-                        {selectedAircraftForCheck && checkPrice !== null && (
-                          <div className="text-2xs text-muted">Price: {formatCurrency(checkPrice)}</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* VIP Lounge */}
-                  <div className="bg-surface border border-line p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-ink font-semibold text-sm">VIP Lounge</div>
-                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">{loungeEffectText()}</div>
-                        {gates?.vipLounge && !infrastructure.hubFacilities?.vipLounge && (
-                          <div className="text-2xs text-bad mt-2 normal-case max-w-xs">{gates.vipLounge}</div>
-                        )}
-                      </div>
-                      {infrastructure.hubFacilities?.vipLounge ? (
-                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
-                      ) : (
-                        <button 
-                          onClick={() => {
-                            if (gates?.vipLounge) {
-                              onNotify?.(gates.vipLounge);
-                              return;
-                            }
-                            if (capital >= 1000000) {
-                              onSubtractCapital(1000000);
-                              onUpdateInfrastructure({
-                                ...infrastructure,
-                                hubFacilities: { ...infrastructure.hubFacilities, vipLounge: true }
-                              });
-                            }
-                          }}
-                          disabled={capital < 1000000 || !!gates?.vipLounge}
-                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
-                        >
-                          {gates?.vipLounge ? 'Locked' : `Construct - ${formatCurrency(1000000)}`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Catering Facility */}
-                  <div className="bg-surface border border-line p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-ink font-semibold text-sm">Advanced Catering</div>
-                        <div className="text-2xs text-muted mt-1 uppercase tracking-label">Enables high-end meal prep</div>
-                      </div>
-                      {infrastructure.hubFacilities?.catering ? (
-                        <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5">Active</div>
-                      ) : (
-                        <button 
-                          onClick={() => {
-                            if (capital >= 250000) {
-                              onSubtractCapital(250000);
-                              onUpdateInfrastructure({
-                                ...infrastructure,
-                                hubFacilities: { ...infrastructure.hubFacilities, catering: true }
-                              });
-                            }
-                          }}
-                          disabled={capital < 250000}
-                          className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
-                        >
-                          Construct - {formatCurrency(250000)}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
+                  {facility('hangar', 'Maintenance Hangar', hangarEffectText())}
+                  {facility('vipLounge', 'VIP Lounge', loungeEffectText(), gates?.vipLounge)}
+                  {facility('catering', 'Catering Kitchen', cateringEffectText())}
                 </div>
               </div>
             ) : (
@@ -577,12 +478,7 @@ export function AirportDetailView({
                 onUpgrade={() => onBuyManagement(2)}
                 gate={gates?.tier2}
                 icon={<Anchor size={24} />}
-                features={[
-                  "Advanced Slot Scheduling",
-                  "Automatic Gate Stand Upgrades",
-                  "Crew Station Housing",
-                  "Secondary Maintenance Facility"
-                ]}
+                features={managementTierFeatures(2)}
               />
             )}
             <ManagementTierCard 
@@ -593,13 +489,47 @@ export function AirportDetailView({
               onUpgrade={() => onBuyManagement(3)}
               gate={gates?.tier3}
               icon={<Crown size={24} />}
-              features={[
-                "Landing & desk fees 15% below standard",
-                "Better connections (hub quality +0.05)",
-                "Rivals cannot open new routes here",
-                "Half of the rivals' landing fees paid to you"
-              ]}
+              features={managementTierFeatures(3)}
             />
+
+            {/* General checks at every airport (E62): the price is the aircraft's, from the model (8.13), with the
+                yard surcharge when it has no own hangar on its routes. */}
+            <div className="bg-raised border border-line p-4 flex flex-col gap-2">
+              <div className="text-ink font-semibold text-sm">General Check</div>
+              <div className="text-2xs text-muted">
+                Restores the airframe ({OVERHAUL_POINTS.map(p => `+${p}`).join(', ')} points in turn, at most {OVERHAUL_POINTS.length} checks). Aircraft without an own hangar on their routes pay the yard surcharge.
+              </div>
+              <div className="flex gap-2">
+                <select 
+                  className="flex-1 bg-ground/40 border border-line text-ink text-xs p-2 outline-none"
+                  value={selectedAircraftForCheck}
+                  onChange={(e) => setSelectedAircraftForCheck(e.target.value)}
+                >
+                  <option value="">-- Select Aircraft --</option>
+                  {fleet.map(plane => {
+                    const checks = plane.generalChecksDone || 0;
+                    return (
+                      <option key={plane.registration} value={plane.registration} disabled={checks >= OVERHAUL_POINTS.length}>
+                        {plane.registration} - {plane.type} (Airframe: {Math.floor(plane.conditionGeneral)}%, Checks: {checks}/{OVERHAUL_POINTS.length})
+                      </option>
+                    );
+                  })}
+                </select>
+                <button 
+                  disabled={!selectedAircraftForCheck || checkPrice === null || capital < checkPrice}
+                  onClick={() => {
+                    onPerformGeneralCheck(selectedAircraftForCheck);
+                    setSelectedAircraftForCheck("");
+                  }}
+                  className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50"
+                >
+                  Service
+                </button>
+              </div>
+              {selectedAircraftForCheck && checkPrice !== null && (
+                <div className="text-2xs text-muted">Price: {formatCurrency(checkPrice)}</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -669,7 +599,7 @@ function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality
         <InfoTooltip
           size={12}
           title="Hub quality"
-          desc="How well passengers connect here: 40% base, +15% per management tier, +5% each for a VIP lounge and a catering facility, at most 100%. It scales how many connecting passengers your routes can sell."
+          desc={hubQualityText()}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -703,6 +633,35 @@ function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality
   );
 }
 
+/** A hub facility: what it does, its price and weekly upkeep, and the build button. */
+function FacilityCard({ label, effect, owned, price, upkeep, gate, affordable, onBuy }: { label: string, effect: string, owned: boolean, price: number, upkeep: number, gate?: string | null, affordable: boolean, onBuy: () => void }) {
+  return (
+    <div className="bg-surface border border-line p-4">
+      <div className="flex justify-between items-start gap-3">
+        <div className="min-w-0">
+          <div className="text-ink font-semibold text-sm">{label}</div>
+          <div className="text-2xs text-muted mt-1">{effect}</div>
+          <div className="text-2xs text-muted mt-1">Upkeep {formatCurrency(upkeep)} / wk</div>
+          {gate && !owned && (
+            <div className="text-2xs text-bad mt-2 normal-case max-w-xs">{gate}</div>
+          )}
+        </div>
+        {owned ? (
+          <div className="text-2xs font-label font-semibold uppercase tracking-label text-good border border-good rounded-sm px-1.5 py-0.5 shrink-0">Active</div>
+        ) : (
+          <button
+            onClick={onBuy}
+            disabled={!affordable || !!gate}
+            className="px-4 py-2 bg-accent text-on-accent font-semibold uppercase tracking-label text-2xs hover:bg-ink transition-all disabled:opacity-50 shrink-0"
+          >
+            {gate ? 'Locked' : `Construct - ${formatCurrency(price)}`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SectionLabel({ icon, label }: { icon: React.ReactNode, label: string }) {
   return (
     <div className="flex items-center gap-2 text-2xs uppercase tracking-label font-semibold text-muted">
@@ -712,7 +671,7 @@ function SectionLabel({ icon, label }: { icon: React.ReactNode, label: string })
   );
 }
 
-function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, info, showUtilBar = false }: { label: string, count: number, used?: number, cost: number, purchaseCost?: number, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, info?: string, showUtilBar?: boolean }) {
+function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, disableRemove, info, showUtilBar = false }: { label: string, count: number, used?: number, cost: number, purchaseCost?: number, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, disableRemove?: boolean, info?: string, showUtilBar?: boolean }) {
   const utilPercent = count > 0 ? Math.round((used / count) * 100) : 0;
   return (
     <div className={`p-3 border transition-colors flex flex-col gap-2 ${disabled ? 'bg-surface border-line opacity-50' : 'bg-surface border-line hover:border-rule'}`}>
@@ -740,7 +699,7 @@ function InfaRow({ label, count, used = 0, cost, purchaseCost, onBuy, disabled, 
           </div>
           <div className="flex gap-1" title={count > 0 && used > 0 ? `Cannot sell below current flight schedule use of ${used} slots.` : "Shift-Click to add or remove 10 units at once."}>
             <button 
-              disabled={disabled || count <= 0 || (showUtilBar && count <= used)} 
+              disabled={disabled || disableRemove || count <= 0 || (showUtilBar && count <= used)} 
               onClick={(e) => onBuy(-1, e.shiftKey)}
               className="w-10 h-10 flex items-center justify-center bg-ground/40 border border-line hover:border-accent disabled:opacity-30 transition-all text-ink"
             >

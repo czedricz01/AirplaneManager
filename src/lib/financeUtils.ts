@@ -3,7 +3,7 @@ import { Airport, calculateDistance, getAirportStats } from '../data/airports';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { jetFuelPrices } from '../data/fuelPrices';
 import { routeCancelShare, routeDemandFactor, type PlayerModifiers } from './gameState';
-import { getFeeFactor, getSlotPriceFactor } from './economyContext';
+import { getFeeFactor } from './economyContext';
 import { resaleAgeFactor } from './fleetCosts';
 import { hubFeeFactor } from './hubOwnership';
 import { realCostIndex } from './realCosts';
@@ -1712,11 +1712,6 @@ export function getInfraAvailability(airport: { level?: number } | null | undefi
 /** How buying and selling slots is listed among the month's one-off spending. */
 export const SLOT_CAPEX_LABEL = 'Airport Slots';
 
-export function getSlotPurchaseCost(type: string) {
-  const base = type === 'narrowbody' ? 50000 : type === 'widebody' ? 100000 : 25000;
-  // Milestones make slots cheaper; see economyContext.ts.
-  return Math.round((base * getSlotPriceFactor()) / 50) * 50;
-}
 
 export interface InfraChangeParams {
   /** Current infrastructure for one airport; never mutated. */
@@ -1731,8 +1726,10 @@ export interface InfraChangeParams {
   availableSlots: number;
   /** Weekly slots this subType already has scheduled — the floor a sell cannot cross. */
   utilizedSlots: number;
-  /** getSlotPurchaseCost(subType) for slots, 0 for stands/desks. */
+  /** Purchase price of one slot (`slotBuyPrice`, model 5.10) for slots, 0 for stands/desks. */
   costPerUnit: number;
+  /** What one slot sold back pays in (`slotSalePrice`, model 5.10); half of `costPerUnit` when left out. */
+  refundPerUnit?: number;
   /** Desks of subType 'normal' can't be sold below this (0 unless the caller enforces a minimum). */
   minNormalDesks?: number;
 }
@@ -1760,6 +1757,7 @@ export function applyInfrastructureChange(params: InfraChangeParams): InfraChang
     infra, type, subType, requestedAmount, hubAutoUpgrade, autoBuyStands,
     availableSlots, utilizedSlots, costPerUnit, minNormalDesks = 0
   } = params;
+  const refundPerUnit = params.refundPerUnit ?? costPerUnit * 0.5;
 
   const newInfra = JSON.parse(JSON.stringify(infra));
   if (!newInfra[type]) newInfra[type] = {};
@@ -1804,8 +1802,8 @@ export function applyInfrastructureChange(params: InfraChangeParams): InfraChang
 
   let cost = 0;
   if (type === 'slots') {
-    // Selling refunds half of what a slot cost to buy.
-    cost = actualAmount > 0 ? costPerUnit * actualAmount : costPerUnit * actualAmount * 0.5;
+    // Selling pays in the resale price (model: SLOT_RESALE_SHARE of today's price).
+    cost = actualAmount > 0 ? costPerUnit * actualAmount : refundPerUnit * actualAmount;
 
     if (actualAmount > 0 && (hubAutoUpgrade || autoBuyStands)) {
       newInfra.stands = { ...newInfra.stands };
