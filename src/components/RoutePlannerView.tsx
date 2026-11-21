@@ -47,12 +47,6 @@ import {
   calculateDemand,
   calculateBasePrices,
   eventRegionalFactor,
-  getSatMultiplier,
-  difficultyFareFactor,
-  priceElasticity,
-  getPriceDemandMultiplier,
-  MAX_SCARCITY_PREMIUM,
-  PRICE_INSENSITIVE_SHARE,
   validateClassConfigs,
   getFlightDurationMinutes as sharedFlightDurationMinutes,
   toStoredRouteMetrics,
@@ -74,10 +68,112 @@ import {
   type AirportPricing,
   type SlotKind
 } from '../lib/modelAirport';
-import type { DeskType } from '../model/constants';
+import type { CabinClass, DeskType } from '../model/constants';
+import { clampFareRatio } from '../model/fare';
+import { CLASS_LABEL } from '../model/glossary';
+import { logWarn } from '../lib/debugLog';
+import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, type PlannedRoute, type PlannerModel, type RouteForecast } from '../lib/modelRoute';
 import { priceDraftInNetwork, type NetworkEnv } from '../lib/transferUtils';
 
 const EMPTY_DESK_SIM = { load: 0, sat: 0, myPax: 0, cap: 0 };
+
+/**
+ * The fare-level bar of the pricing step reaches at least this far below and above the market fare (level 1), and
+ * this much further past the lowest and highest mark. Layout only: the model clamps the stored level (4.5).
+ */
+const LEVEL_RANGE_LOW = 0.5;
+const LEVEL_RANGE_HIGH = 1.5;
+const LEVEL_RANGE_MARGIN = 0.2;
+
+/** "+10% vs market" for a fare 10% above the market fare; "at market fare" within half a percent. */
+function vsMarketText(vsMarket: number): string {
+  const pct = Math.round(vsMarket * 100);
+  if (pct === 0) return 'at market fare';
+  return `${pct > 0 ? '+' : ''}${pct}% vs market`;
+}
+
+/** One cost line of the pricing step's summary, with its parts when it has any. */
+function CostLine({ label, amount, parts, open = false, onToggle }: {
+  label: string;
+  amount: number;
+  parts?: readonly (readonly [string, number])[];
+  open?: boolean;
+  onToggle?: () => void;
+}) {
+  const expandable = !!parts && !!onToggle;
+  return (
+    <div className="flex flex-col border-b border-line pb-2">
+      <div
+        className={`flex justify-between items-end ${expandable ? 'cursor-pointer group bar:items-center bar:min-h-11 short:min-h-11' : ''}`}
+        {...(expandable ? { role: 'button', tabIndex: 0, onKeyDown: clickOnKey, onClick: onToggle } : {})}
+      >
+        <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
+          {label} {expandable && (open ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+        </span>
+        <span className="text-sm font-mono text-muted group-hover:text-ink transition-colors">-{formatCurrency(amount)}</span>
+      </div>
+      {expandable && open && (
+        <div className="pl-4 mt-2 space-y-1">
+          {parts!.map(([name, value]) => (
+            <div key={name} className="flex justify-between items-end">
+              <span className="text-2xs uppercase tracking-label text-muted">{name}</span>
+              <span className="text-2xs font-mono text-muted">-{formatCurrency(value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A mark on a price bar: break-even at the expected load and with a full aircraft (4.11), market fare, best fare (4.10). */
+interface SliderMark {
+  readonly value: number;
+  readonly kind: 'breakEven' | 'full' | 'market' | 'best';
+  readonly title: string;
+}
+
+const MARK_STYLE: Readonly<Record<SliderMark['kind'], string>> = {
+  breakEven: 'h-4 w-1 bg-accent/70 rounded-b-sm',
+  full: 'h-3 w-0.5 bg-rule',
+  market: 'h-4 w-0.5 bg-good/80',
+  best: 'h-4 w-0.5 bg-ink',
+};
+
+/** A price bar with its marks. Marks outside the bar are left out. */
+function MarkedSlider({ min, max, step, value, onChange, marks, format }: {
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (value: number) => void;
+  marks: readonly SliderMark[];
+  format: (value: number) => string;
+}) {
+  const span = max - min;
+  const pct = (v: number) => (span > 0 ? ((v - min) / span) * 100 : 0);
+  return (
+    <div className="relative pt-4">
+      <input
+        type="range" min={min} max={max} step={step} value={Math.min(max, Math.max(min, value))}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-2 bg-raised rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer cursor-pointer relative z-10"
+      />
+      {marks.filter(m => Number.isFinite(m.value) && m.value >= min && m.value <= max).map(m => (
+        <div
+          key={m.kind}
+          className={`absolute top-[20px] pointer-events-none z-0 ${MARK_STYLE[m.kind]}`}
+          title={m.title}
+          style={{ left: `calc(${pct(m.value)}% + ${8 - pct(m.value) * 0.16}px)`, transform: 'translateX(-50%)' }}
+        />
+      ))}
+      <div className="flex justify-between mt-2 px-1">
+        <span className="text-2xs text-muted font-mono">{format(min)}</span>
+        <span className="text-2xs text-muted font-mono">{format(max)}</span>
+      </div>
+    </div>
+  );
+}
 // A stable default, so a missing prop does not invalidate the memos below on every render.
 const NO_RIVAL_OFFERS: RouteOffer[] = [];
 const NO_AI_AIRLINES: any[] = [];
@@ -143,6 +239,8 @@ interface Props {
   airlineCode?: string;
   /** Month, research, milestones and the rivals' slots: everything the model's prices at airports need (4.3). */
   pricing: AirportPricing;
+  /** The game as the model sees it, for the pricing step's forecast (4.5a); null shows no forecast. */
+  model?: PlannerModel | null;
 }
 
 function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, disabled, disableRemove }: { label: string, count: number, used?: number, cost: number, costSuffix?: string, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, disableRemove?: boolean }) {
@@ -230,6 +328,7 @@ function RoutePlannerInner({
   aiAirlines = NO_AI_AIRLINES,
   airlineCode = "NE",
   pricing,
+  model = null,
   debugMode = false
 }: Props) {
   const airportsMap = useMemo(() => {
@@ -943,41 +1042,8 @@ function RoutePlannerInner({
   const originDeskSim = classSat?.originDeskSim ?? EMPTY_DESK_SIM;
   const destDeskSim = classSat?.destDeskSim ?? EMPTY_DESK_SIM;
 
-  // Numbers shown in the wizard. Outside Easy these assume a full aircraft, which is
-  // what a "what could this route earn" preview should show.
-  const financials = useMemo(() => {
-    if (!routeDraft || !selectedAircraft) return null;
-
-    const engine = calculateRouteFinancials(
-      routeDraft, selectedAircraft, fuelPrice, airportManagement,
-      currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      difficulty !== 'Easy', plannerMods.demandFactor, rivalOffers, plannerMods
-    );
-    const b = engine.costsBreakdown;
-
-    return {
-      ...engine,
-      dist: engine.distance,
-      fuelPrice,
-      weeklyFuelCost: b.fuel,
-      weeklyCrewCost: b.crew,
-      weeklyInfraCost: b.infra,
-      originDepartures: schedule.length,
-      destDepartures: schedule.filter(s => !s.isOneWay).length,
-      originLandingFees: b.originLandingFees,
-      destLandingFees: b.destLandingFees,
-      originCheckInUnit: b.originCheckInUnit,
-      destCheckInUnit: b.destCheckInUnit,
-      originCheckInFees: b.originCheckInFees,
-      destCheckInFees: b.destCheckInFees,
-      originPaxFeeUnit: b.originPaxFeeUnit,
-      destPaxFeeUnit: b.destPaxFeeUnit,
-      originPaxHandlingFees: b.originPaxHandlingFees,
-      destPaxHandlingFees: b.destPaxHandlingFees
-    };
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, schedule, plannerMods, rivalOffers]);
-
-  // The figures actually stored on the route: realistic load factors, not full load.
+  // The figures stored on the route until the route list reads the model (package 4.5c), and the cabin step's
+  // catering cost until step 3 does (4.5b).
   const saveFinancials = useMemo(() => {
     if (!routeDraft || !selectedAircraft) return null;
     return calculateRouteFinancials(
@@ -987,37 +1053,73 @@ function RoutePlannerInner({
     );
   }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, plannerMods, rivalOffers]);
 
-  // Break-even prices at 99%/75%/35% load, shared by the pricing step's sliders
-  // and the auto-seed effect below. They come straight from the engine result,
-  // which weights the cabins and divides the weekly cost, so the sliders and the
-  // saved route cannot drift apart. (A copy of that formula used to live here.)
-  const basePricePoints = useMemo(() => {
-    if (!financials) return null;
+  /**
+   * The draft as the model reads it (docs/neubau 4.5a): an edited route keeps its opening month, so its first month
+   * counts with its age; a new route starts its ramp-up.
+   */
+  const storedRoute = useMemo(() => routes.find(r => r.id === initialRouteId), [routes, initialRouteId]);
+  const plannedRoute = useMemo<PlannedRoute | null>(() => {
+    if (!routeDraft || !model) return null;
     return {
-      be75: financials.basePriceBE75,
-      be99: financials.basePriceBE99,
-      be35: financials.basePriceBE35
+      route: { ...routeDraft, airline: airlineCode, weeklyFlights: schedule.length, paxPerWeek: 0, openedOffset: storedRoute?.openedOffset },
+      isNew: !storedRoute,
+      startMonth: model.startMonth
     };
-  }, [financials]);
+  }, [routeDraft, model, airlineCode, schedule.length, storedRoute]);
 
-  // New fares start at what the market pays per cabin. They used to start at
-  // break-even at 75% load, which on a costly route lay far above that fare,
-  // so the first thing a player saw was a nearly empty aircraft at every
-  // price near the notch. Break-even is the fallback when no fare is known.
-  useEffect(() => {
-    if (step === 4 && basePricePoints && Object.keys(ticketPrices).length === 0) {
-       const base = basePricePoints.be75;
-       const fare = saveFinancials?.marketFare ?? {};
-       const seed = (c: string, multiplier: number) =>
-         Math.round(fare[c] > 0 ? fare[c] : base * multiplier);
-       setTicketPrices({
-         economy: seed('economy', 1),
-         premium: seed('premium', 1.6),
-         business: seed('business', 3.0),
-         first: seed('first', 5.0)
-       });
+  /**
+   * Every figure of the pricing step, from the model's planner calculation, the same one the month close books
+   * (R2, 4.11, 4.12). It follows a deferred copy of the draft so the price sliders stay responsive.
+   */
+  const deferredPlanned = useDeferredValue(plannedRoute);
+  const forecast = useMemo<RouteForecast | null>(() => {
+    if (!model || !deferredPlanned || step < 4) return null;
+    try {
+      return routeForecast(model.state, deferredPlanned);
+    } catch (error) {
+      logWarn('planner', 'The model could not price this route', error);
+      return null;
     }
-  }, [step, basePricePoints, ticketPrices, saveFinancials]);
+  }, [model, deferredPlanned, step]);
+
+  /** The market fare of every class this month (4.3): start prices, "Adjust All", the green tick. */
+  const routeFares = useMemo(() => {
+    if (!model || !selectedOrigin || !selectedDest) return null;
+    try {
+      return routeMarketFares(model.state, { origin: selectedOrigin.id, destination: selectedDest.id });
+    } catch {
+      return null;
+    }
+  }, [model, selectedOrigin, selectedDest]);
+
+  /**
+   * The most profitable fare per class (4.10). Each class is a market of its own, so a class's own price does not
+   * move it: it is worked out once per schedule and cabin, not on every tick of a slider.
+   */
+  const bestFares = useMemo(() => {
+    if (!model || !plannedRoute || step < 4) return {};
+    try {
+      return routeBestFares(model.state, { ...plannedRoute, route: { ...plannedRoute.route, ticketPrices: undefined, activeTicketPrices: undefined } });
+    } catch (error) {
+      logWarn('planner', 'The model could not find the best fares of this route', error);
+      return {};
+    }
+    // The prices are left out on purpose (see above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, step, plannedRoute?.route.origin, plannedRoute?.route.destination, plannedRoute?.route.aircraft, schedule, classConfigs, plannedRoute?.isNew]);
+
+  /** Cabins with seats on the chosen aircraft. */
+  const seatClasses = useMemo(
+    () => CABIN_CLASSES.filter(c => ((selectedAircraft?.config as Partial<ConfigOutput> | undefined)?.[c] ?? 0) > 0),
+    [selectedAircraft]
+  );
+
+  // A new route starts at the market fare in every class (fare level 1, E23): no fixed class factors.
+  useEffect(() => {
+    if (step === 4 && routeFares && Object.keys(ticketPrices).length === 0 && seatClasses.length > 0) {
+      setTicketPrices(pricesAtLevel(routeFares, 1, seatClasses));
+    }
+  }, [step, routeFares, ticketPrices, seatClasses]);
 
   useEffect(() => {
     onScheduleChange?.(schedule);
@@ -3262,60 +3364,39 @@ function RoutePlannerInner({
               </div>
         )})()}
 
-        {step === 4 && financials && selectedAircraft && selectedOrigin && selectedDest && (() => {
-           const { 
-              dist, flightLegs, weeklyFuelCost, weeklyCrewCost, weeklyInfraCost, 
-              originDepartures, destDepartures, originLandingFees, destLandingFees,
-              originCheckInUnit, destCheckInUnit, originCheckInFees, destCheckInFees,
-              originPaxFeeUnit, destPaxFeeUnit, originPaxHandlingFees, destPaxHandlingFees
-           } = financials;
-
-           // `financials` already IS the full-load engine result for this draft, and
-           // `saveFinancials` the realistic-load one. Both are memoised above, so this
-           // block no longer recomputes the model on every keystroke.
-           const displayFinancials = financials;
-
-           const estProfit = displayFinancials.estWeeklyProfit;
-           const paxPerWeek = displayFinancials.paxPerWeek;
-           const maxRevenue = displayFinancials.estWeeklyRev;
-
-           const classes = ['economy', 'premium', 'business', 'first'];
-           const aircraftConfig = (selectedAircraft.config || {}) as Partial<ConfigOutput>;
-           const classSeatCount: Record<string, number> = {
-             economy: aircraftConfig.economy || 0,
-             premium: aircraftConfig.premium || 0,
-             business: aircraftConfig.business || 0,
-             first: aircraftConfig.first || 0
+        {step === 4 && selectedAircraft && selectedOrigin && selectedDest && (() => {
+           // Every figure on this screen comes from the model's planner calculation (`forecast`, 4.11, 4.12), the
+           // same one the month close books (R2). The screen only lays it out.
+           const f = forecast;
+           const fares = routeFares;
+           const seatsPerFlight = (c: CabinClass) => ((selectedAircraft.config || {}) as Partial<ConfigOutput>)[c] || 0;
+           const levelClass = seatClasses[0];
+           const currentLevel = fares && levelClass && ticketPrices[levelClass] > 0 ? ticketPrices[levelClass] / fares[levelClass] : 1;
+           const beFull = f?.breakEvenLevel.full;
+           const beExpected = f?.breakEvenLevel.expected;
+           // The bar covers the market fare, both break-even marks and the current fare level, with some room to spare.
+           const levelMin = clampFareRatio(Math.min(LEVEL_RANGE_LOW, currentLevel, beFull ?? 1) * (1 - LEVEL_RANGE_MARGIN));
+           const levelMax = clampFareRatio(Math.max(LEVEL_RANGE_HIGH, currentLevel, beExpected ?? beFull ?? 1) * (1 + LEVEL_RANGE_MARGIN));
+           const setLevel = (level: number) => {
+             if (fares) setTicketPrices({ ...ticketPrices, ...pricesAtLevel(fares, level, seatClasses) });
            };
-           // Shares the one basePricePoints memo with the auto-seed effect above,
-           // so the sliders and the price ticketPrices gets seeded to can never
-           // drift apart (see the comment on that memo).
-           const basePriceBE75 = basePricePoints?.be75 ?? 100;
-           const basePriceBE99 = basePricePoints?.be99 ?? 80;
-           const basePriceBE35 = basePricePoints?.be35 ?? 300;
-           // Twice the room on both sides of the break-even-at-75% notch, which
-           // stays at the same relative spot on the bar either way, so a player
-           // testing a much cheaper or much pricier fare isn't capped at the
-           // 99%/35%-load break-even points.
-           // The bar also always reaches half and one and a half times the
-           // market fare, so on a route that costs more than passengers pay the
-           // fares that actually sell are still on it.
-           const marketFare: Record<string, number> = saveFinancials?.marketFare ?? {};
-           const fareRange = (min: number, max: number, fare: number | undefined) => fare && fare > 0
-             ? { min: Math.max(1, Math.min(min, fare * 0.5)), max: Math.max(max, fare * 1.5) }
-             : { min, max };
-           const { min: sliderMin, max: sliderMax } = fareRange(
-             basePriceBE75 - 2 * (basePriceBE75 - basePriceBE99),
-             basePriceBE75 + 2 * (basePriceBE35 - basePriceBE75),
-             marketFare.economy
-           );
-           const tickPct = (value: number, min: number, max: number) => ((value - min) / (max - min)) * 100;
-
-           const actualCapacity = aircraftConfig 
-             ? ((aircraftConfig.economy || 0) + (aircraftConfig.premium || 0) + (aircraftConfig.business || 0) + (aircraftConfig.first || 0)) 
-             : 0;
-           const finalCapacity = actualCapacity > 0 ? actualCapacity : selectedAircraft.capacity;
-           const totalEstPaxMax = finalCapacity * flightLegs;
+           const setBestFares = () => {
+             const next = { ...ticketPrices };
+             for (const c of seatClasses) {
+               const best = bestFares[c];
+               if (best) next[c] = Math.max(1, Math.round(best.fare));
+             }
+             setTicketPrices(next);
+           };
+           const fig = f?.figures;
+           let seatsWeek = 0;
+           let paxWeek = 0;
+           if (fig) {
+             for (const c of CABIN_CLASSES) {
+               seatsWeek += fig.offeredSeats[c];
+               paxWeek += fig.passengers[c];
+             }
+           }
 
            return (
               <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto animate-appear bg-ground/25">
@@ -3323,387 +3404,214 @@ function RoutePlannerInner({
                   {/* Left Area: Financial Summary */}
                   <div className="flex-[1] flex flex-col gap-3">
                      <div className="bg-surface border border-line p-4 rounded-sm shrink-0 sticky top-4 w-full lg:w-[350px]">
-                        <div className="mb-4 flex flex-col gap-1.5 pointer-events-none">
+                        <div className="mb-4 flex flex-col gap-1.5">
                            <h3 className="font-label text-xl font-semibold text-ink leading-tight">
                               Financial Summary
                            </h3>
-                           {/* Everything below this line is the full-aircraft ceiling
-                               (the realistic figure on Easy). The expected result at
-                               today's demand is shown at the bottom. */}
-                           <span className="text-2xs text-muted tracking-label font-label font-semibold uppercase">{formatNumber(paxPerWeek)} / {formatNumber(totalEstPaxMax)} Weekly PAX {difficulty !== 'Easy' ? '(full aircraft)' : ''}</span>
-                        </div>
-                        
-                        <div className="space-y-4 mb-4">
-                           <div className="flex justify-between items-end border-b border-line pb-2">
-                             <span className="text-2xs uppercase font-semibold tracking-label text-muted">Est. Weekly Revenue</span>
-                             <span className="text-lg font-mono text-accent">+{formatCurrency(maxRevenue)}</span>
-                           </div>
-                           <div className="flex flex-col border-b border-line pb-2">
-                             <div 
-                               className="flex justify-between items-end bar:items-center cursor-pointer group bar:min-h-11 short:min-h-11" role="button" tabIndex={0} onKeyDown={clickOnKey}
-                               onClick={() => setExpandedSections(prev => ({ ...prev, fuel4: !prev.fuel4 }))}
-                             >
-                               <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
-                                 Opx: Fuel Cost {expandedSections.fuel4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                               </span>
-                               <span className="text-sm font-mono text-muted group-hover:text-ink transition-colors">-{formatCurrency(weeklyFuelCost)}</span>
-                             </div>
-                             {expandedSections.fuel4 && (
-                               <div className="pl-4 mt-2 space-y-1">
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Fuel Price</span>
-                                   <span className="text-2xs font-mono text-muted">${formatNumber(displayFinancials.costsBreakdown.fuelPriceL, 3)}/L</span>
-                                 </div>
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Seats (type capacity, fuel basis)</span>
-                                   <span className="text-2xs font-mono text-muted">{finalCapacity} ({selectedAircraft.capacity})</span>
-                                 </div>
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Oneway Distance</span>
-                                   <span className="text-2xs font-mono text-muted">{dist.toFixed(0)} km</span>
-                                 </div>
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Formula Divider</span>
-                                   <span className="text-2xs font-mono text-muted">{(0.75 + (selectedAircraft.efficiency / 70)).toFixed(2)}</span>
-                                 </div>
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Weekly Flight Legs</span>
-                                   <span className="text-2xs font-mono text-muted">{flightLegs}x</span>
-                                 </div>
-                               </div>
-                             )}
-                           </div>
-                           <div className="flex justify-between items-end border-b border-line pb-2">
-                             <span className="text-2xs uppercase font-semibold tracking-label text-muted">Opx: Cabin & Catering</span>
-                             <span className="text-sm font-mono text-muted">-{formatCurrency(displayFinancials.costsBreakdown.catering)}</span>
-                           </div>
-                             <div 
-                               className="flex justify-between items-end bar:items-center cursor-pointer group bar:min-h-11 short:min-h-11" role="button" tabIndex={0} onKeyDown={clickOnKey}
-                               onClick={() => setExpandedSections(prev => ({ ...prev, crew4: !prev.crew4 }))}
-                             >
-                                <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
-                                 Opx: Crew Costs {expandedSections.crew4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                               </span>
-                               <span className="text-sm font-mono text-muted group-hover:text-ink transition-colors">-{formatCurrency(weeklyCrewCost)}</span>
-                             </div>
-                             {expandedSections.crew4 && (
-                               <div className="pl-4 mt-2 space-y-1">
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Hourly Rate</span>
-                                   <span className="text-2xs font-mono text-muted">${((2 * 100) + (Math.ceil(selectedAircraft.capacity / 50) * 40)).toFixed(2)}</span>
-                                 </div>
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Pilots / FAs</span>
-                                   <span className="text-2xs font-mono text-muted">2 / {Math.ceil(selectedAircraft.capacity / 50)}</span>
-                                 </div>
-                                 <div className="flex justify-between items-end">
-                                   <span className="text-2xs uppercase tracking-label text-muted">Weekly Flight Hours</span>
-                                   <span className="text-2xs font-mono text-muted">{(schedule.reduce((acc, s) => acc + (s.durMin * (s.isOneWay ? 1 : 2)), 0) / 60).toFixed(2)}h</span>
-                                 </div>
-                               </div>
-                             )}
-                           <div className="flex flex-col border-b border-line pb-2">
-                             <div 
-                               className="flex justify-between items-end bar:items-center cursor-pointer group bar:min-h-11 short:min-h-11" role="button" tabIndex={0} onKeyDown={clickOnKey}
-                               onClick={() => setExpandedSections(prev => ({ ...prev, infra4: !prev.infra4 }))}
-                             >
-                               <span className="text-2xs uppercase font-semibold tracking-label text-muted hover:text-accent transition-colors flex items-center gap-1">
-                                 Opx: Infrastructure {expandedSections.infra4 ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                               </span>
-                               <span className="text-sm font-mono text-muted group-hover:text-ink transition-colors">-{formatCurrency(weeklyInfraCost)}</span>
-                             </div>
-                             {expandedSections.infra4 && (
-                               <div className="pl-4 mt-2 space-y-2 border-l border-line ml-1">
-                                 <div className="space-y-1">
-                                   <h4 className="font-label text-2xs font-semibold uppercase tracking-label text-ink mb-1">Landing Fees</h4>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} ({originDepartures}x landings)</span>
-                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(originLandingFees)}</span>
-                                   </div>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedDest.id} ({destDepartures}x landings)</span>
-                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(destLandingFees)}</span>
-                                   </div>
-                                 </div>
-
-                                 <div className="space-y-1 pt-1 border-t border-line">
-                                   <h4 className="font-label text-2xs font-semibold uppercase tracking-label text-ink mb-1">Check-in Desk Costs</h4>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} (${formatNumber(originCheckInUnit, 3)}/pax)</span>
-                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(originCheckInFees)}</span>
-                                   </div>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedDest.id} (${formatNumber(destCheckInUnit, 3)}/pax)</span>
-                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(destCheckInFees)}</span>
-                                   </div>
-                                 </div>
-
-                                 <div className="space-y-1 pt-1 border-t border-line">
-                                   <h4 className="font-label text-2xs font-semibold uppercase tracking-label text-ink mb-1">PAX Handling Fees (Security/Baggage)</h4>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedOrigin.id} (L{selectedOrigin.level}: ${originPaxFeeUnit}/pax)</span>
-                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(originPaxHandlingFees)}</span>
-                                   </div>
-                                   <div className="flex justify-between items-end">
-                                     <span className="text-2xs uppercase tracking-label text-muted">{selectedDest.id} (L{selectedDest.level}: ${destPaxFeeUnit}/pax)</span>
-                                     <span className="text-2xs font-mono text-muted">-{formatCurrency(destPaxHandlingFees)}</span>
-                                   </div>
-                                 </div>
-
-                                 <div className="pt-1 border-t border-line">
-                                    <p className="text-2xs text-muted font-semibold leading-tight">
-                                      * Costs include slot license, check-in desk personnel, terminal usage fees, and baggage handling systems per departure.
-                                    </p>
-                                 </div>
-                               </div>
-                             )}
-                           </div>
-                        </div>
-
-                        {/* Two different questions: what the route earns at today's demand,
-                            and what it could earn with every seat sold. The screen used to
-                            show only the second, under the same label on every difficulty. */}
-                        {saveFinancials && difficulty !== 'Easy' && (
-                          <div className={`p-4 mb-2 border ${saveFinancials.estWeeklyProfit >= 0 ? 'bg-good/10 border-good/30' : 'bg-bad/10 border-bad/30'} flex flex-col items-center justify-center`}>
-                             <span className="text-2xs uppercase font-semibold tracking-label text-muted mb-1">Expected Weekly Profit (current demand)</span>
-                             <span className={`text-3xl font-semibold ${saveFinancials.estWeeklyProfit >= 0 ? 'text-good' : 'text-bad'}`}>
-                               {formatSignedCurrency(saveFinancials.estWeeklyProfit)}
-                             </span>
-                             <span className="text-2xs text-muted mt-1">
-                               {formatNumber(saveFinancials.paxPerWeek)} / {formatNumber(totalEstPaxMax)} pax per week
-                               {saveFinancials.transferPax > 0 && ` · incl. ${formatNumber(saveFinancials.transferPax)} transfer`}
-                             </span>
-                          </div>
-                        )}
-                        <div className={`p-4 border ${estProfit >= 0 ? 'bg-accent/10 border-accent/30' : 'bg-surface border-rule'} flex flex-col items-center justify-center`}>
-                            <span className="text-2xs uppercase font-semibold tracking-label text-muted mb-1">{difficulty !== 'Easy' ? 'Max Weekly Profit (full aircraft)' : 'Expected Weekly Profit'}</span>
-                           <span className={`text-3xl font-semibold ${estProfit >= 0 ? 'text-accent' : 'text-bad'}`}>
-                             {formatSignedCurrency(estProfit)}
+                           <span className="text-2xs text-muted leading-snug">
+                             Per week once the route has ramped up, at today's demand and with every rival on the route. Prices you set here apply from next month.
                            </span>
                         </div>
+
+                        {!f || !fig ? (
+                          <p className="text-xs text-muted">
+                            {model ? 'Working out the forecast…' : 'No forecast: the game could not be read by the economy model.'}
+                          </p>
+                        ) : (
+                        <>
+                        <div className="space-y-4 mb-4">
+                           <div className="flex justify-between items-end border-b border-line pb-2">
+                             <span className="text-2xs uppercase font-semibold tracking-label text-muted">Revenue</span>
+                             <span className="text-lg font-mono text-accent">+{formatCurrency(fig.revenue)}</span>
+                           </div>
+                           <CostLine
+                             label="Passenger costs" amount={fig.passengerCost.total}
+                             open={!!expandedSections.pax4} onToggle={() => setExpandedSections(prev => ({ ...prev, pax4: !prev.pax4 }))}
+                             parts={[['Catering', fig.passengerCost.catering], ['Handling and check-in fees', fig.passengerCost.fees], ['Frequent flyer', fig.passengerCost.ffp]]}
+                           />
+                           <CostLine
+                             label="Flight costs" amount={fig.fixed.flightOps}
+                             open={!!expandedSections.fuel4} onToggle={() => setExpandedSections(prev => ({ ...prev, fuel4: !prev.fuel4 }))}
+                             parts={[['Fuel', fig.fixed.fuel], ['Crew', fig.fixed.crew], [`Landing (${formatNumber(fig.plannedLegs)} legs)`, fig.fixed.landing]]}
+                           />
+                           <CostLine label="Slots" amount={fig.fixed.slotShare} />
+                           <CostLine label="Aircraft (upkeep and depreciation)" amount={fig.fixed.aircraftShare} />
+                        </div>
+
+                        <div className={`p-4 mb-2 border ${f.weeklyProfit >= 0 ? 'bg-good/10 border-good/30' : 'bg-bad/10 border-bad/30'} flex flex-col items-center justify-center`}>
+                           <span className="text-2xs uppercase font-semibold tracking-label text-muted mb-1">Expected Weekly Profit</span>
+                           <span className={`text-3xl font-semibold ${f.weeklyProfit >= 0 ? 'text-good' : 'text-bad'}`}>
+                             {formatSignedCurrency(f.weeklyProfit)}
+                           </span>
+                           <span className="text-2xs text-muted mt-1 flex items-center">
+                             {formatNumber(paxWeek)} / {formatNumber(seatsWeek)} passengers per week ({Math.round(f.expectedLoad * 100)}% LF)
+                             <InfoTooltip size={10} {...GLOSSARY.loadFactor} />
+                           </span>
+                        </div>
+                        <div className="space-y-1 text-2xs">
+                           <div className="flex justify-between">
+                             <span className="text-muted">{storedRoute ? 'At the route’s current ramp-up' : 'First month (ramp-up)'}</span>
+                             <span className={`font-mono ${f.firstMonthWeeklyProfit >= 0 ? 'text-ink' : 'text-bad'}`}>{formatSignedCurrency(f.firstMonthWeeklyProfit)}</span>
+                           </div>
+                           <div className="flex justify-between">
+                             <span className="text-muted">Before aircraft costs</span>
+                             <span className={`font-mono ${f.beforeAircraftWeeklyProfit >= 0 ? 'text-ink' : 'text-bad'}`}>{formatSignedCurrency(f.beforeAircraftWeeklyProfit)}</span>
+                           </div>
+                           <div className="flex justify-between">
+                             <span className="text-muted">Full aircraft at market fare (not expected)</span>
+                             <span className="font-mono text-muted">{formatSignedCurrency(f.fullAircraft.profit)}</span>
+                           </div>
+                        </div>
+                        </>
+                        )}
                      </div>
                   </div>
 
                   {/* Right Area: Sliders */}
                   <div className="flex-[2] flex flex-col">
                      <div className="bg-surface border border-line p-4 rounded-sm mb-3 flex-1 flex flex-col">
-                        <div className="flex justify-between items-center mb-3">
+                        <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
                            <h3 className="font-label text-xl font-semibold text-ink mb-2">Configure Pricing</h3>
-                           {debugMode && (
-                             <div 
-                                className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2 cursor-pointer border border-line px-2 py-1 bg-ground/40 hover:bg-raised" role="button" tabIndex={0} onKeyDown={clickOnKey}
-                                onClick={() => setShowPricingDebug(!showPricingDebug)}
+                           <div className="flex items-center gap-2 flex-wrap">
+                             <button
+                               disabled={!fares}
+                               onClick={() => fares && setTicketPrices({ ...ticketPrices, ...pricesAtLevel(fares, 1, seatClasses) })}
+                               className="text-2xs font-semibold uppercase tracking-label border border-line px-2 py-1 hover:bg-raised disabled:opacity-50"
                              >
-                                <Search size={12} /> Base P. <span className="text-2xs bg-raised px-1 py-0.5 rounded-sm">Debug</span>
-                             </div>
-                           )}
+                               Market fares
+                             </button>
+                             <button
+                               disabled={Object.keys(bestFares).length === 0}
+                               onClick={setBestFares}
+                               className="text-2xs font-semibold uppercase tracking-label border border-accent/40 text-accent px-2 py-1 hover:bg-accent/10 disabled:opacity-50"
+                             >
+                               Set best fares
+                             </button>
+                             {debugMode && (
+                               <div
+                                  className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2 cursor-pointer border border-line px-2 py-1 bg-ground/40 hover:bg-raised" role="button" tabIndex={0} onKeyDown={clickOnKey}
+                                  onClick={() => setShowPricingDebug(!showPricingDebug)}
+                               >
+                                  <Search size={12} /> Model <span className="text-2xs bg-raised px-1 py-0.5 rounded-sm">Debug</span>
+                               </div>
+                             )}
+                           </div>
                         </div>
 
-                        {showPricingDebug && debugMode && (
-                          <div className="mb-4 p-4 border border-line bg-ground/60 rounded-sm text-2xs text-muted space-y-2">
-                             <div className="text-ink font-semibold mb-2">SAT base price &amp; demand (expected load)</div>
-                             {saveFinancials && (() => {
-                                // Everything here is read from the engine result the route is
-                                // saved with, so the debug view cannot drift from the model.
-                                const bases = calculateBasePrices(saveFinancials.distance, saveFinancials.timeIndex);
-                                const d = saveFinancials.demandData;
-                                return CABIN_CLASSES.map(c => {
-                                   const seats = selectedAircraft.config?.[c] || 0;
-                                   if (!seats) return null;
-                                   const maxDemand = d[c] || 0;
-                                   // The going fare on this difficulty, as the engine prices it.
-                                   const base = Math.round(bases[c] * difficultyFareFactor(difficulty));
-                                   const sat = Math.max(0, saveFinancials.routeSat[c] || 0);
-                                   const satMultiplier = getSatMultiplier(sat);
-                                   const satBase = Math.round(base * satMultiplier);
-                                   const currentPrice = ticketPrices[c] || satBase;
-                                   const elasticity = priceElasticity(c);
-                                   const fare = saveFinancials.marketFare?.[c] ?? satBase;
-                                   const demMult = getPriceDemandMultiplier(currentPrice, fare, elasticity);
-                                   const pax = saveFinancials.paxByClass[c];
+                        {showPricingDebug && debugMode && f && fig && (
+                          // The model's own breakdown, nothing worked out here (E52).
+                          <div className="mb-4 p-4 border border-line bg-ground/60 rounded-sm text-2xs text-muted space-y-2 overflow-x-auto">
+                             <div className="text-ink font-semibold">Planner calculation of the model (per week, after ramp-up)</div>
+                             <div>
+                               {formatNumber(f.greatCircleKm)} km · {formatNumber(fig.blockMinutes)} min block · {formatNumber(fig.plannedLegs)} legs ·
+                               {' '}expected load {formatNumber(f.expectedLoad * 100, 1)}% · break-even level {beExpected !== undefined ? formatNumber(beExpected, 3) : '–'} expected, {formatNumber(f.breakEvenLevel.full, 3)} full
+                             </div>
+                             <table className="w-full font-mono">
+                               <thead>
+                                 <tr className="text-ink text-left">
+                                   <th className="pr-3">Class</th><th className="pr-3">Market</th><th className="pr-3">Level</th><th className="pr-3">Satisfaction</th>
+                                   <th className="pr-3">Pax / seats</th><th className="pr-3">Cost / pax</th><th className="pr-3">Best</th><th className="pr-3">Break-even</th>
+                                 </tr>
+                               </thead>
+                               <tbody>
+                                 {seatClasses.map(c => {
+                                   const k = f.classes[c];
+                                   if (!k) return null;
                                    return (
-                                      <div key={c} className="flex flex-col py-2 border-b border-line last:border-0 gap-1">
-                                         <div className="flex justify-between text-ink">
-                                           <span className="uppercase font-semibold">{c}</span>
-                                           <span>Base: ${base} &times; SAT mult: {formatNumber(satMultiplier, 3)} ({sat}%) &rarr; <strong className="text-accent">SAT base: ${satBase}</strong></span>
-                                         </div>
-                                         {sat > 100 && (
-                                            <div className="pl-4 text-2xs text-muted">
-                                               SAT &gt; 100%: {sat <= 200 ? `1.0 + (0.008 * ${sat-100}) - (0.000035 * ${Math.pow(sat-100, 2).toFixed(0)})` : `1.45 + (0.001 * ${sat-200})`}
-                                            </div>
-                                         )}
-                                         <div className="flex justify-between pl-4 text-2xs">
-                                           <span>Scarcity premium (demand over seats, at most +{Math.round(MAX_SCARCITY_PREMIUM * 100)}%): &times;{formatNumber(fare / Math.max(1, satBase), 3)} &rarr; market fare ${fare}</span>
-                                         </div>
-                                         <div className="flex justify-between pl-4 text-2xs">
-                                           <span>Price ratio: market fare / price = {formatNumber(fare / currentPrice, 2)}</span>
-                                         </div>
-                                         <div className="flex justify-between pl-4 text-2xs">
-                                           <span>Demand mult: {currentPrice <= fare ? `min(1.5, ratio^${formatNumber(elasticity, 2)})` : `${formatNumber(1 - PRICE_INSENSITIVE_SHARE, 2)} × ratio^${formatNumber(elasticity * 3, 2)} + ${formatNumber(PRICE_INSENSITIVE_SHARE, 2)} × ratio`}</span>
-                                           <span>{formatNumber(demMult * 100, 1)}%</span>
-                                         </div>
-                                         <div className="flex justify-between pl-4 text-2xs text-accent">
-                                           <span>Market demand {formatNumber(maxDemand)} / wk, before competitors and seat cap</span>
-                                           <span>Expected pax: {formatNumber(pax?.actual ?? 0)}{pax?.transfer ? ` + ${formatNumber(pax.transfer)} transfer` : ''} / {formatNumber(pax?.max ?? 0)}</span>
-                                         </div>
-                                         <div className="flex justify-between pl-4 text-2xs text-muted">
-                                            <span>Seats on aircraft:</span>
-                                            <span>{seats}</span>
-                                         </div>
-                                      </div>
+                                     <tr key={c}>
+                                       <td className="pr-3">{CLASS_LABEL[c]}</td>
+                                       <td className="pr-3">${formatNumber(k.marketFare, 2)}</td>
+                                       <td className="pr-3">{formatNumber(k.fareRatio, 3)}</td>
+                                       <td className="pr-3">{formatNumber(k.satisfaction, 1)} (× {formatNumber(k.satisfactionFactor, 3)})</td>
+                                       <td className="pr-3">{formatNumber(k.passengers, 1)} / {formatNumber(k.seatsPerWeek)}</td>
+                                       <td className="pr-3">${formatNumber(k.costPerPassenger, 2)}</td>
+                                       <td className="pr-3">{bestFares[c] ? `${formatNumber(bestFares[c]!.fareRatio, 3)} ($${formatNumber(bestFares[c]!.fare, 2)})` : '–'}</td>
+                                       <td className="pr-3">${k.breakEvenExpected !== undefined ? formatNumber(k.breakEvenExpected, 2) : '–'} / ${formatNumber(k.breakEvenFull, 2)}</td>
+                                     </tr>
                                    );
-                                });
-                             })()}
+                                 })}
+                               </tbody>
+                             </table>
                           </div>
                         )}
 
                         <div className="space-y-8 max-w-2xl">
-                                                      <div className="flex flex-col gap-4 bg-ground/40 p-4 border border-line group hover:border-rule transition-all mb-4 relative overflow-hidden">
+                           <div className="flex flex-col gap-4 bg-ground/40 p-4 border border-line group hover:border-rule transition-all mb-4 relative overflow-hidden">
                               <div className="flex justify-between items-center relative z-10">
                                  <div className="flex flex-col">
-                                    <span className="text-sm font-semibold text-accent">General Settings</span>
-                                    <span className="text-2xs text-muted uppercase tracking-label mt-1">Adjust All Prices</span>
+                                    <span className="text-sm font-semibold text-accent flex items-center">Adjust All Prices<InfoTooltip size={11} {...GLOSSARY.breakEven} /></span>
+                                    <span className="text-2xs text-muted mt-1">One fare level for every cabin, as a share of each cabin's market fare</span>
                                  </div>
+                                 <span className="text-lg font-mono text-ink font-semibold">{vsMarketText(currentLevel - 1)}</span>
                               </div>
-                              <div className="relative pt-4 z-10">
-                                 <input
-                                    type="range"
-                                    min={Math.round(sliderMin)}
-                                    max={Math.round(sliderMax)}
-                                    value={ticketPrices['economy'] || Math.round(basePriceBE75)}
-                                    onChange={(e) => {
-                                       const val = parseInt(e.target.value);
-                                       const newPrices = { ...ticketPrices };
-            classes.forEach(c => {
-                                          if (classSeatCount[c] > 0) {
-                                             const multi = (c === 'premium' ? 1.6 : c === 'business' ? 3.0 : c === 'first' ? 5.0 : 1.0);
-                                             newPrices[c] = Math.round(val * multi);
-                                          }
-                                       });
-                                       setTicketPrices(newPrices);
-                                    }}
-                                    className="w-full h-2 bg-raised rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer cursor-pointer relative z-10"
-                                 />
-                                 <div
-                                    className="absolute top-[20px] h-4 w-1 bg-accent/70 pointer-events-none z-0 rounded-b-sm"
-                                    style={{ left: `calc(${tickPct(basePriceBE75, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE75, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                 />
-                                 <div
-                                    className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
-                                    title={`Break-even at 99% full: $${Math.round(basePriceBE99)}`}
-                                    style={{ left: `calc(${tickPct(basePriceBE99, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE99, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                 />
-                                 {marketFare.economy > 0 && (
-                                   <div
-                                      className="absolute top-[20px] h-4 w-0.5 bg-good/80 pointer-events-none z-0"
-                                      title={`Economy market fare: $${marketFare.economy}. Above it, passengers stay away.`}
-                                      style={{ left: `calc(${tickPct(marketFare.economy, sliderMin, sliderMax)}% + ${8 - tickPct(marketFare.economy, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                   />
-                                 )}
-                                 <div
-                                    className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
-                                    title={`Break-even at 35% full: $${Math.round(basePriceBE35)}`}
-                                    style={{ left: `calc(${tickPct(basePriceBE35, sliderMin, sliderMax)}% + ${8 - tickPct(basePriceBE35, sliderMin, sliderMax) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                 />
-                                 <div className="flex justify-between mt-2 px-1">
-                                    <span className="text-2xs text-muted font-mono">${Math.round(sliderMin)}</span>
-                                    <span className="text-2xs text-muted font-mono">${Math.round(sliderMax)}</span>
-                                 </div>
-                                 <p className="text-2xs text-muted leading-relaxed mt-1">
-                                   The notch is break-even at 75% full, a realistic year-round average; the two thin
-                                   ticks mark break-even at 99% and 35% full. The green tick is the market fare: what
-                                   passengers pay for this cabin, up to {Math.round(MAX_SCARCITY_PREMIUM * 100)}% more when they want far more seats than
-                                   the route offers. Above it they stay away quickly. A route whose break-even lies
-                                   above the green tick loses money at any fare. The bar itself reaches twice as far
-                                   past both ticks for testing more extreme fares.
-                                 </p>
-                              </div>
+                              <MarkedSlider
+                                min={levelMin} max={levelMax} step={0.01} value={currentLevel} onChange={setLevel}
+                                format={(v) => `${Math.round(v * 100)}%`}
+                                marks={[
+                                  ...(beExpected !== undefined ? [{ value: beExpected, kind: 'breakEven' as const, title: `Break-even at the expected load: ${Math.round(beExpected * 100)}% of market` }] : []),
+                                  ...(beFull !== undefined ? [{ value: beFull, kind: 'full' as const, title: `Break-even with a full aircraft: ${Math.round(beFull * 100)}% of market` }] : []),
+                                  { value: 1, kind: 'market' as const, title: 'Market fare' },
+                                ]}
+                              />
+                              <p className="text-2xs text-muted leading-relaxed">
+                                The notch is break-even at the load you can expect at your current fares, the thin tick
+                                break-even with every seat sold, the lowest that could ever work. The green tick is the
+                                market fare; the white tick on each cabin below is its best fare, the one that earns the
+                                most in that cabin with everything else as it is.
+                              </p>
                            </div>
 
-                           {classes.map(c => {
-                             if (classSeatCount[c] <= 0) return null;
+                           {seatClasses.map(c => {
                              const currentPrice = ticketPrices[c] || 0;
-                             const multiplier = (c === 'premium' ? 1.6 : c === 'business' ? 3.0 : c === 'first' ? 5.0 : 1.0);
-                             
-                             const breakEvenPrice = Math.round(basePriceBE75 * multiplier);
-                             const be99Price = Math.round(basePriceBE99 * multiplier);
-                             const be35Price = Math.round(basePriceBE35 * multiplier);
-                             // Same doubled headroom as the general-settings bar above, scaled
-                             // by this class's price multiplier.
-                             const classFare = marketFare[c];
-                             const classRange = fareRange(sliderMin * multiplier, sliderMax * multiplier, classFare);
-                             const minPossiblePrice = Math.round(classRange.min);
-                             const maxPossiblePrice = Math.round(classRange.max);
-                             // Expected load of this cabin at today's demand: local
-                             // passengers plus the connecting ones the network sells
-                             // in it (the same figures as the expected-profit box).
-                             const cabinLoad = saveFinancials?.paxByClass?.[c];
-                             const cabinTransfer = cabinLoad?.transfer ?? 0;
-                             const cabinLf = cabinLoad && cabinLoad.max > 0
-                               ? Math.round(((cabinLoad.actual + cabinTransfer) / cabinLoad.max) * 100)
-                               : 0;
+                             const k = f?.classes[c];
+                             const classFare = fares?.[c] ?? 0;
+                             const best = bestFares[c];
+                             const marks: SliderMark[] = [];
+                             if (k?.breakEvenExpected !== undefined) marks.push({ value: k.breakEvenExpected, kind: 'breakEven', title: `Break-even at the expected load: ${formatCurrency(k.breakEvenExpected)}` });
+                             if (k) marks.push({ value: k.breakEvenFull, kind: 'full', title: `Break-even with a full aircraft: ${formatCurrency(k.breakEvenFull)}` });
+                             if (classFare > 0) marks.push({ value: classFare, kind: 'market', title: `Market fare: ${formatCurrency(classFare)}` });
+                             if (best) marks.push({ value: best.fare, kind: 'best', title: `Best fare: ${formatCurrency(best.fare)}` });
+                             const priceMin = Math.max(1, Math.floor(Math.min(levelMin * classFare, currentPrice, best?.fare ?? Infinity) || 1));
+                             const priceMax = Math.ceil(Math.max(levelMax * classFare, currentPrice, best?.fare ?? 0, priceMin + 1));
+                             const pay = k ? k.satisfactionFactor - 1 : 0;
 
                              return (
                                <div key={c} className="flex flex-col gap-4 bg-ground/40 p-4 border border-line group hover:border-rule transition-all">
-                                  <div className="flex justify-between items-center">
+                                  <div className="flex justify-between items-start gap-3">
                                      <div className="flex flex-col">
-                                        <span className="text-sm font-semibold text-accent">{c} Class</span>
-                                        <span className="text-2xs text-muted uppercase tracking-label mt-1">{classSeatCount[c]} Seats</span>
-                                        {cabinLoad && (
+                                        <span className="text-sm font-semibold text-accent">{CLASS_LABEL[c]}</span>
+                                        <span className="text-2xs text-muted uppercase tracking-label mt-1">{seatsPerFlight(c)} Seats</span>
+                                        {k && (
                                           <span className="text-2xs text-muted mt-1">
-                                            Expected {formatNumber(cabinLoad.actual)} local
-                                            {cabinTransfer > 0 && ` + ${formatNumber(cabinTransfer)} transfer`}
-                                            {' '}/ {formatNumber(cabinLoad.max)} pax per week ({cabinLf}% LF)
+                                            Expected {formatNumber(k.passengers)} / {formatNumber(k.seatsPerWeek)} passengers per week ({Math.round(k.loadFactor * 100)}% LF)
+                                          </span>
+                                        )}
+                                        {k && Math.abs(pay) >= 0.005 && (
+                                          <span className="text-2xs text-muted mt-1">
+                                            Passengers pay up to {Math.round(Math.abs(pay) * 100)}% {pay > 0 ? 'more' : 'less'} for this satisfaction ({formatNumber(k.satisfaction)})
                                           </span>
                                         )}
                                      </div>
                                      <div className="flex flex-col items-end">
                                         <span className="text-2xl font-mono text-ink font-semibold">${currentPrice}</span>
                                         {classFare > 0 && (
-                                          <span className="text-2xs font-mono text-good mt-1">Market fare ${classFare}</span>
+                                          <span className="text-2xs font-mono text-good mt-1">Market fare ${Math.round(classFare)} · {vsMarketText(currentPrice / classFare - 1)}</span>
+                                        )}
+                                        {best && (
+                                          <span className="text-2xs font-mono text-ink mt-1">Best fare ${Math.round(best.fare)}</span>
                                         )}
                                      </div>
                                   </div>
-                                  
-                                  <div className="relative pt-4">
-                                     <input 
-                                        type="range"
-                                        min={minPossiblePrice}
-                                        max={maxPossiblePrice}
-                                        value={currentPrice}
-                                        onChange={(e) => setTicketPrices(prev => ({ ...prev, [c]: parseInt(e.target.value) }))}
-                                        className="w-full h-2 bg-raised rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer cursor-pointer relative z-10"
-                                     />
-                                     <div
-                                        className="absolute top-[20px] h-4 w-1 bg-accent/70 pointer-events-none z-0 rounded-b-sm"
-                                        style={{ left: `calc(${tickPct(breakEvenPrice, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(breakEvenPrice, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                     />
-                                     <div
-                                        className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
-                                        title={`Break-Even at 99% LF: $${be99Price}`}
-                                        style={{ left: `calc(${tickPct(be99Price, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(be99Price, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                     />
-                                     <div
-                                        className="absolute top-[20px] h-3 w-0.5 bg-rule pointer-events-none z-0"
-                                        title={`Break-Even at 35% LF: $${be35Price}`}
-                                        style={{ left: `calc(${tickPct(be35Price, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(be35Price, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                     />
-                                     {classFare > 0 && (
-                                       <div
-                                          className="absolute top-[20px] h-4 w-0.5 bg-good/80 pointer-events-none z-0"
-                                          title={`Market fare: $${classFare}. Above it, passengers stay away.`}
-                                          style={{ left: `calc(${tickPct(classFare, minPossiblePrice, maxPossiblePrice)}% + ${8 - tickPct(classFare, minPossiblePrice, maxPossiblePrice) * 0.16}px)`, transform: 'translateX(-50%)' }}
-                                       />
-                                     )}
-                                     <div className="flex justify-between mt-2 px-1">
-                                        <span className="text-2xs text-muted font-mono">${minPossiblePrice}</span>
-                                        <span className="text-2xs text-muted font-mono">${maxPossiblePrice}</span>
-                                     </div>
-                                  </div>
+                                  <MarkedSlider
+                                    min={priceMin} max={priceMax} step={1} value={currentPrice}
+                                    onChange={(v) => setTicketPrices(prev => ({ ...prev, [c]: Math.round(v) }))}
+                                    format={(v) => `$${Math.round(v)}`}
+                                    marks={marks}
+                                  />
                                </div>
                              );
                            })}
-</div>
+                        </div>
                      </div>
                      <div className="flex gap-4">
                         {!isEditingPricingOnly && <button onClick={() => setStep(3)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-rule text-muted font-semibold text-sm py-4 px-6 rounded-sm hover:text-ink hover:bg-raised transition-all">Back</button>}

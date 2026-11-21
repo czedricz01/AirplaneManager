@@ -64,7 +64,8 @@ import { withTradeValue, type LedgerValues } from "./lib/modelBridgeCompany";
 import { modelRivals, modelWorldEvent, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
 import { rivalSlotsByAirport, tierPrice, type AirportPricing } from "./lib/modelAirport";
 import { modelMilestones } from "./lib/modelBridgeCompany";
-import { defaultModelEnv, planesValue } from "./lib/modelMonth";
+import { defaultModelEnv, modelGame, planesValue } from "./lib/modelMonth";
+import type { PlannerModel } from "./lib/modelRoute";
 import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
 import { modelMonthClose } from "./lib/modelMonthClose";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
@@ -1788,6 +1789,28 @@ export default function App() {
       rivalSlots: rivalSlotsByAirport(modelRivals({ rivals, aiAirlines }, ctx)),
     };
   }, [currentDateOffset, career.research.done, milestones, rivals, aiAirlines]);
+
+  /**
+   * The whole game as the model sees it, for the route planner's forecast (docs/neubau 4.5a): the same state the month
+   * close books with, so the planner's figures are the close's (R2). Built only while a planner is open.
+   */
+  const plannerOpen = isPlanningRoute || editingPricingRouteId !== null || editingCabinRouteId !== null;
+  const plannerModel = useMemo<PlannerModel | null>(() => {
+    if (!plannerOpen) return null;
+    try {
+      const { state } = modelGame({
+        month: currentDateOffset, startMonth: startDateOffset, airlineCode, brandingColor: branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
+        capital, monthlyCapex, ledgerValues, overdrawnMonths, fleet, routes, airportManagement, reputation, profitStreak, staff, marketing, eventChoices,
+        career, milestones, annualGoal, scenario, reportHistory, aiAirlines, rivals, modelWorld, randomEvents, disruptions
+      });
+      return { state, startMonth: startDateOffset };
+    } catch (error) {
+      logWarn('planner', 'The game could not be read as a model state; the planner shows no forecast', error);
+      return null;
+    }
+  }, [plannerOpen, currentDateOffset, startDateOffset, airlineCode, branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
+    capital, monthlyCapex, ledgerValues, overdrawnMonths, fleet, routes, airportManagement, reputation, profitStreak, staff, marketing, eventChoices,
+    career, milestones, annualGoal, scenario, reportHistory, aiAirlines, rivals, modelWorld, randomEvents, disruptions]);
   /**
    * Unlocks a management tier at an airport. The route planner and the airport
    * console each had their own copy of this with different prices, and only
@@ -2714,6 +2737,7 @@ export default function App() {
                       <RoutePlannerView
                         debugMode={debugMode}
                         pricing={airportPricing}
+                        model={plannerModel}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -2749,6 +2773,7 @@ export default function App() {
                       <RoutePlannerView
                         debugMode={debugMode}
                         pricing={airportPricing}
+                        model={plannerModel}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -2784,6 +2809,7 @@ export default function App() {
                       <RoutePlannerView
                         debugMode={debugMode}
                         pricing={airportPricing}
+                        model={plannerModel}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}

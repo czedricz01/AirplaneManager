@@ -91,17 +91,5 @@ export const InfoTooltip = ({
  * The terms the game prices with, in one place so the wording cannot drift
  * between the screens that use them. The texts live in the model
  * (`src/model/glossary.ts`) and take every number from its constants (E52).
- *
- * Kept here until the view that shows the rule moves to the model:
- * - `breakEven`: the planner slider still marks BE99 / BE75 / BE35 (package 4.5).
  */
-export const GLOSSARY: Record<GlossaryKey, GlossaryEntry> = {
-  ...MODEL_GLOSSARY,
-  breakEven: {
-    title: 'Break-even price',
-    desc:
-      'The fare at which this route covers its costs exactly, at a given load factor.\n\n' +
-      'The left end of the slider is break-even if you fill 99% of seats — the cheapest fare that could ever work. The right end is break-even at 35% — what you would have to charge if the aircraft flew nearly empty.\n\n' +
-      'The marked point is break-even at 75%, a realistic full-year average. Price below it and you are betting on filling more seats than that.',
-  },
-};
+export const GLOSSARY: Record<GlossaryKey, GlossaryEntry> = MODEL_GLOSSARY;
