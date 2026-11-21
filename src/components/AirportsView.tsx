@@ -10,6 +10,7 @@ import { airports } from '../data/airportRegistry';
 import { Search, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { ViewHeader } from './ui/ViewHeader';
 import { TableScrollContainer, Table, Thead, Th, Td } from './ui/Table';
+import { slotCapacity, type AirportPricing } from '../lib/modelAirport';
 
 type SortField = 'id' | 'name' | 'business' | 'tourism' | 'level' | 'maxIcaoCode';
 type SortDir = 'asc' | 'desc';
@@ -18,12 +19,13 @@ interface Props {
   currentYear: number;
   onSelectAirport?: (airport: Airport) => void;
   airportManagement: Record<string, import('../lib/gameTypes').AirportInfrastructure>;
-  aiAirlines?: any[];
+  /** The rivals' slots per airport and the month (model, E50): the free slots are what is left of the shared pool. */
+  pricing: Pick<AirportPricing, 'rivalSlots'>;
   /** Why an airport is closed at the airline's rank, or null when it is open; see airportAccess.ts. */
   airportLock?: (airport: Airport) => string | null;
 }
 
-function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiAirlines, airportLock }: Props) {
+function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, pricing, airportLock }: Props) {
   const [search, setSearch] = useState("");
   const [icaoFilter, setIcaoFilter] = useState<string>("All");
   const [sortField, setSortField] = useState<SortField>('id');
@@ -43,13 +45,6 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
     return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />;
   };
 
-  /**
-   * Weekly AI departures per airport, built once.
-   *
-   * This used to be a reduce over every AI airline and every one of its routes,
-   * inside the render of each of the 562 rows -- roughly 85,000 iterations per
-   * render with six rivals, repeated on every parent state change.
-   */
   /**
    * Row windowing.
    *
@@ -79,23 +74,6 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
       window.removeEventListener('resize', measure);
     };
   }, []);
-
-  const aiSlotsByAirport = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const ai of aiAirlines || []) {
-      for (const r of ai.routes || []) {
-        const dep = r.departures || 0;
-        if (!dep) continue;
-        m.set(r.origin, (m.get(r.origin) || 0) + dep);
-        // The old per-row scan matched a route once even if both ends were the
-        // same airport, so keep that behaviour rather than double-counting.
-        if (r.destination !== r.origin) {
-          m.set(r.destination, (m.get(r.destination) || 0) + dep);
-        }
-      }
-    }
-    return m;
-  }, [aiAirlines]);
 
   const filteredAndSortedAirports = useMemo(() => {
     let result = airports;
@@ -217,13 +195,8 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
                 const stats = getAirportStats(airport, currentYear);
                 const businessDemand = stats.business;
                 const tourismDemand = stats.tourism;
-                const totalSlots = airport.level * 300;
-                const infra = airportManagement[airport.id];
-                const rentedSlots = infra ? (infra.slots.regional + infra.slots.narrowbody + infra.slots.widebody) : 0;
-
-                const aiSlotsUsed = aiSlotsByAirport.get(airport.id) || 0;
-
-                const availableSlots = Math.max(0, totalSlots - rentedSlots - aiSlotsUsed);
+                // One pool per airport for every airline (model 5.10, E50): your slots and the rivals' bought slots.
+                const slots = slotCapacity(airport.id, airport.level, airportManagement[airport.id], pricing);
                 const lock = airportLock?.(airport) ?? null;
 
                 return (
@@ -242,7 +215,7 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, aiA
                       {lock && <Lock size={11} className="inline ml-1.5 text-bad" aria-label="Closed at your rank" />}
                     </Td>
                     <Td className="hidden rail:table-cell text-xs font-mono">{airport.maxIcaoCode}</Td>
-                    <Td className="hidden rail:table-cell text-xs font-mono">{availableSlots} <span className="text-muted">/</span> {totalSlots}</Td>
+                    <Td className="hidden rail:table-cell text-xs font-mono">{slots.free} <span className="text-muted">/</span> {slots.total}</Td>
                     <Td className="text-xs font-mono">{businessDemand}</Td>
                     <Td className="text-xs font-mono">{tourismDemand}</Td>
                   </tr>

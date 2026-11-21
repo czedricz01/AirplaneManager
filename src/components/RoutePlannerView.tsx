@@ -30,15 +30,12 @@ import { blockMinutes, rawBlockMinutes, dailyRunCapacity, findMaxFlightStarts, g
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { createTimerBag } from '../lib/timerBag';
 import {
-  getSlotPurchaseCost,
   applyInfrastructureChange,
   SLOT_CAPEX_LABEL,
   calculateRouteFinancials,
   getJetFuelPrice,
   getPlaneSat,
   getRouteClassSatisfaction,
-  getManagementUnlockCost,
-  getInfraAvailability,
   seatWeightedSatisfaction,
   classConfigFor,
   CABIN_CLASSES,
@@ -64,6 +61,20 @@ import {
   RouteOffer
 } from '../lib/financeUtils';
 import { NEUTRAL_PLAYER_MODIFIERS, routeDemandFactor, type PlayerModifiers } from '../lib/gameState';
+import {
+  airportCosts,
+  deskSellLimit,
+  infraAvailability,
+  NO_INFRASTRUCTURE,
+  slotBuyPrice,
+  slotCapacity,
+  slotSalePrice,
+  tierPrice,
+  type AirportCosts,
+  type AirportPricing,
+  type SlotKind
+} from '../lib/modelAirport';
+import type { DeskType } from '../model/constants';
 import { priceDraftInNetwork, type NetworkEnv } from '../lib/transferUtils';
 
 const EMPTY_DESK_SIM = { load: 0, sat: 0, myPax: 0, cap: 0 };
@@ -130,6 +141,8 @@ interface Props {
   difficulty: string;
   aiAirlines?: any[];
   airlineCode?: string;
+  /** Month, research, milestones and the rivals' slots: everything the model's prices at airports need (4.3). */
+  pricing: AirportPricing;
 }
 
 function InfaRowSmall({ label, count, used, cost, costSuffix = '/wk', onBuy, disabled, disableRemove }: { label: string, count: number, used?: number, cost: number, costSuffix?: string, onBuy: (n: number, isShift: boolean) => void, disabled?: boolean, disableRemove?: boolean }) {
@@ -216,6 +229,7 @@ function RoutePlannerInner({
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
   aiAirlines = NO_AI_AIRLINES,
   airlineCode = "NE",
+  pricing,
   debugMode = false
 }: Props) {
   const airportsMap = useMemo(() => {
@@ -254,18 +268,8 @@ function RoutePlannerInner({
   const getUsedWeeklySlots = (airportId: string | null, aircraftClass: string, excludeRouteId?: string) =>
     sharedUsedWeeklySlots(routes, fleetMap, airportId, aircraftClass, excludeRouteId);
 
-  const getAiUsedWeeklySlots = (airportId: string | null) => {
-    if (!airportId) return 0;
-    return aiAirlines.reduce((sum, aiItem) => {
-      if (!aiItem.routes) return sum;
-      return sum + aiItem.routes.reduce((routeSum: number, r: any) => {
-        if (r.origin === airportId || r.destination === airportId) {
-          return routeSum + (r.departures || 0);
-        }
-        return routeSum;
-      }, 0);
-    }, 0);
-  };
+  /** Slots at an airport from the model (5.10, E50): one pool for every airline, the rivals' bought slots included. */
+  const slotsAt = (a: Airport) => slotCapacity(a.id, a.level, (airportManagement || {})[a.id], pricing);
 
   // Everything below reads the wizard state from the provider. The local names
   // are unchanged on purpose: the 3,000 lines of JSX further down did not have
@@ -744,9 +748,21 @@ function RoutePlannerInner({
   };
 
   const mgt = airportManagement || {};
-  const originAvail = getInfraAvailability(selectedOrigin, currentYear);
-  const destAvail = getInfraAvailability(selectedDest, currentYear);
+  const originAvail = infraAvailability(selectedOrigin?.level ?? 0, pricing.month);
+  const destAvail = infraAvailability(selectedDest?.level ?? 0, pricing.month);
   const destMgtLvl = selectedDest ? (mgt[selectedDest.id]?.level || 0) : 0;
+
+  // Rents, desk load and fees at both ends as the month close books them (model 5.10, 2.6.3): every saved route
+  // plus the one being planned, without its saved version when it is being edited.
+  const deskRoutes = useMemo(() => {
+    const saved = routes.filter(r => r.id !== initialRouteId);
+    if (!selectedOrigin || !selectedDest || !selectedAircraft || schedule.length === 0) return saved;
+    return [...saved, { id: '__draft', origin: selectedOrigin.id, destination: selectedDest.id, aircraft: selectedAircraft.registration, schedule, weeklyFlights: schedule.length }];
+  }, [routes, initialRouteId, selectedOrigin, selectedDest, selectedAircraft, schedule]);
+  const costsAt = (a: Airport | null | undefined): AirportCosts | null =>
+    a ? airportCosts(a.id, a.level, mgt[a.id] ?? NO_INFRASTRUCTURE, deskRoutes, fleet, pricing) : null;
+  const originCosts = useMemo(() => costsAt(selectedOrigin), [selectedOrigin, mgt, deskRoutes, fleet, pricing]);
+  const destCosts = useMemo(() => costsAt(selectedDest), [selectedDest, mgt, deskRoutes, fleet, pricing]);
 
   const [isStopoverMode, setIsStopoverMode] = useState(false);
 
@@ -1308,46 +1324,105 @@ function RoutePlannerInner({
     setSchedule(newSchedule);
   };
 
-  const getDeskCost = (hub: boolean, type: string) => {
-    switch (type) {
-      case 'normal': return Math.floor(2500 * (hub ? 0.95 : 1));
-      case 'self': return Math.floor(1500 * (hub ? 0.95 : 1));
-      default: return 2500;
-    }
-  };
+  /**
+   * Slots, stands and desks at one end of the route (4.3): the model's slot price and rents (5.10) and the desk load
+   * with the planned route counted (2.6.3, E55), as the month close books them.
+   */
+  const infraPanel = (a: Airport, costs: AirportCosts | null, avail: ReturnType<typeof infraAvailability>) => {
+    const infra = mgt[a.id] ?? NO_INFRASTRUCTURE;
+    const tier = infra.level || 0;
+    const desks = costs?.desks;
+    const loadPct = desks ? (Number.isFinite(desks.load) ? desks.load * 100 : Infinity) : 0;
+    const slotKinds: SlotKind[] = avail.widebodySlots ? ['regional', 'narrowbody', 'widebody'] : ['regional', 'narrowbody'];
+    const standKinds: SlotKind[] = ['narrowbody', 'widebody'];
+    const label: Record<SlotKind, string> = { regional: 'Regional', narrowbody: 'Narrowb.', widebody: 'Widebody' };
+    const signedPoints = (n: number) => (n === 0 ? '0.0' : `${n > 0 ? '+' : '−'}${formatNumber(Math.abs(n), 1)}`);
+    return (
+      <>
+        <div className="flex justify-between items-center border-b border-line pb-2">
+          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+            <MapIcon size={12} /> Strategic Slots
+          </div>
+          <span className="text-2xs text-muted">Stock / cost / action</span>
+        </div>
+        <div className="space-y-2">
+          {slotKinds.map(k => (
+            <InfaRowSmall key={k} label={label[k]} count={infra.slots?.[k] || 0} used={getUsedWeeklySlots(a.id, k)} cost={slotBuyPrice(k, pricing)} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(a.id, 'slots', k, n, shift)} />
+          ))}
+        </div>
 
-  const getStandCost = (type: string) => {
-    switch(type) {
-       case 'regional': return 150;
-       case 'narrowbody': return 300;
-       case 'widebody': return 600;
-       default: return 0;
-    }
+        <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
+          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+            <Plane size={12} /> Stand Upgrades
+          </div>
+          {tier < 2 && (
+            <button
+              onClick={() => onUpdateInfrastructure?.(a.id, { ...infra, autoBuyStands: !infra.autoBuyStands })}
+              className={`text-2xs uppercase tracking-label px-2 py-0.5 border ${infra.autoBuyStands ? 'border-accent text-accent bg-accent/10' : 'border-rule text-muted'}`}
+            >
+              AUTO-BUY: {infra.autoBuyStands ? 'ON' : 'OFF'}
+            </button>
+          )}
+        </div>
+        <div className="space-y-2">
+          {avail.stands && standKinds.map(k => (
+            <InfaRowSmall key={k} label={label[k]} count={infra.stands?.[k] || 0} cost={costs?.standRent[k] ?? 0} disabled={tier >= 2} onBuy={(n, shift) => handleUpdateInfra(a.id, 'stands', k, n, shift)} />
+          ))}
+        </div>
+
+        <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
+          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
+            <ChevronRight size={12} /> Passenger Processing <InfoTooltip size={11} {...GLOSSARY.desks} />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <InfaRowSmall label="Normal Desk" count={infra.desks?.normal || 0} disableRemove={deskSellLimit(infra, 'normal') === 0} cost={costs?.deskRent.normal.now ?? 0} onBuy={(n, shift) => handleUpdateInfra(a.id, 'desks', 'normal', n, shift)} />
+          {avail.selfCheckIn && <InfaRowSmall label="Self-Check" count={infra.desks?.self || 0} disableRemove={deskSellLimit(infra, 'self') === 0} cost={costs?.deskRent.self.now ?? 0} onBuy={(n, shift) => handleUpdateInfra(a.id, 'desks', 'self', n, shift)} />}
+        </div>
+        {desks && (
+          <div className="mt-2 text-2xs text-muted space-y-1">
+            <div className="flex justify-between"><span className="uppercase tracking-label flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={loadPct > 90 ? 'text-bad font-semibold' : 'text-ink'}>{Number.isFinite(loadPct) ? `${loadPct.toFixed(1)}%` : 'no desk'}</span></div>
+            <div className="flex justify-between"><span className="uppercase tracking-label">Departing Seats:</span><span className="text-ink">{formatNumber(desks.departingSeats)} / {formatNumber(desks.capacity)}</span></div>
+            <div className="w-full h-1 bg-surface overflow-hidden"><div className={`h-full ${loadPct > 90 ? 'bg-bad' : 'bg-accent'}`} style={{ width: `${Math.min(100, loadPct)}%` }}></div></div>
+            {/* Points at this end, before the average of both ends and the ground weight (2.6.3). */}
+            <div className="flex justify-between"><span className="uppercase tracking-label">Satisfaction here:</span><span className={desks.overloadPoints < 0 ? 'text-bad font-semibold' : 'text-accent'}>{signedPoints(desks.overloadPoints)} load</span></div>
+            {desks.premiumPenalty < 0 && (
+              <div className="flex justify-between"><span className="uppercase tracking-label">No staffed desk:</span><span className="text-bad font-semibold">{signedPoints(desks.premiumPenalty)} premium cabins</span></div>
+            )}
+          </div>
+        )}
+      </>
+    );
   };
 
   const handleUpdateInfra = (airportId: string, type: 'slots' | 'stands' | 'desks', subType: string, baseAmount: number, isShift?: boolean) => {
-     const requestedAmount = isShift ? baseAmount * 10 : baseAmount;
+     let requestedAmount = isShift ? baseAmount * 10 : baseAmount;
      const mgt = airportManagement || {};
 
      const level = mgt[airportId]?.level || 0;
      const hubAutoUpgrade = level >= 2;
 
-     // Only slots have a one-off purchase price. Desks and stands are rented and show
-     // up as weekly upkeep instead — charging their weekly rate as an upfront fee here
-     // made them cost money in this screen but nothing in the airport console.
-     const costPerUnit = type === 'slots' ? getSlotPurchaseCost(subType) : 0;
+     // Only slots have a one-off purchase price (model 5.10). Desks and stands are rented and show
+     // up as weekly upkeep instead.
+     const slotKind = subType as SlotKind;
+     const costPerUnit = type === 'slots' ? slotBuyPrice(slotKind, pricing) : 0;
 
-     const infra = mgt[airportId] || { level, slots: { regional: 0, narrowbody: 0, widebody: 0 }, stands: { narrowbody: 0, widebody: 0 }, desks: { normal: 0, self: 0 } };
+     const infra = mgt[airportId] || { ...NO_INFRASTRUCTURE, level };
+
+     // Every airport you manage keeps at least one check-in desk, of either kind (E18, E55).
+     if (type === 'desks' && requestedAmount < 0) {
+        const limit = deskSellLimit(infra, subType as DeskType);
+        if (limit === 0) {
+          onNotify?.(`${airportId} needs at least one check-in desk while you manage it. Buy another desk before selling this one.`);
+          return;
+        }
+        requestedAmount = Math.max(requestedAmount, -limit);
+     }
 
      let availableSlots = Infinity;
      if (type === 'slots' && requestedAmount > 0) {
         const targetAirport = airportsMap.get(airportId);
-        if (targetAirport) {
-           const totalS = targetAirport.level * 300;
-           const currentRented = (infra.slots?.regional || 0) + (infra.slots?.narrowbody || 0) + (infra.slots?.widebody || 0);
-           const aiUsedS = getAiUsedWeeklySlots(airportId);
-           availableSlots = Math.max(0, totalS - currentRented - aiUsedS);
-        }
+        if (targetAirport) availableSlots = slotsAt(targetAirport).free;
      }
 
      const result = applyInfrastructureChange({
@@ -1359,7 +1434,7 @@ function RoutePlannerInner({
         availableSlots,
         utilizedSlots: type === 'slots' ? getUsedWeeklySlots(airportId, subType) : 0,
         costPerUnit,
-        minNormalDesks: level >= 1 ? 1 : 0,
+        refundPerUnit: type === 'slots' ? slotSalePrice(slotKind, pricing) : 0,
      });
 
      if (result.actualAmount === 0) {
@@ -1708,11 +1783,7 @@ function RoutePlannerInner({
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto space-y-1 bg-ground/20 p-2 border border-line">
                       {originHubs.map(a => {
-                        const totalSlots = a.level * 300;
-                        const infra = airportManagement[a.id];
-                        const rentedSlots = infra ? (infra.slots.regional + infra.slots.narrowbody + infra.slots.widebody) : 0;
-                        const aiSlotsUsed = getAiUsedWeeklySlots(a.id);
-                        const available = Math.max(0, totalSlots - rentedSlots - aiSlotsUsed);
+                        const slots = slotsAt(a);
                         return (
                           <div 
                             key={a.id} role="button" tabIndex={0} onKeyDown={clickOnKey} 
@@ -1725,7 +1796,7 @@ function RoutePlannerInner({
                             </div>
                             <div className="flex flex-col items-end gap-1">
                               <div className="text-2xs font-mono text-muted">
-                                SLOTS: {available}/{totalSlots}
+                                SLOTS: {slots.free}/{slots.total}
                               </div>
                               <div className="flex gap-2 text-2xs">
                                 <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
@@ -1747,7 +1818,7 @@ function RoutePlannerInner({
                          <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
                            <span>B:{getAirportStats(selectedOrigin, currentYear).business}</span>
                            <span>T:{getAirportStats(selectedOrigin, currentYear).tourism}</span>
-                           <span className={((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0)) > 0 ? "text-accent font-semibold" : ""}>S:{Math.max(0, (selectedOrigin.level * 300) - getAiUsedWeeklySlots(selectedOrigin.id)) - ((airportManagement[selectedOrigin.id]?.slots?.regional || 0) + (airportManagement[selectedOrigin.id]?.slots?.narrowbody || 0) + (airportManagement[selectedOrigin.id]?.slots?.widebody || 0))}/{selectedOrigin.level * 300}</span>
+                           <span className={slotsAt(selectedOrigin).own > 0 ? "text-accent font-semibold" : ""}>S:{slotsAt(selectedOrigin).free}/{slotsAt(selectedOrigin).total}</span>
                          </div>
                       </div>
                     </div>
@@ -1758,56 +1829,7 @@ function RoutePlannerInner({
                   </div>
                   {/* Strategic Infrastructure Dashboard */}
                   <div className="flex-1 min-h-0 overflow-y-auto bg-ground/40 p-2.5 flex flex-col gap-4 pb-32 bar:pb-3 short:pb-3">
-                     <div className="flex justify-between items-center border-b border-line pb-2">
-                        <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
-                           <MapIcon size={12} /> Strategic Slots
-                        </div>
-                        <span className="text-2xs text-muted">Stock / cost / action</span>
-                     </div>
-                     <div className="space-y-2">
-                        <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedOrigin.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'regional', n, shift)} />
-                        <InfaRowSmall label="Narrowb." count={(airportManagement || {})[selectedOrigin.id]?.slots?.narrowbody || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'narrowbody')} cost={getSlotPurchaseCost('narrowbody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'narrowbody', n, shift)} />
-                        {originAvail.widebodySlots && <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedOrigin.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedOrigin.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'slots', 'widebody', n, shift)} />}
-                     </div>
-
-                     <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                        <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
-                           <Plane size={12} /> Stand Upgrades
-                        </div>
-                        {(airportManagement[selectedOrigin.id]?.level || 0) < 2 && (
-                          <button 
-                             onClick={() => onUpdateInfrastructure?.(selectedOrigin.id, { ...airportManagement[selectedOrigin.id], autoBuyStands: !(airportManagement[selectedOrigin.id]?.autoBuyStands) })}
-                             className={`text-2xs uppercase tracking-label px-2 py-0.5 border ${airportManagement[selectedOrigin.id]?.autoBuyStands ? 'border-accent text-accent bg-accent/10' : 'border-rule text-muted'}`}
-                          >
-                             AUTO-BUY: {airportManagement[selectedOrigin.id]?.autoBuyStands ? 'ON' : 'OFF'}
-                          </button>
-                        )}
-                     </div>
-                     <div className="space-y-2">
-                        {originAvail.stands && <InfaRowSmall label="Narrowb." count={airportManagement[selectedOrigin.id]?.stands?.narrowbody || 0} cost={getStandCost('narrowbody')} disabled={(airportManagement[selectedOrigin.id]?.level || 0) >= 2} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'stands', 'narrowbody', n, shift)} />}
-                        {originAvail.stands && <InfaRowSmall label="Widebody" count={airportManagement[selectedOrigin.id]?.stands?.widebody || 0} cost={getStandCost('widebody')} disabled={(airportManagement[selectedOrigin.id]?.level || 0) >= 2} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'stands', 'widebody', n, shift)} />}
-                     </div>
-
-                     <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                        <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
-                           <ChevronRight size={12} /> Passenger Processing
-                        </div>
-                     </div>
-                     <div className="space-y-2">
-                        <InfaRowSmall label="Normal Desk" count={airportManagement[selectedOrigin.id]?.desks?.normal || 0} disableRemove={(airportManagement[selectedOrigin.id]?.level || 0) >= 1 && (airportManagement[selectedOrigin.id]?.desks?.normal || 0) <= 1} cost={getDeskCost((airportManagement[selectedOrigin.id]?.level || 0) >= 2, 'normal')} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'desks', 'normal', n, shift)} />
-                        {originAvail.selfCheckIn && <InfaRowSmall label="Self-Check" count={airportManagement[selectedOrigin.id]?.desks?.self || 0} cost={getDeskCost((airportManagement[selectedOrigin.id]?.level || 0) >= 2, 'self')} onBuy={(n, shift) => handleUpdateInfra(selectedOrigin.id, 'desks', 'self', n, shift)} />}
-                     </div>
-                     {(() => {
-                        const sim = originDeskSim;
-                        return (
-                          <div className="mt-2 text-2xs text-muted space-y-1">
-                            <div className="flex justify-between"><span className="uppercase tracking-label flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-bad font-semibold' : 'text-ink'}>{sim.load.toFixed(1)}%</span></div>
-                            <div className="flex justify-between"><span className="uppercase tracking-label">Weekly Seats:</span><span className="text-ink">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
-                            <div className="w-full h-1 bg-surface overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-bad' : 'bg-accent'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
-                            <div className="flex justify-between"><span className="uppercase tracking-label">SAT Impact:</span><span className={sim.sat < 0 ? 'text-bad font-semibold' : 'text-accent'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
-                          </div>
-                        );
-                      })()}
+                     {infraPanel(selectedOrigin, originCosts, originAvail)}
                   </div>
                 </div>
               )}
@@ -2071,11 +2093,7 @@ function RoutePlannerInner({
                     )}
                     {validDestinations.map(a => {
                       const mgtLvl = airportManagement[a.id]?.level || 0;
-                      const totalSlots = a.level * 300;
-                      const infra = airportManagement[a.id];
-                      const rentedSlots = infra ? (infra.slots.regional + infra.slots.narrowbody + infra.slots.widebody) : 0;
-                      const aiSlotsUsed = getAiUsedWeeklySlots(a.id);
-                      const availableDestSlots = Math.max(0, totalSlots - rentedSlots - aiSlotsUsed);
+                      const destSlots = slotsAt(a);
                       
                       // Route hints. `routes` holds only the player's routes, each
                       // tagged "My Airline", so comparing with the airline code
@@ -2118,7 +2136,7 @@ function RoutePlannerInner({
                                </div>
                              )}
                              <div className="text-2xs font-mono text-muted">
-                                SLOTS: {availableDestSlots}/{totalSlots}
+                                SLOTS: {destSlots.free}/{destSlots.total}
                              </div>
                              <div className="flex gap-2 text-2xs">
                                <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
@@ -2140,7 +2158,7 @@ function RoutePlannerInner({
                          <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
                            <span>B:{getAirportStats(selectedDest, currentYear).business}</span>
                            <span>T:{getAirportStats(selectedDest, currentYear).tourism}</span>
-                           <span className={((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0)) > 0 ? "text-accent font-semibold" : ""}>S:{Math.max(0, (selectedDest.level * 300) - getAiUsedWeeklySlots(selectedDest.id)) - ((airportManagement[selectedDest.id]?.slots?.regional || 0) + (airportManagement[selectedDest.id]?.slots?.narrowbody || 0) + (airportManagement[selectedDest.id]?.slots?.widebody || 0))}/{selectedDest.level * 300}</span>
+                           <span className={slotsAt(selectedDest).own > 0 ? "text-accent font-semibold" : ""}>S:{slotsAt(selectedDest).free}/{slotsAt(selectedDest).total}</span>
                          </div>
                       </div>
                     </div>
@@ -2224,62 +2242,13 @@ function RoutePlannerInner({
                          disabled={!!airportLock?.(selectedDest)}
                          className="px-3 py-3 bg-raised text-ink font-semibold text-sm hover:bg-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                        >
-                         Unlock T1 ({formatCurrency(getManagementUnlockCost(selectedDest.level, 1))})
+                         Unlock T1 ({formatCurrency(tierPrice(1, selectedDest.level, pricing.month))})
                        </button>
                     </div>
                   ) : (
                     /* Strategic Infrastructure Dashboard */
                     <div className="flex flex-col gap-4 mt-2 pb-16 bar:pb-3 short:pb-3">
-                       <div className="flex justify-between items-center border-b border-line pb-2">
-                          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
-                             <MapIcon size={12} /> Strategic Slots
-                          </div>
-                          <span className="text-2xs text-muted">Stock / cost / action</span>
-                       </div>
-                       <div className="space-y-2">
-                          <InfaRowSmall label="Regional" count={(airportManagement || {})[selectedDest.id]?.slots?.regional || 0} used={getUsedWeeklySlots(selectedDest.id, 'regional')} cost={getSlotPurchaseCost('regional')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'regional', n, shift)} />
-                          <InfaRowSmall label="Narrowb." count={(airportManagement || {})[selectedDest.id]?.slots?.narrowbody || 0} used={getUsedWeeklySlots(selectedDest.id, 'narrowbody')} cost={getSlotPurchaseCost('narrowbody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'narrowbody', n, shift)} />
-                          {destAvail.widebodySlots && <InfaRowSmall label="Widebody" count={(airportManagement || {})[selectedDest.id]?.slots?.widebody || 0} used={getUsedWeeklySlots(selectedDest.id, 'widebody')} cost={getSlotPurchaseCost('widebody')} costSuffix=" one-off" onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'slots', 'widebody', n, shift)} />}
-                       </div>
-
-                       <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
-                             <Plane size={12} /> Stand Upgrades
-                          </div>
-                          {(airportManagement[selectedDest.id]?.level || 0) < 2 && (
-                            <button 
-                               onClick={() => onUpdateInfrastructure?.(selectedDest.id, { ...airportManagement[selectedDest.id], autoBuyStands: !(airportManagement[selectedDest.id]?.autoBuyStands) })}
-                               className={`text-2xs uppercase tracking-label px-2 py-0.5 border ${airportManagement[selectedDest.id]?.autoBuyStands ? 'border-accent text-accent bg-accent/10' : 'border-rule text-muted'}`}
-                            >
-                               AUTO-BUY: {airportManagement[selectedDest.id]?.autoBuyStands ? 'ON' : 'OFF'}
-                            </button>
-                          )}
-                       </div>
-                       <div className="space-y-2">
-                          {destAvail.stands && <InfaRowSmall label="Narrowb." count={airportManagement[selectedDest.id]?.stands?.narrowbody || 0} cost={(airportManagement[selectedDest.id]?.level || 0) >= 2 ? 0 : getStandCost('narrowbody')} disabled={(airportManagement[selectedDest.id]?.level || 0) >= 2} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'stands', 'narrowbody', n, shift)} />}
-                          {destAvail.stands && <InfaRowSmall label="Widebody" count={airportManagement[selectedDest.id]?.stands?.widebody || 0} cost={(airportManagement[selectedDest.id]?.level || 0) >= 2 ? 0 : getStandCost('widebody')} disabled={(airportManagement[selectedDest.id]?.level || 0) >= 2} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'stands', 'widebody', n, shift)} />}
-                       </div>
-
-                       <div className="flex justify-between items-center border-b border-line pb-2 mt-2">
-                          <div className="text-muted text-2xs font-semibold uppercase tracking-label flex items-center gap-2">
-                             <ChevronRight size={12} /> Passenger Processing
-                          </div>
-                       </div>
-                       <div className="space-y-2">
-                          <InfaRowSmall label="Normal Desk" count={airportManagement[selectedDest.id]?.desks?.normal || 0} disableRemove={(airportManagement[selectedDest.id]?.level || 0) >= 1 && (airportManagement[selectedDest.id]?.desks?.normal || 0) <= 1} cost={getDeskCost((airportManagement[selectedDest.id]?.level || 0) >= 2, 'normal')} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'desks', 'normal', n, shift)} />
-                          {destAvail.selfCheckIn && <InfaRowSmall label="Self-Check" count={airportManagement[selectedDest.id]?.desks?.self || 0} cost={getDeskCost((airportManagement[selectedDest.id]?.level || 0) >= 2, 'self')} onBuy={(n, shift) => handleUpdateInfra(selectedDest.id, 'desks', 'self', n, shift)} />}
-                       </div>
-                       {(() => {
-                           const sim = destDeskSim;
-                           return (
-                             <div className="mt-2 text-2xs text-muted space-y-1">
-                               <div className="flex justify-between"><span className="uppercase tracking-label flex items-center">Desk Load:<InfoTooltip size={11} {...GLOSSARY.deskLoad} /></span><span className={sim.load > 90 ? 'text-bad font-semibold' : 'text-ink'}>{sim.load.toFixed(1)}%</span></div>
-                               <div className="flex justify-between"><span className="uppercase tracking-label">Weekly Seats:</span><span className="text-ink">{formatNumber(sim.myPax)} / {formatNumber(sim.cap)}</span></div>
-                               <div className="w-full h-1 bg-surface overflow-hidden"><div className={`h-full ${sim.load > 90 ? 'bg-bad' : 'bg-accent'}`} style={{ width: `${Math.min(100, sim.load)}%` }}></div></div>
-                               <div className="flex justify-between"><span className="uppercase tracking-label">SAT Impact:</span><span className={sim.sat < 0 ? 'text-bad font-semibold' : 'text-accent'}>{sim.sat === 0 ? '0.0' : `${sim.sat > 0 ? '+' : ''}${sim.sat.toFixed(1)}`}</span></div>
-                             </div>
-                           );
-                       })()}
+                       {infraPanel(selectedDest, destCosts, destAvail)}
                     </div>
                   )}
                   </div>

@@ -20,16 +20,23 @@ import {
   DESK_TYPE_PENALTY,
   EFFICIENCY_MAX,
   EFFICIENCY_PER_RESEARCH,
+  EXTERNAL_OVERHAUL_SURCHARGE,
   FLIGHT_TIME_INDEX_ANCHORS,
   FREE_STANDS_FROM_TIER,
+  HANGAR_DEFECT_FACTOR,
   HUB_FEE_FACTOR_TIER2,
   HUB_FEE_FACTOR_TIER3,
+  HUB_QUALITY_BASE,
+  HUB_QUALITY_EXTRA_LEVEL,
+  HUB_QUALITY_PER_EXTRA,
+  HUB_QUALITY_PER_LEVEL,
   INTERIOR_SHARE,
   LOUNGE_POINTS,
   MAX_MANAGEMENT_TIER,
   MEALS_MAX,
   MORALE_NEUTRAL,
   OVERHAUL_POINTS,
+  OWNER_FEE_SHARE,
   REFIT_CONDITION_MIN,
   REFIT_CONDITION_START,
   REFIT_CONDITION_STEP,
@@ -137,6 +144,54 @@ export function loungeEffectText(): string {
   const oneEnd = groups.map(([p, names]) => `${textSigned(p / 2)} (${names.join('/')})`).join(', ');
   const bothEnds = groups.map(([p]) => textSigned(p)).join(' / ');
   return `${oneEnd} satisfaction per route end (${bothEnds} with a lounge at both ends)`;
+}
+
+/**
+ * Was eine Verwaltungsstufe bringt (5.1, 5.10, 5.15, 3.13, E63), für die Karten der Flughafen-Ansicht. Stufe 1: das
+ * Recht, hier zu fliegen. Stufen außerhalb 1 … `MAX_MANAGEMENT_TIER` ergeben eine leere Liste.
+ */
+export function managementTierFeatures(tier: number): string[] {
+  const quality = `Hub quality +${textPercent(HUB_QUALITY_PER_LEVEL)} per tier`;
+  if (tier === FIRST_TIER) return ['Fly from and to this airport', 'Buy slots, desks and stands', quality];
+  if (tier === FREE_STANDS_FROM_TIER) {
+    return [
+      'A stand at every slot, without rent',
+      `Fees and rents here ${textPercent(1 - HUB_FEE_FACTOR_TIER2)} lower`,
+      'Build a hangar, a VIP lounge and a catering kitchen',
+      quality,
+    ];
+  }
+  if (tier === MAX_MANAGEMENT_TIER) {
+    return [
+      `Fees and rents here ${textPercent(1 - HUB_FEE_FACTOR_TIER3)} lower`,
+      `${quality}, +${textPercent(HUB_QUALITY_PER_EXTRA)} for owning it`,
+      'Rivals open no new routes here',
+      `${textPercent(OWNER_FEE_SHARE)} of the rivals' landing fees here paid to you`,
+    ];
+  }
+  return [];
+}
+
+/** Drehkreuz-Güte (3.13): woraus sie besteht, für die Karte „Transfer Hub“. */
+export function hubQualityText(): string {
+  return (
+    `How well passengers connect here: ${textPercent(HUB_QUALITY_BASE)} base, +${textPercent(HUB_QUALITY_PER_LEVEL)} per management tier, ` +
+    `+${textPercent(HUB_QUALITY_PER_EXTRA)} each for owning the airport (T${textNumber(HUB_QUALITY_EXTRA_LEVEL)}), a VIP lounge and a catering kitchen, ` +
+    `at most ${textPercent(1)}. It scales how attractive your connections through here are.`
+  );
+}
+
+/** Was ein eigener Hangar bringt (8.6, 8.13, E62). */
+export function hangarEffectText(): string {
+  return (
+    `Aircraft flying from here break down ${textPercent(1 - HANGAR_DEFECT_FACTOR)} less often, and their general checks ` +
+    `cost no yard surcharge (+${textPercent(EXTERNAL_OVERHAUL_SURCHARGE)} without an own hangar on their routes)`
+  );
+}
+
+/** Was eine eigene Catering-Küche bringt (2.5, 3.13). */
+export function cateringEffectText(): string {
+  return `One meal tier more on routes from here for aircraft with a premium galley; hub quality +${textPercent(HUB_QUALITY_PER_EXTRA)}`;
 }
 
 /** Englische Klassen-Namen für Texte. */

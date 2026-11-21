@@ -32,7 +32,7 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { AccountScopeContext } from "./lib/accountScope";
 import { syncAllPendingConfigs } from "./lib/configStore";
-import { getAircraftResaleValue, toStoredRouteMetrics, getManagementUnlockCost, applyManagementUnlock } from "./lib/financeUtils";
+import { getAircraftResaleValue, toStoredRouteMetrics, applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials } from "./lib/transferUtils";
 import { regionsServed } from "./lib/chronicle";
 import { type Edition } from "./lib/newspaper";
@@ -61,7 +61,9 @@ import {
   disruptionTitle
 } from "./lib/disruptions";
 import { withTradeValue, type LedgerValues } from "./lib/modelBridgeCompany";
-import { modelWorldEvent, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
+import { modelRivals, modelWorldEvent, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
+import { rivalSlotsByAirport, tierPrice, type AirportPricing } from "./lib/modelAirport";
+import { modelMilestones } from "./lib/modelBridgeCompany";
 import { defaultModelEnv, planesValue } from "./lib/modelMonth";
 import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
 import { modelMonthClose } from "./lib/modelMonthClose";
@@ -85,7 +87,7 @@ import {
   describeGoal,
   type AnnualGoal
 } from "./lib/annualGoals";
-import { setFeeFactor, setResaleBonus, setSlotPriceFactor } from "./lib/economyContext";
+import { setFeeFactor, setResaleBonus } from "./lib/economyContext";
 import { ageYears, fleetCommonality } from "./lib/fleetCosts";
 import { buildTakeover } from "./lib/takeover";
 import {
@@ -150,7 +152,7 @@ import { budgetLabel, formatCurrency, formatNumber, formatTrend, setDecimalSymbo
 import { START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, WEEKS_PER_MONTH } from "./model/constants";
 import { seasonFactor as modelSeasonFactor } from "./model/demand";
 import { refitCabinCondition } from "./model/fleetMarket";
-import { startCapital, yearsPlayed } from "./model/progress";
+import { milestoneSlotFactor, startCapital, yearsPlayed } from "./model/progress";
 import { generateAiAirlines } from "./lib/aiSimulation";
 import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
 export type { GameMessage };
@@ -259,7 +261,6 @@ export default function App() {
   // never shows a price the next purchase would not charge.
   /** What the finished development projects do; see research.ts. */
   const researchFx = useMemo(() => researchEffects(career.research.done), [career.research.done]);
-  setSlotPriceFactor(perks.slotPriceFactor * researchFx.slotFactor);
   setFeeFactor(researchFx.feeFactor);
   setResaleBonus(researchFx.resaleBonus);
   /** Free Mode: a Global Player from the first month, with nothing gated by rank. */
@@ -1771,6 +1772,22 @@ export default function App() {
   }, [showPlanner]);
 
   const handleOpenPlanner = showPlanner;
+
+  /**
+   * What every price at an airport needs from the game (model 5.10, 5.11, E50): the month, the finished research,
+   * the milestones' slot discount and the slots the rivals hold at each airport (saved, or before the first close
+   * the old rival airlines converted). The airport screen, the airport list and the planner all read it.
+   */
+  const airportPricing = useMemo<AirportPricing>(() => {
+    const env = defaultModelEnv();
+    const ctx = { month: currentDateOffset, airports: env.airports, catalog: env.catalog };
+    return {
+      month: currentDateOffset,
+      completedResearch: career.research.done,
+      milestoneSlotFactor: milestoneSlotFactor(modelMilestones(milestones)),
+      rivalSlots: rivalSlotsByAirport(modelRivals({ rivals, aiAirlines }, ctx)),
+    };
+  }, [currentDateOffset, career.research.done, milestones, rivals, aiAirlines]);
   /**
    * Unlocks a management tier at an airport. The route planner and the airport
    * console each had their own copy of this with different prices, and only
@@ -1787,7 +1804,8 @@ export default function App() {
       setAppAlert(gate);
       return;
     }
-    const cost = getManagementUnlockCost(airportsMapAdjusted.get(airportId)?.level || 1, tier);
+    // The model's price of the tier at this airport size, in the money of this month (5.11).
+    const cost = tierPrice(tier, airportsMapAdjusted.get(airportId)?.level || 1, currentDateOffset);
     if (capital < cost) {
       setAppAlert(`Unlocking T${tier} management at ${airportId} costs ${formatCurrency(cost)}, but you only have ${formatCurrency(capital)}.`);
       return;
@@ -2533,7 +2551,7 @@ export default function App() {
                           currentYear={yearOf(currentDateOffset)}
                           onSelectAirport={setSelectedAirport}
                           airportManagement={airportManagement}
-                          aiAirlines={aiAirlines}
+                          pricing={airportPricing}
                           airportLock={airportRankGate}
                         />
                       </React.Suspense>
@@ -2695,6 +2713,7 @@ export default function App() {
                       <React.Suspense fallback={<LazyFallback label="Cabin Editor" />}>
                       <RoutePlannerView
                         debugMode={debugMode}
+                        pricing={airportPricing}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -2729,6 +2748,7 @@ export default function App() {
                       <React.Suspense fallback={<LazyFallback label="Pricing Editor" />}>
                       <RoutePlannerView
                         debugMode={debugMode}
+                        pricing={airportPricing}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -2763,6 +2783,7 @@ export default function App() {
                       <React.Suspense fallback={<LazyFallback label="Route Planner" />}>
                       <RoutePlannerView
                         debugMode={debugMode}
+                        pricing={airportPricing}
                         airports={airports}
                         fleet={fleet}
                         routes={routes}
@@ -2854,7 +2875,7 @@ export default function App() {
                         onClose={() => setSelectedAirport(null)}
                         fleet={fleet}
                         routes={routes}
-                        aiAirlines={aiAirlines}
+                        pricing={airportPricing}
                         overhaulPrice={(registration) => {
                           const plane = fleet.find(p => p.registration === registration);
                           return plane ? playerOverhaulQuote(plane, routes, airportManagement, currentDateOffset)?.price ?? null : null;

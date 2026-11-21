@@ -97,7 +97,6 @@ export const InfoTooltip = ({
  *
  * Kept here until the view that shows the rule moves to the model:
  * - `breakEven`: the planner slider still marks BE99 / BE75 / BE35 (package 4.5).
- * - `desks`: the old rules still allow an airport without desks (package 4.3).
  * - `utilization`: the schedule rules are not in the model yet (package 4.4).
  */
 export const GLOSSARY: Record<GlossaryKey | 'utilization', GlossaryEntry> = {
@@ -108,12 +107,6 @@ export const GLOSSARY: Record<GlossaryKey | 'utilization', GlossaryEntry> = {
       'The fare at which this route covers its costs exactly, at a given load factor.\n\n' +
       'The left end of the slider is break-even if you fill 99% of seats — the cheapest fare that could ever work. The right end is break-even at 35% — what you would have to charge if the aircraft flew nearly empty.\n\n' +
       'The marked point is break-even at 75%, a realistic full-year average. Price below it and you are betting on filling more seats than that.',
-  },
-  desks: {
-    title: 'Check-in Desks',
-    desc:
-      'Where your passengers are processed, rented weekly. The rent follows the use: an idle desk costs a fifth of its full rate, a full one the whole rate, so a desk for one small aircraft a day is cheap.\n\n' +
-      'This is the harshest penalty in the game: with no desks at all every class loses about 15 satisfaction points, and premium classes lose 10 if you offer only self-service. A desk never makes things worse. The penalty is worked out at both ends of a route and averaged. Desks also have a capacity — overloading them costs satisfaction again.',
   },
   utilization: {
     title: 'Utilization',
