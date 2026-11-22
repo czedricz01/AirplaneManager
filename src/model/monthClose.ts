@@ -47,6 +47,7 @@ import {
   handlingFee,
   landingFee,
   payFactor,
+  researchCostFactor,
   type EndFees,
   type LandingAircraft,
   type PassengerCostParts,
@@ -175,13 +176,23 @@ import {
   connectionOfferSatisfaction,
   deskLoad as deskLoadOf,
   directOfferSatisfaction,
-  satisfaction,
+  flightTimeIndex,
+  groundSidePoints,
+  mealCount,
+  satisfactionBreakdown,
   satisfactionFactor,
   serviceCapability,
   servicePoints,
+  servicePointsParts,
   typeAppeal,
+  type ClassSatisfactionBreakdown,
+  type ClassSatisfactionInput,
   type Desks,
+  type GroundParts,
   type GroundSide,
+  type RouteSatisfactionInput,
+  type ServiceCapability,
+  type ServicePointsParts,
   type ServiceSelection,
 } from './satisfaction';
 import {
@@ -817,6 +828,168 @@ interface MarketContext {
 }
 
 /**
+ * Eigene Einrichtungen einer Gesellschaft je Flughafen und Flugzeugklasse für den Boden-Teil (2.6.3): Lounge, Stände,
+ * belegte Slots (Abflüge der Klasse, halb an jedem Ende) und Sitze aller eigenen Abflüge für die Schalter-Last.
+ */
+function groundSides(company: CompanyState): (airportId: string, cls: AircraftClass) => GroundSide {
+  const planes = new Map(company.aircraft.map((p) => [p.id, p]));
+  const departures = new Map<string, number>();
+  const departingSeats = new Map<string, number>();
+  for (const r of company.routes) {
+    const p = planes.get(r.aircraftId) as AircraftState;
+    for (const end of [r.from, r.to]) {
+      const key = `${end}|${p.aircraftClass}`;
+      departures.set(key, (departures.get(key) ?? 0) + r.departuresPerWeek / 2);
+      departingSeats.set(end, (departingSeats.get(end) ?? 0) + (totalSeats(p.seats) * r.departuresPerWeek) / 2);
+    }
+  }
+  return (airportId, cls) => {
+    const h = company.airports[airportId] ?? EMPTY_HOLDING;
+    return {
+      lounge: h.facilities.includes('vipLounge'),
+      stands: h.stands[cls] ?? 0,
+      occupiedSlots: departures.get(`${airportId}|${cls}`) ?? 0,
+      desks: h.desks,
+      departingSeatsPerWeek: departingSeats.get(airportId) ?? 0,
+    };
+  };
+}
+
+/** Eingaben der Satisfaction einer Strecke (2.4–2.7), so wie Abschluss und Planer sie bauen (R2). */
+interface RouteSatisfactionSetup {
+  /** Catering-Einrichtung an mindestens einem Ende (2.5). */
+  readonly cateringFacility: boolean;
+  readonly capability: ServiceCapability;
+  /** Service-Auswahl je Klasse mit Sitzen (leer, wenn die Strecke keine hat). */
+  readonly selections: Partial<Record<CabinClass, ServiceSelection>>;
+  /** Je Klasse mit Sitzen Cabin rating und Service points. */
+  readonly classes: Partial<Record<CabinClass, ClassSatisfactionInput>>;
+  readonly route: RouteSatisfactionInput;
+}
+
+const NO_SERVICE: ServiceSelection = { meals: [], extras: [], onboardService: [] };
+
+/** Baut `RouteSatisfactionSetup` für eine Strecke im Monat `X`. */
+function routeSatisfactionSetup(
+  company: CompanyState,
+  route: RouteState,
+  plane: AircraftState,
+  minutes: number,
+  X: number,
+  groundSide: (airportId: string, cls: AircraftClass) => GroundSide,
+): RouteSatisfactionSetup {
+  const holding = (id: string) => company.airports[id] ?? EMPTY_HOLDING;
+  const appealValue = typeAppeal({ catalogAppeal: plane.catalogAppeal, builtMonth: plane.builtMonth, month: X, launchCustomer: plane.launchCustomer });
+  const cateringFacility = holding(route.from).facilities.includes('catering') || holding(route.to).facilities.includes('catering');
+  const capability = serviceCapability({
+    aircraftClass: plane.aircraftClass,
+    hasWifi: plane.hasWifi,
+    hasPremiumGalley: plane.hasPremiumGalley,
+    cateringFacility,
+  });
+  const selections: Partial<Record<CabinClass, ServiceSelection>> = {};
+  const classes: Partial<Record<CabinClass, ClassSatisfactionInput>> = {};
+  for (const c of CABIN_CLASSES) {
+    if (!((plane.seats[c] ?? 0) > 0)) continue;
+    const selection = route.service[c] ?? NO_SERVICE;
+    selections[c] = selection;
+    classes[c] = {
+      cabinRating: cabinRating(appealValue, plane.interiorScore[c] ?? 0, plane.cabinCondition),
+      servicePoints: servicePoints(selection, minutes, capability),
+    };
+  }
+  return {
+    cateringFacility,
+    capability,
+    selections,
+    classes,
+    route: {
+      blockMinutes: minutes,
+      origin: groundSide(route.from, plane.aircraftClass),
+      destination: groundSide(route.to, plane.aircraftClass),
+      morale: company.inputs.morale,
+      completedResearch: company.inputs.completedResearch,
+    },
+  };
+}
+
+/** Satisfaction einer Klasse mit allen Teilen und dem, was der Planer daneben zeigt (Paket 4.5b). */
+export interface ClassSatisfactionDetail {
+  /** Alle Teile und die Satisfaction (2.7), dieselbe Zahl wie im Abschluss. */
+  readonly breakdown: ClassSatisfactionBreakdown;
+  /** Cabin rating der Klasse (2.4). */
+  readonly cabinRating: number;
+  /** Service points mit Aufschlüsselung (2.5): geliefert; erwartet steht in `breakdown.expectedServicePoints`. */
+  readonly service: ServicePointsParts;
+  /** Bodenteile je Ende vor Mittel und Bodengewicht (2.6.3): Lounge, Stände, Schalter-Art, Schalter-Last. */
+  readonly originGround: GroundParts;
+  readonly destinationGround: GroundParts;
+  /** Verpflegung je Direktgast in $ des Monats (5.7), wie in `costPerPassenger`. */
+  readonly cateringCost: number;
+}
+
+/** Satisfaction einer Strecke mit allen Teilen (2.4–2.7) und den Verpflegungskosten (5.7). */
+export interface RouteSatisfactionDetail {
+  readonly blockMinutes: number;
+  readonly flightTimeIndex: number;
+  /** Mahlzeiten, die auf dieser Flugzeit zählen (2.5). */
+  readonly mealCount: number;
+  readonly cateringFacility: boolean;
+  /** Was an Bord möglich ist (Gerichte-Stufen, WLAN, Premium-Bordküche). */
+  readonly capability: ServiceCapability;
+  readonly origin: GroundSide;
+  readonly destination: GroundSide;
+  /** Preis einer Verpflegung in $ des Monats je $ von 1960 (Kostenindex × Forschung, 5.7). */
+  readonly cateringPriceFactor: number;
+  readonly classes: Readonly<Partial<Record<CabinClass, ClassSatisfactionDetail>>>;
+}
+
+/**
+ * Satisfaction einer Strecke mit allen Teilen, aus denselben Eingaben wie der Abschluss (`marketContext`, R2): Planer
+ * Schritt 3 und das Kabinen-Fenster lesen nur diese Funktion (2.7, E44). Störungen ändern die Satisfaction nicht.
+ * SPEZIFIKATION 2.4–2.7, 5.7.
+ */
+export function routeSatisfactionDetail(state: ModelState, companyId: string, routeId: string): RouteSatisfactionDetail {
+  const company = state.companies.find((c) => c.id === companyId);
+  const route = company?.routes.find((r) => r.id === routeId);
+  if (!company || !route) throw new Error(`Satisfaction: Strecke ${companyId}/${routeId} fehlt`);
+  const plane = company.aircraft.find((p) => p.id === route.aircraftId);
+  if (!plane) throw new Error(`Satisfaction: Flugzeug ${route.aircraftId} fehlt`);
+  const X = state.month;
+  const minutes = blockMinutes(distanceKm(state.airports[route.from].coords, state.airports[route.to].coords), plane.cruiseSpeed);
+  const setup = routeSatisfactionSetup(company, route, plane, minutes, X, groundSides(company));
+  const breakdown = satisfactionBreakdown(setup.classes, setup.route);
+  const research = company.inputs.completedResearch;
+  const classes: Partial<Record<CabinClass, ClassSatisfactionDetail>> = {};
+  for (const c of CABIN_CLASSES) {
+    const b = breakdown[c];
+    const input = setup.classes[c];
+    const selection = setup.selections[c];
+    if (!b || !input || !selection) continue;
+    classes[c] = {
+      breakdown: b,
+      cabinRating: input.cabinRating,
+      service: servicePointsParts(selection, minutes, setup.capability),
+      originGround: groundSidePoints(c, setup.route.origin),
+      destinationGround: groundSidePoints(c, setup.route.destination),
+      cateringCost: cateringCost(selection, minutes, setup.capability, X, research),
+    };
+  }
+  const fti = flightTimeIndex(minutes);
+  return {
+    blockMinutes: minutes,
+    flightTimeIndex: fti,
+    mealCount: mealCount(fti),
+    cateringFacility: setup.cateringFacility,
+    capability: setup.capability,
+    origin: setup.route.origin,
+    destination: setup.route.destination,
+    cateringPriceFactor: atCost(1, X) * researchCostFactor('catering', research),
+    classes,
+  };
+}
+
+/**
  * Vorbereitung von Schritt 2 (siehe `monthOperations`): Strecken und Umsteige-Verbindungen. Mit `scope` nur der Teil,
  * den die Planer-Rechnung braucht: Eine Strecke wird nur vorbereitet, wenn ihr Paar gebraucht wird, sie als
  * Teilstrecke einer Umsteige-Verbindung in einem gebrauchten Paar dienen kann oder (bei `scope.route`) dasselbe
@@ -848,30 +1021,8 @@ function marketContext(state: ModelState, scope: OperationsScope): MarketContext
   const prepared: PreparedRoute[] = [];
   for (const company of companies) {
     const { inputs } = company;
-    const research = inputs.completedResearch;
     const planes = new Map(company.aircraft.map((p) => [p.id, p]));
-    const holding = (id: string) => company.airports[id] ?? EMPTY_HOLDING;
-    // Abflüge je Flughafen und Flugzeugklasse, Sitze der Abflüge je Flughafen (Bodenteile, 2.6.3).
-    const departures = new Map<string, number>();
-    const departingSeats = new Map<string, number>();
-    for (const r of company.routes) {
-      const p = planes.get(r.aircraftId) as AircraftState;
-      for (const end of [r.from, r.to]) {
-        const key = `${end}|${p.aircraftClass}`;
-        departures.set(key, (departures.get(key) ?? 0) + r.departuresPerWeek / 2);
-        departingSeats.set(end, (departingSeats.get(end) ?? 0) + (totalSeats(p.seats) * r.departuresPerWeek) / 2);
-      }
-    }
-    const groundSide = (airportId: string, cls: AircraftClass): GroundSide => {
-      const h = holding(airportId);
-      return {
-        lounge: h.facilities.includes('vipLounge'),
-        stands: h.stands[cls] ?? 0,
-        occupiedSlots: departures.get(`${airportId}|${cls}`) ?? 0,
-        desks: h.desks,
-        departingSeatsPerWeek: departingSeats.get(airportId) ?? 0,
-      };
-    };
+    const groundSide = groundSides(company);
     const strikeShare = strikeCancelShare(inputs.staffStrike, X);
     const disruptions = state.disruptions.map((d) => ({ ...d, charter: d.charter === true && inputs.charter }));
 
@@ -888,32 +1039,12 @@ function marketContext(state: ModelState, scope: OperationsScope): MarketContext
       const offeredSeats = zeroClasses();
       for (const c of CABIN_CLASSES) offeredSeats[c] = (plane.seats[c] ?? 0) * route.departuresPerWeek * (1 - shares.cancelledShare);
 
-      const appealValue = typeAppeal({ catalogAppeal: plane.catalogAppeal, builtMonth: plane.builtMonth, month: X, launchCustomer: plane.launchCustomer });
-      const cateringFacility = holding(A.id).facilities.includes('catering') || holding(B.id).facilities.includes('catering');
-      const capability = serviceCapability({
-        aircraftClass: plane.aircraftClass,
-        hasWifi: plane.hasWifi,
-        hasPremiumGalley: plane.hasPremiumGalley,
-        cateringFacility,
-      });
+      const setup = routeSatisfactionSetup(company, route, plane, minutes, X, groundSide);
+      const breakdown = satisfactionBreakdown(setup.classes, setup.route);
       const sat: Partial<Record<CabinClass, number>> = {};
       for (const c of CABIN_CLASSES) {
-        if (!((plane.seats[c] ?? 0) > 0)) continue;
-        const selection = route.service[c] ?? { meals: [], extras: [], onboardService: [] };
-        sat[c] = satisfaction(
-          c,
-          {
-            cabinRating: cabinRating(appealValue, plane.interiorScore[c] ?? 0, plane.cabinCondition),
-            servicePoints: servicePoints(selection, minutes, capability),
-          },
-          {
-            blockMinutes: minutes,
-            origin: groundSide(A.id, plane.aircraftClass),
-            destination: groundSide(B.id, plane.aircraftClass),
-            morale: inputs.morale,
-            completedResearch: research,
-          },
-        );
+        const b = breakdown[c];
+        if (b) sat[c] = b.satisfaction;
       }
       prepared.push({
         company,

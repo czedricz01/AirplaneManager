@@ -1,6 +1,7 @@
 /**
  * Regeltests Paket 4.5a (F62): Prognose einer Strecke für den Planer (`routeForecast`, `routeBestFares`,
  * `pricesAtLevel`) aus derselben Rechnung wie der Monatsabschluss (R2, 4.10–4.12).
+ * Paket 4.5b (F63): Satisfaction je Klasse mit allen Teilen und Verpflegungskosten (`plannedSatisfaction`, 2.7, 5.7).
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,11 +10,13 @@ import type { OwnedAircraft } from '../components/MyFleetView';
 import { aircraftList } from '../data/aircraft';
 import { CABIN_CLASSES, RAMP_MONTHS } from '../model/constants';
 import { monthOperations, type ModelState } from '../model/monthClose';
+import { cateringCostParts } from '../model/costs';
+import { SCALES } from '../model/constants';
 import { createOwnedAircraft, defaultCabin } from './fleet';
 import { createGameSystems } from './gameState';
 import type { AirportInfrastructure, SimulatedRoute } from './gameTypes';
 import { PLAYER_ID, defaultModelEnv, modelGame, type AppGame } from './modelMonth';
-import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, withPlannedRoute, type PlannedRoute } from './modelRoute';
+import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, plannedSatisfaction, withPlannedRoute, type PlannedRoute } from './modelRoute';
 
 const M = (1995 - 1960) * 12 + 5; // Juni 1995
 const ENV = defaultModelEnv();
@@ -151,5 +154,57 @@ describe('Paket 4.5a: bester Preis und Preisniveau (4.5, 4.10)', () => {
     const p = pricesAtLevel(fares, 1.3, ['economy', 'business']);
     assert.deepEqual(Object.keys(p), ['economy', 'business']);
     assert.ok(Math.abs(p.business / p.economy - fares.business / fares.economy) < 0.02);
+  });
+});
+
+describe('Paket 4.5b: Satisfaction der Strecke im Planer (2.7, 5.7)', () => {
+  it('Satisfaction je Klasse = Satisfaction der Strecke im Monatsabschluss (2.7, R2)', () => {
+    const d = plannedSatisfaction(STATE, EXISTING)!;
+    const ops = monthOperations(STATE)[PLAYER_ID].routes.find((r) => r.routeId === 'r1')!;
+    for (const c of CABIN_CLASSES) {
+      const k = d.classes[c];
+      assert.equal(k === undefined, ops.satisfaction[c] === undefined, c);
+      if (k) assert.ok(Math.abs(k.breakdown.satisfaction - (ops.satisfaction[c] as number)) < 1e-9, `${c}: ${k.breakdown.satisfaction}`);
+    }
+  });
+
+  it('die Teile ergeben die Satisfaction; Boden-Teil = Bodengewicht × Mittel beider Enden (2.6.3, 2.7)', () => {
+    const d = plannedSatisfaction(STATE, NEW)!;
+    const k = d.classes.economy!;
+    const b = k.breakdown;
+    const sum = SCALES.satisfaction.neutral + b.cabinPart + b.servicePart + b.groundPart.total + b.staffPart + b.researchPart;
+    assert.ok(Math.abs(sum - b.unclamped) < 1e-9);
+    for (const part of ['lounge', 'stands', 'deskType', 'deskOverload'] as const) {
+      const mean = (b.groundPart.weight * (k.originGround[part] + k.destinationGround[part])) / 2;
+      assert.ok(Math.abs(b.groundPart[part] - mean) < 1e-9, part);
+    }
+    assert.ok(Math.abs(k.service.total - (k.service.meals.reduce((s, m) => s + m.points, 0) + k.service.extrasPoints + k.service.onboardServicePoints)) < 1e-9);
+  });
+
+  it('die geplante Strecke zählt bei der Schalter-Last am gemeinsamen Ende mit (2.6.3)', () => {
+    const alone = plannedSatisfaction(STATE, EXISTING)!;
+    const withDraft = plannedSatisfaction(STATE, NEW)!;
+    const seats = (p: { seats: Partial<Record<string, number>> }) => Object.values(p.seats).reduce((a: number, b) => a + (b ?? 0), 0);
+    const player = withPlannedRoute(STATE, NEW).companies.find((c) => c.id === PLAYER_ID)!;
+    const draftPlane = player.aircraft.find((p) => p.id === 'D-AAAB')!;
+    const draft = player.routes.find((r) => r.id === 'draft')!;
+    assert.ok(draft.departuresPerWeek > 0);
+    const added = (seats(draftPlane) * draft.departuresPerWeek) / 2;
+    assert.ok(Math.abs(withDraft.origin.departingSeatsPerWeek - alone.origin.departingSeatsPerWeek - added) < 1e-9);
+  });
+
+  it('Verpflegung je Fluggast × Fluggäste = Verpflegungskosten der Prognose (5.7, R2)', () => {
+    const d = plannedSatisfaction(STATE, NEW)!;
+    const f = routeForecast(STATE, NEW)!;
+    let catering = 0;
+    for (const c of CABIN_CLASSES) catering += (d.classes[c]?.cateringCost ?? 0) * f.figures.passengers[c];
+    assert.ok(catering > 0);
+    assert.ok(Math.abs(catering - f.figures.passengerCost.catering) < 1e-6, `${catering} ≠ ${f.figures.passengerCost.catering}`);
+    const parts = cateringCostParts({ meals: [['b15']], extras: [], onboardService: [] }, d.blockMinutes, d.capability);
+    assert.ok(Math.abs(d.classes.economy!.cateringCost - parts.total1960 * d.cateringPriceFactor) < 1e-9);
+  });
+
+  it('ohne Abflüge keine Satisfaction', () => {
+    assert.equal(plannedSatisfaction(STATE, { ...NEW, route: { ...NEW.route, weeklyFlights: 0, schedule: [] } }), null);
   });
 });
