@@ -1,8 +1,10 @@
 import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo, useEffect } from 'react';
 import { formatCurrency, formatNumber, yearOf } from '../lib/format';
-import { getPlaneSat, CABIN_CLASSES, SAT_MODEL } from '../lib/financeUtils';
-import { Aircraft } from '../data/aircraft';
+import { Aircraft, aircraftList } from '../data/aircraft';
+import { cabinExtras, classInterior } from '../lib/modelBridge';
+import { cabinQuote, extraOffers, featureOffers, seatTypeOffers, type CabinChoice, type CabinPartOffer } from '../lib/modelCabin';
+import { CABIN_CLASSES, CABIN_EXPECTATION, CABIN_EXTRA_SPACE_CM, CABIN_EXTRA_SPACE_GAIN, INTERIOR_SHARE, TYPE_APPEAL_SHARE, type CabinClass, type CabinExtra } from '../model/constants';
 import type { OwnedAircraft } from './MyFleetView';
 import { Minus, Plus, Info, Settings, X, Download, Trash2 } from 'lucide-react';
 // The shared version of what used to be a local SeatInfoTooltip here; the rest of
@@ -91,24 +93,41 @@ interface Props {
 
 type ClassType = 'first' | 'business' | 'premium' | 'economy';
 
-/**
- * Interior SAT points per seat feature, per cabin. The calculation below and the
- * tooltips both read these; the tooltips used to state twice the real value.
- */
-const FEATURE_POP = {
-  economy: { ife: 5, power: 5, hooks: 1, armrests: 2.5, headrests: 2.5, shell: 5, ped: 4 },
-  premium: { ife: 5, power: 5, table: 2.5, calf: 5, foot: 4, light: 2.5, usbc: 4 },
-  business: { ife: 7.5, power: 5, lumbar: 4, control: 7.5, massage: 10, divider: 12.5, charging: 5 },
-  first: { ife: 10, power: 7.5, wardrobe: 7.5, wood: 12.5, mirror: 5, minibar: 15, climate: 17.5 }
-} as const;
+/** Points in the interior score (model, SPEZIFIKATION 2.3), with sign. */
+const signedPts = (v: number) => `${v > 0 ? '+' : ''}${formatNumber(v, Number.isInteger(v) ? 0 : 1)} interior score pts`;
 
-/** Interior SAT points of the cabin-wide extras. */
-const CABIN_EXTRA_POP = { wifi: 5, ambient: 2.5, catering: 2.5, bar: 7.5, shower: 10, reduced: -2.5, minimal: -7.5 } as const;
+/** A price in the dialog, with sign: +$1,200 / -$25,000. */
+const signedPrice = (v: number) => `${v < 0 ? '-' : '+'}${formatCurrency(Math.abs(v))}`;
 
-/** A seat type's `pop` counts double in the interior score. */
-const SEAT_TYPE_POP_FACTOR = 2;
+/** Short note under a part: its price, or when it can be fitted. */
+function partSub(o: CabinPartOffer, perSeat: boolean): string {
+  if (!o.deliverable) {
+    if (o.minCapacity !== undefined && o.availableFrom <= 0) return `Req. ${o.minCapacity}+ seats`;
+    if (o.minCapacity !== undefined) return `Avail. ${yearOf(o.availableFrom)}, ${o.minCapacity}+ seats`;
+    return `Avail. ${yearOf(o.availableFrom)}`;
+  }
+  return `${signedPrice(o.price)}${perSeat ? ' / seat' : ''}`;
+}
 
-const signedPts = (v: number) => `${v > 0 ? '+' : ''}${v} interior SAT pts`;
+/** What a cabin-wide extra does to the cabin space, for its tooltip (model, SPEZIFIKATION 7.5). */
+function extraSpaceNote(key: CabinExtra): string {
+  const cm = CABIN_EXTRA_SPACE_CM[key];
+  const gain = CABIN_EXTRA_SPACE_GAIN[key];
+  if (cm) return `\n-${formatNumber(cm)} cm cabin space`;
+  if (gain) return `\n+${formatNumber(gain * 100)}% cabin space`;
+  return '';
+}
+
+/** Tooltip lines of a cabin-wide extra: points, price, space and, if it cannot be fitted yet, why. */
+function extraDetails(o: CabinPartOffer<CabinExtra>): string {
+  let text = `\n\n${signedPts(o.points)}\n${signedPrice(o.price)} upfront${extraSpaceNote(o.key)}`;
+  if (!o.deliverable) {
+    const needs = [`year ${yearOf(o.availableFrom)}+`];
+    if (o.minCapacity !== undefined) needs.push(`a type with ${o.minCapacity}+ seats`);
+    text += `\n\nRequires ${needs.join(' and ')}.`;
+  }
+  return text;
+}
 
 type SeatColors = { seat: string; back: string; body: string };
 
@@ -323,228 +342,94 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const [ecoFixedShell, setEcoFixedShell] = useState(initialPlane?.config?.details?.economy?.hasFixedShell ?? false);
   const [ecoPedHolder, setEcoPedHolder] = useState(initialPlane?.config?.details?.economy?.hasPedHolder ?? false);
 
-  const SEAT_DEFS = {
-    first: [
-      { n: 'Standard', c: 0, pop: 0, m: 1, req: 0 },
-      { n: 'Recliner', c: 500, pop: 10, m: 1.2, req: 0 },
-      { n: 'Flat Bed', c: 1500, pop: 20, m: 1.5, req: 360 },
-      { n: 'Open Suite', c: 3000, pop: 30, m: 1.8, req: 420 },
-      { n: 'Closed Suite', c: 8000, pop: 50, m: 2.2, req: 540 },
-      { n: 'Residence', c: 25000, pop: 80, m: 3, req: 648 }
-    ],
-    business: [
-      { n: 'Standard', c: 0, pop: 0, m: 1, req: 0 },
-      { n: 'Recliner', c: 300, pop: 10, m: 1.1, req: 0 },
-      { n: 'Angled Flat', c: 1000, pop: 20, m: 1.3, req: 480 },
-      { n: 'Lie-Flat', c: 2500, pop: 35, m: 1.6, req: 540 },
-      { n: 'Suites', c: 5000, pop: 50, m: 2.0, req: 660 }
-    ],
-    premium: [
-      { n: 'Standard', c: 0, pop: 0, m: 1, req: 0 },
-      { n: 'Recliner', c: 400, pop: 20, m: 1.2, req: 0 },
-      { n: 'Cradle', c: 800, pop: 35, m: 1.4, req: 600 }
-    ],
-    economy: [
-      { n: 'Standard', c: 0, pop: 0, m: 1, req: 0 },
-      { n: 'Comfort', c: 80, pop: 5, m: 1.05, req: 0 },
-      { n: 'Ergonomic', c: 150, pop: 15, m: 1.0, req: 600 },
-      { n: 'Premium-Eco', c: 300, pop: 25, m: 1.1, req: 660 }
-    ]
+  const CAPACITY = aircraft.capacity; // Seats of the type at 74 cm pitch
+  // Type values from the catalogue, not the ones carried on an owned aircraft.
+  const typeSpec = aircraftList.find(a => a.id === aircraft.id) ?? aircraft;
+
+  // What can be fitted this month, with points and prices (model, SPEZIFIKATION 2.3, 5.13).
+  const offers = useMemo(() => {
+    const seats = {} as Record<CabinClass, CabinPartOffer[]>;
+    const features = {} as Record<CabinClass, Record<string, CabinPartOffer>>;
+    for (const c of CABIN_CLASSES) {
+      seats[c] = seatTypeOffers(c, currentDateOffset, CAPACITY);
+      features[c] = Object.fromEntries(featureOffers(c, currentDateOffset, CAPACITY).map(o => [o.key, o]));
+    }
+    const extras = Object.fromEntries(extraOffers(currentDateOffset, CAPACITY).map(o => [o.key, o])) as Record<CabinExtra, CabinPartOffer<CabinExtra>>;
+    return { seats, features, extras };
+  }, [currentDateOffset, CAPACITY]);
+  /** Availability, price and points of a seat feature, for the lists below. */
+  const feat = (c: CabinClass, key: string) => {
+    const o = offers.features[c][key];
+    return { req: o.availableFrom, price: o.price, available: o.deliverable, points: o.points };
+  };
+  const extraOffer = offers.extras;
+  const isWifiAvailable = extraOffer.wifi.deliverable;
+  const isAmbientAvailable = extraOffer.ambient.deliverable;
+  const isCateringAvailable = extraOffer.catering.deliverable;
+  const isBarAvailable = extraOffer.bar.deliverable;
+  const isShowerAvailable = extraOffer.shower.deliverable;
+
+  // The cabin as chosen, in the form the dialog saves it.
+  const classSetups = {
+    first: { seats: firstSeats, pitch: firstPitch, seatType: firstType, hasIFE: firstIFE, hasPower: firstPower, hasWardrobe: firstWardrobe, hasWoodLeather: firstWoodLeather, hasMirrors: firstMirrors, hasMinibar: firstMinibar, hasActiveClimate: firstActiveClimate },
+    business: { seats: bizSeats, pitch: bizPitch, seatType: bizType, hasIFE: bizIFE, hasPower: bizPower, hasLumbarSupport: bizLumbarSupport, hasElecSeatControl: bizElecSeatControl, hasMassage: bizMassage, hasPrivacyDivider: bizPrivacyDivider, hasInductiveCharging: bizInductiveCharging },
+    premium: { seats: premSeats, pitch: premPitch, seatType: premType, hasIFE: premIFE, hasPower: premPower, hasCocktailTable: premCocktailTable, hasCalfRest: premCalfRest, hasFootrests: premFootrests, hasGooseneckLight: premGooseneckLight, hasUSBC: premUSBC },
+    economy: { seats: 0, pitch: ecoPitch, seatType: ecoType, hasIFE: ecoIFE, hasPower: ecoPower, hasHooks: ecoHooks, hasMovableArmrests: ecoMovableArmrests, hasAdjHeadrests: ecoAdjHeadrests, hasFixedShell: ecoFixedShell, hasPedHolder: ecoPedHolder },
+  };
+  const extraFlags = { hasWifi, hasAmbientLighting, hasPremiumCatering, hasOnboardBar, hasShower, hasReducedGalley, hasMinimalServices };
+  const choice: CabinChoice = {
+    seats: { first: firstSeats, business: bizSeats, premium: premSeats },
+    interiors: {
+      first: classInterior('first', classSetups.first),
+      business: classInterior('business', classSetups.business),
+      premium: classInterior('premium', classSetups.premium),
+      economy: classInterior('economy', classSetups.economy),
+    },
+    extras: cabinExtras(extraFlags),
   };
 
-  const getDef = (cat: 'first'|'business'|'premium'|'economy', type: string) => {
-    return SEAT_DEFS[cat].find(d => d.n === type) || SEAT_DEFS[cat][0];
-  };
+  // Space, seats, interior score, cabin rating and price: all from the model
+  // (src/lib/modelCabin.ts), the same functions the month close values the fleet with.
+  const quote = cabinQuote(
+    typeSpec,
+    choice,
+    currentDateOffset,
+    initialPlane
+      ? {
+          builtMonth: initialPlane.purchasedAt,
+          launchCustomer: initialPlane.launchBonusUntil !== undefined,
+          cabinCondition: initialPlane.conditionInterior,
+          refitsDone: initialPlane.refitsDone || 0,
+        }
+      : undefined
+  );
 
-  const CAPACITY = aircraft.capacity; // Total economy seats at 74cm
-  
-  let spaceMultiplier = 1.0;
-  if (hasReducedGalley) spaceMultiplier += 0.03;
-  if (hasMinimalServices) spaceMultiplier += 0.06;
-  
-  const TOTAL_SPACE = CAPACITY * 74 * spaceMultiplier;
+  const TOTAL_SPACE = quote.space;
+  const ecoSeats = quote.seats.economy;
+  const isOverbooked = quote.overbooked;
+  const maxFirstSeats = quote.maxSeats.first;
+  const maxBizSeats = quote.maxSeats.business;
+  const maxPremSeats = quote.maxSeats.premium;
+  const extrasSpace = quote.fittedExtras.reduce((sum, e) => sum + (CABIN_EXTRA_SPACE_CM[e] ?? 0), 0);
+  const totalSeats = quote.totalSeats;
+  const scoreOf = (c: CabinClass) => quote.interior[c].total;
 
-  const firstMultiplier = getDef('first', firstType).m;
-  const bizMultiplier = getDef('business', bizType).m;
-  const premMultiplier = getDef('premium', premType).m;
-  const ecoMultiplier = getDef('economy', ecoType).m;
-
-  const extrasSpace = (hasPremiumCatering ? 200 : 0) + (hasOnboardBar ? 400 : 0) + (hasShower ? 800 : 0);
-
-  const usedSpaceWithoutEcoRaw = (firstSeats * firstPitch * firstMultiplier) + (bizSeats * bizPitch * bizMultiplier) + (premSeats * premPitch * premMultiplier) + extrasSpace;
-  const remainingSpace = TOTAL_SPACE - usedSpaceWithoutEcoRaw;
-  
-  // Calculate Economy Seats
-  const ecoSeats = Math.max(0, Math.floor(remainingSpace / (ecoPitch * ecoMultiplier)));
-  const isOverbooked = remainingSpace < 0;
-
-  const maxFirstSeats = firstSeats + Math.max(0, Math.floor(remainingSpace / (firstPitch * firstMultiplier)));
-  const maxBizSeats = bizSeats + Math.max(0, Math.floor(remainingSpace / (bizPitch * bizMultiplier)));
-  const maxPremSeats = premSeats + Math.max(0, Math.floor(remainingSpace / (premPitch * premMultiplier)));
-
-  // Pricing Limits
-  const isWifiAvailable = currentDateOffset >= 480; 
-  const isAmbientAvailable = currentDateOffset >= 540;
-  const isBarAvailable = currentDateOffset >= 120 && CAPACITY >= 200; // Require decent sized plane
-  const isShowerAvailable = currentDateOffset >= 576 && CAPACITY >= 300; // Require very large plane
-
-  const wifiCost = hasWifi && isWifiAvailable ? 150000 : 0;
-  const ambientCost = hasAmbientLighting && isAmbientAvailable ? 100000 : 0;
-  const cateringCost = hasPremiumCatering ? 300000 : 0;
-  const barCost = hasOnboardBar && isBarAvailable ? 500000 : 0;
-  const showerCost = hasShower && isShowerAvailable ? 1000000 : 0;
-  const reducedGalleyCost = hasReducedGalley ? -25000 : 0;
-  const minimalServicesCost = hasMinimalServices ? -50000 : 0;
-
-  const totalExtrasCost = wifiCost + ambientCost + cateringCost + barCost + showerCost + reducedGalleyCost + minimalServicesCost;
-
-  // Pop Calcs
-  const getEcoPop = () => {
-    let p = 50 + getDef('economy', ecoType).pop * SEAT_TYPE_POP_FACTOR; // base lower
-    p += (ecoPitch - 74) * 4;
-    if (ecoIFE && currentDateOffset >= 240) p += FEATURE_POP.economy.ife;
-    if (ecoPower && currentDateOffset >= 420) p += FEATURE_POP.economy.power;
-    if (ecoHooks && currentDateOffset >= 180) p += FEATURE_POP.economy.hooks;
-    if (ecoMovableArmrests && currentDateOffset >= 300) p += FEATURE_POP.economy.armrests;
-    if (ecoAdjHeadrests && currentDateOffset >= 420) p += FEATURE_POP.economy.headrests;
-    if (ecoFixedShell && currentDateOffset >= 540) p += FEATURE_POP.economy.shell;
-    if (ecoPedHolder && currentDateOffset >= 660) p += FEATURE_POP.economy.ped;
-    return Math.max(0, p);
-  };
-
-  const getPremPop = () => {
-    let p = 55 + getDef('premium', premType).pop * SEAT_TYPE_POP_FACTOR;
-    p += (premPitch - 85) * 3;
-    if (premIFE && currentDateOffset >= 240) p += FEATURE_POP.premium.ife;
-    if (premPower && currentDateOffset >= 420) p += FEATURE_POP.premium.power;
-    if (premCocktailTable && currentDateOffset >= 180) p += FEATURE_POP.premium.table;
-    if (premCalfRest && currentDateOffset >= 300) p += FEATURE_POP.premium.calf;
-    if (premFootrests && currentDateOffset >= 420) p += FEATURE_POP.premium.foot;
-    if (premGooseneckLight && currentDateOffset >= 600) p += FEATURE_POP.premium.light;
-    if (premUSBC && currentDateOffset >= 720) p += FEATURE_POP.premium.usbc;
-    return Math.max(0, p);
-  };
-
-  const getBizPop = () => {
-    let p = 60 + getDef('business', bizType).pop * SEAT_TYPE_POP_FACTOR;
-    p += (bizPitch - 100) * 2.4;
-    if (bizIFE && currentDateOffset >= 240) p += FEATURE_POP.business.ife;
-    if (bizPower && currentDateOffset >= 360) p += FEATURE_POP.business.power;
-    if (bizLumbarSupport && currentDateOffset >= 180) p += FEATURE_POP.business.lumbar;
-    if (bizElecSeatControl && currentDateOffset >= 300) p += FEATURE_POP.business.control;
-    if (bizMassage && currentDateOffset >= 420) p += FEATURE_POP.business.massage;
-    if (bizPrivacyDivider && currentDateOffset >= 540) p += FEATURE_POP.business.divider;
-    if (bizInductiveCharging && currentDateOffset >= 720) p += FEATURE_POP.business.charging;
-    return Math.max(0, p);
-  };
-
-  const getFirstPop = () => {
-    let p = 70 + getDef('first', firstType).pop * SEAT_TYPE_POP_FACTOR;
-    p += (firstPitch - 150) * 1.6;
-    if (firstIFE && currentDateOffset >= 240) p += FEATURE_POP.first.ife;
-    if (firstPower && currentDateOffset >= 360) p += FEATURE_POP.first.power;
-    if (firstWardrobe && currentDateOffset >= 240) p += FEATURE_POP.first.wardrobe;
-    if (firstWoodLeather && currentDateOffset >= 360) p += FEATURE_POP.first.wood;
-    if (firstMirrors && currentDateOffset >= 480) p += FEATURE_POP.first.mirror;
-    if (firstMinibar && currentDateOffset >= 600) p += FEATURE_POP.first.minibar;
-    if (firstActiveClimate && currentDateOffset >= 720) p += FEATURE_POP.first.climate;
-    return Math.max(0, p);
-  };
-
-  const totalSeats = firstSeats + bizSeats + premSeats + ecoSeats;
-
-  const interiorPopRaw = totalSeats > 0 ? (
-      (firstSeats * getFirstPop() + 
-       bizSeats * getBizPop() + 
-       premSeats * getPremPop() + 
-       ecoSeats * getEcoPop()) / totalSeats
-  ) : 0;
-
-  const baseInteriorPop = useMemo(() => {
-    if (totalSeats === 0) return 0;
-    let score = interiorPopRaw;
-    if (hasWifi && isWifiAvailable) score += CABIN_EXTRA_POP.wifi;
-    if (hasAmbientLighting && isAmbientAvailable) score += CABIN_EXTRA_POP.ambient;
-    if (hasPremiumCatering) score += CABIN_EXTRA_POP.catering;
-    if (hasOnboardBar && isBarAvailable) score += CABIN_EXTRA_POP.bar;
-    if (hasShower && isShowerAvailable) score += CABIN_EXTRA_POP.shower;
-    if (hasReducedGalley) score += CABIN_EXTRA_POP.reduced;
-    if (hasMinimalServices) score += CABIN_EXTRA_POP.minimal;
-    return Math.round(score);
-  }, [interiorPopRaw, hasWifi, isWifiAvailable, hasAmbientLighting, isAmbientAvailable, hasPremiumCatering, hasOnboardBar, isBarAvailable, hasShower, isShowerAvailable, hasReducedGalley, hasMinimalServices]);
-
-  // Each cabin's own score, with the cabin-wide extras every passenger has.
-  // The route economy rates a class by its own cabin; the average above stays
-  // as the aircraft's headline figure.
-  const cabinWideExtras = totalSeats > 0 ? baseInteriorPop - Math.round(interiorPopRaw) : 0;
+  // Kept on the aircraft for the parts of the game not yet on the model: each
+  // cabin's interior score, and their mean by seats.
   const interiorByClass: Record<string, number> = {};
-  if (ecoSeats > 0) interiorByClass.economy = Math.round(getEcoPop() + cabinWideExtras);
-  if (premSeats > 0) interiorByClass.premium = Math.round(getPremPop() + cabinWideExtras);
-  if (bizSeats > 0) interiorByClass.business = Math.round(getBizPop() + cabinWideExtras);
-  if (firstSeats > 0) interiorByClass.first = Math.round(getFirstPop() + cabinWideExtras);
+  for (const c of CABIN_CLASSES) if (quote.seats[c] > 0) interiorByClass[c] = Math.round(scoreOf(c));
+  const baseInteriorPop = totalSeats > 0
+    ? Math.round(CABIN_CLASSES.reduce((sum, c) => sum + quote.seats[c] * scoreOf(c), 0) / totalSeats)
+    : 0;
 
-  // Overall Plane Pop
-  // The formula the route economy uses, at the condition a new or refitted cabin
-  // starts from, so this preview cannot drift from the figure routes are priced with.
-  const totalPopularity = getPlaneSat({ popularity: aircraft.popularity, baseInteriorPop, conditionInterior: 100 });
-
-  // Cost Calc
-  const getClassCost = () => {
-    let cost = 0;
-    let eC = getDef('economy', ecoType).c;
-    if (ecoIFE && currentDateOffset >= 240) eC += 300;
-    if (ecoPower && currentDateOffset >= 420) eC += 100;
-    if (ecoHooks && currentDateOffset >= 180) eC += 20;
-    if (ecoMovableArmrests && currentDateOffset >= 300) eC += 50;
-    if (ecoAdjHeadrests && currentDateOffset >= 420) eC += 80;
-    if (ecoFixedShell && currentDateOffset >= 540) eC += 200;
-    if (ecoPedHolder && currentDateOffset >= 660) eC += 60;
-    cost += eC * ecoSeats;
- 
-    let pC = getDef('premium', premType).c;
-    if (premIFE && currentDateOffset >= 240) pC += 400;
-    if (premPower && currentDateOffset >= 420) pC += 150;
-    if (premCocktailTable && currentDateOffset >= 180) pC += 50;
-    if (premCalfRest && currentDateOffset >= 300) pC += 150;
-    if (premFootrests && currentDateOffset >= 420) pC += 100;
-    if (premGooseneckLight && currentDateOffset >= 600) pC += 80;
-    if (premUSBC && currentDateOffset >= 720) pC += 100;
-    cost += pC * premSeats;
- 
-    let bC = getDef('business', bizType).c;
-    if (bizIFE && currentDateOffset >= 240) bC += 600;
-    if (bizPower && currentDateOffset >= 360) bC += 200;
-    if (bizLumbarSupport && currentDateOffset >= 180) bC += 200;
-    if (bizElecSeatControl && currentDateOffset >= 300) bC += 800;
-    if (bizMassage && currentDateOffset >= 420) bC += 1200;
-    if (bizPrivacyDivider && currentDateOffset >= 540) bC += 1500;
-    if (bizInductiveCharging && currentDateOffset >= 720) bC += 300;
-    cost += bC * bizSeats;
- 
-    let fC = getDef('first', firstType).c;
-    if (firstIFE && currentDateOffset >= 240) fC += 1000;
-    if (firstPower && currentDateOffset >= 360) fC += 300;
-    if (firstWardrobe && currentDateOffset >= 240) fC += 800;
-    if (firstWoodLeather && currentDateOffset >= 360) fC += 3000;
-    if (firstMirrors && currentDateOffset >= 480) fC += 400;
-    if (firstMinibar && currentDateOffset >= 600) fC += 2500;
-    if (firstActiveClimate && currentDateOffset >= 720) fC += 4000;
-    cost += fC * firstSeats;
- 
-    return cost;
-  };
-
-  const configExtrasCost = getClassCost();
-  const renovateCost = isRenovating ? ((CAPACITY * 1000) + totalExtrasCost + configExtrasCost) : 0;
-  const unitPrice = isRenovating ? renovateCost : aircraft.basePrice + totalExtrasCost + configExtrasCost;
+  const unitPrice = quote.unitPrice;
   const totalPrice = unitPrice * quantity;
   const canAfford = capital >= totalPrice;
 
-
-  const pFirstRaw = ((firstSeats * firstPitch * firstMultiplier) / TOTAL_SPACE) * 100;
-  const pBizRaw = ((bizSeats * bizPitch * bizMultiplier) / TOTAL_SPACE) * 100;
-  const pPremRaw = ((premSeats * premPitch * premMultiplier) / TOTAL_SPACE) * 100;
-  const pEcoRaw = ((ecoSeats * ecoPitch * ecoMultiplier) / TOTAL_SPACE) * 100;
+  const pFirstRaw = ((firstSeats * quote.seatSpace.first) / TOTAL_SPACE) * 100;
+  const pBizRaw = ((bizSeats * quote.seatSpace.business) / TOTAL_SPACE) * 100;
+  const pPremRaw = ((premSeats * quote.seatSpace.premium) / TOTAL_SPACE) * 100;
+  const pEcoRaw = ((ecoSeats * quote.seatSpace.economy) / TOTAL_SPACE) * 100;
 
   const totalUsedP = pFirstRaw + pBizRaw + pPremRaw + pEcoRaw;
   const pFirst = totalUsedP > 0 ? (pFirstRaw / totalUsedP) * 100 : 0;
@@ -568,10 +453,10 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         first: firstSeats, business: bizSeats, premium: premSeats, economy: ecoSeats,
         details: {
           hasWifi, hasAmbientLighting, hasPremiumCatering, hasOnboardBar, hasShower, hasReducedGalley, hasMinimalServices,
-          first: { seats: firstSeats, pitch: firstPitch, seatType: firstType, hasIFE: firstIFE, hasPower: firstPower, hasWardrobe: firstWardrobe, hasWoodLeather: firstWoodLeather, hasMirrors: firstMirrors, hasMinibar: firstMinibar, hasActiveClimate: firstActiveClimate },
-          business: { seats: bizSeats, pitch: bizPitch, seatType: bizType, hasIFE: bizIFE, hasPower: bizPower, hasLumbarSupport: bizLumbarSupport, hasElecSeatControl: bizElecSeatControl, hasMassage: bizMassage, hasPrivacyDivider: bizPrivacyDivider, hasInductiveCharging: bizInductiveCharging },
-          premium: { seats: premSeats, pitch: premPitch, seatType: premType, hasIFE: premIFE, hasPower: premPower, hasCocktailTable: premCocktailTable, hasCalfRest: premCalfRest, hasFootrests: premFootrests, hasGooseneckLight: premGooseneckLight, hasUSBC: premUSBC },
-          economy: { seats: ecoSeats, pitch: ecoPitch, seatType: ecoType, hasIFE: ecoIFE, hasPower: ecoPower, hasHooks: ecoHooks, hasMovableArmrests: ecoMovableArmrests, hasAdjHeadrests: ecoAdjHeadrests, hasFixedShell: ecoFixedShell, hasPedHolder: ecoPedHolder }
+          first: classSetups.first,
+          business: classSetups.business,
+          premium: classSetups.premium,
+          economy: { ...classSetups.economy, seats: ecoSeats }
         }
       },
       createdAt: Date.now()
@@ -665,23 +550,23 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
       premium: premSeats,
       economy: ecoSeats,
       details: {
-        first: { seats: firstSeats, pitch: firstPitch, seatType: firstType, hasIFE: firstIFE, hasPower: firstPower, hasWardrobe: firstWardrobe, hasWoodLeather: firstWoodLeather, hasMirrors: firstMirrors, hasMinibar: firstMinibar, hasActiveClimate: firstActiveClimate },
-        business: { seats: bizSeats, pitch: bizPitch, seatType: bizType, hasIFE: bizIFE, hasPower: bizPower, hasLumbarSupport: bizLumbarSupport, hasElecSeatControl: bizElecSeatControl, hasMassage: bizMassage, hasPrivacyDivider: bizPrivacyDivider, hasInductiveCharging: bizInductiveCharging },
-        premium: { seats: premSeats, pitch: premPitch, seatType: premType, hasIFE: premIFE, hasPower: premPower, hasCocktailTable: premCocktailTable, hasCalfRest: premCalfRest, hasFootrests: premFootrests, hasGooseneckLight: premGooseneckLight, hasUSBC: premUSBC },
-        economy: { seats: ecoSeats, pitch: ecoPitch, seatType: ecoType, hasIFE: ecoIFE, hasPower: ecoPower, hasHooks: ecoHooks, hasMovableArmrests: ecoMovableArmrests, hasAdjHeadrests: ecoAdjHeadrests, hasFixedShell: ecoFixedShell, hasPedHolder: ecoPedHolder },
+        first: classSetups.first,
+        business: classSetups.business,
+        premium: classSetups.premium,
+        economy: { ...classSetups.economy, seats: ecoSeats },
         // Only what was actually paid for and fitted. A preset loaded in an
         // earlier year could carry Wi-Fi that was never charged, and
         // details.hasWifi is what unlocks the Wi-Fi cabin services.
         hasWifi: hasWifi && isWifiAvailable,
         hasAmbientLighting: hasAmbientLighting && isAmbientAvailable,
-        hasPremiumCatering,
+        hasPremiumCatering: hasPremiumCatering && isCateringAvailable,
         hasOnboardBar: hasOnboardBar && isBarAvailable,
         hasShower: hasShower && isShowerAvailable,
         // Both change the usable cabin space. They were not stored, so the
         // next refit started without them and silently changed the seat count.
         hasReducedGalley,
         hasMinimalServices,
-        // Per cabin, for getPlaneSat(aircraft, cabinClass).
+        // Per cabin, for the old getPlaneSat (src/lib/financeUtils.ts) until it goes (5.2).
         interiorByClass
       } as any
     };
@@ -706,20 +591,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-grow">
-              {SEAT_DEFS.first.map((t, i) => {
-                const disabled = currentDateOffset < t.req;
+              {offers.seats.first.map((t, i) => {
+                const disabled = !t.deliverable;
                 return (
-                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${firstType === t.n ? 'bg-surface border-accent/50' : ''}`}>
+                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${firstType === t.key ? 'bg-surface border-accent/50' : ''}`}>
                     <div className="flex items-center gap-3">
-                      <input type="radio" checked={firstType === t.n} disabled={disabled} onChange={() => setFirstType(t.n)} className="accent-accent hidden" />
-                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${firstType === t.n ? 'border-accent' : 'border-rule'}`}>
-                        {firstType === t.n && <div className="w-1.5 h-1.5 bg-accent rounded-full" />}
+                      <input type="radio" checked={firstType === t.key} disabled={disabled} onChange={() => setFirstType(t.key)} className="accent-accent hidden" />
+                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${firstType === t.key ? 'border-accent' : 'border-rule'}`}>
+                        {firstType === t.key && <div className="w-1.5 h-1.5 bg-accent rounded-full" />}
                       </div>
-                      <span className={`text-sm font-mono transition-colors ${firstType === t.n ? 'text-accent' : 'text-muted'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <span className={`text-sm font-mono transition-colors ${firstType === t.key ? 'text-accent' : 'text-muted'}`}>{t.key}</span>
+                      <SeatInfoTooltip title={t.key} desc={`${signedPts(t.points)}. Space multiplier: ${t.spaceFactor}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-2xs uppercase font-label transition-colors ${firstType === t.n ? 'text-accent opacity-80' : 'text-muted'}`}>
-                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                    <span className={`text-2xs uppercase font-label transition-colors ${firstType === t.key ? 'text-accent opacity-80' : 'text-muted'}`}>
+                      {disabled ? `Avail. ${yearOf(t.availableFrom)}` : (t.price ? partSub(t, true) : 'Standard')}
                     </span>
                   </label>
                 )
@@ -732,20 +617,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: firstIFE, setter: setFirstIFE, req: 240, price: 1000, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.first.ife)}.` },
-                { id: 'power', state: firstPower, setter: setFirstPower, req: 360, price: 300, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.first.power)}.` },
-                { id: 'wardrobe', state: firstWardrobe, setter: setFirstWardrobe, req: 240, price: 800, label: 'Pers. Wardrobe', title: 'Personal Wardrobe', desc: `A slim locker built into the seat shell for suits and coats. ${signedPts(FEATURE_POP.first.wardrobe)}.` },
-                { id: 'wood', state: firstWoodLeather, setter: setFirstWoodLeather, req: 360, price: 3000, label: 'Wood/Leather', title: 'Fine Wood & Leather', desc: `High-quality trim on consoles and armrests. ${signedPts(FEATURE_POP.first.wood)}.` },
-                { id: 'mirror', state: firstMirrors, setter: setFirstMirrors, req: 480, price: 400, label: 'Vanity Mirror', title: 'Illuminated Vanity Mirror', desc: `A vanity mirror built into a fold-out stowage compartment. ${signedPts(FEATURE_POP.first.mirror)}.` },
-                { id: 'minibar', state: firstMinibar, setter: setFirstMinibar, req: 600, price: 2500, label: 'Personal Minibar', title: 'Integrated Minibar', desc: `A private, partly chilled drinks compartment in the side wall. ${signedPts(FEATURE_POP.first.minibar)}.` },
-                { id: 'climate', state: firstActiveClimate, setter: setFirstActiveClimate, req: 720, price: 4000, label: 'Active Climate', title: 'Active Seat Climate', desc: `Heating mats and micro fans in cushion and backrest for individual temperature control. ${signedPts(FEATURE_POP.first.climate)}.` }
+                { id: 'ife', state: firstIFE, setter: setFirstIFE, ...feat('first', 'ife'), label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(feat('first', 'ife').points)}.` },
+                { id: 'power', state: firstPower, setter: setFirstPower, ...feat('first', 'power'), label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(feat('first', 'power').points)}.` },
+                { id: 'wardrobe', state: firstWardrobe, setter: setFirstWardrobe, ...feat('first', 'wardrobe'), label: 'Pers. Wardrobe', title: 'Personal Wardrobe', desc: `A slim locker built into the seat shell for suits and coats. ${signedPts(feat('first', 'wardrobe').points)}.` },
+                { id: 'wood', state: firstWoodLeather, setter: setFirstWoodLeather, ...feat('first', 'wood'), label: 'Wood/Leather', title: 'Fine Wood & Leather', desc: `High-quality trim on consoles and armrests. ${signedPts(feat('first', 'wood').points)}.` },
+                { id: 'mirror', state: firstMirrors, setter: setFirstMirrors, ...feat('first', 'mirror'), label: 'Vanity Mirror', title: 'Illuminated Vanity Mirror', desc: `A vanity mirror built into a fold-out stowage compartment. ${signedPts(feat('first', 'mirror').points)}.` },
+                { id: 'minibar', state: firstMinibar, setter: setFirstMinibar, ...feat('first', 'minibar'), label: 'Personal Minibar', title: 'Integrated Minibar', desc: `A private, partly chilled drinks compartment in the side wall. ${signedPts(feat('first', 'minibar').points)}.` },
+                { id: 'climate', state: firstActiveClimate, setter: setFirstActiveClimate, ...feat('first', 'climate'), label: 'Active Climate', title: 'Active Seat Climate', desc: `Heating mats and micro fans in cushion and backrest for individual temperature control. ${signedPts(feat('first', 'climate').points)}.` }
               ].sort((a, b) => {
-                const aAvail = currentDateOffset >= a.req;
-                const bAvail = currentDateOffset >= b.req;
+                const aAvail = a.available;
+                const bAvail = b.available;
                 if (aAvail !== bAvail) return aAvail ? -1 : 1;
                 return a.price - b.price;
               }).map(ext => {
-                const available = currentDateOffset >= ext.req;
+                const available = ext.available;
                 const activeColor = "text-accent";
                 const activeBorder = "border-accent/50";
                 const activeBg = "bg-surface";
@@ -759,7 +644,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-muted'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
+                        {available ? `${signedPrice(ext.price)} / seat` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>
@@ -785,20 +670,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-grow">
-              {SEAT_DEFS.business.map((t, i) => {
-                const disabled = currentDateOffset < t.req;
+              {offers.seats.business.map((t, i) => {
+                const disabled = !t.deliverable;
                 return (
-                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${bizType === t.n ? 'bg-surface border-line' : ''}`}>
+                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${bizType === t.key ? 'bg-surface border-line' : ''}`}>
                     <div className="flex items-center gap-3">
-                      <input type="radio" checked={bizType === t.n} disabled={disabled} onChange={() => setBizType(t.n)} className="accent-accent hidden" />
-                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${bizType === t.n ? 'border-rule' : 'border-rule'}`}>
-                        {bizType === t.n && <div className="w-1.5 h-1.5 bg-raised rounded-full" />}
+                      <input type="radio" checked={bizType === t.key} disabled={disabled} onChange={() => setBizType(t.key)} className="accent-accent hidden" />
+                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${bizType === t.key ? 'border-rule' : 'border-rule'}`}>
+                        {bizType === t.key && <div className="w-1.5 h-1.5 bg-raised rounded-full" />}
                       </div>
-                      <span className={`text-sm font-mono transition-colors ${bizType === t.n ? 'text-ink' : 'text-muted'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <span className={`text-sm font-mono transition-colors ${bizType === t.key ? 'text-ink' : 'text-muted'}`}>{t.key}</span>
+                      <SeatInfoTooltip title={t.key} desc={`${signedPts(t.points)}. Space multiplier: ${t.spaceFactor}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-2xs uppercase font-label transition-colors ${bizType === t.n ? 'text-ink opacity-80' : 'text-muted'}`}>
-                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                    <span className={`text-2xs uppercase font-label transition-colors ${bizType === t.key ? 'text-ink opacity-80' : 'text-muted'}`}>
+                      {disabled ? `Avail. ${yearOf(t.availableFrom)}` : (t.price ? partSub(t, true) : 'Standard')}
                     </span>
                   </label>
                 )
@@ -811,20 +696,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: bizIFE, setter: setBizIFE, req: 240, price: 600, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.business.ife)}.` },
-                { id: 'power', state: bizPower, setter: setBizPower, req: 360, price: 200, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.business.power)}.` },
-                { id: 'lumbar', state: bizLumbarSupport, setter: setBizLumbarSupport, req: 180, price: 200, label: 'Lumbar Support', title: 'Mechanical Lumbar Support', desc: `An adjustable cushion in the lower back for better support. ${signedPts(FEATURE_POP.business.lumbar)}.` },
-                { id: 'control', state: bizElecSeatControl, setter: setBizElecSeatControl, req: 300, price: 800, label: 'Elec. Seat Control', title: 'Electric Seat Control', desc: `Continuous adjustment at the push of a button instead of mechanical levers. ${signedPts(FEATURE_POP.business.control)}.` },
-                { id: 'massage', state: bizMassage, setter: setBizMassage, req: 420, price: 1200, label: 'Pneumatic Massage', title: 'Pneumatic Massage', desc: `Air cells in the backrest inflate and deflate rhythmically. ${signedPts(FEATURE_POP.business.massage)}.` },
-                { id: 'divider', state: bizPrivacyDivider, setter: setBizPrivacyDivider, req: 540, price: 1500, label: 'Privacy Divider', title: 'Motorised Privacy Divider', desc: `A partition to the neighbouring seat that rises at the push of a button. ${signedPts(FEATURE_POP.business.divider)}.` },
-                { id: 'charging', state: bizInductiveCharging, setter: setBizInductiveCharging, req: 720, price: 300, label: 'Inductive Charging', title: 'Inductive Charging Pad', desc: `Wireless charging on the console beside the seat. ${signedPts(FEATURE_POP.business.charging)}.` }
+                { id: 'ife', state: bizIFE, setter: setBizIFE, ...feat('business', 'ife'), label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(feat('business', 'ife').points)}.` },
+                { id: 'power', state: bizPower, setter: setBizPower, ...feat('business', 'power'), label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(feat('business', 'power').points)}.` },
+                { id: 'lumbar', state: bizLumbarSupport, setter: setBizLumbarSupport, ...feat('business', 'lumbar'), label: 'Lumbar Support', title: 'Mechanical Lumbar Support', desc: `An adjustable cushion in the lower back for better support. ${signedPts(feat('business', 'lumbar').points)}.` },
+                { id: 'control', state: bizElecSeatControl, setter: setBizElecSeatControl, ...feat('business', 'control'), label: 'Elec. Seat Control', title: 'Electric Seat Control', desc: `Continuous adjustment at the push of a button instead of mechanical levers. ${signedPts(feat('business', 'control').points)}.` },
+                { id: 'massage', state: bizMassage, setter: setBizMassage, ...feat('business', 'massage'), label: 'Pneumatic Massage', title: 'Pneumatic Massage', desc: `Air cells in the backrest inflate and deflate rhythmically. ${signedPts(feat('business', 'massage').points)}.` },
+                { id: 'divider', state: bizPrivacyDivider, setter: setBizPrivacyDivider, ...feat('business', 'divider'), label: 'Privacy Divider', title: 'Motorised Privacy Divider', desc: `A partition to the neighbouring seat that rises at the push of a button. ${signedPts(feat('business', 'divider').points)}.` },
+                { id: 'charging', state: bizInductiveCharging, setter: setBizInductiveCharging, ...feat('business', 'charging'), label: 'Inductive Charging', title: 'Inductive Charging Pad', desc: `Wireless charging on the console beside the seat. ${signedPts(feat('business', 'charging').points)}.` }
               ].sort((a, b) => {
-                const aAvail = currentDateOffset >= a.req;
-                const bAvail = currentDateOffset >= b.req;
+                const aAvail = a.available;
+                const bAvail = b.available;
                 if (aAvail !== bAvail) return aAvail ? -1 : 1;
                 return a.price - b.price;
               }).map(ext => {
-                const available = currentDateOffset >= ext.req;
+                const available = ext.available;
                 const activeColor = "text-ink";
                 const activeBorder = "border-line";
                 const activeBg = "bg-surface";
@@ -838,7 +723,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-muted'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
+                        {available ? `${signedPrice(ext.price)} / seat` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>
@@ -864,20 +749,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-grow">
-              {SEAT_DEFS.premium.map((t, i) => {
-                const disabled = currentDateOffset < t.req;
+              {offers.seats.premium.map((t, i) => {
+                const disabled = !t.deliverable;
                 return (
-                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${premType === t.n ? 'bg-surface border-accent/50' : ''}`}>
+                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${premType === t.key ? 'bg-surface border-accent/50' : ''}`}>
                     <div className="flex items-center gap-3">
-                      <input type="radio" checked={premType === t.n} disabled={disabled} onChange={() => setPremType(t.n)} className="accent-accent hidden" />
-                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${premType === t.n ? 'border-accent' : 'border-rule'}`}>
-                        {premType === t.n && <div className="w-1.5 h-1.5 bg-accent rounded-full" />}
+                      <input type="radio" checked={premType === t.key} disabled={disabled} onChange={() => setPremType(t.key)} className="accent-accent hidden" />
+                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${premType === t.key ? 'border-accent' : 'border-rule'}`}>
+                        {premType === t.key && <div className="w-1.5 h-1.5 bg-accent rounded-full" />}
                       </div>
-                      <span className={`text-sm font-mono transition-colors ${premType === t.n ? 'text-accent' : 'text-muted'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <span className={`text-sm font-mono transition-colors ${premType === t.key ? 'text-accent' : 'text-muted'}`}>{t.key}</span>
+                      <SeatInfoTooltip title={t.key} desc={`${signedPts(t.points)}. Space multiplier: ${t.spaceFactor}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-2xs uppercase font-label transition-colors ${premType === t.n ? 'text-accent opacity-80' : 'text-muted'}`}>
-                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                    <span className={`text-2xs uppercase font-label transition-colors ${premType === t.key ? 'text-accent opacity-80' : 'text-muted'}`}>
+                      {disabled ? `Avail. ${yearOf(t.availableFrom)}` : (t.price ? partSub(t, true) : 'Standard')}
                     </span>
                   </label>
                 )
@@ -890,20 +775,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: premIFE, setter: setPremIFE, req: 240, price: 400, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.premium.ife)}.` },
-                { id: 'power', state: premPower, setter: setPremPower, req: 420, price: 150, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.premium.power)}.` },
-                { id: 'table', state: premCocktailTable, setter: setPremCocktailTable, req: 180, price: 50, label: 'Cocktail Table', title: 'Integrated Cocktail Table', desc: `A small fixed side table on the armrest. ${signedPts(FEATURE_POP.premium.table)}.` },
-                { id: 'calf', state: premCalfRest, setter: setPremCalfRest, req: 300, price: 150, label: 'Calf Rest', title: 'Fold-out Calf Rest', desc: `A rest built into the seat that folds up. ${signedPts(FEATURE_POP.premium.calf)}.` },
-                { id: 'foot', state: premFootrests, setter: setPremFootrests, req: 420, price: 100, label: 'Multi-Stage Footrest', title: 'Multi-Stage Footrest', desc: `Fold-out bars under the seat in front for the feet. ${signedPts(FEATURE_POP.premium.foot)}.` },
-                { id: 'light', state: premGooseneckLight, setter: setPremGooseneckLight, req: 600, price: 80, label: 'Gooseneck Lamp', title: 'Gooseneck Reading Lamp', desc: `An individually adjustable LED reading light at the seat. ${signedPts(FEATURE_POP.premium.light)}.` },
-                { id: 'usbc', state: premUSBC, setter: setPremUSBC, req: 720, price: 100, label: 'USB-C Fast Charge', title: 'USB-C Fast Charging', desc: `Fast-charging ports (e.g. 60 W) in the armrest. ${signedPts(FEATURE_POP.premium.usbc)}.` }
+                { id: 'ife', state: premIFE, setter: setPremIFE, ...feat('premium', 'ife'), label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(feat('premium', 'ife').points)}.` },
+                { id: 'power', state: premPower, setter: setPremPower, ...feat('premium', 'power'), label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(feat('premium', 'power').points)}.` },
+                { id: 'table', state: premCocktailTable, setter: setPremCocktailTable, ...feat('premium', 'table'), label: 'Cocktail Table', title: 'Integrated Cocktail Table', desc: `A small fixed side table on the armrest. ${signedPts(feat('premium', 'table').points)}.` },
+                { id: 'calf', state: premCalfRest, setter: setPremCalfRest, ...feat('premium', 'calf'), label: 'Calf Rest', title: 'Fold-out Calf Rest', desc: `A rest built into the seat that folds up. ${signedPts(feat('premium', 'calf').points)}.` },
+                { id: 'foot', state: premFootrests, setter: setPremFootrests, ...feat('premium', 'foot'), label: 'Multi-Stage Footrest', title: 'Multi-Stage Footrest', desc: `Fold-out bars under the seat in front for the feet. ${signedPts(feat('premium', 'foot').points)}.` },
+                { id: 'light', state: premGooseneckLight, setter: setPremGooseneckLight, ...feat('premium', 'light'), label: 'Gooseneck Lamp', title: 'Gooseneck Reading Lamp', desc: `An individually adjustable LED reading light at the seat. ${signedPts(feat('premium', 'light').points)}.` },
+                { id: 'usbc', state: premUSBC, setter: setPremUSBC, ...feat('premium', 'usbc'), label: 'USB-C Fast Charge', title: 'USB-C Fast Charging', desc: `Fast-charging ports (e.g. 60 W) in the armrest. ${signedPts(feat('premium', 'usbc').points)}.` }
               ].sort((a, b) => {
-                const aAvail = currentDateOffset >= a.req;
-                const bAvail = currentDateOffset >= b.req;
+                const aAvail = a.available;
+                const bAvail = b.available;
                 if (aAvail !== bAvail) return aAvail ? -1 : 1;
                 return a.price - b.price;
               }).map(ext => {
-                const available = currentDateOffset >= ext.req;
+                const available = ext.available;
                 const activeColor = "text-accent";
                 const activeBorder = "border-accent/50";
                 const activeBg = "bg-surface";
@@ -917,7 +802,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-muted'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
+                        {available ? `${signedPrice(ext.price)} / seat` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>
@@ -943,20 +828,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-grow">
-              {SEAT_DEFS.economy.map((t, i) => {
-                const disabled = currentDateOffset < t.req;
+              {offers.seats.economy.map((t, i) => {
+                const disabled = !t.deliverable;
                 return (
-                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${ecoType === t.n ? 'bg-surface border-rule' : ''}`}>
+                  <label key={i} className={`flex items-center justify-between p-3 border rounded-sm transition-colors cursor-pointer ${disabled ? 'opacity-30 border-line pointer-events-none' : 'hover:bg-raised border-line'} ${ecoType === t.key ? 'bg-surface border-rule' : ''}`}>
                     <div className="flex items-center gap-3">
-                      <input type="radio" checked={ecoType === t.n} disabled={disabled} onChange={() => setEcoType(t.n)} className="accent-accent hidden" />
-                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${ecoType === t.n ? 'border-rule' : 'border-rule'}`}>
-                        {ecoType === t.n && <div className="w-1.5 h-1.5 bg-raised rounded-full" />}
+                      <input type="radio" checked={ecoType === t.key} disabled={disabled} onChange={() => setEcoType(t.key)} className="accent-accent hidden" />
+                      <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${ecoType === t.key ? 'border-rule' : 'border-rule'}`}>
+                        {ecoType === t.key && <div className="w-1.5 h-1.5 bg-raised rounded-full" />}
                       </div>
-                      <span className={`text-sm font-mono transition-colors ${ecoType === t.n ? 'text-muted' : 'text-muted'}`}>{t.n}</span>
-                      <SeatInfoTooltip title={t.n} desc={`${signedPts(t.pop * SEAT_TYPE_POP_FACTOR)}. Space multiplier: ${t.m}x.`} hidden={disabled} />
+                      <span className={`text-sm font-mono transition-colors ${ecoType === t.key ? 'text-muted' : 'text-muted'}`}>{t.key}</span>
+                      <SeatInfoTooltip title={t.key} desc={`${signedPts(t.points)}. Space multiplier: ${t.spaceFactor}x.`} hidden={disabled} />
                     </div>
-                    <span className={`text-2xs uppercase font-label transition-colors ${ecoType === t.n ? 'text-muted opacity-80' : 'text-muted'}`}>
-                      {disabled ? `Avail. ${yearOf(t.req)}` : (t.c ? `${t.c > 0 ? '+' : ''}$${t.c}` : 'Standard')}
+                    <span className={`text-2xs uppercase font-label transition-colors ${ecoType === t.key ? 'text-muted opacity-80' : 'text-muted'}`}>
+                      {disabled ? `Avail. ${yearOf(t.availableFrom)}` : (t.price ? partSub(t, true) : 'Standard')}
                     </span>
                   </label>
                 )
@@ -969,20 +854,20 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
               {[
-                { id: 'ife', state: ecoIFE, setter: setEcoIFE, req: 240, price: 300, label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(FEATURE_POP.economy.ife)}.` },
-                { id: 'power', state: ecoPower, setter: setEcoPower, req: 420, price: 100, label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(FEATURE_POP.economy.power)}.` },
-                { id: 'hooks', state: ecoHooks, setter: setEcoHooks, req: 180, price: 20, label: 'Coat Hooks', title: 'Integrated Coat Hooks', desc: `Fixed to the seat back or the tray-table latch. ${signedPts(FEATURE_POP.economy.hooks)}.` },
-                { id: 'armrests', state: ecoMovableArmrests, setter: setEcoMovableArmrests, req: 300, price: 50, label: 'Mov. Armrests', title: 'Movable Armrests', desc: `Armrests that fold fully up for easier access. ${signedPts(FEATURE_POP.economy.armrests)}.` },
-                { id: 'headrests', state: ecoAdjHeadrests, setter: setEcoAdjHeadrests, req: 420, price: 80, label: 'Adj. Headrests', title: 'Adjustable Headrests', desc: `With bendable side wings to steady the head. ${signedPts(FEATURE_POP.economy.headrests)}.` },
-                { id: 'shell', state: ecoFixedShell, setter: setEcoFixedShell, req: 540, price: 200, label: 'Fixed-Shell', title: 'Fixed-Shell Design', desc: `A rigid shell on the seat back: reclining slides the seat forward inside it, so the passenger behind keeps their space. ${signedPts(FEATURE_POP.economy.shell)}.` },
-                { id: 'ped', state: ecoPedHolder, setter: setEcoPedHolder, req: 660, price: 60, label: 'PED Holder', title: 'Device Holder (PED)', desc: `A ledge or clip at eye level for your own tablet or phone. ${signedPts(FEATURE_POP.economy.ped)}.` }
+                { id: 'ife', state: ecoIFE, setter: setEcoIFE, ...feat('economy', 'ife'), label: 'In-Flight Ent.', title: 'In-Flight Entertainment', desc: `Personal screens with movies and games. ${signedPts(feat('economy', 'ife').points)}.` },
+                { id: 'power', state: ecoPower, setter: setEcoPower, ...feat('economy', 'power'), label: 'In-Seat Power', title: 'In-Seat Power', desc: `Provides AC power/USB ports. ${signedPts(feat('economy', 'power').points)}.` },
+                { id: 'hooks', state: ecoHooks, setter: setEcoHooks, ...feat('economy', 'hooks'), label: 'Coat Hooks', title: 'Integrated Coat Hooks', desc: `Fixed to the seat back or the tray-table latch. ${signedPts(feat('economy', 'hooks').points)}.` },
+                { id: 'armrests', state: ecoMovableArmrests, setter: setEcoMovableArmrests, ...feat('economy', 'armrests'), label: 'Mov. Armrests', title: 'Movable Armrests', desc: `Armrests that fold fully up for easier access. ${signedPts(feat('economy', 'armrests').points)}.` },
+                { id: 'headrests', state: ecoAdjHeadrests, setter: setEcoAdjHeadrests, ...feat('economy', 'headrests'), label: 'Adj. Headrests', title: 'Adjustable Headrests', desc: `With bendable side wings to steady the head. ${signedPts(feat('economy', 'headrests').points)}.` },
+                { id: 'shell', state: ecoFixedShell, setter: setEcoFixedShell, ...feat('economy', 'shell'), label: 'Fixed-Shell', title: 'Fixed-Shell Design', desc: `A rigid shell on the seat back: reclining slides the seat forward inside it, so the passenger behind keeps their space. ${signedPts(feat('economy', 'shell').points)}.` },
+                { id: 'ped', state: ecoPedHolder, setter: setEcoPedHolder, ...feat('economy', 'ped'), label: 'PED Holder', title: 'Device Holder (PED)', desc: `A ledge or clip at eye level for your own tablet or phone. ${signedPts(feat('economy', 'ped').points)}.` }
               ].sort((a, b) => {
-                const aAvail = currentDateOffset >= a.req;
-                const bAvail = currentDateOffset >= b.req;
+                const aAvail = a.available;
+                const bAvail = b.available;
                 if (aAvail !== bAvail) return aAvail ? -1 : 1;
                 return a.price - b.price;
               }).map(ext => {
-                const available = currentDateOffset >= ext.req;
+                const available = ext.available;
                 const activeColor = "text-muted";
                 const activeBorder = "border-rule";
                 const activeBg = "bg-surface";
@@ -996,7 +881,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         <SeatInfoTooltip title={ext.title} desc={ext.desc} hidden={!available} />
                       </div>
                       <span className={`text-2xs font-mono mt-0.5 transition-colors ${ext.state ? activeColor + ' opacity-80' : 'text-muted'}`}>
-                        {available ? `+$${formatNumber(ext.price)}` : `Avail. ${yearOf(ext.req)}`}
+                        {available ? `${signedPrice(ext.price)} / seat` : `Avail. ${yearOf(ext.req)}`}
                       </span>
                     </div>
                   </label>
@@ -1023,8 +908,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             </h2>
           </div>
           <div className="font-label text-muted text-2xs md:text-xs tracking-label uppercase flex flex-wrap gap-x-4">
-            <div>Plane Type SAT: {aircraft.popularity}%</div>
-            <div>Max Empty Space: {TOTAL_SPACE} units</div>
+            <div>Type appeal: {formatNumber(quote.typeAppeal)}</div>
+            <div>Cabin space: {formatNumber(TOTAL_SPACE)} cm</div>
           </div>
         </div>
 
@@ -1045,7 +930,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                <div className="text-2xs uppercase font-label tracking-label text-muted mb-4 short:mb-1.5 text-center flex items-center justify-center gap-4">
                  <span>Cabin Layout ({aircraft.class})</span>
                  <span className={`flex items-center gap-1 ${isOverbooked ? 'text-accent font-semibold' : ''}`}>
-                   <Info size={12}/> {(((usedSpaceWithoutEcoRaw + ecoSeats * ecoPitch * ecoMultiplier) / TOTAL_SPACE) * 100).toFixed(0)}% Space Used
+                   <Info size={12}/> {((quote.usedSpace / TOTAL_SPACE) * 100).toFixed(0)}% Space Used
                  </span>
                </div>
                
@@ -1156,22 +1041,22 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                 <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('first')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'first' ? 'border-accent bg-accent/10' : 'border-accent/20 hover:border-accent/50'}`}>
                   <div className="text-accent text-2xl short:text-lg font-semibold">{firstSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">First Class</div>
-                  <div className="text-2xs bg-accent/20 text-accent px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getFirstPop())}%</div>
+                  <div className="text-2xs bg-accent/20 text-accent px-2 py-0.5 rounded-sm font-semibold">Interior {formatNumber(scoreOf('first'))}</div>
                 </div>
                 <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('business')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'business' ? 'border-rule bg-surface' : 'border-line hover:border-line'}`}>
                   <div className="text-ink text-2xl short:text-lg font-semibold">{bizSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">Business</div>
-                  <div className="text-2xs bg-surface text-ink px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getBizPop())}%</div>
+                  <div className="text-2xs bg-surface text-ink px-2 py-0.5 rounded-sm font-semibold">Interior {formatNumber(scoreOf('business'))}</div>
                 </div>
                 <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('premium')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'premium' ? 'border-accent bg-accent/10' : 'border-accent/20 hover:border-accent/50'}`}>
                   <div className="text-accent text-2xl short:text-lg font-semibold">{premSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">Premium Eco</div>
-                  <div className="text-2xs bg-accent/20 text-accent px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getPremPop())}%</div>
+                  <div className="text-2xs bg-accent/20 text-accent px-2 py-0.5 rounded-sm font-semibold">Interior {formatNumber(scoreOf('premium'))}</div>
                 </div>
                 <div role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setSelectedClass('economy')} className={`bg-ground/40 border p-4 bar:p-3 short:p-2 rounded-sm flex flex-col items-center cursor-pointer transition-all ${selectedClass === 'economy' ? 'border-rule bg-raised/10' : 'border-rule hover:border-rule'}`}>
                   <div className="text-muted text-2xl short:text-lg font-semibold">{ecoSeats}</div>
                   <div className="text-2xs uppercase font-label tracking-label short:tracking-label text-muted mt-1 mb-2 short:mb-1 whitespace-nowrap">Economy</div>
-                  <div className="text-2xs bg-raised/20 text-muted px-2 py-0.5 rounded-sm font-semibold">SAT: {Math.round(getEcoPop())}%</div>
+                  <div className="text-2xs bg-raised/20 text-muted px-2 py-0.5 rounded-sm font-semibold">Interior {formatNumber(scoreOf('economy'))}</div>
                 </div>
              </div>
 
@@ -1189,9 +1074,9 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                      <div className="flex flex-col gap-3">
                         <h4 className="font-label text-2xs uppercase font-semibold tracking-label text-ink mb-2">Service Expansion</h4>
                         {[
-                          { id: 'wifi', state: hasWifi, setter: setHasWifi, available: isWifiAvailable, label: 'In-Flight Wi-Fi', sub: isWifiAvailable ? '+$150,000' : 'Avail. 2000' },
-                          { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: isAmbientAvailable, label: 'Ambient LED Lighting', sub: isAmbientAvailable ? '+$100,000' : 'Avail. 2005' },
-                          { id: 'catering', state: hasPremiumCatering, setter: setHasPremiumCatering, available: true, label: 'Premium Catering Facilities', sub: '+$300,000' },
+                          { id: 'wifi', state: hasWifi, setter: setHasWifi, available: isWifiAvailable, label: 'In-Flight Wi-Fi', sub: partSub(extraOffer.wifi, false) },
+                          { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: isAmbientAvailable, label: 'Ambient LED Lighting', sub: partSub(extraOffer.ambient, false) },
+                          { id: 'catering', state: hasPremiumCatering, setter: setHasPremiumCatering, available: isCateringAvailable, label: 'Premium Catering Facilities', sub: partSub(extraOffer.catering, false) },
                         ].map(ext => (
                           <label key={ext.id} className={`flex items-center justify-between p-4 border rounded-sm transition-all cursor-pointer ${ext.available ? 'border-line hover:bg-raised' : 'opacity-30 border-line pointer-events-none'} ${ext.state ? 'bg-accent/5 border-accent/50' : ''}`}>
                              <div className="flex items-center gap-4">
@@ -1208,9 +1093,9 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                      <div className="flex flex-col gap-3">
                         <h4 className="font-label text-2xs uppercase font-semibold tracking-label text-ink mb-2">Luxury & Efficiency</h4>
                         {[
-                          { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: isBarAvailable, label: 'Onboard Lounge & Bar', sub: isBarAvailable ? '+$500,000' : 'Req. >200 CAP' },
-                          { id: 'shower', state: hasShower, setter: setHasShower, available: isShowerAvailable, label: 'Shower Spa & Wellness', sub: isShowerAvailable ? '+$1,000,000' : 'Req. >300 CAP' },
-                          { id: 'minimal', state: hasMinimalServices, setter: (v: boolean) => { setHasMinimalServices(v); if(v) setHasReducedGalley(false); }, available: true, label: 'Ultra-High Density Mode', sub: '-$50,000' },
+                          { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: isBarAvailable, label: 'Onboard Lounge & Bar', sub: partSub(extraOffer.bar, false) },
+                          { id: 'shower', state: hasShower, setter: setHasShower, available: isShowerAvailable, label: 'Shower Spa & Wellness', sub: partSub(extraOffer.shower, false) },
+                          { id: 'minimal', state: hasMinimalServices, setter: (v: boolean) => { setHasMinimalServices(v); if(v) setHasReducedGalley(false); }, available: extraOffer.minimal.deliverable, label: 'Ultra-High Density Mode', sub: partSub(extraOffer.minimal, false) },
                         ].map(ext => (
                           <label key={ext.id} className={`flex items-center justify-between p-4 border rounded-sm transition-all cursor-pointer ${ext.available ? 'border-line hover:bg-raised' : 'opacity-30 border-line pointer-events-none'} ${ext.state ? 'bg-accent/5 border-accent/50' : ''}`}>
                              <div className="flex items-center gap-4">
@@ -1304,17 +1189,17 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
             {/* Aircraft-Wide Extras */}
             <h3 className="font-label text-sm font-semibold text-ink border-b border-line pb-3 mb-4 mt-8 flex justify-between items-center">
               Aircraft Extras
-              {extrasSpace > 0 && <span className="text-2xs text-muted">-{extrasSpace} units</span>}
+              {extrasSpace > 0 && <span className="text-2xs text-muted">-{formatNumber(extrasSpace)} cm</span>}
             </h3>
             <div className="flex flex-col gap-2 relative">
               {[
-                { id: 'wifi', state: hasWifi, setter: setHasWifi, available: isWifiAvailable, price: 150000, label: 'In-Flight Wi-Fi', title: 'In-Flight Wi-Fi', desc: `Satellite broadband connection for passengers. Crucial for modern business travelers.\n\n${signedPts(CABIN_EXTRA_POP.wifi)}\n+$150,000 Upfront Cost${!isWifiAvailable ? '\n\nTechnology not yet available (req. Year 2000+)' : ''}`, sub: isWifiAvailable ? '+$150,000' : 'Avail. 2000' },
-                { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: isAmbientAvailable, price: 100000, label: 'Ambient Lighting', title: 'Ambient Lighting', desc: `Dynamic LED mood lighting that reduces jet lag and improves cabin aesthetics.\n\n${signedPts(CABIN_EXTRA_POP.ambient)}\n+$100,000 Upfront Cost${!isAmbientAvailable ? '\n\nTechnology not yet available (req. Year 2005+)' : ''}`, sub: isAmbientAvailable ? '+$100,000' : 'Avail. 2005' },
-                { id: 'catering', state: hasPremiumCatering, setter: setHasPremiumCatering, available: true, price: 300000, label: 'Prem. Catering Fac.', title: 'Premium Catering', desc: `Expanded galley with ovens and chillers for multi-course hot meals. Takes up floor space.\n\n${signedPts(CABIN_EXTRA_POP.catering)}\n+$300,000 Upfront Cost\n-200 Cabin Space`, sub: '+$300,000' },
-                { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: isBarAvailable, price: 500000, label: 'Onboard Bar', title: 'Onboard Bar & Lounge', desc: `A luxurious standing bar and lounge area for premium passengers. Massive satisfaction boost but consumes extreme floor space.\n\n${signedPts(CABIN_EXTRA_POP.bar)}\n+$500,000 Upfront Cost\n-400 Cabin Space${!isBarAvailable ? '\n\nRequires Widebody (200+ Cap) & Year 1970+' : ''}`, sub: isBarAvailable ? '+$500,000' : 'Req. >200 CAP / >1970' },
-                { id: 'shower', state: hasShower, setter: setHasShower, available: isShowerAvailable, price: 1000000, label: 'Shower Spa', title: 'Shower Spa', desc: `The ultimate luxury. Allows first-class passengers to arrive refreshed. Carries large water tanks decreasing usable space dramatically.\n\n${signedPts(CABIN_EXTRA_POP.shower)}\n+$1,000,000 Upfront Cost\n-800 Cabin Space${!isShowerAvailable ? '\n\nRequires Super Jumbo (300+ Cap) & Year 2008+' : ''}`, sub: isShowerAvailable ? '+$1,000,000' : 'Req. >300 CAP / >2008' },
-                { id: 'reduced', state: hasReducedGalley, setter: (v: boolean) => { setHasReducedGalley(v); if(v) setHasMinimalServices(false); }, available: true, price: -25000, label: 'Reduced Galley', title: 'Reduced Galley', desc: `Shrink the kitchen areas to cram in more seats. Saves money but passengers will notice the reduced service.\n\n${signedPts(CABIN_EXTRA_POP.reduced)}\n-$25,000 Upfront Cost\n+3% Cabin Space`, sub: '-$25,000' },
-                { id: 'minimal', state: hasMinimalServices, setter: (v: boolean) => { setHasMinimalServices(v); if(v) setHasReducedGalley(false); }, available: true, price: -50000, label: 'Minimal Services', title: 'Minimal Services', desc: `Remove nearly all service areas (galleys, closets, extra bathrooms) to maximize passenger density. Expect complaints.\n\n${signedPts(CABIN_EXTRA_POP.minimal)}\n-$50,000 Upfront Cost\n+6% Cabin Space`, sub: '-$50,000' }
+                { id: 'wifi', state: hasWifi, setter: setHasWifi, available: extraOffer.wifi.deliverable, price: extraOffer.wifi.price, label: 'In-Flight Wi-Fi', title: 'In-Flight Wi-Fi', desc: `Satellite broadband connection for passengers. Crucial for modern business travelers.${extraDetails(extraOffer.wifi)}`, sub: partSub(extraOffer.wifi, false) },
+                { id: 'ambient', state: hasAmbientLighting, setter: setHasAmbientLighting, available: extraOffer.ambient.deliverable, price: extraOffer.ambient.price, label: 'Ambient Lighting', title: 'Ambient Lighting', desc: `Dynamic LED mood lighting that reduces jet lag and improves cabin aesthetics.${extraDetails(extraOffer.ambient)}`, sub: partSub(extraOffer.ambient, false) },
+                { id: 'catering', state: hasPremiumCatering, setter: setHasPremiumCatering, available: extraOffer.catering.deliverable, price: extraOffer.catering.price, label: 'Prem. Catering Fac.', title: 'Premium Catering', desc: `Expanded galley with ovens and chillers for multi-course hot meals. Takes up floor space.${extraDetails(extraOffer.catering)}`, sub: partSub(extraOffer.catering, false) },
+                { id: 'bar', state: hasOnboardBar, setter: setHasOnboardBar, available: extraOffer.bar.deliverable, price: extraOffer.bar.price, label: 'Onboard Bar', title: 'Onboard Bar & Lounge', desc: `A luxurious standing bar and lounge area for premium passengers. Massive satisfaction boost but consumes extreme floor space.${extraDetails(extraOffer.bar)}`, sub: partSub(extraOffer.bar, false) },
+                { id: 'shower', state: hasShower, setter: setHasShower, available: extraOffer.shower.deliverable, price: extraOffer.shower.price, label: 'Shower Spa', title: 'Shower Spa', desc: `The ultimate luxury. Allows first-class passengers to arrive refreshed. Carries large water tanks decreasing usable space dramatically.${extraDetails(extraOffer.shower)}`, sub: partSub(extraOffer.shower, false) },
+                { id: 'reduced', state: hasReducedGalley, setter: (v: boolean) => { setHasReducedGalley(v); if(v) setHasMinimalServices(false); }, available: extraOffer.reduced.deliverable, price: extraOffer.reduced.price, label: 'Reduced Galley', title: 'Reduced Galley', desc: `Shrink the kitchen areas to cram in more seats. Saves money but passengers will notice the reduced service.${extraDetails(extraOffer.reduced)}`, sub: partSub(extraOffer.reduced, false) },
+                { id: 'minimal', state: hasMinimalServices, setter: (v: boolean) => { setHasMinimalServices(v); if(v) setHasReducedGalley(false); }, available: extraOffer.minimal.deliverable, price: extraOffer.minimal.price, label: 'Minimal Services', title: 'Minimal Services', desc: `Remove nearly all service areas (galleys, closets, extra bathrooms) to maximize passenger density. Expect complaints.${extraDetails(extraOffer.minimal)}`, sub: partSub(extraOffer.minimal, false) }
               ].sort((a, b) => {
                 const aAvail = a.available;
                 const bAvail = b.available;
@@ -1352,35 +1237,77 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
               </div>
               
               <div className="flex items-center justify-between border-b border-line pb-2">
-                <span className="text-2xs font-label text-muted uppercase tracking-label">Interior SAT</span>
-                <span className="text-sm font-semibold font-mono text-ink">{baseInteriorPop}%</span>
+                <span className="text-2xs font-label text-muted uppercase tracking-label">Type appeal</span>
+                <span className="text-sm font-semibold font-mono text-ink">{formatNumber(quote.typeAppeal)}</span>
               </div>
 
-              <div className="flex flex-col border-b border-line pb-2 pt-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-2xs font-label text-muted uppercase tracking-label">General plane SAT</span>
-                  <div className="flex items-center gap-2">
-                     <span className="text-sm font-semibold text-accent font-mono">{totalPopularity}%</span>
-                  </div>
+              <div className="flex flex-col border-b border-line pb-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-label text-muted uppercase tracking-label">Cabin rating (avg.)</span>
+                  <span className="text-sm font-semibold text-accent font-mono">{totalSeats > 0 ? formatNumber(quote.averageCabinRating) : '–'}</span>
                 </div>
                 <div className="text-2xs font-label text-muted text-right uppercase mt-1 tracking-label">
-                  (Type Sat {aircraft.popularity}% × 0.33) + (Interior Sat {baseInteriorPop}% × 0.67)
+                  Type appeal × {formatNumber(TYPE_APPEAL_SHARE * 100)}% + interior score × {formatNumber(INTERIOR_SHARE * 100)}%
+                  {quote.cabinCondition < 100 ? ` at ${formatNumber(quote.cabinCondition)}% cabin condition` : ''}
                 </div>
               </div>
 
-              {/* What each cabin is rated by on a route: its own seats, not the average. */}
-              <div className="flex flex-col gap-1 pb-2">
-                <span className="text-2xs font-label text-muted uppercase tracking-label">Cabin score per class (expected)</span>
-                {CABIN_CLASSES.filter(c => interiorByClass[c] !== undefined).map(c => {
-                  const score = getPlaneSat({ popularity: aircraft.popularity, conditionInterior: 100, config: { details: { interiorByClass } } }, c);
-                  const expected = SAT_MODEL.cabinExpectation[c];
+              {/* What each cabin is rated by on a route: its own seats, not the average (SPEZIFIKATION 2.3, 2.4). */}
+              <div className="flex flex-col gap-2 pb-2">
+                <span className="text-2xs font-label text-muted uppercase tracking-label">Per class: interior score · cabin rating (expected)</span>
+                {CABIN_CLASSES.filter(c => quote.seats[c] > 0).map(c => {
+                  const parts = quote.interior[c];
+                  const rating = quote.cabinRating[c];
+                  const expected = CABIN_EXPECTATION[c];
+                  const pt = (v: number) => `${v >= 0 ? '+' : ''}${formatNumber(v, Number.isInteger(v) ? 0 : 1)}`;
                   return (
-                    <div key={c} className="flex items-center justify-between">
-                      <span className="text-2xs font-label text-muted uppercase tracking-label">{c}</span>
-                      <span className={`text-xs font-mono ${score >= expected ? 'text-accent' : 'text-bad'}`}>{score} ({expected})</span>
+                    <div key={c} className="flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xs font-label text-muted uppercase tracking-label">{c}</span>
+                        <span className="text-xs font-mono">
+                          <span className="text-ink">{formatNumber(parts.total)}</span>
+                          {' · '}
+                          <span className={rating >= expected ? 'text-accent' : 'text-bad'}>{formatNumber(rating)}</span>
+                          <span className="text-muted"> ({expected})</span>
+                        </span>
+                      </div>
+                      <span className="text-2xs font-mono text-muted text-right">
+                        base {formatNumber(parts.base)} · seat {pt(parts.seatType)} · pitch {pt(parts.pitch)} · extras {pt(parts.features)} · cabin {pt(parts.cabinExtras)}
+                      </span>
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Where the price comes from (SPEZIFIKATION 5.13, 8.12, 8.13). */}
+              <div className="flex flex-col gap-1 border-t border-line pt-2">
+                <span className="text-2xs font-label text-muted uppercase tracking-label">{isRenovating ? 'Refit price' : 'Unit price'}</span>
+                {!isRenovating && (
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-muted">Aircraft</span><span>{formatCurrency(quote.typePrice)}</span>
+                  </div>
+                )}
+                {CABIN_CLASSES.filter(c => quote.classPrice[c] !== 0).map(c => (
+                  <div key={c} className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-muted capitalize">{c} seats</span><span>{formatCurrency(quote.classPrice[c])}</span>
+                  </div>
+                ))}
+                {quote.extrasPrice !== 0 && (
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-muted">Cabin extras</span><span>{formatCurrency(quote.extrasPrice)}</span>
+                  </div>
+                )}
+                {isRenovating && (
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-muted">Labour ({formatNumber(totalSeats)} seats)</span><span>{formatCurrency(quote.labour)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs font-mono border-t border-line pt-1">
+                  <span className="text-muted">Total</span><span className="text-ink font-semibold">{formatCurrency(unitPrice)}</span>
+                </div>
+                {isRenovating && (
+                  <span className="text-2xs text-muted">The labour adds no value to the aircraft; it shows under “Aircraft trades”.</span>
+                )}
               </div>
             </div>
 
@@ -1530,7 +1457,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                             {c.business > 0 && <span className="text-ink">J{c.business}</span>}
                             {c.premium > 0 && <span className="text-accent">W{c.premium}</span>}
                             {c.economy > 0 && <span className="text-muted">Y{c.economy}</span>}
-                            <span className="text-accent ml-2 before:content-['•'] before:mr-2 before:text-muted">POP {preset.baseInteriorPop.toFixed(1)}</span>
+                            <span className="text-accent ml-2 before:content-['•'] before:mr-2 before:text-muted">Interior {formatNumber(preset.baseInteriorPop)}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1571,7 +1498,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                         {c.business > 0 && <span className="text-ink">J{c.business}</span>}
                         {c.premium > 0 && <span className="text-accent">W{c.premium}</span>}
                         {c.economy > 0 && <span className="text-muted">Y{c.economy}</span>}
-                        <span className="text-accent ml-2 before:content-['•'] before:mr-2 before:text-muted">POP {plane.baseInteriorPop.toFixed(1)}</span>
+                        <span className="text-accent ml-2 before:content-['•'] before:mr-2 before:text-muted">Interior {formatNumber(plane.baseInteriorPop)}</span>
                       </div>
                     </div>
                     <div className="px-4 py-2 border border-rule text-muted text-2xs font-label uppercase tracking-label group-hover:bg-ink group-hover:text-on-accent group-hover:border-ink transition-all">

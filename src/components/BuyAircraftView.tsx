@@ -1,6 +1,7 @@
 import { clickOnKey } from '../lib/a11y';
 import React, { useMemo, useState, useEffect } from 'react';
 import { formatCurrency } from '../lib/format';
+import { newPrice } from '../model/fleet';
 import { aircraftList, Aircraft } from '../data/aircraft';
 import { Plane, ChevronDown, ChevronRight, Info, Search, UploadCloud, CheckCircle2, AlertCircle, Archive, Lock } from 'lucide-react';
 import { loadAircraftImagesMap } from '../lib/imageUtils';
@@ -349,7 +350,7 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
       if (onlyPurchasable && classGateMessage(a, classesOpen)) return false;
       if (minRange !== "" && a.maxRange < Number(minRange)) return false;
       if (minCapacity !== "" && a.capacity < Number(minCapacity)) return false;
-      if (maxPrice !== "" && a.basePrice > Number(maxPrice)) return false;
+      if (maxPrice !== "" && newPrice(a.basePrice, currentDateOffset) > Number(maxPrice)) return false;
       return true;
     });
   }, [currentDateOffset, searchTerm, debugMode, onlyPurchasable, minRange, minCapacity, maxPrice, classesOpen]);
@@ -878,12 +879,12 @@ function BuyAircraftViewImpl({ currentDateOffset, onSelectAircraft, debugMode: d
                                 )}
 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4 text-xs text-muted mb-4">
-                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Plane type SAT</span><span className="text-ink font-semibold">{plane.popularity}%</span></div>
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Type appeal</span><span className="text-ink font-semibold">{plane.popularity}</span></div>
                                   <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Efficiency</span><span className="text-ink font-semibold">{plane.efficiency}/100</span></div>
                                   <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Max Range</span><span className="text-ink font-semibold">{plane.maxRange} km</span></div>
                                   <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Capacity</span><span className="text-ink font-semibold">{plane.capacity} pax</span></div>
                                   <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Cruise Speed</span><span className="text-ink font-semibold">{plane.cruiseSpeed} km/h</span></div>
-                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">Base Price</span><span className="text-accent font-semibold">{formatCurrency(plane.basePrice)}</span></div>
+                                  <div className="flex flex-col border-b border-line pb-1"><span className="text-2xs uppercase tracking-label mb-1 opacity-70">New Price</span><span className="text-accent font-semibold">{formatCurrency(newPrice(plane.basePrice, currentDateOffset))}</span></div>
                                 </div>
 
                                 <div className="flex flex-wrap items-center justify-end mt-auto pt-2 gap-4">
