@@ -32,7 +32,7 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { AccountScopeContext } from "./lib/accountScope";
 import { syncAllPendingConfigs } from "./lib/configStore";
-import { getAircraftResaleValue, applyManagementUnlock } from "./lib/financeUtils";
+import { applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials } from "./lib/transferUtils";
 import { regionsServed } from "./lib/chronicle";
 import { type Edition } from "./lib/newspaper";
@@ -88,15 +88,10 @@ import {
   describeGoal,
   type AnnualGoal
 } from "./lib/annualGoals";
-import { setFeeFactor, setResaleBonus } from "./lib/economyContext";
-import { ageYears, fleetCommonality } from "./lib/fleetCosts";
-import { buildTakeover } from "./lib/takeover";
-import {
-  cancelRefund,
-  createOrder,
-  quoteOrder
-} from "./lib/preorders";
-import { type UsedListing } from "./lib/usedMarket";
+import { setFeeFactor } from "./lib/economyContext";
+import { fleetCommonality } from "./lib/fleetCosts";
+import type { ResoldPlane } from "./model/monthClose";
+import { planeFigures, preorderFigures, preorderOf, preorderQuote, resoldPlane, takeoverFleet, usedPurchase, withoutResold, type UsedListing } from "./lib/modelFleet";
 import {
   careerScore,
   fileCareer,
@@ -191,7 +186,7 @@ const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").
 
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, eventKey } from "./lib/eventSystem";
-import { createOwnedAircraft, defaultCabin, startingFleet } from "./lib/fleet";
+import { createOwnedAircraft, startingFleet } from "./lib/fleet";
 import { scenarioById, type Scenario } from "./data/scenarios";
 import { monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
 import { ScenarioProgressPanel } from "./components/ScenarioProgressPanel";
@@ -224,6 +219,8 @@ import {
 
 /** One empty list for "nothing sold this month", so the market's props stay equal between renders. */
 const NO_SOLD_IDS: string[] = [];
+/** No aircraft resold to the market yet (before the first close on the model). */
+const NO_RESOLD: readonly ResoldPlane[] = [];
 
 /** The starting-budget tier (dollars of 1960) behind the label a save or the new-game screen holds; $25M if unknown. */
 function startCapitalTier(label: string): number {
@@ -263,7 +260,6 @@ export default function App() {
   /** What the finished development projects do; see research.ts. */
   const researchFx = useMemo(() => researchEffects(career.research.done), [career.research.done]);
   setFeeFactor(researchFx.feeFactor);
-  setResaleBonus(researchFx.resaleBonus);
   /** Free Mode: a Global Player from the first month, with nothing gated by rank. */
   const freeMode = career.mode === 'free';
   /** Consecutive months closed without a loss, for the profit milestone. */
@@ -518,10 +514,10 @@ export default function App() {
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
 
-  /** Resale value of the whole fleet, for the balance sheet. */
+  /** What the whole fleet would fetch on the market this month (model 8.11: value less the dealer's spread, with research). */
   const fleetValue = useMemo(
-    () => fleet.reduce((sum, p) => sum + getAircraftResaleValue({ ...p, ageYears: ageYears(p, currentDateOffset), resaleBonus: researchFx.resaleBonus }), 0),
-    [fleet, currentDateOffset, researchFx.resaleBonus]
+    () => fleet.reduce((sum, p) => sum + planeFigures(p, currentDateOffset, career.research.done).saleProceeds, 0),
+    [fleet, currentDateOffset, career.research.done]
   );
   
   const [uiScaleSetting, setUiScaleSettingState] = useState(() => {
@@ -1376,8 +1372,8 @@ export default function App() {
    * company view, so they keep one identity and read the current cash, month
    * and campaigns from here rather than closing over a stale render.
    */
-  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, resaleBonus: researchFx.resaleBonus });
-  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, resaleBonus: researchFx.resaleBonus };
+  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, completedResearch: career.research.done });
+  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, completedResearch: career.research.done };
 
   /**
    * Books a campaign from this month on. It is paid month by month at each
@@ -1705,7 +1701,12 @@ export default function App() {
   // can keep one identity for the life of the app; inline arrows here used to
   // defeat React.memo on every render of App.
   const handleSellAircraft = React.useCallback((plane: OwnedAircraft) => {
-    const value = getAircraftResaleValue({ ...plane, ageYears: ageYears(plane, marketingCtx.current.currentDateOffset), resaleBonus: marketingCtx.current.resaleBonus });
+    // The model's sale (8.11): value less the dealer's spread, with the resale research. The aircraft goes on the used
+    // market with its cabin, as every aircraft sold to the market does (E49). Before the first close on the model
+    // there is no saved world yet, and the sale is not listed.
+    const month = marketingCtx.current.currentDateOffset;
+    const value = planeFigures(plane, month, marketingCtx.current.completedResearch).saleProceeds;
+    setModelWorld(prev => (prev ? { ...prev, resold: [...prev.resold, resoldPlane(plane, month)] } : prev));
 
     // Recorded like any other one-off amount, so the month's report explains
     // the jump in capital instead of leaving it unaccounted for.
@@ -1850,9 +1851,6 @@ export default function App() {
     setToast(`Development started: ${project.title} (${project.months} months)`);
   };
 
-  /** The standard cabin a delivered or second-hand aircraft arrives with. */
-  const plainCabin = (spec: Aircraft) => defaultCabin(spec);
-
   /** A new aircraft with what the development tree adds to its efficiency and type satisfaction. */
   const withDevelopment = (plane: OwnedAircraft): OwnedAircraft => ({
     ...plane,
@@ -1867,30 +1865,33 @@ export default function App() {
       setAppAlert(`${gate} Nothing was ordered.`);
       return;
     }
-    const quote = quoteOrder(spec, quantity);
+    const quote = preorderQuote(spec, quantity, currentDateOffset);
     if (capital < quote.deposit) {
       setAppAlert(`The deposit is ${formatCurrency(quote.deposit)}, but you only have ${formatCurrency(capital)}. Nothing was ordered.`);
       return;
     }
-    const order = createOrder(spec, quantity, currentDateOffset, `ord_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`);
+    const order = preorderOf(spec, quantity, currentDateOffset, `ord_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`);
     spend(order.deposit, 'Aircraft Deposits');
     setCareer(prev => ({ ...prev, orders: [...prev.orders, order] }));
     setToast(`Ordered ${order.quantity} \u00d7 ${spec.manufacturer} ${spec.type}: delivery ${offsetToDateStr(order.deliveryOffset)}`);
   };
 
-  /** Cancels an order; half the deposit comes back. */
+  /** Cancels an order; part of the deposit comes back (model 8.12). */
   const handleCancelOrder = (orderId: string) => {
     const order = career.orders.find(o => o.id === orderId);
     if (!order) return;
-    const refund = cancelRefund(order);
+    const refund = preorderFigures(order).refund;
     spend(-refund, 'Aircraft Deposits');
     setCareer(prev => ({ ...prev, orders: prev.orders.filter(o => o.id !== orderId) }));
     setToast(`Order cancelled: ${formatCurrency(refund)} of the deposit returned`);
   };
 
-  /** Buys a second-hand aircraft from this month's listings. */
+  /**
+   * Buys a second-hand aircraft from the used market (model 8.11): it keeps its build month, condition and cabin; the
+   * price is usedPrice of its value. A resold aircraft leaves the market for good.
+   */
   const handleBuyUsed = (listing: UsedListing) => {
-    const spec = aircraftList.find(a => a.id === listing.aircraftId);
+    const spec = aircraftList.find(a => a.id === listing.typeId);
     if (!spec) return;
     const gate = classGateMessage(spec, aircraftClassesOpen);
     if (gate) {
@@ -1902,18 +1903,13 @@ export default function App() {
       setAppAlert(`This aircraft costs ${formatCurrency(listing.price)}, but you only have ${formatCurrency(capital)}. Nothing was bought.`);
       return;
     }
-    const { config, baseInteriorPop } = plainCabin(spec);
-    const [plane] = createOwnedAircraft(spec, 1, {
-      config,
-      baseInteriorPop,
-      hub: selectedHub || 'FRA',
-      existingRegistrations: fleet.map(p => p.registration),
-      purchasedAt: currentDateOffset - listing.ageMonths
-    });
+    const plane = usedPurchase(listing, { hub: selectedHub || 'FRA', existingRegistrations: fleet.map(p => p.registration) });
+    if (!plane) return;
     spend(listing.price, 'Used Aircraft');
-    const bought = withDevelopment({ ...plane, conditionGeneral: listing.conditionGeneral, conditionInterior: listing.conditionInterior });
+    const bought = withDevelopment(plane);
     noteTrade([], [bought], currentDateOffset);
     setFleet(prev => [...prev, bought]);
+    if (listing.source === 'resold') setModelWorld(prev => (prev ? { ...prev, resold: withoutResold(prev.resold, listing.id) } : prev));
     setCareer(prev => ({
       ...prev,
       usedSold: {
@@ -1921,7 +1917,7 @@ export default function App() {
         ids: [...(prev.usedSold.offset === currentDateOffset ? prev.usedSold.ids : []), listing.id]
       }
     }));
-    setToast(`Bought a ${(listing.ageMonths / 12).toFixed(1)}-year-old ${spec.manufacturer} ${spec.type} for ${formatCurrency(listing.price)}`);
+    setToast(`Bought a ${listing.figures.ageYears.toFixed(1)}-year-old ${spec.manufacturer} ${spec.type} for ${formatCurrency(listing.price)}`);
   };
 
   /** A rival as the model holds it, for a takeover (7.16): its saved state, or before the first close the old airline converted. */
@@ -1955,12 +1951,13 @@ export default function App() {
       setAppAlert(`Buying ${target.name} costs ${formatCurrency(quote.netPrice)} after its cash, but you only have ${formatCurrency(capital)}.`);
       return;
     }
-    const deal = buildTakeover(target, fleet.map(p => p.registration));
-    const pay = takeoverPayments(quote, planesValue(deal.aircraft, currentDateOffset));
+    // The aircraft come with the rival's cabins, build months and condition, so they are worth what the model values them at (7.16).
+    const takenAircraft = takeoverFleet(rival, target.hub, fleet.map(p => p.registration));
+    const pay = takeoverPayments(quote, planesValue(takenAircraft, currentDateOffset));
     spend(pay.aircraft, 'Aircraft Purchases');
     spend(pay.rest, 'Airline Takeover');
-    noteTrade([], deal.aircraft, currentDateOffset);
-    setFleet(prev => [...prev, ...deal.aircraft]);
+    noteTrade([], takenAircraft, currentDateOffset);
+    setFleet(prev => [...prev, ...takenAircraft]);
     setAirportManagement(prev => ({ ...prev, ...takeoverAirports(prev, rival) }));
     // The view's id is the model's (`rival-<code>`, F56): the airline leaves the model's state too, or the next
     // close would bring it back. Before the first close on the model there is no such state yet.
@@ -1970,7 +1967,7 @@ export default function App() {
     // No reputation bonus for a takeover: reputation moves only through its target (E38).
     setAppAlert(
       `SUCCESS: ${target.name} is yours for ${formatCurrency(quote.price)} (${formatCurrency(quote.netPrice)} after its cash). ` +
-      `${deal.aircraft.length} aircraft joined your fleet` +
+      `${takenAircraft.length} aircraft joined your fleet` +
       `${quote.airports > 0 ? ` and you took over its slots and desks at ${quote.airports} airport${quote.airports === 1 ? '' : 's'}` : ''}. ` +
       `The airline's routes are gone; plan new ones with your new aircraft.`
     );
@@ -2224,18 +2221,20 @@ export default function App() {
   const takeoverOfferFor = useStableCallback(quoteTakeover);
   const onOpenProgression = useStableCallback(() => openWindow('progression'));
   const soldUsedIds = career.usedSold.offset === currentDateOffset ? career.usedSold.ids : NO_SOLD_IDS;
-  const rivalNames = useMemo(() => aiAirlines.map(a => a.name), [aiAirlines]);
+  const rivalNameByCode = useMemo(() => Object.fromEntries(aiAirlines.map(a => [a.code, a.name])), [aiAirlines]);
   const market = useMemo(() => ({
     currentDateOffset,
     capital,
     classesOpen: aircraftClassesOpen,
     orders: career.orders,
     soldUsedIds,
-    rivalNames,
+    resold: modelWorld?.resold ?? NO_RESOLD,
+    completedResearch: career.research.done,
+    rivalNameByCode,
     onOrder: onPlaceOrder,
     onCancelOrder,
     onBuyUsed
-  }), [currentDateOffset, capital, aircraftClassesOpen, career.orders, soldUsedIds, rivalNames, onPlaceOrder, onCancelOrder, onBuyUsed]);
+  }), [currentDateOffset, capital, aircraftClassesOpen, career.orders, soldUsedIds, modelWorld?.resold, career.research.done, rivalNameByCode, onPlaceOrder, onCancelOrder, onBuyUsed]);
 
   return (
     <AccountScopeContext.Provider value={userId}>
@@ -2528,6 +2527,7 @@ export default function App() {
                            onSelectRoute={handleShowRoute}
                            onStartRoute={handleStartRouteWithAircraft}
                            onSell={handleSellAircraft}
+                           completedResearch={career.research.done}
                            airlineCode={airlineCode}
                            airportManagement={airportManagement}
                            onReassignRoutes={handleReassignRoutes}

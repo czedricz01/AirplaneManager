@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Aircraft } from '../data/aircraft';
 import { Search, ChevronDown, ChevronUp, LayoutGrid, List, Plane, Layers, MapPin, Wrench, ShieldAlert, Boxes, X, ChevronRight } from 'lucide-react';
 import { AircraftDetailsModal } from './AircraftDetailsModal';
-import { getPlaneSat } from '../lib/financeUtils';
+import { planeFigures, type PlaneFigures } from '../lib/modelFleet';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import type { ConfigOutput } from './ConfigurePurchaseView';
 import { AircraftImage } from './AircraftImage';
@@ -31,7 +31,7 @@ export interface OwnedAircraft extends Aircraft {
 }
 
 
-type SortField = 'registration' | 'type' | 'maxRange' | 'efficiency' | 'popularity' | 'conditionInterior' | 'conditionGeneral' | 'status';
+type SortField = 'registration' | 'type' | 'maxRange' | 'efficiency' | 'cabinRating' | 'conditionInterior' | 'conditionGeneral' | 'status';
 type SortDir = 'asc' | 'desc';
 type GroupBy = 'family' | 'category' | 'manufacturer' | 'none';
 type ViewMode = 'grid' | 'table' | 'models';
@@ -45,6 +45,8 @@ interface Props {
   onSelectRoute?: (route: any) => void;
   onStartRoute?: (reg: string) => void;
   onSell?: (plane: OwnedAircraft) => void;
+  /** Finished research: efficiency and sale value of the aircraft (model 5.3, 8.11). */
+  completedResearch?: readonly string[];
   airlineCode?: string;
   /** For the aircraft swap in the details modal. */
   airportManagement?: AssignmentContext['airportManagement'];
@@ -54,7 +56,12 @@ interface Props {
 /** KPI labels on phones: one line, cut short if need be, instead of wrapping onto two. */
 const KPI_LABEL = 'short:mb-0.5';
 
-function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, airlineCode = '', airportManagement, onReassignRoutes }: Props) {
+const NO_RESEARCH: readonly string[] = [];
+
+/** A model figure for a list: whole points; an aircraft without seats has none. */
+const points = (n: number) => (Number.isFinite(n) ? String(Math.round(n)) : '--');
+
+function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, onSelectRoute, onStartRoute, onSell, completedResearch = NO_RESEARCH, airlineCode = '', airportManagement, onReassignRoutes }: Props) {
   const [search, setSearch] = useState("");
   const [filterAlertsOnly, setFilterAlertsOnly] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>('family');
@@ -92,6 +99,17 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
     return sortDir === 'asc' ? <ChevronUp size={12} className="inline ml-1 text-accent" /> : <ChevronDown size={12} className="inline ml-1 text-accent" />;
   };
 
+  /**
+   * Age, type appeal, cabin rating and efficiency of each aircraft this month, from the model (2.2, 2.4, 5.3): the
+   * figures the month close prices with. Without a month (never in the game) the aircraft count as new.
+   */
+  const figuresByReg = useMemo(() => {
+    const map = new Map<string, PlaneFigures>();
+    for (const p of fleet) map.set(p.registration, planeFigures(p, currentDateOffset ?? p.purchasedAt, completedResearch));
+    return map;
+  }, [fleet, currentDateOffset, completedResearch]);
+  const figuresOf = (p: OwnedAircraft) => figuresByReg.get(p.registration) as PlaneFigures;
+
   const routesByAircraft = useMemo(() => {
     const map: Record<string, any[]> = {};
     routes.forEach(r => {
@@ -124,10 +142,11 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       let valA: any = a[field];
       let valB: any = b[field];
 
-      if (sortField === 'popularity') {
-         // The figure the column shows and the economy uses, not a variant of it.
-         valA = getPlaneSat(a);
-         valB = getPlaneSat(b);
+      if (sortField === 'cabinRating' || sortField === 'efficiency') {
+         // The figure the column shows and the month close uses, not a variant of it.
+         const key = sortField === 'cabinRating' ? 'averageCabinRating' : 'efficiency';
+         valA = figuresByReg.get(a.registration)?.[key] ?? 0;
+         valB = figuresByReg.get(b.registration)?.[key] ?? 0;
       } else if (sortField === 'status') {
          valA = (routesByAircraft[a.registration] || []).length > 0 ? 1 : 0;
          valB = (routesByAircraft[b.registration] || []).length > 0 ? 1 : 0;
@@ -137,7 +156,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
       if (valA > valB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [fleet, search, filterAlertsOnly, sortField, sortDir, routesByAircraft]);
+  }, [fleet, search, filterAlertsOnly, sortField, sortDir, routesByAircraft, figuresByReg]);
 
   // Model-grouped summary calculation for "models" view mode
   const modelSummaries = useMemo(() => {
@@ -160,7 +179,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
           type: plane.type,
           family: plane.family,
           maxRange: plane.maxRange,
-          efficiency: plane.efficiency,
+          efficiency: figuresOf(plane).efficiency,
           items: []
         };
       }
@@ -170,7 +189,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
     return Object.values(map).map(group => {
       const count = group.items.length;
       let sumFirst = 0, sumBiz = 0, sumPrem = 0, sumEco = 0;
-      let sumIntCond = 0, sumGenCond = 0, sumSat = 0;
+      let sumIntCond = 0, sumGenCond = 0, sumAppeal = 0, sumRatingSeats = 0, ratingSeats = 0;
       let activeRoutesCount = 0;
       let alertCount = 0;
 
@@ -184,7 +203,14 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
 
         if (isAlertCondition(p)) alertCount++;
 
-        sumSat += getPlaneSat(p);
+        // Cabin rating weighted by seats, as `averageCabinRating` weighs the classes of one aircraft.
+        const f = figuresOf(p);
+        const seats = Object.values(f.seats).reduce((a, b) => a + (b ?? 0), 0);
+        sumAppeal += f.typeAppeal;
+        if (Number.isFinite(f.averageCabinRating)) {
+          sumRatingSeats += f.averageCabinRating * seats;
+          ratingSeats += seats;
+        }
 
         const planeRoutes = routesByAircraft[p.registration] || [];
         activeRoutesCount += planeRoutes.length;
@@ -200,12 +226,13 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         avgTotalPax: Math.round((sumFirst + sumBiz + sumPrem + sumEco) / count),
         avgInteriorCond: Math.round(sumIntCond / count),
         avgGeneralCond: Math.round(sumGenCond / count),
-        avgSatisfaction: Math.round(sumSat / count),
+        avgTypeAppeal: sumAppeal / count,
+        avgCabinRating: ratingSeats > 0 ? sumRatingSeats / ratingSeats : NaN,
         activeRoutesCount,
         alertCount
       };
     }).sort((a, b) => b.count - a.count);
-  }, [filteredAndSortedFleet, routesByAircraft]);
+  }, [filteredAndSortedFleet, routesByAircraft, figuresByReg]);
 
   // Grouping logic for Grid / Table modes
   const groupedFleet = useMemo(() => {
@@ -506,8 +533,12 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                         </div>
 
                         <div className="pt-1.5 border-t border-line flex items-center justify-between text-muted">
-                          <span>Avg Satisfaction:</span>
-                          <span className="font-semibold text-accent">{m.avgSatisfaction}%</span>
+                          <span>Cabin rating (avg.)<InfoTooltip size={10} {...GLOSSARY.cabinRating} />:</span>
+                          <span className="font-semibold text-accent">{points(m.avgCabinRating)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-muted">
+                          <span>Type appeal (avg.)<InfoTooltip size={10} {...GLOSSARY.typeAppeal} />:</span>
+                          <span className="font-semibold text-ink">{points(m.avgTypeAppeal)}</span>
                         </div>
                         <div className="flex items-center justify-between text-muted">
                           <span>Active Routes:</span>
@@ -577,7 +608,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                   {items.map((plane) => {
                     const safeName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
                     const assignedRoutes = routesByAircraft[plane.registration] || [];
-                    const combinedPlaneSat = getPlaneSat(plane);
+                    const figures = figuresOf(plane);
                     const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
                     const critical = isAlertCondition(plane);
 
@@ -658,12 +689,12 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                               <span className="text-ink font-semibold">{totalPax} pax</span>
                             </div>
                             <div>
-                              <span className="text-muted block text-2xs uppercase tracking-label">Satisfaction</span>
-                              <span className="text-accent font-semibold">{combinedPlaneSat}%</span>
+                              <span className="text-muted block text-2xs uppercase tracking-label">Cabin rating (avg.)</span>
+                              <span className="text-accent font-semibold">{points(figures.averageCabinRating)}</span>
                             </div>
                             <div>
                               <span className="text-muted block text-2xs uppercase tracking-label">Efficiency</span>
-                              <span className="text-ink font-semibold">{plane.efficiency}</span>
+                              <span className="text-ink font-semibold">{points(figures.efficiency)}</span>
                             </div>
                           </div>
 
@@ -737,8 +768,8 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                         <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('efficiency')}>
                           Eff.<InfoTooltip size={11} {...GLOSSARY.efficiency} /> {getSortIcon('efficiency')}
                         </th>
-                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('popularity')}>
-                          Comb. Sat<InfoTooltip size={11} {...GLOSSARY.cabinRating} /> {getSortIcon('popularity')}
+                        <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('cabinRating')}>
+                          Cabin rating (avg.)<InfoTooltip size={11} {...GLOSSARY.cabinRating} /> {getSortIcon('cabinRating')}
                         </th>
                         <th className="py-3 cursor-pointer hover:text-accent" tabIndex={0} onKeyDown={clickOnKey} onClick={() => toggleSort('conditionInterior')}>
                           Int. Cond<InfoTooltip size={11} {...GLOSSARY.conditionInterior} /> {getSortIcon('conditionInterior')}
@@ -752,7 +783,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                     <tbody>
                       {items.map((plane) => {
                         const safeName = (plane.manufacturer + ' ' + plane.type).split('/').join('-').split('\\').join('-');
-                        const combinedPlaneSat = getPlaneSat(plane);
+                        const figures = figuresOf(plane);
                         const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
                         const assignedRoutes = routesByAircraft[plane.registration] || [];
                         const critical = isAlertCondition(plane);
@@ -792,8 +823,8 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                             <td className="py-3 whitespace-nowrap">
                               {totalPax} ({plane.config.first}/{plane.config.business}/{plane.config.premium}/{plane.config.economy})
                             </td>
-                            <td className="py-3">{plane.efficiency}</td>
-                            <td className="py-3 font-semibold text-accent">{combinedPlaneSat}%</td>
+                            <td className="py-3">{points(figures.efficiency)}</td>
+                            <td className="py-3 font-semibold text-accent">{points(figures.averageCabinRating)}</td>
                             <td className="py-3">
                               <span className={CONDITION_TEXT_CLASS[conditionTone(plane.conditionInterior)]}>
                                 {Math.round(plane.conditionInterior)}%
@@ -868,7 +899,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {selectedModel.items.map((plane) => {
                   const assignedRoutes = routesByAircraft[plane.registration] || [];
-                  const combinedPlaneSat = getPlaneSat(plane);
+                  const figures = figuresOf(plane);
                   const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
                   const critical = isAlertCondition(plane);
 
@@ -918,8 +949,8 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
                           <span>{totalPax} ({plane.config.first}/{plane.config.business}/{plane.config.premium}/{plane.config.economy})</span>
                         </div>
                         <div>
-                          <span className="text-muted block text-2xs">Satisfaction:</span>
-                          <span className="font-semibold text-accent">{combinedPlaneSat}%</span>
+                          <span className="text-muted block text-2xs">Cabin rating (avg.):</span>
+                          <span className="font-semibold text-accent">{points(figures.averageCabinRating)}</span>
                         </div>
                         <div>
                           <span className="text-muted block text-2xs">Interior Cond.:</span>
@@ -963,6 +994,7 @@ function MyFleetViewImpl({ fleet, routes = [], currentDateOffset, onRenovate, on
         <AircraftDetailsModal 
           plane={selectedPlane}
           currentDateOffset={currentDateOffset}
+          completedResearch={completedResearch}
           airlineCode={airlineCode}
           onClose={() => setSelectedPlane(null)} 
           onRenovate={() => {
