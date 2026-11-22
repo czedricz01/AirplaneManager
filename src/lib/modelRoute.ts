@@ -8,6 +8,8 @@
  * - `routeBestFares` liefert je Klasse den gewinnbesten Preis (4.10).
  * - `routeMarketFares` / `pricesAtLevel` setzen Preise über ein Preisniveau für alle Klassen („Adjust All“, Startpreis
  *   = Marktpreis, E23).
+ * - `plannedSatisfaction` liefert Planer Schritt 3 und dem Kabinen-Fenster die Satisfaction je Klasse mit allen Teilen und
+ *   die Verpflegungskosten (Paket 4.5b, 2.4–2.7, 5.7).
  *
  * Rein: liest nur seine Eingabe (R12). Die Strecke kommt im Format der Oberfläche (`SimulatedRoute`, Preise in $) und
  * wird über die Brücke (`routeState`) gelesen.
@@ -23,7 +25,15 @@ import {
   type BreakEvenClass,
   type ClassFigures,
 } from '../model/fare';
-import { plannerRouteFigures, routeClassPassengersCurve, type ModelState, type RouteFigures, type RouteState } from '../model/monthClose';
+import {
+  plannerRouteFigures,
+  routeClassPassengersCurve,
+  routeSatisfactionDetail,
+  type ModelState,
+  type RouteFigures,
+  type RouteSatisfactionDetail,
+  type RouteState,
+} from '../model/monthClose';
 import { satisfactionFactor } from '../model/satisfaction';
 import type { SimulatedRoute } from './gameTypes';
 import { departuresPerWeek, routeKm, routeState, type RouteContext } from './modelBridge';
@@ -231,6 +241,16 @@ export function routeBestFares(state: ModelState, planned: PlannedRoute): Partia
     out[c] = { fareRatio, fare: fareRatio * fares[c] };
   }
   return out;
+}
+
+/**
+ * Satisfaction der geplanten Strecke je Klasse mit allen Teilen (2.7) und Verpflegung je Fluggast (5.7), aus denselben
+ * Eingaben wie der Abschluss (`routeSatisfactionDetail`, R2): Boden-Teil mit allen eigenen Abflügen an beiden Enden
+ * samt der geplanten Strecke. Ohne Abflüge `null` (keine Schalter-Last, keine belegten Slots).
+ */
+export function plannedSatisfaction(state: ModelState, planned: PlannedRoute): RouteSatisfactionDetail | null {
+  if (departuresPerWeek(planned.route) <= 0) return null;
+  return routeSatisfactionDetail(withPlannedRoute(state, planned), PLAYER_ID, routeIdOf(planned));
 }
 
 /** Marktpreise der Strecke im Monat des Spielstands (4.3), für Startpreise und Regler. */

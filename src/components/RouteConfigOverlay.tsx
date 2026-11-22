@@ -1,52 +1,39 @@
 import { clickOnKey } from '../lib/a11y';
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Utensils, Wifi, Users } from 'lucide-react';
-import { Airport } from '../data/airports';
 import type { OwnedAircraft } from './MyFleetView';
-import type { AirportInfrastructure } from '../lib/gameTypes';
 import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
-
-import {
-  getFlightTimeClass,
-  getCateringOpt,
-  seatWeightedSatisfaction,
-  getFlightTimeIndex,
-  expectedServicePoints
-} from '../lib/financeUtils';
+import { getCateringOpt } from '../lib/financeUtils';
+import { formatCurrency, formatNumber } from '../lib/format';
+import type { RouteSatisfactionDetail } from '../model/monthClose';
+import type { CabinClass } from '../model/constants';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 
 interface RouteConfigOverlayProps {
   activeConfigClass: string;
   selectedAircraft: OwnedAircraft;
-  selectedOrigin: Airport;
-  selectedDest: Airport;
-  airportManagement: Record<string, AirportInfrastructure>;
   classConfigs: Record<string, { catering: string[][], extras: string[], service: string[] }>;
   setClassConfigs: React.Dispatch<React.SetStateAction<Record<string, { catering: string[][], extras: string[], service: string[] }>>>;
   setActiveConfigClass: (className: string | null) => void;
   takeControl: Record<string, boolean>;
   setTakeControl: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  getFlightDurationMinutes: () => number;
   /**
-   * Route satisfaction per cabin class, as the economy computes it
-   * (getRouteClassSatisfaction). This overlay used to run its own formula with
-   * an empty airport table, made-up airport ids and a fixed difficulty.
+   * Satisfaction of the route per cabin class with all its parts, what can be served on board and the catering
+   * prices, from the model (docs/neubau 4.5b, `plannedSatisfaction`): the same inputs the month close uses. Null
+   * while the model cannot read the draft.
    */
-  routeSat: Record<string, number>;
+  satisfaction: RouteSatisfactionDetail | null;
 }
 
 export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
   activeConfigClass,
   selectedAircraft,
-  selectedOrigin,
-  selectedDest,
-  airportManagement,
   classConfigs,
   setClassConfigs,
   setActiveConfigClass,
   takeControl,
   setTakeControl,
-  getFlightDurationMinutes,
-  routeSat
+  satisfaction
 }) => {
   const [activeMealIndex, setActiveMealIndex] = useState(0);
   const [expandedMealCats, setExpandedMealCats] = useState<Record<string, boolean>>({
@@ -56,17 +43,17 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
     Luxury: false
   });
 
-  const duration = getFlightDurationMinutes();
-  const timeClass = getFlightTimeClass(duration);
-  // What a class expects of meals, extras and service on a flight this long,
-  // in the same points the options below are listed with.
-  const expectedPts = (c: string) => Math.round(expectedServicePoints(c, getFlightTimeIndex(duration)));
-
-  // "general" has no seats of its own; it shows the seat-weighted route figure.
-  const getRouteSatForClass = (className: string) =>
-    className === 'general'
-      ? seatWeightedSatisfaction(routeSat, selectedAircraft.config)
-      : routeSat[className] ?? 0;
+  // Every figure below comes from the model (docs/neubau 4.5b): flight-time index, meals that count, what each class
+  // gets and expects, what the aircraft and the route ends can serve, and the catering prices of this month.
+  const classDetail = (className: string) => satisfaction?.classes[className as CabinClass];
+  const flightIndex = satisfaction ? formatNumber(satisfaction.flightTimeIndex, 1) : '–';
+  const satOf = (className: string) => {
+    const d = classDetail(className);
+    return d ? formatNumber(d.breakdown.satisfaction) : '–';
+  };
+  /** Price per passenger in $ of this month: the 1960 price × cost index × catering research (5.7). */
+  const priceOf = (cost1960: number) => formatCurrency(cost1960 * (satisfaction?.cateringPriceFactor ?? 1), 2);
+  const mealSlots = satisfaction?.mealCount ?? 1;
 
   /**
    * Writes one service field of "General" into every cabin class.
@@ -96,9 +83,11 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
     }
   };
 
-  const hasAdvancedCateringHub = airportManagement[selectedOrigin.id]?.hubFacilities?.catering || airportManagement[selectedDest.id]?.hubFacilities?.catering;
-  const hasPremiumGalley = selectedAircraft.config?.details?.hasPremiumCatering;
-  const isUpgradeActive = !!(hasAdvancedCateringHub && hasPremiumGalley);
+  const hasAdvancedCateringHub = satisfaction?.cateringFacility ?? false;
+  const hasPremiumGalley = satisfaction?.capability.hasPremiumGalley ?? false;
+  const hasWifi = satisfaction?.capability.hasWifi ?? false;
+  const isUpgradeActive = hasAdvancedCateringHub && hasPremiumGalley;
+  const allowedCategories: readonly string[] = satisfaction?.capability.mealCategories ?? [];
 
   return (
     <div className="absolute inset-0 bg-ground z-[2000] flex flex-col animate-appear slide-in-from-bottom duration-500 overflow-hidden">
@@ -116,23 +105,32 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
               {activeConfigClass === 'general' ? (
                 <>
                   <div className="flex items-center gap-2 border-r border-line pr-6">
-                    <span>Flight Class: <span className="text-accent">{timeClass}</span></span>
+                    <span className="flex items-center">Flight-time index: <span className="text-accent ml-1">{flightIndex}</span><InfoTooltip size={10} {...GLOSSARY.timeClass} /></span>
                   </div>
                   {['economy', 'premium', 'business', 'first'].map(c => {
                     const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
                     if (seats <= 0) return null;
                     return (
-                      <span key={c} className="whitespace-nowrap">{c}: <span className="text-accent font-semibold text-xs">{Math.round(Math.max(0, getRouteSatForClass(c)))}%</span></span>
+                      <span key={c} className="whitespace-nowrap">{c}: <span className="text-accent font-semibold text-xs">{satOf(c)}</span></span>
                     );
                   })}
                 </>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
                   <div className="flex items-center gap-2 border-r border-line pr-6">
-                    <span>Flight Class: <span className="text-accent">{timeClass}</span></span>
-                    <span className="text-2xs opacity-60">(passengers expect {expectedPts(activeConfigClass)} service pts)</span>
+                    <span className="flex items-center">Flight-time index: <span className="text-accent ml-1">{flightIndex}</span><InfoTooltip size={10} {...GLOSSARY.timeClass} /></span>
                   </div>
-                  <span>Product Selection & Tiering • <span className="text-accent text-sm font-semibold">Route SAT: {Math.round(Math.max(0, getRouteSatForClass(activeConfigClass)))}%</span></span>
+                  {(() => {
+                    const d = classDetail(activeConfigClass);
+                    if (!d) return null;
+                    return (
+                      <>
+                        <span>Service: <span className="text-accent">{formatNumber(d.service.total, 1)}</span> of {formatNumber(d.breakdown.expectedServicePoints, 1)} pts expected ({d.breakdown.servicePart > 0 ? '+' : ''}{formatNumber(d.breakdown.servicePart, 1)} satisfaction)</span>
+                        <span>Catering: <span className="text-accent">{formatCurrency(d.cateringCost, 2)}</span> / pax</span>
+                      </>
+                    );
+                  })()}
+                  <span className="flex items-center">Satisfaction: <span className="text-accent text-sm font-semibold ml-1">{satOf(activeConfigClass)}</span><InfoTooltip size={10} {...GLOSSARY.sat} /></span>
                 </div>
               )}
             </div>
@@ -170,7 +168,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
           </div>
 
           <div className="space-y-4">
-            {(!isUpgradeActive && selectedAircraft.class !== 'Regional' && selectedAircraft.class !== 'Narrowbody' && selectedAircraft.class !== 'Widebody') ? null : (
+            {!satisfaction ? null : (
               <div className="p-3 bg-surface border border-line text-2xs uppercase font-semibold relative overflow-hidden group">
                 <div className="flex flex-col gap-1 z-10 relative">
                   <span className="opacity-60">Next level catering:</span>
@@ -187,7 +185,8 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
 
             <div className="space-y-4">
               <div className="flex gap-2">
-                {Array.from({ length: getFlightTimeClass(getFlightDurationMinutes()) <= 5 ? 1 : getFlightTimeClass(getFlightDurationMinutes()) <= 7 ? 2 : 3 }).map((_, idx) => {
+                {/* Meals that count on a flight this long (2.5); a later meal counts less until the flight is long enough. */}
+                {Array.from({ length: mealSlots }).map((_, idx) => {
                   const catArr = Array.isArray(classConfigs[activeConfigClass!].catering) ? classConfigs[activeConfigClass!].catering : [classConfigs[activeConfigClass!].catering as unknown as string[]];
                   return (
                     <button 
@@ -224,14 +223,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                 </button>
 
                 {(() => {
-                  const baseAllowed = selectedAircraft.class === 'Regional' ? ['Basic'] : selectedAircraft.class === 'Narrowbody' ? ['Basic', 'Standard'] : ['Basic', 'Standard', 'Premium'];
-                  const allowedCategories = [...baseAllowed];
-                  if (isUpgradeActive) {
-                    if (selectedAircraft.class === 'Regional') allowedCategories.push('Standard');
-                    else if (selectedAircraft.class === 'Narrowbody') allowedCategories.push('Premium');
-                    else allowedCategories.push('Luxury');
-                  }
-
+                  // Meal tiers the aircraft class can serve, one more with a premium galley and a catering facility (2.5).
                   return Object.keys(MEAL_DATA).filter(cat => allowedCategories.includes(cat)).map(catName => (
                     <div key={catName} className="space-y-1">
                       <button 
@@ -274,7 +266,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                                 >
                                   <div className="mb-2">
                                     <span className="text-2xs font-semibold uppercase leading-tight line-clamp-2">{meal.label}</span>
-                                    <span className="text-2xs opacity-60 block mt-0.5">${meal.cost.toFixed(2)}</span>
+                                    <span className="text-2xs opacity-60 block mt-0.5">{priceOf(meal.cost)}</span>
                                   </div>
                                   <span className="text-xs font-semibold mt-auto">+{Math.round(meal.sat)} pts</span>
                                 </button>
@@ -313,11 +305,8 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
             {Object.keys(EXTRAS_OPTIONS).sort((a,b) => EXTRAS_OPTIONS[a].cost - EXTRAS_OPTIONS[b].cost).map(optKey => {
               const opt = EXTRAS_OPTIONS[optKey];
               const isSelected = classConfigs[activeConfigClass!].extras.includes(optKey);
-              const wifiCap = selectedAircraft.config?.details?.hasWifi;
-              const galleyCap = selectedAircraft.config?.details?.hasPremiumCatering;
-              
-              const isWifiDisabled = opt.wifiRequired && !wifiCap;
-              const isGalleyDisabled = opt.galleyRequired && !galleyCap;
+              const isWifiDisabled = opt.wifiRequired && !hasWifi;
+              const isGalleyDisabled = opt.galleyRequired && !hasPremiumGalley;
               const isDisabled = isWifiDisabled || isGalleyDisabled;
 
               return (
@@ -355,7 +344,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                       {isWifiDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold">Req. wifi</span>}
                       {isGalleyDisabled && <span className="text-2xs bg-surface text-accent px-1 py-0.5 rounded font-semibold">Req. prem. galley</span>}
                     </div>
-                    <span className="text-xs font-semibold font-mono">${opt.cost} / PAX</span>
+                    <span className="text-xs font-semibold font-mono">{priceOf(opt.cost)} / PAX</span>
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-2xs font-semibold uppercase ${isSelected ? 'text-on-accent' : 'text-muted'}`}>SAT</span>
@@ -412,7 +401,7 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
                 >
                   <div className="flex flex-col">
                     <span className={`text-2xs font-semibold uppercase tracking-label mb-1 ${isSelected ? 'text-on-accent' : 'text-muted'}`}>{opt.label}</span>
-                    <span className="text-xs font-semibold font-mono">${opt.cost} / PAX</span>
+                    <span className="text-xs font-semibold font-mono">{priceOf(opt.cost)} / PAX</span>
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-2xs font-semibold uppercase ${isSelected ? 'text-on-accent' : 'text-muted'}`}>SAT</span>

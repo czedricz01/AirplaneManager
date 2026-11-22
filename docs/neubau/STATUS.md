@@ -1,20 +1,28 @@
 # Status
 
-**Nächstes Paket: 4.5b** – Satisfaction der Strecke im Planer: Schritt 3 (Kabine und Service) und `RouteConfigOverlay.tsx` zeigen
-Satisfaction je Klasse, ihre Teile (Kabine, Service geliefert / erwartet, Boden je Ende mit Lounge, Ständen, Schaltern, Moral, Forschung) und
-die Verpflegungskosten aus dem Modell (`satisfactionBreakdown`, `plannerRouteFigures`) statt `getRouteClassSatisfaction` / `getDeskSim`.
-Zu lesen: Schritt 3 in `src/components/RoutePlannerView.tsx` (`classSat`, `originDeskSim`, `saveFinancials` für die Verpflegung),
-`src/components/RouteConfigOverlay.tsx`, `src/lib/modelRoute.ts` (Muster aus 4.5a), `src/model/satisfaction.ts` (`satisfactionBreakdown`),
-`src/model/monthClose.ts` (Vorbereitung der Satisfaction in `marketContext`, ab ca. Zeile 847: eine Funktion daraus exportieren, damit Planer
-und Abschluss dieselben Eingaben bauen, R2), F52, F60 (5), F62, offene Punkte aus 4.3 (2) unten.
+**Nächstes Paket: 4.5c** – Strecken-Ansichten nach dem Modell: `RouteDetailView.tsx` und `RoutesView.tsx` zeigen Prognose
+(Fluggäste, Erlös, Kosten, Ergebnis) und Satisfaction aus `src/lib/modelRoute.ts` (`routeForecast`, `plannedSatisfaction`) statt
+`calculateRouteFinancials` / `routesWithMetrics`; der Planer speichert keine alten Kennzahlen mehr (`toStoredRouteMetrics`,
+`saveFinancials`, `priceInNetwork`); Spalte „Class“ nach E9 umbenennen. Zu lesen: `src/components/RouteDetailView.tsx` (ab Zeile 97),
+`src/components/RoutesView.tsx` (ab Zeile 134), `src/App.tsx` (`routesWithMetrics` ab Zeile 705, `plannerModel`), Speichern im Planer
+(`src/components/RoutePlannerView.tsx` Zeilen 987, 2985, 3269–3288, 3581), `src/lib/modelRoute.ts`, `toStoredRouteMetrics` in
+`src/lib/financeUtils.ts`, F62, F63, offene Punkte aus 4.5a (1), (3) und 4.3 (2) unten.
 
-Stand: 21.11.2026 · Paket 4.5a erledigt: Planer Schritt 4 (Preise) rechnet jede Zahl mit dem Modell über `src/lib/modelRoute.ts` (F62):
-Hauptzahl „Expected weekly profit“ nach dem Anlauf = Ergebnis im Monatsabschluss (Test), Nebenzahlen „First month“, „before aircraft costs“,
-„Full aircraft at market fare“, Kosten nach Posten des Modells, Gewinnschwelle bei erwarteter und voller Auslastung je Klasse (W5, E23),
-Startpreis = Marktpreis, „Adjust All“ als ein Preisniveau, neu „Market fares“ und „Set best fares“, Debug-Anzeige nur mit Werten des Modells
-(E52), Glossar `breakEven` aus dem Modell. Paket 4.5 geteilt in 4.5a/4.5b/4.5c (F62 (1)). 11 neue Tests (1376 grün); im Browser geprüft:
-neue Strecke FRA–LHR 1960 mit Caravelle (Marktpreis $65: −$7 470 je Woche; „Set best fares“ $156: +$21 623, Auslastung 100 %), Speichern und
-Preis-Editor der gespeicherten Strecke zeigen dieselben Zahlen.
+Stand: 22.11.2026 · Paket 4.5b erledigt: Planer Schritt 3 und das Kabinen-Fenster zeigen Satisfaction je Klasse mit allen Teilen und die
+Verpflegungskosten aus dem Modell (F63): eine Vorbereitung der Satisfaction für Abschluss und Planer (`routeSatisfactionSetup`,
+`routeSatisfactionDetail` in `src/model/monthClose.ts`, R2), Brücke `plannedSatisfaction` in `src/lib/modelRoute.ts`; Schritt 3 mit
+Tabelle der Teile, Boden je Ende, Route satisfaction nach 2.9, Verpflegung je Woche aus der Prognose; Fenster mit Flugzeit-Index,
+Mahlzeiten, Gerichte-Stufen, WLAN / Bordküche und Preisen des Monats aus dem Modell. `getRouteClassSatisfaction` / `getDeskSim` /
+„Combined Plane SAT“ aus dem Planer entfernt. 5 neue Tests (1381 grün); im Browser geprüft: Jet Age, neue Strecke FRA–LHR mit Caravelle:
+ohne Service Satisfaction 91 (Service −10,5, Stände FRA +2 / LHR 0 → +1,1), mit Free softdrinks sofort 106 und $1 440 je Woche
+(480 Fluggäste × $3).
+
+Offen aus 4.5b (kein Blocker): (1) 4.5c: Streckenliste und Streckenansicht zeigen die Satisfaction noch aus der alten Rechnung
+(`calculateRouteFinancials` → `getRouteClassSatisfaction`); sie kann vom Planer abweichen. (2) 5.2: `calculateClassSatisfaction`,
+`getRouteClassSatisfaction`, `getDeskSim`, `expectedServicePoints` / `getFlightTimeClass` der alten Rechnung entfernen, sobald 4.5c sie
+nicht mehr braucht. (3) 5.1: Die alte Regel nahm für eine Klasse ohne eigene Service-Auswahl die Auswahl „general“ (`classConfigFor`),
+das Modell nicht; alte Spielstände mit fehlenden Klassen prüfen. (4) Die Punkte je Gericht im Kabinen-Fenster sind Rohpunkte; wie mehrere
+Gerichte einer Mahlzeit zählen (`menuPoints`), zeigt nur die Summe in der Kopfzeile (Text in 4.6 mit den Kabinen-Extras prüfen).
 
 Offen aus 4.5a (kein Blocker): (1) 4.5c: Die Streckenliste und die Streckenansicht zeigen bis dahin die alte Prognose
 (`routesWithMetrics`, beim Speichern `toStoredRouteMetrics`); sie kann weit vom Planer abweichen (FRA–LHR bei $156: Planer 320, Liste 53
@@ -31,7 +39,7 @@ Balance → mit dem Balance-Skript umstellen. (3) 5.2: `rawBlockMinutes` (nur al
 `maxFlightStarts` und könnten diese nutzen (gleiche Regeln, nur doppelter Code).
 
 Offen aus 4.3 (kein Blocker): (1) erledigt in 4.4.
-(2) 4.5b: Satisfaction-Aufschlüsselung im Planer Schritt 3/4 nutzt noch `getDeskSim` (alter Abzug für Selbstbedienung); Transfer-Fluggäste
+(2) Satisfaction-Aufschlüsselung im Planer erledigt in 4.5b; offen: Transfer-Fluggäste
 der Flughafen-Ansicht aus der alten Netz-Vorschau (4.5c / 4.7). (3) Widebody-Slots erst ab Flughafengröße 3 ist eine Regel nur der Oberfläche
 (`WIDEBODY_SLOTS_FROM_SIZE`); in 5.3 prüfen, ob die KI sie auch einhält. (4) 5.1: alte Spielstände mit Stufe ≥ 1 und 0 Schaltern bekommen
 einen Schalter. (5) 5.2: `getAirportUpkeep`, `getManagementUnlockCost`, `getInfraAvailability`, `getDeskSim`, `applyManagementUnlock`
@@ -97,8 +105,8 @@ E65: Optimizer-Sprünge in 3.9d nicht störend (0,6–2,7 % der Strecken-Monate)
 
 Offen aus 3.2a (kein Blocker): Der Test „Kaufdialog-Anzeige = Modellwert“ (2.3) folgt, wenn der Kaufdialog
 auf `interiorScoreParts` umgestellt wird (Phase 4).
-Offen aus 3.2b (kein Blocker): „Planer-Wert = Wert im Monatsabschluss“ (2.7) wird geprüft, wenn Planer und
-Monatsabschluss `satisfactionBreakdown` nutzen (Phase 4 / 3.8). Wer `GroundSide` (Einrichtungen je Ende),
+Offen aus 3.2b (kein Blocker): „Planer-Wert = Wert im Monatsabschluss“ (2.7) erledigt in 4.5b (Test in
+`src/lib/modelRoute.test.ts`). Wer `GroundSide` (Einrichtungen je Ende),
 Cabin rating, Service points und Moral aus dem Spielstand baut, regeln 3.8 bzw. Phase 4 (F22). Stärke der
 Service-Abzüge und Kurve von `satisfactionFactor` prüft das Balance-Skript (3.9, E15).
 Offen aus 3.3a (kein Blocker): Die Balance-Regeln aus 3.3 (Marktgröße im Mittel aller Paare 1960 → 2019 × 2,5)
@@ -266,7 +274,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.3 | Flughafen und Infrastruktur (`AirportDetailView.tsx`, `AirportsView.tsx`, Infrastruktur-Teil im Planer; W1–W3, Gebühren; Glossar `desks`, Schalter- und Überholungs-Texte) | erledigt |
 | 4.4 | Zeitplan (Planer Schritt 2, `RouteScheduleEditView.tsx`; W6, Umlaufzeit, E51; Glossar `utilization`) | erledigt |
 | 4.5a | Preis der Strecke: Brücke `src/lib/modelRoute.ts` (Prognose, bester Preis, Gewinnschwelle), Planer Schritt 4 (W5, Klassen-Faktoren, Debug-Anzeige; Glossar `breakEven`; F62) | erledigt |
-| 4.5b | Satisfaction der Strecke: Planer Schritt 3, `RouteConfigOverlay.tsx` (`satisfactionBreakdown` statt `getRouteClassSatisfaction` / `getDeskSim`) | offen |
+| 4.5b | Satisfaction der Strecke: Planer Schritt 3, `RouteConfigOverlay.tsx` (`satisfactionBreakdown` statt `getRouteClassSatisfaction` / `getDeskSim`; F63) | erledigt |
 | 4.5c | Strecken-Ansichten: `RouteDetailView.tsx`, `RoutesView.tsx` (Prognose aus `modelRoute.ts` statt `routesWithMetrics` / `toStoredRouteMetrics`; Spalte „Class“ nach E9) | offen |
 | 4.6 | Kauf, Kabine, Flotte (`ConfigurePurchaseView.tsx`, `AircraftDetailsModal.tsx`, `MyFleetView.tsx`, `AircraftMarketPanel.tsx`; W4, Art D Alter und Wiederverkauf, Texte der Kabinen-Extras) | offen |
 | 4.7 | Kennzahlen und Anzeigen (`app/GameTopBar.tsx`, `MyCompanyView.tsx`, `app/MonthlyReportScreen.tsx`, `LiveTraffic.tsx`, `CompetitorsView.tsx`; W7, Ereignis-Abschwächung) | offen |
@@ -347,3 +355,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 21.11.2026 | 4.3 | Flughafen und Infrastruktur nach dem Modell in `src/lib/modelAirport.ts`: `AirportPricing` (Monat, Forschung, Meilensteine, gekaufte Slots der KI) aus `App.tsx` an Flughafen-Ansicht, -Liste und Planer; Slot-Grenze aller Gesellschaften in Slots (E50); Slot-, Stufen- und Einrichtungs-Preise mit Kostenindex (W1, W3), Verkauf zu `slotResalePrice`; Mieten, Unterhalt, Gebühren und Schalter-Last wie der Abschluss (Test gegen `monthOperations`); Schalter-Pflicht mit einem Schalter beliebiger Art (E18, E55, macht den Premium-Abzug erreichbar); Grundüberholung an jedem Flughafen (E62); Texte der Stufen, des Hangars, der Küche und der Drehkreuz-Güte aus den Konstanten; `getSlotPurchaseCost` und globaler Slot-Faktor entfernt; F60; 15 neue Tests (1355 grün) |
 | 21.11.2026 | 4.4 | Zeitplan nach dem Modell in `src/model/schedule.ts` (F61): Konstanten Bodenzeit, Wende je Bauart, 5-Minuten-Raster; `tripBlockMinutes` ersetzt alle Kopien der Umlaufzeit im Planer; `tripsPerDay` (E51) für Planer und Zeitplan-Editor mit den übrigen Strecken des Flugzeugs (Editor bisher ganzer Tag, W6); Slots je Ende nach 1.6 (`tripSlotsAt`, `scheduleSlotsAt`; Einweg nur am Start) in `getUsedWeeklySlots`, Planer, Editor und Flugzeugwechsel; `getFlightDurationMinutes` aus `blockMinutes` (3.1); Auslastung `weeklyUtilization` einheitlich; Glossar `utilization` ins Modell (Tooltip an „% USE“ und „Trips / day“); 10 neue Tests (1365 grün); im Browser Planer und Editor mit zwei Strecken auf einem Flugzeug geprüft |
 | 21.11.2026 | 4.5a | Preis-Schritt des Planers nach dem Modell in `src/lib/modelRoute.ts` (F62): `routeForecast` (Entwurf über `withPlannedRoute` im Spielstand aus `modelGame`, `plannerRouteFigures` nach dem Anlauf und im ersten Monat), `routeBestFares`, `pricesAtLevel`; `App.tsx` baut `plannerModel` nur bei offenem Planer; Schritt 4 mit Hauptzahl, Nebenzahlen (First month, before aircraft costs, Full aircraft), Kosten nach Posten, Gewinnschwelle erwartet / voll je Klasse, Startpreis = Marktpreis, „Adjust All“ als Preisniveau, „Market fares“, „Set best fares“, Debug nur mit Modellwerten (E52); BE99/75/35 und 1 / 1,6 / 3 / 5 entfernt (W5, E23); Glossar `breakEven` aus dem Modell; Paket 4.5 in 4.5a/b/c geteilt; 11 neue Tests (1376 grün); im Browser neue Strecke und Preis-Editor geprüft |
+| 22.11.2026 | 4.5b | Satisfaction der Strecke im Planer nach dem Modell (F63): `routeSatisfactionSetup` (eine Vorbereitung für Abschluss und Planer) und `routeSatisfactionDetail` in `src/model/monthClose.ts`, Brücke `plannedSatisfaction` in `src/lib/modelRoute.ts`; Planer Schritt 3 (Satisfaction je Klasse ohne %, Route satisfaction nach 2.9, Tabelle der Teile, Boden je Ende, Verpflegung je Woche aus `routeForecast` ab Schritt 3) und `RouteConfigOverlay.tsx` (Flugzeit-Index, `mealCount`, Gerichte-Stufen und Ausstattung aus `serviceCapability`, Preise des Monats) ohne `getRouteClassSatisfaction` / `getDeskSim`; 5 neue Tests (1381 grün); im Browser FRA–LHR 1960 geprüft |

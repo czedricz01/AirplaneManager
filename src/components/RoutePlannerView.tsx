@@ -35,8 +35,6 @@ import {
   calculateRouteFinancials,
   getJetFuelPrice,
   getPlaneSat,
-  getRouteClassSatisfaction,
-  seatWeightedSatisfaction,
   classConfigFor,
   CABIN_CLASSES,
   getFlightTimeClass,
@@ -72,10 +70,13 @@ import type { CabinClass, DeskType } from '../model/constants';
 import { clampFareRatio } from '../model/fare';
 import { CLASS_LABEL } from '../model/glossary';
 import { logWarn } from '../lib/debugLog';
-import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, type PlannedRoute, type PlannerModel, type RouteForecast } from '../lib/modelRoute';
+import { plannedSatisfaction, pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, type PlannedRoute, type PlannerModel, type RouteForecast } from '../lib/modelRoute';
+import type { ClassSatisfactionDetail, RouteSatisfactionDetail } from '../model/monthClose';
+import { deskLoad, routeSatisfaction as routeSatisfactionMean, satisfactionFactor } from '../model/satisfaction';
+import { SCALES } from '../model/constants';
 import { priceDraftInNetwork, type NetworkEnv } from '../lib/transferUtils';
 
-const EMPTY_DESK_SIM = { load: 0, sat: 0, myPax: 0, cap: 0 };
+const SAT_NEUTRAL = SCALES.satisfaction.neutral;
 
 /**
  * The fare-level bar of the pricing step reaches at least this far below and above the market fare (level 1), and
@@ -1025,25 +1026,7 @@ function RoutePlannerInner({
     return { d, tc, basePrices: calculateBasePrices(dist, ti), assumedAircraft: !selectedAircraft };
   }, [selectedOrigin, selectedDest, selectedAircraft, currentYear, currentMonth, difficulty, playerMods]);
 
-  /**
-   * Satisfaction per class and the check-in simulation at both ends of the
-   * route, from the same function the economy prices the route with.
-   *
-   * Step 3 used to re-derive these about 30 times per render, in three
-   * different ways, so its headline, its tiles and the fares disagreed. One
-   * memo now feeds every figure on that screen and the cabin overlay.
-   */
-  const classSat = useMemo(
-    () => routeDraft && selectedAircraft
-      ? getRouteClassSatisfaction(routeDraft, selectedAircraft, airportManagement, routes, fleet, difficulty)
-      : null,
-    [routeDraft, selectedAircraft, airportManagement, routes, fleet, difficulty]
-  );
-  const originDeskSim = classSat?.originDeskSim ?? EMPTY_DESK_SIM;
-  const destDeskSim = classSat?.destDeskSim ?? EMPTY_DESK_SIM;
-
-  // The figures stored on the route until the route list reads the model (package 4.5c), and the cabin step's
-  // catering cost until step 3 does (4.5b).
+  // The figures stored on the route until the route list reads the model (package 4.5c).
   const saveFinancials = useMemo(() => {
     if (!routeDraft || !selectedAircraft) return null;
     return calculateRouteFinancials(
@@ -1073,7 +1056,7 @@ function RoutePlannerInner({
    */
   const deferredPlanned = useDeferredValue(plannedRoute);
   const forecast = useMemo<RouteForecast | null>(() => {
-    if (!model || !deferredPlanned || step < 4) return null;
+    if (!model || !deferredPlanned || step < 3) return null;
     try {
       return routeForecast(model.state, deferredPlanned);
     } catch (error) {
@@ -1081,6 +1064,21 @@ function RoutePlannerInner({
       return null;
     }
   }, [model, deferredPlanned, step]);
+
+  /**
+   * Satisfaction per class with all its parts and the catering cost per passenger (docs/neubau 4.5b): the cabin step
+   * and the cabin overlay read only this, from the same inputs the month close uses (R2, 2.7, 5.7). It follows the
+   * draft directly, so a click in the cabin overlay shows its effect at once.
+   */
+  const satDetail = useMemo<RouteSatisfactionDetail | null>(() => {
+    if (!model || !plannedRoute || step < 3) return null;
+    try {
+      return plannedSatisfaction(model.state, plannedRoute);
+    } catch (error) {
+      logWarn('planner', 'The model could not rate this route', error);
+      return null;
+    }
+  }, [model, plannedRoute, step]);
 
   /** The market fare of every class this month (4.3): start prices, "Adjust All", the green tick. */
   const routeFares = useMemo(() => {
@@ -3012,17 +3010,32 @@ function RoutePlannerInner({
         )}
 
 
-        {step === 3 && selectedOrigin && selectedDest && selectedAircraft && classSat && (() => {
-          const planeSat = getPlaneSat(selectedAircraft);
-          const details = classSat.satisfactionDetails;
-          // Seat-weighted over the classes the aircraft actually has, as passengers are.
-          const weighted = (pick: (d: any) => number) => seatWeightedSatisfaction(
-            Object.fromEntries(Object.entries(details).map(([c, d]) => [c, pick(d)])),
-            selectedAircraft.config
-          );
-          // The stand bonus depends on the two airports and the aircraft, not the class.
-          const standBonus = (Object.values(details)[0] as any)?.standBonus ?? 0;
-          const signed = (v: number, digits = 0) => `${v > 0 ? '+' : ''}${formatNumber(v, digits)}`;
+        {step === 3 && selectedOrigin && selectedDest && selectedAircraft && (() => {
+          // Every figure on this screen comes from the model (docs/neubau 4.5b): satisfaction per class with its parts
+          // (`plannedSatisfaction`) and the catering cost of the forecast, the same inputs the month close uses (R2).
+          const sd = satDetail;
+          const seatsOf = (c: string) => (selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number) || 0;
+          const seatClasses = CABIN_CLASSES.filter(c => seatsOf(c) > 0 && sd?.classes[c]);
+          // Route satisfaction (2.9): the classes weighted by expected passengers, by seats without any.
+          const routeSat = sd && seatClasses.length > 0
+            ? routeSatisfactionMean(seatClasses.map(c => ({ satisfaction: sd.classes[c]!.breakdown.satisfaction, passengers: forecast?.figures.passengers[c] ?? 0, seats: seatsOf(c) })))
+            : null;
+          const satText = (v: number | null | undefined) => (v === null || v === undefined ? '–' : formatNumber(v));
+          const signed = (v: number, digits = 1) => `${v > 0 ? '+' : ''}${formatNumber(v, digits)}`;
+          const expectedPax = forecast ? CABIN_CLASSES.reduce((s, c) => s + forecast.figures.passengers[c], 0) : 0;
+          const ends = sd ? ([[selectedOrigin.id, sd.origin, 'originGround'], [selectedDest.id, sd.destination, 'destinationGround']] as const) : [];
+          const firstClass = seatClasses[0];
+          const partRows: { label: string; tip?: { title: string; desc: string }; value: (d: ClassSatisfactionDetail) => number; sub?: (d: ClassSatisfactionDetail) => string; indent?: boolean }[] = [
+            { label: 'Cabin', tip: GLOSSARY.cabinRating, value: d => d.breakdown.cabinPart, sub: d => `rating ${formatNumber(d.cabinRating)}` },
+            { label: 'Service', value: d => d.breakdown.servicePart, sub: d => `${formatNumber(d.service.total, 1)} of ${formatNumber(d.breakdown.expectedServicePoints, 1)} pts` },
+            { label: 'Ground', value: d => d.breakdown.groundPart.total, sub: d => `× ${formatNumber(d.breakdown.groundPart.weight, 2)}` },
+            { label: 'Lounge', value: d => d.breakdown.groundPart.lounge, indent: true },
+            { label: 'Stands', tip: GLOSSARY.stands, value: d => d.breakdown.groundPart.stands, indent: true },
+            { label: 'Desk type', tip: GLOSSARY.desks, value: d => d.breakdown.groundPart.deskType, indent: true },
+            { label: 'Check-in load', tip: GLOSSARY.deskLoad, value: d => d.breakdown.groundPart.deskOverload, indent: true },
+            { label: 'Staff morale', value: d => d.breakdown.staffPart },
+            { label: 'Research', value: d => d.breakdown.researchPart },
+          ];
 
           return (
           <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto animate-appear fade-in duration-500 bg-ground/25">
@@ -3057,9 +3070,8 @@ function RoutePlannerInner({
                          if (c !== 'general' && seats <= 0) return null;
 
                           const config = classConfigFor(classConfigs, c);
-                          const sd = c === 'general' ? null : details[c];
-                          const displaySatVal = sd ? sd.satisfactionPercentage : weighted(d => d.satisfactionPercentage);
-                          const serviceQuality = sd ? sd.servicePoints : weighted(d => d.servicePoints);
+                          const cd = c === 'general' ? undefined : sd?.classes[c as CabinClass];
+                          const displaySat = c === 'general' ? routeSat : cd?.breakdown.satisfaction;
 
                           return (
                              <div 
@@ -3078,8 +3090,7 @@ function RoutePlannerInner({
 
                                 <div className="flex flex-col items-center">
                                    <div className="text-3xl font-semibold mb-2 flex items-start">
-                                      {Math.round(displaySatVal)}
-                                      <span className="text-sm mt-2 ml-1 opacity-50">%</span>
+                                      {satText(displaySat)}
                                    </div>
                                    <div className={`text-2xs font-semibold uppercase tracking-label py-1 px-4 border rounded-full ${activeConfigClass === c ? 'border-ground text-on-accent' : 'border-line text-muted'}`}>
                                       {c === 'general' ? 'Global' : `${seats} Seats`}
@@ -3094,8 +3105,14 @@ function RoutePlannerInner({
                                        <span>{getMultiOptionSum(config.service, SERVICE_OPTIONS).label.split(',')[0]}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-current/10 bg-current/5">
-                                       <span className="opacity-60">Service vs. expected:</span>
-                                       <span className={activeConfigClass === c ? 'text-on-accent font-semibold' : 'text-accent font-semibold'}>{signed(Math.round(serviceQuality))} pts</span>
+                                       {cd ? (
+                                          <>
+                                             <span className="opacity-60">Service:</span>
+                                             <span className={activeConfigClass === c ? 'text-on-accent font-semibold' : 'text-accent font-semibold'}>{formatNumber(cd.service.total, 1)} of {formatNumber(cd.breakdown.expectedServicePoints, 1)} pts</span>
+                                          </>
+                                       ) : (
+                                          <span className="opacity-60">Route satisfaction</span>
+                                       )}
                                     </div>
                                  </div>
                               </div>
@@ -3110,197 +3127,122 @@ function RoutePlannerInner({
              <div className="w-full lg:w-[450px] min-h-0 shrink-0 border border-line bg-ground/40 flex flex-col overflow-y-auto rounded-sm relative z-20">
                 <div className="p-4 border-b border-line bg-surface">
                    <div className="text-2xs text-muted uppercase font-semibold tracking-label leading-none mb-3">Cabin Services Budget</div>
-                   {/* What the economy charges: per-passenger cost times the passengers
-                       expected on every leg. It used to price one full flight. */}
+                   {/* What the month close books: catering per passenger × expected passengers after the ramp-up (5.7). */}
                    <div className="text-3xl font-semibold text-accent leading-none">
-                      {formatCurrency(saveFinancials?.costsBreakdown.catering ?? 0)} <span className="text-sm font-semibold opacity-40">/ wk</span>
+                      {forecast ? formatCurrency(forecast.figures.passengerCost.catering) : '–'} <span className="text-sm font-semibold opacity-40">/ wk</span>
                    </div>
-                   <div className="text-2xs text-muted uppercase tracking-label mt-2">At {formatNumber(saveFinancials?.paxPerWeek ?? 0)} expected passengers per week</div>
+                   <div className="text-2xs text-muted uppercase tracking-label mt-2">At {formatNumber(expectedPax)} expected passengers per week after the ramp-up</div>
+                   {sd && seatClasses.length > 0 && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-2xs text-muted uppercase tracking-label">
+                         {seatClasses.map(c => (
+                            <span key={c}>{CLASS_LABEL[c]}: <span className="text-ink font-semibold">{formatCurrency(sd.classes[c]!.cateringCost, 2)}</span> / pax</span>
+                         ))}
+                      </div>
+                   )}
                 </div>
 
                 <div className="p-4 border-b border-line bg-surface">
                    <div className="flex justify-between items-end mb-3">
                       <div>
-                         <h3 className="font-label text-2xl font-semibold text-ink mb-1">Route Satisfaction</h3>
-                         <div className="text-2xs text-muted uppercase tracking-label font-semibold">Average over all seats</div>
+                         <h3 className="font-label text-2xl font-semibold text-ink mb-1 flex items-center">Route Satisfaction<InfoTooltip size={11} {...GLOSSARY.sat} /></h3>
+                         <div className="text-2xs text-muted uppercase tracking-label font-semibold">Average over expected passengers · 100 = as expected</div>
                       </div>
-                      <div className="text-3xl font-semibold text-accent leading-none">
-                         {Math.round(weighted(d => d.satisfactionPercentage))}%
-                      </div>
+                      <div className="text-3xl font-semibold text-accent leading-none">{satText(routeSat)}</div>
                    </div>
 
                    <div className="grid grid-cols-2 gap-2">
-                      {['economy', 'premium', 'business', 'first'].map(c => {
-                         const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
-                         if (seats <= 0) return null;
-                         const cSatVal = details[c]?.satisfactionPercentage ?? 0;
+                      {sd && seatClasses.map(c => {
+                         const sat = sd.classes[c]!.breakdown.satisfaction;
+                         const pay = satisfactionFactor(sat) - 1;
                          return (
                             <div key={c} className="bg-surface p-3 border border-line flex flex-col gap-1 transition-all hover:bg-raised hover:border-accent/20">
-                               <span className="text-2xs font-semibold uppercase tracking-label text-muted">{c}</span>
-                               <span className="text-lg font-semibold text-accent leading-none">{Math.round(Math.max(0, cSatVal))}%</span>
+                               <span className="text-2xs font-semibold uppercase tracking-label text-muted">{CLASS_LABEL[c]}</span>
+                               <span className="text-lg font-semibold text-accent leading-none">{formatNumber(sat)}</span>
+                               <span className="text-2xs text-muted">Pays up to {formatNumber(Math.abs(pay) * 100)}% {pay >= 0 ? 'more' : 'less'}</span>
                             </div>
                          );
                       })}
                    </div>
+                   {!sd && <div className="text-2xs text-muted">The model could not rate this route.</div>}
                 </div>
 
-                <div className="flex-1 divide-y divide-line">
-                   {/* Combined Plane SAT Row */}
-                   <div className="flex flex-col">
-                      {/* The info icon is itself a button, and a button inside a
-                          button is invalid HTML, so it sits between two halves. */}
-                      <div className="flex items-center hover:bg-raised transition-colors group">
-                        <button
-                          onClick={() => setExpandedSections(prev => ({ ...prev, plane: !prev.plane }))}
-                          className="flex items-center gap-4 p-4 pr-0"
-                        >
-                           <div className="w-1.5 h-1.5 rounded-full bg-raised"></div>
-                           <span className="text-2xs font-semibold uppercase tracking-label">Combined Plane SAT</span>
-                        </button>
-                        <InfoTooltip size={11} {...GLOSSARY.sat} />
-                        <button
-                          onClick={() => setExpandedSections(prev => ({ ...prev, plane: !prev.plane }))}
-                          className="flex-1 flex items-center justify-end gap-4 p-4"
-                          aria-label="Toggle plane satisfaction details"
-                        >
-                           <span className="text-sm font-semibold">{planeSat}%</span>
-                           <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.plane ? 'rotate-180' : ''}`} />
-                        </button>
-                      </div>
-                      <>
-                         {expandedSections.plane && (
-                            <div className="overflow-hidden bg-ground/60 border-b border-line animate-appear">
-                               <div className="p-4 pt-0 space-y-3 text-2xs uppercase font-semibold tracking-label text-muted">
-                                  <div className="flex justify-between items-center bg-surface p-3 border border-line">
-                                     <span>Condition Weighted</span>
-                                     <span className="text-ink font-mono">{planeSat}%</span>
-                                  </div>
-                                  
-                                  <div className="border-t border-line pt-3 mt-3">
-                                     <div className="text-2xs text-muted mb-3 px-1 font-semibold">By cabin class</div>
-                                     {['economy', 'premium', 'business', 'first'].map(c => {
-                                        const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
-                                        if (seats <= 0) return null;
-                                        return (
-                                           <div key={c} className="flex justify-between items-center p-3 border border-line bg-surface mb-1">
-                                              <span className="text-2xs text-muted font-semibold uppercase">{c}</span>
-                                              <span className="text-ink font-semibold text-xs">{planeSat}%</span>
-                                           </div>
-                                        );
-                                     })}
-                                  </div>
-                               </div>
-                            </div>
-                         )}
-                      </>
-                   </div>
-
-                   {/* SCE-SAT Row */}
-                   <div className="flex flex-col">
-                      <button 
-                        onClick={() => setExpandedSections(prev => ({ ...prev, sce: !prev.sce }))}
-                        className="flex items-center justify-between p-4 hover:bg-raised transition-colors group"
-                      >
-                         <div className="flex items-center gap-4">
-                            <div className="w-1.5 h-1.5 rounded-full bg-accent"></div>
-                            <span className="text-2xs font-semibold uppercase tracking-label">Cabin SAT (before check-in load)</span>
-                         </div>
-                         <div className="flex items-center gap-4">
-                            <span className="text-sm font-semibold">{Math.round(weighted(d => d.baseSatisfaction))}%</span>
-                            <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.sce ? 'rotate-180' : ''}`} />
-                         </div>
-                      </button>
-                      <>
-                         {expandedSections.sce && (
-                            <div className="overflow-hidden bg-ground/60 border-b border-line animate-appear">
-                               <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-semibold tracking-label text-muted">
-                                  {['economy', 'premium', 'business', 'first'].map(c => {
-                                     const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
-                                     if (seats <= 0) return null;
-                                     const sce = details[c]?.baseSatisfaction ?? 0;
+                {sd && seatClasses.length > 0 && (
+                   <div className="p-4 border-b border-line bg-surface">
+                      <div className="text-2xs text-muted uppercase font-semibold tracking-label mb-3">Satisfaction points by part</div>
+                      <table className="w-full text-2xs">
+                         <thead>
+                            <tr className="text-muted uppercase tracking-label text-left">
+                               <th className="py-1 pr-2 font-semibold">Part</th>
+                               {seatClasses.map(c => <th key={c} className="py-1 pl-2 text-right font-semibold">{CLASS_LABEL[c]}</th>)}
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-line">
+                            <tr>
+                               <td className="py-1.5 pr-2 text-muted">Neutral</td>
+                               {seatClasses.map(c => <td key={c} className="py-1.5 pl-2 text-right font-mono">{formatNumber(SAT_NEUTRAL)}</td>)}
+                            </tr>
+                            {partRows.map(row => (
+                               <tr key={row.label}>
+                                  <td className={`py-1.5 pr-2 ${row.indent ? 'pl-3 text-muted' : 'text-ink font-semibold'}`}>
+                                     <span className="flex items-center">{row.label}{row.tip && <InfoTooltip size={10} {...row.tip} />}</span>
+                                  </td>
+                                  {seatClasses.map(c => {
+                                     const d = sd.classes[c]!;
+                                     const v = row.value(d);
                                      return (
-                                        <div key={c} className="flex justify-between items-center bg-surface p-3 border border-line mb-1 group-hover:border-accent/20 transition-all">
-                                           <span className="text-2xs text-muted font-semibold">{c}</span>
-                                           <span className="text-ink font-mono text-xs">{Math.round(sce)}%</span>
-                                        </div>
+                                        <td key={c} className="py-1.5 pl-2 text-right align-top">
+                                           <span className={`font-mono ${v < 0 ? 'text-bad' : v > 0 ? 'text-accent' : 'text-muted'}`}>{signed(v)}</span>
+                                           {row.sub && <span className="block text-muted">{row.sub(d)}</span>}
+                                        </td>
                                      );
                                   })}
-                               </div>
-                            </div>
-                         )}
-                      </>
+                               </tr>
+                            ))}
+                            <tr>
+                               <td className="py-1.5 pr-2 text-ink font-semibold">Satisfaction</td>
+                               {seatClasses.map(c => {
+                                  const b = sd.classes[c]!.breakdown;
+                                  return (
+                                     <td key={c} className="py-1.5 pl-2 text-right">
+                                        <span className="font-mono font-semibold text-accent">{formatNumber(b.satisfaction, 1)}</span>
+                                        {b.unclamped !== b.satisfaction && <span className="block text-muted">capped from {formatNumber(b.unclamped, 1)}</span>}
+                                     </td>
+                                  );
+                               })}
+                            </tr>
+                         </tbody>
+                      </table>
                    </div>
+                )}
 
-                   {/* Airport Details Row */}
-                   <div className="flex flex-col">
-                      <button 
-                        onClick={() => setExpandedSections(prev => ({ ...prev, airport: !prev.airport }))}
-                        className="flex items-center justify-between p-4 hover:bg-raised transition-colors group"
-                      >
-                         <div className="flex items-center gap-4">
-                            <div className="w-1.5 h-1.5 rounded-full bg-accent"></div>
-                            <span className="text-2xs font-semibold uppercase tracking-label">Ground Services & Bonuses</span>
-                         </div>
-                         <div className="flex items-center gap-4">
-                            {/* Only the check-in load changes SAT directly; stands, lounges
-                                and desk types are points inside each class score. */}
-                            <span className="text-sm font-semibold text-accent">
-                               {signed(classSat.overloadPenalty, 1)}%
-                            </span>
-                            <ChevronDown size={16} className={`text-muted group-hover:text-ink transition-transform ${expandedSections.airport ? 'rotate-180' : ''}`} />
-                         </div>
-                      </button>
-                      <>
-                         {expandedSections.airport && (
-                            <div className="overflow-hidden bg-ground/60 border-b border-line animate-appear">
-                               <div className="p-4 pt-0 space-y-2 text-2xs uppercase font-semibold tracking-label text-muted">
-                                  <div className="text-muted mb-2 border-b border-line pb-2 font-semibold">Operational Metrics</div>
-                                  <div className="flex justify-between items-center px-2 py-1">
-                                     <span className="">Origin Check-In ({formatNumber(originDeskSim.load)}% load)</span>
-                                     <span className={originDeskSim.sat < 0 ? 'text-bad' : 'text-accent'}>{signed(originDeskSim.sat, 1)}%</span>
-                                  </div>
-                                  <div className="flex justify-between items-center px-2 py-1">
-                                     <span className="">Dest Check-In ({formatNumber(destDeskSim.load)}% load)</span>
-                                     <span className={destDeskSim.sat < 0 ? 'text-bad' : 'text-accent'}>{signed(destDeskSim.sat, 1)}%</span>
-                                  </div>
-                                  <div className="flex justify-between items-center px-2 py-1">
-                                     <span className="">Stand Priority (both ends)</span>
-                                     <span className="text-accent">{signed(standBonus, 1)} pts</span>
-                                  </div>
-                                  
-                                  <div className="border-t border-line pt-4 mt-4">
-                                     <div className="text-muted mb-3 px-2 font-semibold">Route SAT per class</div>
-                                     {['economy', 'premium', 'business', 'first'].map(c => {
-                                        const seats = selectedAircraft.config?.[c as keyof typeof selectedAircraft.config] as number || 0;
-                                        if (seats <= 0) return null;
-                                        const sceData = details[c];
-                                        if (!sceData) return null;
-                                        const overloadPenalty = sceData.overloadPenalty;
-                                        const classRouteSat = sceData.satisfactionPercentage;
-                                        return (
-                                           <div key={c} className="flex justify-between items-center p-3 border border-line bg-surface mb-1">
-                                              <div className="flex flex-col">
-                                                 <span className="text-2xs text-muted font-semibold">{c}</span>
-                                                 <span className="text-2xs text-muted">Cabin: {signed(sceData.cabinPoints, 1)} | Service: {signed(sceData.servicePoints, 1)} ({Math.round(sceData.serviceDelivered)} of {sceData.serviceExpected} pts) | Lounge: {signed(sceData.loungeBonus, 1)} | Desks: {signed(sceData.deskPenalty, 1)}{overloadPenalty < 0 ? ` | Check-in load: ${formatNumber(overloadPenalty, 1)}%` : ''}</span>
-                                              </div>
-                                              <span className="text-accent font-semibold text-xs">{Math.round(Math.max(0, classRouteSat))}%</span>
-                                           </div>
-                                        );
-                                     })}
-                                  </div>
+                {sd && firstClass && (
+                   <div className="p-4 border-b border-line bg-surface">
+                      <div className="text-2xs text-muted uppercase font-semibold tracking-label mb-1">Ground at both ends</div>
+                      <div className="text-2xs text-muted mb-3">Each ground part counts as the average of both ends × {formatNumber(sd.classes[firstClass]!.breakdown.groundPart.weight, 2)} on a flight this long. Your departures from each airport, this route included.</div>
+                      <div className="grid grid-cols-2 gap-2">
+                         {ends.map(([id, side, key]) => {
+                            const parts = sd.classes[firstClass]![key];
+                            const load = deskLoad(side.departingSeatsPerWeek, side.desks);
+                            return (
+                               <div key={key} className="bg-surface p-3 border border-line flex flex-col gap-1 text-2xs">
+                                  <span className="font-semibold uppercase tracking-label text-ink">{id}</span>
+                                  <span className="flex justify-between"><span className="text-muted">Check-in load</span><span className={parts.deskOverload < 0 ? 'text-bad font-semibold' : 'text-ink'}>{Number.isFinite(load) ? `${formatNumber(load * 100)}%` : 'no desk'} · {signed(parts.deskOverload)}</span></span>
+                                  <span className="flex justify-between"><span className="text-muted">Desks</span><span className="text-ink">{side.desks.normal} staffed, {side.desks.self} self</span></span>
+                                  <span className="flex justify-between"><span className="text-muted">Stands</span><span className="text-ink">{formatNumber(side.stands)} for {formatNumber(side.occupiedSlots, 1)} slots · {signed(parts.stands)}</span></span>
+                                  <span className="flex justify-between"><span className="text-muted">VIP lounge</span><span className="text-ink">{side.lounge ? 'yes' : 'no'}</span></span>
                                </div>
-                            </div>
-                         )}
-                      </>
+                            );
+                         })}
+                      </div>
                    </div>
-                </div>
+                )}
 
                 <div className="p-4 border-t border-line flex flex-col gap-3 bg-surface">
                    <p className="text-2xs text-muted leading-relaxed border-l-3 border-accent/30 pl-6 mb-2 font-semibold">
-                      SAT is what this cabin scores against what passengers expect for the class and
-                      the flight length. 100% meets expectations; above that they tolerate a higher
-                      fare, below it they only book at a discount. Expectations rise with distance,
-                      so the same cabin scores lower on a long haul.
+                      Satisfaction is what cabin, service and the ground at both ends score against what
+                      passengers expect for the class and the flight length. 100 meets expectations; above it
+                      they pay more for the same seat, below it less. Expectations rise with the flight time,
+                      so the same cabin and service score lower on a long haul.
                    </p>
                    <div className="flex gap-4 mt-auto">
                       {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-rule text-muted font-semibold text-sm py-4 px-6 rounded-sm hover:text-ink hover:bg-raised transition-all">Back</button>}
@@ -3699,20 +3641,16 @@ function RoutePlannerInner({
             identical dialogs on top of each other. */}
 
         {/* Global Configuration Overlay */}
-        {activeConfigClass && selectedAircraft && selectedOrigin && selectedDest && (
+        {activeConfigClass && selectedAircraft && (
           <RouteConfigOverlay
             activeConfigClass={activeConfigClass}
             selectedAircraft={selectedAircraft}
-            selectedOrigin={selectedOrigin}
-            selectedDest={selectedDest}
-            airportManagement={airportManagement}
             classConfigs={classConfigs}
             setClassConfigs={setClassConfigs}
             setActiveConfigClass={setActiveConfigClass}
             takeControl={takeControl}
             setTakeControl={setTakeControl}
-            getFlightDurationMinutes={getFlightDurationMinutes}
-            routeSat={classSat?.routeSat ?? {}}
+            satisfaction={satDetail}
           />
         )}
 
