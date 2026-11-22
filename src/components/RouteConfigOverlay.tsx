@@ -6,7 +6,7 @@ import { MEAL_DATA, EXTRAS_OPTIONS, SERVICE_OPTIONS } from '../data/catering';
 import { getCateringOpt } from '../lib/financeUtils';
 import { formatCurrency, formatNumber } from '../lib/format';
 import type { RouteSatisfactionDetail } from '../model/monthClose';
-import type { CabinClass } from '../model/constants';
+import { MENU_COURSE_SHARE, type CabinClass } from '../model/constants';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 
 interface RouteConfigOverlayProps {
@@ -204,6 +204,10 @@ export const RouteConfigOverlay: React.FC<RouteConfigOverlayProps> = ({
               </div>
 
               <div className="space-y-2">
+                {/* The points on each dish are its own; how several dishes of one meal add up (menuPoints, 2.5). */}
+                <p className="text-2xs text-muted">
+                  The best dish of a meal counts in full, each further one {formatNumber(MENU_COURSE_SHARE * 100)}% of the one before.
+                </p>
                 <button 
                   onClick={() => {
                     setClassConfigs(prev => {

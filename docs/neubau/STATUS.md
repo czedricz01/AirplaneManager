@@ -1,23 +1,31 @@
 # Status
 
-**Nächstes Paket: 4.6** – Kauf, Kabine, Flotte nach dem Modell: Kaufdialog (`ConfigurePurchaseView.tsx`: Kabine aus
-`cabinSpace` / `seatSpace` / `economySeatsLeft` und `interiorScoreParts`, Preise und Jahre der Kabinen-Extras aus den Konstanten, Umrüstung),
-`AircraftDetailsModal.tsx` (Alter, Wiederverkauf aus dem Modell statt eigener Rechnung), `MyFleetView.tsx` (Spalte „Comb. Sat“ nach E9),
-`AircraftMarketPanel.tsx` (Gebrauchtmarkt aus `usedOffers`). Zu lesen: `bestand/8-oberflaeche.md` W4, Art D „Alter“ / „Wiederverkauf“,
-Zeilen 48–51, 86, 99–100, 116–118; die vier Dateien; `src/model/cabin.ts` (`interiorScoreParts`, `cabinSpace`); offene Punkte
-für 4.6 unten (4.5b (4), 4.2g (1), 4.2f (2), 4.2e (4), 4.2d (4), 4.2c (4), 4.1, 3.2a, 3.7a). Die Dateien haben zusammen rund 3 100 Zeilen:
-zuerst prüfen, ob das Paket wie 4.5 geteilt werden muss (4.6a Kaufdialog, 4.6b Flotte und Gebrauchtmarkt).
+**Nächstes Paket: 4.6b** – Flotte, Flugzeug-Details und Gebrauchtmarkt nach dem Modell: `MyFleetView.tsx` (Spalte „Comb. Sat“
+→ „Cabin rating (avg.)“ nach E9 aus `cabinRating` / `averageCabinRating`, „Avg Satisfaction“ der Typ-Karten, Type appeal statt
+`popularity` am Flugzeug), `AircraftDetailsModal.tsx` (Alter mit `ageYears` des Modells, Verkaufserlös `saleProceeds(aircraftValue)` mit
+`resaleBonus` aus `researchFx` statt `getAircraftResaleValue` / `getResaleBonus`; derselbe Erlös in `handleSellAircraft`, `App.tsx`),
+`AircraftMarketPanel.tsx` (Gebrauchtmarkt aus `usedOffers` + `resoldInMarket`, „new price“ = `newPrice`), Kabine der Übernahme
+(`buildTakeover`), Preis der Vorbestellung aus dem Modell. Zu lesen: `bestand/8-oberflaeche.md` Art D „Alter“ / „Wiederverkauf“;
+F65; die drei Dateien; `src/model/fleet.ts` (`aircraftValue`), `src/model/fleetMarket.ts` (`saleProceeds`, `usedOffers`,
+`resoldInMarket`, `usedMarketPrice`, `preorder*`); `handleSellAircraft`, `handleBuyUsed` in `src/App.tsx`; offene Punkte für 4.6b unten
+(4.6a (1), 4.2g (1), 4.2f (2), 4.2e (4), 4.2d (4), 4.2c (4)).
 
-Stand: 22.11.2026 · Paket 4.5c erledigt: Streckenliste, Streckenansicht und Karte zeigen die Zahlen jeder Strecke aus dem Modell (F64):
-`routesThisMonth` in `src/lib/modelRoute.ts` liest `monthOperations` (dieselbe Rechnung, die der Abschluss bucht: Preise dieses Monats,
-Störungen, Umsteiger) und gibt je Strecke Fluggäste, Auslastung, Erlös, Kosten nach Posten, Ergebnis, Route satisfaction, Flugzeit-Index,
-Alter. `App.tsx` baut den Modell-Spielstand jetzt im ganzen Spiel (nicht nur im Planer); `routesWithMetrics` / `routeHeat` kommen daraus.
-Die Liste hat die Spalten „Time index“ (statt „Class“, E9), „Forecast / Month“ (neu) und „Last month“; die Streckenansicht zeigt
-Satisfaction 0–160 mit Service „erwartet / geliefert“ aus `routeSatisfactionDetail`, Erlös je Klasse und Umsteiger, Kosten als
-Fluggast-Kosten und feste Kosten, dazu die Planer-Hauptzahl „From next month, after ramp-up“. Der Planer speichert keine alten Kennzahlen
-mehr (`toStoredRouteMetrics`, `saveFinancials`, `priceInNetwork`, `fuelPrice`, `rivalOffers` entfernt). 5 neue Tests (1386 grün); im
-Browser geprüft: Jet Age, FRA–LHR mit Caravelle, 7 Flüge, $65: Planer +$4 806 / Woche, 1 120 Fluggäste, Satisfaction 91; Liste 1 120
-Fluggäste, +$21K / Monat; Streckenansicht Erlös $72 800, Ergebnis +$4 806, Satisfaction 91 (bisher Liste 53 gegen Planer 320).
+Stand: 22.11.2026 · Paket 4.6a erledigt: Paket 4.6 geteilt (4.6a Kaufdialog und Umbau, 4.6b Flotte und Gebrauchtmarkt, F65). Der
+Kauf- und Umbau-Dialog rechnet nur noch mit dem Modell: `cabinQuote` in `src/lib/modelCabin.ts` liefert Platz, Economy-Sitze,
+Schieberegler-Grenzen, Interior score je Klasse mit Aufschlüsselung, Type appeal, Cabin rating je Klasse, Kabinen-Listenpreis und den
+Preis (Neukauf `newAircraftPrice` = Wert im Kaufmonat; Umbau `refitPrice` mit Lohn je Sitz und Kostenindex). Sitztypen, Ausstattung und
+Extras mit Lieferbarkeit, Punkten und Preis in $ des Monats kommen aus den Konstanten (`seatTypeOffers`, `featureOffers`, `extraOffers`);
+die eigenen Tabellen und festen Preise im Dialog sind weg (W4, Art C). Anzeige nach E9 (Type appeal, Interior, Cabin rating (avg.), je
+Klasse gegen die Erwartung, Preis in Teilen). Kaufliste: „New Price“ mit Kostenindex. 8 neue Tests (1394 grün), darunter „Kaufdialog-Anzeige
+= Modellwert“ (3.2a). Im Browser geprüft (Free Mode, 01/2010, A330-300): Neupreis $167 037 297; 12 First (Recliner, IFE, 180 cm) mit
+WLAN: Interior 70 + 20 + 48 + 10 + 5 = 153, Cabin rating 100 (80); Kauf bucht genau den Preis; Umbau mit 416 Sitzen: Lohn $755 299 +
+Sitze $10 894 = $766 193, Kasse sinkt um diesen Betrag.
+
+Offen aus 4.6a (kein Blocker): (1) 4.6b: `AircraftMarketPanel.tsx:159` zeigt noch `basePrice` (Listenpreis von 1960) als „new price“. (2) 5.1 /
+5.2: Der Dialog speichert `baseInteriorPop` und `details.interiorByClass` nur noch für die alte Rechnung (`getPlaneSat`); alte Vorlagen
+(`aircraft_preset`) tragen den alten Wert. (3) 5.3: Umbau kostet jetzt Sitze der neuen Kabine × $1 000 × Kostenindex (bisher Typ-Kapazität ×
+$1 000 ohne Index) – Höhe mit dem Balance-Skript ansehen. (4) Die Typ-Karten der Flotte und die Kaufliste zeigen Type appeal noch als
+Katalogwert (`popularity`); das Alter zieht erst `typeAppeal` ab (4.6b).
 
 Offen aus 4.5c (kein Blocker): (1) 4.7: `computeNetworkFinancials` (alte Rechnung, `network` in `App.tsx`) läuft weiter für
 `projectedMonthlyPax` (Frequent-flyer-Rechnung) und `monthlyCrewCost` (Personal-Ansicht); die Liste der Umsteige-Ströme „o→hub→d“ fehlt in der
@@ -34,7 +42,7 @@ Offen aus 4.5b (kein Blocker): (1) erledigt in 4.5c. (2) 5.2: `calculateClassSat
 `getRouteClassSatisfaction`, `getDeskSim`, `expectedServicePoints` / `getFlightTimeClass` der alten Rechnung entfernen, sobald 4.5c sie
 nicht mehr braucht (seit 4.5c der Fall). (3) 5.1: Die alte Regel nahm für eine Klasse ohne eigene Service-Auswahl die Auswahl „general“ (`classConfigFor`),
 das Modell nicht; alte Spielstände mit fehlenden Klassen prüfen. (4) Die Punkte je Gericht im Kabinen-Fenster sind Rohpunkte; wie mehrere
-Gerichte einer Mahlzeit zählen (`menuPoints`), zeigt nur die Summe in der Kopfzeile (Text in 4.6 mit den Kabinen-Extras prüfen).
+Gerichte einer Mahlzeit zählen (`menuPoints`): erledigt in 4.6a (Hinweis-Zeile über den Gerichten).
 
 Offen aus 4.5a (kein Blocker): (1) erledigt in 4.5c. (2) 5.3: Bei knappen Sitzen liegt der beste Preis weit über dem Markt (FRA–LHR 1960: 2,39 × Markt,
 6 239 Fluggäste Markt gegen 320 Sitze); Regel 4.10 „Sitze knapp → bester Preis höher“, Stärke mit dem Balance-Skript ansehen. (3) Der Planer
@@ -55,30 +63,30 @@ der Flughafen-Ansicht aus der alten Netz-Vorschau (4.7). (3) Widebody-Slots erst
 einen Schalter. (5) 5.2: `getAirportUpkeep`, `getManagementUnlockCost`, `getInfraAvailability`, `getDeskSim`, `applyManagementUnlock`
 (alte Preise) entfernen bzw. ins Modell.
 
-Offen aus 4.2g (kein Blocker): (1) 4.6: Flugzeuge einer Übernahme bekommen die einfache Economy-Kabine (`buildTakeover`) statt der
+Offen aus 4.2g (kein Blocker): (1) 4.6b: Flugzeuge einer Übernahme bekommen die einfache Economy-Kabine (`buildTakeover`) statt der
 Kabine der KI. (2) erledigt in 4.3. (3) 5.2: `takeoverQuote`, `withTakenSlots` (`src/lib/takeover.ts`), `getJetFuelPrice` (nur noch Planer-Ersatzwert und alter
 KI-Code) entfernen. (4) erledigt in 4.3 (im Browser geklickt).
 
 Offen aus 4.2f (kein Blocker): (1) 4.3–4.7: Ansichten, Planer und Kopfzeile zeigen die Vorschau noch aus dem alten Modell, gebucht wird
-mit dem neuen (E72) – Zahlen können bis dahin abweichen. (2) 4.6: Kauf- und Verkaufspreise der Dialoge sind alt; die Abweichung zum Wert
+mit dem neuen (E72) – Zahlen können bis dahin abweichen. (2) Kaufpreis erledigt in 4.6a (= Wert); 4.6b: Verkaufspreis der Dialoge ist alt; die Abweichung zum Wert
 steht in „Aircraft trades“. (3) 4.7: Spielende (`bankrupt`) nur als Meldung, kein eigener Bildschirm; `transferHubs` im Bericht leer.
 (4) Neue Farbe des Spielers färbt `aiAirlines` und `rivals` getrennt um; mit aufgelösten KI in `rivals` können die Farben bis zum
 nächsten Abschluss abweichen. (5) 5.2: alter `closeMonth` in `src/lib/monthClose.ts` wird nicht mehr aufgerufen.
 
-Offen aus 4.2e: (1)–(3) erledigt in 4.2f (Meldungen der Oberfläche, `marketShare`, Zieltext; `transferHubs` → 4.7). (4) 4.6:
+Offen aus 4.2e: (1)–(3) erledigt in 4.2f (Meldungen der Oberfläche, `marketShare`, Zieltext; `transferHubs` → 4.7). (4) 4.6b:
 `popularity`/`efficiency` am Flugzeug schreibt der neue Abschluss nicht mehr (Anzeige aus dem Modell). (5) Prognose der Strecken bleibt bis
 4.5 aus dem alten Modell (die Liste rechnet sie live, `routesWithMetrics`).
 
 Offen aus 4.2d (kein Blocker): (1), (2) erledigt in 4.2f. (3) 4.7: „Aggression“ in der
 Konkurrenz-Ansicht (`src/components/CompetitorsView.tsx:766`) hat kein Gegenstück im Modell (entfernen oder Persönlichkeit zeigen); Frist
-bis zur Auflösung (`CompetitorsView.tsx:455`) aus dem Modell. (4) 4.6: Gebrauchtmarkt-Ansicht aus `usedOffers` + `resoldInMarket`
+bis zur Auflösung (`CompetitorsView.tsx:455`) aus dem Modell. (4) 4.6b: Gebrauchtmarkt-Ansicht aus `usedOffers` + `resoldInMarket`
 (Kennungen `<Monat>:<n>` wie `usedListings`, `career.usedSold` passt weiter). (5) 5.1: `rivalRecord` und `modelWorld` in
 `saveMigration.ts`. (6) Alte Zufallsereignisse, die nur den Treibstoff verteuerten, gelten im Modell nicht mehr als Pech (E8,
 `isBadLuckEvent`).
 
 Offen aus 4.2c (kein Blocker): (1) erledigt in 4.2f. (2) erledigt in 4.2d. (3) erledigt: die Charter-Antwort kostete schon keine
 Sofortzahlung (Kosten 0, F58). (4) Lieferung einen Monat später als heute (Modell liefert
-im Abschluss des Liefermonats, 8.12); Preis bei Lieferung aus dem Modell, `unitPrice` der Bestellung nur Anzeige (4.6). (5) Jahresziel:
+im Abschluss des Liefermonats, 8.12); Preis bei Lieferung aus dem Modell, `unitPrice` der Bestellung nur Anzeige (4.6b). (5) Jahresziel:
 Ruf-Prämie und Ruf-Strafe alter Ziele entfallen (E58); Anzeige der Geld-Strafe in 4.7. (6) Meilensteine: Die Oberfläche behält bis 5.1
 die alten Kennungen (`continents-*`, `reputation-60/80/95`); die Brücke übersetzt. (7) Szenario: Dollar-Ziele gelten als $ des
 Startmonats (in 1960er $ umgerechnet); `minWeeklyFlights` (Deregulation) und die eigene Untergrenze (−5 M$, 0 $) kennt das Modell nicht
@@ -95,8 +103,8 @@ Offen aus 4.2: erledigt in 4.2g (F59).
 Offen aus 4.1 (kein Blocker): Drei Glossar-Einträge bleiben alt in `InfoTooltip.tsx`, bis ihre Ansicht umgestellt ist:
 `desks` (erledigt in 4.3), `utilization` (erledigt in 4.4), `breakEven` (erledigt in 4.5a). Feste Zahlen in Ansichten (`bestand/8-oberflaeche.md` Art C): Schalter-Abzug in `AirportDetailView.tsx`
 erledigt in 4.3; Debug-Formel im Planer erledigt in 4.5a; Preise und
-Jahre der Kabinen-Extras in `ConfigurePurchaseView.tsx` → 4.6. Spalten-Namen „Comb. Sat“ (Flotte) und „Class“
-(Strecken, erledigt in 4.5c) nach E9 umbenennen: 4.6. Bis dahin beschreiben einige Texte (Schalter-Last als Mittel beider Enden,
+Jahre der Kabinen-Extras in `ConfigurePurchaseView.tsx` erledigt in 4.6a. Spalten-Namen „Comb. Sat“ (Flotte, 4.6b) und „Class“
+(Strecken, erledigt in 4.5c) nach E9 umbenennen. Bis dahin beschreiben einige Texte (Schalter-Last als Mittel beider Enden,
 Verschleiß nur aus Flugstunden, Überholung) schon die neue Regel.
 
 Offen aus 3.9e (kein Blocker): Nach 50–60 Jahren fällt der Optimizer auf 0,6–0,7 des Medians, der Expansionist steigt
@@ -113,8 +121,7 @@ und Hard nahe). Umsteiger-Regel (3.13) seit 3.9d auch vor der Sitz-Verteilung er
 Offen aus 3.9a (kein Blocker): Stärke der Schwierigkeit (B3.5, Hard −5,7 % Fluggäste) noch nicht eingestellt; Phase 5.3.
 E65: Optimizer-Sprünge in 3.9d nicht störend (0,6–2,7 % der Strecken-Monate), keine Schrittgrenze `FARE_STEP`.
 
-Offen aus 3.2a (kein Blocker): Der Test „Kaufdialog-Anzeige = Modellwert“ (2.3) folgt, wenn der Kaufdialog
-auf `interiorScoreParts` umgestellt wird (Phase 4).
+Offen aus 3.2a: erledigt in 4.6a (Test „Kaufdialog-Anzeige = Modellwert“ in `src/lib/modelCabin.test.ts`).
 Offen aus 3.2b (kein Blocker): „Planer-Wert = Wert im Monatsabschluss“ (2.7) erledigt in 4.5b (Test in
 `src/lib/modelRoute.test.ts`). Wer `GroundSide` (Einrichtungen je Ende),
 Cabin rating, Service points und Moral aus dem Spielstand baut, regeln 3.8 bzw. Phase 4 (F22). Stärke der
@@ -156,8 +163,8 @@ in der Kasse bucht (nicht im Monatsergebnis), regelt 3.8. Spielstand (5.1): alte
 `reputation-60/80/95` nach Stufe auf `regions-*` und `reputation-bronze/silver/gold`, `startedOffset` → `startMonth`,
 Ruhmeshalle mit `splitHall` teilen (F37). Ziel-, Prämien- und Straf-Anteile (6.11) prüft das Balance-Skript (3.9).
 
-Offen aus 3.7a (kein Blocker): Den Kaufdialog auf `cabinSpace`, `seatSpace`, `economySeatsLeft` umstellen und den
-Spieler-Start auf `START_HUB_SETUP` (Phase 4). Wer `RIVAL_INPUTS` an die Funktionen reicht, Lage und Preiskampf je
+Offen aus 3.7a (kein Blocker): Kaufdialog auf `cabinSpace`, `seatSpace`, `economySeatsLeft` erledigt in 4.6a; Spieler-Start
+auf `START_HUB_SETUP` erledigt (4.2). Wer `RIVAL_INPUTS` an die Funktionen reicht, Lage und Preiskampf je
 Paar speichert und die Zufallszahlen aus `rng` holt, regeln 3.7b / 3.8. Kabinen-Werte, `FARE_POSITION`, Preiskampf
 und Optimizer-Antworten über dem Boden, KI-Stärke-Werte prüft das Balance-Skript (3.9, Prüfregel „ähnlicher Erfolg“).
 Spielstand (5.1): alte KI-Stärke `Easy/Normal/Hard` über `rivalStrengthOf`, KI-Flugzeuge mit Kabine nach `rivalCabin`.
@@ -286,7 +293,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.5a | Preis der Strecke: Brücke `src/lib/modelRoute.ts` (Prognose, bester Preis, Gewinnschwelle), Planer Schritt 4 (W5, Klassen-Faktoren, Debug-Anzeige; Glossar `breakEven`; F62) | erledigt |
 | 4.5b | Satisfaction der Strecke: Planer Schritt 3, `RouteConfigOverlay.tsx` (`satisfactionBreakdown` statt `getRouteClassSatisfaction` / `getDeskSim`; F63) | erledigt |
 | 4.5c | Strecken-Ansichten: `RouteDetailView.tsx`, `RoutesView.tsx` (Prognose aus `modelRoute.ts` statt `routesWithMetrics` / `toStoredRouteMetrics`; Spalte „Class“ nach E9) | erledigt |
-| 4.6 | Kauf, Kabine, Flotte (`ConfigurePurchaseView.tsx`, `AircraftDetailsModal.tsx`, `MyFleetView.tsx`, `AircraftMarketPanel.tsx`; W4, Art D Alter und Wiederverkauf, Texte der Kabinen-Extras) | offen |
+| 4.6a | Kauf und Umbau: `ConfigurePurchaseView.tsx` (Platz, Interior score, Cabin rating, Preise aus `src/lib/modelCabin.ts`; W4, Texte der Kabinen-Extras), Neupreis in `BuyAircraftView.tsx` (F65) | erledigt |
+| 4.6b | Flotte und Gebrauchtmarkt: `MyFleetView.tsx` („Comb. Sat“ nach E9), `AircraftDetailsModal.tsx` (Art D Alter und Wiederverkauf), `AircraftMarketPanel.tsx` (`usedOffers`), Übernahme-Kabine, Vorbestellungs-Preis | offen |
 | 4.7 | Kennzahlen und Anzeigen (`app/GameTopBar.tsx`, `MyCompanyView.tsx`, `app/MonthlyReportScreen.tsx`, `LiveTraffic.tsx`, `CompetitorsView.tsx`; W7, Ereignis-Abschwächung) | offen |
 
 ## Phase 5 – Abschluss
@@ -367,3 +375,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 21.11.2026 | 4.5a | Preis-Schritt des Planers nach dem Modell in `src/lib/modelRoute.ts` (F62): `routeForecast` (Entwurf über `withPlannedRoute` im Spielstand aus `modelGame`, `plannerRouteFigures` nach dem Anlauf und im ersten Monat), `routeBestFares`, `pricesAtLevel`; `App.tsx` baut `plannerModel` nur bei offenem Planer; Schritt 4 mit Hauptzahl, Nebenzahlen (First month, before aircraft costs, Full aircraft), Kosten nach Posten, Gewinnschwelle erwartet / voll je Klasse, Startpreis = Marktpreis, „Adjust All“ als Preisniveau, „Market fares“, „Set best fares“, Debug nur mit Modellwerten (E52); BE99/75/35 und 1 / 1,6 / 3 / 5 entfernt (W5, E23); Glossar `breakEven` aus dem Modell; Paket 4.5 in 4.5a/b/c geteilt; 11 neue Tests (1376 grün); im Browser neue Strecke und Preis-Editor geprüft |
 | 22.11.2026 | 4.5b | Satisfaction der Strecke im Planer nach dem Modell (F63): `routeSatisfactionSetup` (eine Vorbereitung für Abschluss und Planer) und `routeSatisfactionDetail` in `src/model/monthClose.ts`, Brücke `plannedSatisfaction` in `src/lib/modelRoute.ts`; Planer Schritt 3 (Satisfaction je Klasse ohne %, Route satisfaction nach 2.9, Tabelle der Teile, Boden je Ende, Verpflegung je Woche aus `routeForecast` ab Schritt 3) und `RouteConfigOverlay.tsx` (Flugzeit-Index, `mealCount`, Gerichte-Stufen und Ausstattung aus `serviceCapability`, Preise des Monats) ohne `getRouteClassSatisfaction` / `getDeskSim`; 5 neue Tests (1381 grün); im Browser FRA–LHR 1960 geprüft |
 | 22.11.2026 | 4.5c | Strecken-Ansichten nach dem Modell (F64): `routesThisMonth` in `src/lib/modelRoute.ts` (aus `monthOperations`, R2); `App.tsx` baut den Modell-Spielstand im ganzen Spiel, Liste, Streckenansicht und Karte (`routesWithMetrics`, `routeHeat`) lesen ihn; Liste mit „Time index“ (E9), „Forecast / Month“ und „Last month“; Streckenansicht mit Satisfaction 0–160, Service erwartet / geliefert, Erlös je Klasse, Fluggast- und feste Kosten, Planer-Hauptzahl; Planer speichert keine alten Kennzahlen mehr; 5 neue Tests (1386 grün); im Browser FRA–LHR 1960 geprüft (Liste = Planer = Streckenansicht) |
+| 22.11.2026 | 4.6a | Paket 4.6 geteilt; Kauf- und Umbau-Dialog nach dem Modell (F65): `cabinQuote` und Listen der Teile in `src/lib/modelCabin.ts` (Platz 7.5, Interior score mit Teilen 2.3, Type appeal und Cabin rating 2.2/2.4, Kabinen-Listenpreis 5.13, Kaufpreis = Wert 8.12, Umbau-Preis mit Lohn 8.13); `ConfigurePurchaseView.tsx` ohne eigene Tabellen, Preise in $ des Monats, Anzeige nach E9 mit Preis in Teilen; Kaufliste „New Price“ mit Kostenindex; Hinweis zu `menuPoints` im Kabinen-Fenster der Strecke; 8 neue Tests (1394 grün); im Browser geprüft (A330-300 2010: Kauf und Umbau buchen genau den angezeigten Preis). |
