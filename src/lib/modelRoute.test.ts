@@ -2,21 +2,22 @@
  * Regeltests Paket 4.5a (F62): Prognose einer Strecke für den Planer (`routeForecast`, `routeBestFares`,
  * `pricesAtLevel`) aus derselben Rechnung wie der Monatsabschluss (R2, 4.10–4.12).
  * Paket 4.5b (F63): Satisfaction je Klasse mit allen Teilen und Verpflegungskosten (`plannedSatisfaction`, 2.7, 5.7).
+ * Paket 4.5c (F64): Zahlen aller Strecken im laufenden Monat für Streckenliste und Streckenansicht (`routesThisMonth`, 8.1).
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { OwnedAircraft } from '../components/MyFleetView';
 import { aircraftList } from '../data/aircraft';
-import { CABIN_CLASSES, RAMP_MONTHS } from '../model/constants';
-import { monthOperations, type ModelState } from '../model/monthClose';
+import { CABIN_CLASSES, RAMP_MONTHS, WEEKS_PER_MONTH } from '../model/constants';
+import { NO_DECISIONS, closeMonth, monthOperations, type ModelState } from '../model/monthClose';
 import { cateringCostParts } from '../model/costs';
 import { SCALES } from '../model/constants';
 import { createOwnedAircraft, defaultCabin } from './fleet';
 import { createGameSystems } from './gameState';
 import type { AirportInfrastructure, SimulatedRoute } from './gameTypes';
 import { PLAYER_ID, defaultModelEnv, modelGame, type AppGame } from './modelMonth';
-import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, plannedSatisfaction, withPlannedRoute, type PlannedRoute } from './modelRoute';
+import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, routesThisMonth, plannedSatisfaction, withPlannedRoute, type PlannedRoute } from './modelRoute';
 
 const M = (1995 - 1960) * 12 + 5; // Juni 1995
 const ENV = defaultModelEnv();
@@ -206,5 +207,56 @@ describe('Paket 4.5b: Satisfaction der Strecke im Planer (2.7, 5.7)', () => {
 
   it('ohne Abflüge keine Satisfaction', () => {
     assert.equal(plannedSatisfaction(STATE, { ...NEW, route: { ...NEW.route, weeklyFlights: 0, schedule: [] } }), null);
+  });
+});
+
+describe('Paket 4.5c: Zahlen der Strecken im laufenden Monat (8.1, R2)', () => {
+  it('Erlös und Fluggäste der Streckenliste = Bericht des Monatsabschlusses (R2)', () => {
+    const months = routesThisMonth(STATE);
+    const report = closeMonth(STATE, NO_DECISIONS).reports[PLAYER_ID];
+    let revenue = 0;
+    let passengers = 0;
+    months.forEach((m) => {
+      revenue += m.figures.revenue;
+      passengers += m.passengers;
+    });
+    assert.ok(Math.abs(revenue * WEEKS_PER_MONTH - report.revenue) < 1e-6, `${revenue * WEEKS_PER_MONTH} ≠ ${report.revenue}`);
+    assert.ok(Math.abs(passengers * WEEKS_PER_MONTH - report.passengers) < 1e-6, `${passengers * WEEKS_PER_MONTH} ≠ ${report.passengers}`);
+  });
+
+  it('Ergebnis je Strecke = Ergebnis in monthOperations; Erlös = Σ Direktgäste × Preis + Anteil der Umsteiger', () => {
+    const m = routesThisMonth(STATE).get('r1');
+    assert.ok(m);
+    const ops = monthOperations(STATE)[PLAYER_ID].routes.find((r) => r.routeId === 'r1')!;
+    assert.equal(m.figures.result, ops.result);
+    let direct = 0;
+    for (const c of CABIN_CLASSES) direct += m.classes[c]?.directRevenue ?? 0;
+    assert.ok(Math.abs(direct + m.transferRevenue - m.figures.revenue) < 1e-6);
+    const eco = m.classes.economy!;
+    assert.ok(Math.abs(eco.loadFactor - (eco.passengers + eco.transferPassengers) / eco.seatsPerWeek) < 1e-12);
+  });
+
+  it('eine Klasse: Route satisfaction = Satisfaction der Klasse (2.9)', () => {
+    const m = routesThisMonth(STATE).get('r1')!;
+    assert.equal(m.satisfaction, m.classes.economy!.satisfaction);
+  });
+
+  it('Preisänderung gilt ab dem nächsten Monat: Fluggäste dieses Monats bleiben, die Planer-Prognose ändert sich (4.5)', () => {
+    const repriced: SimulatedRoute = { ...ROUTE, activeTicketPrices: { economy: 150 }, ticketPrices: { economy: 300 } };
+    const state = modelGame(game({ routes: [repriced] }), ENV).state;
+    const before = routesThisMonth(STATE).get('r1')!;
+    const after = routesThisMonth(state).get('r1')!;
+    assert.equal(after.passengers, before.passengers);
+    assert.equal(after.classes.economy!.fare, before.classes.economy!.fare);
+    const forecast = routeForecast(state, { route: repriced, isNew: false, startMonth: M - 60 })!;
+    assert.ok(Math.abs(forecast.classes.economy!.fare - 300) < 1);
+  });
+
+  it('Alter der Strecke aus dem Spielstand; neue Strecke im Anlauf (3.12)', () => {
+    assert.equal(routesThisMonth(STATE).get('r1')!.ageMonths, 24);
+    const fresh = modelGame(game({ routes: [{ ...ROUTE, openedOffset: M }] }), ENV).state;
+    const m = routesThisMonth(fresh).get('r1')!;
+    assert.equal(m.ageMonths, 0);
+    assert.ok(m.passengers < routesThisMonth(STATE).get('r1')!.passengers);
   });
 });
