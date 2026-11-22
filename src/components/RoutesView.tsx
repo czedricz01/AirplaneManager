@@ -1,12 +1,12 @@
 import { clickOnKey } from '../lib/a11y';
 import React, { useState, useMemo } from 'react';
-import { formatMoneyCompact, routeFlightNumber } from '../lib/format';
+import { formatMoneyCompact, formatNumber, routeFlightNumber } from '../lib/format';
 import { Search, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import { RouteDetailView } from './RouteDetailView';
-import { getFlightTimeClass, calculateRouteFinancials, type RouteOffer } from '../lib/financeUtils';
-import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers, type RouteCancellation } from '../lib/gameState';
-import type { RouteTransfer } from '../lib/transferUtils';
-import { airportsMapAdjusted } from '../data/airportRegistry';
+import type { RouteOffer } from '../lib/financeUtils';
+import type { RouteCancellation } from '../lib/gameState';
+import type { PlannerModel, RouteMonth } from '../lib/modelRoute';
+import { WEEKS_PER_MONTH } from '../model/constants';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import type { OwnedAircraft } from './MyFleetView';
 import { ViewHeader } from './ui/ViewHeader';
@@ -31,7 +31,7 @@ interface SimulatedRoute {
   activeTicketPrices?: Record<string, number>;
 }
 
-type SortField = 'origin' | 'destination' | 'distance' | 'aircraft' | 'weeklyFlights' | 'paxPerWeek' | 'durMin' | 'profit';
+type SortField = 'origin' | 'destination' | 'distance' | 'aircraft' | 'weeklyFlights' | 'paxPerWeek' | 'durMin' | 'forecast' | 'profit';
 type SortDir = 'asc' | 'desc';
 
 interface Props {
@@ -53,41 +53,45 @@ interface Props {
   onEditCabinServices?: (routeId: string) => void;
   onEditFinancials?: (routeId: string) => void;
   onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
-  fuelPrice?: number;
-  /** The player-only effects on the economy, so the list matches the monthly report. */
-  playerMods?: PlayerModifiers;
+  /**
+   * This month's figures per route id from the model (docs/neubau 4.5c): the month close's own calculation, so the
+   * list shows what the close will book (R2).
+   */
+  routeMonths: ReadonlyMap<string, RouteMonth>;
+  /** The game as the model sees it, for the detail view's satisfaction parts and forecast; null without one. */
+  model: PlannerModel | null;
   rivalOffers?: RouteOffer[];
-  /** Connecting passengers per route id, for the detail view's breakdown. */
-  transferFlows?: Record<string, RouteTransfer>;
   /** Routes losing flights this month and why, by route id. */
   cancellations?: Record<string, RouteCancellation>;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
-  difficulty: string;
   /** Flight-number prefix for routes saved before they carried their own. */
   airlineCode?: string;
 }
-
-const routesAirportsMap = airportsMapAdjusted;
 
 interface RouteRowProps {
   route: SimulatedRoute;
   airlineCode: string;
   fleetByRegistration: Map<string, OwnedAircraft>;
-  fleet: OwnedAircraft[];
-  routes: SimulatedRoute[];
+  /** This month's figures from the model; absent when the model could not price the route. */
+  month?: RouteMonth;
   routeProfit?: number;
   onSelect: (route: SimulatedRoute) => void;
   onUpdatePricing?: (routeId: string, pricing: Record<string, number>) => void;
-  fuelPrice?: number;
-  airportManagement?: Record<string, any>;
-  currentYear: number;
-  currentMonth: number;
-  difficulty: string;
-  playerMods: PlayerModifiers;
-  rivalOffers: RouteOffer[];
   cancellation?: RouteCancellation;
+}
+
+/** Colour of a load factor (share of seats filled). */
+export const loadColor = (lf: number) => (lf >= 0.85 ? 'text-good' : lf >= 0.6 ? 'text-accent' : 'text-bad');
+
+/** A signed money amount in the profit colours. */
+function Money({ value, title }: { value: number; title?: string }) {
+  return (
+    <span className={value >= 0 ? 'text-good' : 'text-bad'} title={title}>
+      {value >= 0 ? '+' : ''}{formatMoneyCompact(value)}
+    </span>
+  );
 }
 
 /** "X% cancelled" next to a route's flights, with the causes on hover. */
@@ -119,36 +123,24 @@ function ClassLine({ items }: { items: { cls: string; text: string; color?: stri
 }
 
 /**
- * A single row, memoised so buying a slot or advancing a month -- which
- * replaces the `routes` array -- only recomputes the per-class load and
- * price for rows whose own route object actually changed.
+ * A single row, memoised so a new `routes` array only redraws the rows whose
+ * own route or figures changed.
  */
 const RouteRow = React.memo(function RouteRow({
-  route, airlineCode, fleetByRegistration, fleet, routes, routeProfit, onSelect, onUpdatePricing,
-  fuelPrice, airportManagement, currentYear, currentMonth, difficulty, playerMods, rivalOffers, cancellation
+  route, airlineCode, fleetByRegistration, month, routeProfit, onSelect, onUpdatePricing, cancellation
 }: RouteRowProps) {
   const aircraft = fleetByRegistration.get(route.aircraft);
+  const forecast = month ? month.figures.result * WEEKS_PER_MONTH : undefined;
 
-  const financials = useMemo(() => {
-    if (!aircraft) return null;
-    return calculateRouteFinancials(
-      route, aircraft, fuelPrice ?? 1.05, airportManagement || {},
-      currentYear, currentMonth, difficulty, routesAirportsMap, routes, fleet,
-      false, playerMods.demandFactor, rivalOffers, playerMods
-    );
-  }, [route, aircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, routes, fleet, playerMods, rivalOffers]);
-
+  // Connecting passengers sit in the same cabin and count towards its load.
   const loadLine = CABIN_CLASSES.map(cls => {
-    const cd = financials?.paxByClass?.[cls];
-    if (!cd || cd.max <= 0) return { cls, text: '-' };
-    // Connecting passengers sit in their own cabin and count towards its load.
-    const lf = Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100);
-    return { cls, text: `${lf}%`, color: lf >= 85 ? 'text-good' : lf >= 60 ? 'text-accent' : 'text-bad' };
+    const cd = month?.classes[cls];
+    if (!cd || cd.seatsPerWeek <= 0) return { cls, text: '-' };
+    return { cls, text: `${Math.round(cd.loadFactor * 100)}%`, color: loadColor(cd.loadFactor) };
   });
 
   const priceLine = CABIN_CLASSES.map(cls => {
-    const cd = financials?.paxByClass?.[cls];
-    if (!cd || cd.max <= 0) return { cls, text: '-' };
+    if (!month?.classes[cls]) return { cls, text: '-' };
     const price = route.ticketPrices?.[cls];
     return { cls, text: price ? `$${price}` : '?', color: price ? 'text-muted' : undefined };
   });
@@ -181,13 +173,13 @@ const RouteRow = React.memo(function RouteRow({
       <Td className="hidden rail:table-cell font-mono font-medium text-ink">{route.destination}</Td>
       <Td className="hidden rail:table-cell text-xs font-mono">{route.distance} km</Td>
       <Td className="hidden rail:table-cell text-xs font-mono">{route.durMin ? `${Math.floor(route.durMin / 60)}h ${(route.durMin % 60).toString().padStart(2, '0')}m` : '-'}</Td>
-      <Td className="hidden rail:table-cell text-xs font-mono">{route.durMin ? <span title={`Time class ${getFlightTimeClass(route.durMin)}`}>{getFlightTimeClass(route.durMin)}</span> : '-'}</Td>
+      <Td className="hidden rail:table-cell text-xs font-mono">{month ? formatNumber(month.flightTimeIndex, 1) : '-'}</Td>
       <Td className="hidden rail:table-cell">
         <div>{route.aircraft}</div>
         {aircraft && <div className="text-2xs text-muted">{aircraft.manufacturer} {aircraft.type}</div>}
       </Td>
       <Td className="hidden rail:table-cell text-xs font-mono">{route.weeklyFlights}<CancellationBadge cancellation={cancellation} /></Td>
-      <Td className="hidden rail:table-cell text-xs font-mono">{route.paxPerWeek}</Td>
+      <Td className="hidden rail:table-cell text-xs font-mono">{month ? formatNumber(Math.round(month.passengers)) : '-'}</Td>
       <Td className="hidden rail:table-cell text-xs font-mono"><ClassLine items={loadLine} /></Td>
       <Td className="hidden rail:table-cell text-xs font-mono" onClick={(e) => e.stopPropagation()}>
         {onUpdatePricing && route.ticketPrices ? (
@@ -210,12 +202,17 @@ const RouteRow = React.memo(function RouteRow({
           <span className="text-muted">-</span>
         )}
       </Td>
-      <Td className="pr-0 rail:pr-4 text-right text-sm rail:text-xs font-mono">
+      <Td className="pr-0 rail:pr-3 text-right text-sm rail:text-xs font-mono">
         <div className="rail:hidden text-xs"><ClassLine items={loadLine} /></div>
+        {forecast !== undefined ? (
+          <Money value={forecast} title="Expected result this month at this month's fares" />
+        ) : (
+          <span className="text-muted" title="No forecast for this route">-</span>
+        )}
+      </Td>
+      <Td className="hidden rail:table-cell pr-4 text-right text-xs font-mono">
         {routeProfit !== undefined ? (
-          <span className={routeProfit >= 0 ? 'text-good' : 'text-bad'}>
-            {routeProfit >= 0 ? '+' : ''}{formatMoneyCompact(routeProfit)}
-          </span>
+          <Money value={routeProfit} />
         ) : (
           <span className="text-muted" title="No closed month for this route yet">-</span>
         )}
@@ -227,8 +224,8 @@ const RouteRow = React.memo(function RouteRow({
 function RoutesViewImpl({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onReassignAircraft,
-  onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, fuelPrice, airportManagement,
-  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = [], transferFlows, cancellations, airlineCode = ''
+  onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, routeMonths, model, airportManagement,
+  currentYear, currentMonth, rivalOffers = [], cancellations, airlineCode = ''
 }: Props) {
   const [search, setSearch] = useState("");
   const [airportFilter, setAirportFilter] = useState(initialAirportFilter);
@@ -279,16 +276,20 @@ function RoutesViewImpl({
     // Copy first: with no filter active `result` is still the `routes` prop, so
     // sorting in place mutated App's state array and persisted that order.
     return [...result].sort((a, b) => {
-      // Profit is not a field on the route, it comes from the last closed
-      // month. Routes without one sort to the bottom rather than as zero.
-      let valA: any = sortField === 'profit' ? (routeProfits?.[a.id] ?? -Infinity) : a[sortField];
-      let valB: any = sortField === 'profit' ? (routeProfits?.[b.id] ?? -Infinity) : b[sortField];
+      // Profit is not a field on the route: the forecast comes from the model,
+      // the last month from the report. Routes without one sort to the bottom.
+      const value = (r: SimulatedRoute): any =>
+        sortField === 'profit' ? (routeProfits?.[r.id] ?? -Infinity)
+        : sortField === 'forecast' ? (routeMonths.get(r.id)?.figures.result ?? -Infinity)
+        : r[sortField];
+      const valA = value(a);
+      const valB = value(b);
 
       if (valA < valB) return sortDir === 'asc' ? -1 : 1;
       if (valA > valB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [routes, routeProfits, search, sortField, sortDir, airportFilter]);
+  }, [routes, routeProfits, routeMonths, search, sortField, sortDir, airportFilter]);
 
   const activeRoute = useMemo(() => {
     if (!selectedRoute) return null;
@@ -354,18 +355,19 @@ function RoutesViewImpl({
             <Th sortable onClick={() => toggleSort('destination')}>To {getSortIcon('destination')}</Th>
             <Th sortable onClick={() => toggleSort('distance')}>Distance {getSortIcon('distance')}</Th>
             <Th sortable onClick={() => toggleSort('durMin')}>Time {getSortIcon('durMin')}</Th>
-            <Th sortable={false}>Class<InfoTooltip size={11} {...GLOSSARY.timeClass} /></Th>
+            <Th sortable={false}>Time index<InfoTooltip size={11} {...GLOSSARY.timeClass} /></Th>
             <Th sortable onClick={() => toggleSort('aircraft')}>Aircraft {getSortIcon('aircraft')}</Th>
             <Th sortable onClick={() => toggleSort('weeklyFlights')}>Flights / wk {getSortIcon('weeklyFlights')}</Th>
             <Th sortable onClick={() => toggleSort('paxPerWeek')}>Pax / wk {getSortIcon('paxPerWeek')}</Th>
             <Th sortable={false} title="Economy / Premium / Business / First">Load %</Th>
-            <Th sortable={false} title="Economy / Premium / Business / First">Price</Th>
-            <Th sortable className="pr-4 text-right" onClick={() => toggleSort('profit')}>Profit / Month {getSortIcon('profit')}</Th>
+            <Th sortable={false} title="Fares you set, Economy / Premium / Business / First; a change applies from next month">Price</Th>
+            <Th sortable className="pr-3 text-right" title="Expected result this month: the month close's own calculation at this month's fares" onClick={() => toggleSort('forecast')}>Forecast / Month {getSortIcon('forecast')}</Th>
+            <Th sortable className="pr-4 text-right" title="Result of the last closed month" onClick={() => toggleSort('profit')}>Last month {getSortIcon('profit')}</Th>
           </Thead>
           <tbody>
             {filteredAndSortedRoutes.length === 0 ? (
               <tr>
-                 <td colSpan={12} className="text-center py-16 text-muted uppercase tracking-label">
+                 <td colSpan={13} className="text-center py-16 text-muted uppercase tracking-label">
                    {routes.length === 0 ? (
                      <div className="flex flex-col items-center gap-2">
                        <span>No routes yet</span>
@@ -383,18 +385,10 @@ function RoutesViewImpl({
                   route={route}
                   airlineCode={airlineCode}
                   fleetByRegistration={fleetByRegistration}
-                  fleet={fleet}
-                  routes={routes}
+                  month={routeMonths.get(route.id)}
                   routeProfit={routeProfits?.[route.id]}
                   onSelect={setSelectedRoute}
                   onUpdatePricing={onUpdatePricing}
-                  fuelPrice={fuelPrice}
-                  airportManagement={airportManagement}
-                  currentYear={currentYear}
-                  currentMonth={currentMonth}
-                  difficulty={difficulty}
-                  playerMods={playerMods}
-                  rivalOffers={rivalOffers}
                   cancellation={cancellations?.[route.id]}
                 />
               ))
@@ -409,15 +403,13 @@ function RoutesViewImpl({
              routes={routes}
              route={activeRoute} 
              fleet={fleet}
-            fuelPrice={fuelPrice}
-            playerMods={playerMods}
+            month={routeMonths.get(activeRoute.id)}
+            model={model}
             rivalOffers={rivalOffers}
-            transfer={transferFlows?.[activeRoute.id]}
             cancellation={cancellations?.[activeRoute.id]}
             airportManagement={airportManagement}
             currentYear={currentYear}
             currentMonth={currentMonth}
-            difficulty={difficulty}
             airlineCode={airlineCode}
             onClose={() => {
                setSelectedRoute(null);

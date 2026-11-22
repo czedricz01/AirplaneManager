@@ -32,8 +32,6 @@ import { createTimerBag } from '../lib/timerBag';
 import {
   applyInfrastructureChange,
   SLOT_CAPEX_LABEL,
-  calculateRouteFinancials,
-  getJetFuelPrice,
   getPlaneSat,
   classConfigFor,
   CABIN_CLASSES,
@@ -47,10 +45,8 @@ import {
   eventRegionalFactor,
   validateClassConfigs,
   getFlightDurationMinutes as sharedFlightDurationMinutes,
-  toStoredRouteMetrics,
   marketKey,
-  buildRivalRoutesByPair,
-  RouteOffer
+  buildRivalRoutesByPair
 } from '../lib/financeUtils';
 import { NEUTRAL_PLAYER_MODIFIERS, routeDemandFactor, type PlayerModifiers } from '../lib/gameState';
 import {
@@ -74,7 +70,6 @@ import { plannedSatisfaction, pricesAtLevel, routeBestFares, routeForecast, rout
 import type { ClassSatisfactionDetail, RouteSatisfactionDetail } from '../model/monthClose';
 import { deskLoad, routeSatisfaction as routeSatisfactionMean, satisfactionFactor } from '../model/satisfaction';
 import { SCALES } from '../model/constants';
-import { priceDraftInNetwork, type NetworkEnv } from '../lib/transferUtils';
 
 const SAT_NEUTRAL = SCALES.satisfaction.neutral;
 
@@ -176,7 +171,6 @@ function MarkedSlider({ min, max, step, value, onChange, marks, format }: {
   );
 }
 // A stable default, so a missing prop does not invalidate the memos below on every render.
-const NO_RIVAL_OFFERS: RouteOffer[] = [];
 const NO_AI_AIRLINES: any[] = [];
 
 /** A typed flight number, or `fallback` while the field is empty or not a number. */
@@ -209,14 +203,6 @@ interface Props {
   onNotify?: (message: string) => void;
   /** The player-only effects on the economy, so the preview matches the monthly report. */
   playerMods?: PlayerModifiers;
-  /**
-   * The fuel price the player pays this month, fuel hedge included. Without
-   * it the planner falls back to the market price, which a hedged airline
-   * does not pay.
-   */
-  fuelPrice?: number;
-  /** Rival departures per city pair, for the market-share split. */
-  rivalOffers?: RouteOffer[];
   onGoToAirport?: (airport: Airport) => void;
   onClose: () => void;
   onOpenCatalog?: (currentStep?: number) => void;
@@ -322,7 +308,7 @@ const aircraftImageName = (ac: OwnedAircraft) =>
 
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, airportLock, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, fuelPrice: playerFuelPrice, rivalOffers = NO_RIVAL_OFFERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, airportLock, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -941,15 +927,6 @@ function RoutePlannerInner({
     return Math.min(100, tripsUtilization([...otherTrips, ...schedule]) * 100);
   }, [selectedAircraft, routes, schedule]);
 
-  
-  // What the player pays, hedge included; the market price only when App did
-  // not say. The planner used to price every draft at the market rate, so a
-  // hedged airline saw different fuel costs here than in the route list.
-  const marketFuelPrice = useMemo(
-    () => getJetFuelPrice(currentYear, currentMonth, difficulty),
-    [currentYear, currentMonth, difficulty]
-  );
-  const fuelPrice = playerFuelPrice ?? marketFuelPrice;
 
   // A draft of the route as it currently stands in the wizard. Every financial
   // preview below is derived from this one object via the shared engine, so the
@@ -974,38 +951,6 @@ function RoutePlannerInner({
     };
   }, [selectedOrigin, selectedDest, selectedAircraft, schedule, classConfigs, ticketPrices, initialRouteId, draftRouteId]);
 
-  const networkEnv = useMemo<NetworkEnv>(() => ({
-    fuelPrice, airportManagement, year: currentYear, month: currentMonth, difficulty, airportsMap, rivalOffers
-  }), [fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, rivalOffers]);
-
-  /**
-   * A route as it will be saved, priced inside the player's network the way
-   * the monthly report will price it: connecting passengers depend on every
-   * route meeting this one and on the seats it leaves empty. For the save
-   * buttons, which price exactly the object they store.
-   */
-  const priceInNetwork = (route: any) =>
-    priceDraftInNetwork(route, routes, fleet, playerMods, networkEnv)?.fin ?? null;
-
-  /**
-   * The draft's connecting passengers, from the whole network with the draft
-   * in it. Pricing the network takes 10-80 ms on a large airline, too much for
-   * every tick of a price slider, so it follows a deferred copy of the draft:
-   * the slider stays responsive and the figure catches up as soon as React
-   * has a moment. Only the steps that show realistic loads (2-4) need it.
-   */
-  const deferredDraft = useDeferredValue(routeDraft);
-  const draftTransfer = useMemo(() => {
-    if (!deferredDraft || step < 2) return undefined;
-    return priceDraftInNetwork(deferredDraft, routes, fleet, playerMods, networkEnv)?.transfer;
-  }, [deferredDraft, step, routes, fleet, playerMods, networkEnv]);
-
-  /** The player's modifiers with the draft's connecting passengers, keyed to the draft. */
-  const plannerMods = useMemo(
-    () => routeDraft && draftTransfer ? { ...playerMods, transfer: { [routeDraft.id]: draftTransfer } } : playerMods,
-    [routeDraft, draftTransfer, playerMods]
-  );
-
   // Rival routes per city pair, for the "COMP" hint in the destination list.
   const rivalRoutesByPair = useMemo(() => buildRivalRoutesByPair(aiAirlines), [aiAirlines]);
 
@@ -1025,16 +970,6 @@ function RoutePlannerInner({
     const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, ti, currentMonth, difficulty, currentYear, routeDemandFactor(playerMods, selectedOrigin, selectedDest) * eventRegionalFactor(currentYear, currentMonth, selectedOrigin, selectedDest), southernShare(selectedOrigin, selectedDest));
     return { d, tc, basePrices: calculateBasePrices(dist, ti), assumedAircraft: !selectedAircraft };
   }, [selectedOrigin, selectedDest, selectedAircraft, currentYear, currentMonth, difficulty, playerMods]);
-
-  // The figures stored on the route until the route list reads the model (package 4.5c).
-  const saveFinancials = useMemo(() => {
-    if (!routeDraft || !selectedAircraft) return null;
-    return calculateRouteFinancials(
-      routeDraft, selectedAircraft, fuelPrice, airportManagement,
-      currentYear, currentMonth, difficulty, airportsMap, routes, fleet,
-      false, plannerMods.demandFactor, rivalOffers, plannerMods
-    );
-  }, [routeDraft, selectedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, plannerMods, rivalOffers]);
 
   /**
    * The draft as the model reads it (docs/neubau 4.5a): an edited route keeps its opening month, so its first month
@@ -2980,10 +2915,8 @@ function RoutePlannerInner({
                           durMin: getFlightDurationMinutes(),
                           classConfigs: classConfigs
                         };
-                        // Priced as stored: it keeps the route's current fares,
-                        // which the draft does not.
-                        const stored = priceInNetwork(routeData) ?? saveFinancials;
-                        onSaveRoute({ ...routeData, ...(stored ? toStoredRouteMetrics(stored) : {}) });
+                        // No figures are stored on the route: the route list reads them from the model (docs/neubau 4.5c).
+                        onSaveRoute(routeData);
                         setShowSuccess(true);
                         later(() => {
                           setShowSuccess(false);
@@ -3263,30 +3196,7 @@ function RoutePlannerInner({
                                  activeTicketPrices: r.activeTicketPrices || ticketPrices || r.ticketPrices || { economy: 100 }
                                };
 
-                               // Priced with its own connecting passengers. They used to
-                               // come from the draft, which sells at the new fares while
-                               // this keeps the ones already on sale this month.
-                               const liveFinancials = priceInNetwork(routeData) ?? calculateRouteFinancials(
-                                 routeData,
-                                 selectedAircraft,
-                                 fuelPrice,
-                                 airportManagement,
-                                 currentYear,
-                                 currentMonth,
-                                 difficulty,
-                                 airportsMap,
-                                 routes,
-                                 fleet,
-                                 false,
-                                 playerMods.demandFactor,
-                                 rivalOffers,
-                                 playerMods
-                               );
-
-                               onSaveRoute({
-                                 ...routeData,
-                                 ...toStoredRouteMetrics(liveFinancials)
-                               });
+                               onSaveRoute(routeData);
                              }
                              setShowSuccess(true);
                              later(() => {
@@ -3575,11 +3485,7 @@ function RoutePlannerInner({
                               weeklyFlights: schedule.length,
                               turnoverMin: getTurnoverMinutes()
                             };
-                            // Priced once more, in full: the preview's connecting
-                            // passengers follow a deferred copy of the draft and can
-                            // be a slider tick behind.
-                            const stored = priceInNetwork(newRoute) ?? saveFinancials;
-                            onSaveRoute({ ...newRoute, ...(stored ? toStoredRouteMetrics(stored) : {}) });
+                            onSaveRoute(newRoute);
                             later(() => {
                               onClose();
                               setIsFinalizing(false);

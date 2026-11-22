@@ -1,20 +1,18 @@
 import { clickOnKey } from '../lib/a11y';
-import { maturityNote } from '../lib/routeMaturity';
 import { FinancialReport } from "./FinancialReport";
 import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
 import { useState, useMemo } from 'react';
 import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info, AlertTriangle } from 'lucide-react';
 import { Airport } from '../data/airports';
 
-import {
-  getFlightTimeClass,
-  calculateRouteFinancials,
-  seatWeightedSatisfaction,
-  RouteOffer,
-  marketKey,
-} from '../lib/financeUtils';
-import { NEUTRAL_PLAYER_MODIFIERS, type PlayerModifiers, type RouteCancellation } from '../lib/gameState';
-import type { RouteTransfer } from '../lib/transferUtils';
+import { RouteOffer, marketKey } from '../lib/financeUtils';
+import type { RouteCancellation } from '../lib/gameState';
+import { routeForecast, type PlannerModel, type RouteMonth } from '../lib/modelRoute';
+import { PLAYER_ID } from '../lib/modelMonth';
+import { CABIN_CLASSES, RAMP_MONTHS, SCALES } from '../model/constants';
+import { routeSatisfactionDetail, type RouteSatisfactionDetail } from '../model/monthClose';
+import { logWarn } from '../lib/debugLog';
+import { loadColor } from './RoutesView';
 
 import { airportsMapAdjusted } from '../data/airportRegistry';
 
@@ -29,21 +27,16 @@ interface RouteDetailViewProps {
   route: any; // We'll refine this type
   routes: any[];
   fleet?: OwnedAircraft[];
-  fuelPrice?: number;
-  /** The player-only effects on the economy, so the detail matches the monthly report. */
-  playerMods?: PlayerModifiers;
+  /** This month's figures from the model (docs/neubau 4.5c), the month close's own calculation. */
+  month?: RouteMonth;
+  /** The game as the model sees it, for the satisfaction parts and the planner's forecast. */
+  model: PlannerModel | null;
   rivalOffers?: RouteOffer[];
-  /**
-   * This route's connecting passengers, for the breakdown. The figures
-   * themselves come from `playerMods.transfer` through the engine.
-   */
-  transfer?: RouteTransfer;
-  /** Flights this route loses this month and why; the engine already leaves them out through playerMods. */
+  /** Flights this route loses this month and why; the model's figures already leave them out. */
   cancellation?: RouteCancellation;
   airportManagement?: Record<string, any>;
   currentYear: number;
   currentMonth: number;
-  difficulty: string;
   onClose: () => void;
   onDelete: (id: string) => void;
   /** "Change": the player picked `registration`; the new time slot is chosen next. */
@@ -56,8 +49,8 @@ interface RouteDetailViewProps {
 
 
 export function RouteDetailView({
-  route, routes, fleet, fuelPrice = 1.05, airportManagement,
-  currentYear, currentMonth, difficulty, playerMods = NEUTRAL_PLAYER_MODIFIERS, rivalOffers = NO_RIVAL_OFFERS, transfer, cancellation,
+  route, routes, fleet, month, model, airportManagement,
+  currentYear, currentMonth, rivalOffers = NO_RIVAL_OFFERS, cancellation,
   onClose, onDelete, onReassignAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
   airlineCode = ''
 }: RouteDetailViewProps) {
@@ -92,25 +85,38 @@ export function RouteDetailView({
     return [...fromRivals, ...fromOwn];
   }, [rivalOffers, routes, route.id, route.origin, route.destination]);
 
-  const financials = useMemo(() => {
-    if (!assignedAircraft) return null;
-    return calculateRouteFinancials(
-      route,
-      assignedAircraft,
-      fuelPrice,
-      airportManagement || {},
-      currentYear,
-      currentMonth,
-      difficulty,
-      airportsMap,
-      routes,
-      fleet,
-      false,
-      playerMods.demandFactor,
-      rivalOffers,
-      playerMods
-    );
-  }, [route, assignedAircraft, fuelPrice, airportManagement, currentYear, currentMonth, difficulty, airportsMap, routes, fleet, playerMods, rivalOffers]);
+  /** Satisfaction of every class with its parts (service delivered and expected), from the same inputs as the close. */
+  const satisfaction = useMemo<RouteSatisfactionDetail | null>(() => {
+    if (!model) return null;
+    try {
+      return routeSatisfactionDetail(model.state, PLAYER_ID, route.id);
+    } catch (error) {
+      logWarn('route', `No satisfaction for route ${route.id}`, error);
+      return null;
+    }
+  }, [model, route.id]);
+
+  /** The planner's main figure: weekly result after the ramp-up at the fares set, which apply from next month (4.12). */
+  const plannerWeekly = useMemo<number | null>(() => {
+    if (!model) return null;
+    try {
+      return routeForecast(model.state, { route, isNew: false, startMonth: model.startMonth })?.weeklyProfit ?? null;
+    } catch (error) {
+      logWarn('route', `No forecast for route ${route.id}`, error);
+      return null;
+    }
+  }, [model, route]);
+
+  const figures = month?.figures;
+  const seatClasses = CABIN_CLASSES.filter(c => month?.classes[c]);
+  const label = (c: string) => `${c[0].toUpperCase()}${c.slice(1)}`;
+  const rampNote = month
+    ? month.ageMonths < RAMP_MONTHS
+      ? `Ramp-up: month ${month.ageMonths + 1} of ${RAMP_MONTHS}`
+      : month.establishedBonus > 1
+        ? `Established route bonus +${formatNumber((month.establishedBonus - 1) * 100, 1)}%`
+        : null
+    : null;
 
   const actualConfigSeats = assignedAircraft?.config 
     ? ((assignedAircraft.config.economy || 0) + (assignedAircraft.config.premium || 0) + (assignedAircraft.config.business || 0) + (assignedAircraft.config.first || 0)) 
@@ -229,18 +235,13 @@ export function RouteDetailView({
             <div className="flex gap-4 items-center bg-surface p-4 bar:p-3 short:p-2 border border-line rounded-sm">
               <div className="flex flex-col">
                 <span className="text-muted text-2xs uppercase tracking-label font-semibold mb-1">Weekly Pax</span>
-                <span className="text-2xl font-semibold text-accent">{formatNumber(financials?.paxPerWeek ?? route.paxPerWeek ?? 0)}</span>
-                {maturityNote(playerMods.maturity?.[route.id]) && (
-                  <span className="text-2xs font-mono text-accent mt-1">{maturityNote(playerMods.maturity?.[route.id])}</span>
+                <span className="text-2xl font-semibold text-accent">{month ? formatNumber(Math.round(month.passengers)) : '–'}</span>
+                {rampNote && (
+                  <span className="text-2xs font-mono text-accent mt-1">{rampNote}</span>
                 )}
-                {(financials?.transferPax ?? 0) > 0 && (
+                {month && month.transferPassengers > 0 && (
                   <span className="text-2xs text-muted mt-1">
-                    incl. {formatNumber(financials!.transferPax)} transfer pax/wk ({formatCurrency(financials!.transferRev)})
-                  </span>
-                )}
-                {(financials?.transferPax ?? 0) > 0 && transfer && transfer.flows.length > 0 && (
-                  <span className="text-2xs font-mono text-muted mt-0.5">
-                    {transfer.flows.slice(0, 3).map(f => `${f.o}→${f.hub}→${f.d} ${formatNumber(f.pax)}`).join(' · ')}
+                    incl. {formatNumber(Math.round(month.transferPassengers))} transfer pax/wk ({formatCurrency(month.transferRevenue)})
                   </span>
                 )}
               </div>
@@ -267,7 +268,7 @@ export function RouteDetailView({
             <div className="mt-4 bar:mt-3 short:mt-2 flex items-center justify-between">
               {route.durMin && (
                 <div className="flex items-center gap-3">
-                  <span className="text-accent border border-accent/30 px-2 py-0.5 bg-accent/10 rounded-sm text-2xs">TIME-CLASS: {getFlightTimeClass(route.durMin)}</span>
+                  {month && <span className="text-accent border border-accent/30 px-2 py-0.5 bg-accent/10 rounded-sm text-2xs">FLIGHT-TIME INDEX: {formatNumber(month.flightTimeIndex, 1)}</span>}
                   <span className="text-muted text-2xs font-label uppercase">
                       Flight Time: {Math.floor(route.durMin / 60)}h {(route.durMin % 60).toString().padStart(2, '0')}m
                   </span>
@@ -388,68 +389,45 @@ export function RouteDetailView({
             </div>
             <div className="flex-1 flex flex-col">
                <div className="grid grid-cols-2 gap-4 mb-4 overflow-y-auto pr-2 max-h-[300px]">
-                  {(() => {
-                    const classes = ['economy', 'premium', 'business', 'first'];
-                    const classSats = classes.filter(cls => {
-                      const seats = assignedAircraft?.config?.[cls as keyof typeof assignedAircraft.config] as number;
-                      return seats !== undefined && seats > 0;
-                    }).map(cls => ({ name: cls, sat: financials?.routeSat?.[cls] ?? 0 }));
-
-                    // Seat-weighted, like the planner and the economy. The plain mean
-                    // over classes above 0% hid a failing cabin and over-weighted a
-                    // handful of first-class seats.
-                    const avgSat = financials ? seatWeightedSatisfaction(financials.routeSat, assignedAircraft?.config) : 0;
-
+                  {/* Satisfaction from the model (docs/neubau 4.5c): 0 to 160 points, 100 = as passengers expect. */}
+                  <div className="col-span-2 flex flex-col items-center justify-center py-2 bg-surface border border-line rounded-sm mb-2">
+                     <span className="text-2xs text-muted uppercase font-semibold tracking-label mb-1">Route Satisfaction</span>
+                     <span className="text-3xl font-semibold text-accent">{month ? formatNumber(month.satisfaction) : '–'}</span>
+                  </div>
+                  {seatClasses.map(cls => {
+                    const sat = month!.classes[cls]!.satisfaction;
+                    const detail = satisfaction?.classes[cls];
+                    // Full class names, so the style build finds them.
+                    const tone = sat >= SCALES.satisfaction.neutral ? { text: 'text-good', bar: 'bg-good' }
+                      : sat >= 85 ? { text: 'text-accent', bar: 'bg-accent' }
+                      : { text: 'text-bad', bar: 'bg-bad' };
                     return (
-                      <>
-                        <div className="col-span-2 flex flex-col items-center justify-center py-2 bg-surface border border-line rounded-sm mb-2">
-                           <span className="text-2xs text-muted uppercase font-semibold tracking-label mb-1">Route Satisfaction</span>
-                           <span className="text-3xl font-semibold text-accent">{avgSat.toFixed(0)}%</span>
-                        </div>
-                        {classSats.map(cs => {
-                          // Live, like the percentage beside it; the copy stored on the route went stale.
-                          const satDetails = financials?.satisfactionDetails?.[cs.name];
-                          const expectation = satDetails?.serviceExpected || 0;
-                          const reality = Math.round(satDetails?.serviceDelivered || 0);
-                          
-                          // The worst band is the most visible, not the darkest.
-                          let barColor = 'bg-bad';
-                          let textColor = 'text-bad';
-                          if (cs.sat >= 100) { barColor = 'bg-accent'; textColor = 'text-accent'; }
-                          else if (cs.sat >= 85) { barColor = 'bg-lime-400'; textColor = 'text-lime-400'; }
-                          else if (cs.sat >= 60) { barColor = 'bg-accent'; textColor = 'text-accent'; }
-                          else if (cs.sat >= 40) { barColor = 'bg-accent'; textColor = 'text-accent'; }
+                    <div key={cls} className="col-span-2 flex flex-col p-3 bg-ground/40 border border-line rounded-sm relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-1 opacity-10">
+                         <Coffee size={40} />
+                       </div>
+                       <div className="flex justify-between items-end mb-2 relative z-10">
+                         <span className="text-2xs text-muted uppercase font-semibold tracking-label">{cls}</span>
+                         <span className={`text-sm font-semibold ${tone.text}`}>{formatNumber(sat)}</span>
+                       </div>
 
-                          return (
-                          <div key={cs.name} className="col-span-2 flex flex-col p-3 bg-ground/40 border border-line rounded-sm relative overflow-hidden">
-                             <div className="absolute top-0 right-0 p-1 opacity-10">
-                               <Coffee size={40} />
-                             </div>
-                             <div className="flex justify-between items-end mb-2 relative z-10">
-                               <span className="text-2xs text-muted uppercase font-semibold tracking-label">{cs.name}</span>
-                               <span className={`text-sm font-semibold ${textColor}`}>{cs.sat.toFixed(0)}%</span>
-                             </div>
-                             
-                             <div className="w-full bg-ground/60 h-2 rounded-full overflow-hidden mb-2 relative z-10 border border-line">
-                                <div className={`h-full ${barColor} transition-all duration-1000 ease-out`} style={{ width: `${Math.min(100, cs.sat)}%` }}></div>
-                             </div>
+                       <div className="w-full bg-ground/60 h-2 rounded-full overflow-hidden mb-2 relative z-10 border border-line">
+                          <div className={`h-full ${tone.bar} transition-all duration-1000 ease-out`} style={{ width: `${Math.min(100, (sat / SCALES.satisfaction.max) * 100)}%` }}></div>
+                       </div>
 
-                             <div className="flex justify-between text-2xs text-muted uppercase tracking-label relative z-10 mt-1">
-                                <span className="flex flex-col">
-                                   <span className="text-muted text-2xs">Service expected</span>
-                                   <span className="font-mono text-ink">{expectation}</span>
-                                </span>
-                                <span className="flex flex-col text-right">
-                                   <span className="text-muted text-2xs">Service served</span>
-                                   <span className="font-mono text-ink">{reality}</span>
-                                </span>
-                             </div>
-                          </div>
-                          );
-                        })}
-                      </>
+                       <div className="flex justify-between text-2xs text-muted uppercase tracking-label relative z-10 mt-1">
+                          <span className="flex flex-col">
+                             <span className="text-muted text-2xs">Service expected</span>
+                             <span className="font-mono text-ink">{detail ? `${formatNumber(detail.breakdown.expectedServicePoints, 1)} pts` : '–'}</span>
+                          </span>
+                          <span className="flex flex-col text-right">
+                             <span className="text-muted text-2xs">Service delivered</span>
+                             <span className="font-mono text-ink">{detail ? `${formatNumber(detail.service.total, 1)} pts` : '–'}</span>
+                          </span>
+                       </div>
+                    </div>
                     );
-                  })()}
+                  })}
                </div>
                <div className="mt-auto text-center">
                   <span className="text-muted text-2xs uppercase tracking-label font-semibold">Configured Cabin Services</span>
@@ -468,71 +446,82 @@ export function RouteDetailView({
               <Settings size={16} className="text-muted group-hover:text-accent transition-colors" />
             </div>
             <div className="flex-1 flex flex-col p-4 pt-0">
-               {financials && (
+               {month && figures && (
                  <>
                    <div className="p-3 mb-4 bg-surface border border-line rounded-sm flex gap-3">
                      <Info className="text-ink shrink-0 mt-0.5" size={14} />
                      <div className="text-2xs text-ink leading-relaxed font-semibold uppercase space-y-1">
-                       <p><strong>Ticket revenue:</strong> Ticket revenue for this route, at the estimated load factor.</p>
-                       <p><strong>Direct flight costs:</strong> Variable costs that scale with each flight: fuel, crew, landing fees and catering.</p>
+                       <p><strong>This month:</strong> the month close's own calculation, at this month's fares and without cancelled flights.</p>
+                       <p><strong>Passenger costs:</strong> grow with each passenger: catering, check-in and handling fees, frequent flyer.</p>
+                       <p><strong>Fixed costs:</strong> paid however many fly: fuel, crew, landing, slots and the aircraft's share.</p>
                      </div>
                    </div>
                    <FinancialReport
-                     title="Route Projection (Weekly)"
-                     netProfit={financials.estWeeklyProfit}
-                     totalRevenue={financials.estWeeklyRev}
-                     revenues={(['economy', 'premium', 'business', 'first'] as const)
-                       .filter(cls => (financials.paxByClass?.[cls]?.max ?? 0) > 0)
+                     title="This Month (Weekly)"
+                     netProfit={figures.result}
+                     totalRevenue={figures.revenue}
+                     revenues={seatClasses
                        .map(cls => {
-                         const cd = financials.paxByClass[cls];
-                         const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
-                         // Connecting passengers sit in their own cabin: they count in its load
-                         // factor, but earn their own fare on the line below.
-                         const lf = cd.max > 0 ? Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100) : 0;
+                         const cd = month.classes[cls]!;
+                         const transfer = Math.round(cd.transferPassengers);
                          return {
-                           label: `${cls[0].toUpperCase()}${cls.slice(1)} — ${cd.actual}/${cd.max} pax${cd.transfer ? ` + ${cd.transfer} transfer` : ''} @ $${price} (${lf}% LF)`,
-                           amount: cd.actual * price
+                           label: `${label(cls)} — ${formatNumber(Math.round(cd.passengers))}/${formatNumber(Math.round(cd.seatsPerWeek))} pax${transfer ? ` + ${formatNumber(transfer)} transfer` : ''} @ ${formatCurrency(cd.fare)} (${Math.round(cd.loadFactor * 100)}% LF)`,
+                           amount: cd.directRevenue
                          };
                        })
-                       .concat(financials.transferPax > 0 ? [{
-                         label: `Connecting — ${formatNumber(financials.transferPax)} transfer pax (${(['economy', 'premium', 'business', 'first'] as const)
-                           .filter(cls => (financials.paxByClass?.[cls]?.transfer ?? 0) > 0)
-                           .map(cls => `${formatNumber(financials.paxByClass[cls].transfer!)} ${cls}`)
-                           .join(', ')}; share of fare by distance)`,
-                         amount: financials.transferRev
+                       .concat(month.transferPassengers > 0 ? [{
+                         label: `Connecting — ${formatNumber(Math.round(month.transferPassengers))} transfer pax (share of fare by distance)`,
+                         amount: month.transferRevenue
                        }] : [])}
                      expenses={[
                        {
-                         id: 'opx',
-                         label: 'Direct flight costs',
-                         total: financials.estWeeklyCosts,
+                         id: 'pax',
+                         label: 'Passenger costs',
+                         total: figures.passengerCost.total,
                          items: [
-                           { label: `Fuel (${formatNumber(financials.costsBreakdown.fuelLiters)} L @ $${formatNumber(financials.costsBreakdown.fuelPriceL, 3)}/L)`, amount: financials.costsBreakdown.fuel },
-                           { label: 'Crew & Ground Staff', amount: financials.costsBreakdown.crew },
-                           { label: 'Catering & Cabin', amount: financials.costsBreakdown.catering },
-                           { label: 'Landing & pax fees', amount: financials.costsBreakdown.infra }
+                           { label: 'Catering', amount: figures.passengerCost.catering },
+                           { label: 'Check-in & handling fees', amount: figures.passengerCost.fees },
+                           { label: 'Frequent flyer', amount: figures.passengerCost.ffp }
+                         ]
+                       },
+                       {
+                         id: 'fixed',
+                         label: 'Fixed costs',
+                         total: figures.fixed.total,
+                         items: [
+                           { label: 'Fuel', amount: figures.fixed.fuel },
+                           { label: 'Crew', amount: figures.fixed.crew },
+                           { label: 'Landing fees', amount: figures.fixed.landing },
+                           { label: 'Slots', amount: figures.fixed.slotShare },
+                           { label: 'Aircraft', amount: figures.fixed.aircraftShare }
                          ]
                        }
                      ]}
                      defaultOpen={true}
                    />
+                   {plannerWeekly !== null && (
+                     <div className="mt-3 flex justify-between gap-2 text-2xs uppercase tracking-label font-semibold" title="The route planner's main figure: expected weekly profit after the ramp-up, at the fares you set">
+                       <span className="text-muted">From next month, after ramp-up</span>
+                       <span className={`font-mono ${plannerWeekly >= 0 ? 'text-good' : 'text-bad'}`}>{plannerWeekly >= 0 ? '+' : '-'}{formatCurrency(Math.abs(plannerWeekly))} / wk</span>
+                     </div>
+                   )}
                    <div className="border-t border-line pt-4 mt-4 grid grid-cols-2 gap-2">
-                     {(['economy', 'premium', 'business', 'first'] as const)
-                       .filter(cls => (financials.paxByClass?.[cls]?.max ?? 0) > 0)
-                       .map(cls => {
-                         const cd = financials.paxByClass[cls];
-                         const lf = cd.max > 0 ? Math.round(((cd.actual + (cd.transfer || 0)) / cd.max) * 100) : 0;
-                         const price = (route.activeTicketPrices || route.ticketPrices || {})[cls] || 0;
+                     {seatClasses.map(cls => {
+                         const cd = month.classes[cls]!;
+                         const transfer = Math.round(cd.transferPassengers);
                          return (
                            <div key={cls} className="flex flex-col items-center bg-surface border border-line rounded-sm p-2">
                              <span className="text-2xs text-muted uppercase tracking-label font-semibold">{cls}</span>
-                             <span className={`text-lg font-mono font-semibold ${lf >= 85 ? 'text-good' : lf >= 60 ? 'text-accent' : 'text-bad'}`}>{lf}%</span>
-                             <span className="text-2xs text-muted font-mono">{cd.actual}{cd.transfer ? `+${cd.transfer}` : ''}/{cd.max} pax @ ${price}</span>
+                             <span className={`text-lg font-mono font-semibold ${loadColor(cd.loadFactor)}`}>{Math.round(cd.loadFactor * 100)}%</span>
+                             <span className="text-2xs text-muted font-mono">{formatNumber(Math.round(cd.passengers))}{transfer ? `+${formatNumber(transfer)}` : ''}/{formatNumber(Math.round(cd.seatsPerWeek))} pax @ {formatCurrency(cd.fare)}</span>
                            </div>
                          );
                        })}
                    </div>
                  </>
+               )}
+               {!month && (
+                 <div className="text-2xs text-muted uppercase tracking-label font-semibold py-6 text-center">No forecast for this route</div>
                )}
             </div>
             <div className="p-4 bg-ground/40 border-t border-line text-center uppercase tracking-label text-2xs font-semibold text-muted group-hover:text-accent transition-colors shrink-0">

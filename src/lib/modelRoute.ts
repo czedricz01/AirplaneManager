@@ -10,6 +10,8 @@
  *   = Marktpreis, E23).
  * - `plannedSatisfaction` liefert Planer Schritt 3 und dem Kabinen-Fenster die Satisfaction je Klasse mit allen Teilen und
  *   die Verpflegungskosten (Paket 4.5b, 2.4–2.7, 5.7).
+ * - `routesThisMonth` liefert Streckenliste, Streckenansicht und Karte die Zahlen aller Strecken des Spielers im
+ *   laufenden Monat aus `monthOperations`, derselben Rechnung, die der Abschluss bucht (Paket 4.5c, 8.1, R2).
  *
  * Rein: liest nur seine Eingabe (R12). Die Strecke kommt im Format der Oberfläche (`SimulatedRoute`, Preise in $) und
  * wird über die Brücke (`routeState`) gelesen.
@@ -25,7 +27,9 @@ import {
   type BreakEvenClass,
   type ClassFigures,
 } from '../model/fare';
+import { establishedRouteBonus } from '../model/marketSplit';
 import {
+  monthOperations,
   plannerRouteFigures,
   routeClassPassengersCurve,
   routeSatisfactionDetail,
@@ -34,7 +38,7 @@ import {
   type RouteSatisfactionDetail,
   type RouteState,
 } from '../model/monthClose';
-import { satisfactionFactor } from '../model/satisfaction';
+import { flightTimeIndex, routeSatisfaction, satisfactionFactor } from '../model/satisfaction';
 import type { SimulatedRoute } from './gameTypes';
 import { departuresPerWeek, routeKm, routeState, type RouteContext } from './modelBridge';
 import { PLAYER_ID } from './modelMonth';
@@ -265,5 +269,99 @@ export function routeMarketFares(state: ModelState, route: Pick<SimulatedRoute, 
 export function pricesAtLevel(fares: ClassFigures, level: number, classes: readonly CabinClass[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const c of classes) out[c] = Math.max(1, Math.round(level * fares[c]));
+  return out;
+}
+
+/** Eine Klasse einer Strecke im laufenden Monat (je Woche, beide Richtungen). */
+export interface RouteMonthClass {
+  /** Sitze im Markt (ohne gestrichene Flüge, 8.9). */
+  readonly seatsPerWeek: number;
+  /** Direktgäste (3.11). */
+  readonly passengers: number;
+  /** Umsteiger auf dieser Strecke (3.13). */
+  readonly transferPassengers: number;
+  /** Preis in $, der in diesem Monat gilt. */
+  readonly fare: number;
+  /** Direktgäste × Preis. */
+  readonly directRevenue: number;
+  /** (Direktgäste + Umsteiger) / Sitze. */
+  readonly loadFactor: number;
+  /** Satisfaction der Klasse (2.7). */
+  readonly satisfaction: number;
+}
+
+/** Was Streckenliste, Streckenansicht und Karte von einer Strecke zeigen (Paket 4.5c). */
+export interface RouteMonth {
+  /** Alle Zahlen der Strecke aus dem Abschluss (Erlös, Kosten nach Posten, Ergebnis je Woche). */
+  readonly figures: RouteFigures;
+  /** Laufmonate (0 = erster Monat); Anlauf bis `RAMP_MONTHS` (3.12). */
+  readonly ageMonths: number;
+  /** Established route bonus (3.9.6, E9): 1,05 = 5 % mehr Anziehung. */
+  readonly establishedBonus: number;
+  readonly flightTimeIndex: number;
+  /** Direktgäste + Umsteiger je Woche. */
+  readonly passengers: number;
+  readonly directPassengers: number;
+  readonly transferPassengers: number;
+  /** Erlös-Anteil der Umsteiger (4.8) = Erlös − Σ Direktgäste × Preis. */
+  readonly transferRevenue: number;
+  /** Sitze im Markt je Woche. */
+  readonly seatsPerWeek: number;
+  /** Route satisfaction (2.9), Mittel nach Fluggästen (Direktgäste + Umsteiger, wie die Airline satisfaction). */
+  readonly satisfaction: number;
+  readonly classes: Readonly<Partial<Record<CabinClass, RouteMonthClass>>>;
+}
+
+/**
+ * Zahlen aller Strecken des Spielers im Monat des Spielstands, nach Strecken-Id: dieselbe Rechnung wie der Abschluss
+ * (`monthOperations`, 8.1, R2) mit den Preisen dieses Monats, Störungen und Umsteigern. Eine Preisänderung zählt erst
+ * im nächsten Monat (4.5).
+ */
+export function routesThisMonth(state: ModelState): ReadonlyMap<string, RouteMonth> {
+  const ops = monthOperations(state)[PLAYER_ID];
+  const player = state.companies.find((c) => c.id === PLAYER_ID);
+  const out = new Map<string, RouteMonth>();
+  if (!ops || !player) return out;
+  for (const f of ops.routes) {
+    const age = player.routes.find((r) => r.id === f.routeId)?.ageMonths ?? 0;
+    const classes: Partial<Record<CabinClass, RouteMonthClass>> = {};
+    let direct = 0;
+    let transfer = 0;
+    let seats = 0;
+    let directRevenue = 0;
+    const weights: { satisfaction: number; passengers: number; seats: number }[] = [];
+    for (const c of CABIN_CLASSES) {
+      const s = f.offeredSeats[c];
+      const sat = f.satisfaction[c];
+      direct += f.passengers[c];
+      transfer += f.transferPassengers[c];
+      directRevenue += f.passengers[c] * f.fares[c];
+      if (sat === undefined) continue;
+      seats += s;
+      weights.push({ satisfaction: sat, passengers: f.passengers[c] + f.transferPassengers[c], seats: s });
+      classes[c] = {
+        seatsPerWeek: s,
+        passengers: f.passengers[c],
+        transferPassengers: f.transferPassengers[c],
+        fare: f.fares[c],
+        directRevenue: f.passengers[c] * f.fares[c],
+        loadFactor: loadFactor(f.passengers[c] + f.transferPassengers[c], s),
+        satisfaction: sat,
+      };
+    }
+    out.set(f.routeId, {
+      figures: f,
+      ageMonths: age,
+      establishedBonus: establishedRouteBonus(age),
+      flightTimeIndex: flightTimeIndex(f.blockMinutes),
+      passengers: direct + transfer,
+      directPassengers: direct,
+      transferPassengers: transfer,
+      transferRevenue: f.revenue - directRevenue,
+      seatsPerWeek: seats,
+      satisfaction: routeSatisfaction(weights),
+      classes,
+    });
+  }
   return out;
 }

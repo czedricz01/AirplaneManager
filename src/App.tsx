@@ -32,7 +32,7 @@ import { LazyFallback } from "./components/ui/LazyFallback";
 import { readJson, writeJson, readString, writeString, removeKey } from "./lib/safeStorage";
 import { AccountScopeContext } from "./lib/accountScope";
 import { syncAllPendingConfigs } from "./lib/configStore";
-import { getAircraftResaleValue, toStoredRouteMetrics, applyManagementUnlock } from "./lib/financeUtils";
+import { getAircraftResaleValue, applyManagementUnlock } from "./lib/financeUtils";
 import { computeNetworkFinancials } from "./lib/transferUtils";
 import { regionsServed } from "./lib/chronicle";
 import { type Edition } from "./lib/newspaper";
@@ -65,7 +65,7 @@ import { modelRivals, modelWorldEvent, type RivalRecord, type WorldState } from 
 import { rivalSlotsByAirport, tierPrice, type AirportPricing } from "./lib/modelAirport";
 import { modelMilestones } from "./lib/modelBridgeCompany";
 import { defaultModelEnv, modelGame, planesValue } from "./lib/modelMonth";
-import type { PlannerModel } from "./lib/modelRoute";
+import { routesThisMonth, type PlannerModel, type RouteMonth } from "./lib/modelRoute";
 import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
 import { modelMonthClose } from "./lib/modelMonthClose";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
@@ -685,43 +685,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerMods, rivalOffers, randomEvents]
   );
-
-  /**
-   * The player's modifiers with this month's connecting passengers, for the
-   * screens that price one route at a time (the route list and its detail
-   * view). Reading `transfer` from here, their figures match the network's.
-   */
-  const playerModsWithTransfer = useMemo(
-    () => Object.keys(network.transfer).length > 0 ? { ...playerMods, transfer: network.transfer } : playerMods,
-    [playerMods, network]
-  );
-
-  /**
-   * Every route with this month's figures, from the same engine call the
-   * monthly report makes. The route list and the map read these. The copy
-   * stored on each route changes only when a month closes, so a new rival, a
-   * new timetable or a new route next door showed up there a month late.
-   */
-  const routesWithMetrics = useMemo(() => routes.map(r => {
-    const fin = network.finById.get(r.id);
-    return fin ? { ...r, ...toStoredRouteMetrics(fin) } : r;
-  }), [routes, network]);
-
-  /**
-   * This month's profit and weekly passengers per route, for the map's profit
-   * heatmap. The forecast rather than the last closed month, so a route opened
-   * or repriced today shows its colour straight away. Profit is the weekly
-   * figure times the model's weeks per month, as the month close books it.
-   */
-  const routeHeat = useMemo(() => {
-    const profit: Record<string, number> = {};
-    const pax: Record<string, number> = {};
-    network.finById.forEach((fin, id) => {
-      profit[id] = (fin.estWeeklyProfit || 0) * WEEKS_PER_MONTH;
-      pax[id] = fin.paxPerWeek || 0;
-    });
-    return { profit, pax };
-  }, [network]);
 
   /** Passengers this month at the current forecast, for the frequent-flyer programme's bill. */
   const projectedMonthlyPax = useMemo(() => {
@@ -1791,12 +1754,11 @@ export default function App() {
   }, [currentDateOffset, career.research.done, milestones, rivals, aiAirlines]);
 
   /**
-   * The whole game as the model sees it, for the route planner's forecast (docs/neubau 4.5a): the same state the month
-   * close books with, so the planner's figures are the close's (R2). Built only while a planner is open.
+   * The whole game as the model sees it (docs/neubau 4.5a, 4.5c): the same state the month close books with, so the
+   * planner's forecast and the figures of the route list, the route detail and the map are the close's (R2).
    */
-  const plannerOpen = isPlanningRoute || editingPricingRouteId !== null || editingCabinRouteId !== null;
   const plannerModel = useMemo<PlannerModel | null>(() => {
-    if (!plannerOpen) return null;
+    if (view !== 'game') return null;
     try {
       const { state } = modelGame({
         month: currentDateOffset, startMonth: startDateOffset, airlineCode, brandingColor: branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
@@ -1805,12 +1767,47 @@ export default function App() {
       });
       return { state, startMonth: startDateOffset };
     } catch (error) {
-      logWarn('planner', 'The game could not be read as a model state; the planner shows no forecast', error);
+      logWarn('model', 'The game could not be read as a model state; the planner and the route list show no forecast', error);
       return null;
     }
-  }, [plannerOpen, currentDateOffset, startDateOffset, airlineCode, branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
+  }, [view, currentDateOffset, startDateOffset, airlineCode, branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
     capital, monthlyCapex, ledgerValues, overdrawnMonths, fleet, routes, airportManagement, reputation, profitStreak, staff, marketing, eventChoices,
     career, milestones, annualGoal, scenario, reportHistory, aiAirlines, rivals, modelWorld, randomEvents, disruptions]);
+
+  /**
+   * Every route's figures this month from the model (docs/neubau 4.5c): the month close's own calculation with this
+   * month's fares, disruptions and connecting passengers. The route list, the route detail and the map read these.
+   */
+  const routeMonths = useMemo<ReadonlyMap<string, RouteMonth>>(() => {
+    if (!plannerModel) return new Map();
+    try {
+      return routesThisMonth(plannerModel.state);
+    } catch (error) {
+      logWarn('model', 'The routes could not be priced by the model; the route list shows no forecast', error);
+      return new Map();
+    }
+  }, [plannerModel]);
+
+  /** Routes with this month's weekly passengers, for the map and its live traffic. */
+  const routesWithMetrics = useMemo(() => routes.map(r => {
+    const m = routeMonths.get(r.id);
+    return m ? { ...r, paxPerWeek: Math.round(m.passengers) } : r;
+  }), [routes, routeMonths]);
+
+  /**
+   * This month's profit and weekly passengers per route, for the map's profit heatmap: the forecast rather than the
+   * last closed month, so a route opened today shows its colour straight away. Profit is the weekly result times the
+   * model's weeks per month, as the month close books it.
+   */
+  const routeHeat = useMemo(() => {
+    const profit: Record<string, number> = {};
+    const pax: Record<string, number> = {};
+    routeMonths.forEach((m, id) => {
+      profit[id] = m.figures.result * WEEKS_PER_MONTH;
+      pax[id] = m.passengers;
+    });
+    return { profit, pax };
+  }, [routeMonths]);
   /**
    * Unlocks a management tier at an airport. The route planner and the airport
    * console each had their own copy of this with different prices, and only
@@ -2554,15 +2551,13 @@ export default function App() {
                           onEditCabinServices={setEditingCabinRouteId}
                           onEditFinancials={setEditingPricingRouteId}
                           onUpdatePricing={handleUpdatePricing}
-                          fuelPrice={fuelData.price}
-                          playerMods={playerModsWithTransfer}
+                          routeMonths={routeMonths}
+                          model={plannerModel}
                           rivalOffers={rivalOffers}
-                          transferFlows={network.flowsByRoute}
                           cancellations={routeCancellations}
                           airportManagement={airportManagement}
                           currentYear={yearOf(currentDateOffset)}
                           currentMonth={monthOf(currentDateOffset)}
-                          difficulty={difficulty}
                           airlineCode={airlineCode}
                         />
                       </React.Suspense>
@@ -2743,8 +2738,6 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         playerMods={playerMods}
-                        fuelPrice={fuelData.price}
-                        rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
@@ -2779,8 +2772,6 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         playerMods={playerMods}
-                        fuelPrice={fuelData.price}
-                        rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
@@ -2815,8 +2806,6 @@ export default function App() {
                         routes={routes}
                         onNotify={setAppAlert}
                         playerMods={playerMods}
-                        fuelPrice={fuelData.price}
-                        rivalOffers={rivalOffers}
                         airportManagement={airportManagement}
                         capital={capital}
                         initialOriginId={planningOriginId || undefined}
