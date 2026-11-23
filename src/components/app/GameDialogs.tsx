@@ -70,11 +70,13 @@ export function GameDialogs({
               <div className="space-y-2">
                 {pendingDecision.choices?.map((choice: EventChoice) => {
                   const affordable = capital >= choice.cost;
+                  // Priced by the model as a share of last month's fuel bill or revenue (docs/neubau 8.5).
+                  const unpriced = !!choice.unpriced;
                   return (
                     <button
                       key={choice.id}
                       type="button"
-                      disabled={!affordable}
+                      disabled={!affordable || unpriced}
                       onClick={() => {
                         if (choice.cost > 0) spend(choice.cost, `Crisis response: ${pendingDecision.title}`);
                         setEventChoices(prev => ({ ...prev, [eventKey(pendingDecision)]: choice.id }));
@@ -84,8 +86,8 @@ export function GameDialogs({
                     >
                       <div className="flex items-baseline justify-between gap-3 mb-1">
                         <span className="font-semibold uppercase tracking-label text-2xs text-ink">{choice.label}</span>
-                        <span className={`font-mono text-2xs font-semibold shrink-0 ${choice.cost > 0 ? 'text-accent' : 'text-good'}`}>
-                          {choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
+                        <span className={`font-mono text-2xs font-semibold shrink-0 ${unpriced || choice.cost > 0 ? 'text-accent' : 'text-good'}`}>
+                          {unpriced ? 'Priced after a month of flying' : choice.cost > 0 ? formatCurrency(choice.cost) : 'No cost'}
                         </span>
                       </div>
                       <p className="text-2xs text-muted leading-relaxed">{choice.detail}</p>

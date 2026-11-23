@@ -183,6 +183,7 @@ const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").
 
 import { Aircraft, aircraftList } from "./data/aircraft";
 import { getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, eventKey } from "./lib/eventSystem";
+import { crisisBase, eventBand, pricedEvent } from "./lib/modelEvents";
 import { createOwnedAircraft, startingFleet } from "./lib/fleet";
 import { scenarioById, type Scenario } from "./data/scenarios";
 import { monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
@@ -557,13 +558,6 @@ export default function App() {
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
 
   /**
-   * World events running this month, with how long each still has to go.
-   *
-   * getActiveEvents already had everything needed for this; nothing in the
-   * interface ever showed it, so a player in a crisis could see the demand
-   * figure had dropped but not what was causing it or when it would lift.
-   */
-  /**
    * Every rival departure, as offers the finance engine can split demand by.
    * Rebuilt only when the AI airlines change, not per route.
    */
@@ -582,16 +576,6 @@ export default function App() {
 
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
 
-  const activeWorldEvents = useMemo(() => {
-    return getActiveEvents(currentDateOffset).map(ev => {
-      const chosenId = eventChoices[eventKey(ev)];
-      return {
-        ...ev,
-        monthsLeft: ev.startOffset + ev.duration - currentDateOffset,
-        chosen: chosenId ? ev.choices?.find(c => c.id === chosenId) : undefined
-      };
-    });
-  }, [currentDateOffset, randomEvents, eventChoices]);
 
   const visibleWorldOffsets = useMemo(() => {
     if (!mapBounds) return [-360, 0, 360];
@@ -1736,6 +1720,27 @@ export default function App() {
     career, milestones, annualGoal, scenario, reportHistory, aiAirlines, rivals, modelWorld, randomEvents, disruptions]);
 
   /**
+   * Crisis responses priced by the model (docs/neubau 4.7c, 8.5, E6, E35): a share of the last closed month's fuel bill
+   * or revenue instead of the old fixed amounts.
+   */
+  const crisisPriceBase = useMemo(() => crisisBase(latestReport ?? undefined), [latestReport]);
+
+  /**
+   * World events running this month for the header band, from the model (docs/neubau 4.7c, 8.4): which events run,
+   * their texts, regions, months left and the responses at the model's price.
+   */
+  const activeWorldEvents = useMemo(
+    () => eventBand(currentDateOffset, worldEvents, eventChoices, crisisPriceBase),
+    [currentDateOffset, worldEvents, eventChoices, crisisPriceBase]
+  );
+
+  /** The open crisis question with the model's prices; what the dialog shows and charges. */
+  const pricedDecision = useMemo(
+    () => (pendingDecision ? pricedEvent(pendingDecision, crisisPriceBase) : null),
+    [pendingDecision, crisisPriceBase]
+  );
+
+  /**
    * What the airline is worth by the model (docs/neubau 4.7a, 6.12, E48): cash, aircraft at value, slots at resale,
    * deposits -- the company value a takeover is priced at and the career score counts. Without a model state (outside
    * the game) cash and fleet only.
@@ -2259,7 +2264,7 @@ export default function App() {
             </React.Suspense>
           )}
           <GameDialogs
-            pendingDecision={pendingDecision}
+            pendingDecision={pricedDecision}
             isNewspaperOpen={isNewspaperOpen}
             scenarioResultOpen={scenarioResultOpen}
             capital={capital}
@@ -2740,13 +2745,10 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        playerMods={playerMods}
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
                         currentYear={yearOf(currentDateOffset)}
-                        currentMonth={monthOf(currentDateOffset)}
-                        difficulty={difficulty}
                         initialRouteId={editingCabinRouteId}
                         isEditingCabinOnly={true}
                         onSaveRoute={(route) => {
@@ -2774,13 +2776,10 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        playerMods={playerMods}
                         airportManagement={airportManagement}
                         capital={capital}
                         onSubtractCapital={(amount, label) => spend(amount, label ?? 'Airport Infrastructure')}
                         currentYear={yearOf(currentDateOffset)}
-                        currentMonth={monthOf(currentDateOffset)}
-                        difficulty={difficulty}
                         initialRouteId={editingPricingRouteId}
                         isEditingPricingOnly={true}
                         onSaveRoute={(route) => {
@@ -2808,7 +2807,6 @@ export default function App() {
                         fleet={fleet}
                         routes={routes}
                         onNotify={setAppAlert}
-                        playerMods={playerMods}
                         airportManagement={airportManagement}
                         capital={capital}
                         initialOriginId={planningOriginId || undefined}
@@ -2835,8 +2833,6 @@ export default function App() {
                         onScheduleChange={setPlanningSchedule}
                         onClassConfigsChange={setPlanningClassConfigs}
                         currentYear={yearOf(currentDateOffset)}
-                        currentMonth={monthOf(currentDateOffset)}
-                        difficulty={difficulty}
                         aiAirlines={aiAirlines}
                         airlineCode={airlineCode}
                         onSaveRoute={(route) => {

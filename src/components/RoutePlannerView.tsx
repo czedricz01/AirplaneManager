@@ -34,20 +34,13 @@ import {
   SLOT_CAPEX_LABEL,
   classConfigFor,
   CABIN_CLASSES,
-  getFlightTimeClass,
-  getFlightTimeIndex,
-  southernShare,
   getCateringOpt,
   getMultiOptionSum,
-  calculateDemand,
-  calculateBasePrices,
-  eventRegionalFactor,
   validateClassConfigs,
   getFlightDurationMinutes as sharedFlightDurationMinutes,
   marketKey,
   buildRivalRoutesByPair
 } from '../lib/financeUtils';
-import { NEUTRAL_PLAYER_MODIFIERS, routeDemandFactor, type PlayerModifiers } from '../lib/gameState';
 import {
   airportCosts,
   deskSellLimit,
@@ -65,7 +58,7 @@ import type { CabinClass, DeskType } from '../model/constants';
 import { clampFareRatio } from '../model/fare';
 import { CLASS_LABEL } from '../model/glossary';
 import { logWarn } from '../lib/debugLog';
-import { plannedSatisfaction, pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, type PlannedRoute, type PlannerModel, type RouteForecast } from '../lib/modelRoute';
+import { plannedSatisfaction, pricesAtLevel, routeBestFares, routeForecast, routeMarket, routeMarketFares, type PlannedRoute, type PlannerModel, type RouteForecast } from '../lib/modelRoute';
 import { planeFigures } from '../lib/modelFleet';
 import type { ClassSatisfactionDetail, RouteSatisfactionDetail } from '../model/monthClose';
 import { deskLoad, routeSatisfaction as routeSatisfactionMean, satisfactionFactor } from '../model/satisfaction';
@@ -201,8 +194,6 @@ interface Props {
   onSubtractCapital?: (amount: number, label?: string) => void;
   /** Reports a refused or trimmed infrastructure purchase; these all used to fail silently. */
   onNotify?: (message: string) => void;
-  /** The player-only effects on the economy, so the preview matches the monthly report. */
-  playerMods?: PlayerModifiers;
   onGoToAirport?: (airport: Airport) => void;
   onClose: () => void;
   onOpenCatalog?: (currentStep?: number) => void;
@@ -220,8 +211,6 @@ interface Props {
   /** Shows the demand and pricing breakdowns; the game's debug setting. */
   debugMode?: boolean;
   currentYear: number;
-  currentMonth: number;
-  difficulty: string;
   aiAirlines?: any[];
   airlineCode?: string;
   /** Month, research, milestones and the rivals' slots: everything the model's prices at airports need (4.3). */
@@ -308,7 +297,7 @@ const aircraftImageName = (ac: OwnedAircraft) =>
 
 function RoutePlannerInner({ 
   airports, fleet, routes, airportManagement, capital, 
-  onUnlockManagement, airportLock, onUpdateInfrastructure, onSubtractCapital, onNotify, playerMods = NEUTRAL_PLAYER_MODIFIERS, onClose, onSaveRoute, onOpenCatalog, currentYear, currentMonth, difficulty, onGoToAirport,
+  onUnlockManagement, airportLock, onUpdateInfrastructure, onSubtractCapital, onNotify, onClose, onSaveRoute, onOpenCatalog, currentYear, onGoToAirport,
   initialOriginId, initialDestId, initialSelectedReg, initialRouteId,
   initialSchedule, initialClassConfigs, isEditingCabinOnly, isEditingPricingOnly,
   onOriginChange, onDestChange, onRegChange, onStepChange, onScheduleChange, onClassConfigsChange,
@@ -955,21 +944,19 @@ function RoutePlannerInner({
   const rivalRoutesByPair = useMemo(() => buildRivalRoutesByPair(aiAirlines), [aiAirlines]);
 
   /**
-   * The city pair's weekly market for the preview in step 1. It used to assume
-   * 850 km/h instead of the flight-time model and left out the player's demand
-   * factor, so it disagreed with the fares and loads computed later.
+   * The city pair's weekly market for step 1 (docs/neubau 4.7c, 3.6): market size with all its parts, class shares and
+   * market fares from the model, the same function the month close splits the market with (R2). It depends on neither
+   * aircraft, airline nor difficulty, so it needs no assumed speed. Without a model state no figure.
    */
   const demandPreview = useMemo(() => {
-    if (!selectedOrigin || !selectedDest) return null;
-    const dist = Math.round(calculateDistance(selectedOrigin.coords[0], selectedOrigin.coords[1], selectedDest.coords[0], selectedDest.coords[1]));
-    const dur = sharedFlightDurationMinutes(selectedOrigin, selectedDest, selectedAircraft || { cruiseSpeed: 800 });
-    const tc = getFlightTimeClass(dur);
-    const ti = getFlightTimeIndex(dur);
-    const o = getAirportStats(selectedOrigin, currentYear);
-    const t = getAirportStats(selectedDest, currentYear);
-    const d = calculateDemand(o.business, o.tourism, t.business, t.tourism, ti, currentMonth, difficulty, currentYear, routeDemandFactor(playerMods, selectedOrigin, selectedDest) * eventRegionalFactor(currentYear, currentMonth, selectedOrigin, selectedDest), southernShare(selectedOrigin, selectedDest));
-    return { d, tc, basePrices: calculateBasePrices(dist, ti), assumedAircraft: !selectedAircraft };
-  }, [selectedOrigin, selectedDest, selectedAircraft, currentYear, currentMonth, difficulty, playerMods]);
+    if (!selectedOrigin || !selectedDest || !model) return null;
+    try {
+      return routeMarket(model.state, { origin: selectedOrigin.id, destination: selectedDest.id });
+    } catch (error) {
+      logWarn('planner', 'The model could not size this market', error);
+      return null;
+    }
+  }, [selectedOrigin, selectedDest, model]);
 
   /**
    * The draft as the model reads it (docs/neubau 4.5a): an edited route keeps its opening month, so its first month
@@ -2173,48 +2160,37 @@ function RoutePlannerInner({
                           <Search size={12} /> Demand Forecast {debugMode && <span className="text-2xs bg-accent/20 px-1 py-0.5 rounded-sm text-accent ml-1">Debug</span>}
                         </div>
                         <div className="text-ink font-mono text-xs font-semibold">
-                          {demandPreview ? `${formatNumber(demandPreview.d.total)} / WK MARKET` : ''}
+                          {demandPreview ? `${formatNumber(Math.round(demandPreview.size.marketSize))} / WK MARKET` : ''}
                         </div>
                       </div>
-                      {demandPreview?.assumedAircraft && (
-                        <div className="text-2xs text-muted mt-1">Flight time assumed at 800 km/h until an aircraft is chosen</div>
-                      )}
-
                       {showDemandDebug && debugMode && demandPreview && (
                         <div className="mt-4 pt-4 border-t border-line space-y-2 text-2xs text-muted bg-ground/60 p-4 rounded-sm">
                           {(() => {
-                             const { d, tc, basePrices } = demandPreview;
+                             const { size, share, passengers, fares, km } = demandPreview;
+                             const row = (label: string, value: string, tone = 'text-ink') => (
+                               <div><span className="text-muted">{label}:</span> <span className={tone}>{value}</span></div>
+                             );
                              return (
                                <>
                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
-                                   <div><span className="text-muted">b1 (Orig Bus):</span> <span className="text-ink">{d.formulaVars.b1}</span></div>
-                                   <div><span className="text-muted">t1 (Orig Tou):</span> <span className="text-accent">{d.formulaVars.t1}</span></div>
-                                   <div><span className="text-muted">b2 (Dest Bus):</span> <span className="text-ink">{d.formulaVars.b2}</span></div>
-                                   <div><span className="text-muted">t2 (Dest Tou):</span> <span className="text-accent">{d.formulaVars.t2}</span></div>
-                                   <div><span className="text-muted">Time Class:</span> <span className="text-ink">{tc}</span></div>
-                                   <div><span className="text-muted">Business Ratio:</span> <span className="text-ink">{(d.formulaVars.businessRatio * 100).toFixed(1)}%</span></div>
-                                   <div><span className="text-muted">Mv (Month {currentMonth}):</span> <span className="text-accent">{d.formulaVars.Mv}</span></div>
-                                   <div><span className="text-muted">S (Diff {difficulty}):</span> <span className="text-accent">{d.formulaVars.S}</span></div>
+                                   {row('Distance', `${formatNumber(Math.round(km))} km`)}
+                                   {row('Reference block time', `${formatNumber(Math.round(size.referenceBlockMinutes))} min`)}
+                                   {row('Business linkage', formatNumber(size.businessLinkage, 2))}
+                                   {row('Tourism linkage', formatNumber(size.tourismLinkage, 2), 'text-accent')}
+                                   {row('Season (tourism)', formatNumber(size.season, 2), 'text-accent')}
+                                   {row('Business share', `${(size.businessShare * 100).toFixed(1)}%`)}
+                                   {row('Distance factor', formatNumber(size.distanceFactor, 3))}
+                                   {row('Demand growth', formatNumber(size.demandGrowth, 2))}
+                                   {row('Events', formatNumber(size.eventFactor, 2), 'text-accent')}
                                  </div>
-                                 <div className="text-muted mb-2 pb-2 border-b border-line">
-                                   Demand = 29.00 &times; Interaction^0.448 &times; S {d.formulaVars.S} &times; era {formatNumber(d.formulaVars.eraFactor, 2)} &times; time class {formatNumber(d.formulaVars.tcDemandMultiplier, 2)} &times; events {formatNumber(d.formulaVars.eventMult, 2)} &times; your factor {formatNumber(d.formulaVars.extraDemandFactor, 2)}
-                                   <br />
-                                   Interaction: {formatNumber(d.formulaVars.totalInteraction)}
-                                 </div>
-                                 <div className="flex justify-between items-center text-accent">
-                                   <span>Economy:</span> <span>{formatNumber(d.economy)} | BASE: ${basePrices.economy}</span>
-                                 </div>
-                                 <div className="flex justify-between items-center text-accent">
-                                   <span>Premium:</span> <span>{formatNumber(d.premium)} | BASE: ${basePrices.premium}</span>
-                                 </div>
-                                 <div className="flex justify-between items-center text-ink">
-                                   <span>Business:</span> <span>{formatNumber(d.business)} | BASE: ${basePrices.business}</span>
-                                 </div>
-                                 <div className="flex justify-between items-center text-ink font-semibold border-b border-line pb-1 mb-1">
-                                   <span>First:</span> <span>{formatNumber(d.first)} | BASE: ${basePrices.first}</span>
-                                 </div>
-                                 <div className="flex justify-between items-center text-ink font-semibold text-sm pt-1">
-                                   <span>MARKET DEMAND / WK (all airlines):</span> <span>{formatNumber(d.total)}</span>
+                                 {CABIN_CLASSES.map(c => (
+                                   <div key={c} className="flex justify-between items-center text-ink">
+                                     <span>{CLASS_LABEL[c]} ({(share[c] * 100).toFixed(1)}%):</span>
+                                     <span>{formatNumber(Math.round(passengers[c]))} | MARKET FARE: {formatCurrency(Math.round(fares[c]))}</span>
+                                   </div>
+                                 ))}
+                                 <div className="flex justify-between items-center text-ink font-semibold text-sm pt-1 mt-1 border-t border-line">
+                                   <span>MARKET SIZE / WK (one airline at market fare):</span> <span>{formatNumber(Math.round(size.marketSize))}</span>
                                  </div>
                                </>
                              );

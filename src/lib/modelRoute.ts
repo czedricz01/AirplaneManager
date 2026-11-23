@@ -6,6 +6,7 @@
  *   aircraft costs“ und „Full aircraft at market fare“ (4.12, E26, E57), je Klasse Marktpreis, Preisniveau,
  *   Satisfaction, Fluggäste und Gewinnschwelle (4.11) bei erwarteter und voller Auslastung.
  * - `routeBestFares` liefert je Klasse den gewinnbesten Preis (4.10).
+ * - `routeMarket` liefert Planer Schritt 1 die Marktgröße des Paars mit allen Teilen (Paket 4.7c, 3.6).
  * - `routeMarketFares` / `pricesAtLevel` setzen Preise über ein Preisniveau für alle Klassen („Adjust All“, Startpreis
  *   = Marktpreis, E23).
  * - `plannedSatisfaction` liefert Planer Schritt 3 und dem Kabinen-Fenster die Satisfaction je Klasse mit allen Teilen und
@@ -30,11 +31,13 @@ import {
 import { establishedRouteBonus } from '../model/marketSplit';
 import {
   monthOperations,
+  pairMarket,
   plannerRouteFigures,
   routeClassPassengersCurve,
   routeSatisfactionDetail,
   type CompanyState,
   type ModelState,
+  type PairMarket,
   type RouteFigures,
   type RouteSatisfactionDetail,
   type RouteState,
@@ -256,6 +259,15 @@ export function routeBestFares(state: ModelState, planned: PlannedRoute): Partia
 export function plannedSatisfaction(state: ModelState, planned: PlannedRoute): RouteSatisfactionDetail | null {
   if (departuresPerWeek(planned.route) <= 0) return null;
   return routeSatisfactionDetail(withPlannedRoute(state, planned), PLAYER_ID, routeIdOf(planned));
+}
+
+/**
+ * Markt eines Städtepaars im Monat des Spielstands (Paket 4.7c): Marktgröße mit allen Teilen (3.6), Klassen-Anteile
+ * (3.7), Fluggäste je Klasse beim Bezugsangebot und Marktpreise (4.3), genau wie der Abschluss sie rechnet (R2). Für
+ * „/ WK MARKET“ und die Debug-Anzeige in Planer Schritt 1. Ohne Flugzeug: Die Marktgröße hängt nicht davon ab.
+ */
+export function routeMarket(state: ModelState, route: Pick<SimulatedRoute, 'origin' | 'destination'>): PairMarket {
+  return pairMarket(state, route.origin, route.destination);
 }
 
 /** Marktpreise der Strecke im Monat des Spielstands (4.3), für Startpreise und Regler. */

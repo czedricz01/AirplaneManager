@@ -1,5 +1,5 @@
 /** The bar above the game: date, key figures, messages, map options, the game menu and the running world events. */
-import type { EventChoice, EventRegion, HistoricalEvent } from '../../lib/eventSystem';
+import type { HistoricalEvent } from '../../lib/eventSystem';
 import type { GameSettings } from '../../lib/gameState';
 import type { GameMessage, SimulatedRoute } from '../../lib/gameTypes';
 import type { Edition } from '../../lib/newspaper';
@@ -11,6 +11,7 @@ import { LITRES_PER_GALLON, formatCurrency, formatNumber } from '../../lib/forma
 import { AlertTriangle, Bell, Newspaper, X } from 'lucide-react';
 import { eventRegionLabel } from '../../lib/eventSystem';
 import { eventEffect, type CreditStatus } from '../../lib/modelCompany';
+import { isPaidChoice, type BandEvent } from '../../lib/modelEvents';
 import { CREDIT_LIMIT_SHARE, CREDIT_RATE } from '../../model/constants';
 
 export interface GameTopBarProps {
@@ -49,7 +50,8 @@ export interface GameTopBarProps {
   setIsSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   fullscreen: { supported: boolean; active: boolean; toggle: () => void; };
   setShowExitSavePrompt: React.Dispatch<React.SetStateAction<boolean>>;
-  activeWorldEvents: { monthsLeft: number; chosen: EventChoice | undefined; startOffset: number; duration: number; title: string; description: string; demandMultiplier: number; fuelMultiplier: number; choices?: EventChoice[]; regions?: EventRegion[]; }[];
+  /** Running world events from the model (docs/neubau 4.7c, `eventBand`). */
+  activeWorldEvents: BandEvent[];
   setPendingDecision: React.Dispatch<React.SetStateAction<HistoricalEvent | null>>;
   /** The credit line by the model (docs/neubau 8.14). */
   credit: CreditStatus;
@@ -229,7 +231,7 @@ export function GameTopBar({
                          <span className="text-xs text-muted shrink-0 whitespace-nowrap">
                             {ev.monthsLeft} {ev.monthsLeft === 1 ? 'month' : 'months'} left
                          </span>
-                         {ev.chosen && ev.chosen.cost > 0 && (
+                         {ev.chosen && isPaidChoice(ev.chosen) && (
                             <span className="text-xs text-good shrink-0 whitespace-nowrap border border-good rounded-sm px-1.5 py-0.5">
                                {ev.chosen.label}
                             </span>

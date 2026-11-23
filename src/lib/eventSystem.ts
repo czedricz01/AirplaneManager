@@ -22,6 +22,11 @@ export interface EventChoice {
    * only. 0.4 against a 0.65 multiplier leaves 0.65 + 0.35*0.4 = 0.79.
    */
   softensDemand?: number;
+  /**
+   * The model cannot price it yet: no month closed, or one without flights, so no fuel bill or revenue to take a share
+   * of (docs/neubau 4.7c, 8.5). Not selectable until a month with flights has been closed.
+   */
+  unpriced?: boolean;
 }
 
 /** The coarse regions of the world; the same ids as RegionId in gameState. */
