@@ -9,25 +9,31 @@ import { CAMPAIGN_TIERS, type Campaign, type CampaignTier, type Marketing, type 
 import {
   CAMPAIGN_DURATIONS,
   CAMPAIGN_SPECS,
-  FFP_LOYALTY_MAX,
-  FFP_LOYALTY_PER_MONTH,
-  FFP_LOYALTY_START,
-  FFP_REPUTATION_PER_MONTH,
-  MARKETING_INFLATION,
-  MAX_REGION_DEMAND,
   REGION_LABELS,
   campaignBlocker,
   ffpRankGate,
-  campaignMonthlyCost,
-  campaignMonthsLeft,
-  campaignTotalCost,
-  createCampaign,
-  ffpLoyaltyBonus,
-  isCampaignActive,
-  marketingMonthCost,
-  marketingReputation,
-  regionDemandFactors
+  createCampaign
 } from '../lib/marketing';
+import {
+  ADVERTISING_BOOST,
+  ADVERTISING_MAX,
+  ADVERTISING_REPUTATION_MAX,
+  CAMPAIGN_REPUTATION,
+  FF_MAX,
+  FF_PER_MONTH,
+  FF_START,
+  REPUTATION_STEP
+} from '../model/constants';
+import {
+  campaignMonthCost,
+  campaignMonthsLeft,
+  campaignRunCost,
+  campaignsMonthCost,
+  loyaltyBonus,
+  marketingReputation,
+  regionAdvertising,
+  runningCampaigns
+} from '../lib/modelMarketing';
 import type { FfpForecast } from '../lib/modelNetwork';
 import { formatCurrency, formatMoneyCompact as compact, formatNumber, yearOf, monthOf } from '../lib/format';
 
@@ -66,10 +72,10 @@ function CampaignRow({ campaign, offset, onCancel }: { campaign: Campaign; offse
     <div className="flex items-center justify-between gap-2 border border-good/30 bg-good/5 px-2 py-1.5 rounded-sm">
       <div className="min-w-0">
         <div className="text-2xs font-label font-semibold uppercase tracking-label text-good">
-          {spec.label} · +{Math.round(spec.demandBoost * 100)}%
+          {spec.label} · +{Math.round(ADVERTISING_BOOST[campaign.tier] * 100)}%
         </div>
         <div className="text-2xs text-muted">
-          {left} month{left === 1 ? '' : 's'} left · {compact(campaignMonthlyCost(campaign.tier, offset))}/mo
+          {left} month{left === 1 ? '' : 's'} left · {compact(campaignMonthCost(campaign.tier, offset))}/mo
         </div>
       </div>
       <button
@@ -98,15 +104,15 @@ export function MarketingPanel({
   const [launch, setLaunch] = useState<{ region: RegionId; tier: CampaignTier } | null>(null);
   const [months, setMonths] = useState<number>(6);
 
-  const running = useMemo(() => marketing.campaigns.filter(c => isCampaignActive(c, offset)), [marketing, offset]);
-  const factors = useMemo(() => regionDemandFactors(marketing, offset) ?? {}, [marketing, offset]);
-  // Campaigns from the old prices until their own package (docs/neubau 4.8); the programme from the model.
-  const campaignCost = useMemo(() => marketingMonthCost(marketing, offset, 0).campaigns, [marketing, offset]);
+  // Everything from the model (docs/neubau 4.8): prices with the cost index, region factors, reputation, loyalty.
+  const running = useMemo(() => runningCampaigns(marketing, offset), [marketing, offset]);
+  const factors = useMemo(() => regionAdvertising(marketing, offset), [marketing, offset]);
+  const campaignCost = useMemo(() => campaignsMonthCost(marketing, offset), [marketing, offset]);
   const ffpCost = ffpForecast.total;
   const monthTotal = campaignCost + (marketing.ffpActive ? ffpCost : 0);
   const reputationGain = marketingReputation(marketing, offset);
   const ffpGate = rank === undefined ? null : ffpRankGate(rank);
-  const loyalty = ffpLoyaltyBonus(marketing, offset);
+  const loyalty = loyaltyBonus(marketing, offset);
   const global = running.find(c => c.tier === 'global');
 
   return (
@@ -120,11 +126,14 @@ export function MarketingPanel({
         </StatTile>
         <StatTile
           size="md"
-          label="Reputation from marketing"
+          label="Reputation from advertising"
           value={reputationGain > 0 ? `+${formatNumber(reputationGain, 1)}` : '0'}
           valueClassName={reputationGain > 0 ? 'text-good' : ''}
         >
-          <span className="block text-2xs text-muted mt-1">points per month</span>
+          <span className="block text-2xs text-muted mt-1">
+            points on the reputation target
+            {reputationGain > 0 ? ` · +${formatNumber(REPUTATION_STEP * reputationGain, 2)} this month` : ''}
+          </span>
         </StatTile>
         <StatTile
           size="md"
@@ -132,7 +141,7 @@ export function MarketingPanel({
           value={loyalty > 0 ? `+${Math.round(loyalty * 100)}%` : 'none'}
           valueClassName={loyalty > 0 ? 'text-good' : 'text-muted'}
         >
-          <span className="block text-2xs text-muted mt-1">appeal against rivals on shared routes</span>
+          <span className="block text-2xs text-muted mt-1">appeal of all your flights</span>
         </StatTile>
       </div>
 
@@ -149,9 +158,9 @@ export function MarketingPanel({
                   : <Badge>Not running</Badge>}
               </div>
               <p className="text-2xs text-muted leading-relaxed max-w-xl">
-                Members stick with you where a rival flies the same city pair: your appeal rises
-                by {Math.round(FFP_LOYALTY_START * 100)}% in the first month and {Math.round(FFP_LOYALTY_PER_MONTH * 100)} point
-                more each month, up to {Math.round(FFP_LOYALTY_MAX * 100)}%. Reputation +{FFP_REPUTATION_PER_MONTH} a month.
+                Members choose you more often: the appeal of all your flights rises
+                by {Math.round(FF_START * 100)}% in the first month and {Math.round(FF_PER_MONTH * 100)} point
+                more each month, up to {Math.round(FF_MAX * 100)}%.
                 Ending the programme loses the loyalty built up.
               </p>
               {ffpGate && !marketing.ffpActive && (
@@ -171,10 +180,10 @@ export function MarketingPanel({
           <div>
             <div className="flex justify-between text-2xs font-label uppercase tracking-label text-muted mb-1">
               <span>Loyalty</span>
-              <span>{Math.round(loyalty * 100)}% of {Math.round(FFP_LOYALTY_MAX * 100)}%</span>
+              <span>{Math.round(loyalty * 100)}% of {Math.round(FF_MAX * 100)}%</span>
             </div>
             <div className="w-full h-1.5 bg-raised overflow-hidden">
-              <div className="h-full bg-accent" style={{ width: `${(loyalty / FFP_LOYALTY_MAX) * 100}%` }} />
+              <div className="h-full bg-accent" style={{ width: `${(loyalty / FF_MAX) * 100}%` }} />
             </div>
           </div>
           <div className="text-2xs text-muted">
@@ -225,12 +234,12 @@ export function MarketingPanel({
               </div>
               <span className="text-2xs font-mono text-muted">
                 {routes === 1 ? '1 of your routes touches' : `${routes} of your routes touch`} this region
-                {factor >= MAX_REGION_DEMAND ? ' · at the +25% cap' : ''}
+                {factor >= ADVERTISING_MAX ? ` · at the +${Math.round((ADVERTISING_MAX - 1) * 100)}% cap` : ''}
               </span>
               {regional && <CampaignRow campaign={regional} offset={offset} onCancel={onCancelCampaign} />}
               {global && (
                 <span className="text-2xs text-good">
-                  +{Math.round(CAMPAIGN_SPECS.global.demandBoost * 100)}% from the worldwide campaign
+                  +{Math.round(ADVERTISING_BOOST.global * 100)}% from the worldwide campaign
                 </span>
               )}
               {!regional && (
@@ -251,8 +260,9 @@ export function MarketingPanel({
 
       <p className="text-2xs text-muted leading-relaxed">
         A route takes the mean of its two ends: a campaign lifts routes inside its region fully and
-        routes leaving it by half. Campaigns in one region add up to at most +{Math.round((MAX_REGION_DEMAND - 1) * 100)}%.
-        Prices rise {Math.round(MARKETING_INFLATION * 100)}% a year with inflation; each month is charged at
+        routes leaving it by half. Campaigns in one region add up to at most +{Math.round((ADVERTISING_MAX - 1) * 100)}%.
+        Running campaigns also raise the reputation target, by at most {ADVERTISING_REPUTATION_MAX} points together;
+        reputation drifts back once they end. Prices follow the cost index; each month is charged at
         month end, so a cancelled campaign costs nothing more.
       </p>
 
@@ -296,9 +306,8 @@ interface LaunchDialogProps {
 
 /** Tier, length, what it costs and what it does, before anything is booked. */
 function LaunchDialog({ marketing, offset, capital, region, tier, months, routes, rank, onTier, onMonths, onClose, onLaunch }: LaunchDialogProps) {
-  const spec = CAMPAIGN_SPECS[tier];
-  const monthly = campaignMonthlyCost(tier, offset);
-  const total = campaignTotalCost(tier, offset, months);
+  const monthly = campaignMonthCost(tier, offset);
+  const total = campaignRunCost(tier, offset, months);
   const blocker = campaignBlocker(marketing, tier, region, offset, rank);
   const short = capital < monthly;
 
@@ -306,9 +315,12 @@ function LaunchDialog({ marketing, offset, capital, region, tier, months, routes
   // into the cap says so.
   const after = useMemo(() => {
     const trial = { ...marketing, campaigns: [...marketing.campaigns, createCampaign(tier, region, months, offset, 'preview')] };
-    return regionDemandFactors(trial, offset) ?? {};
+    return regionAdvertising(trial, offset);
   }, [marketing, tier, region, months, offset]);
-  const before = regionDemandFactors(marketing, offset) ?? {};
+  const before = regionAdvertising(marketing, offset);
+  const reputationAfter = marketingReputation(
+    { campaigns: [...marketing.campaigns, createCampaign(tier, region, months, offset, 'preview')] }, offset);
+  const reputationBefore = marketingReputation(marketing, offset);
   const reached = tier === 'global' ? REGIONS : [region];
   const routesReached = tier === 'global'
     ? null
@@ -353,9 +365,9 @@ function LaunchDialog({ marketing, offset, capital, region, tier, months, routes
                   <div className={`text-2xs font-semibold uppercase tracking-label ${selected ? 'text-accent' : 'text-ink'}`}>{s.label}</div>
                   <div className="text-2xs text-muted mt-0.5">{s.scope}</div>
                   <div className="text-2xs text-muted mt-1">
-                    +{Math.round(s.demandBoost * 100)}% demand · {compact(campaignMonthlyCost(t, offset))}/mo
+                    +{Math.round(ADVERTISING_BOOST[t] * 100)}% appeal · {compact(campaignMonthCost(t, offset))}/mo
                   </div>
-                  <div className="text-2xs text-good">+{s.reputationPerMonth} reputation/mo</div>
+                  <div className="text-2xs text-good">+{CAMPAIGN_REPUTATION[t]} reputation target</div>
                 </button>
               );
             })}
@@ -392,7 +404,7 @@ function LaunchDialog({ marketing, offset, capital, region, tier, months, routes
                 <span>{REGION_LABELS[r]}</span>
                 <span>
                   {pct(before[r] ?? 1)} → <span className="text-good">{pct(after[r] ?? 1)}</span>
-                  {(after[r] ?? 1) >= MAX_REGION_DEMAND && <span className="text-muted"> (cap)</span>}
+                  {(after[r] ?? 1) >= ADVERTISING_MAX && <span className="text-muted"> (cap)</span>}
                 </span>
               </li>
             ))}
@@ -403,7 +415,10 @@ function LaunchDialog({ marketing, offset, capital, region, tier, months, routes
               : routesReached === 0
                 ? <span className="text-bad">None of your routes touch {REGION_LABELS[region]} yet: until one does, this buys reputation only.</span>
                 : `${routesReached} of your routes touch ${REGION_LABELS[region]}: those inside it gain the full boost, those leaving it half.`}
-            {' '}Reputation +{spec.reputationPerMonth} a month while it runs, from {monthLabel(offset)} to {monthLabel(offset + months - 1)}.
+            {' '}Runs from {monthLabel(offset)} to {monthLabel(offset + months - 1)}. Reputation target
+            {' '}{reputationAfter > reputationBefore
+              ? `+${formatNumber(reputationAfter - reputationBefore, 1)} while it runs`
+              : `unchanged: campaigns add at most ${ADVERTISING_REPUTATION_MAX} points together`}.
           </p>
         </div>
       </div>

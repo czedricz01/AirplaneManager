@@ -1,10 +1,36 @@
 # Status
 
-**Nächstes Paket: 4.8** – Werbung und Personal nach dem Modell: `MarketingPanel.tsx` und `StaffPanel.tsx` lesen bis auf
-Frequent flyer und Besatzungskosten (4.7b) noch `src/lib/marketing.ts` und `src/lib/staff.ts` (alt): Kampagnenpreis mit eigener
-Teuerung 3 %/Jahr statt Kostenindex (`campaignMonthlyCost`, `marketingInflation`; Modell `campaignCost`), Ruf aus Werbung, Treue-Bonus,
-Moral, Streik, Lohn-Grenzen. Zu lesen: F68 (1); `MarketingPanel.tsx`, `StaffPanel.tsx`; im Modell `campaignCost` und Abschnitte 5.4,
-6.4, 8.7 der Spezifikation; offene Punkte unten (4.7b (3)).
+**Nächstes Paket: 5.1** – Spielstand-Umwandlung: `src/lib/saveMigration.ts` auf eine neue Version heben und die gesammelten
+5.1-Punkte erledigen (alte Felder an Strecken entfernen, Welt-Zustand beim Verkauf vor dem ersten Abschluss, Kabine
+weiterverkaufter Flugzeuge, Service-Auswahl „general“, Schalter alter Spielstände u. a.). Phase 4 ist damit abgeschlossen. Zu lesen:
+`src/lib/saveMigration.ts` und die Punkte „5.1“ in den Absätzen „Offen aus …“ unten (4.7a (3), 4.6b (1)–(2), 4.6a (2), 4.5c (3),
+4.5b (3), 4.4 (1), 4.3 (4), 4.2d (5), 4.2c (6), (7), 3.8b, 3.8d).
+
+**Offene Frage O70** (kein Blocker für 5.1): Personalstreik ohne Strecken; siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“.
+
+Stand: 23.11.2026 · Paket 4.8 erledigt (F71): Werbe- und Personal-Ansicht rechnen mit dem Modell. Werbung
+(`src/lib/modelMarketing.ts`): Kampagnenpreis `campaignCost` mit Kostenindex statt eigener Teuerung 3 %/Jahr (national 1995
+$607 265 statt $1 125 545), Laufzeit-Preis je Monat zu seinem Index, Werbe-Faktor je Region `advertisingRegionFactor`, Ruf aus Werbung
+als Punkte im Ruf-Ziel (`advertisingReputation`, höchstens 3; das Programm bringt keinen Ruf mehr), Treue-Zuschlag
+`frequentFlyerFactor` für alle Flüge. Personal (`src/lib/modelStaff.ts`): Vorschau wie der Übergang zu X+1 (`moraleTarget`,
+`nextMorale`, `strikeChance` nur bei offenem Pech-Deckel), Lohn-Grenzen und Streik über die Modell-Funktionen, Streik-Frage ohne den
+Ruf-Abzug (E38), „Crew this month“ statt „Crew & ground staff“. 17 neue Tests (1474 grün). Im Browser geprüft (neues Spiel AAL 01/1960):
+Werbung „Campaign in Europe“ National $400 000/Monat, 6 Monate $2 405 975, „+1 reputation target“; nach Start einer lokalen Kampagne
+„Marketing this month $150,000“, „Reputation from advertising +0.5 · +0.08 this month“, Europa +5 %; Personal „Morale 70 · 66 next month ·
+target 50“, „Crew this month $0“, Satisfaction +2.0.
+
+Offen aus 4.8 (kein Blocker): (1) O70: Das Modell würfelt einen Personalstreik auch ohne Strecken (die alte Regel nicht); die Ansicht
+zeigt die Chance des Modells. (2) Die Vorschau nimmt an, dass die Gewinnserie weiterläuft (das Ergebnis steht erst am Monatsende fest);
+bei einem Verlust nach mehr als 6 Gewinnmonaten liegt das Ziel 5 Punkte tiefer als gezeigt. (3) Die Streik-Chance ist eine Obergrenze:
+Ein Zufallsereignis oder eine Störung im selben Übergang kann den Pech-Deckel noch schließen (8.8). (4) 5.2: In `src/lib/marketing.ts`
+`campaignMonthlyCost`, `campaignTotalCost`, `marketingInflation`, `MARKETING_INFLATION`, `regionDemandFactors`, `ffpLoyaltyBonus`,
+`ffpMonthlyCost`, `marketingMonthCost`, `marketingReputation`, `FFP_*`, `demandBoost` / `baseMonthlyCost` / `reputationPerMonth` in
+`CAMPAIGN_SPECS`, `isCampaignActive`, `campaignMonthsLeft`, `dropExpiredCampaigns`; in `src/lib/staff.ts` alles außer den Antwort-Kennungen
+(`advanceStaff`, `staffOutlook`, `buildStrikeDecision`, `targetMorale`, `stepMorale`, `moraleSatDelta`, `settleStrikeWithPayRise`, `setSalary`,
+`crewCostFactor`, `labourMarketPremium`, Konstanten) haben nur noch den alten Abschluss, `buildPlayerModifiers` und `malus.ts` als Nutzer;
+ebenso `moraleBonus` in `src/lib/research.ts`. (5) 5.3: Kampagnen werden mit dem Kostenindex über die Jahre deutlich billiger als bisher
+(2015 national $770 882 statt $2 032 859) – Höhe mit dem Balance-Skript ansehen. (6) Frequent flyer starten und eine Kampagne in einem
+späten Jahr sind mit Tests geprüft, im Browser nicht geklickt (Rang-Sperre im neuen Spiel).
 
 Stand: 23.11.2026 · O69 entschieden (E73, Weg A) und umgesetzt (F70): Die Krisen-Antwort bleibt ohne Bezugsgröße gesperrt; ihr
 Preis rechnet mit der Restdauer im Monat der Wahl (`remainingEventMonths`, `crisisResponsePrice(event, base, month)` in
@@ -35,8 +61,7 @@ Offen aus 4.7b (kein Blocker): (1) 5.2: `computeNetworkFinancials` und `src/lib/
 Planer-Kommentar `RoutePlannerView.tsx:942`), `ffpMonthlyCost` und der FFP-Teil von `marketingMonthCost` (nur noch alter Abschluss), Feld
 `aggression` an `AiAirline` und `AGGRESSION` / `SALE_TO_LIQUIDATION_MONTHS` in `src/lib/aiSimulation.ts` (alte KI) entfernen. (2) Die
 Live-Karte (W7) ist mit Typprüfung und dem Test der Zahlen (`routesThisMonth`) geprüft, im Browser nicht: Flugzeuge erscheinen nur, während
-sie fliegen, und ließen sich im Test-Browser nicht zuverlässig anklicken. (3) 4.8: Die Personal-Ansicht nennt „Crew & ground staff“; das
-Modell rechnet hier nur die Besatzung (5.4), Abfertigung steht in den Gebühren (5.6) – Text prüfen. (4) Flughafen-Ansicht zeigt Umsteiger je
+sie fliegen, und ließen sich im Test-Browser nicht zuverlässig anklicken. (3) erledigt in 4.8 („Crew this month“). (4) Flughafen-Ansicht zeigt Umsteiger je
 Woche, die Chronik („First transfer hub: x passengers …“) je Monat (wie der Bericht `transferPax`); bisher zeigte die Chronik Wochenwerte.
 (5) Der Steckbrief „Cabin plan“ beschreibt die Einrichtung neuer Flugzeuge nach der Persönlichkeit; Commuter- und Regional-Flugzeuge
 bekommen nur Economy (7.5), auch wenn dort mehr Klassen stehen. (6) Die Konkurrenz-Ansicht zeigt weiter „AI results include a fixed
@@ -331,7 +356,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.7a | Kennzahlen Teil 1: Kopfzeile (Ereignis-Abschwächung, Kreditlinie), Firma (Fleet value, Company value, Karriere-Punkte), Monatsbericht (`reportView`), Spielende (F67) | erledigt |
 | 4.7b | Kennzahlen Teil 2: `LiveTraffic.tsx` (W7), `CompetitorsView.tsx` („Aggression“, Frist bis zur Auflösung), `computeNetworkFinancials` in `App.tsx` (Frequent flyer, Personal-Kosten, Umsteige-Ströme, Transfer-Fluggäste der Flughafen-Ansicht, `transferHubs`) | erledigt |
 | 4.7c | Kennzahlen Teil 3: Planer Schritt 1 (Marktgröße „/ WK MARKET“, Debug aus `marketSizeParts` / `marketFares`; 4.5c (2)); Ereignis-Band und Krisen-Frage (4.7a (1), F69) | erledigt |
-| 4.8 | Werbung und Personal: `MarketingPanel.tsx`, `StaffPanel.tsx` (Kampagnenpreis mit Kostenindex, Ruf aus Werbung, Treue, Moral, Streik, Lohn aus dem Modell; F68 (1)) | offen |
+| 4.8 | Werbung und Personal: `MarketingPanel.tsx`, `StaffPanel.tsx` (Kampagnenpreis mit Kostenindex, Ruf aus Werbung, Treue, Moral, Streik, Lohn aus dem Modell; F68 (1)) | erledigt |
 
 ## Phase 5 – Abschluss
 
@@ -417,3 +442,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 23.11.2026 | 4.7b | Paket 4.7b geteilt (4.7c Planer Schritt 1, neu 4.8 Werbung und Personal); Live-Karte, Konkurrenz und Netz nach dem Modell (F68): Modell liefert Umsteige-Ströme (`CompanyOperations.transferFlows`); `src/lib/modelNetwork.ts` (`playerMonth`, `hubTransfers`, `ffpForecast`) ersetzt `computeNetworkFinancials` in `App.tsx` (Flughafen „Transfer Hub“, Ströme in der Streckenansicht, Besatzung, Frequent flyer); Live-Karte mit der Auslastung des Modells (W7); `src/lib/modelRivalProfile.ts` (Steckbrief aus `PERSONALITIES`, Frist bis zur Auflösung); `transferHubs` im Bericht und Chronik; 14 neue Tests (1438 grün) |
 | 23.11.2026 | 4.7c | Planer Schritt 1, Ereignis-Band und Krisen-Frage nach dem Modell (F69): `pairMarket` / `routeMarket` (Marktgröße mit allen Teilen, Klassen-Anteile, Fluggäste je Klasse, Marktpreise); „/ WK MARKET“ und Debug aus dem Modell; `src/lib/modelEvents.ts` (`eventBand`, `crisisBase`, `pricedChoices`) für Band und Frage; Preis der Krisen-Antwort nach 8.5 statt fester Beträge, ohne Bezugsgröße gesperrt; neue offene Frage O69; 17 neue Tests (1455 grün) |
 | 23.11.2026 | O69 | Entscheidung E73 (Weg A) umgesetzt (F70): Preis der Krisen-Antwort × Restdauer im Monat der Wahl (`remainingEventMonths`), ohne Bezugsgröße weiter gesperrt; Spezifikation 8.5 nachgezogen; 2 neue Tests (1457 grün) |
+| 23.11.2026 | 4.8 | Werbung und Personal nach dem Modell (F71): `src/lib/modelMarketing.ts` (Kampagnenpreis `campaignCost` mit Kostenindex, Laufzeit-Preis, Werbe-Faktor je Region, Ruf aus Werbung im Ruf-Ziel, Treue `frequentFlyerFactor`), `src/lib/modelStaff.ts` (Vorschau wie der Übergang zu X+1 mit Pech-Deckel, Lohn-Grenzen, `settleStrike`, `strikeQuestion` ohne Ruf-Abzug); Werbe- und Personal-Ansicht, `App.tsx`, Abschluss-Frage und Chronik umgestellt; neue Frage O70; 17 neue Tests (1474 grün) |
