@@ -22,7 +22,7 @@ import {
 } from './marketing';
 import { buildPlayerModifiers, routeDemandFactor, DEFAULT_MARKETING, type Marketing } from './gameState';
 import { calculateRouteFinancials, getFlightDurationMinutes } from './financeUtils';
-import { migrateSave } from './saveMigration';
+import { loadSave, SAVE_VERSION } from './saveLoad';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { calculateDistance } from '../data/airports';
 import { aircraftList } from '../data/aircraft';
@@ -167,7 +167,8 @@ test('campaign routes are counted per region they touch', () => {
 });
 
 test('saved marketing is repaired: bad lengths clamped, finished campaigns and duplicates dropped', () => {
-  const migrated = migrateSave({
+  const migrated = loadSave({
+    saveVersion: SAVE_VERSION,
     currentDateOffset: 50,
     marketing: {
       campaigns: [
@@ -191,7 +192,8 @@ test('saved marketing is repaired: bad lengths clamped, finished campaigns and d
 test('a campaign dated in the future starts on load, and only running campaigns block a region', () => {
   // The marketing screen lists running campaigns only. One scheduled for
   // later blocked its region with nothing on screen to cancel.
-  const migrated = migrateSave({
+  const migrated = loadSave({
+    saveVersion: SAVE_VERSION,
     currentDateOffset: 50,
     marketing: { campaigns: [{ id: 'future', tier: 'national', region: 'EU', startOffset: 70, duration: 6 }], ffpActive: false }
   }).marketing;

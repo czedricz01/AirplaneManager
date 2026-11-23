@@ -34,7 +34,7 @@ import {
 } from './disruptions';
 import { buildPlayerModifiers, routeCancelShare, type Disruption } from './gameState';
 import { calculateRouteFinancials, getFlightDurationMinutes } from './financeUtils';
-import { migrateSave } from './saveMigration';
+import { loadSave, SAVE_VERSION } from './saveLoad';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { calculateDistance } from '../data/airports';
 import { aircraftList } from '../data/aircraft';
@@ -260,18 +260,18 @@ test('past disruptions are dropped, saved ones survive a load', () => {
   const list = [disruption({ id: 'old', offset: 199 }), disruption({ id: 'now', offset: 200 }), disruption({ id: 'next', offset: 201 })];
   assert.deepEqual(dropPastDisruptions(list, 200).map(d => d.id), ['now', 'next']);
 
-  const loaded = migrateSave({
+  const loaded = loadSave({
+    saveVersion: SAVE_VERSION,
     currentDateOffset: 200,
     disruptions: [
-      { ...disruption({ id: 'x', kind: 'weather' }), cost: 200_000, mitigated: true },
+      { ...disruption({ id: 'x', kind: 'weather' }), mitigated: true },
       { ...disruption({ id: 'y' }), mitigated: 'yes' },
-      { ...disruption({ id: 'old-bird', kind: 'birdstrike' as never }), cost: 200_000 },
+      { ...disruption({ id: 'old-bird', kind: 'birdstrike' as never }) },
       { id: 'z', kind: 'volcano', offset: 200, routeIds: [], cancelShare: 1 }
     ]
   });
-  assert.deepEqual(loaded.disruptions.map((d: Disruption) => d.id), ['x', 'y'], 'a saved bird strike is dropped, it is paid on the spot now');
+  assert.deepEqual(loaded.disruptions.map((d: Disruption) => d.id), ['x', 'y'], 'an unknown kind is dropped');
   assert.equal(loaded.disruptions[0].mitigated, true);
-  assert.equal('cost' in loaded.disruptions[0], false, 'no repair bill is kept');
   assert.equal(loaded.disruptions[1].mitigated, undefined);
 });
 

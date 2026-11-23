@@ -62,7 +62,7 @@ import { type PlannerModel } from "./lib/modelRoute";
 import { EMPTY_PLAYER_MONTH, ffpForecast, playerMonth, type PlayerMonth } from "./lib/modelNetwork";
 import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
 import { modelMonthClose } from "./lib/modelMonthClose";
-import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
+import { loadSave, OutdatedSaveError, SAVE_VERSION } from "./lib/saveLoad";
 import {
   milestonePerks
 } from "./lib/milestones";
@@ -1449,8 +1449,15 @@ export default function App() {
 
     let saveObj: any;
     try {
-      saveObj = migrateSave(raw);
+      saveObj = loadSave(raw);
     } catch (e) {
+      if (e instanceof OutdatedSaveError) {
+        // Older saves are not converted (E75): the slot is deleted.
+        logWarn('saves', `Deleted savegame ${slotId}: ${e.message}`);
+        await deleteSave(slotId);
+        setAppAlert("This savegame was made with an older version of the game and can no longer be loaded. It has been deleted.");
+        return;
+      }
       logError('saves', `Savegame ${slotId} is not usable`, e);
       setAppAlert(`Error loading save file: ${(e as Error)?.message || 'unknown error'}`);
       return;
@@ -1474,10 +1481,8 @@ export default function App() {
     setCurrentDateOffset(saveObj.currentDateOffset);
     setAirportManagement(saveObj.airportManagement);
     setRoutes(saveObj.routes);
-    // Saves from before rival airlines existed get a fresh set, founded as of
-    // the save's current date so only carriers flying in that year appear.
-    setAiAirlines(saveObj.aiAirlines ?? generateAiAirlines(saveObj.aiAirlinesCount, saveObj.aiDifficulty, saveObj.selectedHub, saveObj.currentDateOffset, saveObj.airlineCode, saveObj.branding.color));
-    // The model's state (4.2f); a save from before it has none, and the first close builds it from the views.
+    setAiAirlines(saveObj.aiAirlines);
+    // The model's state (4.2f); a new game has none until its first close, which builds it from the views.
     setRivals(Array.isArray(saveObj.rivals) ? saveObj.rivals : null);
     setModelWorld(saveObj.modelWorld && typeof saveObj.modelWorld === 'object' ? saveObj.modelWorld : null);
     setLedgerValues(saveObj.ledgerValues && typeof saveObj.ledgerValues === 'object' ? saveObj.ledgerValues : null);
