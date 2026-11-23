@@ -8,6 +8,7 @@ import { Airport } from '../data/airports';
 import { RouteOffer, marketKey } from '../lib/financeUtils';
 import type { RouteCancellation } from '../lib/gameState';
 import { routeForecast, type PlannerModel, type RouteMonth } from '../lib/modelRoute';
+import type { TransferFlowView } from '../lib/modelNetwork';
 import { PLAYER_ID } from '../lib/modelMonth';
 import { CABIN_CLASSES, RAMP_MONTHS, SCALES } from '../model/constants';
 import { routeSatisfactionDetail, type RouteSatisfactionDetail } from '../model/monthClose';
@@ -29,6 +30,8 @@ interface RouteDetailViewProps {
   fleet?: OwnedAircraft[];
   /** This month's figures from the model (docs/neubau 4.5c), the month close's own calculation. */
   month?: RouteMonth;
+  /** Connecting passengers on this route by city pair this month (docs/neubau 4.7b), largest first. */
+  transferFlows?: readonly TransferFlowView[];
   /** The game as the model sees it, for the satisfaction parts and the planner's forecast. */
   model: PlannerModel | null;
   rivalOffers?: RouteOffer[];
@@ -49,7 +52,7 @@ interface RouteDetailViewProps {
 
 
 export function RouteDetailView({
-  route, routes, fleet, month, model, airportManagement,
+  route, routes, fleet, month, transferFlows, model, airportManagement,
   currentYear, currentMonth, rivalOffers = NO_RIVAL_OFFERS, cancellation,
   onClose, onDelete, onReassignAircraft, onEditSchedule, onEditCabinServices, onEditFinancials,
   airlineCode = ''
@@ -243,6 +246,16 @@ export function RouteDetailView({
                   <span className="text-2xs text-muted mt-1">
                     incl. {formatNumber(Math.round(month.transferPassengers))} transfer pax/wk ({formatCurrency(month.transferRevenue)})
                   </span>
+                )}
+                {month && month.transferPassengers > 0 && transferFlows && transferFlows.length > 0 && (
+                  <div className="flex flex-col gap-0.5 text-2xs text-muted mt-1">
+                    {transferFlows.slice(0, 5).map(f => (
+                      <span key={`${f.o}>${f.hub}>${f.d}`} className="flex justify-between gap-3">
+                        <span>{f.o} ↔ {f.hub} ↔ {f.d}</span>
+                        <span className="text-ink">{formatNumber(Math.round(f.pax))}/wk</span>
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="ml-auto">

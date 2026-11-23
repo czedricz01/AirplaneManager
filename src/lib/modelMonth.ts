@@ -14,9 +14,9 @@ import { aircraftList, type Aircraft } from '../data/aircraft';
 import type { OwnedAircraft } from '../components/MyFleetView';
 import type { AiAirline } from '../components/CompetitorsView';
 import { yearOf } from '../model/basics';
-import { MILESTONES, RANKS, REPORT_HISTORY_MONTHS, RESEARCH_PROJECTS, type RivalStrength } from '../model/constants';
+import { MILESTONES, RANKS, REPORT_HISTORY_MONTHS, RESEARCH_PROJECTS, WEEKS_PER_MONTH, type RivalStrength } from '../model/constants';
 import { birdStrikeCost } from '../model/monthEvents';
-import { closeMonth, type CloseNews, type CompanyState, type MonthReport, type ModelAirport, type ModelState } from '../model/monthClose';
+import { closeMonth, monthOperations, type CloseNews, type CompanyState, type MonthReport, type ModelAirport, type ModelState } from '../model/monthClose';
 import { companyValueOf, rivalDecisions, rivalRefill, showRivalNews, type RivalNewsKind } from '../model/rivalMonth';
 import { companyValue } from '../model/progress';
 import { rivalStrengthOf } from '../model/rivals';
@@ -249,6 +249,8 @@ export interface AppMonth {
   readonly bankrupt: boolean;
   /** Unternehmenswert des Spielers nach dem Abschluss (6.12, E48: Kasse, Flugzeuge, Slots, Anzahlungen), im Monat X+1. */
   readonly companyValue: number;
+  /** Drehkreuze des Spielers mit Umsteigern im Monat X (Reisen im Monat), meiste zuerst (Chronik, Bericht `transferHubs`). */
+  readonly transferHubs: readonly HubTransferCount[];
   /** Nachrichten für den Posteingang, neueste zuerst. */
   readonly messages: readonly GameMessage[];
   /** Was das Modell gerechnet hat: Bericht des Spielers, alle Meldungen, Prüf-Fehler (8.16). */
@@ -269,6 +271,26 @@ export interface NewsTexts {
   readonly scenario?: { readonly title: string; readonly stars: number };
   /** Arten, die die Oberfläche selbst meldet (z. B. `randomEvent` mit der Ereignis-Meldung der Oberfläche). */
   readonly skipKinds?: readonly CloseNews['kind'][];
+}
+
+/** Umsteiger eines Drehkreuzes im Monat. */
+export interface HubTransferCount {
+  readonly id: string;
+  /** Umsteiger-Reisen im Monat (jede einmal). */
+  readonly pax: number;
+}
+
+/**
+ * Drehkreuze des Spielers mit Umsteigern im Monat des Spielstands (3.13): dieselbe Rechnung wie der Abschluss
+ * (`monthOperations`, R2), Reisen × `WEEKS_PER_MONTH`; meiste zuerst, bei Gleichstand nach Kennung.
+ */
+export function playerTransferHubs(state: ModelState): HubTransferCount[] {
+  const flows = monthOperations(state)[PLAYER_ID]?.transferFlows ?? [];
+  const byHub = new Map<string, number>();
+  for (const f of flows) if (f.passengers > 0) byHub.set(f.hubId, (byHub.get(f.hubId) ?? 0) + f.passengers * WEEKS_PER_MONTH);
+  return [...byHub.entries()]
+    .map(([id, pax]) => ({ id, pax }))
+    .sort((a, b) => b.pax - a.pax || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
@@ -315,14 +337,18 @@ export function runModelMonth(
   const orders = applyPreorders(g.career.orders, player.preorders);
   const career = orders === g.career.orders ? progress.career : { ...progress.career, orders: [...orders] };
 
-  const report = appReport(modelReport, {
-    routes: g.routes,
-    airports: env.airports,
-    morale: player.inputs.morale,
-    fleetSize: fleet.length,
-    routeCount: ops.routes.length,
-    capex: g.monthlyCapex,
-  });
+  const transferHubs = playerTransferHubs(before.state);
+  const report: MonthlyReport = {
+    ...appReport(modelReport, {
+      routes: g.routes,
+      airports: env.airports,
+      morale: player.inputs.morale,
+      fleetSize: fleet.length,
+      routeCount: ops.routes.length,
+      capex: g.monthlyCapex,
+    }),
+    transferHubs: transferHubs.map((h) => h.id),
+  };
 
   // KI und Welt (Teil 3).
   const rivals = applyModelRivals(before.rivals, next.companies, { seed: next.seed, month: next.month, playerCode: g.airlineCode, playerColor: g.brandingColor });
@@ -378,6 +404,7 @@ export function runModelMonth(
     disruptions: world.disruptions,
     bankrupt: result.bankrupt.includes(PLAYER_ID),
     companyValue: companyValue(companyValueOf(player, next.month)),
+    transferHubs,
     messages,
     modelReport,
     news: result.news,

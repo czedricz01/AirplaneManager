@@ -9,8 +9,6 @@ import { CAMPAIGN_TIERS, type Campaign, type CampaignTier, type Marketing, type 
 import {
   CAMPAIGN_DURATIONS,
   CAMPAIGN_SPECS,
-  FFP_BASE_MONTHLY_COST,
-  FFP_COST_PER_PAX,
   FFP_LOYALTY_MAX,
   FFP_LOYALTY_PER_MONTH,
   FFP_LOYALTY_START,
@@ -25,20 +23,23 @@ import {
   campaignTotalCost,
   createCampaign,
   ffpLoyaltyBonus,
-  ffpMonthlyCost,
   isCampaignActive,
   marketingMonthCost,
   marketingReputation,
   regionDemandFactors
 } from '../lib/marketing';
+import type { FfpForecast } from '../lib/modelNetwork';
 import { formatCurrency, formatMoneyCompact as compact, formatNumber, yearOf, monthOf } from '../lib/format';
 
 export interface MarketingPanelProps {
   marketing: Marketing;
   currentDateOffset: number;
   capital: number;
-  /** Passengers a month at the current forecast, for the programme's bill. */
-  projectedMonthlyPax: number;
+  /**
+   * What the frequent-flyer programme costs this month at the current forecast, as the month close books it
+   * (docs/neubau 4.7b, `ffpForecast`): base, rate per trip and trips.
+   */
+  ffpForecast: FfpForecast;
   /** How many of the player's routes touch each region. */
   regionRouteCounts: Record<RegionId, number>;
   /** Where a global campaign is booked from; it runs everywhere regardless. */
@@ -90,7 +91,7 @@ function CampaignRow({ campaign, offset, onCancel }: { campaign: Campaign; offse
  * is a request; App checks the cash and books it.
  */
 export function MarketingPanel({
-  marketing, currentDateOffset: offset, capital, projectedMonthlyPax, regionRouteCounts, homeRegion,
+  marketing, currentDateOffset: offset, capital, ffpForecast, regionRouteCounts, homeRegion,
   onLaunchCampaign, onCancelCampaign, onSetFfp, rank
 }: MarketingPanelProps) {
   /** The launch dialog: the region it was opened from and the tier picked. */
@@ -99,17 +100,19 @@ export function MarketingPanel({
 
   const running = useMemo(() => marketing.campaigns.filter(c => isCampaignActive(c, offset)), [marketing, offset]);
   const factors = useMemo(() => regionDemandFactors(marketing, offset) ?? {}, [marketing, offset]);
-  const monthCost = useMemo(() => marketingMonthCost(marketing, offset, projectedMonthlyPax), [marketing, offset, projectedMonthlyPax]);
+  // Campaigns from the old prices until their own package (docs/neubau 4.8); the programme from the model.
+  const campaignCost = useMemo(() => marketingMonthCost(marketing, offset, 0).campaigns, [marketing, offset]);
+  const ffpCost = ffpForecast.total;
+  const monthTotal = campaignCost + (marketing.ffpActive ? ffpCost : 0);
   const reputationGain = marketingReputation(marketing, offset);
   const ffpGate = rank === undefined ? null : ffpRankGate(rank);
   const loyalty = ffpLoyaltyBonus(marketing, offset);
   const global = running.find(c => c.tier === 'global');
-  const ffpCost = ffpMonthlyCost(projectedMonthlyPax);
 
   return (
     <div className="grid grid-cols-1 gap-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <StatTile size="md" label="Marketing this month" value={formatCurrency(monthCost.total)}>
+        <StatTile size="md" label="Marketing this month" value={formatCurrency(monthTotal)}>
           <span className="block text-2xs text-muted mt-1">
             charged at month end · {running.length} campaign{running.length === 1 ? '' : 's'}
             {marketing.ffpActive ? ' + loyalty' : ''}
@@ -176,7 +179,7 @@ export function MarketingPanel({
           </div>
           <div className="text-2xs text-muted">
             <span className="text-ink">{formatCurrency(ffpCost)}</span> a month at the current forecast:
-            {' '}{compact(FFP_BASE_MONTHLY_COST)} + ${FFP_COST_PER_PAX.toFixed(2)} × {formatNumber(Math.round(projectedMonthlyPax))} passengers
+            {' '}{compact(ffpForecast.base)} + ${ffpForecast.perPassenger.toFixed(2)} × {formatNumber(Math.round(ffpForecast.passengers))} trips
             {!marketing.ffpActive && capital < ffpCost && (
               <span className="block text-bad mt-1">{formatCurrency(ffpCost - capital)} short for the first month.</span>
             )}

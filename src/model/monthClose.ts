@@ -524,6 +524,19 @@ export interface RouteFigures {
   readonly result: number;
 }
 
+/** Eine Umsteige-Verbindung O–H–D einer Gesellschaft im Monat (3.13). */
+export interface TransferFlowFigures {
+  /** Drehkreuz H. */
+  readonly hubId: string;
+  /** Enden O und D (Reihenfolge wie im Paar-Schlüssel; die Verbindung gilt in beide Richtungen). */
+  readonly origin: string;
+  readonly destination: string;
+  /** Umsteiger je Woche, beide Richtungen, alle Klassen, jede Reise einmal. */
+  readonly passengers: number;
+  /** Umsteiger dieser Verbindung je Strecke der beiden Teilstrecken (Summe = 2 × `passengers`). */
+  readonly routes: Readonly<Record<string, number>>;
+}
+
 /** Was Schritt 2 für eine Gesellschaft ergibt (vor Lieferungen, Entscheidungen und Kreditlinie). */
 export interface CompanyOperations {
   readonly companyId: string;
@@ -536,6 +549,8 @@ export interface CompanyOperations {
   readonly weeklyPassengers: number;
   /** Umsteiger-Reisen im Monat (jede Reise einmal; Meilensteine, Szenario). */
   readonly transferPassengers: number;
+  /** Umsteige-Verbindungen O–H–D mit Umsteigern, größte zuerst (Anzeige: Flughafen, Strecke, Chronik). */
+  readonly transferFlows: readonly TransferFlowFigures[];
   /** Flugzeuge nach Verschleiß (8.10), gleiche Reihenfolge. */
   readonly aircraftAfterWear: readonly AircraftState[];
   /** Σ `aircraftValue` am Monatsende (Monat X + 1) nach Verschleiß. */
@@ -740,8 +755,8 @@ function checkState(state: ModelState): void {
  * Ohne Umsteiger (Paket 3.8c). SPEZIFIKATION 8.0, 8.1.
  */
 export function monthOperations(state: ModelState): Readonly<Record<string, CompanyOperations>> {
-  const { companies, figuresByCompany, landingAt, transferTripsByCompany } = operationsCore(state, {});
-  return companyOperations(state, companies, figuresByCompany, landingAt, transferTripsByCompany);
+  const { companies, figuresByCompany, landingAt, transferFlowsByCompany } = operationsCore(state, {});
+  return companyOperations(state, companies, figuresByCompany, landingAt, transferFlowsByCompany);
 }
 
 /** Fluggäste je Woche eines Paars (O–D) aus der Rechnung des Abschlusses (3.11, 3.13). */
@@ -804,7 +819,8 @@ interface OperationsCore {
   readonly passengersByRoute: ReadonlyMap<string, Record<CabinClass, number>>;
   readonly figuresByCompany: ReadonlyMap<string, RouteFigures[]>;
   readonly landingAt: ReadonlyMap<string, ReadonlyMap<string, number>>;
-  readonly transferTripsByCompany: ReadonlyMap<string, number>;
+  /** Umsteige-Verbindungen mit Umsteigern je Gesellschaft. */
+  readonly transferFlowsByCompany: ReadonlyMap<string, readonly TransferFlowFigures[]>;
   /** Umsteige-Verbindungen mit Wunsch (Marktaufteilung) und platzierten Umsteigern je Klasse und Woche. */
   readonly transfers: readonly { readonly pair: string; readonly wish: number; readonly placed: number }[];
 }
@@ -1217,7 +1233,7 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
     splitPair(context, pair, preparedByPair.get(pair) ?? [], connectionsByPair.get(pair) ?? [], CABIN_CLASSES, passengersByRoute, transferWish);
   }
 
-  const emptyMaps = { landingAt: new Map(), transferTripsByCompany: new Map(), figuresByCompany: new Map(), transfers: [] };
+  const emptyMaps = { landingAt: new Map(), transferFlowsByCompany: new Map(), figuresByCompany: new Map(), transfers: [] };
   if (scope.directPairs) return { companies, passengersByRoute, ...emptyMaps };
   // Mit Fokus: Umsteiger und Kosten nur für die Fokus-Gesellschaft. Ihre Sitze teilt sie mit niemandem (Schlüssel je
   // Gesellschaft), daher hängt ihre Verteilung nicht von den Umsteigern der anderen ab.
@@ -1261,13 +1277,16 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
   });
   // Je Strecke: Umsteiger-Flüsse (4.8) und Kosten je Umsteiger (5.8); verteilt nach freien Sitzen der Strecke.
   const transferFlowsByRoute = new Map<string, { flow: TransferFlow; hubId: string }[]>();
-  const transferTripsByCompany = new Map<string, number>();
+  // Je Gesellschaft: Umsteige-Verbindungen mit Umsteigern und ihrer Verteilung auf die Strecken (Anzeige, Chronik).
+  const transferFlowsByCompany = new Map<string, TransferFlowFigures[]>();
   for (const t of ownConnections) {
     const kmLegs = [t.kmOriginHub, t.kmHubDestination];
+    const [origin, destination] = t.pair.split('|');
+    const flowFigures = { hubId: t.hubId, origin, destination, passengers: 0, routes: {} as Record<string, number> };
     for (const c of CABIN_CLASSES) {
       const placed = allocation.placed[`${t.id}|${c}`] ?? 0;
       if (!(placed > 0)) continue;
-      transferTripsByCompany.set(t.company.id, (transferTripsByCompany.get(t.company.id) ?? 0) + placed);
+      flowFigures.passengers += placed;
       const fare = transferFare(marketFares(t.kmOriginDestination, X)[c]);
       const shares = transferRevenueShare(fare, marketFares(kmLegs[0], X)[c], marketFares(kmLegs[1], X)[c]);
       t.legPairs.forEach((legPair, leg) => {
@@ -1284,8 +1303,14 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
           const list = transferFlowsByRoute.get(routeKey(p)) ?? [];
           list.push({ flow: { cabinClass: c, passengers: n, revenuePerPassenger: leg === 0 ? shares.originHub : shares.hubDestination }, hubId: t.hubId });
           transferFlowsByRoute.set(routeKey(p), list);
+          flowFigures.routes[p.route.id] = (flowFigures.routes[p.route.id] ?? 0) + n;
         }
       });
+    }
+    if (flowFigures.passengers > 0) {
+      const list = transferFlowsByCompany.get(t.company.id) ?? [];
+      list.push(flowFigures);
+      transferFlowsByCompany.set(t.company.id, list);
     }
   }
 
@@ -1416,7 +1441,7 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
     }
     figuresByCompany.set(company.id, list);
   }
-  return { companies, passengersByRoute, figuresByCompany, landingAt, transferTripsByCompany, transfers };
+  return { companies, passengersByRoute, figuresByCompany, landingAt, transferFlowsByCompany, transfers };
 }
 
 /** Schritt 2 je Gesellschaft (nach den Strecken-Zahlen): Flughäfen, Flugzeuge, Verschleiß, Werbung, Abschnitt-8-Posten. */
@@ -1425,7 +1450,7 @@ function companyOperations(
   companies: readonly CompanyState[],
   figuresByCompany: ReadonlyMap<string, RouteFigures[]>,
   landingAt: ReadonlyMap<string, ReadonlyMap<string, number>>,
-  transferTripsByCompany: ReadonlyMap<string, number>,
+  transferFlowsByCompany: ReadonlyMap<string, readonly TransferFlowFigures[]>,
 ): Readonly<Record<string, CompanyOperations>> {
   const X = state.month;
   // --- Gesellschaft: Flughäfen, Flugzeuge, Verschleiß, Werbung, Abschnitt-8-Posten.
@@ -1487,6 +1512,9 @@ function companyOperations(
     const birdStrikes = company.aircraft.filter((p) => flying.has(p.id) && rollBirdStrike(state.seed, X, p.id)).map((p) => p.id);
     const damages = sum(birdStrikes.map((id) => birdStrikeCost((company.aircraft.find((p) => p.id === id) as AircraftState).listPrice1960, X)));
 
+    const flows = [...(transferFlowsByCompany.get(company.id) ?? [])].sort(
+      (a, b) => b.passengers - a.passengers || (a.hubId + a.origin + a.destination < b.hubId + b.origin + b.destination ? -1 : 1),
+    );
     const weeklyPassengers = sum(routes.map((r) => sum(CABIN_CLASSES.map((c) => r.passengers[c] + r.transferPassengers[c]))));
     const satisfactionEntries: { satisfaction: number; passengers: number }[] = [];
     for (const r of routes) {
@@ -1502,7 +1530,8 @@ function companyOperations(
       revenue: monthlyRevenue(routes.map((r) => r.revenue)),
       passengers: weeklyPassengers * WEEKS_PER_MONTH,
       weeklyPassengers,
-      transferPassengers: (transferTripsByCompany.get(company.id) ?? 0) * WEEKS_PER_MONTH,
+      transferPassengers: sum(flows.map((f) => f.passengers)) * WEEKS_PER_MONTH,
+      transferFlows: flows,
       aircraftAfterWear,
       fleetValueEnd,
       birdStrikes,

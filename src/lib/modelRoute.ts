@@ -33,6 +33,7 @@ import {
   plannerRouteFigures,
   routeClassPassengersCurve,
   routeSatisfactionDetail,
+  type CompanyState,
   type ModelState,
   type RouteFigures,
   type RouteSatisfactionDetail,
@@ -320,9 +321,14 @@ export interface RouteMonth {
 export function routesThisMonth(state: ModelState): ReadonlyMap<string, RouteMonth> {
   const ops = monthOperations(state)[PLAYER_ID];
   const player = state.companies.find((c) => c.id === PLAYER_ID);
+  if (!ops || !player) return new Map();
+  return routeMonthsOf(ops.routes, player);
+}
+
+/** `RouteMonth` je Strecke aus den Strecken-Zahlen von `monthOperations` einer Gesellschaft. */
+export function routeMonthsOf(figures: readonly RouteFigures[], player: Pick<CompanyState, 'routes'>): Map<string, RouteMonth> {
   const out = new Map<string, RouteMonth>();
-  if (!ops || !player) return out;
-  for (const f of ops.routes) {
+  for (const f of figures) {
     const age = player.routes.find((r) => r.id === f.routeId)?.ageMonths ?? 0;
     const classes: Partial<Record<CabinClass, RouteMonthClass>> = {};
     let direct = 0;

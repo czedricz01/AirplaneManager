@@ -225,18 +225,9 @@ function LiveTrafficImpl({ routes, aiRoutes, airports, offsets = [0], fleet = []
         else if (String(planeClass).toLowerCase() === 'widebody') size = 40;
         if (icaoCode === 'F' || icaoCode === 'E') size = 46;
 
-        // Rivals carry only a weekly departure count, not realized passengers, so
-        // load factor can only be shown for the player's own flights.
-        let loadFactor: number | null = null;
-        if (!isRival) {
-          const configSeats = spec?.config
-            ? ((spec.config.economy || 0) + (spec.config.premium || 0) + (spec.config.business || 0) + (spec.config.first || 0))
-            : 0;
-          const capacity = configSeats > 0 ? configSeats : (spec?.capacity || 0);
-          const legs = schedule.reduce((acc, s) => acc + (s.isOneWay ? 1 : 2), 0);
-          const weeklySeats = capacity * legs;
-          if (weeklySeats > 0) loadFactor = Math.round(((r.paxPerWeek || 0) / weeklySeats) * 100);
-        }
+        // The player's load factor is the model's (docs/neubau 4.7b, W7): passengers / seats flown this month, so
+        // cancelled flights (strike, disruption) are left out as in the route list. Rivals show none here.
+        const loadFactor: number | null = !isRival && typeof r.loadFactor === 'number' ? Math.round(r.loadFactor * 100) : null;
 
         const routeKey = r.id || `${isRival ? 'ai' : 'own'}-${routeIndex}-${r.origin}-${r.destination}`;
         // One shared cache with App: the same pair is no longer computed twice.
