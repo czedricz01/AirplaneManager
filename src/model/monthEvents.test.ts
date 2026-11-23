@@ -62,6 +62,7 @@ import {
   nextMorale,
   offeredSeats,
   recoveryPrice,
+  remainingEventMonths,
   rollBirdStrike,
   rollDisruptions,
   rollRandomEvent,
@@ -209,8 +210,8 @@ describe('Abschnitt 8.5 Krisen-Antworten', () => {
   it('8.5: Preis wächst im gleichen Verhältnis wie die Bezugsgröße', () => {
     const hedge = historicalEvent('1973 Oil Crisis');
     const rec = historicalEvent('Global Pandemic');
-    near(crisisResponsePrice(hedge, { fuelBill: 2e6, revenue: 0 }), 2 * crisisResponsePrice(hedge, { fuelBill: 1e6, revenue: 0 }), 1e-6);
-    near(crisisResponsePrice(rec, { fuelBill: 0, revenue: 2e7 }), 2 * crisisResponsePrice(rec, { fuelBill: 0, revenue: 1e7 }), 1e-6);
+    near(crisisResponsePrice(hedge, { fuelBill: 2e6, revenue: 0 }, hedge.startMonth), 2 * crisisResponsePrice(hedge, { fuelBill: 1e6, revenue: 0 }, hedge.startMonth), 1e-6);
+    near(crisisResponsePrice(rec, { fuelBill: 0, revenue: 2e7 }, rec.startMonth), 2 * crisisResponsePrice(rec, { fuelBill: 0, revenue: 1e7 }, rec.startMonth), 1e-6);
   });
 
   it('8.17: Absicherung 1973 bei 1 Mio. $ Rechnung kostet 6,3 Mio. $ und spart mehr (E69)', () => {
@@ -234,8 +235,25 @@ describe('Abschnitt 8.5 Krisen-Antworten', () => {
       const r = e.response?.recoveryShare ?? 0;
       near(crisisResponseFactor(e.demandMultiplier, r), factor, 0.001, title);
       near(recoveryPrice(r, e.demandMultiplier, e.months, 1), price, 1e-9, title);
-      near(crisisResponsePrice(e, { fuelBill: 0, revenue: 1 }), price, 1e-9, title);
+      near(crisisResponsePrice(e, { fuelBill: 0, revenue: 1 }, e.startMonth), price, 1e-9, title);
     }
+  });
+
+  it('E73 (O69 = A): Preis × Restdauer; später kaufen kostet anteilig weniger, nach dem Ende nichts', () => {
+    const hedge = historicalEvent('1973 Oil Crisis');
+    const rec = historicalEvent('Global Financial Crisis');
+    const base = { fuelBill: 1e6, revenue: 1e7 };
+    assert.equal(remainingEventMonths(hedge, hedge.startMonth - 1), hedge.months);
+    assert.equal(remainingEventMonths(hedge, hedge.startMonth), hedge.months);
+    assert.equal(remainingEventMonths(hedge, hedge.startMonth + 5), hedge.months - 5);
+    assert.equal(remainingEventMonths(hedge, hedge.startMonth + hedge.months - 1), 1);
+    assert.equal(remainingEventMonths(hedge, hedge.startMonth + hedge.months), 0);
+    near(crisisResponsePrice(hedge, base, hedge.startMonth), hedgePrice(1e6, hedge.months), 1e-6);
+    near(crisisResponsePrice(hedge, base, hedge.startMonth + 6), hedgePrice(1e6, hedge.months - 6), 1e-6);
+    near(crisisResponsePrice(hedge, base, hedge.startMonth + 6), crisisResponsePrice(hedge, base, hedge.startMonth) * (hedge.months - 6) / hedge.months, 1e-6);
+    const r = rec.response?.recoveryShare ?? 0;
+    near(crisisResponsePrice(rec, base, rec.startMonth + 3), recoveryPrice(r, rec.demandMultiplier, rec.months - 3, 1e7), 1e-6);
+    assert.equal(crisisResponsePrice(hedge, base, hedge.startMonth + hedge.months), 0);
   });
 
   it('8.5: ohne Antwort Faktor 1 und Tabellenpreis; eine Antwort wirkt nur für den Käufer', () => {
@@ -268,7 +286,7 @@ describe('Abschnitt 8.5 Krisen-Antworten', () => {
   });
 
   it('8.5: Ereignis ohne Antwort ist ein Fehler', () => {
-    assert.throws(() => crisisResponsePrice(historicalEvent('SARS Outbreak'), { fuelBill: 1, revenue: 1 }));
+    assert.throws(() => crisisResponsePrice(historicalEvent('SARS Outbreak'), { fuelBill: 1, revenue: 1 }, 0));
     assert.throws(() => historicalEvent('Unbekannt'));
   });
 });

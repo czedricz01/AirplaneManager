@@ -1736,8 +1736,8 @@ export default function App() {
 
   /** The open crisis question with the model's prices; what the dialog shows and charges. */
   const pricedDecision = useMemo(
-    () => (pendingDecision ? pricedEvent(pendingDecision, crisisPriceBase) : null),
-    [pendingDecision, crisisPriceBase]
+    () => (pendingDecision ? pricedEvent(pendingDecision, crisisPriceBase, currentDateOffset) : null),
+    [pendingDecision, crisisPriceBase, currentDateOffset]
   );
 
   /**
