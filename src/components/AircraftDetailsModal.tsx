@@ -1,12 +1,13 @@
-import { monthlyOwnershipCost } from '../lib/fleetCosts';
 import { useState, useEffect } from 'react';
 import { formatCurrency, routeFlightNumber } from '../lib/format';
 import type { OwnedAircraft } from './MyFleetView';
 import { Plane, Wrench, ShieldAlert, ArrowLeftRight } from 'lucide-react';
 import { AircraftImage } from './AircraftImage';
 import { loadAircraftImagesMap } from '../lib/imageUtils';
-import { getPlaneSat, getAircraftResaleValue } from '../lib/financeUtils';
-import { getResaleBonus } from '../lib/economyContext';
+import { ageLabel, planeFigures, planeUpkeep } from '../lib/modelFleet';
+import { AIRFRAME_VALUE_SHARE, CABIN_EXPECTATION, DEALER_SPREAD_SELL, DEPRECIATION_YEARS, PARKED_SHARE, RESIDUAL_SHARE, type CabinClass } from '../model/constants';
+import { researchEffects } from '../model/progress';
+import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { Modal } from './ui/Modal';
 import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
 import { AircraftSwapPanel } from './AircraftReassign';
@@ -20,8 +21,10 @@ interface Props {
   onSelectRoute?: (route: any) => void;
   onStartRoute?: (reg: string) => void;
   onSell?: (plane: OwnedAircraft) => void;
-  /** Months since 01/1960. Without it the age below cannot be computed. */
+  /** Months since 01/1960. Without it the aircraft is shown as in its build month. */
   currentDateOffset?: number;
+  /** Finished research: efficiency, upkeep and sale value (model 5.3, 5.12, 8.11). */
+  completedResearch?: readonly string[];
   /** Flight-number prefix for routes saved before they carried their own. */
   airlineCode?: string;
   /**
@@ -34,32 +37,30 @@ interface Props {
   onReassignRoutes?: (patches: RoutePatch[], note: string) => void;
 }
 
+const NO_RESEARCH: readonly string[] = [];
+
+/** Classes from the most expensive down, as the fleet's seat line shows them. */
+const CLASS_ROWS: readonly (readonly [CabinClass, string])[] = [
+  ['first', 'First'],
+  ['business', 'Business'],
+  ['premium', 'Premium'],
+  ['economy', 'Economy'],
+];
+
 export function AircraftDetailsModal({
-  plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell, currentDateOffset, airlineCode = '',
-  fleet = [], allRoutes = [], airportManagement = {}, onReassignRoutes
+  plane, onClose, onRenovate, aircraftRoutes = [], onSelectRoute, onStartRoute, onSell, currentDateOffset, completedResearch = NO_RESEARCH,
+  airlineCode = '', fleet = [], allRoutes = [], airportManagement = {}, onReassignRoutes
 }: Props) {
   const [isSwapping, setIsSwapping] = useState(false);
 
-  // The same function the economy prices with (financeUtils.getPlaneSat). This
-  // screen used to apply the interior condition to the interior score alone,
-  // which produced a different number here than in the fleet list for the same
-  // aircraft, and neither matched what the simulation actually used.
-  const combinedPopularity = getPlaneSat(plane);
+  // Age, type appeal, cabin rating, value and sale price from the model (2.2, 2.4, 5.13, 8.11): the same figures the
+  // month close prices this aircraft with and the sale credits (App.handleSellAircraft).
+  const month = currentDateOffset ?? plane.purchasedAt;
+  const figures = planeFigures(plane, month, completedResearch);
+  const parked = aircraftRoutes.length === 0;
+  const upkeep = planeUpkeep(plane, fleet, month, parked, completedResearch);
+  const resaleBonus = researchEffects(completedResearch).resaleBonus;
   const totalPax = plane.config.first + plane.config.business + plane.config.premium + plane.config.economy;
-
-  // purchasedAt is an offset in months from 01/1960, like currentDateOffset.
-  const ageMonths =
-    typeof currentDateOffset === 'number' && typeof plane.purchasedAt === 'number'
-      ? Math.max(0, currentDateOffset - plane.purchasedAt)
-      : null;
-  const ageLabel =
-    ageMonths === null
-      ? '--'
-      : ageMonths < 1
-        ? 'New'
-        : ageMonths < 12
-          ? `${ageMonths} mo`
-          : `${Math.floor(ageMonths / 12)} y ${ageMonths % 12} mo`;
 
   const [imagesMap, setImagesMap] = useState<Record<string, string>>({});
 
@@ -150,22 +151,21 @@ export function AircraftDetailsModal({
                 <span className="font-mono">{plane.maxRange} km</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-2xs uppercase tracking-label text-muted mb-1">Efficiency</span>
-                <span className="font-mono">{plane.efficiency}/100</span>
+                <span className="text-2xs uppercase tracking-label text-muted mb-1">Efficiency<InfoTooltip size={10} {...GLOSSARY.efficiency} /></span>
+                <span className="font-mono">{Math.round(figures.efficiency)}</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-2xs uppercase tracking-label text-muted mb-1">Age</span>
-                <span className="font-mono">{ageLabel}</span>
+                <span className="font-mono">{ageLabel(figures.ageYears)}</span>
               </div>
-              {typeof currentDateOffset === 'number' && (
-                <div className="flex flex-col col-span-2 sm:col-span-5">
-                  <span className="text-2xs uppercase tracking-label text-muted mb-1">Insurance &amp; maintenance</span>
-                  <span className="font-mono">
-                    {formatCurrency(monthlyOwnershipCost(plane, currentDateOffset, aircraftRoutes.length > 0))} a month
-                    {aircraftRoutes.length === 0 && <span className="text-bad"> (parked: half rate, still a cost)</span>}
-                  </span>
-                </div>
-              )}
+              <div className="flex flex-col col-span-2 sm:col-span-5">
+                <span className="text-2xs uppercase tracking-label text-muted mb-1">Insurance &amp; maintenance</span>
+                <span className="font-mono">
+                  {formatCurrency(upkeep.total)} a month
+                  <span className="text-muted"> (insurance {formatCurrency(upkeep.insurance)}, maintenance {formatCurrency(upkeep.maintenance)})</span>
+                  {parked && <span className="text-bad"> (parked: {Math.round(PARKED_SHARE * 100)}% rate, still a cost)</span>}
+                </span>
+              </div>
             </div>
 
             {/* Config & Condition */}
@@ -173,22 +173,30 @@ export function AircraftDetailsModal({
               
               <div className="flex flex-col gap-3">
                 <h3 className="font-label text-sm font-semibold border-b border-line pb-2 mb-2 text-ink">Layout & Quality</h3>
-                <div className="flex justify-between text-xs text-muted">
-                  <span>First</span> <span>{plane.config.first}</span>
+                <div className="flex justify-between text-2xs uppercase tracking-label text-muted">
+                  <span>Class · seats</span>
+                  <span>Cabin rating<InfoTooltip size={10} {...GLOSSARY.cabinRating} /> / expected</span>
                 </div>
-                <div className="flex justify-between text-xs text-muted">
-                  <span>Business</span> <span>{plane.config.business}</span>
-                </div>
-                <div className="flex justify-between text-xs text-muted">
-                  <span>Premium</span> <span>{plane.config.premium}</span>
-                </div>
-                <div className="flex justify-between text-xs text-muted">
-                  <span>Economy</span> <span>{plane.config.economy}</span>
-                </div>
-                
+                {CLASS_ROWS.map(([c, label]) => (
+                  <div key={c} className="flex justify-between text-xs text-muted">
+                    <span>{label} · {plane.config[c]}</span>
+                    <span className="font-mono">
+                      {figures.cabinRating[c] === undefined ? '--' : (
+                        <span className={figures.cabinRating[c]! >= CABIN_EXPECTATION[c] ? 'text-ink' : 'text-bad'}>
+                          {Math.round(figures.cabinRating[c]!)}
+                        </span>
+                      )} / {CABIN_EXPECTATION[c]}
+                    </span>
+                  </div>
+                ))}
+
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-line text-xs">
-                  <span className="text-2xs uppercase tracking-label text-muted">Overall Satisfaction</span>
-                  <span className="text-accent">{combinedPopularity}/100</span>
+                  <span className="text-2xs uppercase tracking-label text-muted">Type appeal<InfoTooltip size={10} {...GLOSSARY.typeAppeal} /></span>
+                  <span className="font-mono text-ink">{Math.round(figures.typeAppeal)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-2xs uppercase tracking-label text-muted">Cabin rating (avg.)</span>
+                  <span className="font-mono text-accent">{Number.isFinite(figures.averageCabinRating) ? Math.round(figures.averageCabinRating) : '--'}</span>
                 </div>
               </div>
 
@@ -249,16 +257,19 @@ export function AircraftDetailsModal({
 
             {/* Liquidation & Market Value */}
             {(() => {
-              // The amount the sale actually credits (App.handleSellAircraft).
-              const salePrice = getAircraftResaleValue({ ...plane, ageYears: ageMonths === null ? undefined : ageMonths / 12, resaleBonus: getResaleBonus() });
+              // The amount the sale actually credits (App.handleSellAircraft, model 8.11).
+              const salePrice = figures.saleProceeds;
               const formatUSD = formatCurrency;
 
               return (
                 <div className="bg-ground/40 border border-line p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
                   <div className="flex flex-col gap-1 w-full sm:w-auto">
-                    <h3 className="text-xs font-label font-semibold uppercase tracking-label text-ink">Market Liquidation Value</h3>
-                    <p className="text-2xs text-muted lowercase font-sans max-w-sm">
-                      calculated dynamically from general airframe condition, passenger interior satisfaction and age. residual base value is guaranteed.
+                    <h3 className="text-xs font-label font-semibold uppercase tracking-label text-ink">Market value</h3>
+                    <p className="text-2xs text-muted font-sans max-w-sm">
+                      Value {formatUSD(figures.value)}: its price when new (aircraft and cabin), falling with age to{' '}
+                      {Math.round(RESIDUAL_SHARE * 100)}% after {DEPRECIATION_YEARS} years, and with condition ({Math.round(AIRFRAME_VALUE_SHARE * 100)}% airframe,{' '}
+                      {Math.round((1 - AIRFRAME_VALUE_SHARE) * 100)}% cabin). The market pays {Math.round((1 - DEALER_SPREAD_SELL) * 100)}% of it
+                      {resaleBonus > 0 ? `, +${(resaleBonus * 100).toFixed(1)}% from research` : ''}.
                     </p>
                   </div>
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">

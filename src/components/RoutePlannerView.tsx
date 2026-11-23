@@ -32,7 +32,6 @@ import { createTimerBag } from '../lib/timerBag';
 import {
   applyInfrastructureChange,
   SLOT_CAPEX_LABEL,
-  getPlaneSat,
   classConfigFor,
   CABIN_CLASSES,
   getFlightTimeClass,
@@ -67,6 +66,7 @@ import { clampFareRatio } from '../model/fare';
 import { CLASS_LABEL } from '../model/glossary';
 import { logWarn } from '../lib/debugLog';
 import { plannedSatisfaction, pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, type PlannedRoute, type PlannerModel, type RouteForecast } from '../lib/modelRoute';
+import { planeFigures } from '../lib/modelFleet';
 import type { ClassSatisfactionDetail, RouteSatisfactionDetail } from '../model/monthClose';
 import { deskLoad, routeSatisfaction as routeSatisfactionMean, satisfactionFactor } from '../model/satisfaction';
 import { SCALES } from '../model/constants';
@@ -1904,7 +1904,15 @@ function RoutePlannerInner({
                            <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
                              <span className="text-accent">{selectedAircraft.type}</span>
                              <span className="flex items-center">{(weeklyUtilization).toFixed(0)}% USE<InfoTooltip size={10} {...GLOSSARY.utilization} /></span>
-                             <span className={getPlaneSat(selectedAircraft) < 50 ? 'text-bad' : 'text-accent'}>{getPlaneSat(selectedAircraft)}% SAT</span>
+                             {(() => {
+                               // Cabin rating (avg.) of the aircraft this month, from the model (2.4, E9), as the fleet shows it.
+                               const rating = planeFigures(selectedAircraft, pricing.month, pricing.completedResearch).averageCabinRating;
+                               return (
+                                 <span className="text-accent flex items-center">
+                                   Cabin {Number.isFinite(rating) ? Math.round(rating) : '--'}<InfoTooltip size={10} {...GLOSSARY.cabinRating} />
+                                 </span>
+                               );
+                             })()}
                            </div>
                         </div>
                       </div>
