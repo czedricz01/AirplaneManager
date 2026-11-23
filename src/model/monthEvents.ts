@@ -186,14 +186,27 @@ export function recoveryPrice(recoveryShare: number, demandMultiplier: number, m
 }
 
 /**
- * Preis der Krisen-Antwort eines Ereignisses als Anteil der betroffenen Größe (E6, E35); bezahlt bei der Wahl,
- * Posten „Crisis response“ (5.16). Ein Ereignis ohne Antwort ist ein Fehler. SPEZIFIKATION 8.5.
+ * Restdauer eines Ereignisses im Monat `month` in Monaten, den laufenden mitgezählt (der Abschluss dieses Monats
+ * rechnet eine jetzt gekaufte Antwort schon mit). Vor Beginn die volle Dauer, nach dem Ende 0. E73 (O69 = A).
  */
-export function crisisResponsePrice(event: HistoricalEventDef, base: CrisisResponseBase): number {
+export function remainingEventMonths(event: Pick<WorldEvent, 'startMonth' | 'months'>, month: number): number {
+  return Math.max(0, Math.min(event.months, event.startMonth + event.months - month));
+}
+
+/**
+ * Preis der Krisen-Antwort eines Ereignisses als Anteil der betroffenen Größe (E6, E35); bezahlt bei der Wahl,
+ * Posten „Crisis response“ (5.16). Gerechnet mit der **Restdauer** im Monat der Wahl statt der vollen Dauer (E73,
+ * O69 = A): Wer später kauft, zahlt weniger, die Antwort wirkt aber auch nur noch für den Rest. Beim Beginn ist die
+ * Restdauer die volle Dauer. Ein Ereignis ohne Antwort ist ein Fehler. SPEZIFIKATION 8.5.
+ *
+ * @param month Monat der Wahl (laufender Spielmonat).
+ */
+export function crisisResponsePrice(event: HistoricalEventDef, base: CrisisResponseBase, month: number): number {
   const response = event.response;
   if (!response) throw new Error(`Keine Krisen-Antwort für ${event.title}`);
-  if (response.kind === 'fuelHedge') return hedgePrice(base.fuelBill, event.months);
-  return recoveryPrice(response.recoveryShare ?? 0, event.demandMultiplier, event.months, base.revenue);
+  const months = remainingEventMonths(event, month);
+  if (response.kind === 'fuelHedge') return hedgePrice(base.fuelBill, months);
+  return recoveryPrice(response.recoveryShare ?? 0, event.demandMultiplier, months, base.revenue);
 }
 
 /** Art der Antwort eines Ereignisses (für die Frage beim Beginn); `null` ohne Antwort. */

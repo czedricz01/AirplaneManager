@@ -6,8 +6,10 @@ Teuerung 3 %/Jahr statt Kostenindex (`campaignMonthlyCost`, `marketingInflation`
 Moral, Streik, Lohn-Grenzen. Zu lesen: F68 (1); `MarketingPanel.tsx`, `StaffPanel.tsx`; im Modell `campaignCost` und Abschnitte 5.4,
 6.4, 8.7 der Spezifikation; offene Punkte unten (4.7b (3)).
 
-**Offene Frage O69** (kein Blocker für 4.8): Preis der Krisen-Antwort ohne Bezugsgröße und bei spätem Kauf; siehe
-`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“. Bis dahin gilt der Zwischenstand aus F69 (5).
+Stand: 23.11.2026 · O69 entschieden (E73, Weg A) und umgesetzt (F70): Die Krisen-Antwort bleibt ohne Bezugsgröße gesperrt; ihr
+Preis rechnet mit der Restdauer im Monat der Wahl (`remainingEventMonths`, `crisisResponsePrice(event, base, month)` in
+`src/model/monthEvents.ts`; Band und Frage über `src/lib/modelEvents.ts` mit dem laufenden Monat). Spezifikation 8.5 nachgezogen.
+2 neue Tests (1457 grün). Im Browser nicht geprüft (eine Krise mit Flügen vor ihrem Beginn wäre nötig, siehe 4.7c (1)).
 
 Stand: 23.11.2026 · Paket 4.7c erledigt (F69): Planer Schritt 1 und Ereignis-Band laufen über das Modell; die Krisen-Frage nimmt
 den Preis des Modells. Das Modell liefert den Markt eines Paars (`pairMarket`, `src/model/monthClose.ts`; `routeMarket` in
@@ -20,10 +22,10 @@ flying“ (gesperrt), „Ride it out · No cost“; Planer AAL–FRA „2,128 / 
 Ereignisse 0,90, je Klasse Fluggäste und Marktpreis (Economy 1 827 / $85 … First 29 / $284).
 
 Offen aus 4.7c (kein Blocker): (1) Eine Krisen-Frage mit Preis (Monat mit Flügen in einer Krise) ist mit Tests geprüft, im Browser
-nicht geklickt (dafür bräuchte es Flugzeug und Strecke vor 10/1973). (2) O69: Preis ohne Bezugsgröße und bei spätem Kauf. (3) Die
+nicht geklickt (dafür bräuchte es Flugzeug und Strecke vor 10/1973). (2) erledigt: O69 → E73 (F70). (3) Die
 Erklärungen der Antworten („Recovers roughly 40% of the demand you would otherwise lose“) beschreiben den Anteil `r`; im Modell wirkt
 er auf die Anziehung und holt etwas weniger zurück (8.5 Hinweis). Spezifikation 8.5 verlangt die Wirkung „in Zahlen aus dem Modell“ –
-mit O69 oder 5.2 nachziehen. (4) 5.2: `calculateDemand`, `calculateBasePrices`, `eventRegionalFactor`, `routeDemandFactor`,
+mit 5.2 nachziehen. (4) 5.2: `calculateDemand`, `calculateBasePrices`, `eventRegionalFactor`, `routeDemandFactor`,
 `getFlightTimeClass` haben in den Ansichten keine Nutzer mehr (nur alte KI, alter Abschluss, `transferUtils`, `saveMigration`);
 `getActiveEvents` in `App.tsx` nur noch für den gesicherten Treibstoffpreis und die Frage beim Spielstart, die Kosten der Antworten in
 `src/lib/eventSystem.ts` (`cost`) nur noch als Platzhalter. (5) Die Marktgröße im Planer hängt nicht mehr vom Flugzeug ab; die Ziel-Liste
@@ -414,3 +416,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 23.11.2026 | 4.7a | Paket 4.7 geteilt; Kopfzeile, Firma, Monatsbericht und Spielende nach dem Modell (F67): `src/lib/modelReport.ts` (`reportView`: Posten aus 5.16, Weg vom Ergebnis zur Kasse 8.2, Kreditlinie), `src/lib/modelCompany.ts` (`playerWorth`, `creditStatus`, `playerScore`, `eventEffect`, `fleetMix`, `goalMissPenalty`); Bericht speichert alle Einmalzahlungen und `cash`; Firma mit Buchwert und Unternehmenswert; Kredit-Band in der Kopfzeile; Bankrott trägt die Laufbahn ein; 17 neue Tests (1424 grün) |
 | 23.11.2026 | 4.7b | Paket 4.7b geteilt (4.7c Planer Schritt 1, neu 4.8 Werbung und Personal); Live-Karte, Konkurrenz und Netz nach dem Modell (F68): Modell liefert Umsteige-Ströme (`CompanyOperations.transferFlows`); `src/lib/modelNetwork.ts` (`playerMonth`, `hubTransfers`, `ffpForecast`) ersetzt `computeNetworkFinancials` in `App.tsx` (Flughafen „Transfer Hub“, Ströme in der Streckenansicht, Besatzung, Frequent flyer); Live-Karte mit der Auslastung des Modells (W7); `src/lib/modelRivalProfile.ts` (Steckbrief aus `PERSONALITIES`, Frist bis zur Auflösung); `transferHubs` im Bericht und Chronik; 14 neue Tests (1438 grün) |
 | 23.11.2026 | 4.7c | Planer Schritt 1, Ereignis-Band und Krisen-Frage nach dem Modell (F69): `pairMarket` / `routeMarket` (Marktgröße mit allen Teilen, Klassen-Anteile, Fluggäste je Klasse, Marktpreise); „/ WK MARKET“ und Debug aus dem Modell; `src/lib/modelEvents.ts` (`eventBand`, `crisisBase`, `pricedChoices`) für Band und Frage; Preis der Krisen-Antwort nach 8.5 statt fester Beträge, ohne Bezugsgröße gesperrt; neue offene Frage O69; 17 neue Tests (1455 grün) |
+| 23.11.2026 | O69 | Entscheidung E73 (Weg A) umgesetzt (F70): Preis der Krisen-Antwort × Restdauer im Monat der Wahl (`remainingEventMonths`), ohne Bezugsgröße weiter gesperrt; Spezifikation 8.5 nachgezogen; 2 neue Tests (1457 grün) |

@@ -2951,15 +2951,18 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
   kein Ereignis ändert `fuelPrice`; ohne laufendes Ereignis ist `eventDemandFactor = 1`.
 
 ### 8.5 Krisen-Antworten (Code-Name: `crisisResponse`)
-- Bedeutung: Bei den 6 weltweiten geschichtlichen Ereignissen kann der **Spieler** einmal beim Beginn eine Antwort
-  kaufen (wie heute). Die KI antwortet mit ihrem Krisen-Fahrplan (7.12), nicht hiermit (7.2).
+- Bedeutung: Bei den 6 weltweiten geschichtlichen Ereignissen kann der **Spieler** einmal eine Antwort kaufen: beim
+  Beginn oder später, solange das Ereignis läuft („Decision pending“, E73). Die KI antwortet mit ihrem Krisen-Fahrplan (7.12), nicht hiermit (7.2).
 - Preis als **Anteil der betroffenen Größe** (E6, E35), bezahlt bei der Wahl (Kasse muss reichen), im Monatsergebnis
   des Monats, in dem sie gewählt wird (Posten „Crisis response“, 5.16). Bezugsgröße aus dem Bericht des letzten
-  abgeschlossenen Monats, also bei der Wahl bekannt.
+  abgeschlossenen Monats, also bei der Wahl bekannt. Ohne Bezugsgröße (kein Bericht, oder letzter Monat ohne Flüge)
+  ist die Antwort gesperrt, bis ein Monat mit Flügen abgeschlossen ist (E73).
+- **Restdauer** (E73): `remainingEventMonths = max(0; min(Dauer; Beginn + Dauer − Monat der Wahl))`, den laufenden
+  Monat mitgezählt. Beim Beginn = Dauer. Später kaufen kostet anteilig weniger; die Wirkung gilt nur für den Rest.
 - **Preis-Absicherung** (Code-Name: `fuelHedge`; Ölkrisen 1973, 1979, 1990):
   - Wirkung: `fuelTable(month)` dieser Gesellschaft = `fuelTable(Monat vor Beginn)` für die Dauer des Ereignisses
     (5.2), in beide Richtungen (fällt der Preis, zahlt sie trotzdem den gesicherten).
-  - Preis: `HEDGE_PRICE_SHARE × Treibstoff-Rechnung des letzten Monats × Dauer in Monaten`.
+  - Preis: `HEDGE_PRICE_SHARE × Treibstoff-Rechnung des letzten Monats × Restdauer in Monaten`.
   - `HEDGE_PRICE_SHARE = 0,35` (E69; Startwert war 0,2, heute 4 Mio. $ für 18 Monate, also 0,22 bei 1 Mio. $ Rechnung
     je Monat). Mit 0,35 lohnt sich die Absicherung 1973 / 1979 / 1990 etwa 2,6- / 1,4- / 1,05-fach (Balance-Skript B8.1),
     ist also eine Abwägung und nicht immer richtig.
@@ -2967,7 +2970,7 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
   - Wirkung: `crisisResponseFactor = (f + (1 − f) × r) / f` auf die Anziehung aller Angebote der Gesellschaft (3.9.7)
     für die Dauer, mit `f` = `demandMultiplier` des Ereignisses und `r` = Rückgewinnungs-Anteil aus den Daten
     (heute `softensDemand` 0,4 / 0,33 / 0,35, `src/lib/gameState.ts:440-456`).
-  - Preis: `RECOVERY_PRICE_SHARE × r × (1 − f) × Dauer × Monatserlös des letzten Monats`.
+  - Preis: `RECOVERY_PRICE_SHARE × r × (1 − f) × Restdauer × Monatserlös des letzten Monats`.
   - `RECOVERY_PRICE_SHARE = 0,25` (E69, Paket 3.9d; Startwert 0,15). Mit der Marktgröße und den Preisen aus E70 lohnt
     sich die Rückgewinnung 2001 / 2008 / 2020 etwa 2,4- / 2,4- / 1,9-fach (A320ceo FRA–MAD allein, Balance-Skript B8.2),
     mit kleinerem Markt (× 0,25) 1,2- bis 1,7-fach.
@@ -2975,7 +2978,7 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
     „Nicht fliegen“ mitzählt (Beispiel 8.17). Stärke und Preis prüft das Balance-Skript (3.9).
 - Konstanten-Felder je Ereignis in den Daten: Art der Antwort und `r`; feste Preise entfallen.
 - Regeln (Tests): Preis wächst im gleichen Verhältnis wie die Bezugsgröße (doppelte Treibstoff-Rechnung → doppelter
-  Preis); ohne Antwort `crisisResponseFactor = 1` und Tabellenpreis; eine Antwort wirkt nur für die Gesellschaft, die
+  Preis); Preis wächst mit der Restdauer (halbe Restdauer → halber Preis); ohne Antwort `crisisResponseFactor = 1` und Tabellenpreis; eine Antwort wirkt nur für die Gesellschaft, die
   sie gekauft hat; eine Absicherung ändert den Preis nach dem Ende des Ereignisses nicht mehr.
 - Anzeige: Frage beim Beginn mit Preis und Wirkung in Zahlen aus dem Modell (heute `src/components/app/GameDialogs.tsx:72-79`).
 

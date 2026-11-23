@@ -6,7 +6,8 @@
  *   `RANDOM_EVENT_TEMPLATES`), Restdauer, Regionen und Nachfrage-Faktor. Nur die Texte der Antworten (Name, Erklärung)
  *   kommen aus `src/lib/eventSystem.ts`; ihr Preis aus dem Modell.
  * - `crisisBase` / `pricedChoices` setzen den Preis einer Krisen-Antwort als Anteil der Treibstoff-Rechnung bzw. des
- *   Erlöses des letzten abgeschlossenen Monats (`crisisResponsePrice`, 8.5); die festen Preise (3–6 Mio. $) entfallen.
+ *   Erlöses des letzten abgeschlossenen Monats × Restdauer (`crisisResponsePrice`, 8.5, E73); die festen Preise
+ *   (3–6 Mio. $) entfallen.
  *
  * Rein: liest nur seine Eingabe (R12).
  */
@@ -30,7 +31,7 @@ export const isPaidChoice = (choice: Pick<EventChoice, 'hedgesFuel' | 'softensDe
 /**
  * Bezugsgrößen der Krisen-Antwort aus dem Bericht des letzten abgeschlossenen Monats (8.5): Treibstoff-Rechnung
  * (`breakdown.fuel`) und Monatserlös (`routeRevenues`). Ohne Bericht (erster Monat) `null`: Dann ist eine kaufende
- * Antwort noch nicht zu haben (sonst kostete sie 0, z. B. im Szenario, das in der Ölkrise 1973 beginnt; O69).
+ * Antwort noch nicht zu haben (sonst kostete sie 0, z. B. im Szenario, das in der Ölkrise 1973 beginnt; E73).
  */
 export function crisisBase(report: Pick<MonthlyReport, 'breakdown' | 'routeRevenues'> | undefined): CrisisResponseBase | null {
   if (!report) return null;
@@ -41,24 +42,31 @@ export function crisisBase(report: Pick<MonthlyReport, 'breakdown' | 'routeReven
 }
 
 /**
- * Antworten eines Ereignisses mit dem Preis des Modells (8.5): Eine kaufende Antwort kostet `crisisResponsePrice`,
- * gerundet auf $; „nichts tun“ 0. Ohne Bezugsgröße (`base = null`) oder mit Preis 0 (Monat ohne Flüge, also ohne
- * Treibstoff-Rechnung bzw. Erlös) ist die kaufende Antwort `unpriced` (nicht wählbar, O69). Ein Ereignis ohne
- * Antwort im Modell bekommt keine Antworten.
+ * Antworten eines Ereignisses mit dem Preis des Modells (8.5): Eine kaufende Antwort kostet `crisisResponsePrice`
+ * mit der Restdauer im Monat `month` (E73), gerundet auf $; „nichts tun“ 0. Ohne Bezugsgröße (`base = null`) oder
+ * mit Preis 0 (Monat ohne Flüge, also ohne Treibstoff-Rechnung bzw. Erlös) ist die kaufende Antwort `unpriced`
+ * (nicht wählbar, E73). Ein Ereignis ohne Antwort im Modell bekommt keine Antworten.
+ *
+ * @param month Laufender Spielmonat (Monat der Wahl).
  */
-export function pricedChoices(title: string, choices: readonly EventChoice[] | undefined, base: CrisisResponseBase | null): EventChoice[] | undefined {
+export function pricedChoices(
+  title: string,
+  choices: readonly EventChoice[] | undefined,
+  base: CrisisResponseBase | null,
+  month: number,
+): EventChoice[] | undefined {
   const def = HISTORICAL_EVENTS.find((e) => e.title === title);
   if (!choices || choices.length === 0 || !def?.response) return undefined;
-  const price = base ? Math.round(crisisResponsePrice(def, base)) : 0;
+  const price = base ? Math.round(crisisResponsePrice(def, base, month)) : 0;
   return choices.map(({ unpriced: _u, ...c }) => {
     if (!isPaidChoice(c)) return { ...c, cost: 0 };
     return price > 0 ? { ...c, cost: price } : { ...c, cost: 0, unpriced: true };
   });
 }
 
-/** Das Ereignis der Oberfläche mit Preisen des Modells (für die Frage beim Beginn). */
-export function pricedEvent<E extends HistoricalEvent>(ev: E, base: CrisisResponseBase | null): E {
-  const choices = pricedChoices(ev.title, ev.choices, base);
+/** Das Ereignis der Oberfläche mit Preisen des Modells im Monat `month` (für die Frage beim Beginn). */
+export function pricedEvent<E extends HistoricalEvent>(ev: E, base: CrisisResponseBase | null, month: number): E {
+  const choices = pricedChoices(ev.title, ev.choices, base, month);
   const { choices: _old, ...rest } = ev;
   return (choices ? { ...rest, choices } : rest) as E;
 }
@@ -84,7 +92,7 @@ export function eventBand(
 ): BandEvent[] {
   return activeWorldEvents(month, randomEvents).map((e) => {
     const app = historicalEvents.find((h) => h.title === e.title && h.startOffset === e.startMonth);
-    const choices = pricedChoices(e.title, app?.choices, base);
+    const choices = pricedChoices(e.title, app?.choices, base, month);
     const key = eventKey({ title: e.title, startOffset: e.startMonth });
     const chosenId = eventChoices[key];
     return {
