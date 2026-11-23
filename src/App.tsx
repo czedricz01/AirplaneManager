@@ -82,7 +82,6 @@ import {
   describeGoal,
   type AnnualGoal
 } from "./lib/annualGoals";
-import { setFeeFactor } from "./lib/economyContext";
 import { creditStatus, fleetMix, playerScore, playerWorth } from "./lib/modelCompany";
 import type { ResoldPlane } from "./model/monthClose";
 import { planeFigures, preorderFigures, preorderOf, preorderQuote, resoldPlane, takeoverFleet, usedPurchase, withoutResold, type UsedListing } from "./lib/modelFleet";
@@ -96,8 +95,6 @@ import {
   type ScenarioStars
 } from "./lib/careerScore";
 import {
-  boostedEfficiency,
-  boostedPopularity,
   projectById,
   projectCost,
   researchEffects,
@@ -248,12 +245,8 @@ export default function App() {
   const [milestones, setMilestones] = useState<string[]>([]);
   /** What the milestones earned so far give: cheaper slots, room for hubs. */
   const perks = useMemo(() => milestonePerks(milestones), [milestones]);
-  // Published for the pricing code that has no access to the game state; see
-  // economyContext.ts. Set while rendering, from a pure value, so a screen
-  // never shows a price the next purchase would not charge.
   /** What the finished development projects do; see research.ts. */
   const researchFx = useMemo(() => researchEffects(career.research.done), [career.research.done]);
-  setFeeFactor(researchFx.feeFactor);
   /** Free Mode: a Global Player from the first month, with nothing gated by rank. */
   const freeMode = career.mode === 'free';
   /** Consecutive months closed without a loss, for the profit milestone. */
@@ -1455,6 +1448,8 @@ export default function App() {
         // Older saves are not converted (E75): the slot is deleted.
         logWarn('saves', `Deleted savegame ${slotId}: ${e.message}`);
         await deleteSave(slotId);
+        // The alert sits below the load dialog, so the dialog closes first.
+        setShowLoadMenu(false);
         setAppAlert("This savegame was made with an older version of the game and can no longer be loaded. It has been deleted.");
         return;
       }
@@ -1861,13 +1856,6 @@ export default function App() {
     setToast(`Development started: ${project.title} (${project.months} months)`);
   };
 
-  /** A new aircraft with what the development tree adds to its efficiency and type satisfaction. */
-  const withDevelopment = (plane: OwnedAircraft): OwnedAircraft => ({
-    ...plane,
-    efficiency: boostedEfficiency(plane.efficiency, researchFx),
-    popularity: boostedPopularity(plane.popularity, researchFx)
-  });
-
   /** Places an order for aircraft not yet delivered. Pays the deposit now. */
   const handlePlaceOrder = (spec: Aircraft, quantity: number) => {
     const gate = classGateMessage(spec, aircraftClassesOpen);
@@ -1916,9 +1904,8 @@ export default function App() {
     const plane = usedPurchase(listing, { hub: selectedHub || 'FRA', existingRegistrations: fleet.map(p => p.registration) });
     if (!plane) return;
     spend(listing.price, 'Used Aircraft');
-    const bought = withDevelopment(plane);
-    noteTrade([], [bought], currentDateOffset);
-    setFleet(prev => [...prev, bought]);
+    noteTrade([], [plane], currentDateOffset);
+    setFleet(prev => [...prev, plane]);
     if (listing.source === 'resold') setModelWorld(prev => (prev ? { ...prev, resold: withoutResold(prev.resold, listing.id) } : prev));
     setCareer(prev => ({
       ...prev,
@@ -2088,9 +2075,8 @@ export default function App() {
         existingRegistrations: fleet.map(p => p.registration),
         purchasedAt: currentDateOffset
       });
-      const bought = newPlanes.map(withDevelopment);
-      noteTrade([], bought, currentDateOffset);
-      setFleet(prev => [...prev, ...bought]);
+      noteTrade([], newPlanes, currentDateOffset);
+      setFleet(prev => [...prev, ...newPlanes]);
 
       if (isPurchasingForRoute) {
         // Bought from the planner: go back to it with the new aircraft, unless

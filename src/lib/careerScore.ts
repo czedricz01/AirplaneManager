@@ -1,28 +1,4 @@
-/**
- * The career score, the retirement report and the hall of fame; and the stars
- * a scenario earns, and which scenarios they open.
- *
- * The free game has no end. A player may retire whenever they like: the score
- * says how the airline did, is filed in the hall of fame, and the game can
- * carry on. A scenario is judged by how quickly it was won.
- *
- * Everything here is pure; the hall of fame and the stars are kept by the
- * caller in the browser's storage.
- */
 
-export interface ScoreInput {
-  /** Cash plus the resale value of the fleet. */
-  netWorth: number;
-  rank: number;
-  /** Free Mode: there is no rank to earn, so it scores nothing. */
-  free?: boolean;
-  milestones: number;
-  reputation: number;
-  takeovers: number;
-  projectsDone: number;
-  /** Whole years played. */
-  years: number;
-}
 
 export interface ScoreBreakdown {
   wealth: number;
@@ -33,24 +9,6 @@ export interface ScoreBreakdown {
   development: number;
   longevity: number;
   total: number;
-}
-
-/** Points per rank step; ten ranks make nine steps. */
-export const RANK_POINTS = 80;
-
-/** What each part of a career is worth, in points. */
-export function careerScore(input: ScoreInput): ScoreBreakdown {
-  const wealth = Math.max(0, Math.round(100 * Math.log10(Math.max(1, input.netWorth / 1_000_000))));
-  const rank = input.free ? 0 : RANK_POINTS * Math.max(0, Math.round(input.rank));
-  const milestones = 10 * Math.max(0, Math.round(input.milestones));
-  const reputation = Math.round(2 * Math.max(0, Math.min(100, input.reputation)));
-  const takeovers = 25 * Math.max(0, Math.round(input.takeovers));
-  const development = 15 * Math.max(0, Math.round(input.projectsDone));
-  const longevity = 5 * Math.max(0, Math.min(60, Math.floor(input.years)));
-  return {
-    wealth, rank, milestones, reputation, takeovers, development, longevity,
-    total: wealth + rank + milestones + reputation + takeovers + development + longevity
-  };
 }
 
 // --- Hall of fame ---------------------------------------------------------------

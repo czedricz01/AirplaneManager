@@ -69,18 +69,6 @@ export function blockMinutes(trip: Pick<TripLike, 'durMin' | 'turnoverMin' | 'is
   return tripBlockMinutes(Number(trip.durMin) || 0, Number(trip.turnoverMin) || 0, !!trip.isOneWay);
 }
 
-/**
- * Block before rounding. Only the old month close (`src/lib/monthClose.ts`,
- * no longer called) still uses it; it goes with that file in package 5.2.
- */
-export function rawBlockMinutes(trip: Pick<TripLike, 'durMin' | 'turnoverMin' | 'isOneWay'>): number {
-  const dur = Number(trip.durMin) || 0;
-  const turn = Number(trip.turnoverMin) || 0;
-  return trip.isOneWay
-    ? BOARDING_MIN + dur + BOARDING_MIN
-    : BOARDING_MIN + dur + turn + dur + BOARDING_MIN;
-}
-
 /** Share of the week an aircraft's trips commit it, 0..1 (`weeklyUtilization`). */
 export function tripsUtilization(trips: Pick<TripLike, 'durMin' | 'turnoverMin' | 'isOneWay'>[]): number {
   return weeklyUtilization(trips.map(blockMinutes));

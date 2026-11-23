@@ -6,7 +6,6 @@ import { Button } from './ui/Button';
 import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
 import { useTapReveal } from './ui/useTapReveal';
-import { aiMonthlySubsidy } from '../lib/aiSimulation';
 import {
   Search,
   ChevronDown,
@@ -727,12 +726,6 @@ function CompetitorsViewImpl({
                         );
                       })}
                     </div>
-                    )}
-
-                    {!selectedAirline.isPlayer && (
-                      <div className="text-2xs text-muted leading-snug">
-                        AI results include a fixed operating subsidy of {formatCurrency(aiMonthlySubsidy(currentDateOffset))} per month.
-                      </div>
                     )}
 
                     <div className="space-y-1 text-xs border-t border-line pt-3">

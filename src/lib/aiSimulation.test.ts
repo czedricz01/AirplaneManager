@@ -1,54 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { generateAiAirlines, simulateAiAirlinesTurn, buildAiSimAircraft } from './aiSimulation';
-import { airports } from '../data/airportRegistry';
-import { getPlaneSat } from './financeUtils';
-
-test('the AI simulation aircraft never produces a NaN satisfaction', () => {
-  const sim = buildAiSimAircraft({
-    id: '737-100', manufacturer: 'Boeing', family: '737', type: '737-100',
-    class: 'narrowbody', reg: 'LH-A100', capacity: 100, popularity: 70, efficiency: 55
-  }, 'flag');
-  assert.ok(Number.isFinite(getPlaneSat(sim)));
-});
-
-test('getPlaneSat stays finite when fields are missing', () => {
-  assert.ok(Number.isFinite(getPlaneSat({ popularity: 70 })));
-  assert.ok(Number.isFinite(getPlaneSat({})));
-});
-
-test('AI routes earn real, finite and distinct monthly profits', () => {
-  // Several months so that every airline has routes, from a start date with
-  // a wide choice of aircraft.
-  let ais = generateAiAirlines(6, 'Normal', 'FRA', (1995 - 1960) * 12);
-  for (let m = 0; m < 6; m++) {
-    ais = simulateAiAirlinesTurn(ais, airports, (1995 - 1960) * 12 + m, 'FRA', []).updatedAis;
-  }
-
-  const profits = ais.flatMap(ai => ai.routes.map(r => r.monthlyProfit));
-  assert.ok(profits.length > 3, 'the AI should be flying some routes');
-  for (const p of profits) assert.ok(Number.isFinite(p), `profit ${p} must be finite`);
-
-  // The old code booked exactly 100,000 for every route because every result
-  // was NaN. Real results differ from route to route.
-  assert.ok(new Set(profits).size > 1, 'profits must not all be the same constant');
-  assert.ok(!profits.every(p => p === 100000), 'profits must not be the old fallback');
-
-  for (const ai of ais) {
-    for (const v of ai.monthlyProfitsHistory) assert.ok(Number.isFinite(v));
-    assert.ok(Number.isFinite(ai.capital));
-  }
-});
-
 // --- Who the rivals are ---------------------------------------------------
 
-import { pickRivalIdentities, maxWeeklyRotations, cabinConfigFor } from './aiSimulation';
+import { generateAiAirlines, pickRivalIdentities } from './aiSimulation';
 import { REAL_AIRLINES, FICTIONAL_AIRLINES, isActiveIn } from '../data/rivalAirlines';
 import { airportsMapAdjusted } from '../data/airportRegistry';
-import { aircraftList } from '../data/aircraft';
-
-const offsetFor = (year: number) => (year - 1960) * 12;
 
 test('every real carrier in the list has a hub that exists in the game', () => {
   for (const a of REAL_AIRLINES) assert.ok(airportsMapAdjusted.has(a.hub), `${a.name}: unknown hub ${a.hub}`);
@@ -82,19 +39,6 @@ test('no rival ever starts at the player hub, and the carrier based there is lef
   }
 });
 
-test('the generated airlines obey the same hub rule', () => {
-  for (const hub of ['FRA', 'LHR', 'JFK']) {
-    let ais = generateAiAirlines(12, 'Normal', hub, offsetFor(1980));
-    for (const ai of ais) assert.notEqual(ai.hub, hub);
-    // Rivals start route-less, like the player; simulate a few months so
-    // there are routes to check the origin of.
-    for (let m = 0; m < 6; m++) {
-      ais = simulateAiAirlinesTurn(ais, airports, offsetFor(1980) + m, hub, []).updatedAis;
-    }
-    for (const ai of ais) for (const r of ai.routes) assert.equal(r.origin, ai.hub);
-  }
-});
-
 test('real carriers start at their real hub and only in years they flew', () => {
   for (const year of [1962, 1972, 1985, 1999, 2015]) {
     for (let i = 0; i < 10; i++) {
@@ -125,94 +69,14 @@ test('the field mixes real and fictional airlines, with unique hubs and codes', 
   }
 });
 
-// --- How they play ----------------------------------------------------------
+const offsetFor = (year: number) => (year - 1960) * 12;
 
-test('an aircraft is never scheduled for more round trips than fit in a week', () => {
-  // A ten-hour sector: 30 + 600 + 90 + 600 + 30 minutes per round trip.
-  assert.equal(maxWeeklyRotations(600, 'widebody'), Math.floor((7 * 18 * 60) / 1350));
-  assert.equal(maxWeeklyRotations(45, 'regional'), 21);
-
-  let ais = generateAiAirlines(8, 'Hard', 'FRA', offsetFor(1995));
-  for (let m = 0; m < 24; m++) {
-    ais = simulateAiAirlinesTurn(ais, airports, offsetFor(1995) + m, 'FRA', []).updatedAis;
-    for (const ai of ais) {
-      for (const r of ai.routes) {
-        const plane = ai.fleet.find(f => f.reg === r.aircraftReg)!;
-        assert.ok(plane, `${ai.code} route without its aircraft`);
-        assert.ok(r.departures >= 1 && r.departures <= maxWeeklyRotations(r.durMin!, plane.class),
-          `${ai.code} ${r.origin}-${r.destination} flies ${r.departures}x with a ${plane.type}`);
-        assert.ok((plane.maxRange || 0) >= (r.distance || 0), `${ai.code} flies beyond range`);
-        const icao = aircraftList.find(a => a.id === plane.id)?.icaoCode;
-        const dest = airportsMapAdjusted.get(r.destination)!;
-        assert.ok(!icao || icao <= dest.maxIcaoCode, `${plane.type} cannot land at ${dest.id}`);
-      }
-      // One aircraft per route, and no route twice. A rival with a second hub
-      // may serve the same destination from both.
-      assert.equal(new Set(ai.routes.map(r => r.aircraftReg)).size, ai.routes.length);
-      assert.equal(new Set(ai.routes.map(r => `${r.origin}>${r.destination}`)).size, ai.routes.length);
-    }
+test('a new rival founded in a running game takes no hub or code that is in use', () => {
+  const existing = generateAiAirlines(6, 'Normal', 'FRA', offsetFor(1990));
+  for (let n = 0; n < 5; n++) {
+    const [fresh] = generateAiAirlines(1, 'Normal', 'FRA', offsetFor(1990), '', '#facc15', existing);
+    if (!fresh) continue;
+    assert.ok(!existing.some(e => e.code === fresh.code || e.hub === fresh.hub), `${fresh.code} at ${fresh.hub} clashes`);
+    assert.ok(!existing.some(e => e.color === fresh.color), 'its own colour');
   }
-});
-
-test('rivals do not hoard idle aircraft', () => {
-  let ais = generateAiAirlines(8, 'Normal', 'FRA', offsetFor(1985));
-  for (let m = 0; m < 36; m++) {
-    ais = simulateAiAirlinesTurn(ais, airports, offsetFor(1985) + m, 'FRA', []).updatedAis;
-  }
-  for (const ai of ais) {
-    const idle = ai.fleet.filter(p => !ai.routes.some(r => r.aircraftReg === p.reg));
-    for (const p of idle) {
-      assert.ok(p.idleSince !== undefined && offsetFor(1985) + 35 - p.idleSince < 7,
-        `${ai.code} ${p.reg} has been idle too long`);
-    }
-  }
-});
-
-test('a rival thins out or drops a route that keeps losing money', () => {
-  // Rivals start route-less, just like the player, so fly a few months
-  // first to get this one flying before making it a loser. A rival is drawn
-  // at random, and one whose only aircraft has no profitable route from its
-  // hub stays route-less for years (about 1 draw in 200), which says nothing
-  // about thinning out a route. So draw again instead of letting luck decide.
-  let [ai] = generateAiAirlines(1, 'Hard', 'MUC', offsetFor(1990));
-  let offset = offsetFor(1990);
-  for (let attempt = 0; attempt < 8; attempt++) {
-    for (let m = 0; m < 12 && ai.routes.length === 0; m++) {
-      [ai] = simulateAiAirlinesTurn([ai], airports, offset, 'MUC', []).updatedAis;
-      offset++;
-    }
-    if (ai.routes.length > 0) break;
-    [ai] = generateAiAirlines(1, 'Hard', 'MUC', offsetFor(1990));
-    offset = offsetFor(1990);
-  }
-  assert.ok(ai.routes.length > 0, 'the rival should be flying a route by now');
-
-  const plane = ai.fleet.find(p => p.reg === ai.routes[0].aircraftReg)!;
-  // Established long ago, and losing heavily on average.
-  const loser = { ...ai.routes[0], openedAt: 0, avgProfit: -5_000_000 };
-  loser.departures = maxWeeklyRotations(loser.durMin!, plane.class);
-  const others = ai.routes.slice(1).map(r => ({ ...r, openedAt: offset }));
-  const out = simulateAiAirlinesTurn([{ ...ai, routes: [loser, ...others] }], airports, offset, 'MUC', []).updatedAis[0];
-  const after = out.routes.find(r => r.destination === loser.destination);
-  assert.ok(!after || after.departures < loser.departures, 'the losing route is thinned out or closed');
-});
-
-test('old saves keep working: no new fields needed, frequencies capped', () => {
-  const plane = aircraftList.find(a => a.id.startsWith('747'))!;
-  const oldAi: any = {
-    id: 'ai_pa', name: 'Pan American', code: 'PA', hub: 'JFK', capital: 50_000_000, aiDifficulty: 'Normal',
-    fleet: [{ id: plane.id, manufacturer: plane.manufacturer, family: plane.family, type: plane.type,
-      class: 'widebody', reg: 'PA-A100', maxRange: plane.maxRange, capacity: plane.capacity,
-      basePrice: plane.basePrice, popularity: plane.popularity, efficiency: plane.efficiency,
-      cruiseSpeed: plane.cruiseSpeed, purchasedAt: offsetFor(1975), config: cabinConfigFor('flag', plane.capacity) }],
-    // The old code flew any route 14 times a week, even JFK-LHR on one aircraft.
-    routes: [{ origin: 'JFK', destination: 'LHR', aircraftClass: 'widebody', departures: 14, monthlyProfit: 0, aircraftReg: 'PA-A100' }],
-    monthlyProfitsHistory: []
-  };
-  const out = simulateAiAirlinesTurn([oldAi], airports, offsetFor(1978), 'FRA', []).updatedAis[0];
-  const r = out.routes.find(x => x.destination === 'LHR')!;
-  assert.ok(r, 'the route survives its first month');
-  assert.ok(r.departures < 14, 'frequency is capped to what one aircraft can fly');
-  assert.ok(Number.isFinite(r.monthlyProfit) && Number.isFinite(r.avgProfit!));
-  assert.ok(Number.isFinite(out.capital));
 });

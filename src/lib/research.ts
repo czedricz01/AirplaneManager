@@ -239,16 +239,6 @@ export const NEUTRAL_EFFECTS: ResearchEffects = {
   efficiencyBonus: 0, popularityBonus: 0, maintenanceFactor: 1, crewFactor: 1, feeFactor: 1, cateringFactor: 1, wearFactor: 1, resaleBonus: 0
 };
 
-/** An aircraft's efficiency with the developed bonus: whole points on the 0-100 scale, never above 100. */
-export function boostedEfficiency(base: number, fx: Pick<ResearchEffects, 'efficiencyBonus'>): number {
-  return Math.min(100, Math.max(base, Math.round(base + fx.efficiencyBonus * 100)));
-}
-
-/** An aircraft's plane type satisfaction with the developed bonus, never above 100. */
-export function boostedPopularity(base: number, fx: Pick<ResearchEffects, 'popularityBonus'>): number {
-  return Math.min(100, Math.max(base, base + fx.popularityBonus * 100));
-}
-
 /** A cost factor from a summed saving: never below 40%. */
 const saved = (sum: number) => Math.max(0.4, 1 - sum);
 
@@ -306,20 +296,6 @@ export function startProject(state: ResearchState, id: string, offset: number): 
 export function projectProgress(project: ResearchProject, startedOffset: number, offset: number): { monthsDone: number; fraction: number } {
   const monthsDone = Math.max(0, offset - startedOffset);
   return { monthsDone, fraction: Math.min(1, monthsDone / project.months) };
-}
-
-/** What finishes when the month at `offset` begins. */
-export function advanceResearch(state: ResearchState, offset: number): { state: ResearchState; completed: ResearchProject[] } {
-  const completed: ResearchProject[] = [];
-  const active: ResearchState['active'] = [];
-  for (const a of state.active) {
-    const project = projectById(a.id);
-    if (!project) continue;
-    if (offset - a.startedOffset >= project.months) completed.push(project);
-    else active.push(a);
-  }
-  if (completed.length === 0 && active.length === state.active.length) return { state, completed };
-  return { state: { done: [...state.done, ...completed.map(p => p.id)], active }, completed };
 }
 
 /** The saved state, with unknown projects dropped and a project never both done and under way. */

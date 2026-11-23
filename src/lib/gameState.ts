@@ -12,7 +12,6 @@
  */
 import { MAP_YELLOW } from './theme';
 import { getActiveEvents, eventKey } from './eventSystem';
-import { regionOf } from './geoUtils';
 import { ffpLoyaltyBonus, regionDemandFactors } from './marketing';
 import { crewCostFactor, moraleSatDelta, strikeCancelShare } from './staff';
 import { combineCancelShares, disruptionCancelShares } from './disruptions';
@@ -398,9 +397,6 @@ export interface PlayerModifiers {
   }>;
 }
 
-/** A stable neutral default, so a missing prop does not invalidate memos on every render. */
-export const NEUTRAL_PLAYER_MODIFIERS: PlayerModifiers = { demandFactor: 1 };
-
 /**
  * What buildPlayerModifiers reads. An object, so each system adds its own
  * field here without touching the call sites of the others.
@@ -505,20 +501,4 @@ export function buildPlayerModifiers(state: PlayerModifierState, offset: number)
 export function routeCancelShare(mods: PlayerModifiers | undefined, routeId: string): number {
   if (!mods) return 0;
   return combineCancelShares(mods.cancelShare?.[routeId], mods.cancelShareAll);
-}
-
-/**
- * The demand factor for one route: the airline-wide one times the mean of the
- * regional factors at its two ends.
- */
-export function routeDemandFactor(
-  mods: PlayerModifiers,
-  origin?: { coords: [number, number] } | null,
-  dest?: { coords: [number, number] } | null
-): number {
-  const regional = mods.regionDemand;
-  if (!regional) return mods.demandFactor;
-  const at = (airport?: { coords: [number, number] } | null) =>
-    airport ? regional[regionOf(airport.coords)] ?? 1 : 1;
-  return mods.demandFactor * ((at(origin) + at(dest)) / 2);
 }

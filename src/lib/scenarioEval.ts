@@ -74,13 +74,6 @@ export interface GoalProgress {
   months?: number;
 }
 
-export interface ScenarioEvaluation {
-  status: ScenarioStatus;
-  goals: GoalProgress[];
-  /** One sentence on why it was won or lost; absent while running. */
-  reason?: string;
-}
-
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
 /**
@@ -182,47 +175,6 @@ function floorProgress(goal: CapitalFloorGoal, ctx: ScenarioContext): GoalProgre
 /** Where the goals stand, without deciding anything: for the progress panel. */
 export function scenarioGoals(scenario: Scenario, ctx: ScenarioContext): GoalProgress[] {
   return [...scenario.win.map(g => targetProgress(g, ctx)), ...scenario.lose.map(g => floorProgress(g, ctx))];
-}
-
-/** The scenario after the close of month `ctx.offset`. See the notes at the top. */
-export function evaluateScenario(scenario: Scenario, ctx: ScenarioContext): ScenarioEvaluation {
-  const goals = scenarioGoals(scenario, ctx);
-  const win = goals.filter(g => g.kind === 'win');
-  const month = formatMonthOffset(ctx.offset);
-
-  const broken = goals.find(g => g.kind === 'lose' && g.done);
-  if (broken) {
-    const reason = broken.months === 1
-      ? `Capital fell below ${formatCurrency(broken.target)} at the end of ${month}.`
-      : `Capital stayed below ${formatCurrency(broken.target)} for ${broken.months} month-ends in a row: bankrupt in ${month}.`;
-    return { status: 'lost', goals, reason };
-  }
-
-  const allMet = win.length > 0 && win.every(g => g.done);
-  const atDeadline = ctx.offset >= scenario.deadlineOffset;
-  const waitsForDeadline = win.some(g => g.atDeadline);
-
-  if (allMet && (atDeadline || !waitsForDeadline)) {
-    const early = scenario.deadlineOffset - ctx.offset;
-    return {
-      status: 'won',
-      goals,
-      reason: early > 0
-        ? `Every goal met in ${month}, ${early} month${early === 1 ? '' : 's'} before the deadline.`
-        : `Every goal met at the deadline, ${month}.`
-    };
-  }
-
-  if (atDeadline) {
-    const missed = win.filter(g => !g.done);
-    return {
-      status: 'lost',
-      goals,
-      reason: `The deadline passed with goals missed: ${missed.map(g => `${g.label} (${formatGoalValue(g.metric, g.current)} of ${formatGoalValue(g.metric, g.target)})`).join('; ')}.`
-    };
-  }
-
-  return { status: 'running', goals };
 }
 
 /** Month closes still to come, the current month's included: 1 in the deadline month itself. */

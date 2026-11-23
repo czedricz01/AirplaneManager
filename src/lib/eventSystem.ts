@@ -323,34 +323,3 @@ export function getActiveEvents(currentOffset: number): HistoricalEvent[] {
   const memoryEvents = randomEvents.filter(ev => currentOffset >= ev.startOffset && currentOffset < ev.startOffset + ev.duration);
   return [...fileEvents, ...memoryEvents];
 }
-
-/**
- * The world-wide effect of what is happening. A regional event is not in the
- * demand figure: it reaches only the routes it touches, see regionalDemandFactor.
- */
-export function getEventMultipliers(currentOffset: number) {
-  const activeEvents = getActiveEvents(currentOffset);
-  let demandMult = 1.0;
-  let fuelMult = 1.0;
-  for (const ev of activeEvents) {
-    if (!ev.regions || ev.regions.length === 0) demandMult *= ev.demandMultiplier;
-    fuelMult *= ev.fuelMultiplier;
-  }
-  return { demandMult, fuelMult, activeEvents };
-}
-
-/**
- * What the regional events running in the month at `offset` do to the demand
- * on a route between two regions: each end feels an event that is in its
- * region fully, and the route the mean of its two ends, so a route with one
- * end in the region loses half of what a route within it does.
- */
-export function regionalDemandFactor(offset: number, originRegion: EventRegion, destRegion: EventRegion): number {
-  let factor = 1;
-  for (const ev of getActiveEvents(offset)) {
-    if (!ev.regions || ev.regions.length === 0) continue;
-    const at = (region: EventRegion) => (ev.regions!.includes(region) ? ev.demandMultiplier : 1);
-    factor *= (at(originRegion) + at(destRegion)) / 2;
-  }
-  return factor;
-}

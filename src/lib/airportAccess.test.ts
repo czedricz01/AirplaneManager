@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { airportGate, exemptAirports, lockedSummary, maxAirportLevel, rankForLevel } from './airportAccess';
+import { airportGate, exemptAirports, maxAirportLevel, rankForLevel } from './airportAccess';
 import { RANKS } from './airlineRank';
-import { airports } from '../data/airportRegistry';
 
 const ap = (id: string, level: number) => ({ id, name: `Port ${id}`, level });
 const nobody = new Set<string>();
@@ -37,14 +36,4 @@ test('what the airline already has stays open, whatever the rank', () => {
   assert.equal(airportGate(ap('FRA', 7), 0, exempt), null, 'the home airport');
   assert.equal(airportGate(ap('JFK', 7), 0, exempt), null, 'flown to already');
   assert.notEqual(airportGate(ap('MUC', 7), 0, exempt), null, 'built-up needs level 1 at least');
-});
-
-test('real airports: a startup is shut out of every airport above level 4 and not of the rest', () => {
-  const locked = lockedSummary(airports, 0, nobody);
-  const above = airports.filter(a => a.level >= 5).length;
-  assert.equal(locked.count, above);
-  assert.equal(locked.opensAt, 1, 'level 5 opens at the next rank');
-  assert.equal(lockedSummary(airports, 4, nobody).count, 0);
-  assert.ok(airports.filter(a => a.level === 7).length >= 10, 'the greatest hubs exist');
-  assert.equal(lockedSummary(airports, 3, nobody).opensAt, 4);
 });

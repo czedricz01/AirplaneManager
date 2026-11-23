@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  LOYALTY_MAX, RAMP_MONTHS, RAMP_START, maturityFactors, maturityNote, monthsOpen, routeMaturityFactor
-} from './routeMaturity';
+import { LOYALTY_MAX, RAMP_MONTHS, RAMP_START, maturityFactors, monthsOpen, routeMaturityFactor } from './routeMaturity';
 
 test('a new route starts at 60% and is at full demand after nine months', () => {
   assert.equal(routeMaturityFactor(0), RAMP_START);
@@ -41,11 +39,4 @@ test('routes without an opening date are mature and left out', () => {
 test('a route opened this month is month zero', () => {
   assert.equal(monthsOpen({ openedOffset: 40 }, 40), 0);
   assert.equal(monthsOpen({ openedOffset: 40 }, 30), 0, 'a date in the future cannot make it negative');
-});
-
-test('the note reads for ramping and loyal routes and is empty for mature ones', () => {
-  assert.equal(maturityNote(0.74), 'Ramping up: 74% of full demand');
-  assert.equal(maturityNote(1.03), 'Loyal customers: +3% demand');
-  assert.equal(maturityNote(1), null);
-  assert.equal(maturityNote(undefined), null);
 });

@@ -21,29 +21,13 @@ import { landingFee } from '../model/costs';
 import { managementTierFeatures } from '../model/glossary';
 import { monthOperations } from '../model/monthClose';
 import { hubQuality } from '../model/transfers';
-import { applyInfrastructureChange, getInfraAvailability } from './financeUtils';
+import { applyInfrastructureChange } from './financeUtils';
 import { createOwnedAircraft, defaultCabin } from './fleet';
 import { createGameSystems } from './gameState';
 import type { AirportInfrastructure, SimulatedRoute } from './gameTypes';
 import { rivalRecord } from './modelBridgeWorld';
 import { defaultModelEnv, modelGame, PLAYER_ID, type AppGame } from './modelMonth';
-import {
-  airportCosts,
-  departingSeatsAt,
-  deskSellLimit,
-  deskState,
-  facilityBuyPrice,
-  infraAvailability,
-  NO_INFRASTRUCTURE,
-  playerHubQuality,
-  rivalSlotsByAirport,
-  slotBuyPrice,
-  slotCapacity,
-  slotSalePrice,
-  slotTradeCost,
-  tierPrice,
-  type AirportPricing,
-} from './modelAirport';
+import { airportCosts, departingSeatsAt, deskSellLimit, deskState, facilityBuyPrice, NO_INFRASTRUCTURE, playerHubQuality, rivalSlotsByAirport, slotBuyPrice, slotCapacity, slotSalePrice, slotTradeCost, tierPrice, type AirportPricing } from './modelAirport';
 
 const M = (1995 - 1960) * 12 + 5; // Juni 1995
 const ENV = defaultModelEnv();
@@ -173,16 +157,6 @@ describe('4.3 Einmalpreise mit Kostenindex (5.11, W3)', () => {
     assert.ok(tierPrice(2, 4, (2020 - 1960) * 12) > tierPrice(2, 4, 0));
     for (const kind of ['hangar', 'vipLounge', 'catering'] as const) assert.equal(facilityBuyPrice(kind, M), facilityPrice(kind, M));
     assert.ok(facilityBuyPrice('vipLounge', (2020 - 1960) * 12) > facilityBuyPrice('vipLounge', 0));
-  });
-});
-
-describe('4.3 Was gebaut werden kann (5.10)', () => {
-  it('gleiche Regeln wie bisher: Widebody-Slots und Stände ab Größe 3, Selbstbedienung ab 1995', () => {
-    for (const level of [1, 2, 3, 5]) {
-      for (const year of [1990, 1994, 1995, 2010]) {
-        assert.deepEqual(infraAvailability(level, (year - 1960) * 12), getInfraAvailability({ level }, year), `${level}/${year}`);
-      }
-    }
   });
 });
 

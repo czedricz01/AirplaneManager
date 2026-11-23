@@ -47,15 +47,17 @@ src/
   components/          Ansichten (Flotte, Routen, Flughäfen, Konkurrenz, …)
   components/
     AuthGate.tsx       Anmeldung (Konten legt der Betreiber an)
+  model/               Das Rechenmodell (Zufriedenheit, Nachfrage, Preis, Kosten, Ruf,
+                       Konkurrenz, Monatsabschluss); siehe src/model/README.md
   lib/
-    financeUtils.ts    Einzige Quelle der Wahrheit für Kosten, Nachfrage, Preise
+    model*.ts          Brücke zwischen Spielstand/Ansichten und dem Modell
+    financeUtils.ts    Kleine Helfer der Ansichten (Flugzeit, Kabinen-Klassen, Infrastruktur)
     eventSystem.ts     Historische und zufällige Weltereignisse
     imageUtils.ts      Auflösung von Flugzeugbild-URLs
     airlineRank.ts, airportAccess.ts, aircraftClasses.ts, milestones.ts, annualGoals.ts, research.ts, careerScore.ts
                        Fortschritt: Normal/Free Mode, zehn Ränge, Flughafenzugang, Flugzeugklassen,
                        Meilensteine, Jahresziele, Entwicklungsbaum, Wertung
-    preorders.ts, usedMarket.ts, takeover.ts, fleetCosts.ts, hubOwnership.ts, routeMaturity.ts
-                       Flugzeugmarkt, Übernahmen, Besitzkosten, Hub-Eigentum, Routen-Anlauf
+    saveLoad.ts        Spielstand laden; nur die aktuelle Version, ältere werden gelöscht
     supabase.ts        Supabase-Client (null, wenn nicht konfiguriert)
     cloudSaves.ts      Spielstände: Cloud mit lokalem Rückfall und Abgleich
     configStore.ts     Gespeicherte Flugzeug- und Kabinen-Configs: pro Konto, gleiches Prinzip
@@ -64,6 +66,6 @@ supabase/schema.sql    Tabellen und Zugriffsregeln
 server.ts              Express-Server: Vite im Dev-Modus, Bild-Upload-API
 ```
 
-Die Finanzsimulation liegt vollständig in `src/lib/financeUtils.ts`. Alle Ansichten
-rufen dieselbe `calculateRouteFinancials`-Funktion auf, damit Vorschau und
-Monatsabrechnung nicht auseinanderlaufen.
+Die Spielrechnung liegt vollständig in `src/model/` (Neubau, siehe `docs/neubau/`).
+Ansichten und Monatsabschluss rufen sie über die Brücke `src/lib/model*.ts` auf,
+damit Vorschau und Monatsabrechnung nicht auseinanderlaufen.

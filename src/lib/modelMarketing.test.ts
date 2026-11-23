@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { atCost } from '../model/basics';
 import { ADVERTISING_MAX, ADVERTISING_REPUTATION_MAX, CAMPAIGN_COST_1960 } from '../model/constants';
 import { monthOperations } from '../model/monthClose';
-import { campaignMonthlyCost, ffpLoyaltyBonus } from './marketing';
+import { ffpLoyaltyBonus } from './marketing';
 import type { Campaign, Marketing } from './gameState';
 import { createGameSystems } from './gameState';
 import { PLAYER_ID, defaultModelEnv, modelGame, type AppGame } from './modelMonth';
@@ -36,11 +36,29 @@ const marketing = (campaigns: Campaign[], ffp: { since: number } | null = null):
 });
 
 describe('Paket 4.8: Kampagnenpreis mit dem Kostenindex (5.14)', () => {
+
+  it('Laufzeit-Preis = Summe der Monatspreise, jeder zum Index seines Monats', () => {
+    const total = campaignRunCost('global', M, 12);
+    let sum = 0;
+    for (let i = 0; i < 12; i++) sum += campaignMonthCost('global', M + i);
+    assert.ok(Math.abs(total - sum) < 1e-6);
+    assert.ok(total > 12 * campaignMonthCost('global', M), 'Index steigt im Jahr');
+  });
+
+  it('Kosten der laufenden Kampagnen = was der Abschluss bucht (R2)', () => {
+    const g = gameWith(marketing([camp('a', 'national', 'EU'), camp('b', 'global', 'EU'), camp('old', 'local', 'NA', M - 12, 3)]));
+    const ops = monthOperations(modelGame(g, defaultModelEnv()).state)[PLAYER_ID];
+    const booked = ops.campaigns.reduce((s, x) => s + x, 0);
+    assert.ok(Math.abs(campaignsMonthCost(g.marketing, M) - booked) < 1e-6);
+    assert.equal(ops.campaigns.length, 2);
+  });
+});
+
+describe('Paket 4.8: Kampagnenpreis mit dem Kostenindex (5.14)', () => {
   it('Preis je Monat = atCost(CAMPAIGN_COST_1960, Monat); die eigene Teuerung von 3 %/Jahr entfällt', () => {
     for (const tier of ['local', 'national', 'global'] as const) {
       assert.equal(campaignMonthCost(tier, M), atCost(CAMPAIGN_COST_1960[tier], M));
     }
-    assert.notEqual(Math.round(campaignMonthCost('national', M)), campaignMonthlyCost('national', M), 'alter Preis weicht ab');
     assert.equal(campaignMonthCost('local', 0), 150_000);
   });
 

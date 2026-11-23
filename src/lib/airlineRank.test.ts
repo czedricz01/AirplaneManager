@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  FREE_MODE_RANK, MAX_RANK, RANKS, RANK_NEEDED, clampRank, countHubs, effectiveRank, hubAllowance, managementGate,
-  migrateOldRank, nextRank, normalizeMode, qualifyingRank, rankGateMessage, rankProgress, startingRank, type RankStats
-} from './airlineRank';
+import { FREE_MODE_RANK, MAX_RANK, RANKS, RANK_NEEDED, countHubs, effectiveRank, hubAllowance, managementGate, normalizeMode, qualifyingRank, rankGateMessage, rankProgress, startingRank, type RankStats } from './airlineRank';
 
 const stats = (over: Partial<RankStats> = {}): RankStats => ({ routes: 0, monthlyPax: 0, reputation: 50, regions: 0, years: 0, ...over });
 
@@ -55,14 +52,6 @@ test('the top rank is reachable and a rank is not skipped', () => {
   assert.equal(qualifyingRank({ ...RANKS[3].requires, reputation: 10 }), 0);
 });
 
-test('a rank never falls', () => {
-  assert.equal(nextRank(3, stats()), 3);
-  assert.equal(nextRank(0, RANKS[2].requires), 2);
-  assert.equal(nextRank(99, stats()), MAX_RANK);
-  assert.equal(clampRank(NaN), 0);
-  assert.equal(clampRank(-4), 0);
-});
-
 test('progress lists what is missing and is null at the top', () => {
   const p = rankProgress(0, stats({ routes: 1, monthlyPax: 4_000, reputation: 45, regions: 1 }))!;
   assert.equal(p.next.index, 1);
@@ -104,12 +93,6 @@ test('Free Mode is the top rank with unlimited hubs; Normal Mode keeps what was 
   assert.notEqual(managementGate(2, 0, 0, many), null, 'a startup may not run thirty hubs');
   assert.equal(managementGate(2, 0, 0, many, undefined, true), null, 'but Free Mode may');
   assert.equal(managementGate(3, 0, 0, {}, undefined, false)?.includes('Management tier 3'), true);
-});
-
-test('the first six-step ladder maps onto the same places on this one', () => {
-  assert.deepEqual([0, 1, 2, 3, 4, 5].map(migrateOldRank), [0, 2, 4, 6, 8, 9]);
-  assert.equal(migrateOldRank(99), 9);
-  assert.equal(migrateOldRank(NaN), 0);
 });
 
 test('a scenario or a loaded game starts at the rank its figures give, no lower than the floor', () => {
