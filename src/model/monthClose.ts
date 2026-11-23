@@ -78,6 +78,7 @@ import {
   worldScale,
   type CitySize,
   type Coords,
+  type MarketSizeParts,
 } from './demand';
 import {
   marketFares,
@@ -1106,14 +1107,58 @@ interface PairBasics {
 
 /** `PairBasics` eines Paars im Monat des Spielstands. */
 function pairBasics(context: MarketContext, pair: string): PairBasics {
-  const { state, X, world, events } = context;
   const [idA, idB] = pair.split('|');
+  return pairBasicsAt(context.state, idA, idB, context.world, context.events);
+}
+
+function pairBasicsAt(
+  state: ModelState,
+  idA: string,
+  idB: string,
+  world: CitySize,
+  events: ReturnType<typeof activeWorldEvents>,
+): PairBasics {
+  const X = state.month;
   const A = state.airports[idA];
   const B = state.airports[idB];
+  if (!A || !B) throw new Error(`pairMarket: Flughafen ${A ? idB : idA} fehlt`);
   const mf = marketFares(distanceKm(A.coords, B.coords), X);
   const reference = referenceBlockMinutes(A.coords, B.coords);
   const size = marketSizeParts({ a: A, b: B, month: X, world, eventFactor: eventDemandFactor(events, A.region, B.region) });
   return { A, B, mf, reference, size, share: classShares(size.businessShare, reference) };
+}
+
+/** Markt eines Städtepaars im Monat des Spielstands, unabhängig von den Angeboten (3.3–3.7, 4.3). */
+export interface PairMarket {
+  /** Großkreis-Entfernung in km. */
+  readonly km: number;
+  /** Marktgröße mit allen Teilen (3.6); `size.marketSize` = Fluggäste je Woche, beide Richtungen. */
+  readonly size: MarketSizeParts;
+  /** Klassen-Anteile (3.7), Summe 1. */
+  readonly share: ClassFigures;
+  /** Fluggäste je Woche und Klasse beim Bezugsangebot: `marketSize × classShare` (3.6, 3.10). */
+  readonly passengers: ClassFigures;
+  /** Marktpreise in $ des Monats (4.3). */
+  readonly fares: ClassFigures;
+}
+
+/**
+ * Markt eines Städtepaars, genau wie der Abschluss ihn rechnet (dieselbe Funktion wie in `monthOperations`, R2):
+ * Marktgröße mit Weltgröße und laufenden Ereignissen des Monats, Klassen-Anteile, Marktpreise. Für die Anzeige
+ * „Market size“ im Planer (Paket 4.7c). Hängt nicht von Flugzeug, Gesellschaft, Preis oder Schwierigkeit ab (3.6).
+ */
+export function pairMarket(state: ModelState, idA: string, idB: string): PairMarket {
+  const X = state.month;
+  const basics = pairBasicsAt(state, idA, idB, worldScale(X), activeWorldEvents(X, state.randomEvents));
+  const passengers = {} as Record<CabinClass, number>;
+  for (const c of CABIN_CLASSES) passengers[c] = basics.size.marketSize * basics.share[c];
+  return {
+    km: distanceKm(basics.A.coords, basics.B.coords),
+    size: basics.size,
+    share: basics.share,
+    passengers,
+    fares: basics.mf,
+  };
 }
 
 /**

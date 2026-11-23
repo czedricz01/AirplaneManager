@@ -1,26 +1,33 @@
 # Status
 
-**Nächstes Paket: 4.7c** – Planer Schritt 1 nach dem Modell: Marktgröße „/ WK MARKET“ und die Debug-Anzeige rechnen noch mit
-`calculateDemand` / `calculateBasePrices` (alt, `src/components/RoutePlannerView.tsx:962-971`, Anzeige `:2176`, Debug `:2183`); im
-Modell aus `marketSizeParts` (`src/model/demand.ts:335`) und `marketFares` (`src/model/fare.ts`). Dazu prüfen, ob das Ereignis-Band der
-Kopfzeile Titel und Texte aus den Modell-Ereignissen zeigen kann (4.7a (1)). Zu lesen: F62, F68; `RoutePlannerView.tsx` (nur Schritt 1);
-`src/lib/modelRoute.ts` (`routeMarketFares`); `src/model/demand.ts` 3.1–3.7; offene Punkte unten (4.7b, 4.7a (1), 4.5c (2)).
+**Nächstes Paket: 4.8** – Werbung und Personal nach dem Modell: `MarketingPanel.tsx` und `StaffPanel.tsx` lesen bis auf
+Frequent flyer und Besatzungskosten (4.7b) noch `src/lib/marketing.ts` und `src/lib/staff.ts` (alt): Kampagnenpreis mit eigener
+Teuerung 3 %/Jahr statt Kostenindex (`campaignMonthlyCost`, `marketingInflation`; Modell `campaignCost`), Ruf aus Werbung, Treue-Bonus,
+Moral, Streik, Lohn-Grenzen. Zu lesen: F68 (1); `MarketingPanel.tsx`, `StaffPanel.tsx`; im Modell `campaignCost` und Abschnitte 5.4,
+6.4, 8.7 der Spezifikation; offene Punkte unten (4.7b (3)).
 
-Danach **4.8** (neu) – Werbung und Personal nach dem Modell: `MarketingPanel.tsx` und `StaffPanel.tsx` lesen bis auf Frequent flyer und
-Besatzungskosten (4.7b) noch `src/lib/marketing.ts` und `src/lib/staff.ts` (alt): Kampagnenpreis mit eigener Teuerung 3 %/Jahr statt
-Kostenindex (`campaignMonthlyCost`, `marketingInflation`; Modell `campaignCost`), Ruf aus Werbung, Treue-Bonus, Moral, Streik, Lohn-Grenzen.
+**Offene Frage O69** (kein Blocker für 4.8): Preis der Krisen-Antwort ohne Bezugsgröße und bei spätem Kauf; siehe
+`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“. Bis dahin gilt der Zwischenstand aus F69 (5).
 
-Stand: 23.11.2026 · Paket 4.7b erledigt (4.7b geteilt, F68): Live-Karte, Konkurrenz und die alte Netz-Rechnung laufen über das Modell.
-Das Modell liefert die Umsteige-Ströme (`CompanyOperations.transferFlows`, `src/model/monthClose.ts:553`); `playerMonth`
-(`src/lib/modelNetwork.ts:88`) rechnet `monthOperations` einmal für Strecken, Umsteiger je Drehkreuz und je Strecke, Reisen und
-Besatzung. `App.tsx` nutzt es statt `computeNetworkFinancials`: Flughafen-Ansicht „Transfer Hub“, Ströme in der Streckenansicht,
-Besatzung in der Personal-Ansicht, Frequent flyer (`ffpForecast`) in der Werbe-Ansicht, `transferHubs` im Bericht und die Chronik
-„transfer hub“. Live-Karte mit der Auslastung des Modells (W7). Konkurrenz: Steckbrief aus `PERSONALITIES` (`rivalProfile`), Frist bis zur
-Auflösung aus `rivalDistressStep`. 14 neue Tests (1438 grün). Im Browser geprüft (Jet Age, FRA–LHR mit 7 und FRA–VIE mit 36 Flügen je
-Woche, FRA–LHR +40 % Preis, ein Abschluss): Streckenansicht FRA–LHR „incl. 270 transfer pax/wk“ mit „LHR ↔ FRA ↔ VIE 270/wk“;
-Flughafen FRA „Transfer pax / week“ und „Top connections“ aus dem Modell; Werbe-Ansicht „$59 558 a month: $50K + $0.80 × 11 873 trips“
-(Sätze mit Kostenindex 02/1960); Personal „$95 322“; Konkurrenz (Flag): Aggression 6 / 10, „Does not start price wars“, „Meals in every
-cabin“, „Judged after 6 months“.
+Stand: 23.11.2026 · Paket 4.7c erledigt (F69): Planer Schritt 1 und Ereignis-Band laufen über das Modell; die Krisen-Frage nimmt
+den Preis des Modells. Das Modell liefert den Markt eines Paars (`pairMarket`, `src/model/monthClose.ts`; `routeMarket` in
+`src/lib/modelRoute.ts`), dieselbe Paar-Rechnung wie `monthOperations`. Planer: „/ WK MARKET“ = Marktgröße, Debug nur mit Werten
+des Modells. Band: `eventBand` (`src/lib/modelEvents.ts`) aus `activeWorldEvents` mit Texten aus den Modell-Daten. Krisen-Frage: Preis
+als Anteil der Treibstoff-Rechnung bzw. des Erlöses des letzten Berichts (8.5) statt fester 3–6 Mio. $; ohne Bezugsgröße gesperrt
+(O69). 17 neue Tests (1455 grün). Im Browser geprüft (freies Spiel, Hub AAL, Start 10/1973, Debug an): Band „1973 Oil Crisis · 18
+months left · Decision pending · PAX: −10 %“; Frage beim Start und nach einem Monat ohne Flüge „Hedge fuel … Priced after a month of
+flying“ (gesperrt), „Ride it out · No cost“; Planer AAL–FRA „2,128 / WK MARKET“, Debug mit Entfernung 789 km, Bezugs-Flugzeit 70 min,
+Ereignisse 0,90, je Klasse Fluggäste und Marktpreis (Economy 1 827 / $85 … First 29 / $284).
+
+Offen aus 4.7c (kein Blocker): (1) Eine Krisen-Frage mit Preis (Monat mit Flügen in einer Krise) ist mit Tests geprüft, im Browser
+nicht geklickt (dafür bräuchte es Flugzeug und Strecke vor 10/1973). (2) O69: Preis ohne Bezugsgröße und bei spätem Kauf. (3) Die
+Erklärungen der Antworten („Recovers roughly 40% of the demand you would otherwise lose“) beschreiben den Anteil `r`; im Modell wirkt
+er auf die Anziehung und holt etwas weniger zurück (8.5 Hinweis). Spezifikation 8.5 verlangt die Wirkung „in Zahlen aus dem Modell“ –
+mit O69 oder 5.2 nachziehen. (4) 5.2: `calculateDemand`, `calculateBasePrices`, `eventRegionalFactor`, `routeDemandFactor`,
+`getFlightTimeClass` haben in den Ansichten keine Nutzer mehr (nur alte KI, alter Abschluss, `transferUtils`, `saveMigration`);
+`getActiveEvents` in `App.tsx` nur noch für den gesicherten Treibstoffpreis und die Frage beim Spielstart, die Kosten der Antworten in
+`src/lib/eventSystem.ts` (`cost`) nur noch als Platzhalter. (5) Die Marktgröße im Planer hängt nicht mehr vom Flugzeug ab; die Ziel-Liste
+in Schritt 1 sortiert weiter nach Tourismus / Geschäft der Flughäfen (`getAirportStats`, Anzeige T / B), nicht nach Marktgröße.
 
 Offen aus 4.7b (kein Blocker): (1) 5.2: `computeNetworkFinancials` und `src/lib/transferUtils.ts` (nur noch alter Abschluss und
 Planer-Kommentar `RoutePlannerView.tsx:942`), `ffpMonthlyCost` und der FFP-Teil von `marketingMonthCost` (nur noch alter Abschluss), Feld
@@ -33,8 +40,7 @@ Woche, die Chronik („First transfer hub: x passengers …“) je Monat (wie de
 bekommen nur Economy (7.5), auch wenn dort mehr Klassen stehen. (6) Die Konkurrenz-Ansicht zeigt weiter „AI results include a fixed
 operating subsidy“ (`aiMonthlySubsidy`, alt; 5.2 entfernt die Zeile, siehe 3.9e).
 
-Offen aus 4.7a (kein Blocker): (1) 4.7c: Das Ereignis-Band listet die Ereignisse weiter aus `getActiveEvents` (Titel, Text,
-Fragen); nur die Wirkung kommt aus dem Modell. `transferHubs` im Bericht: erledigt in 4.7b. (2) 5.2: `careerScore` in `src/lib/careerScore.ts`
+Offen aus 4.7a (kein Blocker): (1) erledigt in 4.7c (Band aus `eventBand`, Krisen-Frage mit Preis des Modells). `transferHubs` im Bericht: erledigt in 4.7b. (2) 5.2: `careerScore` in `src/lib/careerScore.ts`
 (alte Formel, nur noch alter Abschluss; die Halle nutzt weiter `fileCareer`/`hallPosition` dort), `fleetCommonality` (nur noch alter
 Abschluss), `reputationDemandFactor`, `eventReliefFactor` (nur noch alte Vorschau `playerMods`) entfernen. (3) 5.1: eine gemeinsame
 Ruhmeshalle bis `splitHall` (E43); das Feld `netWorth` der Einträge trägt jetzt den Unternehmenswert (alte Einträge: Kasse +
@@ -60,8 +66,7 @@ $1 000 ohne Index) – Höhe mit dem Balance-Skript ansehen. (4) erledigt in 4.6
 zeigt neue Flugzeuge (Alter 0, Type appeal = Katalogwert).
 
 Offen aus 4.5c (kein Blocker): (1) erledigt in 4.7b (`playerMonth` statt `computeNetworkFinancials`; Umsteige-Ströme in der
-Streckenansicht; `transferHubs` im Bericht). (2) 4.7c: Planer Schritt 1: Marktgröße „/ WK MARKET“ und
-die Debug-Anzeige rechnen noch mit `calculateDemand` / `calculateBasePrices` (alt); im Modell aus `marketSize` / `marketFares`. (3) 5.1: alte Spielstände tragen noch `paxByClass`, `routeSat`, `estWeekly*` an den Strecken (nur noch
+Streckenansicht; `transferHubs` im Bericht). (2) erledigt in 4.7c (`routeMarket`). (3) 5.1: alte Spielstände tragen noch `paxByClass`, `routeSat`, `estWeekly*` an den Strecken (nur noch
 unbenutzt); beim Laden entfernen (`TRANSIENT_ROUTE_FIELDS`). `paxPerWeek` an der Strecke schreibt der Abschluss (letzter Monat); die
 Ansichten lesen das Modell. (4) 5.3: Der Modell-Spielstand und `monthOperations` laufen bei jeder Änderung des Spielstands
 (gemessen: `monthOperations` mit 8 Gesellschaften und 168 Strecken ≈ 25 ms); mit großen Spielständen im Browser beobachten. (5) 5.2:
@@ -323,7 +328,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.6b | Flotte und Gebrauchtmarkt: `MyFleetView.tsx` („Comb. Sat“ nach E9), `AircraftDetailsModal.tsx` (Art D Alter und Wiederverkauf), `AircraftMarketPanel.tsx` (`usedOffers`), Übernahme-Kabine, Vorbestellungs-Preis | erledigt |
 | 4.7a | Kennzahlen Teil 1: Kopfzeile (Ereignis-Abschwächung, Kreditlinie), Firma (Fleet value, Company value, Karriere-Punkte), Monatsbericht (`reportView`), Spielende (F67) | erledigt |
 | 4.7b | Kennzahlen Teil 2: `LiveTraffic.tsx` (W7), `CompetitorsView.tsx` („Aggression“, Frist bis zur Auflösung), `computeNetworkFinancials` in `App.tsx` (Frequent flyer, Personal-Kosten, Umsteige-Ströme, Transfer-Fluggäste der Flughafen-Ansicht, `transferHubs`) | erledigt |
-| 4.7c | Kennzahlen Teil 3: Planer Schritt 1 (Marktgröße „/ WK MARKET“, Debug aus `marketSizeParts` / `marketFares`; 4.5c (2)); Ereignis-Band prüfen (4.7a (1)) | offen |
+| 4.7c | Kennzahlen Teil 3: Planer Schritt 1 (Marktgröße „/ WK MARKET“, Debug aus `marketSizeParts` / `marketFares`; 4.5c (2)); Ereignis-Band und Krisen-Frage (4.7a (1), F69) | erledigt |
 | 4.8 | Werbung und Personal: `MarketingPanel.tsx`, `StaffPanel.tsx` (Kampagnenpreis mit Kostenindex, Ruf aus Werbung, Treue, Moral, Streik, Lohn aus dem Modell; F68 (1)) | offen |
 
 ## Phase 5 – Abschluss
@@ -408,3 +413,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 22.11.2026 | 4.6b | Flotte, Flugzeug-Details, Gebrauchtmarkt, Übernahme-Kabine und Vorbestellung nach dem Modell (F66): `src/lib/modelFleet.ts` (`planeFigures`, `planeUpkeep`, `usedMarket`, `stateCabin`, `takeoverFleet`, `preorderQuote`); Flotte mit „Cabin rating (avg.)“ und Type appeal (E9), Detail-Fenster mit Alter, Cabin rating je Klasse, Unterhalt und Marktwert aus dem Modell (Art D „Alter“, „Wiederverkauf“); Verkauf zu `saleProceeds`, verkaufte Flugzeuge im Gebrauchtmarkt; Gebrauchtkauf mit Kabine und Baumonat; Übernahme mit der Kabine der KI; Vorbestellung mit Rabatt, Anzahlung und Rest des Modells; 13 neue Tests (1407 grün); im Browser geprüft (alle Beträge = Buchung) |
 | 23.11.2026 | 4.7a | Paket 4.7 geteilt; Kopfzeile, Firma, Monatsbericht und Spielende nach dem Modell (F67): `src/lib/modelReport.ts` (`reportView`: Posten aus 5.16, Weg vom Ergebnis zur Kasse 8.2, Kreditlinie), `src/lib/modelCompany.ts` (`playerWorth`, `creditStatus`, `playerScore`, `eventEffect`, `fleetMix`, `goalMissPenalty`); Bericht speichert alle Einmalzahlungen und `cash`; Firma mit Buchwert und Unternehmenswert; Kredit-Band in der Kopfzeile; Bankrott trägt die Laufbahn ein; 17 neue Tests (1424 grün) |
 | 23.11.2026 | 4.7b | Paket 4.7b geteilt (4.7c Planer Schritt 1, neu 4.8 Werbung und Personal); Live-Karte, Konkurrenz und Netz nach dem Modell (F68): Modell liefert Umsteige-Ströme (`CompanyOperations.transferFlows`); `src/lib/modelNetwork.ts` (`playerMonth`, `hubTransfers`, `ffpForecast`) ersetzt `computeNetworkFinancials` in `App.tsx` (Flughafen „Transfer Hub“, Ströme in der Streckenansicht, Besatzung, Frequent flyer); Live-Karte mit der Auslastung des Modells (W7); `src/lib/modelRivalProfile.ts` (Steckbrief aus `PERSONALITIES`, Frist bis zur Auflösung); `transferHubs` im Bericht und Chronik; 14 neue Tests (1438 grün) |
+| 23.11.2026 | 4.7c | Planer Schritt 1, Ereignis-Band und Krisen-Frage nach dem Modell (F69): `pairMarket` / `routeMarket` (Marktgröße mit allen Teilen, Klassen-Anteile, Fluggäste je Klasse, Marktpreise); „/ WK MARKET“ und Debug aus dem Modell; `src/lib/modelEvents.ts` (`eventBand`, `crisisBase`, `pricedChoices`) für Band und Frage; Preis der Krisen-Antwort nach 8.5 statt fester Beträge, ohne Bezugsgröße gesperrt; neue offene Frage O69; 17 neue Tests (1455 grün) |

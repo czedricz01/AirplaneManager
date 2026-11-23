@@ -3,6 +3,7 @@
  * `pricesAtLevel`) aus derselben Rechnung wie der Monatsabschluss (R2, 4.10–4.12).
  * Paket 4.5b (F63): Satisfaction je Klasse mit allen Teilen und Verpflegungskosten (`plannedSatisfaction`, 2.7, 5.7).
  * Paket 4.5c (F64): Zahlen aller Strecken im laufenden Monat für Streckenliste und Streckenansicht (`routesThisMonth`, 8.1).
+ * Paket 4.7c (F69): Markt eines Städtepaars für Planer Schritt 1 (`routeMarket`, 3.6, 3.7, 4.3).
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,12 +13,14 @@ import { aircraftList } from '../data/aircraft';
 import { CABIN_CLASSES, RAMP_MONTHS, WEEKS_PER_MONTH } from '../model/constants';
 import { NO_DECISIONS, closeMonth, monthOperations, type ModelState } from '../model/monthClose';
 import { cateringCostParts } from '../model/costs';
+import { classShares, eventDemandFactor, marketSizeParts, worldScale } from '../model/demand';
+import { activeWorldEvents } from '../model/monthEvents';
 import { SCALES } from '../model/constants';
 import { createOwnedAircraft, defaultCabin } from './fleet';
 import { createGameSystems } from './gameState';
 import type { AirportInfrastructure, SimulatedRoute } from './gameTypes';
 import { PLAYER_ID, defaultModelEnv, modelGame, type AppGame } from './modelMonth';
-import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, routesThisMonth, plannedSatisfaction, withPlannedRoute, type PlannedRoute } from './modelRoute';
+import { pricesAtLevel, routeBestFares, routeForecast, routeMarket, routeMarketFares, routesThisMonth, plannedSatisfaction, withPlannedRoute, type PlannedRoute } from './modelRoute';
 
 const M = (1995 - 1960) * 12 + 5; // Juni 1995
 const ENV = defaultModelEnv();
@@ -258,5 +261,53 @@ describe('Paket 4.5c: Zahlen der Strecken im laufenden Monat (8.1, R2)', () => {
     const m = routesThisMonth(fresh).get('r1')!;
     assert.equal(m.ageMonths, 0);
     assert.ok(m.passengers < routesThisMonth(STATE).get('r1')!.passengers);
+  });
+});
+
+describe('Paket 4.7c: Markt eines Städtepaars im Planer (3.6, 3.7, 4.3)', () => {
+  const PAIR = { origin: 'FRA', destination: 'MAD' };
+
+  it('Marktgröße = marketSizeParts mit Weltgröße und Ereignissen des Monats, wie im Abschluss (3.6, R2)', () => {
+    const market = routeMarket(STATE, PAIR);
+    const a = STATE.airports.FRA;
+    const b = STATE.airports.MAD;
+    const expected = marketSizeParts({
+      a, b, month: M, world: worldScale(M), eventFactor: eventDemandFactor(activeWorldEvents(M, STATE.randomEvents), a.region, b.region),
+    });
+    assert.deepEqual(market.size, expected);
+    assert.deepEqual(market.share, classShares(expected.businessShare, expected.referenceBlockMinutes));
+  });
+
+  it('Fluggäste je Klasse = Marktgröße × Klassen-Anteil; Summe = Marktgröße (3.6, 3.7)', () => {
+    const market = routeMarket(STATE, PAIR);
+    let sum = 0;
+    for (const c of CABIN_CLASSES) {
+      assert.ok(Math.abs(market.passengers[c] - market.size.marketSize * market.share[c]) < 1e-9);
+      sum += market.passengers[c];
+    }
+    assert.ok(Math.abs(sum - market.size.marketSize) < 1e-6);
+  });
+
+  it('Marktpreise = Marktpreise der Strecke (4.3); Richtung egal', () => {
+    const market = routeMarket(STATE, PAIR);
+    assert.deepEqual(market.fares, routeMarketFares(STATE, PAIR));
+    assert.deepEqual(routeMarket(STATE, { origin: 'MAD', destination: 'FRA' }).size.marketSize, market.size.marketSize);
+  });
+
+  it('hängt nicht von Gesellschaften, Strecken oder Schwierigkeit ab (3.6, W1)', () => {
+    const empty: ModelState = { ...STATE, companies: [] };
+    assert.equal(routeMarket(empty, PAIR).size.marketSize, routeMarket(STATE, PAIR).size.marketSize);
+    const hard = modelGame(game({ difficulty: 'Hard' }), ENV).state;
+    assert.equal(routeMarket(hard, PAIR).size.marketSize, routeMarket(STATE, PAIR).size.marketSize);
+  });
+
+  it('ein laufendes Weltereignis verkleinert den Markt (3.5): April 2020 × 0,2', () => {
+    const april2020 = (2020 - 1960) * 12 + 3;
+    const market = routeMarket({ ...STATE, month: april2020 }, PAIR);
+    assert.ok(Math.abs(market.size.eventFactor - 0.2) < 1e-9, `${market.size.eventFactor}`);
+  });
+
+  it('unbekannter Flughafen: Fehler statt NaN', () => {
+    assert.throws(() => routeMarket(STATE, { origin: 'FRA', destination: 'XXX' }));
   });
 });
