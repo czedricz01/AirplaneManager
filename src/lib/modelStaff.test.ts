@@ -75,6 +75,11 @@ describe('Paket 4.8: Vorschau = Übergang im Abschluss (8.7, R2)', () => {
     assert.equal(closed.strikeChance, 0);
     assert.equal(closed.capOpen, false);
   });
+
+  it('ohne Strecken keine Streik-Chance (8.7, E74), wie im Abschluss', () => {
+    const s = staff({ morale: 20, salaryPct: 80 });
+    assert.equal(staffOutlook({ ...base, staff: s, routes: 0 }).strikeChance, 0);
+  });
 });
 
 describe('Paket 4.8: Lohn-Grenzen und Streik (8.7)', () => {

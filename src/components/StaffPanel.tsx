@@ -163,11 +163,13 @@ export function StaffPanel({
           <span className="block text-2xs text-muted mt-1">
             {striking || strikePending
               ? 'no new strike straight after this one'
-              : !outlook.capOpen
-                ? 'none at this month end: bad luck has already struck'
-                : outlook.strikeChance > 0
-                  ? 'chance of a strike at this month end'
-                  : `none while morale stays at ${STRIKE_MORALE_THRESHOLD} or above`}
+              : routeCount === 0
+                ? 'none without routes to fly'
+                : !outlook.capOpen
+                  ? 'none at this month end: bad luck has already struck'
+                  : outlook.strikeChance > 0
+                    ? 'chance of a strike at this month end'
+                    : `none while morale stays at ${STRIKE_MORALE_THRESHOLD} or above`}
           </span>
         </StatTile>
         <StatTile size="md" label="Satisfaction effect" value={signed(satNow)} valueClassName={satNow > 0 ? 'text-good' : satNow < 0 ? 'text-bad' : ''}>
@@ -255,7 +257,7 @@ export function StaffPanel({
           after a strike{outlook.researchMorale > 0 ? `, +${formatNumber(outlook.researchMorale, 0)} from research` : ''}.
           Market pay is neutral: every point above or below {MORALE_NEUTRAL} adds or takes {formatNumber(SAT_PER_MORALE_POINT, 1)} satisfaction
           point in every cabin.
-          Below {STRIKE_MORALE_THRESHOLD} the staff may strike: {formatNumber(STRIKE_CHANCE_PER_POINT * 100, 1)}% a month for every
+          Below {STRIKE_MORALE_THRESHOLD} the staff may strike while you fly routes: {formatNumber(STRIKE_CHANCE_PER_POINT * 100, 1)}% a month for every
           point under the line. After a month of bad luck (a strike, a disruption on your routes) the next one is spared.
         </p>
       </Panel>

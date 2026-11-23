@@ -2435,6 +2435,8 @@ function transition(state: ModelState, sold: readonly ResoldPlane[]): { readonly
   const airportIds = [...new Set(companies.flatMap((c) => c.routes.flatMap((r) => [r.from, r.to])))].sort();
   const capAirports = new Set(companies.filter((c) => c.inputs.badLuckCap).flatMap((c) => c.routes.flatMap((r) => [r.from, r.to])));
   const staffCompany = companies.find((c) => c.inputs.staffModel);
+  // Personalstreik nur mit mindestens einer Strecke (8.7, E74): ohne Flüge trifft er nichts.
+  const strikeMorale = staffCompany && staffCompany.routes.length > 0 ? staffCompany.inputs.morale : undefined;
   const roll = rollTransition({
     seed: state.seed,
     month: next,
@@ -2443,7 +2445,7 @@ function transition(state: ModelState, sold: readonly ResoldPlane[]): { readonly
     capRegions: [...new Set([...capAirports].map((id) => state.airports[id].region))].sort(),
     randomEvents: state.randomEvents,
     previousBadLuck: state.badLuck,
-    morale: staffCompany?.inputs.morale,
+    morale: strikeMorale,
   });
   if (roll.randomEvent) news.push({ companyId: '', kind: 'randomEvent', subject: roll.randomEvent.title });
   if (roll.staffStrike && staffCompany) news.push({ companyId: staffCompany.id, kind: 'staffStrike' });

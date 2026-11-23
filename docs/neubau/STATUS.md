@@ -6,7 +6,12 @@ weiterverkaufter Flugzeuge, Service-Auswahl „general“, Schalter alter Spiels
 `src/lib/saveMigration.ts` und die Punkte „5.1“ in den Absätzen „Offen aus …“ unten (4.7a (3), 4.6b (1)–(2), 4.6a (2), 4.5c (3),
 4.5b (3), 4.4 (1), 4.3 (4), 4.2d (5), 4.2c (6), (7), 3.8b, 3.8d).
 
-**Offene Frage O70** (kein Blocker für 5.1): Personalstreik ohne Strecken; siehe `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“.
+Keine offenen Fragen.
+
+Stand: 23.11.2026 · O70 entschieden (E74, Weg A) und umgesetzt (F72): Ohne Strecken würfelt der Abschluss keinen Personalstreik
+(`transition`, `src/model/monthClose.ts`, `strikeMorale`); die Personal-Ansicht zeigt dann 0 % und „none without routes to fly“
+(`staffOutlook` in `src/lib/modelStaff.ts`, `StaffPanel.tsx`). Spezifikation 8.7 ergänzt. 2 neue Tests (1476 grün). Im Browser nicht
+geprüft (nur ein Text und eine Bedingung in der Ansicht).
 
 Stand: 23.11.2026 · Paket 4.8 erledigt (F71): Werbe- und Personal-Ansicht rechnen mit dem Modell. Werbung
 (`src/lib/modelMarketing.ts`): Kampagnenpreis `campaignCost` mit Kostenindex statt eigener Teuerung 3 %/Jahr (national 1995
@@ -19,8 +24,7 @@ Werbung „Campaign in Europe“ National $400 000/Monat, 6 Monate $2 405 975, �
 „Marketing this month $150,000“, „Reputation from advertising +0.5 · +0.08 this month“, Europa +5 %; Personal „Morale 70 · 66 next month ·
 target 50“, „Crew this month $0“, Satisfaction +2.0.
 
-Offen aus 4.8 (kein Blocker): (1) O70: Das Modell würfelt einen Personalstreik auch ohne Strecken (die alte Regel nicht); die Ansicht
-zeigt die Chance des Modells. (2) Die Vorschau nimmt an, dass die Gewinnserie weiterläuft (das Ergebnis steht erst am Monatsende fest);
+Offen aus 4.8 (kein Blocker): (1) erledigt: O70 → E74 (F72). (2) Die Vorschau nimmt an, dass die Gewinnserie weiterläuft (das Ergebnis steht erst am Monatsende fest);
 bei einem Verlust nach mehr als 6 Gewinnmonaten liegt das Ziel 5 Punkte tiefer als gezeigt. (3) Die Streik-Chance ist eine Obergrenze:
 Ein Zufallsereignis oder eine Störung im selben Übergang kann den Pech-Deckel noch schließen (8.8). (4) 5.2: In `src/lib/marketing.ts`
 `campaignMonthlyCost`, `campaignTotalCost`, `marketingInflation`, `MARKETING_INFLATION`, `regionDemandFactors`, `ffpLoyaltyBonus`,

@@ -3029,13 +3029,14 @@ Nur Spieler (7.2). Regeln wie heute (`src/lib/staff.ts`), mit den Änderungen au
   `PROFIT_STREAK_MONTHS = 6`, `PROFIT_STREAK_MORALE = 5`, `STRIKE_MEMORY_MONTHS = 6`, `STRIKE_MORALE_PENALTY = 10`,
   `MORALE_STEP = 0,2`; Arbeitsmarkt-Tabelle `labourMarketPremium` als Daten.
 - **Streik**: im Übergang zu X+1 mit `strikeChance = max(0, STRIKE_MORALE_THRESHOLD − morale) × STRIKE_CHANCE_PER_POINT`
-  (35, 0,006), nur bei offenem Pech-Deckel (8.8). Er gilt für den ganzen Monat X+1 und ist eine Frage:
+  (35, 0,006), nur bei offenem Pech-Deckel (8.8) und nur, wenn die Gesellschaft am Monatsende mindestens eine Strecke hat
+  (E74: ohne Flüge trifft ein Streik nichts). Er gilt für den ganzen Monat X+1 und ist eine Frage:
   - „Raise pay“: Lohn + `STRIKE_PAY_RAISE = 10` Punkte, Untergrenze für `STRIKE_MEMORY_MONTHS`; gestrichen
     `STRIKE_SETTLED_CANCEL_SHARE = 0,5` aller Flüge;
   - „Sit it out“ oder keine Antwort: gestrichen `STRIKE_FULL_CANCEL_SHARE = 1`.
   - Der Ruf-Abzug −3 entfällt (E38); der Ruf sinkt nur über `cancelledShare` (6.2). Kein Charter bei Personalstreik.
 - Regeln (Tests): Lohn 100 % ohne Arbeitsmarkt-Zuschlag, Serie ≤ 6, kein Streik, keine Forschung → Ziel 50; Moral ≥ 35
-  → kein Streik; ein Streik ändert den Ruf nur über `cancelledShare`.
+  → kein Streik; ohne Strecken → kein Streik; ein Streik ändert den Ruf nur über `cancelledShare`.
 
 ### 8.8 Pech-Deckel (Code-Name: `badLuckCap`)
 - Bedeutung: Höchstens etwa die Hälfte der Monate bringt dem **Spieler** zufälliges Pech (wie heute `src/lib/malus.ts`).

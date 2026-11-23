@@ -4,8 +4,8 @@
  * die alte Rechnung `src/lib/staff.ts` (die nur noch der alte Abschluss nutzt).
  *
  * Die Vorschau rechnet genau wie der Übergang zu X+1 im Abschluss (`transition`, `src/model/monthClose.ts`):
- * `moraleTarget` mit dem Monat X+1, `nextMorale`, dann `strikeChance` mit der neuen Moral, nur bei offenem
- * Pech-Deckel (8.8). Einzige Annahme: Die Gewinnserie läuft weiter (das Ergebnis des Monats steht erst am Ende fest).
+ * `moraleTarget` mit dem Monat X+1, `nextMorale`, dann `strikeChance` mit der neuen Moral, nur mit mindestens einer
+ * Strecke (8.7, E74) und bei offenem Pech-Deckel (8.8). Einzige Annahme: Die Gewinnserie läuft weiter (das Ergebnis des Monats steht erst am Ende fest).
  *
  * Rein: liest nur seine Eingabe (R12).
  */
@@ -78,7 +78,7 @@ export interface StaffOutlookInput {
   readonly month: number;
   /** Gewinnserie bis zum letzten Abschluss. */
   readonly profitStreak: number;
-  /** Strecken des Spielers (ohne Strecken wächst die Serie nicht, 6.10). */
+  /** Strecken des Spielers (ohne Strecken wächst die Serie nicht, 6.10, und es gibt keinen Streik-Wurf, 8.7). */
   readonly routes: number;
   /** Fertige Forschungen (Σ `moralePoints`, 6.9). */
   readonly completedResearch: readonly string[];
@@ -92,7 +92,7 @@ export interface StaffOutlook {
   readonly target: number;
   /** Moral im Monat X+1 (`nextMorale`). */
   readonly nextMorale: number;
-  /** Streik-Chance am Monatsende (`strikeChance` der neuen Moral; 0 bei geschlossenem Pech-Deckel). */
+  /** Streik-Chance am Monatsende (`strikeChance` der neuen Moral; 0 ohne Strecken oder bei geschlossenem Pech-Deckel). */
   readonly strikeChance: number;
   /** Pech-Deckel offen. */
   readonly capOpen: boolean;
@@ -123,7 +123,7 @@ export function staffOutlook(input: StaffOutlookInput): StaffOutlook {
   return {
     target,
     nextMorale: morale,
-    strikeChance: input.capOpen ? strikeChance(morale) : 0,
+    strikeChance: input.capOpen && input.routes > 0 ? strikeChance(morale) : 0,
     capOpen: input.capOpen,
     labourMarket: labourMarketPremium(next),
     researchMorale,
