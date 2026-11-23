@@ -25,7 +25,8 @@ import {
   type SlotKind
 } from '../lib/modelAirport';
 import { getUsedWeeklySlots } from '../lib/scheduleUtils';
-import { MIN_CONNECTION_MIN, MAX_CONNECTION_MIN, type HubTransferStats } from '../lib/transferUtils';
+import { MAX_CONNECTION, MAX_DETOUR, MIN_CONNECTION } from '../model/constants';
+import type { HubTransferView } from '../lib/modelNetwork';
 
 /** The cabins that lose points without a staffed desk (E55), for the desk line. */
 const PREMIUM_CABIN_NAMES = (['premium', 'business', 'first'] as const).map(c => CLASS_LABEL[c]).join('/');
@@ -62,7 +63,7 @@ interface Props {
   /** Month, research, milestones and the rivals' slots: everything the model's prices here need. */
   pricing: AirportPricing;
   /** Passengers changing planes here this month, from the network pricing. */
-  transferHub?: HubTransferStats;
+  transferHub?: HubTransferView;
   /**
    * Why something cannot be built at the airline's current rank, or null when
    * it can: the second hub, management tier 3, the VIP lounge. `airport` is
@@ -583,11 +584,11 @@ function Metric({ label, value, highlight, color, info }: { label: string, value
 }
 
 /**
- * Passengers changing planes here: how many, where they go, and how good the
- * airport is as a place to connect. The quality is the factor the network
- * pricing applies (transferUtils' hubQuality), not a separate score.
+ * Passengers changing planes here this month (docs/neubau 4.7b): how many, where they go, and how good the airport
+ * is as a place to connect. The figures are the month close's own (`playerMonth`, each trip counted once); the
+ * quality is the model's hub quality (3.13), not a separate score.
  */
-function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality: number }) {
+function TransferHubCard({ stats, quality }: { stats?: HubTransferView; quality: number }) {
   const pax = stats?.pax ?? 0;
   return (
     <div className="bg-raised border border-line p-4 flex flex-col gap-3">
@@ -605,7 +606,7 @@ function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col">
           <span className="text-2xs text-muted uppercase tracking-label mb-0.5">Transfer pax / week</span>
-          <span className="text-xl font-semibold text-accent">{formatNumber(pax)}</span>
+          <span className="text-xl font-semibold text-accent">{formatNumber(Math.round(pax))}</span>
         </div>
         <div className="flex flex-col">
           <span className="text-2xs text-muted uppercase tracking-label mb-0.5">Hub quality factor</span>
@@ -617,16 +618,17 @@ function TransferHubCard({ stats, quality }: { stats?: HubTransferStats; quality
           <span className="text-2xs text-muted uppercase tracking-label">Top connections</span>
           {stats.flows.slice(0, 5).map(f => (
             <div key={`${f.o}>${f.d}`} className="flex justify-between text-muted">
-              <span>{f.o} → {f.hub} → {f.d}</span>
-              <span className="text-ink">{formatNumber(f.pax)}/wk</span>
+              <span>{f.o} ↔ {f.hub} ↔ {f.d}</span>
+              <span className="text-ink">{formatNumber(Math.round(f.pax))}/wk</span>
             </div>
           ))}
         </div>
       ) : (
         <p className="text-2xs text-muted leading-relaxed">
-          No passengers connect here yet. Two of your routes meeting at this airport sell connections when the
-          change takes {MIN_CONNECTION_MIN} min to {MAX_CONNECTION_MIN / 60} h, the detour is under 60%,
-          both flights have empty seats, and you do not already fly the city pair direct.
+          No passengers connect here yet. At one of your hubs (your home base or tier 2 and up), two of your routes
+          sell connections when the change takes {MIN_CONNECTION} min to {MAX_CONNECTION / 60} h, the detour is
+          under {Math.round((MAX_DETOUR - 1) * 100)}%, both flights have empty seats, and you do not already fly the
+          city pair direct.
         </p>
       )}
     </div>

@@ -6,6 +6,7 @@ import { RouteDetailView } from './RouteDetailView';
 import type { RouteOffer } from '../lib/financeUtils';
 import type { RouteCancellation } from '../lib/gameState';
 import type { PlannerModel, RouteMonth } from '../lib/modelRoute';
+import type { TransferFlowView } from '../lib/modelNetwork';
 import { WEEKS_PER_MONTH } from '../model/constants';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import type { OwnedAircraft } from './MyFleetView';
@@ -58,6 +59,8 @@ interface Props {
    * list shows what the close will book (R2).
    */
   routeMonths: ReadonlyMap<string, RouteMonth>;
+  /** Connecting passengers' city pairs per route id this month (docs/neubau 4.7b), for the detail view. */
+  routeTransfers?: Readonly<Record<string, readonly TransferFlowView[]>>;
   /** The game as the model sees it, for the detail view's satisfaction parts and forecast; null without one. */
   model: PlannerModel | null;
   rivalOffers?: RouteOffer[];
@@ -142,7 +145,8 @@ const RouteRow = React.memo(function RouteRow({
   const priceLine = CABIN_CLASSES.map(cls => {
     if (!month?.classes[cls]) return { cls, text: '-' };
     const price = route.ticketPrices?.[cls];
-    return { cls, text: price ? `$${price}` : '?', color: price ? 'text-muted' : undefined };
+    // Stored fares are in $ of the month and carry cents after a month close (cost index); shown in whole dollars.
+    return { cls, text: price ? `$${formatNumber(Math.round(price))}` : '?', color: price ? 'text-muted' : undefined };
   });
 
   const quickAdjustPrice = (pct: number) => {
@@ -224,7 +228,7 @@ const RouteRow = React.memo(function RouteRow({
 function RoutesViewImpl({
   routes, fleet, routeProfits, initialAirportFilter = "", onPlanRoute, onDeleteRoute, 
   externalSelectedRoute, onClearExternalSelectedRoute, onReassignAircraft,
-  onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, routeMonths, model, airportManagement,
+  onEditSchedule, onEditCabinServices, onEditFinancials, onUpdatePricing, routeMonths, routeTransfers, model, airportManagement,
   currentYear, currentMonth, rivalOffers = [], cancellations, airlineCode = ''
 }: Props) {
   const [search, setSearch] = useState("");
@@ -404,6 +408,7 @@ function RoutesViewImpl({
              route={activeRoute} 
              fleet={fleet}
             month={routeMonths.get(activeRoute.id)}
+            transferFlows={routeTransfers?.[activeRoute.id]}
             model={model}
             rivalOffers={rivalOffers}
             cancellation={cancellations?.[activeRoute.id]}

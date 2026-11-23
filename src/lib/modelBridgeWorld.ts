@@ -14,6 +14,7 @@
  * - Regel wie in Teil 1 und 2: Lesen und gleich wieder Zurückschreiben ändert nichts (dieselben Objekte).
  */
 
+import { closesToLiquidation } from './modelRivalProfile';
 import { aircraftList, type Aircraft } from '../data/aircraft';
 import { FICTIONAL_AIRLINES, REAL_AIRLINES } from '../data/rivalAirlines';
 import type { AiAirline } from '../components/CompetitorsView';
@@ -524,7 +525,8 @@ const resultsOf = (company: CompanyState) => company.reports.map((r) => r.result
  * Die Ansicht einer KI im Format der alten `AiAirline` (Karte, Konkurrenz-Ansicht, Strecken der Rivalen), bis 4.7 die
  * Ansichten auf das Modell umstellt. Strecken-Gewinn und Auslastung aus dem letzten Bericht (Gewinn × 4,348 Wochen),
  * geglätteter Gewinn und Krisen-Umläufe aus dem Entscheidungs-Zustand; Preiskampf als `priceCut` = `PRICE_WAR_CUT`.
- * Felder ohne Gegenstück im Modell (`aggression`) fehlen.
+ * Zum Verkauf: `liquidationIn` = Abschlüsse bis zur Auflösung (7.15). Das Feld `aggression` fehlt; die Ansicht liest
+ * Angriffslust und Geschäftsmodell aus der Persönlichkeit (`rivalProfile`, Paket 4.7b).
  */
 export function rivalView(record: RivalRecord, ctx: RivalContext): AiAirline {
   const { company, code } = record;
@@ -600,7 +602,9 @@ export function rivalView(record: RivalRecord, ctx: RivalContext): AiAirline {
     routes,
     monthlyProfitsHistory: resultsOf(company),
     ...(distress.distressMonths > 0 ? { distressMonths: distress.distressMonths } : {}),
-    ...(distress.status === 'forSale' ? { forSale: true, forSaleSince: ctx.month - distress.forSaleMonths } : {}),
+    ...(distress.status === 'forSale'
+      ? { forSale: true, forSaleSince: ctx.month - distress.forSaleMonths, liquidationIn: closesToLiquidation(distress.forSaleMonths) }
+      : {}),
     ...(agent ? { personality: agent.personality } : {}),
     isReal: record.isReal,
     ...(record.color ? { color: record.color } : {}),

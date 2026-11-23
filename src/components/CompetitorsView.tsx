@@ -1,6 +1,7 @@
 import { clickOnKey } from '../lib/a11y';
 import type { TakeoverOffer } from '../lib/modelTrades';
-import { SALE_TO_LIQUIDATION_MONTHS } from '../lib/aiSimulation';
+import { SALE_TO_LIQUIDATION_MONTHS } from '../model/constants';
+import { closesToLiquidation, rivalProfile, rivalProfileLines } from '../lib/modelRivalProfile';
 import { Button } from './ui/Button';
 import React, { useState, useMemo } from 'react';
 import { formatCurrency, formatNumber, formatSignedCurrency } from '../lib/format';
@@ -89,6 +90,8 @@ export interface AiAirline {
   forSale?: boolean;
   /** The month it was put up for sale. */
   forSaleSince?: number;
+  /** Month-end closes until it is wound up if it stays insolvent and nobody buys it (model, 7.15). */
+  liquidationIn?: number;
   personality?: 'flag' | 'lcc' | 'expansionist' | 'optimizer' | 'boutique';
   aggression?: number;
   /** A real-world carrier (true) or an invented one (false). */
@@ -195,12 +198,13 @@ function CompetitorsViewImpl({
         aiDifficulty: 'Player' as any,
         // The player has no AI strategy profile. Declaring the fields keeps this
         // entry the same shape as the AI ones, so the detail panel can read them
-        // off the union and fall back to "Independent" / 5 on its own.
+        // off the union; without a personality the strategy box is not shown.
         personality: undefined as AiPersonality | undefined,
         aggression: undefined as number | undefined,
         secondHub: undefined as string | undefined,
         forSale: undefined as boolean | undefined,
         forSaleSince: undefined as number | undefined,
+        liquidationIn: undefined as number | undefined,
         fleet: pFleet,
         routes: pRoutes,
         isPlayer: true,
@@ -452,9 +456,11 @@ function CompetitorsViewImpl({
               if (!quote) return null;
               const forSale = !!selectedAirline.forSale;
               const affordable = playerCapital >= quote.netPrice;
-              const monthsLeft = forSale && selectedAirline.forSaleSince !== undefined
-                ? Math.max(0, SALE_TO_LIQUIDATION_MONTHS - (currentDateOffset - selectedAirline.forSaleSince))
-                : null;
+              // Closes until it is wound up, from the model (7.15); older views carry only the month it went up for sale.
+              const monthsLeft = !forSale
+                ? null
+                : selectedAirline.liquidationIn
+                  ?? (selectedAirline.forSaleSince !== undefined ? closesToLiquidation(currentDateOffset - selectedAirline.forSaleSince) : SALE_TO_LIQUIDATION_MONTHS);
               return (
                 <div className={`border p-4 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${forSale ? 'border-accent/40 bg-accent/5' : 'border-line bg-surface'}`}>
                   <div className="text-2xs leading-relaxed max-w-xl">
@@ -463,7 +469,7 @@ function CompetitorsViewImpl({
                     </div>
                     <div className="text-muted">
                       {forSale
-                        ? `Wound up in ${monthsLeft} month${monthsLeft === 1 ? '' : 's'} if nobody buys it. `
+                        ? `Wound up at the ${monthsLeft === 1 ? 'next month end' : `end of ${monthsLeft} months`} unless its cash recovers or someone buys it. `
                         : 'Not for sale: you bid its full value. '}
                       The price is the airline&apos;s value: its cash, aircraft and slots. You get its {quote.aircraft} aircraft, its cash
                       ({formatCurrency(quote.rivalCash)}) and its slots and desks at {quote.airports} airport{quote.airports === 1 ? '' : 's'};
@@ -754,70 +760,41 @@ function CompetitorsViewImpl({
                     <Shield size={14} className="text-accent" /> Strategic Assessment
                   </h4>
 
-                  {!selectedAirline.isPlayer && (
-                    <div className="space-y-4 text-2xs border-b border-line pb-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-surface p-2 rounded-sm border border-line text-center">
-                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">Strategy group</span>
-                          <strong className="text-muted uppercase text-xs">
-                            {selectedAirline.personality ? PERSONALITY_META[selectedAirline.personality].description : 'Independent'}
-                          </strong>
+                  {!selectedAirline.isPlayer && selectedAirline.personality && (() => {
+                    // Everything here comes from the model's personality (docs/neubau 4.7b, 7.4-7.10).
+                    const profile = rivalProfile(selectedAirline.personality);
+                    return (
+                      <div className="space-y-4 text-2xs border-b border-line pb-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-surface p-2 rounded-sm border border-line text-center">
+                            <span className="text-muted text-2xs block uppercase tracking-label mb-1">Strategy group</span>
+                            <strong className="text-muted uppercase text-xs">
+                              {PERSONALITY_META[selectedAirline.personality].description}
+                            </strong>
+                          </div>
+                          <div className="bg-surface p-2 rounded-sm border border-line text-center">
+                            <span className="text-muted text-2xs block uppercase tracking-label mb-1">Aggression</span>
+                            <strong className="text-accent text-xs">{profile.aggression} / 10</strong>
+                          </div>
                         </div>
-                        <div className="bg-surface p-2 rounded-sm border border-line text-center">
-                          <span className="text-muted text-2xs block uppercase tracking-label mb-1">Aggression rating</span>
-                          <strong className="text-accent text-xs">
-                            {selectedAirline.aggression || 5} / 10
-                          </strong>
-                        </div>
-                      </div>
 
-                      <div className="space-y-2 text-muted bg-ground/25 p-3 rounded-sm border border-line text-2xs">
-                        <div className="flex justify-between">
-                          <span>Seating Config Focus:</span>
-                          <strong className="text-ink">
-                            {selectedAirline.personality === 'lcc' ? 'All-Economy Density' :
-                             selectedAirline.personality === 'flag' ? 'Premium Triple-Class' :
-                             selectedAirline.personality === 'boutique' ? 'Ultra Premium Boutique' :
-                             selectedAirline.personality === 'optimizer' ? 'Balanced High-Yield' : 'Standard Economy-Favored'}
-                          </strong>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Ticket Pricing Strategy:</span>
-                          <strong className="text-ink">
-                            {selectedAirline.personality === 'lcc' ? 'Hyper Discount / High Load' :
-                             selectedAirline.personality === 'flag' ? 'Premium Surcharged (+5%)' :
-                             selectedAirline.personality === 'boutique' ? 'Elite Surcharged (+25%)' :
-                             selectedAirline.personality === 'optimizer' ? 'Algorithmic Clean Pricing' : 'Economy Discounted'}
-                          </strong>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Onboard Catering Level:</span>
-                          <strong className="text-ink">
-                            {selectedAirline.personality === 'lcc' ? 'Buy Onboard (No cost)' :
-                             selectedAirline.personality === 'flag' ? 'Hot Meals & Luxury Bar' :
-                             selectedAirline.personality === 'boutique' ? 'Five-Star Fine Dining' :
-                             selectedAirline.personality === 'optimizer' ? 'Standard Snacks & Drinks' : 'Cold Meals & Comfort'}
-                          </strong>
+                        <div className="space-y-2 text-muted bg-ground/25 p-3 rounded-sm border border-line text-2xs">
+                          {rivalProfileLines(profile).map(line => (
+                            <div key={line.label} className="flex justify-between gap-3">
+                              <span className="shrink-0">{line.label}:</span>
+                              <strong className="text-ink text-right">{line.value}</strong>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
+                    );
+                  })()}
+
+                  {selectedAirline.isPlayer && (
+                    <p className="text-xs leading-relaxed text-muted font-sans">
+                      {`Your airline ranks #${rankById.get(selectedAirline.id) ?? '-'} of ${allAirlines.length} by capital. Expand your fleet and optimise route frequency to outmanoeuvre the competition.`}
+                    </p>
                   )}
-
-                  <p className="text-xs leading-relaxed text-muted font-sans">
-                    {selectedAirline.isPlayer ? (
-                      `Your airline ranks #${rankById.get(selectedAirline.id) ?? '-'} of ${allAirlines.length} by capital. Expand your fleet and optimise route frequency to outmanoeuvre the competition.`
-                    ) : selectedAirline.personality === 'flag' ? (
-                      `CARRIER ANALYSIS: ${selectedAirline.name} is a prestige-focused premium flag carrier operating high-status connections directly from their primary hub at ${selectedAirline.hub}. They prioritize luxury cabin configurations, high-end fine dining, and deluxe pricing structures.`
-                    ) : selectedAirline.personality === 'lcc' ? (
-                      `CARRIER ANALYSIS: ${selectedAirline.name} is an aggressive budget carrier operating dense, high-frequency short-haul networks. They configure aircraft to maximize seat volume, charge deeply discounted ticket prices, and skip free catering to dominate passenger market volume.`
-                    ) : selectedAirline.personality === 'expansionist' ? (
-                      `CARRIER ANALYSIS: ${selectedAirline.name} is a high-growth expansionist rival. They open new routes rapidly, operating high flight frequencies and keeping ticket prices low to build quick regional slot monopolies.`
-                    ) : selectedAirline.personality === 'optimizer' ? (
-                      `CARRIER ANALYSIS: ${selectedAirline.name} is a highly calculated operator focusing on cost-efficiency. They structure routes carefully and prioritize fuel efficiency metrics to guarantee pristine financial margins.`
-                    ) : (
-                      `CARRIER ANALYSIS: ${selectedAirline.name} is a boutique/premium airline dedicated to high-margin transcontinental luxury passages, holding rare, ultra-premium class configurations to serve high-worth elite segments.`
-                    )}
-                  </p>
                 </div>
 
               </div>

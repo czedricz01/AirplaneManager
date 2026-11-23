@@ -33,7 +33,6 @@ import { readJson, writeJson, readString, writeString, removeKey } from "./lib/s
 import { AccountScopeContext } from "./lib/accountScope";
 import { syncAllPendingConfigs } from "./lib/configStore";
 import { applyManagementUnlock } from "./lib/financeUtils";
-import { computeNetworkFinancials } from "./lib/transferUtils";
 import { regionsServed } from "./lib/chronicle";
 import { type Edition } from "./lib/newspaper";
 import {
@@ -43,7 +42,6 @@ import {
   campaignMonthlyCost,
   ffpRankGate,
   createCampaign,
-  ffpMonthlyCost,
   routesByRegion,
   startFfp,
   stopFfp
@@ -65,7 +63,8 @@ import { modelRivals, modelWorldEvent, type RivalRecord, type WorldState } from 
 import { rivalSlotsByAirport, tierPrice, type AirportPricing } from "./lib/modelAirport";
 import { crisisResponses, modelMilestones } from "./lib/modelBridgeCompany";
 import { defaultModelEnv, modelGame, planesValue } from "./lib/modelMonth";
-import { routesThisMonth, type PlannerModel, type RouteMonth } from "./lib/modelRoute";
+import { type PlannerModel } from "./lib/modelRoute";
+import { EMPTY_PLAYER_MONTH, ffpForecast, playerMonth, type PlayerMonth } from "./lib/modelNetwork";
 import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
 import { modelMonthClose } from "./lib/modelMonthClose";
 import { migrateSave, SAVE_VERSION } from "./lib/saveMigration";
@@ -656,38 +655,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentDateOffset, eventChoices, randomEvents, career.research.done]
   );
-
-  /**
-   * The whole network priced once for this month, connecting passengers
-   * included: the same call the monthly report makes, so the two agree.
-   */
-  const network = useMemo(() => computeNetworkFinancials(routes, fleet, playerMods, {
-    fuelPrice: fuelData.price,
-    airportManagement,
-    year: yearOf(currentDateOffset),
-    month: monthOf(currentDateOffset),
-    difficulty,
-    airportsMap: airportsMapAdjusted,
-    rivalOffers
-  }),
-    // randomEvents: calculateDemand reads the active events from module state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routes, fleet, fuelData.price, airportManagement, currentDateOffset, difficulty, playerMods, rivalOffers, randomEvents]
-  );
-
-  /** Passengers this month at the current forecast, for the frequent-flyer programme's bill. */
-  const projectedMonthlyPax = useMemo(() => {
-    let week = 0;
-    network.finById.forEach(fin => { week += fin.paxPerWeek || 0; });
-    return week * WEEKS_PER_MONTH;
-  }, [network]);
-
-  /** Crew and ground staff this month at the current forecast and pay, for the staff screen. */
-  const monthlyCrewCost = useMemo(() => {
-    let week = 0;
-    network.finById.forEach(fin => { week += fin.costsBreakdown?.crew || 0; });
-    return week * WEEKS_PER_MONTH;
-  }, [network]);
 
   /**
    * The routes losing flights this month and why, for the route list's badge
@@ -1364,10 +1331,10 @@ export default function App() {
   /**
    * What the marketing handlers below read. They are handed to the memoised
    * company view, so they keep one identity and read the current cash, month
-   * and campaigns from here rather than closing over a stale render.
+   * and campaigns from here rather than closing over a stale render. Filled
+   * further down, once the model has priced this month (`ffpMonthCost`).
    */
-  const marketingCtx = useRef({ capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, completedResearch: career.research.done });
-  marketingCtx.current = { capital, currentDateOffset, marketing, projectedMonthlyPax, rank: career.rank, completedResearch: career.research.done };
+  const marketingCtx = useRef({ capital, currentDateOffset, marketing, ffpMonthCost: 0, rank: career.rank, completedResearch: career.research.done });
 
   /**
    * Books a campaign from this month on. It is paid month by month at each
@@ -1399,14 +1366,13 @@ export default function App() {
 
   /** Starts or ends the frequent-flyer programme. Ending it throws away the loyalty built up. */
   const handleSetFfp = React.useCallback((active: boolean) => {
-    const { capital: cash, currentDateOffset: offset, projectedMonthlyPax: pax, rank } = marketingCtx.current;
+    const { capital: cash, currentDateOffset: offset, ffpMonthCost: cost, rank } = marketingCtx.current;
     if (active) {
       const gate = ffpRankGate(rank);
       if (gate) {
         setAppAlert(gate);
         return;
       }
-      const cost = ffpMonthlyCost(pax);
       if (cash < cost) {
         setAppAlert(`Not enough cash: the frequent flyer programme would cost about ${formatCurrency(cost)} this month, and you have ${formatCurrency(cash)}.`);
         return;
@@ -1802,20 +1768,30 @@ export default function App() {
    * Every route's figures this month from the model (docs/neubau 4.5c): the month close's own calculation with this
    * month's fares, disruptions and connecting passengers. The route list, the route detail and the map read these.
    */
-  const routeMonths = useMemo<ReadonlyMap<string, RouteMonth>>(() => {
-    if (!plannerModel) return new Map();
+  const network = useMemo<PlayerMonth>(() => {
+    if (!plannerModel) return EMPTY_PLAYER_MONTH;
     try {
-      return routesThisMonth(plannerModel.state);
+      return playerMonth(plannerModel.state);
     } catch (error) {
       logWarn('model', 'The routes could not be priced by the model; the route list shows no forecast', error);
-      return new Map();
+      return EMPTY_PLAYER_MONTH;
     }
   }, [plannerModel]);
+  const routeMonths = network.routes;
 
-  /** Routes with this month's weekly passengers, for the map and its live traffic. */
+  /** What the frequent-flyer programme costs this month at the current forecast, as the month close books it. */
+  const ffpCost = useMemo(() => ffpForecast(currentDateOffset, network.monthlyPassengers), [currentDateOffset, network.monthlyPassengers]);
+  /** Crew this month at the current forecast and pay, for the staff screen (5.4, as the month close books it). */
+  const monthlyCrewCost = network.monthlyCrewCost;
+  marketingCtx.current = { capital, currentDateOffset, marketing, ffpMonthCost: ffpCost.total, rank: career.rank, completedResearch: career.research.done };
+
+  /**
+   * Routes with this month's weekly passengers and load factor (passengers / seats flown, cancelled flights left
+   * out: W7), for the map and its live traffic.
+   */
   const routesWithMetrics = useMemo(() => routes.map(r => {
     const m = routeMonths.get(r.id);
-    return m ? { ...r, paxPerWeek: Math.round(m.passengers) } : r;
+    return m ? { ...r, paxPerWeek: Math.round(m.passengers), loadFactor: m.seatsPerWeek > 0 ? m.passengers / m.seatsPerWeek : null } : r;
   }), [routes, routeMonths]);
 
   /**
@@ -2577,6 +2553,7 @@ export default function App() {
                           onEditFinancials={setEditingPricingRouteId}
                           onUpdatePricing={handleUpdatePricing}
                           routeMonths={routeMonths}
+                          routeTransfers={network.flowsByRoute}
                           model={plannerModel}
                           rivalOffers={rivalOffers}
                           cancellations={routeCancellations}
@@ -2635,7 +2612,7 @@ export default function App() {
                           chronicle={chronicle}
                           marketing={marketing}
                           currentDateOffset={currentDateOffset}
-                          projectedMonthlyPax={projectedMonthlyPax}
+                          ffpForecast={ffpCost}
                           regionRouteCounts={regionRouteCounts}
                           homeRegion={homeRegion}
                           onLaunchCampaign={handleLaunchCampaign}
@@ -2905,7 +2882,7 @@ export default function App() {
                       <AirportDetailView
                         airport={selectedAirport}
                         currentDateOffset={currentDateOffset}
-                        transferHub={network.hubStats[selectedAirport.id]}
+                        transferHub={network.hubs[selectedAirport.id]}
                         onNotify={setAppAlert}
                         gates={{
                           airport: airportRankGate(selectedAirport),

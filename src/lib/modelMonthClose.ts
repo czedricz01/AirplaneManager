@@ -339,7 +339,7 @@ export function modelMonthClose(input: ModelCloseInput, env: ModelEnv = defaultM
       })),
     regions: regionsNow,
     homeRegion: input.homeRegion,
-    hubs: [],
+    hubs: month.transferHubs.map((h) => ({ id: h.id, name: airportsMapAdjusted.get(h.id)?.name ?? h.id, pax: h.pax })),
   });
 
   // Szenario: Sterne, Chronik, Ergebnis-Dialog. Entschieden hat das Modell (8.15).
