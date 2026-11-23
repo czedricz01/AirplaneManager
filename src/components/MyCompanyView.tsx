@@ -30,7 +30,7 @@ interface ProgressionProps {
   onOpenProgression?: () => void;
 }
 
-interface Props extends ProgressionProps,  Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'noRoutes'>, Omit<CareerPanelProps, 'capital' | 'currentDateOffset'> {
+interface Props extends ProgressionProps,  Omit<MarketingPanelProps, 'capital' | 'rank'>, Omit<StaffPanelProps, 'currentDateOffset' | 'routeCount'>, Omit<CareerPanelProps, 'capital' | 'currentDateOffset'> {
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
@@ -136,7 +136,7 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
 function MyCompanyViewImpl({
   capital, reportHistory, worth, credit, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
-  staff, profitStreak, monthlyCrewCost, strikePending, moraleBonus, onSetSalary,
+  staff, profitStreak, monthlyCrewCost, strikePending, completedResearch, badLuckCapOpen, onSetSalary,
   page = 'company', onOpenProgression, free, rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
   ...marketingProps
 }: Props) {
@@ -230,8 +230,9 @@ function MyCompanyViewImpl({
               currentDateOffset={marketingProps.currentDateOffset}
               monthlyCrewCost={monthlyCrewCost}
               strikePending={strikePending}
-              moraleBonus={moraleBonus}
-              noRoutes={routeCount === 0}
+              completedResearch={completedResearch}
+              badLuckCapOpen={badLuckCapOpen}
+              routeCount={routeCount}
               onSetSalary={onSetSalary}
             />
           </div>

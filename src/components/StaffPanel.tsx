@@ -5,27 +5,30 @@ import { Badge } from './ui/Badge';
 import type { Staff } from '../lib/gameState';
 import {
   BASE_MORALE,
-  MORALE_INERTIA,
+  MORALE_NEUTRAL,
   MORALE_PER_PAY_POINT,
-  NEUTRAL_MORALE,
+  MORALE_STEP,
   PROFIT_STREAK_MONTHS,
   PROFIT_STREAK_MORALE,
   SALARY_PCT_MAX,
   SALARY_PCT_MIN,
-  SALARY_PCT_STEP,
+  SAT_PER_MORALE_POINT,
   STRIKE_CHANCE_PER_POINT,
   STRIKE_MEMORY_MONTHS,
   STRIKE_MORALE_PENALTY,
   STRIKE_MORALE_THRESHOLD,
-  isStrikeActive,
-  moraleSatDelta,
+  STRIKE_SETTLED_CANCEL_SHARE
+} from '../model/constants';
+import { strikeIsRecent } from '../model/monthEvents';
+import { staffStrike } from '../lib/modelBridgeCompany';
+import {
+  SALARY_PCT_STEP,
+  isStrikeMonth,
+  labourMarketLabel,
   salaryFloor,
   staffOutlook,
-  labourMarketLabel,
-  labourMarketPremium,
-  strikeCancelShare,
-  strikeIsRecent
-} from '../lib/staff';
+  strikeCancelShare
+} from '../lib/modelStaff';
 import { formatCurrency, formatMonthOffset, formatNumber } from '../lib/format';
 
 export interface StaffPanelProps {
@@ -33,29 +36,36 @@ export interface StaffPanelProps {
   /** Profitable months in a row, for the morale target. */
   profitStreak: number;
   currentDateOffset: number;
-  /** Crew and ground staff this month at the current forecast and pay. */
+  /** Crew (cockpit and cabin) this month at the current forecast and pay, as the month close books it (5.4). */
   monthlyCrewCost: number;
   /** A strike question is waiting for an answer. */
   strikePending: boolean;
-  /** The airline flies no routes: nothing to strike against. */
-  noRoutes?: boolean;
-  /** Morale points the crew academy adds to the level staff settle at. */
-  moraleBonus?: number;
+  /** Routes the airline flies; without any the profit streak does not grow (6.10). */
+  routeCount?: number;
+  /** Finished research, for the morale points it adds (6.9). */
+  completedResearch?: readonly string[];
+  /**
+   * The bad-luck cap is open for the coming month (8.8): the month close may call a strike. Closed after a month with
+   * bad luck (a strike, a disruption on the player's routes) or while a random event claims the month.
+   */
+  badLuckCapOpen?: boolean;
   onSetSalary: (pct: number) => void;
 }
+
+const NO_RESEARCH: readonly string[] = [];
 
 const signed = (v: number, digits = 1) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${formatNumber(Math.abs(v), digits)}`;
 
 /** The morale scale with the strike zone, the neutral line, where morale is and where it is heading. */
 function MoraleBar({ morale, target }: { morale: number; target: number }) {
-  const tone = morale < STRIKE_MORALE_THRESHOLD ? 'bg-bad' : morale < NEUTRAL_MORALE ? 'bg-accent' : 'bg-good';
+  const tone = morale < STRIKE_MORALE_THRESHOLD ? 'bg-bad' : morale < MORALE_NEUTRAL ? 'bg-accent' : 'bg-good';
   return (
     <div>
       <div className="relative h-3 bg-raised overflow-hidden">
         {/* Where strikes become possible. */}
         <div className="absolute inset-y-0 left-0 bg-bad/15" style={{ width: `${STRIKE_MORALE_THRESHOLD}%` }} />
         <div className={`absolute inset-y-0 left-0 ${tone}`} style={{ width: `${Math.max(0, Math.min(100, morale))}%` }} />
-        <div className="absolute inset-y-0 w-px bg-rule" style={{ left: `${NEUTRAL_MORALE}%` }} title="Neutral: no effect on satisfaction" />
+        <div className="absolute inset-y-0 w-px bg-rule" style={{ left: `${MORALE_NEUTRAL}%` }} title="Neutral: no effect on satisfaction" />
         <div
           className="absolute inset-y-0 w-0.5 bg-ink"
           style={{ left: `calc(${Math.max(0, Math.min(100, target))}% - 1px)` }}
@@ -65,7 +75,7 @@ function MoraleBar({ morale, target }: { morale: number; target: number }) {
       <div className="relative h-4 mt-1 text-2xs text-muted">
         <span className="absolute left-0">0</span>
         <span className="absolute -translate-x-1/2 text-bad" style={{ left: `${STRIKE_MORALE_THRESHOLD}%` }}>{STRIKE_MORALE_THRESHOLD}<span className="hidden sm:inline"> strike</span></span>
-        <span className="absolute -translate-x-1/2" style={{ left: `${NEUTRAL_MORALE}%` }}>{NEUTRAL_MORALE}<span className="hidden sm:inline"> neutral</span></span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${MORALE_NEUTRAL}%` }}>{MORALE_NEUTRAL}<span className="hidden sm:inline"> neutral</span></span>
         <span className="absolute right-0">100</span>
       </div>
     </div>
@@ -77,14 +87,18 @@ function MoraleBar({ morale, target }: { morale: number; target: number }) {
  * it carries. Pay takes effect at once in every forecast; morale only moves
  * at month end.
  */
-export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, monthlyCrewCost, strikePending, noRoutes = false, moraleBonus = 0, onSetSalary }: StaffPanelProps) {
-  const outlook = staffOutlook(staff, profitStreak, offset, strikePending, noRoutes, moraleBonus);
+export function StaffPanel({
+  staff, profitStreak, currentDateOffset: offset, monthlyCrewCost, strikePending, routeCount = 0,
+  completedResearch = NO_RESEARCH, badLuckCapOpen = true, onSetSalary
+}: StaffPanelProps) {
+  // What the coming month close does, with the model's own functions (docs/neubau 4.8, 8.7).
+  const outlook = staffOutlook({ staff, month: offset, profitStreak, routes: routeCount, completedResearch, capOpen: badLuckCapOpen });
   /** Pay agreed to settle a recent strike, below which the slider will not go. */
   const floor = salaryFloor(staff, offset);
-  const satNow = moraleSatDelta(staff.morale);
-  const striking = isStrikeActive(staff, offset);
+  const satNow = outlook.satisfactionNow;
+  const striking = isStrikeMonth(staff, offset);
   const strikeShare = strikeCancelShare(staff, offset);
-  const recentStrike = strikeIsRecent(staff.strike, offset + 1);
+  const recentStrike = strikeIsRecent(staffStrike(staff.strike), offset + 1);
   const trend = outlook.nextMorale - staff.morale;
   const TrendIcon = Math.abs(trend) < 0.05 ? Minus : trend > 0 ? TrendingUp : TrendingDown;
 
@@ -108,7 +122,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
                 ? 'Waiting for your answer: until then every flight stays on the ground.'
                 : strikeShare >= 1
                   ? 'You are sitting it out. Nothing flies until the month ends.'
-                  : 'Pay was raised; half the flights operate while the deal is worked out.'}
+                  : `Pay was raised; ${Math.round((1 - STRIKE_SETTLED_CANCEL_SHARE) * 100)}% of the flights operate while the deal is worked out.`}
               {' '}The strike ends with the month, but weighs on morale for {STRIKE_MEMORY_MONTHS} more.
             </span>
           </div>
@@ -116,7 +130,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
       )}
 
       {(() => {
-        const premium = labourMarketPremium(offset);
+        const premium = outlook.labourMarket;
         return (
           <div className="text-2xs text-muted leading-relaxed">
             Labour market: <span className={premium >= 4 ? 'text-bad' : premium <= -4 ? 'text-good' : 'text-muted'}>{labourMarketLabel(premium)}</span>.
@@ -133,7 +147,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           size="md"
           label="Morale"
           value={Math.round(staff.morale)}
-          valueClassName={staff.morale < STRIKE_MORALE_THRESHOLD ? 'text-bad' : staff.morale >= NEUTRAL_MORALE ? 'text-good' : ''}
+          valueClassName={staff.morale < STRIKE_MORALE_THRESHOLD ? 'text-bad' : staff.morale >= MORALE_NEUTRAL ? 'text-good' : ''}
         >
           <span className="flex items-center gap-1 text-2xs text-muted mt-1">
             <TrendIcon size={10} className={trend > 0.05 ? 'text-good' : trend < -0.05 ? 'text-bad' : ''} />
@@ -147,12 +161,10 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
           valueClassName={outlook.strikeChance > 0 ? 'text-bad' : 'text-good'}
         >
           <span className="block text-2xs text-muted mt-1">
-            {strikePending
-              ? 'none while a strike awaits your answer'
-              : noRoutes
-                ? 'none without routes to fly'
-                : striking
-                ? 'no new strike straight after this one'
+            {striking || strikePending
+              ? 'no new strike straight after this one'
+              : !outlook.capOpen
+                ? 'none at this month end: bad luck has already struck'
                 : outlook.strikeChance > 0
                   ? 'chance of a strike at this month end'
                   : `none while morale stays at ${STRIKE_MORALE_THRESHOLD} or above`}
@@ -171,8 +183,8 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
             <div className="min-w-0">
               <span className="text-2xs uppercase tracking-label text-muted font-semibold block mb-1">Pay</span>
               <p className="text-2xs text-muted leading-relaxed max-w-xl">
-                Crew and ground staff are paid a share of the market wage. The bill changes at once;
-                morale follows over the coming months.
+                Cockpit and cabin crews are paid a share of the market wage; ground handling is bought in
+                with the airport fees. The crew bill changes at once; morale follows over the coming months.
               </p>
             </div>
           </div>
@@ -208,7 +220,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-line text-2xs">
           <div>
-            <span className="block text-muted uppercase tracking-label">Crew &amp; ground staff this month</span>
+            <span className="block text-muted uppercase tracking-label">Crew this month</span>
             <span className="text-base font-semibold text-ink">{formatCurrency(monthlyCrewCost)}</span>
             <span className={`block ${vsMarket > 0 ? 'text-bad' : vsMarket < 0 ? 'text-good' : 'text-muted'}`}>
               {Math.abs(vsMarket) < 1 ? 'the market rate' : `${vsMarket > 0 ? '+' : '−'}${formatCurrency(Math.abs(vsMarket))} against market pay`}
@@ -220,7 +232,7 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
             <span className="block text-muted">
               {outlook.target < STRIKE_MORALE_THRESHOLD
                 ? <span className="text-bad">below the strike line</span>
-                : `satisfaction ${signed(moraleSatDelta(outlook.target))} once reached`}
+                : `satisfaction ${signed(outlook.satisfactionAtTarget)} once reached`}
             </span>
           </div>
         </div>
@@ -237,13 +249,14 @@ export function StaffPanel({ staff, profitStreak, currentDateOffset: offset, mon
         </div>
         <MoraleBar morale={staff.morale} target={outlook.target} />
         <p className="text-2xs text-muted leading-relaxed mt-3">
-          Morale moves {Math.round(MORALE_INERTIA * 100)}% of the way to its target each month. The target is {BASE_MORALE} at market pay,
+          Morale moves {Math.round(MORALE_STEP * 100)}% of the way to its target each month. The target is {BASE_MORALE} at market pay,
           {' '}{MORALE_PER_PAY_POINT} points for every percent of pay above or below it, +{PROFIT_STREAK_MORALE} after more
           than {PROFIT_STREAK_MONTHS} profitable months in a row and −{STRIKE_MORALE_PENALTY} for {STRIKE_MEMORY_MONTHS} months
-          after a strike. Market pay is neutral: every point above or below {NEUTRAL_MORALE} adds or takes a tenth of a
-          satisfaction point in every cabin.
+          after a strike{outlook.researchMorale > 0 ? `, +${formatNumber(outlook.researchMorale, 0)} from research` : ''}.
+          Market pay is neutral: every point above or below {MORALE_NEUTRAL} adds or takes {formatNumber(SAT_PER_MORALE_POINT, 1)} satisfaction
+          point in every cabin.
           Below {STRIKE_MORALE_THRESHOLD} the staff may strike: {formatNumber(STRIKE_CHANCE_PER_POINT * 100, 1)}% a month for every
-          point under the line.
+          point under the line. After a month of bad luck (a strike, a disruption on your routes) the next one is spared.
         </p>
       </Panel>
     </div>

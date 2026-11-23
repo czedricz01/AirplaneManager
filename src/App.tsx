@@ -39,19 +39,14 @@ import {
   CAMPAIGN_SPECS,
   REGION_LABELS,
   campaignBlocker,
-  campaignMonthlyCost,
   ffpRankGate,
   createCampaign,
   routesByRegion,
   startFfp,
   stopFfp
 } from "./lib/marketing";
-import {
-  STRIKE_OPTION_RAISE,
-  STRIKE_PAY_RAISE,
-  setSalary,
-  settleStrikeWithPayRise
-} from "./lib/staff";
+import { STRIKE_OPTION_RAISE, setSalary, settleStrike } from "./lib/modelStaff";
+import { campaignMonthCost } from "./lib/modelMarketing";
 import {
   DISRUPTION_OPTION_CHARTER,
   type BirdStrike,
@@ -142,7 +137,8 @@ import { Button } from "./components/ui/Button";
 import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { budgetLabel, formatCurrency, formatNumber, formatTrend, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
-import { START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, WEEKS_PER_MONTH } from "./model/constants";
+import { START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, STRIKE_PAY_RAISE, WEEKS_PER_MONTH } from "./model/constants";
+import { badLuckCapOpen } from "./model/monthEvents";
 import { seasonFactor as modelSeasonFactor } from "./model/demand";
 import { refitCabinCondition } from "./model/fleetMarket";
 import { milestoneSlotFactor, startCapital, yearsPlayed } from "./model/progress";
@@ -465,7 +461,7 @@ export default function App() {
     strike: (decision, option) => {
       const strikeOffset = Number(decision.ref);
       if (option.id === STRIKE_OPTION_RAISE) {
-        setStaff(prev => settleStrikeWithPayRise(prev, strikeOffset));
+        setStaff(prev => settleStrike(prev, strikeOffset));
         setToast(`Pay raised by ${STRIKE_PAY_RAISE} points: half the flights operate during the strike`);
       } else {
         // The grounded flights weigh on reputation through its target at the month's close (6.3), no jump now (E38).
@@ -1331,7 +1327,7 @@ export default function App() {
       setAppAlert(blocker);
       return;
     }
-    const firstMonth = campaignMonthlyCost(tier, offset);
+    const firstMonth = campaignMonthCost(tier, offset);
     if (cash < firstMonth) {
       setAppAlert(`Not enough cash: the first month of this campaign costs ${formatCurrency(firstMonth)}, and you have ${formatCurrency(cash)}.`);
       return;
@@ -1788,6 +1784,11 @@ export default function App() {
   const ffpCost = useMemo(() => ffpForecast(currentDateOffset, network.monthlyPassengers), [currentDateOffset, network.monthlyPassengers]);
   /** Crew this month at the current forecast and pay, for the staff screen (5.4, as the month close books it). */
   const monthlyCrewCost = network.monthlyCrewCost;
+  /** May the coming month close call a strike (bad-luck cap, 8.8)? Read from the model's world state. */
+  const strikeCapOpen = useMemo(
+    () => !plannerModel || badLuckCapOpen(plannerModel.state.randomEvents, plannerModel.state.month + 1, plannerModel.state.badLuck),
+    [plannerModel]
+  );
   marketingCtx.current = { capital, currentDateOffset, marketing, ffpMonthCost: ffpCost.total, rank: career.rank, completedResearch: career.research.done };
 
   /**
@@ -2603,7 +2604,8 @@ export default function App() {
                           score={score}
                           hall={hall}
                           onRetire={onRetire}
-                          moraleBonus={researchFx.moraleBonus}
+                          completedResearch={career.research.done}
+                          badLuckCapOpen={strikeCapOpen}
                           annualGoal={annualGoal}
                           worth={worth}
                           credit={credit}

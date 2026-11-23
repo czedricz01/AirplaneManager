@@ -45,8 +45,8 @@ import { PLAYER_ID, defaultModelEnv, runModelMonth, type AppGame, type AppMonth,
 import { buildEventEndMessage, buildEventStartMessage, buildRivalOffers, offsetToDateStr } from './monthClose';
 import { buildEdition, rivalMoves, type Edition } from './newspaper';
 import { playerScore } from './modelCompany';
-import { STRIKE_MORALE_THRESHOLD, buildStrikeDecision } from './staff';
-import { MILESTONES, RANKS } from '../model/constants';
+import { strikeQuestion } from './modelStaff';
+import { MILESTONES, RANKS, STRIKE_MORALE_THRESHOLD } from '../model/constants';
 
 /** Was der Abschluss über `AppGame` hinaus aus `App.tsx` liest. */
 export interface ModelCloseInput extends AppGame {
@@ -216,7 +216,7 @@ export function modelMonthClose(input: ModelCloseInput, env: ModelEnv = defaultM
     });
   }
   const decisions: GameDecision[] = [];
-  if (strikeCalled) decisions.push(ensureFreeOption(buildStrikeDecision(month.staff, next, offsetToDateStr(next), report.routeRevenues)));
+  if (strikeCalled) decisions.push(ensureFreeOption(strikeQuestion(month.staff, next, offsetToDateStr(next), report.routeRevenues)));
 
   // Störungen des neuen Monats: Ausblick und Fragen zu großen.
   const known = new Set(input.disruptions.map((d) => d.id));

@@ -4,7 +4,7 @@ import { Panel } from './ui/Panel';
 import { LineChart, type LineSeries } from './charts/LineChart';
 import { isValue, type ChartValue } from './charts/chartMath';
 import { CHART_COLORS } from '../lib/theme';
-import { NEUTRAL_MORALE, STRIKE_MORALE_THRESHOLD } from '../lib/staff';
+import { MORALE_NEUTRAL, STRIKE_MORALE_THRESHOLD } from '../model/constants';
 import type { ReportMetrics } from '../lib/chronicle';
 import type { ChronicleEntry, ChronicleKind } from '../lib/gameState';
 import {
@@ -104,7 +104,7 @@ function buildChart(id: MetricId, reports: ChronicleReport[]): MetricChart {
         formatTick: count,
         domain: [0, 100],
         references: [
-          { value: NEUTRAL_MORALE, label: 'neutral' },
+          { value: MORALE_NEUTRAL, label: 'neutral' },
           { value: STRIKE_MORALE_THRESHOLD, label: 'strikes possible below' }
         ],
         delta: d => signed(points(Math.abs(d)), d)
