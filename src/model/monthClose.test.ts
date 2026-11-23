@@ -390,4 +390,17 @@ describe('Abschnitt 8.0 Übergang zu X+1', () => {
     const rival = companyAfter(closeMonth(world([company('ai', { ...NEUTRAL, salaryPct: 80 })]), NO_DECISIONS).state, 'ai');
     assert.equal(rival.inputs.morale, 50);
   });
+
+  it('8.7 (E74): Personalstreik nur mit mindestens einer Strecke', () => {
+    // Moral 0, Lohn 50 % (Ziel 0): Moral bleibt 0, Streik-Chance (35 − 0) × 0,006 = 0,21 je Monat.
+    const low: CompanyInputs = { ...PLAYER, morale: 0, salaryPct: 50 };
+    const strikes = (routes: boolean) =>
+      Array.from({ length: 40 }, (_, i) => i).filter((seed) => {
+        const pl = company('pl', low, routes ? {} : { routes: [] });
+        const result = closeMonth(world([pl], { seed }), NO_DECISIONS);
+        return result.news.some((n) => n.kind === 'staffStrike') || companyAfter(result.state, 'pl').inputs.staffStrike?.month === M + 1;
+      }).length;
+    assert.equal(strikes(false), 0, 'ohne Strecken nie');
+    assert.ok(strikes(true) > 0, 'mit Strecke würfelt das Modell');
+  });
 });
