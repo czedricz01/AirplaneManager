@@ -1,34 +1,40 @@
 # Status
 
-**Nächstes Paket: 4.7** – Kennzahlen und Anzeigen nach dem Modell: Kopfzeile (`app/GameTopBar.tsx`, Ereignis-Abschwächung als
-Kopie von `eventReliefFactor`), Firma (`MyCompanyView.tsx`: „Fleet value“ und Netto-Vermögen, Karriere-Punkte), Monatsbericht
-(`app/MonthlyReportScreen.tsx` statt Übergangs-Anzeige `appReport`, Geld-Strafe des Jahresziels, Spielende `bankrupt`), Live-Karte
-(`LiveTraffic.tsx`, W7: Auslastung aus dem Modell), Konkurrenz (`CompetitorsView.tsx`: „Aggression“, Frist bis zur Auflösung) und die
-alte Netz-Rechnung `computeNetworkFinancials` in `App.tsx` (Frequent flyer, Personal-Kosten, Umsteige-Ströme, Transfer-Fluggäste der
-Flughafen-Ansicht). Die fünf Dateien haben zusammen fast 2 400 Zeilen; wenn zu groß, teilen (Vorschlag: 4.7a Kopfzeile, Firma,
-Monatsbericht; 4.7b Live-Karte, Konkurrenz, Netz-Rechnung). Zu lesen: `bestand/8-oberflaeche.md` W7 und Art B „Ereignis-Abschwächung“;
-F57, F58, F64, F66; die genannten Dateien; `src/lib/modelBridgeCompany.ts` (`appReport`), `src/lib/modelRoute.ts` (`routesThisMonth`);
-offene Punkte für 4.7 unten (4.6b (3), 4.5c (1), (2), 4.3 (2), 4.2f (3), 4.2d (3), 4.2c (5), (8)).
+**Nächstes Paket: 4.7b** – Kennzahlen nach dem Modell, Teil 2: Live-Karte (`src/components/LiveTraffic.tsx`, W7: Auslastung aus
+`routesThisMonth` statt Sitze × Flüge), Konkurrenz (`src/components/CompetitorsView.tsx`: „Aggression“ ohne Gegenstück im Modell –
+entfernen oder Persönlichkeit zeigen; Frist bis zur Auflösung aus dem Modell, 7.15) und die alte Netz-Rechnung `computeNetworkFinancials`
+in `src/App.tsx` (Fluggäste für das Frequent-flyer-Programm, Personal-Kosten der Personal-Ansicht, Transfer-Fluggäste der
+Flughafen-Ansicht, Umsteige-Ströme der Streckenansicht, `transferHubs` im Bericht). Zu lesen: `bestand/8-oberflaeche.md` W7; F64,
+F67; die genannten Dateien; `src/lib/modelRoute.ts` (`routesThisMonth`); offene Punkte für 4.7b unten (4.7a (1), 4.5c (1), (2),
+4.3 (2), 4.2f (3), 4.2d (3)).
 
-Stand: 22.11.2026 · Paket 4.6b erledigt: Flotte, Flugzeug-Details, Gebrauchtmarkt, Übernahme und Vorbestellung rechnen nur noch mit
-dem Modell (F66). `src/lib/modelFleet.ts` liefert je Flugzeug Alter, Type appeal, Cabin rating je Klasse und „Cabin rating (avg.)“,
-Effizienz mit Forschung, Wert, Verkaufserlös und Unterhalt wie der Abschluss; dazu den Gebrauchtmarkt (`usedOffers` +
-`resoldInMarket`), die Übernahme-Flotte mit der Kabine der KI (`takeoverFleet`) und die Vorbestellung (`preorderQuote`). Flotte:
-„Comb. Sat“ → „Cabin rating (avg.)“ (E9), Typ-Karten mit Cabin rating und Type appeal; Detail-Fenster mit Alter, Cabin rating je
-Klasse gegen die Erwartung, Unterhalt (5.12) und Marktwert; Art D „Alter“ und „Wiederverkauf“ erledigt (`getResaleBonus` entfernt).
-Verkaufte Flugzeuge des Spielers kommen in den Gebrauchtmarkt. 13 neue Tests (1407 grün). Im Browser geprüft (Free Mode, 01/1995):
-747-300 gebraucht für $121 206 869 gekauft (Kasse −genau dieser Betrag), Verkauf für $98 119 846 (= 85 / 105 des Preises); nach dem
-Abschluss eine ATR 42 gekauft und verkauft, sie steht als „Sold by your airline“ zum selben Preis im Markt und verschwindet nach dem
-Rückkauf; Übernahme von TAP: Kasse −$141 677 932 (Preis − Kasse der KI), A321 mit 9/19/21/111 Sitzen (Cabin rating 92); Vorbestellung
-4 × 777-200: Anzahlung $117 323 511 abgebucht, Rest $472 803 253, Erstattung bei Storno die Hälfte der Anzahlung.
+Stand: 23.11.2026 · Paket 4.7a erledigt (4.7 geteilt): Kopfzeile, Firma, Monatsbericht und Spielende rechnen mit dem Modell (F67).
+`src/lib/modelReport.ts` (`reportView`) baut für Monatsbericht und Firma dieselben Zeilen: Kosten nach den Posten aus 5.16 und den
+Weg vom Monatsergebnis zur Kassen-Änderung (8.2) mit Abschreibung, Einmalzahlungen, Prämien, Jahresziel und Lieferungen; dazu die
+Kreditlinie. `src/lib/modelCompany.ts` liefert Unternehmenswert (`playerWorth`, E48), Kreditlinie (`creditStatus`, 8.14),
+Karriere-Punkte (`playerScore`, 6.12), Ereignis-Wirkung mit Krisen-Antwort (`eventEffect`, 8.5), Ruf-Wirkung, Flotten-Mischung und
+Ziel-Strafe. Firma: „Fleet value“ = Buchwert, „Company value“ statt „Net worth“; Kopfzeile mit Kredit-Band; Spielende trägt die
+Laufbahn ein und zeigt „bankruptcy“. 17 neue Tests (1424 grün). Im Browser geprüft (Szenario Jet Age, 01/1960, 3 Flugzeuge, keine
+Strecke): Firma vor dem Abschluss Kasse $12 000 000, Fleet value $38 000 000, Company value $50 000 000, Kreditlinie $19,0 Mio.;
+Bericht 01/1960: Ergebnis −$183 138 = Airport upkeep $2 065 + Unterhalt $57 000 + Abschreibung $124 073; „From profit to cash“:
+−183 138 + 124 073 = −$59 065 = Kassen-Änderung; danach Fleet value $37 875 927 (= 38 000 000 − Abschreibung), Company value
+$49 816 862 (= Kasse + Flotte).
+
+Offen aus 4.7a (kein Blocker): (1) 4.7b: Das Ereignis-Band listet die Ereignisse weiter aus `getActiveEvents` (Titel, Text,
+Fragen); nur die Wirkung kommt aus dem Modell. `transferHubs` im Bericht bleibt leer. (2) 5.2: `careerScore` in `src/lib/careerScore.ts`
+(alte Formel, nur noch alter Abschluss; die Halle nutzt weiter `fileCareer`/`hallPosition` dort), `fleetCommonality` (nur noch alter
+Abschluss), `reputationDemandFactor`, `eventReliefFactor` (nur noch alte Vorschau `playerMods`) entfernen. (3) 5.1: eine gemeinsame
+Ruhmeshalle bis `splitHall` (E43); das Feld `netWorth` der Einträge trägt jetzt den Unternehmenswert (alte Einträge: Kasse +
+Verkaufserlöse). (4) Berichte aus 4.2f–4.6b (Modell, aber ohne Feld `cash`) zeigen in „From profit to cash“ nur Ergebnis,
+übrige Einmalausgaben und einen Rest „Other cash movements“ (ihre `capexItems` enthielten keine Flugzeuge). (5) Das Kredit-Band und
+die Bankrott-Anzeige sind mit Tests geprüft, im Browser nicht (Kasse unter 0 nicht erreicht). (6) Kredit-Band und Firma zeigen die
+Kreditlinie mit der Kasse von jetzt (nach Einmalzahlungen); geprüft wird am Monatsende (8.14).
 
 Offen aus 4.6b (kein Blocker): (1) 5.1: Verkauft der Spieler ein Flugzeug, bevor der Welt-Zustand gespeichert ist (erster Monat eines
 neuen Spiels, alte Spielstände bis zum ersten Abschluss), kommt es nicht in den Gebrauchtmarkt. (2) 5.1: Ein weiterverkauftes Flugzeug
 des Spielers mit eigener Kabine (passt zu keiner KI-Persönlichkeit und nicht zur Standard-Kabine) wird mit seinen Sitzen, aber
 Standard-Sitzen verkauft („fittings reset to standard“; Preis aus dieser Kabine, R2 gilt). Genau ginge es nur, wenn der Spielstand die
-Kabine des verkauften Flugzeugs mitführt. (3) 4.7: `fleetValue` in `App.tsx` (Netto-Vermögen, Karriere-Punkte, „Fleet value“) ist jetzt
-Σ Verkaufserlöse des Modells; der Unternehmenswert des Modells (6.12) zählt den Wert (`aircraftValue`). Welche Zahl die Firma zeigt,
-entscheidet 4.7. (4) 5.2: `src/lib/usedMarket.ts`, `src/lib/takeover.ts`, in `src/lib/preorders.ts` `quoteOrder`, `createOrder`,
+Kabine des verkauften Flugzeugs mitführt. (3) erledigt in 4.7a (Fleet value = Buchwert, Company value = `companyValue`). (4) 5.2: `src/lib/usedMarket.ts`, `src/lib/takeover.ts`, in `src/lib/preorders.ts` `quoteOrder`, `createOrder`,
 `orderBalance`, `cancelRefund`, `announcedAircraft`, `settleDeliveries` (nur noch alter Abschluss), `getAircraftResaleValue`,
 `monthlyOwnershipCost` / `fleetOwnershipCost` und `getPlaneSat` (nur noch alte Rechnung) entfernen; ebenso `withDevelopment` in
 `App.tsx` (schreibt `popularity` / `efficiency` an das Flugzeug, das keine Ansicht mehr liest). (5) Gebraucht gekaufte Flugzeuge haben
@@ -80,7 +86,7 @@ Offen aus 4.2g (kein Blocker): (1) erledigt in 4.6b (`takeoverFleet`, Kabine der
 KI-Code) entfernen. (4) erledigt in 4.3 (im Browser geklickt).
 
 Offen aus 4.2f (kein Blocker): (1) 4.3–4.7: Ansichten, Planer und Kopfzeile zeigen die Vorschau noch aus dem alten Modell, gebucht wird
-mit dem neuen (E72) – Zahlen können bis dahin abweichen. (2) erledigt (Kaufpreis 4.6a, Verkaufserlös 4.6b). (3) 4.7: Spielende (`bankrupt`) nur als Meldung, kein eigener Bildschirm; `transferHubs` im Bericht leer.
+mit dem neuen (E72) – Zahlen können bis dahin abweichen. (2) erledigt (Kaufpreis 4.6a, Verkaufserlös 4.6b). (3) Spielende erledigt in 4.7a; `transferHubs` im Bericht leer (4.7b).
 (4) Neue Farbe des Spielers färbt `aiAirlines` und `rivals` getrennt um; mit aufgelösten KI in `rivals` können die Farben bis zum
 nächsten Abschluss abweichen. (5) 5.2: alter `closeMonth` in `src/lib/monthClose.ts` wird nicht mehr aufgerufen.
 
@@ -97,10 +103,10 @@ bis zur Auflösung (`CompetitorsView.tsx:455`) aus dem Modell. (4) erledigt in 4
 Offen aus 4.2c (kein Blocker): (1) erledigt in 4.2f. (2) erledigt in 4.2d. (3) erledigt: die Charter-Antwort kostete schon keine
 Sofortzahlung (Kosten 0, F58). (4) Lieferung einen Monat später als heute (Modell liefert
 im Abschluss des Liefermonats, 8.12); Preis bei Lieferung aus dem Modell; Anzeige der Bestellung aus dem Modell erledigt in 4.6b. (5) Jahresziel:
-Ruf-Prämie und Ruf-Strafe alter Ziele entfallen (E58); Anzeige der Geld-Strafe in 4.7. (6) Meilensteine: Die Oberfläche behält bis 5.1
+Ruf-Prämie und Ruf-Strafe alter Ziele entfallen (E58); Anzeige der Geld-Strafe erledigt in 4.7a. (6) Meilensteine: Die Oberfläche behält bis 5.1
 die alten Kennungen (`continents-*`, `reputation-60/80/95`); die Brücke übersetzt. (7) Szenario: Dollar-Ziele gelten als $ des
 Startmonats (in 1960er $ umgerechnet); `minWeeklyFlights` (Deregulation) und die eigene Untergrenze (−5 M$, 0 $) kennt das Modell nicht
-(8.15: Kreditlinie) – in 5.1 / 5.3 prüfen. (8) `appReport` ist eine Übergangs-Anzeige; die Monatsansicht stellt 4.7 um.
+(8.15: Kreditlinie) – in 5.1 / 5.3 prüfen. (8) erledigt in 4.7a (`reportView`).
 
 Offen aus 4.2b (kein Blocker): Lieferungen legt seit 4.2c `deliveredAircraft` an. `popularity` / `efficiency` am Flugzeug
 schreibt noch der alte Abschluss; die Brücke liest sie nicht (Katalog), Anzeige aus dem Modell in 4.6. Einweg-Umläufe
@@ -305,7 +311,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 4.5c | Strecken-Ansichten: `RouteDetailView.tsx`, `RoutesView.tsx` (Prognose aus `modelRoute.ts` statt `routesWithMetrics` / `toStoredRouteMetrics`; Spalte „Class“ nach E9) | erledigt |
 | 4.6a | Kauf und Umbau: `ConfigurePurchaseView.tsx` (Platz, Interior score, Cabin rating, Preise aus `src/lib/modelCabin.ts`; W4, Texte der Kabinen-Extras), Neupreis in `BuyAircraftView.tsx` (F65) | erledigt |
 | 4.6b | Flotte und Gebrauchtmarkt: `MyFleetView.tsx` („Comb. Sat“ nach E9), `AircraftDetailsModal.tsx` (Art D Alter und Wiederverkauf), `AircraftMarketPanel.tsx` (`usedOffers`), Übernahme-Kabine, Vorbestellungs-Preis | erledigt |
-| 4.7 | Kennzahlen und Anzeigen (`app/GameTopBar.tsx`, `MyCompanyView.tsx`, `app/MonthlyReportScreen.tsx`, `LiveTraffic.tsx`, `CompetitorsView.tsx`; W7, Ereignis-Abschwächung) | offen |
+| 4.7a | Kennzahlen Teil 1: Kopfzeile (Ereignis-Abschwächung, Kreditlinie), Firma (Fleet value, Company value, Karriere-Punkte), Monatsbericht (`reportView`), Spielende (F67) | erledigt |
+| 4.7b | Kennzahlen Teil 2: `LiveTraffic.tsx` (W7), `CompetitorsView.tsx` („Aggression“, Frist bis zur Auflösung), `computeNetworkFinancials` in `App.tsx` (Frequent flyer, Personal-Kosten, Umsteige-Ströme, Transfer-Fluggäste der Flughafen-Ansicht, `transferHubs`) | offen |
 
 ## Phase 5 – Abschluss
 
@@ -387,3 +394,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 22.11.2026 | 4.5c | Strecken-Ansichten nach dem Modell (F64): `routesThisMonth` in `src/lib/modelRoute.ts` (aus `monthOperations`, R2); `App.tsx` baut den Modell-Spielstand im ganzen Spiel, Liste, Streckenansicht und Karte (`routesWithMetrics`, `routeHeat`) lesen ihn; Liste mit „Time index“ (E9), „Forecast / Month“ und „Last month“; Streckenansicht mit Satisfaction 0–160, Service erwartet / geliefert, Erlös je Klasse, Fluggast- und feste Kosten, Planer-Hauptzahl; Planer speichert keine alten Kennzahlen mehr; 5 neue Tests (1386 grün); im Browser FRA–LHR 1960 geprüft (Liste = Planer = Streckenansicht) |
 | 22.11.2026 | 4.6a | Paket 4.6 geteilt; Kauf- und Umbau-Dialog nach dem Modell (F65): `cabinQuote` und Listen der Teile in `src/lib/modelCabin.ts` (Platz 7.5, Interior score mit Teilen 2.3, Type appeal und Cabin rating 2.2/2.4, Kabinen-Listenpreis 5.13, Kaufpreis = Wert 8.12, Umbau-Preis mit Lohn 8.13); `ConfigurePurchaseView.tsx` ohne eigene Tabellen, Preise in $ des Monats, Anzeige nach E9 mit Preis in Teilen; Kaufliste „New Price“ mit Kostenindex; Hinweis zu `menuPoints` im Kabinen-Fenster der Strecke; 8 neue Tests (1394 grün); im Browser geprüft (A330-300 2010: Kauf und Umbau buchen genau den angezeigten Preis). |
 | 22.11.2026 | 4.6b | Flotte, Flugzeug-Details, Gebrauchtmarkt, Übernahme-Kabine und Vorbestellung nach dem Modell (F66): `src/lib/modelFleet.ts` (`planeFigures`, `planeUpkeep`, `usedMarket`, `stateCabin`, `takeoverFleet`, `preorderQuote`); Flotte mit „Cabin rating (avg.)“ und Type appeal (E9), Detail-Fenster mit Alter, Cabin rating je Klasse, Unterhalt und Marktwert aus dem Modell (Art D „Alter“, „Wiederverkauf“); Verkauf zu `saleProceeds`, verkaufte Flugzeuge im Gebrauchtmarkt; Gebrauchtkauf mit Kabine und Baumonat; Übernahme mit der Kabine der KI; Vorbestellung mit Rabatt, Anzahlung und Rest des Modells; 13 neue Tests (1407 grün); im Browser geprüft (alle Beträge = Buchung) |
+| 23.11.2026 | 4.7a | Paket 4.7 geteilt; Kopfzeile, Firma, Monatsbericht und Spielende nach dem Modell (F67): `src/lib/modelReport.ts` (`reportView`: Posten aus 5.16, Weg vom Ergebnis zur Kasse 8.2, Kreditlinie), `src/lib/modelCompany.ts` (`playerWorth`, `creditStatus`, `playerScore`, `eventEffect`, `fleetMix`, `goalMissPenalty`); Bericht speichert alle Einmalzahlungen und `cash`; Firma mit Buchwert und Unternehmenswert; Kredit-Band in der Kopfzeile; Bankrott trägt die Laufbahn ein; 17 neue Tests (1424 grün) |

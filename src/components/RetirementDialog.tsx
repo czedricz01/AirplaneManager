@@ -13,19 +13,21 @@ interface Props {
   /** Where the career stands in the hall, 1-based; null when it did not make it. */
   position: number | null;
   hall: HallOfFameEntry[];
+  /** The career ended in bankruptcy (docs/neubau 8.14), not by choice. */
+  bankrupt?: boolean;
   onKeepPlaying: () => void;
   onMainMenu: () => void;
 }
 
-/** The final report of a career the player has chosen to file. */
-export function RetirementDialog({ open, airline, score, entry, position, hall, onKeepPlaying, onMainMenu }: Props) {
+/** The final report of a career the player has chosen to file, or that a bankruptcy ended. */
+export function RetirementDialog({ open, airline, score, entry, position, hall, bankrupt, onKeepPlaying, onMainMenu }: Props) {
   return (
     <Modal
       open={open && !!entry}
       size="lg"
       layer="top"
       onClose={onKeepPlaying}
-      title={`${airline || 'Your airline'}: final report`}
+      title={`${airline || 'Your airline'}: ${bankrupt ? 'bankruptcy' : 'final report'}`}
       icon={<Trophy size={16} aria-hidden="true" />}
       footer={
         <div className="flex gap-2 justify-end">
@@ -39,9 +41,14 @@ export function RetirementDialog({ open, airline, score, entry, position, hall, 
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div className="text-3xl font-mono font-semibold text-accent tabular-nums">{formatNumber(score.total)} points</div>
             <div className="text-2xs text-muted">
-              {rankDef(entry.rank).title} · {entry.years} year{entry.years === 1 ? '' : 's'} · net worth {formatMoneyCompact(entry.netWorth)}
+              {rankDef(entry.rank).title} · {entry.years} year{entry.years === 1 ? '' : 's'} · company value {formatMoneyCompact(entry.netWorth)}
             </div>
           </div>
+          {bankrupt && (
+            <p className="text-xs text-bad leading-relaxed">
+              Cash stayed below the credit line and no aircraft were left to sell. The career ends here and is filed as at a retirement.
+            </p>
+          )}
           <p className="text-xs text-muted leading-relaxed">
             {position !== null
               ? `Filed in the hall of fame at position ${position}.`

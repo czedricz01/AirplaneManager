@@ -92,7 +92,6 @@ function input(over: Partial<ModelCloseInput> = {}): ModelCloseInput {
     autosaveInterval: 0,
     freeMode: false,
     latestReport: null,
-    fleetValue: 0,
     getFuelData: () => ({ price: 2, trend: '0%' }),
     getBaseGlobalDemand: () => ({ value: 1, trend: '0%' }),
     ...over,
