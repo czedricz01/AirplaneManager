@@ -6,8 +6,7 @@ import type { MonthlyReport, ViewState } from '../../lib/gameTypes';
 
 const FinancialReport = React.lazy(() => import('../FinancialReport').then(m => ({ default: m.FinancialReport })));
 import { LazyFallback } from '../ui/LazyFallback';
-import { formatCurrency, formatNumber } from '../../lib/format';
-import { ReportIncident } from '../../lib/gameState';
+import { reportView } from '../../lib/modelReport';
 import { IncidentList } from '../IncidentList';
 import { ChevronRight, Newspaper } from 'lucide-react';
 
@@ -25,6 +24,7 @@ export interface MonthlyReportScreenProps {
 export function MonthlyReportScreen({
   latestReport, formatDate, currentDateOffset, airlineName, airlineCode, setView, edition, setIsNewspaperOpen
 }: MonthlyReportScreenProps) {
+  const view = React.useMemo(() => (latestReport ? reportView(latestReport) : null), [latestReport]);
   return (
     <>
               <div
@@ -50,130 +50,34 @@ export function MonthlyReportScreen({
                   <div className="mb-6 bar:mb-3 short:mb-3 max-h-[60vh] bar:max-h-none short:max-h-none overflow-y-auto bar:overflow-visible short:overflow-visible pr-4 bar:pr-0 short:pr-0">
                    <ErrorBoundary label="Monthly Report" onReset={() => setView('game')} resetLabel="Continue">
                     <React.Suspense fallback={<LazyFallback label="Monthly Report" />}>
-                    {latestReport ? (
+                    {latestReport && view ? (
                       <>
+                      {/* Costs by the model's items (docs/neubau 5.16) and the way from the profit to the cash
+                          (8.2): one function builds both for this screen and the company view. */}
                       <FinancialReport
                          title="Monthly Financial Overview"
                          netProfit={latestReport.totalProfit}
                          totalRevenue={latestReport.routeRevenues}
-                         revenues={(latestReport.routes || []).map(r => ({
-                           label: `${r.name}${(r.capacity ?? 0) > 0 ? ` (${Math.round(((r.paxPerWeek ?? 0) / (r.capacity ?? 1)) * 100)}% LF)` : ''}${(r.transferPax ?? 0) > 0 ? ` incl. ${formatNumber(r.transferPax ?? 0)} transfer pax/wk` : ''}`,
-                           amount: r.revenue
-                         }))}
-                         expenses={[
-                           {
-                             id: 'routeCosts',
-                             label: 'Route Operational Costs',
-                             total: latestReport.routeCosts,
-                             items: [
-                               { label: `Jet Fuel (${formatNumber(latestReport.breakdown.fuelLiters || 0)} L @ $${(latestReport.breakdown.fuelPriceL || 0).toFixed(3)})`, amount: latestReport.breakdown.fuel },
-                               { label: 'In-Flight Catering & Amenities', amount: latestReport.breakdown.catering },
-                               { label: 'Flight Crew & Ground Staff Salaries', amount: latestReport.breakdown.staff },
-                               { label: 'Landing & passenger fees', amount: latestReport.breakdown.routeInfra }
-                             ]
-                           },
-                           {
-                             id: 'airportCosts',
-                             label: 'Airport & Hub Upkeep',
-                             total: latestReport.airportUpkeep,
-                             items: [
-                               { label: 'Base Management & Slot Maintenance', amount: latestReport.breakdown.mgt },
-                               { label: 'Check-in & Service Desk Operations', amount: latestReport.breakdown.desks }
-                             ]
-                           },
-                           // Insurance and maintenance of every aircraft, flying or parked.
-                           ...((latestReport.breakdown.fleetOwnership || 0) > 0 ? [{
-                             id: 'fleetOwnership',
-                             label: 'Aircraft Ownership',
-                             total: latestReport.breakdown.fleetOwnership,
-                             items: [
-                               { label: 'Insurance & maintenance programme', amount: latestReport.breakdown.fleetOwnership - (latestReport.breakdown.fleetParked || 0) },
-                               ...((latestReport.breakdown.fleetParked || 0) > 0
-                                 ? [{ label: `Parked aircraft (${latestReport.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latestReport.breakdown.fleetParked }]
-                                 : [])
-                             ]
-                           }] : []),
-                           // What the rivals landing at an airport owned outright pay the airline.
-                           ...((latestReport.breakdown.hubIncome || 0) > 0 ? [{
-                             id: 'hubIncome',
-                             label: 'Airport Ownership Income',
-                             variant: 'net' as const,
-                             total: latestReport.breakdown.hubIncome,
-                             items: latestReport.hubIncomeItems || []
-                           }] : []),
-                           // Only in months with campaigns or the frequent-flyer
-                           // programme running; older reports have no such line.
-                           ...((latestReport.breakdown.marketing || 0) > 0 ? [{
-                             id: 'marketing',
-                             label: 'Marketing & Loyalty',
-                             total: latestReport.breakdown.marketing,
-                             items: latestReport.marketingItems || [
-                               { label: 'Advertising campaigns', amount: latestReport.breakdown.marketingCampaigns || 0 },
-                               { label: 'Frequent flyer programme', amount: latestReport.breakdown.ffp || 0 }
-                             ]
-                           }] : []),
-                           // Only in months with a charter (older reports: also repair bills).
-                           ...((latestReport.breakdown.incidents || 0) > 0 ? [{
-                             id: 'incidents',
-                             label: 'Incident repairs & charters',
-                             total: latestReport.breakdown.incidents,
-                             items: (latestReport.incidents || [])
-                               .filter((i: ReportIncident) => (i.cost || 0) > 0)
-                               .map((i: ReportIncident) => ({ label: i.title, amount: i.cost || 0 }))
-                           }] : []),
-                           // Only in reports closed before slots were paid for on the
-                           // spot: they were billed into that month's result then.
-                           // Slots bought since are a capex item ('Airport Slots').
-                           // Signed: selling slots back refunds money.
-                           ...((latestReport.breakdown.purchasedSlots || 0) !== 0 ? [{
-                             id: 'slots',
-                             label: 'Slot purchases & refunds',
-                             variant: 'net' as const,
-                             total: -latestReport.breakdown.purchasedSlots,
-                             items: [{
-                               label: latestReport.breakdown.purchasedSlots > 0 ? 'Slot rights bought this month' : 'Slot rights sold back this month',
-                               amount: -latestReport.breakdown.purchasedSlots
-                             }]
-                           }] : []),
-                           // These left the bank account but are not part of the
-                           // operating profit above — without them the profit and
-                           // the change in capital never reconcile.
-                           // Signed as well: aircraft sales come in here.
-                           ...((latestReport.capexItems || []).some(i => i.amount !== 0) ? [{
-                             id: 'capex',
-                             label: 'One-off investments & sales (below the line)',
-                             variant: 'net' as const,
-                             total: -(latestReport.capex || 0),
-                             items: (latestReport.capexItems || [])
-                               .filter(i => i.amount !== 0)
-                               .map(i => ({ label: i.label, amount: -i.amount }))
-                           }] : []),
-                           ...(latestReport.routes && latestReport.routes.length > 0 ? [{
-                             id: 'routeBreakdown',
-                             label: 'Route Breakdown',
-                             // Profits and losses per route, not deductions — see
-                             // the 'net' variant in FinancialReport.
-                             variant: 'net' as const,
-                             total: latestReport.routes.reduce((sum, r) => sum + r.profit, 0),
-                             items: latestReport.routes.map(r => ({
-                               label: `${r.name} (Rev: ${formatCurrency(r.revenue)}, Exp: ${formatCurrency(r.cost)})`,
-                               amount: r.profit
-                             }))
-                           }] : [])
-                         ]}
+                         revenues={view.revenues}
+                         expenses={view.routes ? [...view.expenses, view.routes] : view.expenses}
                          defaultOpen={true}
                       />
                       <IncidentList incidents={latestReport.incidents} className="mt-4" />
-                      {/* Operating profit and the change in the bank balance are
-                          different numbers whenever anything was bought. Stating
-                          both, next to each other, is what makes the report add up. */}
-                      <div className="mt-4 flex items-center justify-between border border-line bg-ground/30 px-4 py-3 text-xs">
-                        <span className="uppercase tracking-label text-muted font-semibold">Cash change this month</span>
-                        <span className={(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? 'text-good font-semibold' : 'text-bad font-semibold'}>
-                          {(latestReport.cashChange ?? latestReport.totalProfit) >= 0 ? '+' : ''}
-                          {formatCurrency(latestReport.cashChange ?? latestReport.totalProfit)}
-                        </span>
+                      {/* Operating profit and the change in the bank balance are different numbers whenever
+                          anything was bought, sold or paid at the close. The lines say why. */}
+                      <div className="mt-4">
+                        <FinancialReport
+                           title="Cash change this month"
+                           netProfit={view.cash.total}
+                           expenses={[view.cash]}
+                           defaultOpen={true}
+                        />
                       </div>
+                      {view.credit && (
+                        <p className={`mt-3 text-xs ${view.credit.state === 'overdrawn' ? 'text-bad' : view.credit.state === 'credit' ? 'text-ink' : 'text-muted'}`}>
+                          {view.credit.text}
+                        </p>
+                      )}
                       </>
                     ) : (
                       <div className="h-64 flex items-center justify-center text-muted">

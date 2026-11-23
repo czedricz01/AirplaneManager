@@ -17,7 +17,8 @@ import { yearOf } from '../model/basics';
 import { MILESTONES, RANKS, REPORT_HISTORY_MONTHS, RESEARCH_PROJECTS, type RivalStrength } from '../model/constants';
 import { birdStrikeCost } from '../model/monthEvents';
 import { closeMonth, type CloseNews, type CompanyState, type MonthReport, type ModelAirport, type ModelState } from '../model/monthClose';
-import { rivalDecisions, rivalRefill, showRivalNews, type RivalNewsKind } from '../model/rivalMonth';
+import { companyValueOf, rivalDecisions, rivalRefill, showRivalNews, type RivalNewsKind } from '../model/rivalMonth';
+import { companyValue } from '../model/progress';
 import { rivalStrengthOf } from '../model/rivals';
 import type { AnnualGoal as AppGoal } from './annualGoals';
 import type { HistoricalEvent } from './eventSystem';
@@ -246,6 +247,8 @@ export interface AppMonth {
   readonly disruptions: readonly AppDisruption[];
   /** Spielende des Spielers (8.14). */
   readonly bankrupt: boolean;
+  /** Unternehmenswert des Spielers nach dem Abschluss (6.12, E48: Kasse, Flugzeuge, Slots, Anzahlungen), im Monat X+1. */
+  readonly companyValue: number;
   /** Nachrichten für den Posteingang, neueste zuerst. */
   readonly messages: readonly GameMessage[];
   /** Was das Modell gerechnet hat: Bericht des Spielers, alle Meldungen, Prüf-Fehler (8.16). */
@@ -318,6 +321,7 @@ export function runModelMonth(
     morale: player.inputs.morale,
     fleetSize: fleet.length,
     routeCount: ops.routes.length,
+    capex: g.monthlyCapex,
   });
 
   // KI und Welt (Teil 3).
@@ -373,6 +377,7 @@ export function runModelMonth(
     randomEvents: world.randomEvents,
     disruptions: world.disruptions,
     bankrupt: result.bankrupt.includes(PLAYER_ID),
+    companyValue: companyValue(companyValueOf(player, next.month)),
     messages,
     modelReport,
     news: result.news,

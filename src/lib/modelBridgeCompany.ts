@@ -496,13 +496,16 @@ export interface AppReportContext {
   readonly morale: number;
   readonly fleetSize: number;
   readonly routeCount: number;
+  /** Alle Einmalausgaben des Monats, wie der Spieler sie bezahlt hat (`monthlyCapex`; Flugzeuge eingeschlossen). */
+  readonly capex: readonly CapexItem[];
 }
 
 /**
- * Bericht des Modells als Bericht der Oberfläche (`MonthlyReport`), bis 4.7 die Monatsansicht auf das Modell umstellt.
- * Monatswerte; Strecken-Zahlen (je Woche) × `WEEKS_PER_MONTH`. `routeCosts` = alle Kosten außer „Airport upkeep“,
- * `capexItems` = Einmalausgaben ohne Ergebnis-Wirkung (`otherSpending`), `cashChange` = Kasse Ende − Anfang.
- * `breakdown` mit den Posten aus 5.16 unter den bisherigen Schlüsseln, wo es sie gab.
+ * Bericht des Modells als Bericht der Oberfläche (`MonthlyReport`); die Anzeige baut `reportView`
+ * (`src/lib/modelReport.ts`). Monatswerte; Strecken-Zahlen (je Woche) × `WEEKS_PER_MONTH`. `routeCosts` = alle Kosten
+ * außer „Airport upkeep“, `capexItems` = alle Einmalausgaben des Monats (`ctx.capex`), `cashChange` = Kasse Ende −
+ * Anfang, `cash` = Kasse am Anfang, Prämien, Jahresziel, Flottenwert, Kreditlinie, gestrichene Flüge, Zwangsverkäufe
+ * (8.2, 8.14). `breakdown` mit den Posten aus 5.16.
  */
 export function appReport(report: MonthReport, ctx: AppReportContext): MonthlyReport {
   const W = WEEKS_PER_MONTH;
@@ -511,7 +514,7 @@ export function appReport(report: MonthReport, ctx: AppReportContext): MonthlyRe
     const r = ctx.routes.find((x) => x.id === id);
     return r ? `${r.origin}-${r.destination} (${r.aircraft})` : id;
   };
-  const capexItems: ReportLine[] = Object.entries(report.otherSpending).map(([label, amount]) => ({ label, amount }));
+  const capexItems: ReportLine[] = ctx.capex.filter((i) => i.amount !== 0).map(({ label, amount }) => ({ label, amount }));
   const classSum = (f: Readonly<Record<string, number>>) => sum(Object.values(f));
   const regions = new Set<RegionId>();
   for (const r of ctx.routes) {
@@ -567,6 +570,16 @@ export function appReport(report: MonthReport, ctx: AppReportContext): MonthlyRe
     fleetSize: ctx.fleetSize,
     routeCount: ctx.routeCount,
     regions: [...regions].sort(),
+    cash: {
+      start: report.cashStart,
+      milestonePrizes: report.milestonePrizes,
+      goal: report.goalCash,
+      fleetValue: report.fleetValueEnd,
+      creditLimit: report.creditLimit,
+      creditState: report.creditState,
+      cancelledShare: report.cancelledShare,
+      forcedSales: [...report.forcedSales],
+    },
   };
 }
 

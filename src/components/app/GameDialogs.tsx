@@ -26,7 +26,7 @@ export interface GameDialogsProps {
   setPendingDecision: React.Dispatch<React.SetStateAction<HistoricalEvent | null>>;
   pendingDecisions: GameDecision[];
   resolveDecision: (decisionId: string, optionId: string) => void;
-  retirement: { entry: HallOfFameEntry; position: number | null; } | null;
+  retirement: { entry: HallOfFameEntry; position: number | null; bankrupt?: boolean; } | null;
   airlineName: string;
   score: ScoreBreakdown;
   hall: HallOfFameEntry[];
@@ -158,6 +158,7 @@ export function GameDialogs({
             score={score}
             entry={retirement?.entry ?? null}
             position={retirement?.position ?? null}
+            bankrupt={retirement?.bankrupt}
             hall={hall}
             onKeepPlaying={() => setRetirement(null)}
             onMainMenu={() => { setRetirement(null); returnToMainMenu(); }}

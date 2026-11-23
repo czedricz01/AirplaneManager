@@ -16,7 +16,7 @@ import { aircraftList } from '../data/aircraft';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 import { scenarioById } from '../data/scenarios';
 import { describeGoal } from './annualGoals';
-import { bestStars, careerScore, starsFor, type ScenarioStars } from './careerScore';
+import { bestStars, starsFor, type ScenarioStars } from './careerScore';
 import { appendChronicle, chronicleEntriesForMonth, departureMarketShare, regionsServed } from './chronicle';
 import {
   MAJOR_DISRUPTION_SHARE,
@@ -44,7 +44,7 @@ import { rivalCompanyId } from './modelBridgeWorld';
 import { PLAYER_ID, defaultModelEnv, runModelMonth, type AppGame, type AppMonth, type ModelEnv } from './modelMonth';
 import { buildEventEndMessage, buildEventStartMessage, buildRivalOffers, offsetToDateStr } from './monthClose';
 import { buildEdition, rivalMoves, type Edition } from './newspaper';
-import { CLASS_PROJECTS } from './research';
+import { playerScore } from './modelCompany';
 import { STRIKE_MORALE_THRESHOLD, buildStrikeDecision } from './staff';
 import { MILESTONES, RANKS } from '../model/constants';
 
@@ -59,8 +59,6 @@ export interface ModelCloseInput extends AppGame {
   readonly freeMode: boolean;
   /** Bericht des Vormonats (Zeitung). */
   readonly latestReport: MonthlyReport | null;
-  /** Wert der Flotte (Jubiläum, Karriere-Punkte). */
-  readonly fleetValue: number;
   /** Treibstoff und Nachfrage für die Kurse der Zeitung (Anzeige der Kopfzeile, bis 4.7). */
   readonly getFuelData: (offset: number) => { price: number; trend: string };
   readonly getBaseGlobalDemand: (offset: number) => { value: number; trend: string };
@@ -271,14 +269,16 @@ export function modelMonthClose(input: ModelCloseInput, env: ModelEnv = defaultM
   // Jubiläum alle zehn Jahre.
   if (next > input.startMonth && (next - input.startMonth) % 120 === 0) {
     const years = (next - input.startMonth) / 12;
-    const score = careerScore({
-      netWorth: month.capital + input.fleetValue,
+    // Karriere-Punkte nach dem Modell (6.12) mit dem Unternehmenswert nach dem Abschluss (E48).
+    const score = playerScore({
+      companyValue: month.companyValue,
+      month: next,
       rank: month.career.rank,
       free: input.freeMode,
       milestones: month.milestones.length,
       reputation: month.reputation,
       takeovers: month.career.takeovers,
-      projectsDone: Math.max(0, month.career.research.done.length - (input.freeMode ? CLASS_PROJECTS.length : 0)),
+      researchDone: month.career.research.done,
       years,
     });
     extra.push({

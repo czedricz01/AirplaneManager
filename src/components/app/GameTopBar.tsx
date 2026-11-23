@@ -10,6 +10,8 @@ import { Button } from '../ui/Button';
 import { LITRES_PER_GALLON, formatCurrency, formatNumber } from '../../lib/format';
 import { AlertTriangle, Bell, Newspaper, X } from 'lucide-react';
 import { eventRegionLabel } from '../../lib/eventSystem';
+import { eventEffect, type CreditStatus } from '../../lib/modelCompany';
+import { CREDIT_LIMIT_SHARE, CREDIT_RATE } from '../../model/constants';
 
 export interface GameTopBarProps {
   capital: number;
@@ -49,10 +51,25 @@ export interface GameTopBarProps {
   setShowExitSavePrompt: React.Dispatch<React.SetStateAction<boolean>>;
   activeWorldEvents: { monthsLeft: number; chosen: EventChoice | undefined; startOffset: number; duration: number; title: string; description: string; demandMultiplier: number; fuelMultiplier: number; choices?: EventChoice[]; regions?: EventRegion[]; }[];
   setPendingDecision: React.Dispatch<React.SetStateAction<HistoricalEvent | null>>;
+  /** The credit line by the model (docs/neubau 8.14). */
+  credit: CreditStatus;
+  /** Titles of the events whose demand recovery the player bought (8.5). */
+  recoveredEvents: readonly string[];
+}
+
+const signedPct = (m: number) => `${m >= 1 ? '+' : ''}${((m - 1) * 100).toFixed(0)}%`;
+
+/** The warning under the bar while cash is below zero (8.14), texts from the model's constants. */
+function creditText(credit: CreditStatus): string {
+  if (credit.state === 'credit') {
+    return `Interest ${formatNumber(CREDIT_RATE * 100)}% a year on the amount used. The credit line is ${formatNumber(CREDIT_LIMIT_SHARE * 100)}% of the fleet value; purchases need cash above zero.`;
+  }
+  const when = credit.closesToForcedSale === 1 ? 'at the next month close' : `in ${credit.closesToForcedSale} month closes`;
+  return `Cash is below the credit line. If it still is at the month's end, the bank sells an aircraft ${when}; with no aircraft left the airline is bankrupt.`;
 }
 
 export function GameTopBar({
-  capital, fleet, routes, reputation, globalDemandData, fuelData, formatDate, currentDateOffset, messagesHover, setIsMessagesOpen, isMessagesOpen, setMessages, messages, unreadMessagesCount, edition, setIsNewspaperOpen, setSelectedMessage, mapSettingsHover, setIsMapSettingsOpen, isMapSettingsOpen, showYourRoutes, setShowYourRoutes, showRivalRoutes, setShowRivalRoutes, showLiveTraffic, setShowLiveTraffic, gameSettings, setGameSettings, gameMenuHover, setIsGameMenuOpen, isGameMenuOpen, setShowSaveMenu, setIsSettingsOpen, fullscreen, setShowExitSavePrompt, activeWorldEvents, setPendingDecision
+  capital, fleet, routes, reputation, globalDemandData, fuelData, formatDate, currentDateOffset, messagesHover, setIsMessagesOpen, isMessagesOpen, setMessages, messages, unreadMessagesCount, edition, setIsNewspaperOpen, setSelectedMessage, mapSettingsHover, setIsMapSettingsOpen, isMapSettingsOpen, showYourRoutes, setShowYourRoutes, showRivalRoutes, setShowRivalRoutes, showLiveTraffic, setShowLiveTraffic, gameSettings, setGameSettings, gameMenuHover, setIsGameMenuOpen, isGameMenuOpen, setShowSaveMenu, setIsSettingsOpen, fullscreen, setShowExitSavePrompt, activeWorldEvents, setPendingDecision, credit, recoveredEvents
 }: GameTopBarProps) {
   return (
     <>
@@ -186,6 +203,21 @@ export function GameTopBar({
                   </div>
                 </div>
 
+                {/* The credit line while cash is below zero (docs/neubau 8.14): how much is used and, when overdrawn,
+                    how many closes are left before the bank sells an aircraft. */}
+                {credit.state !== 'healthy' && (
+                  <div className={`bg-surface border-b border-line border-l-[3px] ${credit.state === 'overdrawn' ? 'border-l-bad' : 'border-l-accent'} text-ink px-3.5 py-2 flex items-center gap-3 z-40 shrink-0`}>
+                    <AlertTriangle className={`${credit.state === 'overdrawn' ? 'text-bad' : 'text-accent'} shrink-0`} size={16} />
+                    <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-4 min-w-0">
+                      <span className={`font-label font-semibold text-sm shrink-0 ${credit.state === 'overdrawn' ? 'text-bad' : ''}`}>
+                        {credit.state === 'overdrawn' ? 'Overdrawn' : 'Credit used'}
+                      </span>
+                      <span className="text-xs font-mono shrink-0 whitespace-nowrap">{formatCurrency(credit.used)} of {formatCurrency(credit.limit)}</span>
+                      <span className="text-xs text-muted">{creditText(credit)}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Active Events Banner. The banner itself already existed; what it
                     never said was how much longer the event runs, which is the one
                     thing a player needs in order to decide whether to ride it out. */}
@@ -213,16 +245,12 @@ export function GameTopBar({
                          )}
                          <span className="text-xs text-muted truncate">{ev.description}</span>
                          <span className="text-xs font-mono text-bad md:ml-auto whitespace-nowrap">
-                            {/* What the player actually gets: bought relief softens the
-                                event's demand hit (see eventReliefFactor). The banner
-                                used to show the raw hit even after paying for relief. */}
+                            {/* What the player actually gets, by the model (docs/neubau 8.5): a bought demand
+                                recovery softens the event's hit on the player's passengers. Fuel is not shown
+                                here: the model has no event factor on fuel (E8), the price is in the Fuel figure. */}
                             {(() => {
-                              const softens = ev.chosen?.softensDemand;
-                              const effective = softens && ev.demandMultiplier < 1
-                                ? ev.demandMultiplier + (1 - ev.demandMultiplier) * softens
-                                : ev.demandMultiplier;
-                              const pct = (m: number) => `${m >= 1 ? '+' : ''}${((m - 1) * 100).toFixed(0)}%`;
-                              return `PAX${eventRegionLabel(ev) ? ` (${eventRegionLabel(ev)})` : ''}: ${pct(effective)}${effective !== ev.demandMultiplier ? ` (market ${pct(ev.demandMultiplier)})` : ''}${ev.regions?.length ? '' : ` | FUEL: ${pct(ev.fuelMultiplier)}`}`;
+                              const effect = eventEffect(ev.title, ev.demandMultiplier, recoveredEvents);
+                              return `PAX${eventRegionLabel(ev) ? ` (${eventRegionLabel(ev)})` : ''}: ${signedPct(effect.player)}${effect.player !== effect.market ? ` (market ${signedPct(effect.market)})` : ''}`;
                             })()}
                          </span>
                       </div>

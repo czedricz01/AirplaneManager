@@ -75,6 +75,30 @@ export interface MonthlyReport extends ReportMetrics {
   incidents?: ReportIncident[];
   /** Rival landings at the airports the airline owns (tier 3), one line per airport. */
   hubIncomeItems?: ReportLine[];
+  /**
+   * Cash and credit of the month as the model books them (docs/neubau 8.2, 8.14); absent in reports closed before
+   * package 4.7a. With it, `capexItems` holds every one-off payment of the month (aircraft included).
+   */
+  cash?: ReportCash;
+}
+
+/** What a report closed on the model knows about cash and credit (docs/neubau 8.2, 8.14). */
+export interface ReportCash {
+  /** Cash at the start of the month, before the month's one-off payments. */
+  start: number;
+  /** Milestone prizes paid at the close (6.10). */
+  milestonePrizes: number;
+  /** December: the board goal's reward (+) or penalty (−) (6.11); otherwise 0. */
+  goal: number;
+  /** Σ aircraft value at the month's end (5.13). */
+  fleetValue: number;
+  /** Credit limit at the month's end (8.14). */
+  creditLimit: number;
+  creditState: 'healthy' | 'credit' | 'overdrawn';
+  /** Share of planned flights cancelled (6.3), 0 … 1. */
+  cancelledShare: number;
+  /** Aircraft sold by the bank at this close (8.14), registrations. */
+  forcedSales: string[];
 }
 
 export type ManagementLevel = 0 | 1 | 2 | 3; // 0: None, 1: Basic, 2: Hub, 3: Owner

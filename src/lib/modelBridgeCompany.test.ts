@@ -370,7 +370,7 @@ describe('Ein Monat über die Brücke (4.2c)', () => {
 
     const report = reports.player;
     assert.equal(report.deliveries[0].outcome, 'deliver');
-    const r = appReport(report, { routes: ops.routes, airports: AIRPORTS, morale: company.inputs.morale, fleetSize: company.aircraft.length, routeCount: company.routes.length });
+    const r = appReport(report, { routes: ops.routes, airports: AIRPORTS, morale: company.inputs.morale, fleetSize: company.aircraft.length, routeCount: company.routes.length, capex: [] });
     assert.deepEqual([r.month, r.year], [6, 1995]);
     assert.equal(r.totalProfit, report.result);
     assert.equal(r.capitalAfter, company.cash);

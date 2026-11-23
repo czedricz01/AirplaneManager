@@ -63,7 +63,7 @@ import {
 import { withTradeValue, type LedgerValues } from "./lib/modelBridgeCompany";
 import { modelRivals, modelWorldEvent, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
 import { rivalSlotsByAirport, tierPrice, type AirportPricing } from "./lib/modelAirport";
-import { modelMilestones } from "./lib/modelBridgeCompany";
+import { crisisResponses, modelMilestones } from "./lib/modelBridgeCompany";
 import { defaultModelEnv, modelGame, planesValue } from "./lib/modelMonth";
 import { routesThisMonth, type PlannerModel, type RouteMonth } from "./lib/modelRoute";
 import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
@@ -89,11 +89,10 @@ import {
   type AnnualGoal
 } from "./lib/annualGoals";
 import { setFeeFactor } from "./lib/economyContext";
-import { fleetCommonality } from "./lib/fleetCosts";
+import { creditStatus, fleetMix, playerScore, playerWorth } from "./lib/modelCompany";
 import type { ResoldPlane } from "./model/monthClose";
 import { planeFigures, preorderFigures, preorderOf, preorderQuote, resoldPlane, takeoverFleet, usedPurchase, withoutResold, type UsedListing } from "./lib/modelFleet";
 import {
-  careerScore,
   fileCareer,
   hallPosition,
   normalizeHall,
@@ -103,7 +102,6 @@ import {
   type ScenarioStars
 } from "./lib/careerScore";
 import {
-  CLASS_PROJECTS,
   boostedEfficiency,
   boostedPopularity,
   projectById,
@@ -308,7 +306,7 @@ export default function App() {
   /** Best stars per scenario, kept per account in this browser. */
   const [scenarioStars, setScenarioStars] = useState<ScenarioStars>({});
   /** The final report of a retired career, shown until closed. Not saved. */
-  const [retirement, setRetirement] = useState<{ entry: HallOfFameEntry; position: number | null } | null>(null);
+  const [retirement, setRetirement] = useState<{ entry: HallOfFameEntry; position: number | null; bankrupt?: boolean } | null>(null);
   /** The airline's history, newest last. */
   const [chronicle, setChronicle] = useState<ChronicleEntry[]>([]);
   /** The tutorial step on screen; null once finished or skipped, and for loaded older saves. */
@@ -514,11 +512,6 @@ export default function App() {
   const [startDateOffset, setStartDateOffset] = useState(0); // 0 = 01/1960
   const [currentDateOffset, setCurrentDateOffset] = useState(0);
 
-  /** What the whole fleet would fetch on the market this month (model 8.11: value less the dealer's spread, with research). */
-  const fleetValue = useMemo(
-    () => fleet.reduce((sum, p) => sum + planeFigures(p, currentDateOffset, career.research.done).saleProceeds, 0),
-    [fleet, currentDateOffset, career.research.done]
-  );
   
   const [uiScaleSetting, setUiScaleSettingState] = useState(() => {
     const stored = parseFloat(readString('aero_ui_scale') || '');
@@ -743,7 +736,7 @@ export default function App() {
   const regionRouteCounts = useMemo(() => routesByRegion(routes, airportsMapAdjusted), [routes]);
 
   /** What the fleet's make-up does to maintenance, for My Company. */
-  const commonality = useMemo(() => fleetCommonality(fleet), [fleet]);
+  const commonality = useMemo(() => fleetMix(fleet), [fleet]);
 
   /** The figures the rank is judged on, as they stand now, for the Career tab. */
   const yearsInBusiness = yearsPlayed(currentDateOffset - startDateOffset);
@@ -790,29 +783,19 @@ export default function App() {
     setToast(`Goal for ${goal.year}: ${describeGoal(goal, formatCurrency, formatNumber)}`);
   }, []);
 
-  /** The career so far, as a score; see careerScore.ts. */
-  const score = useMemo(() => careerScore({
-    netWorth: capital + fleetValue,
-    rank: career.rank,
-    free: freeMode,
-    milestones: milestones.length,
-    reputation,
-    takeovers: career.takeovers,
-    // A Free Mode airline starts with every class developed; those do not count.
-    projectsDone: Math.max(0, career.research.done.length - (freeMode ? CLASS_PROJECTS.length : 0)),
-    years: yearsInBusiness
-  }), [capital, fleetValue, career.rank, freeMode, milestones.length, reputation, career.takeovers, career.research.done.length, yearsInBusiness]);
-
-  /** Files the career in the hall of fame and shows the final report; the game can carry on. */
-  const handleRetire = () => {
+  /**
+   * Files the career in the hall of fame and shows the final report; the game can carry on. Retiring files the score
+   * of today; at a bankruptcy (docs/neubau 8.14) the month close files the score after the close.
+   */
+  const fileCareerEntry = (total: number, companyValueNow: number, rank: number, years: number, bankrupt: boolean) => {
     const entry: HallOfFameEntry = {
       id: (currentSaveId || `career_${Date.now()}`).split('_auto_')[0],
       airline: airlineName || 'Neo Airlines',
       code: airlineCode,
-      score: score.total,
-      rank: career.rank,
-      years: yearsInBusiness,
-      netWorth: capital + fleetValue,
+      score: total,
+      rank,
+      years,
+      netWorth: companyValueNow,
       filed: new Date().toISOString(),
       mode: career.mode
     };
@@ -820,8 +803,9 @@ export default function App() {
     const next = fileCareer(hall, entry);
     setHall(next);
     writeJson('neo_hall_of_fame', next);
-    setRetirement({ entry, position });
+    setRetirement({ entry, position, bankrupt });
   };
+  const handleRetire = () => fileCareerEntry(score.total, worth.companyValue, career.rank, yearsInBusiness, false);
 
   /** The hub's region: where a global campaign is booked from, for the record. */
   const homeRegion = useMemo<RegionId>(() => {
@@ -1134,7 +1118,7 @@ export default function App() {
       month: currentDateOffset, startMonth: startDateOffset, airlineCode, brandingColor: branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
       capital, monthlyCapex, ledgerValues, overdrawnMonths, fleet, routes, airportManagement, reputation, profitStreak, staff, marketing, eventChoices,
       career, milestones, annualGoal, scenario, reportHistory, aiAirlines, rivals, modelWorld, randomEvents, disruptions,
-      airlineName, chronicle, homeRegion, scenarioStars, gameSettings, autosaveInterval, freeMode, latestReport, fleetValue, getFuelData, getBaseGlobalDemand
+      airlineName, chronicle, homeRegion, scenarioStars, gameSettings, autosaveInterval, freeMode, latestReport, getFuelData, getBaseGlobalDemand
     });
     const m = close.month;
     setCapital(m.capital);
@@ -1175,6 +1159,16 @@ export default function App() {
     if (close.autosave) setPendingAutosave(true);
     setCurrentDateOffset(m.month);
     setView('monthly-overview');
+    // Bankruptcy (docs/neubau 8.14): in Free and Normal Mode the career is filed as at a retirement, with the values
+    // after the close. A scenario is lost instead; the scenario result says so.
+    if (m.bankrupt && !m.scenario) {
+      const years = yearsPlayed(m.month - startDateOffset);
+      const final = playerScore({
+        companyValue: m.companyValue, month: m.month, rank: m.career.rank, free: freeMode, milestones: m.milestones.length,
+        reputation: m.reputation, takeovers: m.career.takeovers, researchDone: m.career.research.done, years
+      });
+      fileCareerEntry(final.total, m.companyValue, m.career.rank, years, true);
+    }
   };
 
   const [sessionKey, setSessionKey] = useState(Date.now());
@@ -1774,6 +1768,35 @@ export default function App() {
   }, [view, currentDateOffset, startDateOffset, airlineCode, branding.color, selectedHub, difficulty, aiDifficulty, aiAirlinesCount,
     capital, monthlyCapex, ledgerValues, overdrawnMonths, fleet, routes, airportManagement, reputation, profitStreak, staff, marketing, eventChoices,
     career, milestones, annualGoal, scenario, reportHistory, aiAirlines, rivals, modelWorld, randomEvents, disruptions]);
+
+  /**
+   * What the airline is worth by the model (docs/neubau 4.7a, 6.12, E48): cash, aircraft at value, slots at resale,
+   * deposits -- the company value a takeover is priced at and the career score counts. Without a model state (outside
+   * the game) cash and fleet only.
+   */
+  const worth = useMemo(
+    () => playerWorth(plannerModel?.state, { cash: capital, fleet, month: currentDateOffset }),
+    [plannerModel, capital, fleet, currentDateOffset]
+  );
+
+  /** The credit line as the month close will see it (8.14): limit from the fleet value, cash, months overdrawn. */
+  const credit = useMemo(() => creditStatus(capital, worth.fleetValue, overdrawnMonths), [capital, worth.fleetValue, overdrawnMonths]);
+
+  /** The career so far, as the model scores it (6.12). */
+  const score = useMemo(() => playerScore({
+    companyValue: worth.companyValue,
+    month: currentDateOffset,
+    rank: career.rank,
+    free: freeMode,
+    milestones: milestones.length,
+    reputation,
+    takeovers: career.takeovers,
+    researchDone: career.research.done,
+    years: yearsInBusiness
+  }), [worth.companyValue, currentDateOffset, career.rank, freeMode, milestones.length, reputation, career.takeovers, career.research.done, yearsInBusiness]);
+
+  /** The crisis responses the player bought to win back demand, by event title (8.5), for the event banner. */
+  const recoveredEvents = useMemo(() => crisisResponses(eventChoices).recovery, [eventChoices]);
 
   /**
    * Every route's figures this month from the model (docs/neubau 4.5c): the month close's own calculation with this
@@ -2440,6 +2463,8 @@ export default function App() {
                   fullscreen={fullscreen}
                   setShowExitSavePrompt={setShowExitSavePrompt}
                   activeWorldEvents={activeWorldEvents}
+                  credit={credit}
+                  recoveredEvents={recoveredEvents}
                   setPendingDecision={setPendingDecision}
                 />
                 {/* Main Viewport */}
@@ -2598,7 +2623,8 @@ export default function App() {
                           onRetire={onRetire}
                           moraleBonus={researchFx.moraleBonus}
                           annualGoal={annualGoal}
-                          fleetValue={fleetValue}
+                          worth={worth}
+                          credit={credit}
                           fleetCount={fleet.length}
                           commonality={commonality}
                           routeCount={routes.filter(r => r.airline === 'My Airline').length}

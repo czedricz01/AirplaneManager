@@ -37,6 +37,7 @@ import {
 } from '../lib/research';
 import type { HallOfFameEntry, ScoreBreakdown } from '../lib/careerScore';
 import { formatCurrency, formatNumber, formatMoneyCompact as compact, yearOf } from '../lib/format';
+import { goalMissPenalty } from '../lib/modelCompany';
 
 export interface CareerPanelProps {
   /** Free Mode: a Global Player from the start, no rank to earn. */
@@ -178,9 +179,10 @@ export function GoalCard({ goal, onChoose }: { goal: AnnualGoal; onChoose?: () =
       <Badge tone={tone} className="self-start">{tagLabel}</Badge>
       <div className="text-sm font-semibold leading-snug">{describeGoal(goal, formatCurrency, countLabel)}</div>
       <div className="text-2xs text-muted leading-relaxed">
-        Met: reputation +{goal.reward.reputation}{goal.reward.cash > 0 ? `, bonus ${compact(goal.reward.cash)}` : ''}.
+        {/* Money only, from and to cash, not the profit (docs/neubau 6.11, E58). */}
+        Met: bonus {compact(goal.reward.cash)}.
         <br />
-        Missed: reputation {goal.penalty > 0 ? `−${goal.penalty}` : 'unchanged'}.
+        Missed: penalty {compact(goalMissPenalty(goal.reward.cash))}.
       </div>
       {onChoose && (
         <Button variant="primary" onClick={onChoose} className="mt-auto">Choose this goal</Button>
@@ -385,12 +387,12 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
 }
 
 const SCORE_LINES: { key: keyof Omit<ScoreBreakdown, 'total'>; label: string }[] = [
-  { key: 'wealth', label: 'Net worth' },
+  { key: 'wealth', label: 'Company value' },
   { key: 'rank', label: 'Rank' },
   { key: 'milestones', label: 'Milestones' },
   { key: 'reputation', label: 'Reputation' },
   { key: 'takeovers', label: 'Takeovers' },
-  { key: 'development', label: 'Development' },
+  { key: 'development', label: 'Bonus research' },
   { key: 'longevity', label: 'Years played' }
 ];
 

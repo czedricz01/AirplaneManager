@@ -12,15 +12,16 @@ import { IncidentList } from './IncidentList';
 import { ChronicleView } from './ChronicleView';
 import { LineChart } from './charts/LineChart';
 import { CareerPanel, type CareerPart, type CareerPanelProps } from './CareerPanel';
-import type { Commonality } from '../lib/fleetCosts';
 import { rankDef } from '../lib/airlineRank';
 import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
 import type { Branding, ChronicleEntry } from '../lib/gameState';
-import { reputationDemandFactor } from '../lib/gameState';
 import type { MonthlyReport } from '../lib/gameTypes';
 import { CHART_COLORS } from '../lib/theme';
+import { fleetMixText, goalMissPenalty, reputationEffect, type CompanyWorth, type CreditStatus, type FleetMix } from '../lib/modelCompany';
+import { reportView } from '../lib/modelReport';
+import { CREDIT_LIMIT_SHARE } from '../model/constants';
 
-import { CALENDAR_START_YEAR, formatCurrency, formatMoneyCompact as compact } from '../lib/format';
+import { CALENDAR_START_YEAR, formatCurrency, formatMoneyCompact as compact, formatNumber } from '../lib/format';
 
 interface ProgressionProps {
   /** 'progression' shows the Career screen alone (tabs Rank, Development, Board goals); 'company' everything else. */
@@ -33,11 +34,13 @@ interface Props extends ProgressionProps,  Omit<MarketingPanelProps, 'capital' |
   capital: number;
   /** Closed months, oldest first. */
   reportHistory: MonthlyReport[];
-  /** Resale value of every owned aircraft, already summed. */
-  fleetValue: number;
+  /** What the airline is worth by the model (docs/neubau 6.12): cash, aircraft at value, slots, deposits. */
+  worth: CompanyWorth;
+  /** The credit line by the model (8.14). */
+  credit: CreditStatus;
   fleetCount: number;
-  /** What the make-up of the fleet does to its maintenance, from fleetCommonality. */
-  commonality: Commonality;
+  /** What the make-up of the fleet does to its maintenance (model 5.12). */
+  commonality: FleetMix;
   routeCount: number;
   /** Airline reputation, 0-100. */
   reputation: number;
@@ -131,7 +134,7 @@ function Delta({ current, previous }: { current: number; previous?: number }) {
 }
 
 function MyCompanyViewImpl({
-  capital, reportHistory, fleetValue, fleetCount, commonality, routeCount, reputation,
+  capital, reportHistory, worth, credit, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
   staff, profitStreak, monthlyCrewCost, strikePending, moraleBonus, onSetSalary,
   page = 'company', onOpenProgression, free, rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
@@ -152,7 +155,8 @@ function MyCompanyViewImpl({
   const latest = reportHistory.length > 0 ? reportHistory[reportHistory.length - 1] : null;
   const previous = reportHistory.length > 1 ? reportHistory[reportHistory.length - 2] : undefined;
 
-  const netWorth = capital + fleetValue;
+  const view = useMemo(() => (latest ? reportView(latest) : null), [latest]);
+  const demandEffect = reputationEffect(reputation) - 1;
 
   return (
     <div className="w-full h-full text-ink px-3 py-3 lg:px-4 lg:py-4 short:py-1.5 flex flex-col font-sans overflow-hidden relative">
@@ -236,12 +240,22 @@ function MyCompanyViewImpl({
 
           {/* Balance sheet */}
           <div className="grid grid-cols-2 lg:grid-cols-4 short:grid-cols-4 gap-3 short:gap-2">
-            <StatTile size="md" label="Cash" value={formatCurrency(capital)} valueClassName="text-accent" />
-            <StatTile size="md" label="Fleet value" value={formatCurrency(fleetValue)}>
-              <span className="block text-2xs text-muted mt-1">{fleetCount} aircraft, at resale</span>
+            <StatTile size="md" label="Cash" value={formatCurrency(capital)} valueClassName={capital < 0 ? 'text-bad' : 'text-accent'}>
+              <span className={`block text-2xs mt-1 ${credit.state === 'overdrawn' ? 'text-bad' : 'text-muted'}`}>
+                {credit.state === 'healthy'
+                  ? `credit line ${compact(credit.limit)}`
+                  : credit.state === 'credit'
+                    ? `credit used ${compact(credit.used)} of ${compact(credit.limit)}`
+                    : `overdrawn, ${credit.closesToForcedSale === 1 ? 'aircraft sold at the next close' : `aircraft sold in ${credit.closesToForcedSale} closes`}`}
+              </span>
             </StatTile>
-            <StatTile size="md" label="Net worth" value={formatCurrency(netWorth)}>
-              <span className="block text-2xs text-muted mt-1">cash + fleet</span>
+            <StatTile size="md" label="Fleet value" value={formatCurrency(worth.fleetValue)}>
+              <span className="block text-2xs text-muted mt-1">{fleetCount} aircraft at book value</span>
+            </StatTile>
+            <StatTile size="md" label="Company value" value={formatCurrency(worth.companyValue)}>
+              <span className="block text-2xs text-muted mt-1">
+                cash + fleet{worth.slotValue > 0 ? ` + slots ${compact(worth.slotValue)}` : ''}{worth.deposits > 0 ? ` + deposits ${compact(worth.deposits)}` : ''}
+              </span>
             </StatTile>
             <StatTile
               size="md"
@@ -250,7 +264,7 @@ function MyCompanyViewImpl({
               valueClassName={reputation >= 65 ? 'text-good' : reputation < 40 ? 'text-bad' : ''}
             >
               <span className="block text-2xs text-muted mt-1">
-                demand {reputationDemandFactor(reputation) >= 1 ? '+' : ''}{Math.round((reputationDemandFactor(reputation) - 1) * 100)}%
+                appeal {demandEffect >= 0 ? '+' : ''}{(demandEffect * 100).toFixed(1)}%
               </span>
               <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
                 <div
@@ -287,6 +301,11 @@ function MyCompanyViewImpl({
                   <span className="block text-2xs text-muted mt-1">
                     {describeGoal(annualGoal, compact, n => String(Math.round(n)))}
                   </span>
+                  {annualGoal.reward.cash > 0 && (
+                    <span className="block text-2xs text-muted">
+                      met +{compact(annualGoal.reward.cash)} · missed &minus;{compact(goalMissPenalty(annualGoal.reward.cash))}
+                    </span>
+                  )}
                   <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
                     <div className={`h-full ${fraction >= 1 ? 'bg-good' : 'bg-accent'}`} style={{ width: `${fraction * 100}%` }} />
                   </div>
@@ -315,8 +334,7 @@ function MyCompanyViewImpl({
                 {commonality.families.length > 8 && <span className="text-2xs text-muted py-1">+{commonality.families.length - 8} more</span>}
               </div>
               <p className="text-2xs text-muted leading-relaxed">
-                Aircraft of one family share crews and spare parts: three of a kind save 4% on their maintenance, six 8%, twelve 12%.
-                Running more than three families costs 3% on every aircraft for each one beyond.
+                {fleetMixText()}
                 {commonality.penalty > 0 && <span className="text-bad"> Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</span>}
               </p>
             </Panel>
@@ -357,7 +375,7 @@ function MyCompanyViewImpl({
                       {formatCurrency(latest!.cashChange ?? latest!.totalProfit)}
                     </span>
                     <span className="block text-2xs text-muted">
-                      profit minus {formatCurrency(latest!.capex ?? 0)} capex
+                      {formatCurrency(latest!.capex ?? 0)} one-off payments; see &ldquo;From profit to cash&rdquo;
                     </span>
                   </div>
                 </div>
@@ -389,131 +407,33 @@ function MyCompanyViewImpl({
                 </p>
               </Panel>
 
-              {/* Glossary */}
+              {/* Glossary: the items of the model's report (docs/neubau 5.16, 8.2). */}
               <div className="p-4 bg-surface border border-line rounded-sm flex gap-4">
                 <Info className="text-muted shrink-0 mt-0.5" size={16} />
                 <div className="text-2xs text-muted leading-relaxed space-y-1.5">
-                  <p><strong className="text-ink">Flight revenue</strong> — ticket sales on your active routes.</p>
-                  <p><strong className="text-ink">Direct flight costs</strong> — what scales with flying: fuel, crew, landing fees, catering.</p>
-                  <p><strong className="text-ink">Fixed monthly costs</strong> — rent for check-in desks, lounges and stands, whether you fly or not.</p>
-                  <p><strong className="text-ink">Aircraft ownership</strong> — insurance and the maintenance programme for every aircraft in the fleet, flying or parked. A parked aircraft costs half, and the older an aircraft gets the more its upkeep takes.</p>
-                  <p><strong className="text-ink">Marketing &amp; loyalty</strong> — advertising campaigns and the frequent flyer programme, charged each month they run.</p>
-                  <p><strong className="text-ink">Incident repairs &amp; charters</strong> — replacement aircraft chartered to fly cancelled flights (older reports also list repair bills). A bird strike is paid on the spot and shows as capex.</p>
-                  <p><strong className="text-ink">Capex</strong> — one-off spending: aircraft, refits, checks, management tiers, airport slots. Deducted from cash at once, but not from operating profit, which is why the two differ.</p>
+                  <p><strong className="text-ink">Flight costs</strong> — what scales with flying: fuel, crew, landing fees, check-in and handling, catering.</p>
+                  <p><strong className="text-ink">Airport upkeep</strong> — rent for slots, stands, check-in desks and facilities, whether you fly or not.</p>
+                  <p><strong className="text-ink">Aircraft</strong> — insurance and maintenance for every aircraft, flying or parked (parked costs half), and depreciation: the value an aircraft loses each month with age and wear.</p>
+                  <p><strong className="text-ink">Aircraft trades</strong> — the difference between what you paid or received and the aircraft&rsquo;s value. An aircraft bought at its value costs nothing here; its price is cash, not profit.</p>
+                  <p><strong className="text-ink">Charters, crises &amp; credit</strong> — replacement charters, crisis responses, and interest while cash is below zero.</p>
+                  <p><strong className="text-ink">From profit to cash</strong> — one-off payments (aircraft, slots, tiers, research, deposits), prizes and the board goal move cash but not the operating profit. With cash below zero the credit line ({formatNumber(CREDIT_LIMIT_SHARE * 100)}% of the fleet value) covers losses and charges interest.</p>
                 </div>
               </div>
 
               {/* Latest report */}
-              <FinancialReport
-                title={`Report — ${label(latest!)}`}
-                netProfit={latest!.totalProfit}
-                totalRevenue={latest!.routeRevenues}
-                revenues={(latest!.routes || []).map(r => ({
-                  label: `${r.name}${r.capacity ? ` (${Math.round(((r.paxPerWeek || 0) / r.capacity) * 100)}% LF)` : ''}`,
-                  amount: r.revenue
-                }))}
-                expenses={[
-                  {
-                    id: 'routeCosts',
-                    label: 'Direct flight costs',
-                    total: latest!.routeCosts,
-                    items: [
-                      { label: 'Fuel', amount: latest!.breakdown.fuel },
-                      { label: 'Catering', amount: latest!.breakdown.catering },
-                      { label: 'Crew (flight & ground)', amount: latest!.breakdown.staff },
-                      { label: 'Landing fees', amount: latest!.breakdown.landingFees },
-                      { label: 'Pax handling & check-in', amount: latest!.breakdown.paxFees }
-                    ]
-                  },
-                  {
-                    id: 'airportCosts',
-                    label: 'Fixed monthly costs',
-                    total: latest!.airportUpkeep,
-                    items: [
-                      { label: 'Stands & slots upkeep', amount: latest!.breakdown.mgt },
-                      { label: 'Service desk operations', amount: latest!.breakdown.desks }
-                    ]
-                  },
-                  ...((latest!.breakdown.fleetOwnership || 0) > 0
-                    ? [{
-                        id: 'fleetOwnership',
-                        label: 'Aircraft ownership',
-                        total: latest!.breakdown.fleetOwnership,
-                        items: [
-                          { label: 'Insurance & maintenance programme', amount: latest!.breakdown.fleetOwnership - (latest!.breakdown.fleetParked || 0) },
-                          ...((latest!.breakdown.fleetParked || 0) > 0
-                            ? [{ label: `Parked aircraft (${latest!.breakdown.fleetParkedCount || 0}): storage & insurance`, amount: latest!.breakdown.fleetParked }]
-                            : [])
-                        ]
-                      }]
-                    : []),
-                  ...((latest!.breakdown.hubIncome || 0) > 0
-                    ? [{
-                        id: 'hubIncome',
-                        label: 'Airport ownership income',
-                        variant: 'net' as const,
-                        total: latest!.breakdown.hubIncome,
-                        items: latest!.hubIncomeItems ?? []
-                      }]
-                    : []),
-                  ...((latest!.breakdown.marketing || 0) > 0
-                    ? [{
-                        id: 'marketing',
-                        label: 'Marketing & loyalty',
-                        total: latest!.breakdown.marketing,
-                        items: latest!.marketingItems ?? [
-                          { label: 'Advertising campaigns', amount: latest!.breakdown.marketingCampaigns || 0 },
-                          { label: 'Frequent flyer programme', amount: latest!.breakdown.ffp || 0 }
-                        ]
-                      }]
-                    : []),
-                  ...((latest!.breakdown.incidents || 0) > 0
-                    ? [{
-                        id: 'incidents',
-                        label: 'Incident repairs & charters',
-                        total: latest!.breakdown.incidents,
-                        items: (latest!.incidents ?? []).filter(i => (i.cost ?? 0) > 0).map(i => ({ label: i.title, amount: i.cost ?? 0 }))
-                      }]
-                    : []),
-                  // Only in reports closed before slots were paid for on the
-                  // spot; they were billed into that month's result then.
-                  // Slots bought since are a capex item, below the line.
-                  // Signed: slot refunds and aircraft sales are money coming in.
-                  ...((latest!.breakdown.purchasedSlots || 0) !== 0
-                    ? [{
-                        id: 'slots',
-                        label: 'Slot purchases & refunds',
-                        variant: 'net' as const,
-                        total: -latest!.breakdown.purchasedSlots,
-                        items: [{
-                          label: latest!.breakdown.purchasedSlots > 0 ? 'Slot rights bought this month' : 'Slot rights sold back this month',
-                          amount: -latest!.breakdown.purchasedSlots
-                        }]
-                      }]
-                    : []),
-                  ...((latest!.capexItems ?? []).some(i => i.amount !== 0)
-                    ? [{
-                        id: 'capex',
-                        label: 'One-off investments & sales (below the line)',
-                        variant: 'net' as const,
-                        total: -(latest!.capex ?? 0),
-                        items: (latest!.capexItems ?? []).filter(i => i.amount !== 0).map(i => ({ label: i.label, amount: -i.amount }))
-                      }]
-                    : []),
-                  ...(latest!.routes && latest!.routes.length > 0
-                    ? [{
-                        id: 'routeBreakdown',
-                        label: 'Per route',
-                        variant: 'net' as const,
-                        total: latest!.routes.reduce((s, r) => s + r.profit, 0),
-                        items: latest!.routes.map(r => ({
-                          label: `${r.name} (rev ${formatCurrency(r.revenue)}, exp ${formatCurrency(r.cost)})`,
-                          amount: r.profit
-                        }))
-                      }]
-                    : [])
-                ]}
-              />
+              {view && (
+                <>
+                  <FinancialReport
+                    title={`Report — ${label(latest!)}`}
+                    netProfit={latest!.totalProfit}
+                    totalRevenue={latest!.routeRevenues}
+                    revenues={view.revenues}
+                    expenses={view.routes ? [...view.expenses, view.routes] : view.expenses}
+                  />
+                  <FinancialReport title="From profit to cash" netProfit={view.cash.total} expenses={[view.cash]} defaultOpen={false} />
+                  {view.credit && <p className={`text-2xs ${view.credit.state === 'overdrawn' ? 'text-bad' : 'text-muted'}`}>{view.credit.text}</p>}
+                </>
+              )}
               <IncidentList incidents={latest!.incidents} />
             </>
           )}
