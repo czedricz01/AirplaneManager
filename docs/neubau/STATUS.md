@@ -1,12 +1,44 @@
 # Status
 
-**Nächstes Paket: 5.1** – Spielstand-Umwandlung: `src/lib/saveMigration.ts` auf eine neue Version heben und die gesammelten
-5.1-Punkte erledigen (alte Felder an Strecken entfernen, Welt-Zustand beim Verkauf vor dem ersten Abschluss, Kabine
-weiterverkaufter Flugzeuge, Service-Auswahl „general“, Schalter alter Spielstände u. a.). Phase 4 ist damit abgeschlossen. Zu lesen:
-`src/lib/saveMigration.ts` und die Punkte „5.1“ in den Absätzen „Offen aus …“ unten (4.7a (3), 4.6b (1)–(2), 4.6a (2), 4.5c (3),
-4.5b (3), 4.4 (1), 4.3 (4), 4.2d (5), 4.2c (6), (7), 3.8b, 3.8d).
+**Nächstes Paket: 5.2b** – Rest der alten Rechnung, den Ansichten noch aufrufen, durch das Modell ersetzen oder entfernen
+(Liste unter „Offen aus 5.2a“). Danach 5.2c (Dokumentation aufräumen) und 5.3 (Spieltest mit Balance-Skript). Zu lesen: „Offen aus
+5.2a“ unten, `src/App.tsx` (Stellen dort genannt), `src/lib/gameState.ts` (`buildPlayerModifiers`), `src/lib/aiSimulation.ts`.
 
 Keine offenen Fragen.
+
+Stand: 23.11.2026 · Paket 5.1 ersetzt (E75, F73): Spielstände werden nicht mehr umgewandelt. `SAVE_VERSION` = 8; ein älterer
+Spielstand wird beim Laden gelöscht, mit der Meldung „This savegame was made with an older version of the game and can no longer be
+loaded. It has been deleted.“ (`loadSave`, `OutdatedSaveError` in `src/lib/saveLoad.ts`; `handleLoadGame` in `src/App.tsx`).
+`src/lib/saveMigration.ts` ist entfernt; `saveLoad.ts` prüft Spielstände der aktuellen Version nur noch Feld für Feld (keine NaN, keine
+Termine nach dem laufenden Monat). Die gesammelten 5.1-Punkte, die nur alte Spielstände betrafen, entfallen; die übrigen stehen unter
+„Offen aus 5.2a“.
+
+Stand: 23.11.2026 · Paket 5.2a erledigt (F74): Der alte Monatsabschluss (`closeMonth` in `src/lib/monthClose.ts`) und aller Code,
+den danach keine Ansicht mehr erreicht, sind entfernt (rund 9 900 Zeilen in 58 Dateien). Ganz entfernt: `transferUtils.ts`,
+`takeover.ts`, `usedMarket.ts`, `fleetCosts.ts`, `hubOwnership.ts`, `rivalCrisis.ts`, `realCosts.ts`, `economyContext.ts` mit Tests.
+Stark gekürzt: `financeUtils.ts` (1 804 → 392 Zeilen), `aiSimulation.ts` (1 228 → 260, nur noch die Gründung), `staff.ts`,
+`marketing.ts`, `disruptions.ts`, `preorders.ts`, `annualGoals.ts`, `careerScore.ts`, `monthClose.ts` (nur noch Helfer). Dazu: Zeile
+„AI results include a fixed operating subsidy“ in der Konkurrenz-Ansicht (Zuschuss ist seit E68 aus) und `withDevelopment` in `App.tsx`.
+Gefunden per Erreichbarkeits-Analyse ab `src/main.tsx`, `server.ts`, den nachgeladenen Ansichten und dem Balance-Skript. Tests: 1 250
+grün (226 Tests alter Rechnungen entfallen). Im Browser geprüft (freies Spiel AAL 01/1960): 3 Monate abgeschlossen, Konkurrenz-Ansicht,
+Speichern und Laden; ein auf Version 7 gesetzter Spielstand wird mit der Meldung gelöscht und verschwindet aus der Liste.
+
+Offen aus 5.2a (kein Blocker; Liste für 5.2b): (1) `buildPlayerModifiers` (`src/lib/gameState.ts`) mit `reputationDemandFactor`,
+`eventReliefFactor`, `regionDemandFactors`, `ffpLoyaltyBonus` (`marketing.ts`), `crewCostFactor`, `moraleSatDelta` (`staff.ts`) und
+`src/lib/routeMaturity.ts`: `App.tsx` nutzt davon nur noch die Ausfall-Anteile (`routeCancelShare`, `cancelShareAll`, `App.tsx:640`) →
+durch eine kleine Funktion ersetzen, Rest entfernen. (2) Neue Spiele gründen die KI noch mit `generateAiAirlines` (alt); die Liste
+`aiAirlines` ist eine Ansicht, die der erste Abschluss in `rivals` übernimmt. Prüfen, ob die Gründung über das Modell (7.7) laufen kann.
+(3) `getActiveEvents` in `App.tsx` (gesicherter Treibstoffpreis, Frage beim Spielstart) und die Platzhalter-Kosten `cost` in
+`src/lib/eventSystem.ts` (4.7c (4)). (4) `applyManagementUnlock` (`src/lib/financeUtils.ts`, alte Preise, 4.3 (5)). (5) Felder am
+Flugzeug, die keine Rechnung mehr liest: `baseInteriorPop`, `details.interiorByClass` (4.6a (2)), `popularity` / `efficiency` (4.2b);
+`ResearchEffects.efficiencyBonus` / `popularityBonus` schreibt niemand mehr in ein Flugzeug. (6) Aus 5.1 übernommen, betrifft auch neue
+Spiele: Verkauf vor dem ersten Abschluss kommt nicht in den Gebrauchtmarkt (4.6b (1)); Kabine weiterverkaufter Flugzeuge (4.6b (2));
+eine gemeinsame Ruhmeshalle bis `splitHall` (4.7a (3)); alte Meilenstein-Kennungen in der Oberfläche, die die Brücke übersetzt
+(4.2c (6)). (7) 5.3: Szenario-Ziele `minWeeklyFlights` und die eigene Untergrenze (4.2c (7)). (8) Kleinkram: `allModelAirports`
+(`src/balance/longRun.ts:66`) wiederholt `modelAirports`; Zeitplan-Suchen des Planers doppeln `findDayRunStart` u. a. (4.4 (3));
+unbenutzte Bausteine `EmptyState` (`src/components/ui/EmptyState.tsx`) und `Select` (`src/components/ui/Field.tsx`); Kommentare
+„heute `src/lib/routeMaturity.ts:…`“ in `src/model/constants.ts:649-665`. (9) Im Modell nicht erreichte Teile (`src/model/`, z. B.
+`splitHall`, `rivalSubsidy`, `bestFare`) bleiben: sie sind Teil der Spezifikation und getestet.
 
 Stand: 23.11.2026 · O70 entschieden (E74, Weg A) und umgesetzt (F72): Ohne Strecken würfelt der Abschluss keinen Personalstreik
 (`transition`, `src/model/monthClose.ts`, `strikeMorale`); die Personal-Ansicht zeigt dann 0 % und „none without routes to fly“
@@ -73,15 +105,15 @@ operating subsidy“ (`aiMonthlySubsidy`, alt; 5.2 entfernt die Zeile, siehe 3.9
 
 Offen aus 4.7a (kein Blocker): (1) erledigt in 4.7c (Band aus `eventBand`, Krisen-Frage mit Preis des Modells). `transferHubs` im Bericht: erledigt in 4.7b. (2) 5.2: `careerScore` in `src/lib/careerScore.ts`
 (alte Formel, nur noch alter Abschluss; die Halle nutzt weiter `fileCareer`/`hallPosition` dort), `fleetCommonality` (nur noch alter
-Abschluss), `reputationDemandFactor`, `eventReliefFactor` (nur noch alte Vorschau `playerMods`) entfernen. (3) 5.1: eine gemeinsame
+Abschluss), `reputationDemandFactor`, `eventReliefFactor` (nur noch alte Vorschau `playerMods`) entfernen. (3) 5.2b (aus 5.1, siehe 5.2a (6)): eine gemeinsame
 Ruhmeshalle bis `splitHall` (E43); das Feld `netWorth` der Einträge trägt jetzt den Unternehmenswert (alte Einträge: Kasse +
 Verkaufserlöse). (4) Berichte aus 4.2f–4.6b (Modell, aber ohne Feld `cash`) zeigen in „From profit to cash“ nur Ergebnis,
 übrige Einmalausgaben und einen Rest „Other cash movements“ (ihre `capexItems` enthielten keine Flugzeuge). (5) Das Kredit-Band und
 die Bankrott-Anzeige sind mit Tests geprüft, im Browser nicht (Kasse unter 0 nicht erreicht). (6) Kredit-Band und Firma zeigen die
 Kreditlinie mit der Kasse von jetzt (nach Einmalzahlungen); geprüft wird am Monatsende (8.14).
 
-Offen aus 4.6b (kein Blocker): (1) 5.1: Verkauft der Spieler ein Flugzeug, bevor der Welt-Zustand gespeichert ist (erster Monat eines
-neuen Spiels, alte Spielstände bis zum ersten Abschluss), kommt es nicht in den Gebrauchtmarkt. (2) 5.1: Ein weiterverkauftes Flugzeug
+Offen aus 4.6b (kein Blocker): (1) 5.2b (aus 5.1): Verkauft der Spieler ein Flugzeug, bevor der Welt-Zustand gespeichert ist (erster Monat eines
+neuen Spiels, alte Spielstände bis zum ersten Abschluss), kommt es nicht in den Gebrauchtmarkt. (2) 5.2b (aus 5.1): Ein weiterverkauftes Flugzeug
 des Spielers mit eigener Kabine (passt zu keiner KI-Persönlichkeit und nicht zur Standard-Kabine) wird mit seinen Sitzen, aber
 Standard-Sitzen verkauft („fittings reset to standard“; Preis aus dieser Kabine, R2 gilt). Genau ginge es nur, wenn der Spielstand die
 Kabine des verkauften Flugzeugs mitführt. (3) erledigt in 4.7a (Fleet value = Buchwert, Company value = `companyValue`). (4) 5.2: `src/lib/usedMarket.ts`, `src/lib/takeover.ts`, in `src/lib/preorders.ts` `quoteOrder`, `createOrder`,
@@ -90,14 +122,13 @@ Kabine des verkauften Flugzeugs mitführt. (3) erledigt in 4.7a (Fleet value = B
 `App.tsx` (schreibt `popularity` / `efficiency` an das Flugzeug, das keine Ansicht mehr liest). (5) Gebraucht gekaufte Flugzeuge haben
 wie bisher kein `hubId` (Anzeige „Hub None“); nur Übernahme-Flugzeuge bekommen das Drehkreuz der KI.
 
-Offen aus 4.6a (kein Blocker): (1) erledigt in 4.6b („new price“ = `newPrice` des Monats). (2) 5.1 /
-5.2: Der Dialog speichert `baseInteriorPop` und `details.interiorByClass` nur noch für die alte Rechnung (`getPlaneSat`); alte Vorlagen
+Offen aus 4.6a (kein Blocker): (1) erledigt in 4.6b („new price“ = `newPrice` des Monats). (2) 5.2b: Der Dialog speichert `baseInteriorPop` und `details.interiorByClass` nur noch für die alte Rechnung (`getPlaneSat`); alte Vorlagen
 (`aircraft_preset`) tragen den alten Wert. (3) 5.3: Umbau kostet jetzt Sitze der neuen Kabine × $1 000 × Kostenindex (bisher Typ-Kapazität ×
 $1 000 ohne Index) – Höhe mit dem Balance-Skript ansehen. (4) erledigt in 4.6b: Typ-Karten der Flotte mit Type appeal nach dem Alter; die Kaufliste
 zeigt neue Flugzeuge (Alter 0, Type appeal = Katalogwert).
 
 Offen aus 4.5c (kein Blocker): (1) erledigt in 4.7b (`playerMonth` statt `computeNetworkFinancials`; Umsteige-Ströme in der
-Streckenansicht; `transferHubs` im Bericht). (2) erledigt in 4.7c (`routeMarket`). (3) 5.1: alte Spielstände tragen noch `paxByClass`, `routeSat`, `estWeekly*` an den Strecken (nur noch
+Streckenansicht; `transferHubs` im Bericht). (2) erledigt in 4.7c (`routeMarket`). (3) entfällt (E75, alte Spielstände werden gelöscht): alte Spielstände tragen noch `paxByClass`, `routeSat`, `estWeekly*` an den Strecken (nur noch
 unbenutzt); beim Laden entfernen (`TRANSIENT_ROUTE_FIELDS`). `paxPerWeek` an der Strecke schreibt der Abschluss (letzter Monat); die
 Ansichten lesen das Modell. (4) 5.3: Der Modell-Spielstand und `monthOperations` laufen bei jeder Änderung des Spielstands
 (gemessen: `monthOperations` mit 8 Gesellschaften und 168 Strecken ≈ 25 ms); mit großen Spielständen im Browser beobachten. (5) 5.2:
@@ -106,7 +137,7 @@ Nutzer mehr (nur noch alte KI, alter Abschluss, `transferUtils`).
 
 Offen aus 4.5b (kein Blocker): (1) erledigt in 4.5c. (2) 5.2: `calculateClassSatisfaction`,
 `getRouteClassSatisfaction`, `getDeskSim`, `expectedServicePoints` / `getFlightTimeClass` der alten Rechnung entfernen, sobald 4.5c sie
-nicht mehr braucht (seit 4.5c der Fall). (3) 5.1: Die alte Regel nahm für eine Klasse ohne eigene Service-Auswahl die Auswahl „general“ (`classConfigFor`),
+nicht mehr braucht (seit 4.5c der Fall). (3) entfällt (E75): Die alte Regel nahm für eine Klasse ohne eigene Service-Auswahl die Auswahl „general“ (`classConfigFor`),
 das Modell nicht; alte Spielstände mit fehlenden Klassen prüfen. (4) Die Punkte je Gericht im Kabinen-Fenster sind Rohpunkte; wie mehrere
 Gerichte einer Mahlzeit zählen (`menuPoints`): erledigt in 4.6a (Hinweis-Zeile über den Gerichten).
 
@@ -115,7 +146,7 @@ Offen aus 4.5a (kein Blocker): (1) erledigt in 4.5c. (2) 5.3: Bei knappen Sitzen
 rechnet ohne Umsteiger (F42 (6)); die alte Zeile „incl. x transfer“ entfällt. Die Transfer-Vorschau `priceDraftInNetwork` nutzt der Planer seit 4.5c
 nicht mehr (5.2).
 
-Offen aus 4.4 (kein Blocker): (1) 5.1: Der Abschluss teilt die Abflüge eines Einweg-Umlaufs für die Stand-Belegung halb auf beide Enden
+Offen aus 4.4 (kein Blocker): (1) entfällt (E75; Einweg-Umläufe gab es nur in alten Spielständen): Der Abschluss teilt die Abflüge eines Einweg-Umlaufs für die Stand-Belegung halb auf beide Enden
 (`src/model/monthClose.ts:861`); die Oberfläche zählt nach 1.6 nur den Start. Einweg-Umläufe gibt es nur in alten Spielständen. (2) 5.3: Die KI
 rechnet „höchste Umläufe“ weiter mit `maxWeeklyRotations` (7 × 18 h, ohne Bodenzeit); 7.9 verlangt die Planer-Funktion, das ändert die
 Balance → mit dem Balance-Skript umstellen. (3) 5.2: `rawBlockMinutes` (nur alter Abschluss) entfernen; die übrigen Zeitplan-Suchen des Planers
@@ -125,7 +156,7 @@ Balance → mit dem Balance-Skript umstellen. (3) 5.2: `rawBlockMinutes` (nur al
 Offen aus 4.3 (kein Blocker): (1) erledigt in 4.4.
 (2) Satisfaction-Aufschlüsselung im Planer erledigt in 4.5b; Transfer-Fluggäste
 der Flughafen-Ansicht aus dem Modell: erledigt in 4.7b. (3) Widebody-Slots erst ab Flughafengröße 3 ist eine Regel nur der Oberfläche
-(`WIDEBODY_SLOTS_FROM_SIZE`); in 5.3 prüfen, ob die KI sie auch einhält. (4) 5.1: alte Spielstände mit Stufe ≥ 1 und 0 Schaltern bekommen
+(`WIDEBODY_SLOTS_FROM_SIZE`); in 5.3 prüfen, ob die KI sie auch einhält. (4) entfällt (E75): alte Spielstände mit Stufe ≥ 1 und 0 Schaltern bekommen
 einen Schalter. (5) 5.2: `getAirportUpkeep`, `getManagementUnlockCost`, `getInfraAvailability`, `getDeskSim`, `applyManagementUnlock`
 (alte Preise) entfernen bzw. ins Modell.
 
@@ -142,17 +173,17 @@ Offen aus 4.2e: (1)–(3) erledigt in 4.2f (Meldungen der Oberfläche, `marketSh
 4.5 aus dem alten Modell (die Liste rechnet sie live, `routesWithMetrics`).
 
 Offen aus 4.2d (kein Blocker): (1), (2) erledigt in 4.2f. (3) erledigt in 4.7b („Aggression“ = `aggression` der
-Persönlichkeit mit Steckbrief aus `PERSONALITIES`; Frist bis zur Auflösung aus `rivalDistressStep`). (4) erledigt in 4.6b. (5) 5.1: `rivalRecord` und `modelWorld` in
+Persönlichkeit mit Steckbrief aus `PERSONALITIES`; Frist bis zur Auflösung aus `rivalDistressStep`). (4) erledigt in 4.6b. (5) entfällt (E75): `rivalRecord` und `modelWorld` in
 `saveMigration.ts`. (6) Alte Zufallsereignisse, die nur den Treibstoff verteuerten, gelten im Modell nicht mehr als Pech (E8,
 `isBadLuckEvent`).
 
 Offen aus 4.2c (kein Blocker): (1) erledigt in 4.2f. (2) erledigt in 4.2d. (3) erledigt: die Charter-Antwort kostete schon keine
 Sofortzahlung (Kosten 0, F58). (4) Lieferung einen Monat später als heute (Modell liefert
 im Abschluss des Liefermonats, 8.12); Preis bei Lieferung aus dem Modell; Anzeige der Bestellung aus dem Modell erledigt in 4.6b. (5) Jahresziel:
-Ruf-Prämie und Ruf-Strafe alter Ziele entfallen (E58); Anzeige der Geld-Strafe erledigt in 4.7a. (6) Meilensteine: Die Oberfläche behält bis 5.1
+Ruf-Prämie und Ruf-Strafe alter Ziele entfallen (E58); Anzeige der Geld-Strafe erledigt in 4.7a. (6) Meilensteine: Die Oberfläche behält bis 5.2b
 die alten Kennungen (`continents-*`, `reputation-60/80/95`); die Brücke übersetzt. (7) Szenario: Dollar-Ziele gelten als $ des
 Startmonats (in 1960er $ umgerechnet); `minWeeklyFlights` (Deregulation) und die eigene Untergrenze (−5 M$, 0 $) kennt das Modell nicht
-(8.15: Kreditlinie) – in 5.1 / 5.3 prüfen. (8) erledigt in 4.7a (`reportView`).
+(8.15: Kreditlinie) – in 5.3 prüfen. (8) erledigt in 4.7a (`reportView`).
 
 Offen aus 4.2b (kein Blocker): Lieferungen legt seit 4.2c `deliveredAircraft` an. `popularity` / `efficiency` am Flugzeug
 schreibt noch der alte Abschluss; die Brücke liest sie nicht (Katalog), Anzeige aus dem Modell in 4.6. Einweg-Umläufe
@@ -250,7 +281,7 @@ Phase 4: Fragen (Krise, Charter, Streik), Gebrauchtmarkt (Verkäufer-Text) und K
 Spielstand (5.1): Zufallsereignisse in den Spielstand, Störungen als `{ month, kind, target, share, charter? }`, Streik
 als `{ month, answer?, agreedPct? }`.
 
-Offen aus 3.8b (kein Blocker): Phase 4 / 5.1: alten Spielstand in `ModelState` umwandeln (Typ-Werte, Interior score, Service je
+Offen aus 3.8b (kein Blocker): Phase 4 / 5.1 (5.1 entfällt nach E75): alten Spielstand in `ModelState` umwandeln (Typ-Werte, Interior score, Service je
 Klasse, Kassenbuch), Einweg-Umläufe, Störungs-Antworten des Spielers je Gesellschaft. Ein voll ausgelastetes A320 auf
 FRA–MAD (14 Abflüge) bleibt bei jedem Preis voll; ob die Marktgröße zu groß ist, prüft das Balance-Skript (3.9).
 
@@ -366,8 +397,10 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 
 | Nr. | Paket | Status |
 |---|---|---|
-| 5.1 | Spielstand-Umwandlung (`saveMigration.ts`, neue Version) | offen |
-| 5.2 | Alten Rechencode entfernen, Dokumentation aufräumen | offen |
+| 5.1 | Spielstand-Umwandlung – ersetzt durch E75: ältere Spielstände werden beim Laden gelöscht (`src/lib/saveLoad.ts`, Version 8) | erledigt |
+| 5.2a | Alten Monatsabschluss und allen nur von ihm erreichten Code entfernen | erledigt |
+| 5.2b | Rest der alten Rechnung in den Ansichten ersetzen oder entfernen (Liste „Offen aus 5.2a“) | offen |
+| 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen) | offen |
 | 5.3 | Spieltest-Durchlauf mit Balance-Skript, Feinabstimmung | offen |
 
 ---
@@ -447,3 +480,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 23.11.2026 | 4.7c | Planer Schritt 1, Ereignis-Band und Krisen-Frage nach dem Modell (F69): `pairMarket` / `routeMarket` (Marktgröße mit allen Teilen, Klassen-Anteile, Fluggäste je Klasse, Marktpreise); „/ WK MARKET“ und Debug aus dem Modell; `src/lib/modelEvents.ts` (`eventBand`, `crisisBase`, `pricedChoices`) für Band und Frage; Preis der Krisen-Antwort nach 8.5 statt fester Beträge, ohne Bezugsgröße gesperrt; neue offene Frage O69; 17 neue Tests (1455 grün) |
 | 23.11.2026 | O69 | Entscheidung E73 (Weg A) umgesetzt (F70): Preis der Krisen-Antwort × Restdauer im Monat der Wahl (`remainingEventMonths`), ohne Bezugsgröße weiter gesperrt; Spezifikation 8.5 nachgezogen; 2 neue Tests (1457 grün) |
 | 23.11.2026 | 4.8 | Werbung und Personal nach dem Modell (F71): `src/lib/modelMarketing.ts` (Kampagnenpreis `campaignCost` mit Kostenindex, Laufzeit-Preis, Werbe-Faktor je Region, Ruf aus Werbung im Ruf-Ziel, Treue `frequentFlyerFactor`), `src/lib/modelStaff.ts` (Vorschau wie der Übergang zu X+1 mit Pech-Deckel, Lohn-Grenzen, `settleStrike`, `strikeQuestion` ohne Ruf-Abzug); Werbe- und Personal-Ansicht, `App.tsx`, Abschluss-Frage und Chronik umgestellt; neue Frage O70; 17 neue Tests (1474 grün) |
+| 23.11.2026 | 5.1 | Ersetzt durch E75 (F73): keine Umwandlung alter Spielstände; `SAVE_VERSION` 8, ältere werden beim Laden gelöscht (`src/lib/saveLoad.ts`, `OutdatedSaveError`); `saveMigration.ts` entfernt |
+| 23.11.2026 | 5.2a | Alter Monatsabschluss und nur von ihm erreichter Code entfernt (F74): rund 9 900 Zeilen in 58 Dateien, 8 Dateien ganz; Tests 1 250 grün; im Browser geprüft |
