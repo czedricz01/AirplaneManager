@@ -414,10 +414,8 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
   const totalSeats = quote.totalSeats;
   const scoreOf = (c: CabinClass) => quote.interior[c].total;
 
-  // Kept on the aircraft for the parts of the game not yet on the model: each
-  // cabin's interior score, and their mean by seats.
-  const interiorByClass: Record<string, number> = {};
-  for (const c of CABIN_CLASSES) if (quote.seats[c] > 0) interiorByClass[c] = Math.round(scoreOf(c));
+  // The model's interior scores, their mean by seats: stored on the aircraft and the
+  // preset only to be shown ("Interior" in the configuration lists); no figure reads it.
   const baseInteriorPop = totalSeats > 0
     ? Math.round(CABIN_CLASSES.reduce((sum, c) => sum + quote.seats[c] * scoreOf(c), 0) / totalSeats)
     : 0;
@@ -565,9 +563,7 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
         // Both change the usable cabin space. They were not stored, so the
         // next refit started without them and silently changed the seat count.
         hasReducedGalley,
-        hasMinimalServices,
-        // Per cabin, for the old getPlaneSat (src/lib/financeUtils.ts) until it goes (5.2).
-        interiorByClass
+        hasMinimalServices
       } as any
     };
     onConfirmPurchase(initialPlane || aircraft, quantity, output, baseInteriorPop, totalPrice);

@@ -10,11 +10,10 @@
  */
 
 import { aircraftList } from '../data/aircraft';
-import { airports as registryAirports } from '../data/airportRegistry';
-import { regionOf } from '../lib/geoUtils';
+import { modelAirports } from '../lib/modelBridge';
 import { costIndex } from '../model/basics';
 import { distanceKm } from '../model/demand';
-import { START_YEAR, CABIN_CLASSES, type RivalPersonality, type RivalStrength, type WorldRegion } from '../model/constants';
+import { START_YEAR, CABIN_CLASSES, type RivalPersonality, type RivalStrength } from '../model/constants';
 import {
   closeMonth,
   fleetValue,
@@ -62,13 +61,9 @@ export interface LongRunSettings {
   readonly transferEveryYears?: number;
 }
 
-/** Alle Flughäfen der Daten als `ModelAirport` (Region über `regionOf`, R15). */
+/** Alle Flughäfen der Daten als `ModelAirport` (Region über `regionOf`, R15): dieselbe Umwandlung wie das Spiel (`modelAirports`). */
 export function allModelAirports(): Record<string, ModelAirport> {
-  const out: Record<string, ModelAirport> = {};
-  for (const a of registryAirports) {
-    out[a.id] = { id: a.id, coords: a.coords, stats: a.stats, size: a.level, region: regionOf(a.coords) as WorldRegion, maxIcaoCode: a.maxIcaoCode };
-  }
-  return out;
+  return modelAirports();
 }
 
 /**

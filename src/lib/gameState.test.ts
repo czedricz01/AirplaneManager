@@ -2,9 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildPlayerModifiers,
-  reputationDemandFactor,
-  eventReliefFactor,
   normalizeGameSettings,
   DEFAULT_GAME_SETTINGS,
   createGameSystems,
@@ -15,18 +12,6 @@ import {
 import { continentOf, regionOf } from './geoUtils';
 import { assignRivalColors, colorDistance, MAP_YELLOW, RIVAL_PALETTE } from './theme';
 import { airports } from '../data/airportRegistry';
-import { historicalEvents, eventKey } from './eventSystem';
-
-test('the player modifiers carry the demand factor the game has always used', () => {
-  const oilCrisis = historicalEvents.find(ev => ev.choices?.some(c => c.softensDemand))!;
-  const choice = oilCrisis.choices!.find(c => c.softensDemand)!;
-  const eventChoices = { [eventKey(oilCrisis)]: choice.id };
-  const offset = oilCrisis.startOffset + 1;
-
-  const mods = buildPlayerModifiers({ reputation: 72, eventChoices }, offset);
-  assert.equal(mods.demandFactor, reputationDemandFactor(72) * eventReliefFactor(offset, eventChoices));
-  assert.ok(eventReliefFactor(offset, eventChoices) > 1, 'the relief bought is in there');
-});
 
 test('every airport has a region, and the milestone continents are unchanged', () => {
   const valid = new Set(['EU', 'NA', 'SA', 'AF', 'AS', 'OC']);
@@ -83,24 +68,4 @@ test('a decision always has an answer that costs nothing', () => {
   const ids = ensureFreeOption(clash).options.map(o => o.id);
   assert.equal(new Set(ids).size, 2);
   assert.ok(ids[1].startsWith(FREE_OPTION_ID));
-});
-
-import { researchEffects } from './research';
-
-test('finished projects change the player modifiers, and nothing finished leaves them as before', () => {
-  const base = buildPlayerModifiers({ reputation: 60, eventChoices: {} }, 100);
-  const same = buildPlayerModifiers({ reputation: 60, eventChoices: {}, research: researchEffects([]) }, 100);
-  assert.deepEqual(same, base);
-  const done = buildPlayerModifiers({ reputation: 60, eventChoices: {}, research: researchEffects(['yield-1', 'yield-2', 'cabin', 'alliance']) }, 100);
-  assert.ok(Math.abs(done.demandFactor - base.demandFactor * 1.04) < 1e-12);
-  assert.equal(done.satDelta, 2);
-  assert.equal(done.transferBoost, 0.1);
-});
-
-test('the planning suite lifts where a new route\'s demand starts', () => {
-  const routes = [{ id: 'new', openedOffset: 100 }];
-  const slow = buildPlayerModifiers({ reputation: 50, eventChoices: {}, routes }, 100);
-  const fast = buildPlayerModifiers({ reputation: 50, eventChoices: {}, routes, research: researchEffects(['planning']) }, 100);
-  assert.equal(slow.maturity!.new, 0.6);
-  assert.equal(fast.maturity!.new, 0.75);
 });

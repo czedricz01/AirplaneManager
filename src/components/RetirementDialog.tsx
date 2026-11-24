@@ -12,7 +12,8 @@ interface Props {
   entry: HallOfFameEntry | null;
   /** Where the career stands in the hall, 1-based; null when it did not make it. */
   position: number | null;
-  hall: HallOfFameEntry[];
+  /** The hall of this game's mode (E43: Normal and Free Mode apart). */
+  hall: readonly HallOfFameEntry[];
   /** The career ended in bankruptcy (docs/neubau 8.14), not by choice. */
   bankrupt?: boolean;
   onKeepPlaying: () => void;

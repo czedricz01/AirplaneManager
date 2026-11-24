@@ -56,7 +56,8 @@ export interface CareerPanelProps {
   currentDateOffset: number;
   onStartResearch: (projectId: string) => void;
   score: ScoreBreakdown;
-  hall: HallOfFameEntry[];
+  /** The hall of this game's mode (E43: Normal and Free Mode apart). */
+  hall: readonly HallOfFameEntry[];
   /** Files the career in the hall of fame and shows the final report. */
   onRetire: () => void;
 }
@@ -396,7 +397,7 @@ const SCORE_LINES: { key: keyof Omit<ScoreBreakdown, 'total'>; label: string }[]
   { key: 'longevity', label: 'Years played' }
 ];
 
-function ScoreSection({ score, hall, onRetire }: Pick<CareerPanelProps, 'score' | 'hall' | 'onRetire'>) {
+function ScoreSection({ score, hall, free, onRetire }: Pick<CareerPanelProps, 'score' | 'hall' | 'free' | 'onRetire'>) {
   return (
     <Panel>
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
@@ -419,7 +420,7 @@ function ScoreSection({ score, hall, onRetire }: Pick<CareerPanelProps, 'score' 
       </div>
       {hall.length > 0 && (
         <div className="mt-4">
-          <div className="text-2xs uppercase tracking-label text-muted font-semibold mb-1">Hall of fame</div>
+          <div className="text-2xs uppercase tracking-label text-muted font-semibold mb-1">Hall of fame · {free ? 'Free Mode' : 'Normal Mode'}</div>
           <ol className="flex flex-col gap-1">
             {hall.map((e, i) => (
               <li key={e.id} className="flex items-center justify-between gap-3 text-2xs border-b border-line py-1">
@@ -488,7 +489,7 @@ export function CareerPanel({ part, ...props }: CareerPanelProps & { part: Caree
       {part === 'rank' && (
         <>
           <RankSection rank={props.rank} stats={props.rankStats} perks={props.perks} free={props.free} />
-          <ScoreSection score={props.score} hall={props.hall} onRetire={props.onRetire} />
+          <ScoreSection score={props.score} hall={props.hall} free={props.free} onRetire={props.onRetire} />
           <MilestoneSection milestones={props.milestones} />
         </>
       )}

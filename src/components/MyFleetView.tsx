@@ -19,14 +19,13 @@ export interface OwnedAircraft extends Aircraft {
   conditionGeneral: number;
   config: ConfigOutput;
   baseInteriorPop: number;
-  popRating?: number; // Make optional to prevent ts errors
   baseAircraftId?: string; // Add baseAircraftId specifically since they created it as baseAircraftId in App.tsx
   generalChecksDone?: number;
   refitsDone?: number;
   /** Month offset the cabin was fitted (purchase or last refit); absent = purchasedAt. Read by the model bridge (cabin value, deliverable parts). */
   cabinInstalledAt?: number;
   hubId?: string; // Appointed hub for this aircraft
-  /** Launch customer: the month the popularity bonus runs out; see preorders.ts. */
+  /** Launch customer: set when delivered as one (the model reads only whether it is set, `launchCustomer`, 2.2, 8.12). */
   launchBonusUntil?: number;
 }
 

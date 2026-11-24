@@ -7,9 +7,9 @@
  * Streik, große Störungen), Chronik, Zeitung, Szenario-Sterne, Jahresziel-Dialog, Vogelschlag-Hinweise, Autosave.
  * Gerechnet wird hier nichts (R2): Geld, Ruf, Fluggäste kommen aus dem Modell.
  *
- * `modelMonthClose` liest nur seine Eingabe, mit einer Ausnahme wie im alten Abschluss (`src/lib/monthClose.ts`): die
- * Zufallsereignisse der Ansicht kommen in den Modul-Zustand von `eventSystem.ts` (`setRuntimeRandomEvents`), damit
- * `getActiveEvents` des neuen Monats sie kennt. `applyModelClose` setzt das Ergebnis auf die Setter von `App.tsx`.
+ * `modelMonthClose` liest nur seine Eingabe. Die laufenden Ereignisse vor und nach dem Abschluss kommen aus dem Modell
+ * (`activeEvents` mit dem Welt-Zustand vorher und nachher; der Modul-Zustand `setRuntimeRandomEvents` entfiel in 5.2b).
+ * `applyModelClose` setzt das Ergebnis auf die Setter von `App.tsx`.
  */
 import type { AiAirline } from '../components/CompetitorsView';
 import { aircraftList } from '../data/aircraft';
@@ -27,7 +27,7 @@ import {
   disruptionsToAsk,
   type BirdStrike,
 } from './disruptions';
-import { eventKey, getActiveEvents, setRuntimeRandomEvents, type HistoricalEvent } from './eventSystem';
+import { activeEvents, eventKey, type HistoricalEvent } from './eventSystem';
 import { LITRES_PER_GALLON, formatCurrency, formatNumber } from './format';
 import {
   ensureFreeOption,
@@ -40,7 +40,7 @@ import {
 import type { GameMessage, MonthlyReport } from './gameTypes';
 import { CAMPAIGN_SPECS, REGION_LABELS } from './marketing';
 import { nextMessageId } from './messages';
-import { rivalCompanyId } from './modelBridgeWorld';
+import { modelWorldEvent, rivalCompanyId } from './modelBridgeWorld';
 import { PLAYER_ID, defaultModelEnv, runModelMonth, type AppGame, type AppMonth, type ModelEnv } from './modelMonth';
 import { buildEventEndMessage, buildEventStartMessage, buildRivalOffers, offsetToDateStr } from './monthClose';
 import { buildEdition, rivalMoves, type Edition } from './newspaper';
@@ -157,7 +157,7 @@ export function modelMonthClose(input: ModelCloseInput, env: ModelEnv = defaultM
   const X = input.month;
   const next = X + 1;
   const dateStr = offsetToDateStr(X);
-  const activeBefore = getActiveEvents(X);
+  const activeBefore = activeEvents(X, input.modelWorld?.randomEvents ?? input.randomEvents.map(modelWorldEvent));
 
   const goalText = input.annualGoal && input.annualGoal.year === 1960 + Math.floor(X / 12) && X % 12 === 11
     ? describeGoal(input.annualGoal, formatCurrency, formatNumber)
@@ -181,8 +181,7 @@ export function modelMonthClose(input: ModelCloseInput, env: ModelEnv = defaultM
   };
 
   // Ereignisse: Start und Ende (geschichtliche und Zufallsereignisse), Krisen-Frage.
-  setRuntimeRandomEvents([...month.randomEvents]);
-  const afterEvents = getActiveEvents(next);
+  const afterEvents = activeEvents(next, month.modelWorld.randomEvents);
   const beforeKeys = new Set(activeBefore.map(eventKey));
   const afterKeys = new Set(afterEvents.map(eventKey));
   const eventsStarted = afterEvents.filter((ev) => !beforeKeys.has(eventKey(ev)));

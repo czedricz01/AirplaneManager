@@ -11,9 +11,10 @@
  *
  * Rein: liest nur seine Eingabe (R12).
  */
-import { HISTORICAL_EVENTS, RANDOM_EVENT_TEMPLATES } from '../model/constants';
+import { HISTORICAL_EVENTS } from '../model/constants';
 import { activeWorldEvents, crisisResponsePrice, type CrisisResponseBase, type WorldEvent } from '../model/monthEvents';
-import { eventKey, historicalEvents, type EventChoice, type EventRegion, type HistoricalEvent } from './eventSystem';
+import { appEvent, eventKey, type EventChoice, type HistoricalEvent } from './eventSystem';
+import { crisisResponses } from './modelBridgeCompany';
 import type { MonthlyReport } from './gameTypes';
 
 /** Ein Eintrag des Ereignis-Bands; Format der Oberfläche, damit „Decision pending“ die Frage öffnen kann. */
@@ -71,13 +72,6 @@ export function pricedEvent<E extends HistoricalEvent>(ev: E, base: CrisisRespon
   return (choices ? { ...rest, choices } : rest) as E;
 }
 
-/** Text eines Ereignisses aus den Modell-Daten: geschichtlich, sonst Vorlage des Zufallsereignisses. */
-function eventDescription(title: string): string {
-  return HISTORICAL_EVENTS.find((e) => e.title === title)?.description
-    ?? RANDOM_EVENT_TEMPLATES.find((t) => t.title === title)?.description
-    ?? '';
-}
-
 /**
  * Die im Monat `month` laufenden Ereignisse für das Band (8.4), in der Reihenfolge des Modells (geschichtliche, dann
  * gewürfelte). Mit gewählter Antwort (`eventChoices`, Schlüssel `eventKey`) und Antworten zum Preis des Modells.
@@ -91,22 +85,26 @@ export function eventBand(
   base: CrisisResponseBase | null,
 ): BandEvent[] {
   return activeWorldEvents(month, randomEvents).map((e) => {
-    const app = historicalEvents.find((h) => h.title === e.title && h.startOffset === e.startMonth);
-    const choices = pricedChoices(e.title, app?.choices, base, month);
-    const key = eventKey({ title: e.title, startOffset: e.startMonth });
-    const chosenId = eventChoices[key];
+    const { choices: raw, ...app } = appEvent(e);
+    const choices = pricedChoices(e.title, raw, base, month);
+    const chosenId = eventChoices[eventKey(app)];
     return {
-      startOffset: e.startMonth,
-      duration: e.months,
-      title: e.title,
-      description: eventDescription(e.title),
-      demandMultiplier: e.demandMultiplier,
+      ...app,
       // Kein Treibstoff-Faktor im Modell (E8); der Preis steht in der Treibstoff-Zahl.
       fuelMultiplier: 1,
-      ...(e.regions && e.regions.length > 0 ? { regions: [...e.regions] as EventRegion[] } : {}),
       ...(choices ? { choices } : {}),
       monthsLeft: e.startMonth + e.months - month,
       chosen: chosenId ? choices?.find((c) => c.id === chosenId) : undefined,
     };
   });
+}
+
+/**
+ * Die geschichtlichen Ereignisse, für die der Spieler die Preis-Absicherung gekauft hat (`crisisResponses`), mit
+ * Beginn und Dauer aus den Modell-Daten: Eingabe für `playerFuelPerGallon` (5.2, 8.5). Die Absicherung greift nur,
+ * solange ihr Ereignis läuft (`hedgeLockMonth`).
+ */
+export function hedgedCrises(eventChoices: Readonly<Record<string, string>>): { readonly startMonth: number; readonly months: number }[] {
+  const titles = new Set(crisisResponses(eventChoices).hedged);
+  return HISTORICAL_EVENTS.filter((e) => titles.has(e.title)).map((e) => ({ startMonth: e.startMonth, months: e.months }));
 }

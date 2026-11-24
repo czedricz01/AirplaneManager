@@ -8,7 +8,6 @@ import assert from 'node:assert/strict';
 import { atCost } from '../model/basics';
 import { ADVERTISING_MAX, ADVERTISING_REPUTATION_MAX, CAMPAIGN_COST_1960 } from '../model/constants';
 import { monthOperations } from '../model/monthClose';
-import { ffpLoyaltyBonus } from './marketing';
 import type { Campaign, Marketing } from './gameState';
 import { createGameSystems } from './gameState';
 import { PLAYER_ID, defaultModelEnv, modelGame, type AppGame } from './modelMonth';
@@ -115,13 +114,6 @@ describe('Paket 4.8: Treue-Zuschlag des Frequent-flyer-Programms (3.9.4)', () =>
     assert.ok(Math.abs(loyaltyBonus(marketing([], { since: M }), M) - 0.05) < 1e-12);
     assert.ok(Math.abs(loyaltyBonus(marketing([], { since: M - 3 }), M) - 0.08) < 1e-12);
     assert.ok(Math.abs(loyaltyBonus(marketing([], { since: M - 40 }), M) - 0.2) < 1e-12);
-  });
-
-  it('gleiche Werte wie die alte Anzeige (nur die Wirkung gilt jetzt für alle Flüge)', () => {
-    for (const since of [M, M - 1, M - 7, M - 20]) {
-      const m = marketing([], { since });
-      assert.ok(Math.abs(loyaltyBonus(m, M) - ffpLoyaltyBonus(m, M)) < 1e-9, `seit ${since}`);
-    }
   });
 });
 

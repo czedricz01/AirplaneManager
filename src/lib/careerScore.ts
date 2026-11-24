@@ -1,4 +1,6 @@
 
+import { HALL_SIZE } from '../model/constants';
+import { fileCareer as fileModelCareer, splitHall, type HallsOfFame as ModelHalls } from '../model/progress';
 
 export interface ScoreBreakdown {
   wealth: number;
@@ -27,25 +29,31 @@ export interface HallOfFameEntry {
   mode?: 'normal' | 'free';
 }
 
-export const HALL_SIZE = 10;
+/** Two halls (E43): Normal and Free Mode, ten best each (`HALL_SIZE`). Filing and sorting are the model's (6.12). */
+export type HallsOfFame = ModelHalls<HallOfFameEntry>;
 
-/** The hall with a new entry in it: best first, ten at most, the same career filed twice kept once. */
-export function fileCareer(hall: readonly HallOfFameEntry[], entry: HallOfFameEntry): HallOfFameEntry[] {
-  return [...hall.filter(e => e.id !== entry.id), entry]
-    .sort((a, b) => b.score - a.score || a.filed.localeCompare(b.filed))
-    .slice(0, HALL_SIZE);
+export { HALL_SIZE };
+
+/** The halls with a new entry in the hall of its mode: best first, ten at most, the same career filed twice kept once. */
+export function fileCareer(halls: HallsOfFame, entry: HallOfFameEntry): HallsOfFame {
+  return fileModelCareer(halls, entry);
 }
 
-/** Where an entry would stand, 1-based, or null if it does not make the hall. */
-export function hallPosition(hall: readonly HallOfFameEntry[], entry: HallOfFameEntry): number | null {
-  const filed = fileCareer(hall, entry);
-  const i = filed.findIndex(e => e.id === entry.id);
+/** The hall of one mode. */
+export function hallOf(halls: HallsOfFame, mode: 'normal' | 'free' | undefined): readonly HallOfFameEntry[] {
+  return mode === 'free' ? halls.free : halls.normal;
+}
+
+/** Where an entry would stand in the hall of its mode, 1-based, or null if it does not make it. */
+export function hallPosition(halls: HallsOfFame, entry: HallOfFameEntry): number | null {
+  const i = hallOf(fileCareer(halls, entry), entry.mode).findIndex(e => e.id === entry.id);
   return i < 0 ? null : i + 1;
 }
 
-export function normalizeHall(raw: unknown): HallOfFameEntry[] {
+/** Stored entries, damaged ones dropped; an entry without a mode is Normal Mode. */
+function cleanEntries(raw: unknown): HallOfFameEntry[] {
   if (!Array.isArray(raw)) return [];
-  const ok = raw.filter((e): e is HallOfFameEntry =>
+  return raw.filter((e): e is HallOfFameEntry =>
     !!e && typeof e === 'object' &&
     typeof (e as any).id === 'string' && typeof (e as any).airline === 'string' &&
     Number.isFinite((e as any).score) && typeof (e as any).filed === 'string'
@@ -55,7 +63,16 @@ export function normalizeHall(raw: unknown): HallOfFameEntry[] {
     netWorth: Number.isFinite(e.netWorth) ? e.netWorth : 0, filed: e.filed,
     mode: (e as any).mode === 'free' ? 'free' as const : 'normal' as const
   }));
-  return ok.sort((a, b) => b.score - a.score).slice(0, HALL_SIZE);
+}
+
+/**
+ * The stored halls, repaired: `{ normal, free }`, or the one shared list stored before 5.2b, split by mode
+ * (`splitHall`, 6.12). Each hall holds only entries of its mode.
+ */
+export function normalizeHalls(raw: unknown): HallsOfFame {
+  if (Array.isArray(raw)) return splitHall(cleanEntries(raw));
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return splitHall([...cleanEntries(src.normal), ...cleanEntries(src.free)]);
 }
 
 // --- Scenario stars ---------------------------------------------------------------

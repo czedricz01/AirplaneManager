@@ -1,28 +1,18 @@
 /**
- * The per-game systems added with save version 3, and the one object through
- * which everything that applies only to the player reaches the economy.
+ * The per-game systems added with save version 3 (marketing, staff,
+ * disruptions, questions, scenario, career) as the interface stores them.
  *
- * Marketing, staff morale, strikes, disruptions and connecting passengers all
- * change what a player route earns, but must never touch the AI airlines,
- * which price their routes with the same engine. Rather than grow
- * calculateRouteFinancials by a parameter per system, each of them contributes
- * to one PlayerModifiers object, built here by a pure function. The route
- * list, the planner's preview and the monthly report all pass that same
- * object, so a forecast and the month it forecasts cannot disagree.
+ * What they do to the month is the model's (`src/model/`); the views reach it
+ * through the bridges in `src/lib/model*.ts`. The old `buildPlayerModifiers`
+ * was removed in 5.2b.
  */
 import { MAP_YELLOW } from './theme';
-import { getActiveEvents, eventKey } from './eventSystem';
-import { ffpLoyaltyBonus, regionDemandFactors } from './marketing';
-import { crewCostFactor, moraleSatDelta, strikeCancelShare } from './staff';
-import { combineCancelShares, disruptionCancelShares } from './disruptions';
-import { maturityFactors } from './routeMaturity';
 import type { GoalOffer } from './annualGoals';
 import type { PreOrder } from './preorders';
-import type { ResearchEffects, ResearchState } from './research';
+import type { ResearchState } from './research';
 import type { GameMode } from './airlineRank';
 
 export { SALARY_PCT_MIN, SALARY_PCT_MAX } from './staff';
-export { combineCancelShares } from './disruptions';
 
 /** The coarse regions of the world the game tells apart. See regionOf. */
 export type RegionId = 'EU' | 'NA' | 'SA' | 'AF' | 'AS' | 'OC';
@@ -348,157 +338,3 @@ export function normalizeGameSettings(raw: unknown): GameSettings {
   return { newspaper: pick('newspaper'), tutorial: pick('tutorial'), heatmap: pick('heatmap') };
 }
 
-// --- Player modifiers ---------------------------------------------------------
-
-/**
- * Everything that applies to the player's routes and not to the AI airlines.
- * Every optional field is neutral when absent: a PlayerModifiers holding only
- * a demandFactor prices a route exactly as passing that factor on its own.
- */
-export interface PlayerModifiers {
-  /** Multiplies all of the player's demand: reputation times any crisis relief bought. */
-  demandFactor: number;
-  /** Extra demand per region, 1 = neutral. A route gets the mean of its two ends. */
-  regionDemand?: Partial<Record<RegionId, number>>;
-  /**
-   * Demand multiplier per route id for how long it has been open: new routes
-   * ramp up, old ones build loyalty. See routeMaturity.ts. A route not listed is mature.
-   */
-  maturity?: Record<string, number>;
-  /** Connecting passengers: 0.1 = 10% more. From the alliance project; see research.ts. */
-  transferBoost?: number;
-  /** Raises the player's appeal against rivals on a shared city pair: 0.1 = 10% more. */
-  loyaltyBonus?: number;
-  /** Satisfaction points added to every cabin class. */
-  satDelta?: number;
-  /** Multiplies crew and ground staff cost. */
-  crewCostFactor?: number;
-  /** Multiplies landing, passenger-handling and check-in fees. From the development tree. */
-  feeFactor?: number;
-  /** Multiplies the cost of meals, extras and service on board. From the development tree. */
-  cateringFactor?: number;
-  /** Share of each route's flights that do not operate this month, by route id, 0-1. */
-  cancelShare?: Record<string, number>;
-  /**
-   * Share of every route's flights that do not operate this month, 0-1: a
-   * strike. Not keyed by route, so it also reaches a route the planner is
-   * still drafting. Combined with the route's own cancelShare as an
-   * independent cause, see routeCancelShare.
-   */
-  cancelShareAll?: number;
-  /**
-   * Connecting passengers and their revenue per week, by route id: totals,
-   * and the same split by cabin. Without `byClass` it is all economy.
-   */
-  transfer?: Record<string, {
-    pax: number;
-    revenue: number;
-    byClass?: Partial<Record<'economy' | 'premium' | 'business' | 'first', { pax: number; revenue: number }>>;
-  }>;
-}
-
-/**
- * What buildPlayerModifiers reads. An object, so each system adds its own
- * field here without touching the call sites of the others.
- */
-export interface PlayerModifierState {
-  reputation: number;
-  /** Which choice was taken for each world event, keyed by eventKey. */
-  eventChoices: Record<string, string>;
-  /** Campaigns and the frequent-flyer programme; none when absent. */
-  marketing?: Marketing;
-  /** Pay, morale and any strike; neutral when absent. */
-  staff?: Staff;
-  /** Rolled disruptions; only those for the month priced, and not chartered away, cancel anything. */
-  disruptions?: Disruption[];
-  /** The player's routes, for how long each has been open; none when absent. */
-  routes?: ReadonlyArray<{ id: string; openedOffset?: number }>;
-  /** What the finished development projects do; neutral when absent. */
-  research?: ResearchEffects;
-}
-
-/**
- * What reputation does to demand: from 15% less at 0 to 5% more at 100, and
- * nothing at 75, which is about where a well-run airline settles. Small enough
- * that a good network still beats a good reputation, large enough to be worth
- * protecting. The company screen shows this very figure; it used to show a
- * formula of its own that was neutral at 50.
- */
-export function reputationDemandFactor(reputation: number): number {
-  return 0.85 + (Math.max(0, Math.min(100, reputation)) / 100) * 0.2;
-}
-
-/**
- * The correction that turns a crisis's raw demand hit into the softened one the
- * player paid for.
- *
- * calculateDemand has already applied the event's own multiplier via
- * getEventMultipliers, and that path is shared with the AI airlines. Rather
- * than fork it, the player's demand factor carries the ratio between the
- * softened multiplier and the raw one, so only the player sees the relief.
- */
-export function eventReliefFactor(
-  offset: number,
-  choicesTaken: Record<string, string>
-): number {
-  let factor = 1;
-  for (const ev of getActiveEvents(offset)) {
-    const chosenId = choicesTaken[eventKey(ev)];
-    if (!chosenId) continue;
-    const choice = ev.choices?.find(c => c.id === chosenId);
-    if (!choice?.softensDemand) continue;
-    const raw = ev.demandMultiplier;
-    if (raw >= 1) continue;
-    const softened = raw + (1 - raw) * choice.softensDemand;
-    factor *= softened / raw;
-  }
-  return factor;
-}
-
-/**
- * The player's modifiers for the month at `offset`. Pure: the same state and
- * month always give the same object contents.
- */
-export function buildPlayerModifiers(state: PlayerModifierState, offset: number): PlayerModifiers {
-  const mods: PlayerModifiers = {
-    demandFactor: reputationDemandFactor(state.reputation) * eventReliefFactor(offset, state.eventChoices)
-  };
-  // Fields are only set when they do something, so an airline without any
-  // marketing prices its routes exactly as before marketing existed.
-  if (state.marketing) {
-    const regionDemand = regionDemandFactors(state.marketing, offset);
-    if (regionDemand) mods.regionDemand = regionDemand;
-    const loyalty = ffpLoyaltyBonus(state.marketing, offset);
-    if (loyalty > 0) mods.loyaltyBonus = loyalty;
-  }
-  if (state.staff) {
-    const satDelta = moraleSatDelta(state.staff.morale);
-    if (satDelta !== 0) mods.satDelta = satDelta;
-    const crew = crewCostFactor(state.staff.salaryPct);
-    if (crew !== 1) mods.crewCostFactor = crew;
-    const strike = strikeCancelShare(state.staff, offset);
-    if (strike > 0) mods.cancelShareAll = strike;
-  }
-  const cancelShare = disruptionCancelShares(state.disruptions, offset);
-  if (cancelShare) mods.cancelShare = cancelShare;
-  if (state.routes) {
-    const maturity = maturityFactors(state.routes, offset, state.research?.rampStart);
-    if (maturity) mods.maturity = maturity;
-  }
-  if (state.research) {
-    const r = state.research;
-    if (r.demandBonus) mods.demandFactor *= 1 + r.demandBonus;
-    if (r.satBonus) mods.satDelta = (mods.satDelta ?? 0) + r.satBonus;
-    if (r.transferBoost) mods.transferBoost = r.transferBoost;
-    if (r.crewFactor !== 1) mods.crewCostFactor = (mods.crewCostFactor ?? 1) * r.crewFactor;
-    if (r.feeFactor !== 1) mods.feeFactor = r.feeFactor;
-    if (r.cateringFactor !== 1) mods.cateringFactor = r.cateringFactor;
-  }
-  return mods;
-}
-
-/** The share of one route's flights that do not operate under these modifiers, 0-1. */
-export function routeCancelShare(mods: PlayerModifiers | undefined, routeId: string): number {
-  if (!mods) return 0;
-  return combineCancelShares(mods.cancelShare?.[routeId], mods.cancelShareAll);
-}

@@ -1,15 +1,27 @@
 /**
- * Something the player can do about an event, offered once when it begins.
+ * World events as the interface shows them, built from the model's data.
  *
- * Until now a world event was two numbers the player could only absorb. A
- * choice costs money up front and changes how the event hits the player -- and
- * only the player, never the AI airlines, which keep paying the raw rates.
+ * Which events there are, when, for how long, how hard they hit and what a
+ * crisis response does and costs are the model's (SPEZIFIKATION 8.4, 8.5:
+ * `HISTORICAL_EVENTS`, `RANDOM_EVENT_TEMPLATES`, `FUEL_CRISES`,
+ * `activeWorldEvents`, `crisisResponsePrice`). Only the wording of the crisis
+ * responses lives here (`EVENT_CHOICE_TEXTS`). The old table of its own, with
+ * fixed placeholder prices, and the module state of random events were
+ * removed in 5.2b.
+ */
+import { FUEL_CRISES, HISTORICAL_EVENTS, RANDOM_EVENT_TEMPLATES } from '../model/constants';
+import { activeWorldEvents, type WorldEvent } from '../model/monthEvents';
+
+/**
+ * Something the player can do about an event, offered once when it begins.
+ * A choice costs money up front and changes how the event hits the player --
+ * and only the player, never the AI airlines.
  */
 export interface EventChoice {
   id: string;
   label: string;
   detail: string;
-  /** Charged once, when the choice is taken. */
+  /** Charged once, when the choice is taken: the model's price (`pricedChoices` in modelEvents.ts); 0 until priced. */
   cost: number;
   /**
    * Locks the player's jet fuel price at the level of the month before the
@@ -42,7 +54,8 @@ export interface HistoricalEvent {
   title: string;
   description: string;
   demandMultiplier: number; // 1.0 = normal
-  fuelMultiplier: number; // 1.0 = normal
+  /** Highest factor of the fuel table during the event (`FUEL_CRISES`, 5.2); 1 for every other event. For texts only. */
+  fuelMultiplier: number;
   choices?: EventChoice[];
   /**
    * Set for a regional event: the demand multiplier then applies only to
@@ -70,256 +83,96 @@ export function eventScope(ev: Pick<HistoricalEvent, 'regions'>): string {
 export const eventKey = (ev: Pick<HistoricalEvent, 'title' | 'startOffset'>) =>
   `${ev.title}@${ev.startOffset}`;
 
-export const historicalEvents: HistoricalEvent[] = [
-  {
-    startOffset: (1973 - 1960) * 12 + 9, // Oct 1973
-    duration: 18,
-    title: "1973 Oil Crisis",
-    choices: [
-      {
-        id: "hedge",
-        label: "Hedge fuel for the duration",
-        detail: "Lock your jet fuel price at last month's level until the crisis is over. Your rivals keep paying the market rate. If fuel gets cheaper instead, you still pay the locked price.",
-        cost: 4000000,
-        hedgesFuel: true
-      },
-      {
-        id: "ride",
-        label: "Ride it out",
-        detail: "Pay the market price for fuel, whatever it does. Costs nothing now.",
-        cost: 0
-      }
-    ],
-    description: "An oil embargo has caused massive fuel shortages and skyrocketing prices.",
-    demandMultiplier: 0.9,
-    fuelMultiplier: 2.0,
-  },
-  {
-    startOffset: (1979 - 1960) * 12 + 1, // Feb 1979
-    duration: 24,
-    title: "1979 Energy Crisis",
-    choices: [
-      {
-        id: "hedge",
-        label: "Hedge fuel for the duration",
-        detail: "Lock your jet fuel price at last month's level until the crisis is over. Your rivals keep paying the market rate. If fuel gets cheaper instead, you still pay the locked price.",
-        cost: 6000000,
-        hedgesFuel: true
-      },
-      {
-        id: "ride",
-        label: "Ride it out",
-        detail: "Pay the market price for fuel, whatever it does. Costs nothing now.",
-        cost: 0
-      }
-    ],
-    description: "A drop in oil production has triggered a severe energy crisis.",
-    demandMultiplier: 0.85,
-    fuelMultiplier: 1.8,
-  },
-  {
-    startOffset: (1990 - 1960) * 12 + 7, // Aug 1990
-    duration: 12,
-    title: "Gulf War Oil Shock",
-    choices: [
-      {
-        id: "hedge",
-        label: "Hedge fuel for the duration",
-        detail: "Lock your jet fuel price at last month's level until the crisis is over. Your rivals keep paying the market rate. If fuel gets cheaper instead, you still pay the locked price.",
-        cost: 3000000,
-        hedgesFuel: true
-      },
-      {
-        id: "ride",
-        label: "Ride it out",
-        detail: "Pay the market price for fuel, whatever it does. Costs nothing now.",
-        cost: 0
-      }
-    ],
-    description: "Geopolitical tensions have caused a short-term spike in oil prices.",
-    demandMultiplier: 0.95,
-    fuelMultiplier: 1.5,
-  },
-  {
-    startOffset: (2001 - 1960) * 12 + 8, // Sep 2001
-    duration: 12,
-    title: "Aviation Downturn",
-    choices: [
-      {
-        id: "reassure",
-        label: "Campaign to win passengers back",
-        detail: "Advertising, refunds and flexible rebooking while confidence recovers. Recovers roughly 40% of the demand you would otherwise lose, for you alone.",
-        cost: 5000000,
-        softensDemand: 0.4
-      },
-      {
-        id: "ride",
-        label: "Wait for confidence to return",
-        detail: "Fly the schedule and absorb the empty seats. Costs nothing now.",
-        cost: 0
-      }
-    ],
-    description: "Global passenger demand has plummeted dramatically.",
-    demandMultiplier: 0.65,
-    fuelMultiplier: 1.0,
-  },
-  {
-    startOffset: (2008 - 1960) * 12 + 8, // Sep 2008
-    duration: 24,
-    title: "Global Financial Crisis",
-    choices: [
-      {
-        id: "yield",
-        label: "Chase volume with cut fares",
-        detail: "Discount aggressively and market hard for two years to keep the aircraft full. Recovers roughly a third of the lost demand, for you alone.",
-        cost: 8000000,
-        softensDemand: 0.33
-      },
-      {
-        id: "ride",
-        label: "Hold your fares",
-        detail: "Protect yield and fly emptier. Costs nothing now.",
-        cost: 0
-      }
-    ],
-    description: "A severe worldwide economic crisis resulting in depressed passenger demand and volatile fuel prices.",
-    demandMultiplier: 0.75,
-    fuelMultiplier: 1.2,
-  },
-  {
-    startOffset: (2020 - 1960) * 12 + 2, // Mar 2020
-    duration: 24,
-    title: "Global Pandemic",
-    choices: [
-      {
-        id: "cargo",
-        label: "Convert cabins to cargo",
-        detail: "Strip seats and fly freight while nobody is travelling. Expensive and slow to reverse, but recovers roughly 35% of a demand collapse that is otherwise near-total.",
-        cost: 25000000,
-        softensDemand: 0.35
-      },
-      {
-        id: "ride",
-        label: "Park the aircraft and wait",
-        detail: "Fly the schedule into empty cabins for two years. Costs nothing now.",
-        cost: 0
-      }
-    ],
-    description: "International borders close and aviation demand nearly vanishes.",
-    demandMultiplier: 0.20,
-    fuelMultiplier: 0.7,
-  },
+/** A paid answer: hedge fuel. Priced by the model (8.5). */
+const HEDGE: EventChoice = {
+  id: 'hedge',
+  label: 'Hedge fuel for the duration',
+  detail: 'Lock your jet fuel price at last month\'s level until the crisis is over. Your rivals keep paying the market rate. If fuel gets cheaper instead, you still pay the locked price.',
+  cost: 0,
+  hedgesFuel: true
+};
 
-  // --- Regional events: they hit one part of the world, not all of it. -------
-  {
-    startOffset: (1968 - 1960) * 12 + 4, // May 1968
-    duration: 2,
-    title: "French General Strike",
-    description: "Strikes and unrest paralyse France; airports close and bookings across Western Europe collapse for weeks.",
-    demandMultiplier: 0.85,
-    fuelMultiplier: 1.0,
-    regions: ['EU']
-  },
-  {
-    startOffset: (1981 - 1960) * 12 + 7, // Aug 1981
-    duration: 5,
-    title: "Air Traffic Controllers' Strike",
-    description: "American air traffic controllers walk out and the government grounds the strikers: flights across North America are cut for months.",
-    demandMultiplier: 0.80,
-    fuelMultiplier: 1.0,
-    regions: ['NA']
-  },
-  {
-    startOffset: (1992 - 1960) * 12 + 6, // Jul 1992
-    duration: 2,
-    title: "Barcelona Olympics",
-    description: "The Games fill Spanish hotels and the flights into Europe.",
-    demandMultiplier: 1.08,
-    fuelMultiplier: 1.0,
-    regions: ['EU']
-  },
-  {
-    startOffset: (1993 - 1960) * 12, // Jan 1993
-    duration: 36,
-    title: "Pacific Rim Boom",
-    description: "The Asian tigers grow at ten percent a year; business travel and tourism in Asia and Oceania take off.",
-    demandMultiplier: 1.12,
-    fuelMultiplier: 1.0,
-    regions: ['AS', 'OC']
-  },
-  {
-    startOffset: (1997 - 1960) * 12 + 6, // Jul 1997
-    duration: 18,
-    title: "Asian Financial Crisis",
-    description: "Currencies collapse from Thailand to Korea; travel in Asia and Oceania falls sharply.",
-    demandMultiplier: 0.78,
-    fuelMultiplier: 1.0,
-    regions: ['AS', 'OC']
-  },
-  {
-    startOffset: (2000 - 1960) * 12 + 8, // Sep 2000
-    duration: 2,
-    title: "Sydney Olympics",
-    description: "The Games bring the world to Australia for a fortnight, and a month of bookings with it.",
-    demandMultiplier: 1.15,
-    fuelMultiplier: 1.0,
-    regions: ['OC']
-  },
-  {
-    startOffset: (2003 - 1960) * 12 + 2, // Mar 2003
-    duration: 5,
-    title: "SARS Outbreak",
-    description: "A new respiratory disease spreads from Hong Kong; travellers stay away from Asia.",
-    demandMultiplier: 0.60,
-    fuelMultiplier: 1.0,
-    regions: ['AS']
-  },
-  {
-    startOffset: (2008 - 1960) * 12 + 7, // Aug 2008
-    duration: 2,
-    title: "Beijing Olympics",
-    description: "China shows itself to the world and crowds into its airports.",
-    demandMultiplier: 1.12,
-    fuelMultiplier: 1.0,
-    regions: ['AS']
-  },
-  {
-    startOffset: (2010 - 1960) * 12 + 3, // Apr 2010
-    duration: 2,
-    title: "Eyjafjallajökull Ash Cloud",
-    description: "An Icelandic volcano closes European airspace for days; the backlog lingers for weeks.",
-    demandMultiplier: 0.60,
-    fuelMultiplier: 1.0,
-    regions: ['EU']
-  },
-  {
-    startOffset: (2011 - 1960) * 12 + 2, // Mar 2011
-    duration: 3,
-    title: "Tohoku Earthquake",
-    description: "Earthquake, tsunami and nuclear accident in Japan: visitors cancel and flights across Asia thin out.",
-    demandMultiplier: 0.85,
-    fuelMultiplier: 1.0,
-    regions: ['AS']
-  },
-  {
-    startOffset: (2014 - 1960) * 12 + 5, // Jun 2014
-    duration: 2,
-    title: "Brazil World Cup",
-    description: "Fans from every continent fly to South America for the tournament.",
-    demandMultiplier: 1.15,
-    fuelMultiplier: 1.0,
-    regions: ['SA']
-  }
-];
+/** "Do nothing" for a fuel crisis. */
+const RIDE_FUEL: EventChoice = {
+  id: 'ride',
+  label: 'Ride it out',
+  detail: 'Pay the market price for fuel, whatever it does. Costs nothing now.',
+  cost: 0
+};
 
-export let randomEvents: HistoricalEvent[] = [];
+/**
+ * The wording of the crisis responses, by event title: the six world events with a response in the model
+ * (`HISTORICAL_EVENTS[].response`). `softensDemand` is the model's recovery share `r` (8.5). Prices: `pricedChoices`.
+ */
+export const EVENT_CHOICE_TEXTS: Readonly<Record<string, readonly EventChoice[]>> = {
+  '1973 Oil Crisis': [HEDGE, RIDE_FUEL],
+  '1979 Energy Crisis': [HEDGE, RIDE_FUEL],
+  'Gulf War Oil Shock': [HEDGE, RIDE_FUEL],
+  'Aviation Downturn': [
+    {
+      id: 'reassure',
+      label: 'Campaign to win passengers back',
+      detail: 'Advertising, refunds and flexible rebooking while confidence recovers. Recovers roughly 40% of the demand you would otherwise lose, for you alone.',
+      cost: 0,
+      softensDemand: recoveryShare('Aviation Downturn')
+    },
+    { id: 'ride', label: 'Wait for confidence to return', detail: 'Fly the schedule and absorb the empty seats. Costs nothing now.', cost: 0 }
+  ],
+  'Global Financial Crisis': [
+    {
+      id: 'yield',
+      label: 'Chase volume with cut fares',
+      detail: 'Discount aggressively and market hard for two years to keep the aircraft full. Recovers roughly a third of the lost demand, for you alone.',
+      cost: 0,
+      softensDemand: recoveryShare('Global Financial Crisis')
+    },
+    { id: 'ride', label: 'Hold your fares', detail: 'Protect yield and fly emptier. Costs nothing now.', cost: 0 }
+  ],
+  'Global Pandemic': [
+    {
+      id: 'cargo',
+      label: 'Convert cabins to cargo',
+      detail: 'Strip seats and fly freight while nobody is travelling. Expensive and slow to reverse, but recovers roughly 35% of a demand collapse that is otherwise near-total.',
+      cost: 0,
+      softensDemand: recoveryShare('Global Pandemic')
+    },
+    { id: 'ride', label: 'Park the aircraft and wait', detail: 'Fly the schedule into empty cabins for two years. Costs nothing now.', cost: 0 }
+  ]
+};
 
-export function setRuntimeRandomEvents(evs: HistoricalEvent[]) {
-  randomEvents = evs;
+/** The model's recovery share `r` of a historical event (8.5); 0 when it has none. */
+function recoveryShare(title: string): number {
+  return HISTORICAL_EVENTS.find(e => e.title === title)?.response?.recoveryShare ?? 0;
 }
 
-export function getActiveEvents(currentOffset: number): HistoricalEvent[] {
-  const fileEvents = historicalEvents.filter(ev => currentOffset >= ev.startOffset && currentOffset < ev.startOffset + ev.duration);
-  const memoryEvents = randomEvents.filter(ev => currentOffset >= ev.startOffset && currentOffset < ev.startOffset + ev.duration);
-  return [...fileEvents, ...memoryEvents];
+/**
+ * A model event as the interface shows it: text from the model's data (historical, else the random template), the
+ * fuel table's peak for an oil crisis (texts only), and for a historical event with a response its answers (unpriced).
+ */
+export function appEvent(ev: WorldEvent): HistoricalEvent {
+  const historical = HISTORICAL_EVENTS.find(e => e.title === ev.title && e.startMonth === ev.startMonth);
+  const description = historical?.description ?? RANDOM_EVENT_TEMPLATES.find(t => t.title === ev.title)?.description ?? '';
+  const fuel = historical ? FUEL_CRISES.find(c => c.name === ev.title && c.startMonth === ev.startMonth)?.factor : undefined;
+  const choices = historical?.response ? EVENT_CHOICE_TEXTS[ev.title] : undefined;
+  return {
+    startOffset: ev.startMonth,
+    duration: ev.months,
+    title: ev.title,
+    description,
+    demandMultiplier: ev.demandMultiplier,
+    fuelMultiplier: fuel ?? 1,
+    ...(choices ? { choices: choices.map(c => ({ ...c })) } : {}),
+    ...(ev.regions && ev.regions.length > 0 ? { regions: [...ev.regions] as EventRegion[] } : {})
+  };
+}
+
+/** The 17 historical events of the model (`HISTORICAL_EVENTS`, 8.4) as the interface shows them. */
+export const historicalEvents: readonly HistoricalEvent[] = HISTORICAL_EVENTS.map(appEvent);
+
+/**
+ * The events running in the month at `month`, historical ones and the rolled ones of the game's world
+ * (`randomEvents`, `ModelState.randomEvents`), in the model's order (`activeWorldEvents`, 8.4).
+ */
+export function activeEvents(month: number, randomEvents: readonly WorldEvent[] = []): HistoricalEvent[] {
+  return activeWorldEvents(month, randomEvents).map(appEvent);
 }

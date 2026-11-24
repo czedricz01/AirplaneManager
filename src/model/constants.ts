@@ -646,7 +646,7 @@ export const ADVERTISING_BOOST: Readonly<Record<CampaignTier, number>> = {
 /** Höchster Werbe-Faktor einer Region, wie viele Kampagnen auch laufen (heute `src/lib/marketing.ts:84`). SPEZIFIKATION 3.9.5. */
 export const ADVERTISING_MAX = 1.25;
 
-/** Höchster Established route bonus (heute `src/lib/routeMaturity.ts:24`). SPEZIFIKATION 3.9.6. */
+/** Höchster Established route bonus (früher `src/lib/routeMaturity.ts`, entfernt in 5.2b). SPEZIFIKATION 3.9.6. */
 export const ESTABLISHED_BONUS_MAX = 0.05;
 
 /** Ab diesem Alter (Monate) wächst der Established route bonus. SPEZIFIKATION 3.9.6. */
@@ -659,10 +659,10 @@ export const ESTABLISHED_TO = 48;
 // 3.12 Anlauf
 // ---------------------------------------------------------------------------
 
-/** Anteil der gewählten Fluggäste, den ein neues Angebot im ersten Monat erreicht (heute `src/lib/routeMaturity.ts:17`). SPEZIFIKATION 3.12. */
+/** Anteil der gewählten Fluggäste, den ein neues Angebot im ersten Monat erreicht (früher `src/lib/routeMaturity.ts`, entfernt in 5.2b). SPEZIFIKATION 3.12. */
 export const RAMP_START = 0.6;
 
-/** Monate bis zur vollen Nachfrage (heute `src/lib/routeMaturity.ts:19`). SPEZIFIKATION 3.12. */
+/** Monate bis zur vollen Nachfrage (früher `src/lib/routeMaturity.ts`, entfernt in 5.2b). SPEZIFIKATION 3.12. */
 export const RAMP_MONTHS = 9;
 
 /** Zuschlag auf `RAMP_START` mit der Forschung „Route planning suite“ (Feld `rampBonus`, 6.9). SPEZIFIKATION 3.12. */
@@ -1653,7 +1653,7 @@ export const RIVAL_STRENGTHS: readonly RivalStrength[] = ['easy', 'normal', 'har
 
 /** Werte einer KI-Stärke. Startwerte (3.9). SPEZIFIKATION 7.3. */
 export interface RivalStrengthDef {
-  /** Startkasse in $ von 1960 (`RIVAL_START_CASH_1960`, heute `src/lib/aiSimulation.ts:700`). 7.7. */
+  /** Startkasse in $ von 1960 (`RIVAL_START_CASH_1960`, früher `src/lib/aiSimulation.ts`, entfernt in 5.2b). 7.7. */
   readonly startCash1960: number;
   /** Flugzeuge der Startflotte. 7.7. */
   readonly startFleet: number;
@@ -1671,7 +1671,7 @@ export interface RivalStrengthDef {
   readonly openWithoutProfitChance: number;
 }
 
-/** KI-Stärken (heute `src/lib/aiSimulation.ts:96-149`, `:700-715`, `:1111-1115`). Startwerte (3.9). SPEZIFIKATION 7.3. */
+/** KI-Stärken (früher `src/lib/aiSimulation.ts`, entfernt in 5.2b). Startwerte (3.9). SPEZIFIKATION 7.3. */
 export const RIVAL_STRENGTH: Readonly<Record<RivalStrength, RivalStrengthDef>> = {
   easy: {
     startCash1960: 50_000_000,
@@ -1764,7 +1764,7 @@ export interface PersonalityDef {
   readonly buildsLounge: boolean;
   /** Kabine (7.5). */
   readonly cabin: RivalCabinDef;
-  /** Service je Klasse (7.5; heute `src/lib/aiSimulation.ts:287-334`, LCC nichts). */
+  /** Service je Klasse (7.5; früher `src/lib/aiSimulation.ts`, entfernt in 5.2b, LCC nichts). */
   readonly service: Readonly<Record<CabinClass, RivalClassService>>;
 }
 
@@ -2024,7 +2024,7 @@ export const FICTIONAL_SHARE_SPREAD = 0.2;
 export const RIVAL_REFILL_CHANCE = 0.15;
 
 /**
- * Wahl der Startflugzeuge (wie heute `src/lib/aiSimulation.ts:661-677`):
+ * Wahl der Startflugzeuge (früher `src/lib/aiSimulation.ts`, entfernt in 5.2b):
  * `Beliebtheit − 0,2 × Monate seit Lieferbeginn + Gewichte der Persönlichkeit + (Zufall − 0,5) × 15`. SPEZIFIKATION 7.7.
  */
 export const START_AIRCRAFT_AGE_PENALTY = 0.2;
@@ -2075,7 +2075,7 @@ export const RIVAL_TURN_MINUTES = 45;
 /** Ein Schritt aus `RIVAL_DECISION_STEPS`. */
 export type RivalDecisionStep = (typeof RIVAL_DECISION_STEPS)[number];
 
-/** Geglätteter Gewinn: Anteil des alten Werts (wie heute `src/lib/aiSimulation.ts:852`); der Rest ist der neue Monat. SPEZIFIKATION 7.8. */
+/** Geglätteter Gewinn: Anteil des alten Werts (früher `src/lib/aiSimulation.ts`, entfernt in 5.2b); der Rest ist der neue Monat. SPEZIFIKATION 7.8. */
 export const AVG_PROFIT_KEEP = 0.65;
 
 /** Verlierer: erst auf diesen Anteil der Flüge (wie heute `:957`). SPEZIFIKATION 7.8. */

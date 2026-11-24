@@ -23,7 +23,6 @@ import {
   CABIN_CLASSES,
   PRICE_WAR_CUT,
   RAMP_MONTHS,
-  RANDOM_EVENT_TEMPLATES,
   REPORT_HISTORY_MONTHS,
   START_HUB_SETUP,
   WEEKS_PER_MONTH,
@@ -60,7 +59,7 @@ import {
   type RivalDistressState,
   type RivalRouteMemory,
 } from '../model/rivalMonth';
-import type { HistoricalEvent, EventRegion } from './eventSystem';
+import { appEvent, type HistoricalEvent } from './eventSystem';
 import type { Disruption as AppDisruption, DisruptionKind as AppDisruptionKind, Staff } from './gameState';
 import type { SimulatedRoute } from './gameTypes';
 import { hadOneTimeMalus } from './malus';
@@ -105,6 +104,16 @@ export function worldSeed(airlineCode: string, startMonth: number): number {
   return h;
 }
 
+/** Ein gewürfelter Startwert des Zufalls für ein neues Spiel (8.3: „beim neuen Spiel gewürfelt“). Nicht rein. */
+export function newWorldSeed(): number {
+  return Math.floor(Math.random() * 0x1_0000_0000) >>> 0;
+}
+
+/** Welt-Zustand eines neuen Spiels: Startwert, sonst leer (keine Zufallsereignisse, Störungen, Pech, Weiterverkäufe). */
+export function newWorldState(seed: number): WorldState {
+  return { seed: seed >>> 0, randomEvents: [], disruptions: [], badLuck: false, resold: [] };
+}
+
 /**
  * Ein Zufallsereignis der Oberfläche als `WorldEvent`: Monat, Dauer, Nachfrage-Faktor, Regionen. Der alte
  * Treibstoff-Faktor entfällt (E8: Treibstoff nur aus der Tabelle).
@@ -119,18 +128,9 @@ export function modelWorldEvent(ev: HistoricalEvent): WorldEvent {
   };
 }
 
-/** Ein `WorldEvent` als Ereignis der Oberfläche: Text aus der Vorlage (`RANDOM_EVENT_TEMPLATES`), Treibstoff-Faktor 1. */
+/** Ein `WorldEvent` als Ereignis der Oberfläche (`appEvent`: Text aus den Modell-Daten, Treibstoff-Faktor nur bei Ölkrisen). */
 export function appWorldEvent(ev: WorldEvent): HistoricalEvent {
-  const template = RANDOM_EVENT_TEMPLATES.find((t) => t.title === ev.title);
-  return {
-    startOffset: ev.startMonth,
-    duration: ev.months,
-    title: ev.title,
-    description: template?.description ?? '',
-    demandMultiplier: ev.demandMultiplier,
-    fuelMultiplier: 1,
-    ...(ev.regions && ev.regions.length > 0 ? { regions: [...ev.regions] as EventRegion[] } : {}),
-  };
+  return appEvent(ev);
 }
 
 /** Beschreibt das alte Ereignis dasselbe Ereignis wie das Modell (ohne Treibstoff-Faktor und Text)? */

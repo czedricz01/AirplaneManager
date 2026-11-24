@@ -5,12 +5,14 @@
  *
  * Rolling them, the charter fee and the reputation cost are the model's
  * (SPEZIFIKATION 8.6, `src/model/monthEvents.ts`); the old rolls were removed
- * in 5.2a. A route hit twice loses flights to each cause independently
- * (`combineCancelShares`).
+ * in 5.2a. A route hit twice loses flights to each cause independently; the
+ * share comes from the model's `disruptionShares` (8.9), see `routeCancelShare`.
  */
 import type { Disruption, DisruptionKind, GameDecision, RegionId, RouteCancellation } from './gameState';
 import { REGION_LABELS } from './marketing';
-import { formatCurrency } from './format';
+import { formatCurrency, formatNumber } from './format';
+import { CHARTER_MARKUP } from '../model/constants';
+import { disruptionShares } from '../model/monthEvents';
 
 // --- What each kind does -------------------------------------------------------
 
@@ -30,38 +32,9 @@ export const DISRUPTION_SPECS: Record<DisruptionKind, DisruptionSpec> = {
 export const MAJOR_DISRUPTION_SHARE = 0.25;
 /** No more questions than this per month; the rest just happen. */
 export const MAX_DISRUPTION_DECISIONS = 3;
-/** A replacement aircraft costs this share of the revenue it saves. */
-export const CHARTER_COST_SHARE = 0.9;
-/** Reputation lost per route whose flights are cancelled rather than chartered... */
-export const CANCEL_REPUTATION_PER_ROUTE = 1;
-/** ...and at most this much for one disruption. */
-export const CANCEL_REPUTATION_MAX = 4;
-
 /** The option ids of a disruption question. Any other answer means cancelling. */
 export const DISRUPTION_OPTION_CHARTER = 'charter';
 export const DISRUPTION_OPTION_CANCEL = 'cancel';
-
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-
-/**
- * The share of flights lost to several independent causes, 0-1: each one
- * cancels its share of what the others left flying, 1 - (1 - a)(1 - b)...
- * Two 25% cancellations take 43.75% of the flights, not 50%.
- */
-export function combineCancelShares(...shares: (number | undefined)[]): number {
-  let flown = 1;
-  let causes = 0;
-  let only = 0;
-  for (const s of shares) {
-    const share = clamp01(Number(s) || 0);
-    if (share <= 0) continue;
-    causes++;
-    only = share;
-    flown *= 1 - share;
-  }
-  // A single cause is returned as it is, without the rounding of 1 - (1 - s).
-  return causes === 0 ? 0 : causes === 1 ? only : 1 - flown;
-}
 
 /** A bird strike: paid for at once, nothing cancelled, nothing left open. */
 export interface BirdStrike {
@@ -84,24 +57,24 @@ export function disruptionsIn(disruptions: Disruption[] | undefined, offset: num
 }
 
 /**
- * The share of each route's flights disruptions cancel in the month at
- * `offset`, by route id, several causes combined. Chartered ones cancel
- * nothing. Undefined when nothing is cancelled.
+ * The share of one route's flights that do not operate in the month at
+ * `month`, 0-1: every disruption hitting it and the staff strike
+ * (`strikeShare`, see `strikeCancelShare` in modelStaff.ts), each an
+ * independent cause, chartered ones cancelling nothing. The model's rule
+ * (`disruptionShares`, SPEZIFIKATION 8.9), so the badge shows what the month
+ * close books.
  */
-export function disruptionCancelShares(disruptions: Disruption[] | undefined, offset: number): Record<string, number> | undefined {
-  const perRoute = new Map<string, number[]>();
-  for (const d of disruptionsIn(disruptions, offset)) {
-    if (d.mitigated || !(d.cancelShare > 0)) continue;
-    for (const id of d.routeIds) {
-      const list = perRoute.get(id);
-      if (list) list.push(d.cancelShare);
-      else perRoute.set(id, [d.cancelShare]);
-    }
-  }
-  if (perRoute.size === 0) return undefined;
-  const out: Record<string, number> = {};
-  perRoute.forEach((shares, id) => { out[id] = combineCancelShares(...shares); });
-  return out;
+export function routeCancelShare(
+  routeId: string,
+  disruptions: Disruption[] | undefined,
+  month: number,
+  strikeShare: number
+): number {
+  const causes = disruptionsIn(disruptions, month)
+    .filter(d => d.routeIds.includes(routeId))
+    .map(d => ({ share: d.cancelShare, chartered: d.mitigated === true }));
+  if (strikeShare > 0) causes.push({ share: strikeShare, chartered: false });
+  return disruptionShares(causes).cancelledShare;
 }
 
 /** A disruption's heading: what and where. */
@@ -119,13 +92,12 @@ export function disruptionTitle(d: Disruption): string {
 }
 
 /**
- * Why each route loses flights in the month these modifiers price: the
- * strike, if one runs, and every disruption that is not chartered away. The
- * share is the one the engine applies, via `shareOf`.
+ * Why each route loses flights in the month at `offset`: the strike, if one
+ * runs, and every disruption that is not chartered away, with the share
+ * `routeCancelShare` gives.
  */
 export function describeRouteCancellations(
   routeIds: string[],
-  shareOf: (routeId: string) => number,
   disruptions: Disruption[] | undefined,
   offset: number,
   strikeShare: number
@@ -141,29 +113,12 @@ export function describeRouteCancellations(
   }
   const out: Record<string, RouteCancellation> = {};
   for (const id of routeIds) {
-    const share = shareOf(id);
+    const share = routeCancelShare(id, disruptions, offset, strikeShare);
     if (!(share > 0)) continue;
     const own = reasons.get(id) ?? [];
     out[id] = { share, reasons: strikeShare > 0 ? [`Staff strike (${Math.round(strikeShare * 100)}%)`, ...own] : own };
   }
   return out;
-}
-
-/** What a charter costs for the revenue it saves, in whole dollars. */
-export function charterFee(lostRevenue: number): number {
-  return Math.round(CHARTER_COST_SHARE * Math.max(0, Number(lostRevenue) || 0));
-}
-
-/**
- * Reputation lost by cancelling a disruption's flights instead of chartering:
- * a point per route hit, four at most, each route counted by the share of
- * its flights that would otherwise have flown. `otherShare` gives what other
- * causes, a strike above all, already cancel on a route; a route grounded
- * entirely strands nobody more. Rounded to a tenth.
- */
-export function cancelReputationPenalty(d: Disruption, otherShare: (routeId: string) => number = () => 0): number {
-  const raw = d.routeIds.reduce((sum, id) => sum + CANCEL_REPUTATION_PER_ROUTE * (1 - clamp01(otherShare(id) || 0)), 0);
-  return Math.round(Math.min(CANCEL_REPUTATION_MAX, raw) * 10) / 10;
 }
 
 /**
@@ -182,11 +137,12 @@ export function disruptionsToAsk(disruptions: Disruption[], lostOf: (d: Disrupti
 }
 
 /**
- * The question for one disruption: charter a replacement or cancel. `ref` is
- * the disruption's id. `lost` is the revenue at stake as the forecast sees
- * it now. Neither answer costs anything up front: the charter is billed at
- * the month's close on what it actually saved, so a strike settled or sat
- * out in the meantime is priced in.
+ * The question for one disruption: charter a replacement or cancel. `ref` is the disruption's id. `lost` is the
+ * ticket revenue at stake as the last report sees it. Neither answer costs anything up front. The texts give the
+ * model's rules (SPEZIFIKATION 8.9, 6.2, E32, E33, E38): a charter is billed at the month's close at
+ * `CHARTER_MARKUP` times the airline's own flight costs (fuel, crew, landing) of every chartered flight; cancelled
+ * flights are the only penalty, through the reputation target of the month (cancelled seats), with no one-time loss.
+ * The old figures (90% of the revenue saved, up to 4 reputation points) were removed in 5.2b.
  */
 export function buildDisruptionDecision(
   d: Disruption,
@@ -194,8 +150,6 @@ export function buildDisruptionDecision(
   lost: number,
   routeName: (routeId: string) => string
 ): GameDecision {
-  const fee = charterFee(lost);
-  const penalty = cancelReputationPenalty(d);
   const pct = Math.round(d.cancelShare * 100);
   const routes = d.routeIds.length === 1
     ? routeName(d.routeIds[0])
@@ -218,14 +172,14 @@ export function buildDisruptionDecision(
         id: DISRUPTION_OPTION_CHARTER,
         label: 'Charter a replacement aircraft',
         detail:
-          `A leased aircraft flies every cancelled flight; passengers notice nothing. Billed with the month's costs at ` +
-          `${Math.round(CHARTER_COST_SHARE * 100)}% of the ticket revenue it saves: about ${formatCurrency(fee)} at today's forecast.`,
+          `A leased aircraft flies every cancelled flight; passengers notice nothing. Billed with the month's costs: ` +
+          `${formatNumber(CHARTER_MARKUP, 1)} times your own fuel, crew and landing cost of each chartered flight.`,
         cost: 0
       },
       {
         id: DISRUPTION_OPTION_CANCEL,
         label: 'Cancel the flights',
-        detail: `Nothing to pay, but stranded passengers cost up to ${penalty} reputation.`,
+        detail: 'Nothing to pay, but the cancelled seats pull this month\'s reputation target down.',
         cost: 0
       }
     ]

@@ -214,7 +214,7 @@ export function stateCabin(s: AircraftState, type: Aircraft, personality?: Rival
   return { config: plain, exact: sameCabin(plain, s) };
 }
 
-/** Mittel der Interior scores nach Sitzen, für das alte Feld `baseInteriorPop` (bis 5.1 / 5.2, F65 (5)). */
+/** Mittel der Interior scores nach Sitzen für das Feld `baseInteriorPop` (nur Anzeige „Interior“ in den Konfigurations-Listen, F65 (5), 5.2b). */
 function baseInteriorPopOf(config: ConfigOutput, installedMonth: number, capacity: number): number {
   const m = modelCabin(config, { installedMonth, capacity });
   let seats = 0;
@@ -359,7 +359,7 @@ function listing(
  */
 export function usedMarket(
   month: number,
-  resold: readonly ResoldPlane[],
+  resold: readonly ResoldWithCabin[],
   completedResearch: readonly string[] = [],
   catalog: readonly Aircraft[] = aircraftList,
 ): UsedListing[] {
@@ -390,7 +390,8 @@ export function usedMarket(
   for (const p of resoldInMarket(resold, month)) {
     const type = typeOf(p.typeId, catalog);
     if (!type) continue;
-    const cabin = stateCabin(p, type);
+    // Die Kabine, mit der der Spieler es verkauft hat (aus ihr kommen die Modell-Werte), sonst aus den Modell-Werten.
+    const cabin: StateCabin = p.config ? { config: p.config, exact: true } : stateCabin(p, type);
     out.push(
       listing(
         {
@@ -426,8 +427,17 @@ export function withoutResold(resold: readonly ResoldPlane[], listingId: string)
 }
 
 /** Ein an den Markt verkauftes Flugzeug des Spielers kommt mit Baumonat, Zustand und Kabine in den Markt (8.11, E49). */
-export function resoldPlane(plane: OwnedAircraft, month: number, catalog: readonly Aircraft[] = aircraftList): ResoldPlane {
-  return { ...aircraftState(plane, catalog), soldMonth: month };
+export function resoldPlane(plane: OwnedAircraft, month: number, catalog: readonly Aircraft[] = aircraftList): ResoldWithCabin {
+  return { ...aircraftState(plane, catalog), soldMonth: month, config: plane.config };
+}
+
+/**
+ * Ein weiterverkauftes Flugzeug mit der Kabine der Oberfläche, falls es der Spieler verkauft hat (5.2b). Das Modell
+ * reicht die Einträge unverändert weiter (`resoldInMarket` filtert nur); so kommt ein Flugzeug mit eigener Kabine
+ * genau so in den Markt, wie es verkauft wurde (statt mit Standard-Sitzen).
+ */
+export interface ResoldWithCabin extends ResoldPlane {
+  readonly config?: ConfigOutput;
 }
 
 /** Kürzel der KI, die ein weiterverkauftes Flugzeug verkauft hat (`rival-<Kürzel>-…`), sonst `null`. */
