@@ -29,7 +29,8 @@ export interface GameDialogsProps {
   retirement: { entry: HallOfFameEntry; position: number | null; bankrupt?: boolean; } | null;
   airlineName: string;
   score: ScoreBreakdown;
-  hall: HallOfFameEntry[];
+  /** The hall of this game's mode (E43: Normal and Free Mode apart). */
+  hall: readonly HallOfFameEntry[];
   setRetirement: React.Dispatch<React.SetStateAction<{ entry: HallOfFameEntry; position: number | null; } | null>>;
   returnToMainMenu: () => void;
   career: Career;

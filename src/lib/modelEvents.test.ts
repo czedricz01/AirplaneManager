@@ -7,7 +7,9 @@ import assert from 'node:assert/strict';
 import { HEDGE_PRICE_SHARE, HISTORICAL_EVENTS, RANDOM_EVENT_TEMPLATES, RECOVERY_PRICE_SHARE } from '../model/constants';
 import type { WorldEvent } from '../model/monthEvents';
 import { eventKey, historicalEvents } from './eventSystem';
-import { crisisBase, eventBand, isPaidChoice, pricedChoices, pricedEvent } from './modelEvents';
+import { crisisBase, eventBand, hedgedCrises, isPaidChoice, pricedChoices, pricedEvent } from './modelEvents';
+import { playerFuelPerGallon } from './modelTrades';
+import { fuelTable } from '../model/costs';
 
 const OIL_1973 = (1973 - 1960) * 12 + 9;
 const DOWNTURN_2001 = (2001 - 1960) * 12 + 8;
@@ -108,5 +110,21 @@ describe('Paket 4.7c: Ereignis-Band aus dem Modell (8.4)', () => {
   it('nur laufende Ereignisse; das Modell entscheidet (Ende nach `months`)', () => {
     assert.equal(eventBand(OIL_1973 + 18, [], {}, BASE).some((e) => e.title === oil.title), false);
     assert.equal(eventBand(DOWNTURN_2001, [], {}, BASE).some((e) => e.title === 'Aviation Downturn'), true);
+  });
+});
+
+describe('Paket 5.2b: gesicherter Treibstoffpreis aus den gewählten Antworten (8.5)', () => {
+  it('nur gekaufte Absicherungen, mit Beginn und Dauer aus den Modell-Daten', () => {
+    assert.deepEqual(hedgedCrises({}), []);
+    assert.deepEqual(hedgedCrises({ [eventKey(oil)]: 'ride' }), []);
+    assert.deepEqual(hedgedCrises({ [eventKey(oil)]: 'hedge', [eventKey(downturn)]: 'reassure' }), [{ startMonth: OIL_1973, months: 18 }]);
+  });
+
+  it('die Kopfzeile zahlt während der Krise den Preis des Monats vor Beginn, danach wieder die Tabelle', () => {
+    const hedged = hedgedCrises({ [eventKey(oil)]: 'hedge' });
+    const locked = fuelTable(OIL_1973 - 1); // Tabelle in $ je Gallone (5.2)
+    assert.ok(Math.abs(playerFuelPerGallon(OIL_1973 + 4, [], hedged) - locked) < 1e-9);
+    assert.ok(Math.abs(playerFuelPerGallon(OIL_1973 + 4, [], []) - locked) > 0.01, 'ohne Absicherung der Krisenpreis');
+    assert.ok(Math.abs(playerFuelPerGallon(OIL_1973 + 18, [], hedged) - fuelTable(OIL_1973 + 18)) < 1e-9);
   });
 });

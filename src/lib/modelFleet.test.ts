@@ -191,6 +191,20 @@ describe('Gebrauchtmarkt (8.11)', () => {
     assert.equal(withoutResold([sold, rivalSold], theirs.id).length, 1);
     assert.equal(usedMarket(M + 5, [sold, rivalSold]).filter((l) => l.source === 'resold').length, 1, 'nach 6 Monaten weg');
   });
+
+  it('5.2b: ein Flugzeug mit eigener Kabine kommt mit genau dieser Kabine in den Markt, auch nach dem Spielstand', () => {
+    const base = plane('D-ABCD').config;
+    const custom = { ...base, economy: base.economy - 30, business: 12, details: { ...base.details, hasWifi: true, business: { ...base.details.business, seats: 12 } } } as typeof base;
+    const sold = resoldPlane(plane('D-ABCD', { config: custom }), M - 1);
+    const stored = JSON.parse(JSON.stringify(sold));
+    const [mine] = usedMarket(M, [stored]).filter((l) => l.source === 'resold');
+    assert.equal(mine.exactCabin, true, 'keine „fittings reset to standard“');
+    assert.deepEqual(mine.config, custom);
+    assert.ok(Math.abs(mine.figures.value - aircraftValue(sold, M)) < 1e-6, 'Preis aus derselben Kabine (R2)');
+    const { config: _c, ...withoutCabin } = stored;
+    const [plain] = usedMarket(M, [withoutCabin]).filter((l) => l.source === 'resold');
+    assert.notDeepEqual(plain.config, custom, 'ohne die Kabine der Oberfläche nur aus den Modell-Werten');
+  });
 });
 
 describe('Vorbestellung (8.12)', () => {

@@ -1,28 +1,43 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { HALL_SIZE, SCENARIO_ORDER, bestStars, fileCareer, hallPosition, normalizeHall, normalizeStars, scenarioUnlocked, starsFor, type HallOfFameEntry } from './careerScore';
+import { HALL_SIZE, SCENARIO_ORDER, bestStars, fileCareer, hallOf, hallPosition, normalizeHalls, normalizeStars, scenarioUnlocked, starsFor, type HallOfFameEntry, type HallsOfFame } from './careerScore';
 import { SCENARIOS } from '../data/scenarios';
 
 const entry = (id: string, score: number, filed = '2026-01-01'): HallOfFameEntry =>
   ({ id, airline: id, code: 'XX', score, rank: 1, years: 10, netWorth: 1, filed });
 
+const EMPTY: HallsOfFame = { normal: [], free: [] };
+
 test('the hall of fame keeps the ten best, best first, and a career only once', () => {
-  let hall: HallOfFameEntry[] = [];
-  for (let i = 0; i < 14; i++) hall = fileCareer(hall, entry(`a${i}`, i * 10));
-  assert.equal(hall.length, HALL_SIZE);
-  assert.deepEqual(hall.slice(0, 2).map(e => e.id), ['a13', 'a12']);
-  hall = fileCareer(hall, entry('a13', 500));
-  assert.equal(hall.filter(e => e.id === 'a13').length, 1);
-  assert.equal(hall[0].score, 500);
-  assert.equal(hallPosition(hall, entry('new', 1)), null, 'too low to make it');
-  assert.equal(hallPosition(hall, entry('new', 10_000)), 1);
+  let halls = EMPTY;
+  for (let i = 0; i < 14; i++) halls = fileCareer(halls, entry(`a${i}`, i * 10));
+  assert.equal(halls.normal.length, HALL_SIZE);
+  assert.deepEqual(halls.normal.slice(0, 2).map(e => e.id), ['a13', 'a12']);
+  halls = fileCareer(halls, entry('a13', 500));
+  assert.equal(halls.normal.filter(e => e.id === 'a13').length, 1);
+  assert.equal(halls.normal[0].score, 500);
+  assert.equal(hallPosition(halls, entry('new', 1)), null, 'too low to make it');
+  assert.equal(hallPosition(halls, entry('new', 10_000)), 1);
 });
 
-test('a damaged hall is repaired', () => {
-  const hall = normalizeHall([entry('a', 5), null, { id: 'x' }, entry('b', 9), 'junk']);
-  assert.deepEqual(hall.map(e => e.id), ['b', 'a']);
-  assert.deepEqual(normalizeHall('nope'), []);
+test('5.2b (E43): Normal and Free Mode have a hall each', () => {
+  let halls = EMPTY;
+  halls = fileCareer(halls, { ...entry('n', 100), mode: 'normal' });
+  halls = fileCareer(halls, { ...entry('f', 900), mode: 'free' });
+  assert.deepEqual(hallOf(halls, 'normal').map(e => e.id), ['n']);
+  assert.deepEqual(hallOf(halls, 'free').map(e => e.id), ['f'], 'a Free Mode score never pushes a Normal one out');
+  assert.equal(hallPosition(halls, { ...entry('n2', 50), mode: 'normal' }), 2);
+  assert.equal(hallPosition(halls, { ...entry('f2', 50), mode: 'free' }), 2);
+});
+
+test('a damaged hall is repaired, and the one list stored before 5.2b is split by mode', () => {
+  const halls = normalizeHalls([entry('a', 5), null, { id: 'x' }, { ...entry('b', 9), mode: 'free' }, 'junk']);
+  assert.deepEqual(halls.normal.map(e => e.id), ['a']);
+  assert.deepEqual(halls.free.map(e => e.id), ['b']);
+  assert.deepEqual(normalizeHalls('nope'), EMPTY);
+  assert.deepEqual(normalizeHalls({ normal: [entry('c', 3)], free: 'junk' }).normal.map(e => e.id), ['c']);
+  assert.deepEqual(normalizeHalls(JSON.parse(JSON.stringify(halls))), halls, 'what is stored loads again');
 });
 
 test('stars: none for a loss, one for a win, two within three quarters of the time, three within half', () => {
@@ -53,10 +68,11 @@ test('only a better result replaces the stars held, and saved stars are cleaned'
 });
 
 test('a Free Mode career is filed with its mode; older entries count as Normal Mode', () => {
-  const hall = normalizeHall([
+  const halls = normalizeHalls([
     { ...entry('a', 500), mode: 'free' },
     entry('b', 400),
     { ...entry('c', 300), mode: 'junk' }
   ]);
-  assert.deepEqual(hall.map(e => e.mode), ['free', 'normal', 'normal']);
+  assert.deepEqual(halls.free.map(e => e.mode), ['free']);
+  assert.deepEqual(halls.normal.map(e => e.mode), ['normal', 'normal']);
 });

@@ -17,7 +17,7 @@ import { yearOf } from '../model/basics';
 import { MILESTONES, RANKS, REPORT_HISTORY_MONTHS, RESEARCH_PROJECTS, WEEKS_PER_MONTH, type RivalStrength } from '../model/constants';
 import { birdStrikeCost } from '../model/monthEvents';
 import { closeMonth, monthOperations, type CloseNews, type CompanyState, type MonthReport, type ModelAirport, type ModelState } from '../model/monthClose';
-import { companyValueOf, rivalDecisions, rivalRefill, showRivalNews, type RivalNewsKind } from '../model/rivalMonth';
+import { companyValueOf, foundRivalCompany, rivalDecisions, rivalRefill, showRivalNews, type RivalNewsKind } from '../model/rivalMonth';
 import { companyValue } from '../model/progress';
 import { rivalStrengthOf } from '../model/rivals';
 import type { AnnualGoal as AppGoal } from './annualGoals';
@@ -212,6 +212,38 @@ export function modelGame(g: AppGame, env: ModelEnv = defaultModelEnv()): ModelG
     catalog: env.catalog.map(catalogType),
   };
   return { state, rivals, world };
+}
+
+/** Die KI eines neuen Spiels: im Format des Modells und als Ansicht. */
+export interface StartRivals {
+  readonly rivals: readonly RivalRecord[];
+  readonly aiAirlines: readonly AiAirline[];
+}
+
+/** Versuche je gewünschter KI, bevor die Gründung aufgibt (`foundRivalCompany` gibt `null`, wo kein Ort taugt). */
+export const START_RIVAL_TRIES = 4;
+
+/**
+ * Gründet die KI eines neuen Spiels nach den Regeln des Modells (7.7, `foundRivalCompany`): echt oder erfunden,
+ * Drehkreuz nie beim Spieler oder einer anderen KI, Startkasse und Startflotte nach Stärke, Stufe 2 und ein Schalter am
+ * Drehkreuz, nur mit möglicher Gewinn-Strecke (E71). Nacheinander im Startmonat auf dem Spielstand mit allen schon
+ * gegründeten, Schlüssel `start|<Versuch>`; höchstens `aiAirlinesCount × START_RIVAL_TRIES` Versuche, danach bleiben es
+ * weniger (das Nachrücken füllt später auf). Name, Kürzel und Farbe wie bei einer Gründung im Abschluss
+ * (`applyModelRivals`). Ersetzt `generateAiAirlines` (5.2b). Rein: gleicher Spielstand (mit `modelWorld.seed`), gleiche KI.
+ */
+export function foundStartRivals(g: AppGame, env: ModelEnv = defaultModelEnv()): StartRivals {
+  const base = modelGame({ ...g, rivals: [], aiAirlines: [] }, env);
+  const strength = rivalStrength(g.aiDifficulty);
+  let state = base.state;
+  const wanted = Math.max(0, Math.floor(g.aiAirlinesCount));
+  for (let attempt = 0, founded = 0; founded < wanted && attempt < wanted * START_RIVAL_TRIES; attempt++) {
+    const company = foundRivalCompany(state, strength, undefined, `start|${attempt}`);
+    if (!company) continue;
+    state = { ...state, companies: [...state.companies, company] };
+    founded++;
+  }
+  const rivals = applyModelRivals([], state.companies, { seed: state.seed, month: state.month, playerCode: g.airlineCode, playerColor: g.brandingColor });
+  return { rivals, aiAirlines: rivalViews(rivals, { month: state.month, airports: env.airports, catalog: env.catalog }) };
 }
 
 /** Alle Felder der Oberfläche nach dem Abschluss (Monat X+1), mit Bericht und Meldungen. */

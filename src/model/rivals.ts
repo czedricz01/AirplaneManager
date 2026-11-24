@@ -565,7 +565,7 @@ export function isOnMarket(aircraft: Pick<StartAircraftInput, 'firstDeliveryOffs
 }
 
 /**
- * Wert eines Typs bei der Wahl der Startflugzeuge (wie heute `src/lib/aiSimulation.ts:661-677`):
+ * Wert eines Typs bei der Wahl der Startflugzeuge (früher `src/lib/aiSimulation.ts`, entfernt in 5.2b):
  * `Beliebtheit − 0,2 × Monate seit Lieferbeginn + Gewichte der Persönlichkeit + (u − 0,5) × 15`. SPEZIFIKATION 7.7.
  *
  * @param u Zufallszahl in [0, 1).

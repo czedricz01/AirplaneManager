@@ -15,10 +15,14 @@ import { createGameSystems, type Disruption as AppDisruption } from './gameState
 import type { AirportInfrastructure, SimulatedRoute } from './gameTypes';
 import type { PreOrder } from './preorders';
 import { worldSeed, type RivalRecord } from './modelBridgeWorld';
+import { START_HUB_SETUP } from '../model/constants';
+import { rivalAgentOf } from '../model/rivalMonth';
 import {
   PLAYER_ID,
+  START_RIVAL_TRIES,
   closeNewsMessages,
   defaultModelEnv,
+  foundStartRivals,
   modelGame,
   playerAirportIds,
   playerHubs,
@@ -278,5 +282,42 @@ describe('Meldungen des Abschlusses (4.2e)', () => {
     assert.equal(out[2], 'MILESTONE: First route opened');
     assert.match(out[1], /^RANK: your airline is now a /);
     assert.match(out[0], /^DELIVERY DELAYED: Airbus /);
+  });
+});
+
+describe('KI eines neuen Spiels nach dem Modell (5.2b, 7.7)', () => {
+  const W = { seed: 4711, randomEvents: [], disruptions: [], badLuck: false, resold: [] };
+  const start = (over: Partial<AppGame> = {}): AppGame =>
+    game({ month: 0, startMonth: 0, fleet: [], routes: [], airportManagement: { FRA: infra(2, 0) }, aiAirlines: [], career: createGameSystems().career, modelWorld: W, ...over });
+
+  it('gründet die gewählte Zahl, nie am Spieler-Drehkreuz, mit Startausstattung wie der Spieler', () => {
+    const { rivals, aiAirlines } = foundStartRivals(start({ aiAirlinesCount: 4 }), ENV);
+    assert.equal(rivals.length, 4);
+    assert.equal(aiAirlines.length, 4);
+    const hubs = rivals.map((r) => r.company.hubs?.[0]);
+    assert.ok(!hubs.includes('FRA'), 'nicht am Spieler-Drehkreuz');
+    assert.equal(new Set(hubs).size, hubs.length, 'jede an einem eigenen Drehkreuz');
+    assert.equal(new Set(rivals.map((r) => r.code)).size, rivals.length, 'eindeutige Kürzel');
+    assert.ok(!rivals.some((r) => r.code === 'XA'), 'nicht das Kürzel des Spielers');
+    for (const r of rivals) {
+      const hub = r.company.airports[r.company.hubs![0]];
+      assert.equal(hub.managementTier, START_HUB_SETUP.managementTier);
+      assert.deepEqual(hub.desks, START_HUB_SETUP.desks);
+      assert.equal(r.company.routes.length, 0, 'ohne Strecken, wie der Spieler');
+      assert.equal(r.company.aircraft.length, 3, 'Startflotte Normal');
+      assert.equal(r.company.reputation, 50);
+      assert.ok(rivalAgentOf(r.company), 'mit Entscheidungs-Zustand');
+      assert.ok(r.color && r.color !== '#ffcc00', 'eigene Farbe');
+    }
+  });
+
+  it('gleicher Startwert, gleiche KI; Stärke bestimmt die Startflotte; 0 gewünscht, keine', () => {
+    const a = foundStartRivals(start({ aiAirlinesCount: 2 }), ENV);
+    const b = foundStartRivals(start({ aiAirlinesCount: 2 }), ENV);
+    assert.deepEqual(a.rivals.map((r) => r.company.id), b.rivals.map((r) => r.company.id));
+    const hard = foundStartRivals(start({ aiAirlinesCount: 1, aiDifficulty: 'Hard' }), ENV);
+    assert.equal(hard.rivals[0].company.aircraft.length, 4);
+    assert.deepEqual(foundStartRivals(start({ aiAirlinesCount: 0 }), ENV).rivals, []);
+    assert.ok(START_RIVAL_TRIES >= 1);
   });
 });

@@ -1,6 +1,7 @@
 
 import { MEAL_DATA, EXTRAS_OPTIONS } from '../data/catering';
 import { REFERENCE_SPEED, distanceKm, timetableLegMinutes } from '../model';
+import type { AirportInfrastructure, ManagementLevel } from './gameTypes';
 /**
  * Block time for one leg, in minutes, as the timetable stores it: the model's
  * flight time (`timetableLegMinutes`, `blockMinutes` of section 3.1) rounded.
@@ -246,19 +247,22 @@ export function buildRivalRoutesByPair(aiAirlines: any[]): Map<string, number> {
 
 /**
  * Infrastructure after unlocking a management tier. Never lowers the tier.
- * Every tier brings at least one standard check-in desk; tier 2 and above
- * turn on the hub auto-upgrade, which keeps a stand for every slot.
+ * Every tier brings at least one standard check-in desk (as the start hub,
+ * `START_HUB_SETUP`, 7.7); tier 2 and above turn on the hub auto-upgrade,
+ * which keeps a stand for every slot -- in the model those stands cost no
+ * rent (`standRent`, E28, SPEZIFIKATION 5.10). No price here: the tier's
+ * price is the model's `managementTierPrice` (`tierPrice` in modelAirport.ts).
  */
-export function applyManagementUnlock(infra: any | undefined, tier: number) {
-  const base = infra || {
+export function applyManagementUnlock(infra: AirportInfrastructure | undefined, tier: ManagementLevel): AirportInfrastructure {
+  const base: AirportInfrastructure = infra || {
     level: 0,
     slots: { regional: 0, narrowbody: 0, widebody: 0 },
     stands: { regional: 0, narrowbody: 0, widebody: 0 },
     desks: { normal: 0, self: 0 }
   };
   const slots = base.slots || { regional: 0, narrowbody: 0, widebody: 0 };
-  const level = Math.max(Number(base.level) || 0, tier);
-  const desks = { normal: 0, self: 0, ...base.desks };
+  const level = Math.max(Number(base.level) || 0, tier) as ManagementLevel;
+  const desks = { normal: base.desks?.normal ?? 0, self: base.desks?.self ?? 0 };
   if (desks.normal < 1) desks.normal = 1;
   return {
     ...base,

@@ -45,7 +45,7 @@ import {
   startFfp,
   stopFfp
 } from "./lib/marketing";
-import { STRIKE_OPTION_RAISE, setSalary, settleStrike } from "./lib/modelStaff";
+import { STRIKE_OPTION_RAISE, setSalary, settleStrike, strikeCancelShare } from "./lib/modelStaff";
 import { campaignMonthCost } from "./lib/modelMarketing";
 import {
   DISRUPTION_OPTION_CHARTER,
@@ -54,10 +54,10 @@ import {
   disruptionTitle
 } from "./lib/disruptions";
 import { withTradeValue, type LedgerValues } from "./lib/modelBridgeCompany";
-import { modelRivals, modelWorldEvent, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
+import { modelRivals, modelWorldEvent, newWorldSeed, newWorldState, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
 import { rivalSlotsByAirport, tierPrice, type AirportPricing } from "./lib/modelAirport";
 import { crisisResponses, modelMilestones } from "./lib/modelBridgeCompany";
-import { defaultModelEnv, modelGame, planesValue } from "./lib/modelMonth";
+import { defaultModelEnv, foundStartRivals, modelGame, planesValue } from "./lib/modelMonth";
 import { type PlannerModel } from "./lib/modelRoute";
 import { EMPTY_PLAYER_MONTH, ffpForecast, playerMonth, type PlayerMonth } from "./lib/modelNetwork";
 import { playerFuelPerGallon, playerOverhaulQuote, takeoverAirports, takeoverOffer, takeoverPayments, takeoverRival, worldEventFactor } from "./lib/modelTrades";
@@ -87,27 +87,26 @@ import type { ResoldPlane } from "./model/monthClose";
 import { planeFigures, preorderFigures, preorderOf, preorderQuote, resoldPlane, takeoverFleet, usedPurchase, withoutResold, type UsedListing } from "./lib/modelFleet";
 import {
   fileCareer,
+  hallOf,
   hallPosition,
-  normalizeHall,
+  normalizeHalls,
   normalizeStars,
   scenarioUnlocked,
   type HallOfFameEntry,
+  type HallsOfFame,
   type ScenarioStars
 } from "./lib/careerScore";
 import {
   projectById,
   projectCost,
-  researchEffects,
   startBlocker as researchBlocker,
   projectsForClasses,
   startingResearch,
   startProject
 } from "./lib/research";
 import {
-  buildPlayerModifiers,
   createGameSystems,
   decisionTargetExists,
-  routeCancelShare,
   normalizeGameSettings,
   DEFAULT_BRANDING,
   DEFAULT_MARKETING,
@@ -139,7 +138,6 @@ import { badLuckCapOpen } from "./model/monthEvents";
 import { seasonFactor as modelSeasonFactor } from "./model/demand";
 import { refitCabinCondition } from "./model/fleetMarket";
 import { milestoneSlotFactor, startCapital, yearsPlayed } from "./model/progress";
-import { generateAiAirlines } from "./lib/aiSimulation";
 import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
 export type { GameMessage };
 import type { OwnedAircraft } from "./components/MyFleetView";
@@ -175,8 +173,8 @@ const MyCompanyView = React.lazy(() => import("./components/MyCompanyView").then
 const CompetitorsView = React.lazy(() => import("./components/CompetitorsView").then(m => ({ default: m.CompetitorsView })));
 
 import { Aircraft, aircraftList } from "./data/aircraft";
-import { getActiveEvents, setRuntimeRandomEvents, HistoricalEvent, eventKey } from "./lib/eventSystem";
-import { crisisBase, eventBand, pricedEvent } from "./lib/modelEvents";
+import { activeEvents, type HistoricalEvent } from "./lib/eventSystem";
+import { crisisBase, eventBand, hedgedCrises, pricedEvent } from "./lib/modelEvents";
 import { createOwnedAircraft, startingFleet } from "./lib/fleet";
 import { scenarioById, type Scenario } from "./data/scenarios";
 import { monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from "./lib/scenarioEval";
@@ -245,8 +243,6 @@ export default function App() {
   const [milestones, setMilestones] = useState<string[]>([]);
   /** What the milestones earned so far give: cheaper slots, room for hubs. */
   const perks = useMemo(() => milestonePerks(milestones), [milestones]);
-  /** What the finished development projects do; see research.ts. */
-  const researchFx = useMemo(() => researchEffects(career.research.done), [career.research.done]);
   /** Free Mode: a Global Player from the first month, with nothing gated by rank. */
   const freeMode = career.mode === 'free';
   /** Consecutive months closed without a loss, for the profit milestone. */
@@ -291,7 +287,8 @@ export default function App() {
   /** The annual-goal choice dialog; opens after the December close, not saved. */
   const [goalOfferOpen, setGoalOfferOpen] = useState(false);
   /** The ten best careers filed in this browser; see careerScore.ts. */
-  const [hall, setHall] = useState<HallOfFameEntry[]>(() => normalizeHall(readJson('neo_hall_of_fame', [])));
+  /** Two halls of fame (E43): Normal and Free Mode. Stored before 5.2b as one list; `normalizeHalls` splits it. */
+  const [halls, setHalls] = useState<HallsOfFame>(() => normalizeHalls(readJson('neo_hall_of_fame', [])));
   /** Best stars per scenario, kept per account in this browser. */
   const [scenarioStars, setScenarioStars] = useState<ScenarioStars>({});
   /** The final report of a retired career, shown until closed. Not saved. */
@@ -310,10 +307,6 @@ export default function App() {
   const closeNewspaper = React.useCallback(() => setIsNewspaperOpen(false), []);
   const [selectedMessage, setSelectedMessage] = useState<GameMessage | null>(null);
 
-  useEffect(() => {
-    setRuntimeRandomEvents(randomEvents);
-  }, [randomEvents]);
-  
   const unreadMessagesCount = messages.filter(m => !m.isRead).length;
 
   // Kept across sessions; both settings used to reset on every reload.
@@ -550,19 +543,6 @@ export default function App() {
    * Every rival departure, as offers the finance engine can split demand by.
    * Rebuilt only when the AI airlines change, not per route.
    */
-  /**
-   * Everything that applies to the player's routes and not to the rivals --
-   * reputation, crisis relief bought this month, and whatever the other
-   * systems add -- in the one object every player call of the finance engine
-   * receives, so the route list, the planner and the report agree.
-   */
-  const playerMods = useMemo(
-    () => buildPlayerModifiers({ reputation, eventChoices, marketing, staff, disruptions, routes, research: researchFx }, currentDateOffset),
-    // randomEvents: eventReliefFactor reads the active events from module state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reputation, currentDateOffset, eventChoices, marketing, staff, disruptions, randomEvents, routes, researchFx]
-  );
-
   const rivalOffers = useMemo(() => buildRivalOffers(aiAirlines), [aiAirlines]);
 
 
@@ -606,12 +586,7 @@ export default function App() {
    * event began, both ways -- if fuel gets cheaper during the event, the locked price is the worse deal. No
    * difficulty surcharge and no event factor (E8). The rivals pay the table, which is what makes the hedge worth buying.
    */
-  const priceAtOffset = (offset: number) => {
-    const hedged = getActiveEvents(offset)
-      .filter(ev => ev.choices?.find(c => c.id === eventChoices[eventKey(ev)])?.hedgesFuel)
-      .map(ev => ({ startMonth: ev.startOffset, months: ev.duration }));
-    return playerFuelPerGallon(offset, career.research.done, hedged);
-  };
+  const priceAtOffset = (offset: number) => playerFuelPerGallon(offset, career.research.done, hedgedCrises(eventChoices));
 
   const getFuelData = (offset: number) => {
     // The fuel programmes are in the model's price already (researchCostFactor).
@@ -626,23 +601,22 @@ export default function App() {
   const fuelData = useMemo(
     () => getFuelData(currentDateOffset),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentDateOffset, eventChoices, randomEvents, career.research.done]
+    [currentDateOffset, eventChoices, career.research.done]
   );
 
   /**
    * The routes losing flights this month and why, for the route list's badge
-   * and the detail view. The shares are exactly what playerMods hands the
-   * engine, so the badge and the figures beside it agree.
+   * and the detail view. The shares follow the model's rule (8.9), so the
+   * badge shows what the month close books.
    */
   const routeCancellations = useMemo<Record<string, RouteCancellation>>(
     () => describeRouteCancellations(
       routes.map(r => r.id),
-      id => routeCancelShare(playerMods, id),
       disruptions,
       currentDateOffset,
-      playerMods.cancelShareAll ?? 0
+      strikeCancelShare(staff, currentDateOffset)
     ),
-    [routes, playerMods, disruptions, currentDateOffset]
+    [routes, disruptions, staff, currentDateOffset]
   );
 
   /**
@@ -739,9 +713,9 @@ export default function App() {
       filed: new Date().toISOString(),
       mode: career.mode
     };
-    const position = hallPosition(hall, entry);
-    const next = fileCareer(hall, entry);
-    setHall(next);
+    const position = hallPosition(halls, entry);
+    const next = fileCareer(halls, entry);
+    setHalls(next);
     writeJson('neo_hall_of_fame', next);
     setRetirement({ entry, position, bankrupt });
   };
@@ -1405,7 +1379,6 @@ export default function App() {
     setSelectedMessage(null);
     setIsMessagesOpen(false);
     setRandomEventsState([]);
-    setRuntimeRandomEvents([]);
     setPendingDecision(null);
     setIsPlanningRoute(false);
     setPlanningOriginId(null);
@@ -1492,7 +1465,6 @@ export default function App() {
     setMessages(saveObj.messages);
     reserveMessageIds(saveObj.messages);
     setRandomEventsState(saveObj.randomEvents);
-    setRuntimeRandomEvents(saveObj.randomEvents);
     applyGameSystems(saveObj);
     if (saveObj.career?.goalOffer) setGoalOfferOpen(true);
 
@@ -1581,18 +1553,30 @@ export default function App() {
     setCapital(initialCapital);
     // A scenario's aircraft come free, through the same code a purchase uses.
     setFleet(startFleet);
-    setAirportManagement({ 
+    const startManagement: Record<string, AirportInfrastructure> = {
       [hub]: {
         level: START_HUB_SETUP.managementTier,
         slots: { regional: START_HUB_SETUP.slots, narrowbody: START_HUB_SETUP.slots, widebody: START_HUB_SETUP.slots },
         stands: { narrowbody: 0, widebody: 0 },
         desks: { ...START_HUB_SETUP.desks }
       }
-    });
+    };
+    setAirportManagement(startManagement);
     setRoutes([]);
-    setAiAirlines(generateAiAirlines(rivalCount, rivalDifficulty, hub, start, airlineCode, systems.branding.color));
-    setRivals(null);
-    setModelWorld(null);
+    // The model's world from the first month, with a seed rolled for this game (SPEZIFIKATION 8.3), and the rivals
+    // founded by the model's rules (7.7) on it.
+    const world = newWorldState(newWorldSeed());
+    const founded = foundStartRivals({
+      month: start, startMonth: start, airlineCode, brandingColor: systems.branding.color, selectedHub: hub,
+      difficulty: gameDifficulty, aiDifficulty: rivalDifficulty, aiAirlinesCount: rivalCount,
+      capital: initialCapital, monthlyCapex: [], fleet: startFleet, routes: [], airportManagement: startManagement,
+      reputation: START_REPUTATION, profitStreak: 0, staff: systems.staff, marketing: systems.marketing, eventChoices: {},
+      career: systems.career, milestones: [], annualGoal: null, scenario: systems.scenario, reportHistory: [],
+      aiAirlines: [], rivals: [], modelWorld: world, randomEvents: [], disruptions: []
+    });
+    setAiAirlines([...founded.aiAirlines]);
+    setRivals(founded.rivals);
+    setModelWorld(world);
     setLedgerValues(null);
     setOverdrawnMonths(0);
     setMonthlyCapex([]);
@@ -1601,7 +1585,7 @@ export default function App() {
     // A game that starts in the middle of a world event with a decision --
     // the Oil Shock scenario opens in the 1973 crisis -- is asked it now:
     // the question is otherwise only put when an event begins.
-    setPendingDecision(getActiveEvents(start).find(ev => ev.choices && ev.choices.length > 0) ?? null);
+    setPendingDecision(activeEvents(start).find(ev => ev.choices && ev.choices.length > 0) ?? null);
     setReputation(START_REPUTATION);
     setMilestones([]);
     setProfitStreak(0);
@@ -2268,7 +2252,7 @@ export default function App() {
             retirement={retirement}
             airlineName={airlineName}
             score={score}
-            hall={hall}
+            hall={hallOf(halls, career.mode)}
             setRetirement={setRetirement}
             returnToMainMenu={returnToMainMenu}
             career={career}
@@ -2593,7 +2577,7 @@ export default function App() {
                           research={career.research}
                           onStartResearch={onStartResearch}
                           score={score}
-                          hall={hall}
+                          hall={hallOf(halls, career.mode)}
                           onRetire={onRetire}
                           completedResearch={career.research.done}
                           badLuckCapOpen={strikeCapOpen}
@@ -2834,7 +2818,7 @@ export default function App() {
                             if (existing) {
                               return prev.map(r => r.id === route.id ? { ...route, openedOffset: existing.openedOffset ?? route.openedOffset } : r);
                             }
-                            // A new route starts its ramp-up now; see routeMaturity.ts.
+                            // A new route starts its ramp-up now (rampFactor, SPEZIFIKATION 3.12).
                             return [...prev, { ...route, openedOffset: currentDateOffset }];
                           });
                           // Reset planning state after save

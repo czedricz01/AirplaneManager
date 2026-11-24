@@ -1,10 +1,48 @@
 # Status
 
-**Nächstes Paket: 5.2b** – Rest der alten Rechnung, den Ansichten noch aufrufen, durch das Modell ersetzen oder entfernen
-(Liste unter „Offen aus 5.2a“). Danach 5.2c (Dokumentation aufräumen) und 5.3 (Spieltest mit Balance-Skript). Zu lesen: „Offen aus
-5.2a“ unten, `src/App.tsx` (Stellen dort genannt), `src/lib/gameState.ts` (`buildPlayerModifiers`), `src/lib/aiSimulation.ts`.
+**Nächstes Paket: 5.2d** – Karriere-Ansicht nach dem Modell (Forschung, Rang, Meilensteine, Jahresziel, Flugzeugklassen):
+`CareerPanel.tsx` und `App.tsx` rechnen dort noch mit den alten Tabellen in `src/lib/`. Liste unter „Offen aus 5.2b“ (1). Danach
+5.2e (Störungs-Frage mit Charter-Betrag des Modells), 5.2c (Dokumentation aufräumen) und 5.3 (Spieltest mit Balance-Skript).
+Zu lesen: „Offen aus 5.2b“ unten, `src/components/CareerPanel.tsx`, `src/lib/research.ts`, `src/lib/airlineRank.ts`,
+`src/lib/milestones.ts`, `src/lib/annualGoals.ts`, `src/lib/aircraftClasses.ts`, im Modell `src/model/progress.ts` (6.7–6.11).
 
 Keine offenen Fragen.
+
+Stand: 24.11.2026 · Paket 5.2b erledigt (F75): Die Liste „Offen aus 5.2a“ ist abgearbeitet. (1) `buildPlayerModifiers` und
+`src/lib/routeMaturity.ts` entfernt; die Ausfall-Anzeige je Strecke rechnet mit `disruptionShares` des Modells
+(`routeCancelShare` in `src/lib/disruptions.ts`). (2) Ein neues Spiel gründet die KI nach dem Modell (`foundStartRivals`,
+`src/lib/modelMonth.ts`, 7.7) und speichert den Welt-Zustand ab dem ersten Monat mit gewürfeltem Startwert (8.3);
+`src/lib/aiSimulation.ts` entfernt. (3) Ereignisse kommen aus den Modell-Daten (`appEvent`, `activeEvents`, `historicalEvents` in
+`src/lib/eventSystem.ts`); alte Tabelle mit Platzhalter-Preisen, `getActiveEvents` und `setRuntimeRandomEvents` entfernt; gesicherter
+Treibstoffpreis über `hedgedCrises`. (4) `applyManagementUnlock` hat keine Preise und passt zu E28; bleibt (mit Typen). (5)
+`interiorByClass`, `popRating` entfernt; `baseInteriorPop` bleibt als Anzeige. (6) Verkauf im ersten Monat kommt in den Gebrauchtmarkt;
+ein verkauftes Flugzeug behält seine Kabine im Markt; zwei Ruhmeshallen (E43). (8) `allModelAirports` nutzt `modelAirports`. Dazu:
+Störungs-Frage ohne alte Zahlen (Charter 90 % des Erlöses, Ruf-Abzug), Texte nach 8.9 / E38. Tests: 1 243 grün (1 236 + 7 neue; alte
+Tests von `aiSimulation`, `routeMaturity`, `buildPlayerModifiers` entfallen). Im Browser geprüft (freies Spiel AAL 01/1960, 6 KI):
+Konkurrenz-Ansicht mit 6 nach dem Modell gegründeten KI (echte und erfundene, je 3 Flugzeuge, Kasse um 80 Mio. $), zwei Monate
+abgeschlossen (KI eröffnet Strecken, Zeitung), Karriere abgelegt („Filed in the hall of fame at position 1“, gespeichert als
+`{ normal: [], free: [...] }`); keine Fehler in der Konsole.
+
+Offen aus 5.2b (kein Blocker): (1) **Paket 5.2d – Karriere-Ansicht:** Gefunden beim Vergleich der Tabellen; kein Paket der Phase 4
+hat sie umgestellt. `src/lib/research.ts` hat eine eigene Forschungs-Tabelle: Rang-Schwellen der Klassen (Narrowbody 3, Widebody 5,
+Jumbo 7, Überschall 8 statt 2 / 4 / 5 / 5, E41), Preise (Widebody 60, Jumbo 200, Überschall 500 Mio. $ statt 40 / 80 / 60), Teuerung
+4 %/Jahr statt Kostenindex, Überschall braucht Jumbo statt Widebody (E42), Forschungsplätze je Rang (`maxParallel` statt
+`researchSlots`). `handleStartResearch` (`src/App.tsx`) bucht den alten Preis (`projectCost`) – der Spieler zahlt also zu viel.
+Ersetzen durch `researchPrice`, `researchStartBlocker`, `researchSlots`, `researchProgress`, `researchEffectLines`
+(`src/model/progress.ts`). `src/lib/airlineRank.ts`: Ruf-Schwellen der Ränge 40 … 80 statt 30 … 65 (E36, E39) in der Anzeige
+(`rankProgress`); der Rang selbst kommt schon aus dem Modell. `src/lib/milestones.ts`: alte Meilenstein-Tabelle und Kennungen
+(`continents-*`, `reputation-60/80/95`), die die Brücke übersetzt (4.2c (6)); `milestonePerks` steuert noch `managementGate`.
+`src/lib/annualGoals.ts` (Angebot, Text, Fortschritt) und `src/lib/aircraftClasses.ts` (`openClasses`, `classGateMessage`) mit dem
+Modell abgleichen. Ebenso `ResearchEffects.efficiencyBonus` / `popularityBonus` / `moraleBonus` (5.2a (5), 4.8 (4)). (2) **Paket
+5.2e – Störungs-Frage:** Die Frage nennt jetzt die Regel, aber keinen Betrag mehr. Für eine Schätzung mit `charterFee` /
+`charterAdvantage` (8.9) braucht `modelMonthClose` die Flugkosten je Strecke (`RouteFigures.flightOpsFull`) aus dem Abschluss.
+(3) 5.2c: Viele Verweise „heute `src/lib/…:Zeile`“ in `src/model/constants.ts` zeigen auf entfernte Dateien (`fleetCosts.ts`,
+`hubOwnership.ts`, `rivalCrisis.ts`, `transferUtils.ts`, `usedMarket.ts`) oder auf verschobene Zeilen (`financeUtils.ts` wurde von
+1 804 auf 392 Zeilen gekürzt). (4) Eine Gründung beim Spielstart ist wie beim Nachrücken je KI mit 40 % erfunden; im Mittel wie bisher
+(F75 (2)). Die Gründung prüft je KI, ob vom Drehkreuz eine Strecke mit Gewinn möglich ist (E71); ein Spielstart mit 6 KI dauert im
+Browser etwa 3 Sekunden. In 5.3 ansehen, ob das bei 10+ KI stört. (5) Bleiben bewusst: `EmptyState`, `Select` (Design-System),
+`findOptimalConfig` im Planer (nur doppelter Oberflächen-Code, keine Rechnung), `baseInteriorPop` (Anzeige). (6) Aus 5.2a (7) für
+5.3 unverändert: Szenario-Ziele `minWeeklyFlights` und die eigene Untergrenze (4.2c (7)).
 
 Stand: 23.11.2026 · Paket 5.1 ersetzt (E75, F73): Spielstände werden nicht mehr umgewandelt. `SAVE_VERSION` = 8; ein älterer
 Spielstand wird beim Laden gelöscht, mit der Meldung „This savegame was made with an older version of the game and can no longer be
@@ -23,7 +61,7 @@ Gefunden per Erreichbarkeits-Analyse ab `src/main.tsx`, `server.ts`, den nachgel
 grün (226 Tests alter Rechnungen entfallen). Im Browser geprüft (freies Spiel AAL 01/1960): 3 Monate abgeschlossen, Konkurrenz-Ansicht,
 Speichern und Laden; ein auf Version 7 gesetzter Spielstand wird mit der Meldung gelöscht und verschwindet aus der Liste.
 
-Offen aus 5.2a (kein Blocker; Liste für 5.2b): (1) `buildPlayerModifiers` (`src/lib/gameState.ts`) mit `reputationDemandFactor`,
+Offen aus 5.2a – abgearbeitet in 5.2b (F75; Rest unter „Offen aus 5.2b“): (1) `buildPlayerModifiers` (`src/lib/gameState.ts`) mit `reputationDemandFactor`,
 `eventReliefFactor`, `regionDemandFactors`, `ffpLoyaltyBonus` (`marketing.ts`), `crewCostFactor`, `moraleSatDelta` (`staff.ts`) und
 `src/lib/routeMaturity.ts`: `App.tsx` nutzt davon nur noch die Ausfall-Anteile (`routeCancelShare`, `cancelShareAll`, `App.tsx:640`) →
 durch eine kleine Funktion ersetzen, Rest entfernen. (2) Neue Spiele gründen die KI noch mit `generateAiAirlines` (alt); die Liste
@@ -399,7 +437,9 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 |---|---|---|
 | 5.1 | Spielstand-Umwandlung – ersetzt durch E75: ältere Spielstände werden beim Laden gelöscht (`src/lib/saveLoad.ts`, Version 8) | erledigt |
 | 5.2a | Alten Monatsabschluss und allen nur von ihm erreichten Code entfernen | erledigt |
-| 5.2b | Rest der alten Rechnung in den Ansichten ersetzen oder entfernen (Liste „Offen aus 5.2a“) | offen |
+| 5.2b | Rest der alten Rechnung in den Ansichten ersetzen oder entfernen (Liste „Offen aus 5.2a“; F75) | erledigt |
+| 5.2d | Karriere-Ansicht nach dem Modell: Forschung (Preis, Sperren, Plätze), Rang-Anzeige, Meilensteine, Jahresziel, Flugzeugklassen (`CareerPanel.tsx`, `src/lib/research.ts`, `airlineRank.ts`, `milestones.ts`, `annualGoals.ts`, `aircraftClasses.ts`) | offen |
+| 5.2e | Störungs-Frage mit Charter-Betrag des Modells (`charterAdvantage`, 8.9; Flugkosten je Strecke aus dem Abschluss) | offen |
 | 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen) | offen |
 | 5.3 | Spieltest-Durchlauf mit Balance-Skript, Feinabstimmung | offen |
 
@@ -482,3 +522,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 23.11.2026 | 4.8 | Werbung und Personal nach dem Modell (F71): `src/lib/modelMarketing.ts` (Kampagnenpreis `campaignCost` mit Kostenindex, Laufzeit-Preis, Werbe-Faktor je Region, Ruf aus Werbung im Ruf-Ziel, Treue `frequentFlyerFactor`), `src/lib/modelStaff.ts` (Vorschau wie der Übergang zu X+1 mit Pech-Deckel, Lohn-Grenzen, `settleStrike`, `strikeQuestion` ohne Ruf-Abzug); Werbe- und Personal-Ansicht, `App.tsx`, Abschluss-Frage und Chronik umgestellt; neue Frage O70; 17 neue Tests (1474 grün) |
 | 23.11.2026 | 5.1 | Ersetzt durch E75 (F73): keine Umwandlung alter Spielstände; `SAVE_VERSION` 8, ältere werden beim Laden gelöscht (`src/lib/saveLoad.ts`, `OutdatedSaveError`); `saveMigration.ts` entfernt |
 | 23.11.2026 | 5.2a | Alter Monatsabschluss und nur von ihm erreichter Code entfernt (F74): rund 9 900 Zeilen in 58 Dateien, 8 Dateien ganz; Tests 1 250 grün; im Browser geprüft |
+| 24.11.2026 | 5.2b | Rest der alten Rechnung ersetzt (F75): Ausfälle je Strecke über `disruptionShares`, KI-Gründung beim Spielstart nach 7.7 (`foundStartRivals`), Welt-Zustand ab Monat 1 mit gewürfeltem Startwert, Ereignisse aus den Modell-Daten, Kabine verkaufter Flugzeuge im Gebrauchtmarkt, zwei Ruhmeshallen (E43), Störungs-Frage ohne alte Zahlen; `aiSimulation.ts`, `routeMaturity.ts`, `buildPlayerModifiers` entfernt; neue Pakete 5.2d (Karriere-Ansicht) und 5.2e; Tests 1 243 grün; im Browser geprüft |

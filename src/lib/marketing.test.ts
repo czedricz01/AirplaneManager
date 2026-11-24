@@ -1,30 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CAMPAIGN_SPECS, MAX_REGION_DEMAND, campaignBlocker, createCampaign, isCampaignActive, regionDemandFactors, routesByRegion, startFfp, stopFfp } from './marketing';
-import { buildPlayerModifiers, DEFAULT_MARKETING, type Marketing } from './gameState';
+import { campaignBlocker, createCampaign, isCampaignActive, routesByRegion, startFfp, stopFfp } from './marketing';
+import { DEFAULT_MARKETING, type Marketing } from './gameState';
 import { loadSave, SAVE_VERSION } from './saveLoad';
 import { airportsMapAdjusted } from '../data/airportRegistry';
 
 const marketingWith = (...campaigns: Marketing['campaigns']): Marketing => ({ ...DEFAULT_MARKETING, campaigns });
 
-test('a global campaign reaches every region, and one region tops out at +25%', () => {
-  const offset = 24;
-  const global = createCampaign('global', 'EU', 12, offset, 'g');
-  const everywhere = regionDemandFactors(marketingWith(global), offset)!;
-  assert.deepEqual(Object.keys(everywhere).sort(), ['AF', 'AS', 'EU', 'NA', 'OC', 'SA']);
-  for (const f of Object.values(everywhere)) assert.equal(f, 1 + CAMPAIGN_SPECS.global.demandBoost);
-
-  const stacked = regionDemandFactors(marketingWith(global, createCampaign('national', 'AS', 3, offset, 'n')), offset)!;
-  assert.equal(stacked.AS, MAX_REGION_DEMAND, '1 + 0.18 + 0.10 is capped');
-  assert.equal(stacked.EU, 1.18);
-});
-
-test('without marketing the player modifiers are exactly what they were', () => {
-  for (const marketing of [undefined, DEFAULT_MARKETING, stopFfp(startFfp(DEFAULT_MARKETING, 3))]) {
-    const mods = buildPlayerModifiers({ reputation: 70, eventChoices: {}, marketing }, 40);
-    assert.deepEqual(Object.keys(mods), ['demandFactor']);
-  }
+test('the frequent-flyer programme starts once and starts over after a stop', () => {
+  const on = startFfp(DEFAULT_MARKETING, 3);
+  assert.equal(on.ffpActive, true);
+  assert.equal(on.ffpSinceOffset, 3);
+  assert.equal(startFfp(on, 9), on, 'already running');
+  const off = stopFfp(on);
+  assert.equal(off.ffpActive, false);
+  assert.equal(off.ffpSinceOffset, null);
+  assert.equal(startFfp(off, 9).ffpSinceOffset, 9);
 });
 
 test('one campaign per region, one worldwide', () => {
