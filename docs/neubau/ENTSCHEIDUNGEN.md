@@ -221,6 +221,39 @@ E75 am 23.11.2026 vom Menschen vorgegeben (keine Umwandlung alter Spielstände);
 
 O71–O73 am 24.11.2026 entschieden (E76 Weg B, E77 Weg A, E78 Weg A); Umsetzung in Paket 5.3c.
 
+**O74 – KI-Stärke (aus Paket 5.3c, B7.8, Fund 44).** Nach 40 Jahren (je 3 Läufe Easy und Hard, 10 Normal):
+Easy 619, Normal 952, Hard 1 055 Mio. $ Unternehmenswert (vor 5.3c: 579 / 1 003 / 1 010). Hard ist jetzt 11 % stärker als
+Normal; der Unterschied kommt vor allem aus Startkasse, Startflotte und zwei Entscheidungen je Monat (`RIVAL_STRENGTH`).
+- **A (Empfehlung):** so lassen; im Spieltest (5.3b) prüfen, ob Hard sich schwerer anfühlt.
+- **B:** Hard deutlich stärker: eigener Slot-Anteil je Stärke (`RIVAL_SLOT_SHARE_*` z. B. Hard × 1,5), damit Wachstum
+  an den Drehkreuzen nicht endet (Fund 10); mit Langlauf.
+
+**O75 – Stärke der Schwierigkeit (aus Paket 5.3c, B3.5, Fund 46).** `DIFFICULTY_FACTOR` Hard 0,9 / Easy 1,1 wirkt auf
+die Anziehung der Spieler-Angebote: gegen einen gleichen Rivalen −5,7 % / +5,2 % Fluggäste; beim festen Preis auf
+einer vollen Strecke Ergebnis −17 % / +5 %. Allein auf einer Strecke wirkt sie kaum.
+- **A (Empfehlung):** 0,9 / 1,1 lassen (spürbar über das Ergebnis, nicht erdrückend).
+- **B:** 0,8 / 1,2 (Fluggäste −12 %, Ergebnis −36 % / +10 %).
+- **C:** zusätzlich ein zweiter Hebel, der auch ohne Rivalen wirkt (z. B. Treibstoff-Zuschlag auf Hard wie früher).
+
+**O76 – KI ohne Langstrecke (aus Paket 5.3c, Fund 42).** Die KI fliegt fast keine Widebodies (0–3 von 150–520 Strecken)
+und kaum Langstrecke (0–24 Strecken über 3 500 km je Lauf). Grund: Kauf nach Planer-Hauptzahl **je Kaufpreis**
+(`pickPurchaseType`, `src/model/rivalMonth.ts:624`) und Zielsuche mit der Reichweite des jüngsten Flugzeugs
+(`referenceTypeIndex`). Der Spieler hat auf Langstrecke darum fast nie Konkurrenz.
+- **A (Empfehlung):** Bei der Zielsuche vor einem Kauf zusätzlich je Bauart (Narrowbody, Widebody) den beliebtesten
+  lieferbaren Typ als Bezug nehmen, und den Typ nach erwartetem Gewinn **nach Kapitalkosten** wählen (Gewinn −
+  Kaufpreis × Zins je Monat) statt Gewinn je Kaufpreis. Mit Langlauf prüfen (Ziel: Langstrecken-Anteil der KI deutlich
+  über 5 %, B7.1 bleibt ok).
+- **B:** nur die Zielsuche erweitern (Typwahl bleibt).
+- **C:** so lassen (Langstrecke bleibt die Nische des Spielers).
+
+**O77 – Optimizer nach 20 Jahren zu stark (aus Paket 5.3c, B7.1 Abweichung, Fund 43).** Mit den KI-Umläufen nach der
+Planer-Regel (7.9, ohne Nachtpause, ohne Obergrenze 21) ist der Optimizer nach 20 Jahren 2,56 × der Median (Grenze 2);
+nach 40 Jahren 1,79 (ok).
+- **A (Empfehlung):** Planer-Regel behalten und den Optimizer in den ersten 20 Jahren dämpfen, nur über die Werte in
+  `PERSONALITIES` (wie E71); mit Langlauf.
+- **B:** Eine Nachtpause für alle (Spieler und KI): höchstens `18 h` je Tag fliegbar, auch im Planer.
+- **C:** Für die KI wieder die alte Regel (7 × 18 h, höchstens 21); gegen 7.9 und E44.
+
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
 ### Abhängigkeiten

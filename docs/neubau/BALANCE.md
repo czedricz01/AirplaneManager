@@ -579,3 +579,63 @@ Spielstart im Browser (5.2b) kommen also nicht aus der Gründung; was sie kostet
 - Rechenzeit (B7.9): 734 ms je Monat in den 2010ern, 5,9 min je Lauf (3.9e: 555 ms, 4,2 min). Während der Läufe liefen
   auf demselben Rechner Tests und Berichte; der Unterschied ist darum kein sicherer Hinweis auf langsameren Code.
 - Bericht: „NaN %“ in Jahrzehnten ohne Langstrecke heißt jetzt „–“ (`pct`, `src/balance/report.ts`).
+
+## Ergebnis Paket 5.3c (O71–O73 umgesetzt, KI-Umläufe nach der Planer-Regel)
+
+Bericht mit Langläufen: `balance/5.3c-bericht.md` (**19 ok · 1 Abweichung · 31 Info**; 10 Läufe × 60 Jahre Normal, je
+3 × 40 Jahre Easy und Hard). Zum Vergleich lief derselbe Langlauf einmal nur mit E78, ohne die neuen Umläufe (nicht
+abgelegt): 20 ok · 0 Abweichung · 31 Info, KI-Zahlen gleich 5.3a.
+
+### Fund 41: Die Störungs-Frage nennt die gebuchten Beträge (B8.10, E76) → ok
+
+`charterQuestionFigures` rechnet den Monat der Störung gestrichen und gechartert. In 14 von 14 Fällen sind
+Erlösverlust, Gebühr und Vorteil gleich der getrennten Rechnung. Die alte Schätzung (Erlös im Mittel × Anteil) lag
+24–100 % daneben.
+
+### Fund 42: Die KI fliegt fast keine Widebodies und kaum Langstrecke; E78 ändert darum nichts → O76
+
+- Mit E78 (Widebody-Slots erst ab Größe 3, B7.11 ok) sind alle KI-Zahlen gleich wie in 5.3a.
+- Grund: In allen Läufen fliegen 0–3 von 150–520 KI-Strecken mit einem Widebody (Januar, je Lauf). Langstrecken
+  (über 3 500 km) gibt es 0–24 je Lauf und Monat, gegen 180–250 kurze und mittlere (Tabelle „Auslastung / Marge je
+  Streckenlänge“); geflogen werden sie mit Narrowbodies großer Reichweite.
+- Ursache im Code: Die KI kauft den Typ mit der besten Planer-Hauptzahl **je Kaufpreis** (`pickPurchaseType`,
+  `src/model/rivalMonth.ts:624`); das ist fast immer ein günstiger Narrowbody. Ziele sucht sie mit der Reichweite des
+  jüngsten Flugzeugs (`referenceTypeIndex`), so kommen Langstrecken-Ziele kaum in die Vorauswahl.
+- Folge: Auf Langstrecken hat der Spieler praktisch keine Konkurrenz; Widebody-Regeln der KI (Slots, Wende) wirken nicht.
+
+### Fund 43: KI-Umläufe nach der Planer-Regel: Optimizer nach 20 Jahren zu stark (B7.1) → O77
+
+- Neu (7.9, „Offen aus 4.4“ (2)): höchste Umläufe = Woche ÷ Umlaufzeit mit Boden- und Wendezeit (`weeklyTripCapacity`),
+  ohne Nachtpause und ohne Obergrenze 21; vorher 7 × 18 h ÷ Blockzeit ohne Bodenzeit, höchstens 21.
+- Nach 20 Jahren (1980) ist der Optimizer 521 Mio. $ wert, 2,56 × der Median aller (204 Mio. $; vorher 417 Mio. $,
+  1,81 ×). Damit gilt „ähnlicher Erfolg“ (Faktor ≤ 2, 7.4) nach 20 Jahren nicht mehr; nach 40 Jahren 1,79 (ok), nach
+  60 Jahren 1,87.
+- Übrige Zahlen fast gleich: Marge 24 %, Auslastung 100 %, Median aller nach 40 Jahren 952 statt 1 003 Mio. $,
+  Flugzeuge je KI in den 2010ern 89 statt 94 (mehr Umläufe je Flugzeug), Rechenzeit 626 statt 760 ms je Monat.
+- Der Optimizer fliegt kurze Strecken mit vielen Umläufen; die neue Regel erlaubt dort mehr als 21 je Woche.
+
+### Fund 44: KI-Stärke jetzt Easy < Normal < Hard (B7.8) → O74
+
+Gründer nach 40 Jahren (je 3 Läufe Easy und Hard): Easy 619, Normal 952, Hard 1 055 Mio. $ (vorher 579 / 1 003 /
+1 010). Hard liegt 11 % über Normal (vorher 1 %). Mit nur 3 Läufen je Stärke ist der Abstand unsicher.
+
+### Fund 45: Ruf-Meilenstein Gold (80) ist mit Spieler-Ausstattung erreichbar (B6.6) → kein Handlungsbedarf
+
+Beste Spieler-Ausstattung (alle Satisfaction-Forschung, Moral 100, VIP-Lounge, Bordküche, Hangar, Stufe 3;
+`playerBestCases`): Ruf-Ziel A320ceo FRA–MAD 1990 Flag-Kabine 81,6 (mit allen Kampagnen 84,6), Boutique 77,5 (80,5);
+A330-300 FRA–JFK 1995 Flag 65,1 (68,1), Boutique 58,7 (61,7). Gold geht also mit einem Netz aus gut ausgestatteten Kurz-
+und Mittelstrecken, nicht mit Langstrecke. Selten, wie gewollt („Offen aus 3.9c“).
+
+### Fund 46: Stärke der Schwierigkeit (B3.5) → O75
+
+`DIFFICULTY_FACTOR` Hard 0,9 / Easy 1,1 (Anziehung): gegen einen gleichen Rivalen mit freien Sitzen −5,7 % / +5,2 %
+Fluggäste. Beim festen Preis 1,6 × Markt mit 14 Abflügen je Gesellschaft (A320ceo FRA–MAD 1990, Normal voll): Ergebnis
+Hard −17 %, Easy +5 %. Mit 0,8 / 1,2: Fluggäste −11,9 %, Ergebnis −36 % / +10 %; mit 0,7 / 1,3: −18,8 %, −57 % / +14 %
+(Messung mit Hilfsskript, nicht im Projekt). Allein auf der Strecke wirkt der Faktor kaum (nur gegen „Nicht fliegen“).
+
+### Ohne neuen Handlungsbedarf
+
+- Bester Preis bei knappen Sitzen („Offen aus 4.5a“ (2)): A320ceo FRA–MAD 1990 allein 1,98 × Markt (B4.5); Regel 4.10
+  (Knappheit wirkt über den Preis) ist gewollt.
+- Weg B aus O66 (mehr Konkurrenz unter der KI): weiter 1,00 Gesellschaften je Paar (B7.3); offen, hängt mit O76
+  zusammen.

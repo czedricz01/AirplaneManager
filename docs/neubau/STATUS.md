@@ -5,10 +5,27 @@ bei Ruf 50; braucht die Anzeige einen Hinweis? „Offen aus 5.2d“ (1)); (2) De
 spielen, „Offen aus 5.2d“ (2)); (3) wo die etwa 3 s beim Spielstart mit 6 KI liegen (die Gründung selbst braucht < 0,3 s,
 Fund 38) und ob `monthOperations` bei jeder Änderung mit großen Spielständen stört („Offen aus 4.3“ (4)); (4) Frequent flyer
 und eine Kampagne in einem späten Jahr klicken (4.8 (6)); (5) Szenario „Deregulation“: Fortschritt „30 city pairs with daily
-service“ (F79). Zu lesen: diese Punkte, `CareerPanel.tsx`, `ScenarioProgressPanel.tsx`, `src/lib/modelMonth.ts`.
+service“ (F79); (6) Szenario-Untergrenze in der Anzeige und Text der Störungs-Frage („Offen aus 5.3c“ (1)). Zu lesen:
+diese Punkte, `CareerPanel.tsx`, `ScenarioProgressPanel.tsx`, `src/lib/modelMonth.ts`.
 
-**Offene Fragen O71–O73** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“): Charter-Schätzung der Störungs-Frage, Kassen-Untergrenze
-der Szenarien, Widebody-Slots an kleinen Flughäfen. Umgesetzt werden die Antworten in **5.3c** (danach).
+**Offene Fragen O74–O77** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“): KI-Stärke, Stärke der Schwierigkeit, KI ohne
+Langstrecke, Optimizer nach 20 Jahren zu stark (B7.1 Abweichung). Umgesetzt werden die Antworten in **5.3d** (mit Langlauf).
+5.3b hängt nicht davon ab.
+
+Stand: 24.11.2026 · Paket 5.3c erledigt (F80): O71–O73 umgesetzt (E76–E78), KI-Umläufe nach der Planer-Regel, Langlauf
+(`balance/5.3c-bericht.md`, 19 ok · 1 Abweichung · 31 Info; Funde 41–46 in `BALANCE.md`). Die Störungs-Frage rechnet den
+Monat X+1 zweimal mit dem Modell (`charterQuestionFigures`, B8.10 jetzt ok). Szenario-Untergrenze im Modell
+(`scenarioFloor`: −Kreditlinie, „Oil Shock“ 0 $), Anzeige mit Schwelle und Serie des Modells. Widebody-Slots erst ab
+Flughafengröße 3 für alle (`slotClassAvailable`); im Langlauf ohne Wirkung, weil die KI fast keine Widebodies fliegt
+(→ O76). Höchste Umläufe der KI = Planer-Regel (`weeklyTripCapacity`, 7.9): Optimizer nach 20 Jahren 2,56 × Median
+(→ O77); KI-Stärke jetzt Easy 619 < Normal 952 < Hard 1 055 Mio. $ (→ O74). Gold (80) mit Spieler-Ausstattung auf Kurz-
+und Mittelstrecke erreichbar (Fund 45). Schwierigkeit gemessen (→ O75). Tests: 1 238 grün (5 neue). Im Browser nicht
+geprüft (Szenario-Anzeige und Störungs-Frage: Texte geändert; 5.3b).
+
+Offen aus 5.3c: (1) 5.3b im Browser zusätzlich: Szenario-Anzeige der Untergrenze („now -$…“, Warnung unter der Schwelle)
+und Text der Störungs-Frage. (2) Die KI-Fahrpläne (`rivalSchedule`) verteilen mehr als drei Umläufe am Tag über den Tag
+hinaus; nur für Umsteige-Anschlüsse wichtig, kein Fehler. (3) „Offen aus 4.4“ (3) bleibt (doppelte Zeitplan-Suchen im
+Planer).
 
 Stand: 24.11.2026 · Paket 5.3a erledigt (F79): Balance-Bericht nach Phase 5 mit Langläufen (`balance/5.3a-bericht.md`,
 18 ok · 0 Abweichung · 32 Info; Funde 34–40 in `BALANCE.md`). Die Langläufe gleichen Zahl für Zahl den Läufen „ohne Zuschuss“
@@ -522,7 +539,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen, Alt-Code-Verweise in `src/model/`; F78) | erledigt |
 | 5.3a | Balance-Bericht mit Langläufen nach Phase 5, gesammelte 5.3-Punkte messen; Szenario-Ziele nach dem Modell (F79) | erledigt |
 | 5.3b | Spieltest im Browser (Rang vor dem ersten Abschluss, Jahresziel im Dezember, Rechenlast, Startzeit, Szenario-Fortschritt) | offen |
-| 5.3c | Umsetzung O71–O73, Feinabstimmung mit Langlauf (KI-Umläufe, KI-Stärke, Schwierigkeit, Gold-Meilenstein) | wartet auf O71–O73 |
+| 5.3c | Umsetzung O71–O73, Feinabstimmung mit Langlauf (KI-Umläufe, KI-Stärke, Schwierigkeit, Gold-Meilenstein; F80) | erledigt |
+| 5.3d | Umsetzung O74–O77 mit Langlauf (KI-Stärke, Schwierigkeit, KI-Langstrecke, Optimizer) | wartet auf O74–O77 |
 
 ---
 
@@ -608,3 +626,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 24.11.2026 | 5.2e | Störungs-Frage mit Beträgen des Modells (F77): `disruptionCharterEstimate` aus `MonthReport.routes` (Flüge, Erlös, Kosten je Fluggast, eigene Flugkosten, `charterFee`, `charterAdvantage`); `buildDisruptionDecision` nennt Gebühr, geretteten Erlös und gesparte Flugkosten; `disruptionStake` entfällt; Tests 1 229 grün |
 | 24.11.2026 | 5.2c | Dokumentation aufgeräumt (F78): `README.md` und `src/model/README.md` nach Phase 4/5; „heute …“ in `src/model/` → „Alt-Code“ (Stand Commit `231d08b`); alte Analysen als veraltet gekennzeichnet; `airportGate` über `isAirportOpen`, `LITRES_PER_GALLON` nur im Modell; Tests 1 230 grün |
 | 24.11.2026 | 5.3a | Balance-Bericht nach Phase 5 (F79): `balance/5.3a-bericht.md` (18 ok · 0 Abweichung · 32 Info), Langläufe gleich 3.9e ohne Zuschuss; neue Info-Prüfungen B6.9 (Werbung), B8.10 (Charter-Schätzung gegen Rechnung), B8.11 (Umbau); Szenario-Ziel `routes` zählt Städtepaare mit `minWeeklyFlights` (`servedCityPairs`), „Oil Shock“ Ruf 55; Funde 34–40; neue Fragen O71–O73; 3 neue Tests (1 233 grün) |
+| 24.11.2026 | 5.3c | O71–O73 umgesetzt (F80, E76–E78): Störungs-Frage aus zwei Rechnungen des Monats X+1, Szenario-Untergrenze im Modell, Widebody-Slots ab Größe 3 für alle; KI-Umläufe nach der Planer-Regel (7.9); Gold-Fall mit Spieler-Ausstattung; Langlauf `balance/5.3c-bericht.md` (19 ok · 1 Abweichung · 31 Info), Funde 41–46; neue Fragen O74–O77, Paket 5.3d; Tests 1 238 grün |
