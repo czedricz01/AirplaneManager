@@ -45,81 +45,6 @@ export interface YearSnapshot {
   reputation: number;
 }
 
-/** What the offer is built from. */
-export interface OfferContext {
-  /** Operating profit of the year just closed. */
-  lastYearProfit: number;
-  lastYearPax: number;
-  routes: number;
-  regions: number;
-  reputation: number;
-}
-
-const PROFIT_FLOOR = 2_000_000;
-const roundTo = (n: number, step: number) => Math.round(n / step) * step;
-
-/** Rounds a dollar target to a figure that reads like a target. */
-export function niceDollars(n: number): number {
-  if (n >= 100_000_000) return roundTo(n, 5_000_000);
-  if (n >= 10_000_000) return roundTo(n, 1_000_000);
-  return roundTo(n, 100_000);
-}
-
-function profitGoal(year: number, base: number, factor: number, tag: 'steady' | 'stretch'): AnnualGoal {
-  const target = niceDollars(Math.max(PROFIT_FLOOR * (tag === 'stretch' ? 1.5 : 1), base * factor));
-  const stretch = tag === 'stretch';
-  return {
-    year, kind: 'profit', target, tag,
-    label: 'operating profit',
-    reward: { reputation: stretch ? 7 : 3, cash: Math.round((target * (stretch ? 0.03 : 0.01)) / 50_000) * 50_000 },
-    penalty: stretch ? 3 : 1
-  };
-}
-
-type FocusBuilder = (year: number, c: OfferContext) => AnnualGoal | null;
-
-const FOCUS_BUILDERS: FocusBuilder[] = [
-  (year, c) => c.routes < 1 ? null : {
-    year, kind: 'routes', tag: 'focus', label: 'routes in operation',
-    target: c.routes + Math.max(3, Math.ceil(c.routes * 0.2)),
-    reward: { reputation: 5, cash: 1_000_000 }, penalty: 2
-  },
-  (year, c) => c.regions >= 6 || c.routes < 1 ? null : {
-    year, kind: 'regions', tag: 'focus', label: 'regions served',
-    target: c.regions + 1,
-    reward: { reputation: 6, cash: 1_500_000 }, penalty: 2
-  },
-  (year, c) => c.reputation >= 92 || c.routes < 1 ? null : {
-    year, kind: 'reputation', tag: 'focus', label: 'reputation',
-    target: Math.min(98, Math.ceil(c.reputation + 6)),
-    reward: { reputation: 4, cash: 1_000_000 }, penalty: 2
-  },
-  (year, c) => c.lastYearPax <= 0 ? null : {
-    year, kind: 'pax', tag: 'focus', label: 'passengers carried',
-    target: Math.max(1000, roundTo(c.lastYearPax * 1.2, c.lastYearPax >= 1_000_000 ? 100_000 : 1_000)),
-    reward: { reputation: 5, cash: 1_000_000 }, penalty: 2
-  },
-  (year, c) => c.routes < 1 ? null : {
-    year, kind: 'noLoss', tag: 'focus', label: 'months in loss',
-    target: 0,
-    reward: { reputation: 5, cash: 1_500_000 }, penalty: 2
-  }
-];
-
-/**
- * The three goals offered for `year`: steady profit, a goal of another kind,
- * and stretch profit. The other kind rotates with the year, so the board does
- * not ask for the same thing every January; goals that make no sense for the
- * airline as it is (more regions when all six are served) are left out.
- */
-export function generateGoalOffers(year: number, ctx: OfferContext): AnnualGoal[] {
-  const eligible = FOCUS_BUILDERS.map(b => b(year, ctx)).filter((g): g is AnnualGoal => g !== null);
-  const options: AnnualGoal[] = [profitGoal(year, ctx.lastYearProfit, 1.1, 'steady')];
-  if (eligible.length > 0) options.push(eligible[((year % eligible.length) + eligible.length) % eligible.length]);
-  options.push(profitGoal(year, ctx.lastYearProfit, 1.35, 'stretch'));
-  return options;
-}
-
 /** The goal as a sentence: "Operating profit of $4.2M". */
 export function describeGoal(goal: AnnualGoal, formatMoney: (n: number) => string, formatCount: (n: number) => string): string {
   switch (goal.kind) {
@@ -142,11 +67,6 @@ export function goalValue(goal: AnnualGoal, snap: YearSnapshot): number {
     case 'pax': return snap.pax;
     case 'noLoss': return snap.lossMonths;
   }
-}
-
-export function goalMet(goal: AnnualGoal, snap: YearSnapshot): boolean {
-  const value = goalValue(goal, snap);
-  return goal.kind === 'noLoss' ? value <= 0 : value >= goal.target;
 }
 
 /** 0-1 progress, for a bar. A loss-free goal is fully met until the first loss. */
@@ -179,17 +99,6 @@ export function buildYearSnapshot(
     if (p < 0) lossMonths++;
   }
   return { profit, pax, lossMonths, routes: now.routes, regions: now.regions, reputation: now.reputation };
-}
-
-/** What the board makes of a year: the reputation and cash it gives or takes. */
-export function settleGoal(goal: AnnualGoal, snap: YearSnapshot): { met: boolean; reputation: number; cash: number; achieved: number } {
-  const met = goalMet(goal, snap);
-  return {
-    met,
-    reputation: met ? goal.reward.reputation : -goal.penalty,
-    cash: met ? goal.reward.cash : 0,
-    achieved: goalValue(goal, snap)
-  };
 }
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

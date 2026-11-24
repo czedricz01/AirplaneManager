@@ -19,7 +19,7 @@ import { aircraftState, holdingState, modelAirports } from './modelBridge';
 import { CAPEX_LABELS, monthLedger, openLedgerValues, withTradeValue } from './modelBridgeCompany';
 import { rivalRecord } from './modelBridgeWorld';
 import { planesValue } from './modelMonth';
-import { buildTakeover } from './takeover';
+import { takeoverFleet } from './modelFleet';
 import {
   hasHangarOnRoutes,
   playerFuelPerGallon,
@@ -175,8 +175,8 @@ describe('Übernahme (4.2g, 7.16, E48)', () => {
   it('Buchung: Flugzeuge zum Wert als Kauf, Rest als Einmalausgabe – „Aircraft trades“ bleibt 0', () => {
     const rec = rivalRecord(oldRival(), CTX);
     const offer = takeoverOffer(rec, 10, M);
-    const deal = buildTakeover(oldRival(), []);
-    const value = planesValue(deal.aircraft, M);
+    const taken = takeoverFleet(rec, 'FRA', []);
+    const value = planesValue(taken, M);
     const pay = takeoverPayments(offer, value);
     assert.equal(pay.aircraft + pay.rest, offer.netPrice);
     const values = withTradeValue(openLedgerValues([], [], M), value);
@@ -184,7 +184,7 @@ describe('Übernahme (4.2g, 7.16, E48)', () => {
       { label: CAPEX_LABELS.purchases[0], amount: pay.aircraft },
       { label: 'Airline Takeover', amount: pay.rest },
     ];
-    const ledger = monthLedger(100e6 - offer.netPrice, capex, values, M, { aircraft: deal.aircraft.map((p) => aircraftState(p)), preorders: [] });
+    const ledger = monthLedger(100e6 - offer.netPrice, capex, values, M, { aircraft: taken.map((p) => aircraftState(p)), preorders: [] });
     assert.equal(ledger.tradeValueChange - ledger.purchases, 0);
     assert.equal(ledger.otherSpending['Airline Takeover'], pay.rest);
     assert.equal(ledger.cashAtStart, 100e6);

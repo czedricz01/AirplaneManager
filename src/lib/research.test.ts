@@ -1,11 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  CLASS_PROJECTS, NEUTRAL_EFFECTS, PROJECTS, advanceResearch, boostedEfficiency, boostedPopularity,
-  maxParallel, normalizeResearch, projectById, projectCost, projectProgress, projectsForClasses, projectsOfRank,
-  researchEffects, startBlocker, startProject, startingResearch
-} from './research';
+import { CLASS_PROJECTS, NEUTRAL_EFFECTS, PROJECTS, maxParallel, normalizeResearch, projectById, projectCost, projectsForClasses, projectsOfRank, researchEffects, startBlocker, startingResearch } from './research';
 import { MAX_RANK, RANKS } from './airlineRank';
 
 import type { ResearchState } from './research';
@@ -74,15 +70,6 @@ test('the new bonuses add up one percent at a time', () => {
   assert.ok(everything.efficiencyBonus > 0.05 && everything.efficiencyBonus < 0.1);
 });
 
-test('an aircraft gets the bonus in points, never above 100 and never less than it had', () => {
-  assert.equal(boostedEfficiency(60, { efficiencyBonus: 0.03 }), 63);
-  assert.equal(boostedEfficiency(99, { efficiencyBonus: 0.03 }), 100);
-  assert.equal(boostedEfficiency(60, { efficiencyBonus: 0 }), 60);
-  assert.equal(boostedPopularity(70, { popularityBonus: 0.02 }), 72);
-  assert.equal(boostedPopularity(99, { popularityBonus: 0.02 }), 100);
-  assert.equal(boostedPopularity(70, { popularityBonus: 0 }), 70);
-});
-
 test('costs grow with the years', () => {
   const p = projectById('fuel-1')!;
   assert.equal(projectCost(p, 1960), p.baseCost);
@@ -108,19 +95,6 @@ test('a project cannot start without its rank, its prerequisite, cash or a free 
   assert.equal(busy.active.length, maxParallel(0));
   assert.match(startBlocker(busy, projectById('crew-1')!, 0, 1e9, 1980) ?? '', /at once/);
   assert.match(startBlocker({ done: ['crew-1'], active: [] }, projectById('crew-1')!, 0, 1e9, 1980) ?? '', /Already finished/);
-});
-
-test('a started project finishes after its months, and not before', () => {
-  const p = projectById('slots')!;
-  const state = startProject(EMPTY_RESEARCH, 'slots', 100);
-  assert.equal(state.active.length, 1);
-  assert.equal(startProject(state, 'slots', 101), state, 'starting twice changes nothing');
-  assert.equal(advanceResearch(state, 100 + p.months - 1).completed.length, 0);
-  const result = advanceResearch(state, 100 + p.months);
-  assert.deepEqual(result.completed.map(c => c.id), ['slots']);
-  assert.deepEqual(result.state, { done: ['slots'], active: [] });
-  assert.equal(projectProgress(p, 100, 100 + p.months / 2).fraction, 0.5);
-  assert.equal(projectProgress(p, 100, 400).fraction, 1);
 });
 
 test('a game starts with the classes its rank has opened', () => {

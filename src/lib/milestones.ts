@@ -155,25 +155,6 @@ export function milestonePerks(earnedIds: readonly string[]): MilestonePerks {
   return { slotPriceFactor: 1 - Math.min(SLOT_DISCOUNT_CAP, discount), extraHubs: hubs };
 }
 
-/** The milestones the context newly satisfies, in catalogue order. */
-export function newlyEarned(earnedIds: readonly string[], ctx: MilestoneContext): Milestone[] {
-  const have = new Set(earnedIds);
-  return MILESTONES.filter(m => !have.has(m.id) && m.met(ctx));
-}
-
-/** The sum of the rewards of a batch of milestones. */
-export function totalReward(list: readonly Milestone[]): MilestoneReward {
-  return list.reduce<MilestoneReward>(
-    (sum, m) => ({
-      reputation: sum.reputation + m.reward.reputation,
-      cash: sum.cash + m.reward.cash,
-      slotDiscount: sum.slotDiscount + m.reward.slotDiscount,
-      extraHubs: sum.extraHubs + m.reward.extraHubs
-    }),
-    { reputation: 0, cash: 0, slotDiscount: 0, extraHubs: 0 }
-  );
-}
-
 /** One line describing what a milestone pays, for the inbox and the catalogue. */
 export function describeReward(r: MilestoneReward, formatMoney: (n: number) => string): string {
   const parts: string[] = [];

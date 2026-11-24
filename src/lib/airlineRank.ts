@@ -150,11 +150,6 @@ export function qualifyingRank(stats: RankStats): number {
   return best;
 }
 
-/** The rank after this month: never lower than the one already held. */
-export function nextRank(current: number, stats: RankStats): number {
-  return Math.max(clampRank(current), qualifyingRank(stats));
-}
-
 export interface RankRequirementLine {
   label: string;
   current: number;
@@ -219,17 +214,6 @@ export function countHubs(management: Record<string, { level?: number } | undefi
  */
 export function startingRank(stats: RankStats, floor = 0): number {
   return Math.max(clampRank(floor), qualifyingRank(stats));
-}
-
-/**
- * Where a rank of the first six-step ladder (saves before version 7) sits on
- * this one: the old Startup/Regional/National/International/Flag/Global.
- */
-const OLD_LADDER: readonly number[] = [0, 2, 4, 6, 8, 9];
-
-export function migrateOldRank(oldRank: number): number {
-  const i = Math.max(0, Math.min(OLD_LADDER.length - 1, Math.round(Number.isFinite(oldRank) ? oldRank : 0)));
-  return OLD_LADDER[i];
 }
 
 /**

@@ -1642,7 +1642,7 @@ export const HALL_SIZE = 10;
 /** Geschäftsmodell einer KI (Typ aus den Daten `src/data/rivalAirlines.ts`, dort auch für echte Gesellschaften). */
 export type { RivalPersonality };
 
-/** Alle Persönlichkeiten, einmal (heute zusätzlich Kopie in `src/lib/saveMigration.ts:57-58`). SPEZIFIKATION 7.4. */
+/** Alle Persönlichkeiten, einmal. SPEZIFIKATION 7.4. */
 export const PERSONALITY_IDS: readonly RivalPersonality[] = ['lcc', 'expansionist', 'optimizer', 'flag', 'boutique'];
 
 /** KI-Stärke: wie geschickt die KI entscheidet, nie wie sie rechnet (1.8, E4). SPEZIFIKATION 7.3. */

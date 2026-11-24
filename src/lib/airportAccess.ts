@@ -56,20 +56,3 @@ export function airportGate(
   return `${airport.name || airport.id} is a level ${level} airport. Airports of that size open at the rank ` +
     `${rankDef(needed).title}; your airline is ${rankDef(clampRank(rank)).title}.`;
 }
-
-/** How many of the airports are closed at this rank, and the rank that opens the nearest of them. */
-export function lockedSummary(
-  airports: ReadonlyArray<{ id: string; level?: number }>,
-  rank: number,
-  exempt: ReadonlySet<string>
-): { count: number; opensAt: number | null } {
-  let count = 0;
-  let lowest = Infinity;
-  for (const a of airports) {
-    const level = Number(a.level) || 1;
-    if (exempt.has(a.id) || level <= maxAirportLevel(rank)) continue;
-    count++;
-    lowest = Math.min(lowest, rankForLevel(level));
-  }
-  return { count, opensAt: count > 0 ? lowest : null };
-}

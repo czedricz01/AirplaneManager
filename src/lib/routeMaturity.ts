@@ -60,10 +60,3 @@ export function maturityFactors(
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
-
-/** A short line for the route screens: "Ramping up: 74% of full demand", or null when mature. */
-export function maturityNote(factor: number | undefined): string | null {
-  if (factor === undefined || Math.abs(factor - 1) < 0.0005) return null;
-  if (factor < 1) return `Ramping up: ${Math.round(factor * 100)}% of full demand`;
-  return `Loyal customers: +${Math.round((factor - 1) * 100)}% demand`;
-}
