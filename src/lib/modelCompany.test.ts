@@ -12,7 +12,6 @@ import {
   COMMONALITY_DISCOUNTS,
   CREDIT_LIMIT_SHARE,
   FREE_FAMILIES,
-  GOAL_MISS_PENALTY_SHARE,
   OVERDRAWN_TO_FORCED_SALE,
   VARIETY_PENALTY_PER_FAMILY,
 } from '../model/constants';
@@ -30,7 +29,6 @@ import {
   eventEffect,
   fleetMix,
   fleetMixText,
-  goalMissPenalty,
   playerCompany,
   playerScore,
   playerWorth,
@@ -170,10 +168,6 @@ describe('Firma: Ruf, Flotten-Mischung, Jahresziel', () => {
   it('Erklärtext aus den Konstanten', () => {
     const text = fleetMixText();
     for (const d of COMMONALITY_DISCOUNTS) assert.ok(new RegExp(`${d.from} (of a kind save )?${Math.round(d.discount * 100)}%`).test(text), text);
-  });
-
-  it('Strafe des Jahresziels = Anteil der Prämie (E58)', () => {
-    assert.equal(goalMissPenalty(1e6), GOAL_MISS_PENALTY_SHARE * 1e6);
   });
 });
 

@@ -1,72 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { FREE_MODE_RANK, MAX_RANK, RANKS, RANK_NEEDED, countHubs, effectiveRank, hubAllowance, managementGate, normalizeMode, qualifyingRank, rankGateMessage, rankProgress, startingRank, type RankStats } from './airlineRank';
+import { FREE_MODE_RANK, MAX_RANK, RANKS, clampRank, countHubs, effectiveRank, hubAllowance, managementGate, normalizeMode, rankDef, rankGateMessage, rankUnlockLines } from './airlineRank';
+import { RANK_UNLOCKS, RANKS as MODEL_RANKS } from '../model/constants';
 
-const stats = (over: Partial<RankStats> = {}): RankStats => ({ routes: 0, monthlyPax: 0, reputation: 50, regions: 0, years: 0, ...over });
-
-test('there are ten ranks, from Startup to Global Player', () => {
+test('the ranks are the model table (6.7)', () => {
+  assert.equal(RANKS, MODEL_RANKS);
   assert.equal(RANKS.length, 10);
   assert.equal(RANKS[0].title, 'Startup');
   assert.equal(RANKS[MAX_RANK].title, 'Global Player');
-  assert.equal(new Set(RANKS.map(r => r.id)).size, 10);
+  assert.equal(RANKS[1].requires.reputation, 30, 'reputation thresholds of the new scale (E36, E39)');
 });
 
-test('requirements only grow from rank to rank, and so do hubs and airport levels', () => {
-  for (let i = 1; i < RANKS.length; i++) {
-    const a = RANKS[i - 1].requires, b = RANKS[i].requires;
-    assert.ok(b.routes > a.routes && b.monthlyPax > a.monthlyPax, `${RANKS[i].id}: more routes and passengers`);
-    assert.ok(b.reputation >= a.reputation && b.regions >= a.regions && b.years >= a.years, `${RANKS[i].id}: nothing gets easier`);
-    assert.ok(RANKS[i].maxHubs >= RANKS[i - 1].maxHubs);
-    assert.ok(RANKS[i].maxAirportLevel >= RANKS[i - 1].maxAirportLevel);
-  }
+test('any number is a rank', () => {
+  assert.equal(clampRank(-3), 0);
+  assert.equal(clampRank(99), MAX_RANK);
+  assert.equal(clampRank('x'), 0);
+  assert.equal(rankDef(42).title, 'Global Player');
 });
 
-test('the climb is slow: the top ranks need decades in business', () => {
-  assert.ok(RANKS[4].requires.years >= 5, 'National takes years');
-  assert.ok(RANKS[MAX_RANK].requires.years >= 35, 'Global Player takes most of a career');
-});
-
-test('the greatest airports (level 7) open at National', () => {
-  const national = RANKS.findIndex(r => r.id === 'national');
-  assert.ok(RANKS[national - 1].maxAirportLevel <= 6);
-  assert.equal(RANKS[national].maxAirportLevel, 7);
-});
-
-test('a new airline is a startup', () => {
-  assert.equal(qualifyingRank(stats()), 0);
-  assert.equal(qualifyingRank(stats({ routes: 2, monthlyPax: 100_000, years: 50 })), 0, 'too few routes');
-});
-
-test('every requirement has to be met, the years in business included', () => {
-  const regional = RANKS[2].requires;
-  assert.equal(qualifyingRank({ ...regional }), 2);
-  assert.equal(qualifyingRank({ ...regional, reputation: regional.reputation - 1 }), 1);
-  assert.equal(qualifyingRank({ ...regional, monthlyPax: regional.monthlyPax - 1 }), 1);
-  assert.equal(qualifyingRank({ ...regional, years: regional.years - 1 }), 1, 'a year cannot be bought');
-  assert.equal(qualifyingRank({ ...regional, regions: 0 }), 0, 'no region served, no rank at all');
-});
-
-test('the top rank is reachable and a rank is not skipped', () => {
-  assert.equal(qualifyingRank(RANKS[MAX_RANK].requires), MAX_RANK);
-  assert.equal(qualifyingRank({ ...RANKS[3].requires, reputation: 10 }), 0);
-});
-
-test('progress lists what is missing and is null at the top', () => {
-  const p = rankProgress(0, stats({ routes: 1, monthlyPax: 4_000, reputation: 45, regions: 1 }))!;
-  assert.equal(p.next.index, 1);
-  const byLabel = Object.fromEntries(p.lines.map(l => [l.label, l.met]));
-  assert.equal(byLabel['Routes'], false);
-  assert.equal(byLabel['Reputation'], true);
-  assert.ok(p.fraction > 0 && p.fraction < 1);
-  assert.equal(rankProgress(MAX_RANK, stats()), null);
-  const withYears = rankProgress(1, stats())!;
-  assert.ok(withYears.lines.some(l => l.label === 'Years in business'), 'the years are a line of their own');
+test('what a rank opens is generated from the model tables', () => {
+  assert.deepEqual(rankUnlockLines(0).slice(0, 4), ['Airports up to level 4', 'Up to 1 hub', '2 development projects at a time', 'Local marketing campaigns']);
+  const regional = rankUnlockLines(2);
+  assert.ok(regional.includes('Up to 2 hubs'));
+  assert.ok(regional.includes('The frequent-flyer programme'));
+  assert.ok(regional.includes('Narrowbody aircraft (development)'), 'class ranks from CLASS_RESEARCH (E41)');
+  const continental = rankUnlockLines(5);
+  assert.ok(continental.includes('Jumbo aircraft (development)'));
+  assert.ok(continental.includes('Supersonic aircraft (development)'));
+  assert.ok(rankUnlockLines(4).includes('3 development projects at a time'), 'research slots of the rank (E42)');
+  assert.ok(rankUnlockLines(8).includes('Management tier 3 at a hub'));
+  for (const r of RANKS) assert.ok(rankUnlockLines(r.index).length > 0, `${r.title} opens something`);
 });
 
 test('the refusal names both ranks and is null when the rank suffices', () => {
   assert.equal(rankGateMessage(4, 4, 'The VIP lounge'), null);
-  const msg = rankGateMessage(0, RANK_NEEDED.vipLounge, 'The VIP lounge')!;
+  const msg = rankGateMessage(0, RANK_UNLOCKS.vipLounge, 'The VIP lounge')!;
   assert.match(msg, /VIP lounge/);
   assert.match(msg, /National Airline/);
   assert.match(msg, /Startup/);
@@ -85,7 +54,6 @@ test('Free Mode is the top rank with unlimited hubs; Normal Mode keeps what was 
   assert.equal(effectiveRank('normal', 3), 3);
   assert.equal(effectiveRank('normal', 99), MAX_RANK);
   assert.equal(normalizeMode('free'), 'free');
-  assert.equal(normalizeMode('normal'), 'normal');
   assert.equal(normalizeMode('x'), 'normal');
   assert.equal(normalizeMode(undefined), 'normal');
   assert.equal(hubAllowance(0, 0, true), Infinity);
@@ -93,10 +61,5 @@ test('Free Mode is the top rank with unlimited hubs; Normal Mode keeps what was 
   assert.notEqual(managementGate(2, 0, 0, many), null, 'a startup may not run thirty hubs');
   assert.equal(managementGate(2, 0, 0, many, undefined, true), null, 'but Free Mode may');
   assert.equal(managementGate(3, 0, 0, {}, undefined, false)?.includes('Management tier 3'), true);
-});
-
-test('a scenario or a loaded game starts at the rank its figures give, no lower than the floor', () => {
-  assert.equal(startingRank(stats(), 3), 3, 'a scenario floor');
-  assert.equal(startingRank(RANKS[4].requires), 4);
-  assert.equal(startingRank(stats()), 0);
+  assert.equal(managementGate(3, 8, 0, {}), null);
 });

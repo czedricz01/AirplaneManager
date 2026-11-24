@@ -1,25 +1,22 @@
 /**
- * The aircraft classes an airline has to develop before it may buy them.
+ * The aircraft classes an airline has to develop before it may buy them (docs/neubau 6.8).
  *
- * Until now only rank gated aircraft, and only two kinds. The market is now
- * cut into six classes by size, and every class beyond the first is a project
- * in the development tree (see research.ts): research it, and every aircraft
- * of the class can be bought, new, ordered or second-hand.
- *
- *   commuter    regional aircraft up to 60 seats           open from the start
- *   regional    regional aircraft over 60 seats, narrowbodies up to 130
- *   narrowbody  narrowbodies over 130 seats
- *   widebody    wide-bodies up to 500 seats
- *   jumbo       wide-bodies over 500 seats
- *   supersonic  anything faster than sound
- *
- * What the airline already flies is never taken away: a class an aircraft in
- * the fleet belongs to counts as open (see classesOpenFor).
- *
- * Everything here is pure.
+ * Which class an aircraft belongs to, which classes are open and which project opens a class are the model's
+ * rules (`sizeClassOf`, `openSizeClasses`, `CLASS_RESEARCH`). This file adds the names and the refusal text of
+ * the screen. The seat and speed limits in the texts come from the model's constants.
  */
+import {
+  CLASS_RESEARCH,
+  COMMUTER_MAX_SEATS,
+  JUMBO_MIN_SEATS,
+  REGIONAL_JET_MAX_SEATS,
+  SIZE_CLASSES,
+  SUPERSONIC_MIN_KMH,
+  type SizeClass,
+} from '../model/constants';
+import { openSizeClasses, sizeClassOf, type GameMode } from '../model/progress';
 
-export type AircraftClassId = 'commuter' | 'regional' | 'narrowbody' | 'widebody' | 'jumbo' | 'supersonic';
+export type AircraftClassId = SizeClass;
 
 export interface AircraftClassDef {
   id: AircraftClassId;
@@ -29,50 +26,61 @@ export interface AircraftClassDef {
   projectId: string | null;
 }
 
-export const AIRCRAFT_CLASSES: readonly AircraftClassDef[] = [
-  { id: 'commuter', title: 'Commuter aircraft', detail: 'Regional aircraft up to 60 seats', projectId: null },
-  { id: 'regional', title: 'Regional aircraft', detail: 'Regional aircraft over 60 seats and small jets up to 130 seats', projectId: 'class-regional' },
-  { id: 'narrowbody', title: 'Narrowbody aircraft', detail: 'Single-aisle jets over 130 seats', projectId: 'class-narrowbody' },
-  { id: 'widebody', title: 'Wide-body aircraft', detail: 'Twin-aisle jets up to 500 seats', projectId: 'class-widebody' },
-  { id: 'jumbo', title: 'Jumbo aircraft', detail: 'Twin-aisle jets over 500 seats', projectId: 'class-jumbo' },
-  { id: 'supersonic', title: 'Supersonic aircraft', detail: 'Airliners that fly faster than sound', projectId: 'class-supersonic' }
-];
+const TITLES: Readonly<Record<SizeClass, string>> = {
+  commuter: 'Commuter aircraft',
+  regional: 'Regional aircraft',
+  narrowbody: 'Narrowbody aircraft',
+  widebody: 'Wide-body aircraft',
+  jumbo: 'Jumbo aircraft',
+  supersonic: 'Supersonic aircraft',
+};
 
-export const ALL_CLASS_IDS: readonly AircraftClassId[] = AIRCRAFT_CLASSES.map(c => c.id);
+const DETAILS: Readonly<Record<SizeClass, string>> = {
+  commuter: `Regional aircraft up to ${COMMUTER_MAX_SEATS} seats`,
+  regional: `Regional aircraft over ${COMMUTER_MAX_SEATS} seats and small jets up to ${REGIONAL_JET_MAX_SEATS} seats`,
+  narrowbody: `Single-aisle jets over ${REGIONAL_JET_MAX_SEATS} seats`,
+  widebody: `Twin-aisle jets up to ${JUMBO_MIN_SEATS} seats`,
+  jumbo: `Twin-aisle jets over ${JUMBO_MIN_SEATS} seats`,
+  supersonic: `Airliners faster than ${SUPERSONIC_MIN_KMH} km/h`,
+};
+
+export const AIRCRAFT_CLASSES: readonly AircraftClassDef[] = SIZE_CLASSES.map((id) => ({
+  id,
+  title: TITLES[id],
+  detail: DETAILS[id],
+  projectId: id === 'commuter' ? null : CLASS_RESEARCH[id].id,
+}));
+
+export const ALL_CLASS_IDS: readonly AircraftClassId[] = SIZE_CLASSES;
 
 export function classDef(id: AircraftClassId): AircraftClassDef {
-  return AIRCRAFT_CLASSES.find(c => c.id === id)!;
+  return AIRCRAFT_CLASSES.find((c) => c.id === id)!;
 }
 
-/** Seats (the data's maximum) above which a wide-body counts as a jumbo: the 747, A380, A340-600, 777-9. */
-export const JUMBO_SEATS = 500;
+type AircraftLike = { class?: string; capacity?: number; cruiseSpeed?: number };
 
-/** The class an aircraft belongs to. */
-export function classOfAircraft(a: { class?: string; capacity?: number; cruiseSpeed?: number }): AircraftClassId {
-  if ((a.cruiseSpeed ?? 0) > 1000) return 'supersonic';
-  const seats = Number(a.capacity) || 0;
-  const kind = String(a.class || '').toLowerCase();
-  if (kind === 'widebody') return seats > JUMBO_SEATS ? 'jumbo' : 'widebody';
-  if (kind === 'narrowbody') return seats <= 130 ? 'regional' : 'narrowbody';
-  return seats <= 60 ? 'commuter' : 'regional';
+/** The class an aircraft belongs to (`sizeClassOf`); missing fields count as a small, slow aircraft. */
+export function classOfAircraft(a: AircraftLike): AircraftClassId {
+  return sizeClassOf({ class: String(a.class ?? ''), capacity: Number(a.capacity) || 0, cruiseSpeed: Number(a.cruiseSpeed) || 0 });
 }
 
-/** The classes open to an airline: the free one, those it researched, all of them in Free Mode. */
-export function openClasses(doneProjects: readonly string[], free = false): Set<AircraftClassId> {
-  if (free) return new Set(ALL_CLASS_IDS);
-  const done = new Set(doneProjects);
-  return new Set(AIRCRAFT_CLASSES.filter(c => c.projectId === null || done.has(c.projectId)).map(c => c.id));
-}
-
-/** The classes of the aircraft already in the fleet, which stay open. */
-export function classesOfFleet(fleet: ReadonlyArray<{ class?: string; capacity?: number; cruiseSpeed?: number }>): Set<AircraftClassId> {
+/** The classes of the aircraft already in the fleet. */
+export function classesOfFleet(fleet: ReadonlyArray<AircraftLike>): Set<AircraftClassId> {
   return new Set(fleet.map(classOfAircraft));
+}
+
+/**
+ * The classes open to an airline (`openSizeClasses`): Commuter, every class researched, every class of the
+ * fleet (never taken away); all of them in Free Mode.
+ */
+export function openClasses(doneProjects: readonly string[], fleet: ReadonlyArray<AircraftLike> = [], mode: GameMode = 'normal'): Set<AircraftClassId> {
+  return new Set(openSizeClasses(doneProjects, [...classesOfFleet(fleet)], mode));
 }
 
 /** The text of a refusal, or null when the aircraft's class is open. */
 export function classGateMessage(
-  aircraft: { class?: string; capacity?: number; cruiseSpeed?: number; manufacturer?: string; type?: string },
-  open: ReadonlySet<AircraftClassId>
+  aircraft: AircraftLike & { manufacturer?: string; type?: string },
+  open: ReadonlySet<AircraftClassId>,
 ): string | null {
   const id = classOfAircraft(aircraft);
   if (open.has(id)) return null;

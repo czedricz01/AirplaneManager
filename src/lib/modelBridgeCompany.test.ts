@@ -21,7 +21,6 @@ import type { MonthlyReport, SimulatedRoute } from './gameTypes';
 import type { PreOrder } from './preorders';
 import { aircraftState, modelAirports, modelOperations, applyModelOperations, type PlayerOperations, type RouteContext } from './modelBridge';
 import {
-  appGoal,
   appReport,
   applyCompanyInputs,
   applyCompanyProgress,
@@ -35,8 +34,6 @@ import {
   deliveredAircraft,
   ffpMonthsRunning,
   historyReports,
-  modelGoal,
-  modelMilestones,
   modelScenario,
   monthLedger,
   openLedgerValues,
@@ -225,7 +222,7 @@ describe('Vorbestellungen und Lieferungen (4.2c)', () => {
 });
 
 describe('Fortschritt (4.2c)', () => {
-  const goal: AnnualGoal = { year: 1995, kind: 'routes', tag: 'focus', target: 12, label: 'routes in operation', reward: { reputation: 5, cash: 1e6 }, penalty: 2 };
+  const goal: AnnualGoal = { year: 1995, kind: 'routes', tag: 'focus', target: 12, reward: 1e6, penalty: goalPenalty(1e6) };
   const reports: MonthlyReport[] = [1, 2, 3, 4].map((i) => ({
     month: i, year: 1995, routeRevenues: 10e6 * i, routeCosts: 0, airportUpkeep: 0, totalProfit: 1e6 * i, breakdown: {},
     paxTotal: 1000 * i, routeCount: 3 + i, reputation: 50 + i, regions: ['EU', 'NA'],
@@ -236,10 +233,10 @@ describe('Fortschritt (4.2c)', () => {
       rank: 3,
       careerPax: 123_456,
       takeovers: 1,
-      research: { done: ['eff-1'], active: [{ id: 'sat-1', startedOffset: M - 2 }] },
+      research: { done: ['eff-1'], active: [{ id: 'sat-1', startMonth: M - 2 }] },
       goalOffer: null,
     };
-    return { career, milestones: ['first-route', 'continents-2', 'reputation-60'], annualGoal: goal, scenario: null, startMonth: (1990 - 1960) * 12, reports, ...over };
+    return { career, milestones: ['first-route', 'regions-2', 'reputation-bronze'], annualGoal: goal, scenario: null, startMonth: (1990 - 1960) * 12, reports, ...over };
   }
 
   it('liest Rang, Rang-Werte, Forschung, Meilensteine, Fluggäste, Übernahmen und Jahresziel', () => {
@@ -253,14 +250,6 @@ describe('Fortschritt (4.2c)', () => {
     assert.deepEqual(p.rankHistory[2], { routes: 7, monthlyPax: 4000, reputation: 54, regions: 2, years: 5 });
     assert.equal(p.goalOffers, undefined);
     assert.equal(rankHistory(reports, 0, reportMonth(reports[1])).length, 1, 'nur Berichte vor dem Monat');
-  });
-
-  it('Meilensteine und Jahresziel: hin und zurück gleich', () => {
-    assert.deepEqual(modelMilestones(['continents-6', 'regions-6']), ['regions-6']);
-    assert.equal(appGoal(modelGoal(goal), goal), goal);
-    const fresh = appGoal(modelGoal(goal));
-    assert.deepEqual(modelGoal(fresh), modelGoal(goal));
-    assert.equal(fresh.label, 'routes in operation');
   });
 
   it('Szenario: Dollar-Ziele in $ von 1960, Untergrenze in Monaten, Stichtag; Entscheidung mit Grund', () => {
@@ -283,7 +272,7 @@ describe('Fortschritt (4.2c)', () => {
   it('hin und zurück ändert nichts (mit Szenario und Angebot)', () => {
     const src = source({
       scenario: { id: 'hub-builder', startedOffset: 360, status: 'running', floorStreak: 1, met: ['transfer'] },
-      career: { ...source().career, goalOffer: { year: 1996, options: [goal, { ...goal, kind: 'profit', tag: 'steady', target: 5e6, label: 'operating profit' }] } },
+      career: { ...source().career, goalOffer: { year: 1996, options: [goal, { ...goal, kind: 'profit', tag: 'steady', target: 5e6 }] } },
     });
     const out = applyCompanyProgress(src, companyProgress(src, M), M);
     assert.equal(out.career, src.career);
@@ -292,10 +281,10 @@ describe('Fortschritt (4.2c)', () => {
     assert.equal(out.scenario, src.scenario);
   });
 
-  it('Zurückschreiben: Rang, Forschung fertig, neuer Meilenstein in Kennung der Oberfläche, neues Angebot', () => {
+  it('Zurückschreiben: Rang, Forschung fertig, neuer Meilenstein in Kennung des Modells, neues Angebot', () => {
     const src = source();
     const p = companyProgress(src, M);
-    const offers = [modelGoal({ ...goal, year: 1996 }), modelGoal({ ...goal, year: 1996, kind: 'profit', tag: 'stretch', target: 9e6 })];
+    const offers: AnnualGoal[] = [{ ...goal, year: 1996 }, { ...goal, year: 1996, kind: 'profit', tag: 'stretch', target: 9e6 }];
     const out = applyCompanyProgress(src, {
       ...p,
       rank: 4,
@@ -306,10 +295,11 @@ describe('Fortschritt (4.2c)', () => {
     }, M);
     assert.equal(out.career.rank, 4);
     assert.deepEqual(out.career.research, { done: ['eff-1', 'sat-1'], active: [] });
-    assert.deepEqual(out.milestones, ['first-route', 'continents-2', 'reputation-60', 'continents-4']);
+    assert.deepEqual(out.milestones, ['first-route', 'regions-2', 'reputation-bronze', 'regions-4']);
     assert.equal(out.career.goalOffer?.year, 1996);
     assert.equal(out.career.goalOffer?.options.length, 2);
     assert.equal(out.annualGoal?.year, 1996);
+    assert.deepEqual(out.annualGoal, offers[0]);
   });
 
   it('gespeicherte Berichte: Monat, Ergebnis, Erlös, Fluggäste für das Jahresziel', () => {
