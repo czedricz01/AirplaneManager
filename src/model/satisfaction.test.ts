@@ -429,7 +429,7 @@ describe('Abschnitt 2.6.3 Boden-Teil', () => {
     }
   });
 
-  it('2.6.3: Lounge an einem Ende = 4, an beiden = 8 (Business, vor Gewicht, wie heute)', () => {
+  it('2.6.3: Lounge an einem Ende = 4, an beiden = 8 (Business, vor Gewicht, wie im Alt-Code)', () => {
     const fti = flightTimeIndex(240);
     const w = groundWeight(fti);
     assertClose(groundPartParts('business', lounge, PLAIN_SIDE, fti).lounge, 4 * w);

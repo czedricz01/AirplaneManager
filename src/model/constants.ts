@@ -11,6 +11,11 @@
  *   (`basics.ts`), nie direkt mit dem Kostenindex.
  * - Anteile und Prozent intern als 0 … 1.
  * - Jeder Wert nennt den Abschnitt von `docs/neubau/SPEZIFIKATION.md`, der ihn festlegt.
+ * - „Alt-Code“ (auch „wie im Alt-Code“) meint die Rechnung vor dem Neubau, Stand Commit `231d08b`
+ *   (aufgenommen in `docs/neubau/bestand/`). Datei- und Zeilenangaben dahinter gelten für diesen Commit;
+ *   viele dieser Dateien sind inzwischen entfernt oder gekürzt (Paket 5.2). Eine Zeile ohne Datei (`:57`)
+ *   gehört zur Datei des vorigen Verweises, im Abschnitt 7 sonst zu `src/lib/aiSimulation.ts`.
+ *   Gilt für alle Dateien in `src/model/` (F78).
  */
 
 import type { RivalPersonality } from '../data/rivalAirlines';
@@ -43,7 +48,7 @@ export const LITRES_PER_GALLON = 3.78541;
 // ---------------------------------------------------------------------------
 
 /**
- * Wachstum des Kostenindex je Jahr (1,2 %). Startwert von heute
+ * Wachstum des Kostenindex je Jahr (1,2 %). Startwert aus dem Alt-Code
  * (`src/lib/realCosts.ts:19`); endgültiger Wert aus dem Balance-Skript (3.9). SPEZIFIKATION 1.3, E7.
  */
 export const COST_GROWTH = 0.012;
@@ -116,7 +121,7 @@ export const DIFFICULTY_FACTOR: Readonly<Record<Difficulty, number>> = {
 
 /**
  * Stützpunkte des Flugzeit-Index als [Minuten, Index]. Dazwischen gerade Linie,
- * darunter 1, darüber 8 (wie heute `src/lib/financeUtils.ts:246-262`). SPEZIFIKATION 2.1.
+ * darunter 1, darüber 8 (wie im Alt-Code `src/lib/financeUtils.ts:246-262`). SPEZIFIKATION 2.1.
  */
 export const FLIGHT_TIME_INDEX_ANCHORS: readonly (readonly [minutes: number, index: number])[] = [
   [30, 1],
@@ -133,16 +138,16 @@ export const FLIGHT_TIME_INDEX_ANCHORS: readonly (readonly [minutes: number, ind
 // 2.2 Type appeal
 // ---------------------------------------------------------------------------
 
-/** Ab diesem Alter (Jahre) verliert ein Flugzeug Type appeal (heute `src/lib/fleetCosts.ts:27`). SPEZIFIKATION 2.2. */
+/** Ab diesem Alter (Jahre) verliert ein Flugzeug Type appeal (Alt-Code: `src/lib/fleetCosts.ts:27`). SPEZIFIKATION 2.2. */
 export const TYPE_APPEAL_DECAY_FROM = 8;
 
-/** Höchster Verlust an Type appeal durch das Alter, Punkte (heute `src/lib/fleetCosts.ts:28`). SPEZIFIKATION 2.2. */
+/** Höchster Verlust an Type appeal durch das Alter, Punkte (Alt-Code: `src/lib/fleetCosts.ts:28`). SPEZIFIKATION 2.2. */
 export const TYPE_APPEAL_DECAY_MAX = 15;
 
-/** Erstkunden-Bonus auf den Type appeal, Punkte (heute `src/lib/preorders.ts:31`). SPEZIFIKATION 2.2, 8. */
+/** Erstkunden-Bonus auf den Type appeal, Punkte (Alt-Code: `src/lib/preorders.ts:31`). SPEZIFIKATION 2.2, 8. */
 export const LAUNCH_BONUS = 5;
 
-/** So viele Monate ab Lieferung gilt der Erstkunden-Bonus (heute `src/lib/preorders.ts:32`). SPEZIFIKATION 2.2, 8. */
+/** So viele Monate ab Lieferung gilt der Erstkunden-Bonus (Alt-Code: `src/lib/preorders.ts:32`). SPEZIFIKATION 2.2, 8. */
 export const LAUNCH_BONUS_MONTHS = 24;
 
 // ---------------------------------------------------------------------------
@@ -158,13 +163,13 @@ export const CABIN_CLASSES: readonly CabinClass[] = ['economy', 'premium', 'busi
 /** Ein Ausstattungs-Teil: Punkte im Interior score und erster Spielmonat, in dem er lieferbar ist. */
 export interface InteriorItem {
   readonly points: number;
-  /** Erster Spielmonat, in dem das Teil eingebaut werden kann (Lieferbarkeit, Daten wie heute). */
+  /** Erster Spielmonat, in dem das Teil eingebaut werden kann (Lieferbarkeit, Daten wie im Alt-Code). */
   readonly availableFrom: number;
   /** Nur in Flugzeugtypen mit mindestens so vielen Sitzen (Typ-Feld `capacity`). */
   readonly minCapacity?: number;
 }
 
-/** Grundwert des Interior score je Klasse (heute `ConfigurePurchaseView.tsx:403-442`). SPEZIFIKATION 2.3. */
+/** Grundwert des Interior score je Klasse (Alt-Code: `ConfigurePurchaseView.tsx:403-442`). SPEZIFIKATION 2.3. */
 export const INTERIOR_BASE: Readonly<Record<CabinClass, number>> = {
   economy: 50,
   premium: 55,
@@ -172,7 +177,7 @@ export const INTERIOR_BASE: Readonly<Record<CabinClass, number>> = {
   first: 70,
 };
 
-/** Die Punkte des Sitztyps zählen so oft (heute `ConfigurePurchaseView.tsx:109`). SPEZIFIKATION 2.3. */
+/** Die Punkte des Sitztyps zählen so oft (Alt-Code: `ConfigurePurchaseView.tsx:109`). SPEZIFIKATION 2.3. */
 export const SEAT_TYPE_FACTOR = 2;
 
 /** Üblicher Sitzabstand je Klasse in cm; darüber Punkte dazu, darunter ab. SPEZIFIKATION 2.3. */
@@ -192,7 +197,7 @@ export const PITCH_FACTOR: Readonly<Record<CabinClass, number>> = {
 };
 
 /**
- * Sitztypen je Klasse (Name wie gespeichert in `seatType`). Punkte und Lieferbarkeit wie heute
+ * Sitztypen je Klasse (Name wie gespeichert in `seatType`). Punkte und Lieferbarkeit wie im Alt-Code
  * `ConfigurePurchaseView.tsx:326-353` (`pop`, `req`). Ein unbekannter oder noch nicht lieferbarer
  * Sitztyp zählt wie `Standard` (0 Punkte). Kosten und Platzbedarf der Sitze folgen mit Abschnitt 5.
  * SPEZIFIKATION 2.3.
@@ -227,7 +232,7 @@ export const SEAT_TYPE_POINTS: Readonly<Record<CabinClass, Readonly<Record<strin
 };
 
 /**
- * Ausstattung je Klasse: Punkte und Lieferbarkeit wie heute `FEATURE_POP`
+ * Ausstattung je Klasse: Punkte und Lieferbarkeit wie im Alt-Code `FEATURE_POP`
  * (`ConfigurePurchaseView.tsx:98-103`) und die Monatsgrenzen in `:405-450`. SPEZIFIKATION 2.3.
  */
 export const FEATURE_POINTS: Readonly<Record<CabinClass, Readonly<Record<string, InteriorItem>>>> = {
@@ -273,7 +278,7 @@ export const FEATURE_POINTS: Readonly<Record<CabinClass, Readonly<Record<string,
 export type CabinExtra = 'wifi' | 'ambient' | 'catering' | 'bar' | 'shower' | 'reduced' | 'minimal';
 
 /**
- * Kabinenweite Extras: wirken in jeder Klasse gleich. Punkte wie heute `CABIN_EXTRA_POP`
+ * Kabinenweite Extras: wirken in jeder Klasse gleich. Punkte wie im Alt-Code `CABIN_EXTRA_POP`
  * (`ConfigurePurchaseView.tsx:106`), Lieferbarkeit wie `:386-389`. „reduced“ (kleinere Bordküche)
  * und „minimal“ (Minimal services) sind Abzüge für mehr Platz. SPEZIFIKATION 2.3.
  */
@@ -291,13 +296,13 @@ export const CABIN_EXTRA_POINTS: Readonly<Record<CabinExtra, InteriorItem>> = {
 // 2.4 Cabin rating
 // ---------------------------------------------------------------------------
 
-/** Anteil des Type appeal am Cabin rating (heute `src/lib/financeUtils.ts:523`). SPEZIFIKATION 2.4. */
+/** Anteil des Type appeal am Cabin rating (Alt-Code: `src/lib/financeUtils.ts:523`). SPEZIFIKATION 2.4. */
 export const TYPE_APPEAL_SHARE = 0.33;
 
-/** Anteil des Interior score am Cabin rating (heute `src/lib/financeUtils.ts:523`). SPEZIFIKATION 2.4. */
+/** Anteil des Interior score am Cabin rating (Alt-Code: `src/lib/financeUtils.ts:523`). SPEZIFIKATION 2.4. */
 export const INTERIOR_SHARE = 0.67;
 
-/** So viel vom Interior score behält eine ganz abgenutzte Kabine (heute `src/lib/financeUtils.ts:499`). SPEZIFIKATION 2.4. */
+/** So viel vom Interior score behält eine ganz abgenutzte Kabine (Alt-Code: `src/lib/financeUtils.ts:499`). SPEZIFIKATION 2.4. */
 export const WEAR_FLOOR = 0.4;
 
 // ---------------------------------------------------------------------------
@@ -327,7 +332,7 @@ export type MealCategory = 'Basic' | 'Standard' | 'Premium' | 'Luxury';
 
 /**
  * Welche Gerichte ein Flugzeug laden kann: ohne und mit Catering-Upgrade (Catering-Einrichtung an einem
- * Ende der Strecke **und** Premium-Bordküche im Flugzeug). Wie heute `validateClassConfigs`
+ * Ende der Strecke **und** Premium-Bordküche im Flugzeug). Wie im Alt-Code `validateClassConfigs`
  * (`src/lib/financeUtils.ts:325-336`). SPEZIFIKATION 2.5.
  */
 export const MEAL_CATEGORIES: Readonly<
@@ -342,7 +347,7 @@ export const MEAL_CATEGORIES: Readonly<
 // 2.6.1 Kabinen-Teil
 // ---------------------------------------------------------------------------
 
-/** Cabin rating, das eine Klasse erwartet (heute `src/lib/financeUtils.ts:779`). SPEZIFIKATION 2.6.1. */
+/** Cabin rating, das eine Klasse erwartet (Alt-Code: `src/lib/financeUtils.ts:779`). SPEZIFIKATION 2.6.1. */
 export const CABIN_EXPECTATION: Readonly<Record<CabinClass, number>> = {
   economy: 55,
   premium: 60,
@@ -365,7 +370,7 @@ export const CABIN_LIMIT = 30;
 
 /**
  * Service points, die eine Klasse erwartet: Grundwert bei Flugzeit-Index 1 und Zuwachs je Index-Stufe
- * (heute `src/lib/financeUtils.ts:788-793`). SPEZIFIKATION 2.6.2.
+ * (Alt-Code: `src/lib/financeUtils.ts:788-793`). SPEZIFIKATION 2.6.2.
  */
 export const SERVICE_EXPECTATION: Readonly<Record<CabinClass, { readonly base: number; readonly perIndex: number }>> = {
   economy: { base: 5, perIndex: 10 },
@@ -403,7 +408,7 @@ export const GROUND_WEIGHT_PER_INDEX = 0.1;
 
 /**
  * Punkte einer eigenen VIP-Lounge an einem Flughafen, vor dem Mittel beider Enden: eine Lounge an einem Ende
- * zählt die Hälfte (Business 4, wie heute je Flughafen), an beiden Enden voll. SPEZIFIKATION 2.6.3.
+ * zählt die Hälfte (Business 4, wie im Alt-Code je Flughafen), an beiden Enden voll. SPEZIFIKATION 2.6.3.
  */
 export const LOUNGE_POINTS: Readonly<Record<CabinClass, number>> = {
   economy: 0,
@@ -412,7 +417,7 @@ export const LOUNGE_POINTS: Readonly<Record<CabinClass, number>> = {
   first: 8,
 };
 
-/** Punkte bei einem Abstellplatz für jeden belegten Slot (heute `src/lib/financeUtils.ts:584`). SPEZIFIKATION 2.6.3. */
+/** Punkte bei einem Abstellplatz für jeden belegten Slot (Alt-Code: `src/lib/financeUtils.ts:584`). SPEZIFIKATION 2.6.3. */
 export const STAND_POINTS = 2;
 
 /**
@@ -424,7 +429,7 @@ export const DESK_TYPE_PENALTY = -10;
 /** Arten der Check-in-Schalter: bedient und Selbstbedienung (Namen wie im Spielstand). */
 export type DeskType = 'normal' | 'self';
 
-/** Sitze je Woche, die ein Schalter abfertigt (heute `src/lib/financeUtils.ts:141`). SPEZIFIKATION 2.6.3. */
+/** Sitze je Woche, die ein Schalter abfertigt (Alt-Code: `src/lib/financeUtils.ts:141`). SPEZIFIKATION 2.6.3. */
 export const DESK_CAPACITY: Readonly<Record<DeskType, number>> = {
   normal: 5000,
   self: 10000,
@@ -449,7 +454,7 @@ export const DESK_OVERLOAD_MAX = 20;
 // 2.6.4 Personal-Teil
 // ---------------------------------------------------------------------------
 
-/** Moral, bei der das Personal die Satisfaction weder hebt noch senkt (heute `src/lib/staff.ts:86`). SPEZIFIKATION 2.6.4. */
+/** Moral, bei der das Personal die Satisfaction weder hebt noch senkt (Alt-Code: `src/lib/staff.ts:86`). SPEZIFIKATION 2.6.4. */
 export const MORALE_NEUTRAL = 50;
 
 /** Satisfaction-Punkte je Moral-Punkt über oder unter `MORALE_NEUTRAL` (−5 … +5). SPEZIFIKATION 2.6.4. */
@@ -471,7 +476,7 @@ export const SAT_PER_MORALE_POINT = 0.1;
  */
 export const SAT_FACTOR_LOW_SLOPE = 0.005;
 
-/** Über 100: linearer Zuwachs je Punkt (heute `src/lib/financeUtils.ts:744`). SPEZIFIKATION 2.10. */
+/** Über 100: linearer Zuwachs je Punkt (Alt-Code: `src/lib/financeUtils.ts:744`). SPEZIFIKATION 2.10. */
 export const SAT_FACTOR_HIGH_A = 0.008;
 
 /** Über 100: Abflachung je Punkt² (160 → ≈ 1,35). SPEZIFIKATION 2.10. */
@@ -483,41 +488,41 @@ export const SAT_FACTOR_HIGH_B = 0.000035;
 
 /**
  * Feste Bezugsgeschwindigkeit, km/h: Die Marktgröße misst die Entfernung mit dieser Geschwindigkeit,
- * nie mit der des eingesetzten Flugzeugs (E20; heute `src/lib/transferUtils.ts:70`). SPEZIFIKATION 3.1.
+ * nie mit der des eingesetzten Flugzeugs (E20; Alt-Code: `src/lib/transferUtils.ts:70`). SPEZIFIKATION 3.1.
  */
 export const REFERENCE_SPEED = 800;
 
-/** Erdradius in km für die Großkreis-Entfernung (heute `src/data/airports.ts:62`). SPEZIFIKATION 1.2, 3.1. */
+/** Erdradius in km für die Großkreis-Entfernung (Alt-Code: `src/data/airports.ts:62`). SPEZIFIKATION 1.2, 3.1. */
 export const EARTH_RADIUS_KM = 6371;
 
-/** Geflogener Weg = Großkreis × diesen Faktor (Luftstraßen; heute `src/lib/financeUtils.ts:203`). SPEZIFIKATION 3.1. */
+/** Geflogener Weg = Großkreis × diesen Faktor (Luftstraßen; Alt-Code: `src/lib/financeUtils.ts:203`). SPEZIFIKATION 3.1. */
 export const ROUTE_DETOUR = 1.02;
 
-/** Beschleunigung bis zur Reisegeschwindigkeit, km/h² (heute `src/lib/financeUtils.ts:206`). SPEZIFIKATION 3.1. */
+/** Beschleunigung bis zur Reisegeschwindigkeit, km/h² (Alt-Code: `src/lib/financeUtils.ts:206`). SPEZIFIKATION 3.1. */
 export const BLOCK_ACCEL = 6000;
 
-/** Verzögerung aus der Reisegeschwindigkeit, km/h² (heute `src/lib/financeUtils.ts:207`). SPEZIFIKATION 3.1. */
+/** Verzögerung aus der Reisegeschwindigkeit, km/h² (Alt-Code: `src/lib/financeUtils.ts:207`). SPEZIFIKATION 3.1. */
 export const BLOCK_DECEL = 4000;
 
 // ---------------------------------------------------------------------------
 // 3.2 Stadtgrößen und Verflechtung
 // ---------------------------------------------------------------------------
 
-/** Hochzahl der kleineren Stadt in der Verflechtung (zählt stärker; heute `src/lib/financeUtils.ts:670`). SPEZIFIKATION 3.2. */
+/** Hochzahl der kleineren Stadt in der Verflechtung (zählt stärker; Alt-Code: `src/lib/financeUtils.ts:670`). SPEZIFIKATION 3.2. */
 export const LINK_SMALL = 1.4;
 
-/** Hochzahl der größeren Stadt in der Verflechtung (heute `src/lib/financeUtils.ts:670`). SPEZIFIKATION 3.2. */
+/** Hochzahl der größeren Stadt in der Verflechtung (Alt-Code: `src/lib/financeUtils.ts:670`). SPEZIFIKATION 3.2. */
 export const LINK_LARGE = 0.6;
 
 /**
  * Saison des Tourismus je Kalendermonat (Index 0 = Januar), Nordhalbkugel. Mittel ≈ 1.
- * Südhalbkugel: um 6 Monate versetzt (heute `src/lib/financeUtils.ts:279`). SPEZIFIKATION 3.2.
+ * Südhalbkugel: um 6 Monate versetzt (Alt-Code: `src/lib/financeUtils.ts:279`). SPEZIFIKATION 3.2.
  */
 export const SEASON_BY_MONTH: readonly number[] = [
   0.89, 0.91, 0.92, 0.96, 1.03, 1.1, 1.15, 1.14, 1.06, 0.95, 0.88, 1.0,
 ];
 
-/** Weltregionen für Ereignisse (wie heute `EventRegion`, `src/lib/eventSystem.ts:28`). SPEZIFIKATION 3.5. */
+/** Weltregionen für Ereignisse (wie im Alt-Code `EventRegion`, `src/lib/eventSystem.ts:28`). SPEZIFIKATION 3.5. */
 export type WorldRegion = 'EU' | 'NA' | 'SA' | 'AF' | 'AS' | 'OC';
 
 /** Alle Weltregionen (6 Stück; Rang, Meilensteine und Jahresziel zählen sie, R15). */
@@ -557,10 +562,10 @@ export const DISTANCE_EXP = 0.3;
 // 3.6 Marktgröße
 // ---------------------------------------------------------------------------
 
-/** Hochzahl der Verflechtung (Abstand großer zu kleinen Paaren; heute `src/lib/financeUtils.ts:683`). SPEZIFIKATION 3.6. */
+/** Hochzahl der Verflechtung (Abstand großer zu kleinen Paaren; Alt-Code: `src/lib/financeUtils.ts:683`). SPEZIFIKATION 3.6. */
 export const LINK_EXP = 0.448351;
 
-/** Maßstab der Marktgröße, Fluggäste je Woche (heute 29 × 0,9 bei Normal; E67, E70: halbiert). Aus dem Balance-Skript (Paket 3.9d). SPEZIFIKATION 3.6. */
+/** Maßstab der Marktgröße, Fluggäste je Woche (Alt-Code: 29 × 0,9 bei Normal; E67, E70: halbiert). Aus dem Balance-Skript (Paket 3.9d). SPEZIFIKATION 3.6. */
 export const DEMAND_SCALE = 14.5;
 
 // ---------------------------------------------------------------------------
@@ -604,7 +609,7 @@ export const CLASS_TIME_TO = 720;
 /** Abflüge je Richtung und Woche des Bezugsangebots (täglich): `frequencyFactor` = 1. SPEZIFIKATION 3.9.0, 3.9.1. */
 export const REFERENCE_FREQUENCY = 7;
 
-/** Hochzahl der Abflüge in der Anziehung (Wurzel, heute `src/lib/financeUtils.ts:1134`). SPEZIFIKATION 3.9.1. */
+/** Hochzahl der Abflüge in der Anziehung (Wurzel, Alt-Code: `src/lib/financeUtils.ts:1134`). SPEZIFIKATION 3.9.1. */
 export const FREQUENCY_EXP = 0.5;
 
 /**
@@ -624,26 +629,26 @@ export const FLIGHT_TIME_EXP = 1.0;
 /** Ruf-Wirkung auf die Anziehung je Punkt über oder unter 50 (0,9 bei 0, 1,1 bei 100; E36). SPEZIFIKATION 3.9.4. */
 export const REPUTATION_DEMAND_SLOPE = 0.002;
 
-/** Frequent flyer im ersten Laufmonat (heute `src/lib/marketing.ts:192`). SPEZIFIKATION 3.9.4. */
+/** Frequent flyer im ersten Laufmonat (Alt-Code: `src/lib/marketing.ts:192`). SPEZIFIKATION 3.9.4. */
 export const FF_START = 0.05;
 
-/** Frequent flyer: Zuwachs je weiterem Laufmonat (heute `src/lib/marketing.ts:193`). SPEZIFIKATION 3.9.4. */
+/** Frequent flyer: Zuwachs je weiterem Laufmonat (Alt-Code: `src/lib/marketing.ts:193`). SPEZIFIKATION 3.9.4. */
 export const FF_PER_MONTH = 0.01;
 
-/** Frequent flyer: höchster Zuschlag (heute `src/lib/marketing.ts:194`). SPEZIFIKATION 3.9.4. */
+/** Frequent flyer: höchster Zuschlag (Alt-Code: `src/lib/marketing.ts:194`). SPEZIFIKATION 3.9.4. */
 export const FF_MAX = 0.2;
 
 /** Stufe einer Werbe-Kampagne. */
 export type CampaignTier = 'local' | 'national' | 'global';
 
-/** Zuschlag einer laufenden Kampagne auf den Werbe-Faktor ihrer Region (heute `src/lib/marketing.ts:74-78`). SPEZIFIKATION 3.9.5. */
+/** Zuschlag einer laufenden Kampagne auf den Werbe-Faktor ihrer Region (Alt-Code: `src/lib/marketing.ts:74-78`). SPEZIFIKATION 3.9.5. */
 export const ADVERTISING_BOOST: Readonly<Record<CampaignTier, number>> = {
   local: 0.05,
   national: 0.1,
   global: 0.18,
 };
 
-/** Höchster Werbe-Faktor einer Region, wie viele Kampagnen auch laufen (heute `src/lib/marketing.ts:84`). SPEZIFIKATION 3.9.5. */
+/** Höchster Werbe-Faktor einer Region, wie viele Kampagnen auch laufen (Alt-Code: `src/lib/marketing.ts:84`). SPEZIFIKATION 3.9.5. */
 export const ADVERTISING_MAX = 1.25;
 
 /** Höchster Established route bonus (früher `src/lib/routeMaturity.ts`, entfernt in 5.2b). SPEZIFIKATION 3.9.6. */
@@ -675,28 +680,28 @@ export const RAMP_RESEARCH_BONUS = 0.15;
 /** Minuten einer Woche (Fahrplan: Montag 00:00 = 0). */
 export const MINUTES_PER_WEEK = 7 * 24 * 60;
 
-/** Größter Umweg (geflogene / direkte Entfernung) einer Verbindung (heute `src/lib/transferUtils.ts:41`). SPEZIFIKATION 3.13. */
+/** Größter Umweg (geflogene / direkte Entfernung) einer Verbindung (Alt-Code: `src/lib/transferUtils.ts:41`). SPEZIFIKATION 3.13. */
 export const MAX_DETOUR = 1.6;
 
-/** Kürzeste Umstiegszeit in Minuten (heute `src/lib/transferUtils.ts:37`). SPEZIFIKATION 3.13. */
+/** Kürzeste Umstiegszeit in Minuten (Alt-Code: `src/lib/transferUtils.ts:37`). SPEZIFIKATION 3.13. */
 export const MIN_CONNECTION = 45;
 
-/** Längste Umstiegszeit in Minuten (heute `src/lib/transferUtils.ts:39`). SPEZIFIKATION 3.13. */
+/** Längste Umstiegszeit in Minuten (Alt-Code: `src/lib/transferUtils.ts:39`). SPEZIFIKATION 3.13. */
 export const MAX_CONNECTION = 360;
 
-/** Preis einer Verbindung als Anteil des Marktpreises Start–Ziel (E25; heute `src/lib/transferUtils.ts:45`). SPEZIFIKATION 3.13, 4.8. */
+/** Preis einer Verbindung als Anteil des Marktpreises Start–Ziel (E25; Alt-Code: `src/lib/transferUtils.ts:45`). SPEZIFIKATION 3.13, 4.8. */
 export const TRANSFER_FARE_SHARE = 0.9;
 
 /** Umsteigen ist lästig: Faktor auf die Anziehung einer Verbindung bei Drehkreuz-Güte 1. Startwert (3.9). SPEZIFIKATION 3.13. */
 export const CONNECTION_APPEAL = 0.5;
 
-/** Drehkreuz-Güte eines Flughafens ohne Verwaltung (heute `src/lib/transferUtils.ts:161`). SPEZIFIKATION 3.13. */
+/** Drehkreuz-Güte eines Flughafens ohne Verwaltung (Alt-Code: `src/lib/transferUtils.ts:161`). SPEZIFIKATION 3.13. */
 export const HUB_QUALITY_BASE = 0.4;
 
 /** Drehkreuz-Güte je Verwaltungsstufe. SPEZIFIKATION 3.13. */
 export const HUB_QUALITY_PER_LEVEL = 0.15;
 
-/** Drehkreuz-Güte je Extra (Stufe 3, Lounge, Catering; heute `src/lib/hubOwnership.ts:27`, `transferUtils.ts:158-159`). SPEZIFIKATION 3.13. */
+/** Drehkreuz-Güte je Extra (Stufe 3, Lounge, Catering; Alt-Code: `src/lib/hubOwnership.ts:27`, `transferUtils.ts:158-159`). SPEZIFIKATION 3.13. */
 export const HUB_QUALITY_PER_EXTRA = 0.05;
 
 /** Ab dieser Verwaltungsstufe zählt die Stufe selbst als Extra. SPEZIFIKATION 3.13. */
@@ -709,15 +714,15 @@ export const HUB_QUALITY_RESEARCH_FACTOR = 1.1;
 // 4.1 Grundpreis Economy
 // ---------------------------------------------------------------------------
 
-/** Grundbetrag eines Economy-Tickets in $ von 1960 (heute `src/lib/financeUtils.ts:725`). Startwert (3.9). SPEZIFIKATION 4.1. */
+/** Grundbetrag eines Economy-Tickets in $ von 1960 (Alt-Code: `src/lib/financeUtils.ts:725`). Startwert (3.9). SPEZIFIKATION 4.1. */
 export const FARE_BASE_1960 = 30;
 
-/** Economy-Preis je km Großkreis-Entfernung in $ von 1960 (heute `src/lib/financeUtils.ts:725`). Startwert (3.9). SPEZIFIKATION 4.1. */
+/** Economy-Preis je km Großkreis-Entfernung in $ von 1960 (Alt-Code: `src/lib/financeUtils.ts:725`). Startwert (3.9). SPEZIFIKATION 4.1. */
 export const FARE_PER_KM_1960 = 0.05;
 
 /**
  * Preis-Faktor je Flugzeit-Index 1 … 8 (Stelle 0 = Index 1): Zuschlag auf Kurzstrecken, Abschlag auf Mittel- und
- * Langstrecken. Dazwischen gerade Linie (heute `SHORT_HAUL_FARE_FACTOR` 1,15 … 1, `src/lib/financeUtils.ts:720`).
+ * Langstrecken. Dazwischen gerade Linie (Alt-Code: `SHORT_HAUL_FARE_FACTOR` 1,15 … 1, `src/lib/financeUtils.ts:720`).
  * Werte aus dem Balance-Skript (E70, Paket 3.9d: Marge der KI um 20 %). SPEZIFIKATION 4.1.
  */
 export const FARE_TIME_FACTOR: readonly number[] = [1.04, 1.04, 0.9, 0.86, 0.72, 0.59, 0.54, 0.5];
@@ -726,7 +731,7 @@ export const FARE_TIME_FACTOR: readonly number[] = [1.04, 1.04, 0.9, 0.86, 0.72,
 // 4.2 Klassen-Verhältnis
 // ---------------------------------------------------------------------------
 
-/** Klassen-Verhältnis bei Flugzeit-Index 1 (heute `src/lib/financeUtils.ts:728-730`). Startwert (3.9). SPEZIFIKATION 4.2. */
+/** Klassen-Verhältnis bei Flugzeit-Index 1 (Alt-Code: `src/lib/financeUtils.ts:728-730`). Startwert (3.9). SPEZIFIKATION 4.2. */
 export const CLASS_FARE_RATIO_BASE: Readonly<Record<CabinClass, number>> = {
   economy: 1,
   premium: 1.3,
@@ -777,16 +782,16 @@ export const COST_RESEARCH_KINDS: readonly CostResearchKind[] = ['fuel', 'crew',
 
 // Einsparungen je Projekt: Feld `costSaving` der Forschungs-Tabelle `RESEARCH_PROJECTS` (6.9, F37).
 
-/** Kein Kosten-Faktor aus Forschung sinkt unter diesen Wert (heute `src/lib/research.ts:253`). SPEZIFIKATION 5.1. */
+/** Kein Kosten-Faktor aus Forschung sinkt unter diesen Wert (Alt-Code: `src/lib/research.ts:253`). SPEZIFIKATION 5.1. */
 export const RESEARCH_COST_FLOOR = 0.4;
 
 /** Höchste Verwaltungsstufe an einem Flughafen. SPEZIFIKATION 5.1, 5.11. */
 export const MAX_MANAGEMENT_TIER = 3;
 
-/** Gebühren-Nachlass ab Verwaltungsstufe 2 (heute `src/lib/hubOwnership.ts:20-24`). SPEZIFIKATION 5.1. */
+/** Gebühren-Nachlass ab Verwaltungsstufe 2 (Alt-Code: `src/lib/hubOwnership.ts:20-24`). SPEZIFIKATION 5.1. */
 export const HUB_FEE_FACTOR_TIER2 = 0.95;
 
-/** Gebühren-Nachlass auf Verwaltungsstufe 3 (heute `src/lib/hubOwnership.ts:20-24`). SPEZIFIKATION 5.1. */
+/** Gebühren-Nachlass auf Verwaltungsstufe 3 (Alt-Code: `src/lib/hubOwnership.ts:20-24`). SPEZIFIKATION 5.1. */
 export const HUB_FEE_FACTOR_TIER3 = 0.85;
 
 // ---------------------------------------------------------------------------
@@ -795,7 +800,7 @@ export const HUB_FEE_FACTOR_TIER3 = 0.85;
 
 /**
  * Ausschläge der geschichtlichen Ölkrisen in der Treibstoff-Tabelle (E61). `startMonth` = Spielmonat
- * des Beginns (0 = Januar 1960), `months` = Dauer, `factor` = höchster Faktor (heute `fuelMultiplier`,
+ * des Beginns (0 = Januar 1960), `months` = Dauer, `factor` = höchster Faktor (Alt-Code: `fuelMultiplier`,
  * `src/lib/eventSystem.ts:70-205`). Ereignisse mit Faktor 1 fehlen. SPEZIFIKATION 5.2.
  */
 export const FUEL_CRISES: readonly { readonly name: string; readonly startMonth: number; readonly months: number; readonly factor: number }[] = [
@@ -813,7 +818,7 @@ export const FUEL_CRISIS_RAMP = 3;
 // 5.3 Treibstoff je Strecke
 // ---------------------------------------------------------------------------
 
-/** Liter je Sitz und 100 km: `FUEL_BASE / (FUEL_EFF_OFFSET + Effizienz / FUEL_EFF_SCALE)` (heute `src/lib/financeUtils.ts:1256`). SPEZIFIKATION 5.3. */
+/** Liter je Sitz und 100 km: `FUEL_BASE / (FUEL_EFF_OFFSET + Effizienz / FUEL_EFF_SCALE)` (Alt-Code: `src/lib/financeUtils.ts:1256`). SPEZIFIKATION 5.3. */
 export const FUEL_BASE = 7.5;
 
 /** Siehe `FUEL_BASE`. SPEZIFIKATION 5.3. */
@@ -822,7 +827,7 @@ export const FUEL_EFF_OFFSET = 0.75;
 /** Siehe `FUEL_BASE`. SPEZIFIKATION 5.3. */
 export const FUEL_EFF_SCALE = 70;
 
-/** Effizienz-Punkte je fertiger Effizienz-Forschung (heute +1 %, `src/lib/research.ts:99-147`). SPEZIFIKATION 5.3. */
+/** Effizienz-Punkte je fertiger Effizienz-Forschung (Alt-Code: +1 %, `src/lib/research.ts:99-147`). SPEZIFIKATION 5.3. */
 export const EFFICIENCY_PER_RESEARCH = 1;
 
 // Effizienz-Forschungen: Feld `efficiencyPoints` der Forschungs-Tabelle `RESEARCH_PROJECTS` (6.9, F37).
@@ -834,7 +839,7 @@ export const EFFICIENCY_MAX = 100;
 // 5.4 Besatzung
 // ---------------------------------------------------------------------------
 
-/** Piloten im Cockpit (heute `src/lib/financeUtils.ts:1263`). SPEZIFIKATION 5.4. */
+/** Piloten im Cockpit (Alt-Code: `src/lib/financeUtils.ts:1263`). SPEZIFIKATION 5.4. */
 export const COCKPIT_CREW = 2;
 
 /** Lohn eines Piloten je Blockstunde in $ von 1960. SPEZIFIKATION 5.4. */
@@ -843,7 +848,7 @@ export const PILOT_RATE_1960 = 100;
 /** Lohn eines Flugbegleiters je Blockstunde in $ von 1960. SPEZIFIKATION 5.4. */
 export const ATTENDANT_RATE_1960 = 40;
 
-/** Sitze je Flugbegleiter nach Klasse (neu; Economy wie heute 50). SPEZIFIKATION 5.4. */
+/** Sitze je Flugbegleiter nach Klasse (neu; Economy wie im Alt-Code 50). SPEZIFIKATION 5.4. */
 export const SEATS_PER_ATTENDANT: Readonly<Record<CabinClass, number>> = {
   economy: 50,
   premium: 35,
@@ -858,7 +863,7 @@ export const MIN_CABIN_CREW = 1;
 // 5.5 Landegebühr
 // ---------------------------------------------------------------------------
 
-/** Grundbetrag einer Landung je Flugzeugklasse in $ von 1960 (heute `(2500 + …) × 1,1`, `src/lib/financeUtils.ts:1211-1213`). SPEZIFIKATION 5.5. */
+/** Grundbetrag einer Landung je Flugzeugklasse in $ von 1960 (Alt-Code: `(2500 + …) × 1,1`, `src/lib/financeUtils.ts:1211-1213`). SPEZIFIKATION 5.5. */
 export const LANDING_BASE_1960: Readonly<Record<AircraftClass, number>> = {
   Regional: 2750,
   Narrowbody: 2750,
@@ -872,14 +877,14 @@ export const LANDING_PER_LEVEL_1960: Readonly<Record<AircraftClass, number>> = {
   Widebody: 165,
 };
 
-/** Höchstsitze, bei denen ein Flugzeug die volle Gebühr seiner Klasse zahlt (heute `src/lib/financeUtils.ts:1171`). SPEZIFIKATION 5.5. */
+/** Höchstsitze, bei denen ein Flugzeug die volle Gebühr seiner Klasse zahlt (Alt-Code: `src/lib/financeUtils.ts:1171`). SPEZIFIKATION 5.5. */
 export const LANDING_REFERENCE_SEATS: Readonly<Record<AircraftClass, number>> = {
   Regional: 180,
   Narrowbody: 180,
   Widebody: 420,
 };
 
-/** Anteil der Gebühr für Propeller-Flugzeuge (leichter je Sitz, heute `src/lib/financeUtils.ts:1179`). SPEZIFIKATION 5.5. */
+/** Anteil der Gebühr für Propeller-Flugzeuge (leichter je Sitz, Alt-Code: `src/lib/financeUtils.ts:1179`). SPEZIFIKATION 5.5. */
 export const PROPELLER_FEE_SHARE = 0.85;
 
 /** Regional-Flugzeuge langsamer als diese Reisegeschwindigkeit (km/h) gelten als Propeller-Flugzeuge. SPEZIFIKATION 5.5. */
@@ -889,10 +894,10 @@ export const PROPELLER_MAX_SPEED = 700;
 // 5.6 Check-in und Abfertigung
 // ---------------------------------------------------------------------------
 
-/** Check-in je Reise in $ von 1960 (heute 0,5 $ an beiden Enden, E27). SPEZIFIKATION 5.6. */
+/** Check-in je Reise in $ von 1960 (Alt-Code: 0,5 $ an beiden Enden, E27). SPEZIFIKATION 5.6. */
 export const CHECKIN_FEE_1960 = 1.0;
 
-/** Abfertigung je Abflug eines Fluggasts in $ von 1960, nach Flughafengröße (heute 3 / 4 / 5 $ an beiden Enden). SPEZIFIKATION 5.6. */
+/** Abfertigung je Abflug eines Fluggasts in $ von 1960, nach Flughafengröße (Alt-Code: 3 / 4 / 5 $ an beiden Enden). SPEZIFIKATION 5.6. */
 export const HANDLING_FEE_1960 = { small: 6, medium: 8, large: 10 } as const;
 
 /** Ab dieser Flughafengröße gilt `HANDLING_FEE_1960.medium`. SPEZIFIKATION 5.6. */
@@ -905,7 +910,7 @@ export const HANDLING_LARGE_FROM = 5;
 // 5.8 Kosten je Fluggast (Frequent flyer, 5.14)
 // ---------------------------------------------------------------------------
 
-/** Kosten des Frequent-flyer-Programms je Reise in $ von 1960 (heute `src/lib/marketing.ts:189`, neu mit Index). SPEZIFIKATION 5.8, 5.14. */
+/** Kosten des Frequent-flyer-Programms je Reise in $ von 1960 (Alt-Code: `src/lib/marketing.ts:189`, neu mit Index). SPEZIFIKATION 5.8, 5.14. */
 export const FFP_COST_PER_PAX_1960 = 0.8;
 
 /** Anteil der Umsteiger einer Teilstrecke, die ihre Reise am äußeren Ende beginnen (dort Check-in). SPEZIFIKATION 5.8. */
@@ -915,30 +920,30 @@ export const TRANSFER_CHECKIN_SHARE = 0.5;
 // 5.10 Slots, Abstellplätze, Schalter
 // ---------------------------------------------------------------------------
 
-/** Slots aller Arten und aller Gesellschaften je Größenstufe eines Flughafens (heute nur in Ansichten, `src/components/AirportDetailView.tsx:128`). SPEZIFIKATION 5.10, E50. */
+/** Slots aller Arten und aller Gesellschaften je Größenstufe eines Flughafens (Alt-Code: nur in Ansichten, `src/components/AirportDetailView.tsx:128`). SPEZIFIKATION 5.10, E50. */
 export const SLOTS_PER_AIRPORT_LEVEL = 300;
 
-/** Kaufpreis eines Slots je Art in $ von 1960 (heute `src/lib/financeUtils.ts:1715-1719`, ohne Index). SPEZIFIKATION 5.10. */
+/** Kaufpreis eines Slots je Art in $ von 1960 (Alt-Code: `src/lib/financeUtils.ts:1715-1719`, ohne Index). SPEZIFIKATION 5.10. */
 export const SLOT_PRICE_1960: Readonly<Record<AircraftClass, number>> = {
   Regional: 25_000,
   Narrowbody: 50_000,
   Widebody: 100_000,
 };
 
-/** Miete eines gekauften Slots je Woche in $ von 1960, belegt oder nicht (heute `src/lib/financeUtils.ts:25-29`). SPEZIFIKATION 5.10. */
+/** Miete eines gekauften Slots je Woche in $ von 1960, belegt oder nicht (Alt-Code: `src/lib/financeUtils.ts:25-29`). SPEZIFIKATION 5.10. */
 export const SLOT_RENT_1960: Readonly<Record<AircraftClass, number>> = {
   Regional: 125,
   Narrowbody: 250,
   Widebody: 250,
 };
 
-/** Verkaufserlös eines Slots als Anteil des Kaufpreises im Verkaufsmonat (heute `src/lib/financeUtils.ts:1806-1808`). SPEZIFIKATION 5.10. */
+/** Verkaufserlös eines Slots als Anteil des Kaufpreises im Verkaufsmonat (Alt-Code: `src/lib/financeUtils.ts:1806-1808`). SPEZIFIKATION 5.10. */
 export const SLOT_RESALE_SHARE = 0.5;
 
-/** Abstellplätze gibt es erst an Flughäfen ab dieser Größe (heute `src/lib/financeUtils.ts:1703-1710`). SPEZIFIKATION 5.10. */
+/** Abstellplätze gibt es erst an Flughäfen ab dieser Größe (Alt-Code: `src/lib/financeUtils.ts:1703-1710`). SPEZIFIKATION 5.10. */
 export const STANDS_MIN_AIRPORT_SIZE = 3;
 
-/** Miete eines Abstellplatzes je Woche in $ von 1960, Verwaltungsstufe 0–1 (heute `src/lib/financeUtils.ts:31-35`). SPEZIFIKATION 5.10. */
+/** Miete eines Abstellplatzes je Woche in $ von 1960, Verwaltungsstufe 0–1 (Alt-Code: `src/lib/financeUtils.ts:31-35`). SPEZIFIKATION 5.10. */
 export const STAND_RENT_1960: Readonly<Record<AircraftClass, number>> = {
   Regional: 150,
   Narrowbody: 300,
@@ -948,7 +953,7 @@ export const STAND_RENT_1960: Readonly<Record<AircraftClass, number>> = {
 /** Ab dieser Verwaltungsstufe hat jeder Slot einen Abstellplatz ohne Miete (E28). SPEZIFIKATION 5.10. */
 export const FREE_STANDS_FROM_TIER = 2;
 
-/** Miete eines Check-in-Schalters je Woche bei voller Auslastung, in $ von 1960 (heute `src/lib/financeUtils.ts:38-64`). SPEZIFIKATION 5.10. */
+/** Miete eines Check-in-Schalters je Woche bei voller Auslastung, in $ von 1960 (Alt-Code: `src/lib/financeUtils.ts:38-64`). SPEZIFIKATION 5.10. */
 export const DESK_RENT_1960: Readonly<Record<DeskType, number>> = {
   normal: 2500,
   self: 1500,
@@ -957,31 +962,31 @@ export const DESK_RENT_1960: Readonly<Record<DeskType, number>> = {
 /** Anteil der Schalter-Miete, der auch ohne Fluggäste anfällt; der Rest wächst mit `deskLoad` bis 1. SPEZIFIKATION 5.10. */
 export const DESK_FIXED_SHARE = 0.2;
 
-/** Erster Spielmonat mit Selbstbedienungs-Schaltern: Januar 1995 (heute `src/lib/financeUtils.ts:1703-1710`). SPEZIFIKATION 5.10. */
+/** Erster Spielmonat mit Selbstbedienungs-Schaltern: Januar 1995 (Alt-Code: `src/lib/financeUtils.ts:1703-1710`). SPEZIFIKATION 5.10. */
 export const SELF_DESK_FROM = (1995 - START_YEAR) * 12;
 
 // ---------------------------------------------------------------------------
 // 5.11 Verwaltungsstufen und Einrichtungen
 // ---------------------------------------------------------------------------
 
-/** Einmalpreis einer Verwaltungsstufe je Größenstufe des Flughafens, in $ von 1960 (heute `src/lib/financeUtils.ts:1656-1660`, ohne Index). SPEZIFIKATION 5.11. */
+/** Einmalpreis einer Verwaltungsstufe je Größenstufe des Flughafens, in $ von 1960 (Alt-Code: `src/lib/financeUtils.ts:1656-1660`, ohne Index). SPEZIFIKATION 5.11. */
 export const TIER_PRICE_1960: Readonly<Record<1 | 2 | 3, number>> = {
   1: 30_000,
   2: 750_000,
   3: 25_000_000,
 };
 
-/** Einrichtungen einer Gesellschaft an einem Flughafen (Namen wie im Spielstand, `src/lib/gameTypes.ts:90-92`). */
+/** Einrichtungen einer Gesellschaft an einem Flughafen (Namen wie im Spielstand, `hubFacilities` in `src/lib/gameTypes.ts`). */
 export type FacilityKind = 'hangar' | 'vipLounge' | 'catering';
 
-/** Einmalpreis einer Einrichtung in $ von 1960 (heute im Klick-Handler, `src/components/AirportDetailView.tsx:443-554`). SPEZIFIKATION 5.11. */
+/** Einmalpreis einer Einrichtung in $ von 1960 (Alt-Code: im Klick-Handler, `src/components/AirportDetailView.tsx:443-554`). SPEZIFIKATION 5.11. */
 export const FACILITY_PRICE_1960: Readonly<Record<FacilityKind, number>> = {
   hangar: 250_000,
   vipLounge: 1_000_000,
   catering: 250_000,
 };
 
-/** Unterhalt einer Einrichtung je Woche in $ von 1960, ohne Gebühren-Faktor (heute `src/lib/financeUtils.ts:111-113`). SPEZIFIKATION 5.11. */
+/** Unterhalt einer Einrichtung je Woche in $ von 1960, ohne Gebühren-Faktor (Alt-Code: `src/lib/financeUtils.ts:111-113`). SPEZIFIKATION 5.11. */
 export const FACILITY_UPKEEP_1960: Readonly<Record<FacilityKind, number>> = {
   hangar: 10_000,
   vipLounge: 12_500,
@@ -992,33 +997,33 @@ export const FACILITY_UPKEEP_1960: Readonly<Record<FacilityKind, number>> = {
 // 5.12 Flugzeug-Unterhalt
 // ---------------------------------------------------------------------------
 
-/** Versicherung je Jahr als Anteil des heutigen Neupreises (heute `src/lib/fleetCosts.ts:14`). SPEZIFIKATION 5.12. */
+/** Versicherung je Jahr als Anteil des heutigen Neupreises (Alt-Code: `src/lib/fleetCosts.ts:14`). SPEZIFIKATION 5.12. */
 export const INSURANCE_RATE = 0.006;
 
-/** Wartungsprogramm je Jahr als Anteil des Neupreises bei Alter 0 (heute `src/lib/fleetCosts.ts:16`). SPEZIFIKATION 5.12. */
+/** Wartungsprogramm je Jahr als Anteil des Neupreises bei Alter 0 (Alt-Code: `src/lib/fleetCosts.ts:16`). SPEZIFIKATION 5.12. */
 export const MAINTENANCE_RATE_NEW = 0.03;
 
-/** Wartungsprogramm je Jahr ab `MAINTENANCE_FULL_AGE` (heute `src/lib/fleetCosts.ts:17`). SPEZIFIKATION 5.12. */
+/** Wartungsprogramm je Jahr ab `MAINTENANCE_FULL_AGE` (Alt-Code: `src/lib/fleetCosts.ts:17`). SPEZIFIKATION 5.12. */
 export const MAINTENANCE_RATE_OLD = 0.08;
 
 /** Ab diesem Alter in Jahren gilt `MAINTENANCE_RATE_OLD`; dazwischen gerade Linie. SPEZIFIKATION 5.12. */
 export const MAINTENANCE_FULL_AGE = 25;
 
-/** Anteil des Unterhalts für ein Flugzeug ohne Strecke (heute `src/lib/fleetCosts.ts:20`). SPEZIFIKATION 5.12. */
+/** Anteil des Unterhalts für ein Flugzeug ohne Strecke (Alt-Code: `src/lib/fleetCosts.ts:20`). SPEZIFIKATION 5.12. */
 export const PARKED_SHARE = 0.5;
 
-/** So viele Flugzeug-Familien hat eine Flotte ohne Zuschlag (heute `src/lib/fleetCosts.ts:73`). SPEZIFIKATION 5.12. */
+/** So viele Flugzeug-Familien hat eine Flotte ohne Zuschlag (Alt-Code: `src/lib/fleetCosts.ts:73`). SPEZIFIKATION 5.12. */
 export const FREE_FAMILIES = 3;
 
-/** Wartungs-Zuschlag je Familie über `FREE_FAMILIES` (heute `src/lib/fleetCosts.ts:74`). SPEZIFIKATION 5.12. */
+/** Wartungs-Zuschlag je Familie über `FREE_FAMILIES` (Alt-Code: `src/lib/fleetCosts.ts:74`). SPEZIFIKATION 5.12. */
 export const VARIETY_PENALTY_PER_FAMILY = 0.03;
 
-/** Höchster Wartungs-Zuschlag für viele Familien (heute `src/lib/fleetCosts.ts:75`). SPEZIFIKATION 5.12. */
+/** Höchster Wartungs-Zuschlag für viele Familien (Alt-Code: `src/lib/fleetCosts.ts:75`). SPEZIFIKATION 5.12. */
 export const VARIETY_PENALTY_MAX = 0.3;
 
 /**
  * Wartungs-Nachlass nach Zahl der Flugzeuge der eigenen Familie, größte Schwelle zuerst
- * (heute `src/lib/fleetCosts.ts:67-72`). SPEZIFIKATION 5.12.
+ * (Alt-Code: `src/lib/fleetCosts.ts:67-72`). SPEZIFIKATION 5.12.
  */
 export const COMMONALITY_DISCOUNTS: readonly { readonly from: number; readonly discount: number }[] = [
   { from: 25, discount: 0.15 },
@@ -1031,7 +1036,7 @@ export const COMMONALITY_DISCOUNTS: readonly { readonly from: number; readonly d
 // 5.13 Wertmodell und Abschreibung
 // ---------------------------------------------------------------------------
 
-/** Jahre bis zum Restwert (Startwert; heute 2 % je Jahr bis 40 %, `src/lib/fleetCosts.ts:23-24`). SPEZIFIKATION 5.13. */
+/** Jahre bis zum Restwert (Startwert; Alt-Code: 2 % je Jahr bis 40 %, `src/lib/fleetCosts.ts:23-24`). SPEZIFIKATION 5.13. */
 export const DEPRECIATION_YEARS = 25;
 
 /** Restwert nach `DEPRECIATION_YEARS` als Anteil von `valueBase` (3,2 % je Jahr). SPEZIFIKATION 5.13. */
@@ -1040,11 +1045,11 @@ export const RESIDUAL_SHARE = 0.2;
 /** So viel vom Wert kostet ein ganz abgenutztes Flugzeug (Zustand 0) höchstens. SPEZIFIKATION 5.13. */
 export const CONDITION_VALUE_SPAN = 0.6;
 
-/** Anteil der Zelle am Zustand für den Wert; der Rest ist die Kabine (heute 0,45 Zelle + 0,15 Kabine). SPEZIFIKATION 5.13. */
+/** Anteil der Zelle am Zustand für den Wert; der Rest ist die Kabine (Alt-Code: 0,45 Zelle + 0,15 Kabine). SPEZIFIKATION 5.13. */
 export const AIRFRAME_VALUE_SHARE = 0.75;
 
 /**
- * Preis je Sitz des Sitztyps in $ von 1960 (heute `SEAT_DEFS`, Feld `c`, `src/components/ConfigurePurchaseView.tsx:326-353`).
+ * Preis je Sitz des Sitztyps in $ von 1960 (Alt-Code: `SEAT_DEFS`, Feld `c`, `src/components/ConfigurePurchaseView.tsx:326-353`).
  * Schlüssel wie `SEAT_TYPE_POINTS`; Lieferbarkeit von dort. SPEZIFIKATION 5.13 (`cabinListPrice`).
  */
 export const SEAT_TYPE_PRICE_1960: Readonly<Record<CabinClass, Readonly<Record<string, number>>>> = {
@@ -1055,7 +1060,7 @@ export const SEAT_TYPE_PRICE_1960: Readonly<Record<CabinClass, Readonly<Record<s
 };
 
 /**
- * Preis je Sitz einer Ausstattung in $ von 1960 (heute `src/components/ConfigurePurchaseView.tsx:492-535`).
+ * Preis je Sitz einer Ausstattung in $ von 1960 (Alt-Code: `src/components/ConfigurePurchaseView.tsx:492-535`).
  * Schlüssel wie `FEATURE_POINTS`; Lieferbarkeit von dort. SPEZIFIKATION 5.13 (`cabinListPrice`).
  */
 export const FEATURE_PRICE_1960: Readonly<Record<CabinClass, Readonly<Record<string, number>>>> = {
@@ -1066,7 +1071,7 @@ export const FEATURE_PRICE_1960: Readonly<Record<CabinClass, Readonly<Record<str
 };
 
 /**
- * Preis eines kabinenweiten Extras je Flugzeug in $ von 1960 (heute `src/components/ConfigurePurchaseView.tsx:391-397`).
+ * Preis eines kabinenweiten Extras je Flugzeug in $ von 1960 (Alt-Code: `src/components/ConfigurePurchaseView.tsx:391-397`).
  * „reduced“ und „minimal“ sind Nachlässe. Lieferbarkeit wie `CABIN_EXTRA_POINTS`. SPEZIFIKATION 5.13.
  */
 export const CABIN_EXTRA_PRICE_1960: Readonly<Record<CabinExtra, number>> = {
@@ -1083,24 +1088,24 @@ export const CABIN_EXTRA_PRICE_1960: Readonly<Record<CabinExtra, number>> = {
 // 5.14 Werbung und Frequent flyer
 // ---------------------------------------------------------------------------
 
-/** Stufen einer Werbe-Kampagne (Namen wie im Spielstand, `src/lib/gameState.ts:46`). */
+/** Stufen einer Werbe-Kampagne (Namen wie im Spielstand, `CampaignTier` in `src/lib/gameState.ts`). */
 export type CampaignLevel = 'local' | 'national' | 'global';
 
-/** Kosten einer Kampagne je laufendem Monat in $ von 1960 (heute `src/lib/marketing.ts:75-77`; eigene Teuerung entfällt). SPEZIFIKATION 5.14. */
+/** Kosten einer Kampagne je laufendem Monat in $ von 1960 (Alt-Code: `src/lib/marketing.ts:75-77`; eigene Teuerung entfällt). SPEZIFIKATION 5.14. */
 export const CAMPAIGN_COST_1960: Readonly<Record<CampaignLevel, number>> = {
   local: 150_000,
   national: 400_000,
   global: 1_000_000,
 };
 
-/** Grundbetrag des Frequent-flyer-Programms je Monat in $ von 1960 (heute `src/lib/marketing.ts:187`). SPEZIFIKATION 5.14. */
+/** Grundbetrag des Frequent-flyer-Programms je Monat in $ von 1960 (Alt-Code: `src/lib/marketing.ts:187`). SPEZIFIKATION 5.14. */
 export const FFP_BASE_COST_1960 = 50_000;
 
 // ---------------------------------------------------------------------------
 // 5.15 Einnahme eigener Flughäfen
 // ---------------------------------------------------------------------------
 
-/** Anteil der Landegebühren anderer Gesellschaften, den Inhaber der Stufe 3 bekommen (heute `src/lib/hubOwnership.ts:30`). SPEZIFIKATION 5.15. */
+/** Anteil der Landegebühren anderer Gesellschaften, den Inhaber der Stufe 3 bekommen (Alt-Code: `src/lib/hubOwnership.ts:30`). SPEZIFIKATION 5.15. */
 export const OWNER_FEE_SHARE = 0.5;
 
 /** Verwaltungsstufe, ab der eine Gesellschaft an den Landegebühren anderer verdient. SPEZIFIKATION 5.15. */
@@ -1117,7 +1122,7 @@ export const REPUTATION_NEUTRAL = SCALES.reputation.neutral;
 export const START_REPUTATION = 50;
 
 /**
- * Startkapital-Stufen des Spielers in $ von 1960, wählbar beim neuen Spiel (E11; heute nominal, `src/App.tsx:1595-1598`).
+ * Startkapital-Stufen des Spielers in $ von 1960, wählbar beim neuen Spiel (E11; Alt-Code: nominal, `src/App.tsx:1595-1598`).
  * Startkasse = `atCost(Stufe, Startmonat)` wie die Startkasse der KI (7.7, E6). Szenarien bringen ihre eigene Kasse.
  * SPEZIFIKATION 6.13.
  */
@@ -1126,7 +1131,7 @@ export const START_CAPITAL_TIERS_1960: readonly number[] = [25_000_000, 50_000_0
 /** Abzug im Ruf-Ziel je Anteil gestrichener Sitze: 1 % gestrichen → −1 Punkt. Startwert (3.9). SPEZIFIKATION 6.2. */
 export const CANCELLED_REPUTATION_WEIGHT = 100;
 
-/** Beitrag einer laufenden Kampagne zum Ruf-Ziel, Punkte (Zahlen wie heute `src/lib/marketing.ts:75-77`). Startwerte (3.9). SPEZIFIKATION 6.3, E37. */
+/** Beitrag einer laufenden Kampagne zum Ruf-Ziel, Punkte (Zahlen wie im Alt-Code `src/lib/marketing.ts:75-77`). Startwerte (3.9). SPEZIFIKATION 6.3, E37. */
 export const CAMPAIGN_REPUTATION: Readonly<Record<CampaignTier, number>> = {
   local: 0.5,
   national: 1,
@@ -1136,7 +1141,7 @@ export const CAMPAIGN_REPUTATION: Readonly<Record<CampaignTier, number>> = {
 /** Höchster Werbe-Beitrag zum Ruf-Ziel, Punkte, wie viele Kampagnen auch laufen. SPEZIFIKATION 6.3, E37. */
 export const ADVERTISING_REPUTATION_MAX = 3;
 
-/** Anteil des Abstands zum Ruf-Ziel, den der Ruf je Monat zurücklegt (Halbwertszeit 4,3 Monate; heute `src/lib/monthClose.ts:143`). SPEZIFIKATION 6.5. */
+/** Anteil des Abstands zum Ruf-Ziel, den der Ruf je Monat zurücklegt (Halbwertszeit 4,3 Monate; Alt-Code: `src/lib/monthClose.ts:143`). SPEZIFIKATION 6.5. */
 export const REPUTATION_STEP = 0.15;
 
 /** Farbstufen der Anzeige: „hoch“ ab 50 + Band, „niedrig“ bis 50 − Band. SPEZIFIKATION 6.6. */
@@ -1175,7 +1180,7 @@ export interface RankDef {
 
 /**
  * Tabelle der Ränge (Startwerte, endgültig aus dem Balance-Skript 3.9). Strecken, Fluggäste, Regionen, Jahre,
- * Drehkreuze, Flughafen-Größen wie heute (`src/lib/airlineRank.ts:42-103`); Ruf-Schwellen neu für die Skala mit
+ * Drehkreuze, Flughafen-Größen wie im Alt-Code (`src/lib/airlineRank.ts:42-103`); Ruf-Schwellen neu für die Skala mit
  * Neutralpunkt 50 (E36, E39); Forschungsplätze 3 / 4 / 5 ab Rang 4 / 6 / 8 (E42). SPEZIFIKATION 6.7.
  */
 export const RANKS: readonly RankDef[] = [
@@ -1191,7 +1196,7 @@ export const RANKS: readonly RankDef[] = [
   { index: 9, title: 'Global Player', requires: { routes: 190, monthlyPax: 3_500_000, reputation: 65, regions: 6, years: 40 }, maxHubs: 12, maxAirportLevel: 7, researchSlots: 5 },
 ];
 
-/** Höchster Rang; im Free Mode gilt er vom ersten Monat an (wie heute). SPEZIFIKATION 6.7. */
+/** Höchster Rang; im Free Mode gilt er vom ersten Monat an (wie im Alt-Code). SPEZIFIKATION 6.7. */
 export const MAX_RANK = RANKS.length - 1;
 
 /** Werkzeuge, die ein Rang öffnet (Spalte „Weitere Freischaltungen“). */
@@ -1205,7 +1210,7 @@ export type RankUnlock =
   | 'managementTier3'
   | 'takeoverHealthy';
 
-/** Rang, ab dem ein Werkzeug offen ist (wie heute `src/lib/airlineRank.ts:187-197`). SPEZIFIKATION 6.7. */
+/** Rang, ab dem ein Werkzeug offen ist (wie im Alt-Code `src/lib/airlineRank.ts:187-197`). SPEZIFIKATION 6.7. */
 export const RANK_UNLOCKS: Readonly<Record<RankUnlock, number>> = {
   localCampaign: 0,
   frequentFlyer: 2,
@@ -1227,23 +1232,23 @@ export type SizeClass = 'commuter' | 'regional' | 'narrowbody' | 'widebody' | 'j
 /** Alle Flugzeugklassen, kleinste zuerst. SPEZIFIKATION 6.8. */
 export const SIZE_CLASSES: readonly SizeClass[] = ['commuter', 'regional', 'narrowbody', 'widebody', 'jumbo', 'supersonic'];
 
-/** Regional-Flugzeuge bis zu so vielen Sitzen sind „Commuter“ (offen; heute `src/lib/aircraftClasses.ts:55`). SPEZIFIKATION 6.8. */
+/** Regional-Flugzeuge bis zu so vielen Sitzen sind „Commuter“ (offen; Alt-Code: `src/lib/aircraftClasses.ts:55`). SPEZIFIKATION 6.8. */
 export const COMMUTER_MAX_SEATS = 60;
 
-/** Narrowbodies bis zu so vielen Sitzen zählen als „Regional“ (heute `src/lib/aircraftClasses.ts:54`). SPEZIFIKATION 6.8. */
+/** Narrowbodies bis zu so vielen Sitzen zählen als „Regional“ (Alt-Code: `src/lib/aircraftClasses.ts:54`). SPEZIFIKATION 6.8. */
 export const REGIONAL_JET_MAX_SEATS = 130;
 
-/** Widebodies über so vielen Sitzen sind „Jumbo“ (heute `src/lib/aircraftClasses.ts:46`). SPEZIFIKATION 6.8. */
+/** Widebodies über so vielen Sitzen sind „Jumbo“ (Alt-Code: `src/lib/aircraftClasses.ts:46`). SPEZIFIKATION 6.8. */
 export const JUMBO_MIN_SEATS = 500;
 
-/** Schneller als so viele km/h ist „Überschall“ (heute `src/lib/aircraftClasses.ts:51`). SPEZIFIKATION 6.8. */
+/** Schneller als so viele km/h ist „Überschall“ (Alt-Code: `src/lib/aircraftClasses.ts:51`). SPEZIFIKATION 6.8. */
 export const SUPERSONIC_MIN_KMH = 1000;
 
 /** Forschungs-Projekt, das eine Flugzeugklasse öffnet. */
 export interface ClassResearch {
-  /** Id des Projekts (wie heute, `src/lib/research.ts`). */
+  /** Id des Projekts (wie im Alt-Code, `src/lib/research.ts`). */
   readonly id: string;
-  /** Name im Spiel (Oberflächentext, Englisch, wie heute). */
+  /** Name im Spiel (Oberflächentext, Englisch, wie im Alt-Code). */
   readonly title: string;
   /** Rang, ab dem das Projekt erscheint (E41). */
   readonly rank: number;
@@ -1303,9 +1308,9 @@ export type ResearchKind = 'class' | 'bonus';
 
 /** Ein Forschungs-Projekt (eine Zeile der Forschungs-Tabelle). SPEZIFIKATION 6.9. */
 export interface ResearchProjectDef {
-  /** Id wie heute (`src/lib/research.ts:100-164`). */
+  /** Id wie im Alt-Code (`src/lib/research.ts:100-164`). */
   readonly id: string;
-  /** Name im Spiel (Oberflächentext, Englisch, wie heute). */
+  /** Name im Spiel (Oberflächentext, Englisch, wie im Alt-Code). */
   readonly title: string;
   readonly kind: ResearchKind;
   /** Rang, ab dem das Projekt erscheint. */
@@ -1321,13 +1326,13 @@ export interface ResearchProjectDef {
   readonly effect: ResearchEffect;
 }
 
-/** Preis eines Bonus-Projekts ohne eigenen Preis: Grundbetrag in $ von 1960 (wie heute `src/lib/research.ts:85`). SPEZIFIKATION 6.9. */
+/** Preis eines Bonus-Projekts ohne eigenen Preis: Grundbetrag in $ von 1960 (wie im Alt-Code `src/lib/research.ts:85`). SPEZIFIKATION 6.9. */
 export const RESEARCH_BONUS_PRICE_BASE_1960 = 1_200_000;
 
 /** Preis eines Bonus-Projekts ohne eigenen Preis: Zuschlag je Rang in $ von 1960. SPEZIFIKATION 6.9. */
 export const RESEARCH_BONUS_PRICE_PER_RANK_1960 = 1_300_000;
 
-/** Dauer eines Bonus-Projekts ohne eigene Dauer: `RESEARCH_BONUS_MONTHS_BASE + aufrunden(Rang / 2)` Monate (wie heute `src/lib/research.ts:86`). SPEZIFIKATION 6.9. */
+/** Dauer eines Bonus-Projekts ohne eigene Dauer: `RESEARCH_BONUS_MONTHS_BASE + aufrunden(Rang / 2)` Monate (wie im Alt-Code `src/lib/research.ts:86`). SPEZIFIKATION 6.9. */
 export const RESEARCH_BONUS_MONTHS_BASE = 3;
 
 /** Kein Ausfall- oder Verschleiß-Faktor aus Forschung sinkt unter diesen Wert (wie die Kosten-Faktoren). SPEZIFIKATION 6.9. */
@@ -1358,7 +1363,7 @@ const EFF: ResearchEffect = { efficiencyPoints: EFFICIENCY_PER_RESEARCH };
 const SAT: ResearchEffect = { satisfactionPoints: 1 };
 
 /**
- * Die 40 Bonus-Projekte: Ränge, Ketten, Dauer, Preise und Werte wie heute (`src/lib/research.ts:100-164`).
+ * Die 40 Bonus-Projekte: Ränge, Ketten, Dauer, Preise und Werte wie im Alt-Code (`src/lib/research.ts:100-164`).
  * Neu: „Plane type satisfaction“ (sat-1 … sat-6) wirkt als Satisfaction-Punkt (E19), Effizienz in Punkten (W12),
  * „Alliance“ als Faktor auf die Drehkreuz-Güte (3.13), Preise ungerundet (R4). SPEZIFIKATION 6.9.
  */
@@ -1446,7 +1451,7 @@ export const RESEARCH_PROJECTS: readonly ResearchProjectDef[] = [...CLASS_PROJEC
 /** Stufe eines Meilensteins; „feat“ = Sonderleistung. */
 export type MilestoneTier = 'bronze' | 'silver' | 'gold' | 'feat';
 
-/** Spur eines Meilensteins (Gruppe in der Anzeige, wie heute `src/lib/milestones.ts:15`). */
+/** Spur eines Meilensteins (Gruppe in der Anzeige, wie im Alt-Code `src/lib/milestones.ts:15`). */
 export type MilestoneTrack = 'network' | 'fleet' | 'passengers' | 'reach' | 'finance' | 'standing' | 'hub' | 'feats';
 
 /** Belohnung je Stufe: Prämie in $ von 1960 (über `atCost`) und Slot-Nachlass (E38, keine Ruf-Punkte). SPEZIFIKATION 6.10. */
@@ -1457,7 +1462,7 @@ export const MILESTONE_TIER_REWARD: Readonly<Record<MilestoneTier, { readonly pr
   feat: { prize1960: 2_000_000, slotDiscount: 0.01 },
 };
 
-/** Höchster Slot-Nachlass aus allen Meilensteinen zusammen (heute `src/lib/milestones.ts:137`). SPEZIFIKATION 6.10. */
+/** Höchster Slot-Nachlass aus allen Meilensteinen zusammen (Alt-Code: `src/lib/milestones.ts:137`). SPEZIFIKATION 6.10. */
 export const MILESTONE_SLOT_DISCOUNT_MAX = 0.3;
 
 /**
@@ -1488,7 +1493,7 @@ export interface MilestoneDef {
   readonly metric: MilestoneMetric;
   /** Schwelle; bei `cash` in $ von 1960. */
   readonly threshold: number;
-  /** Zusätzliche Drehkreuze (Gold einzeln, „Empire builder“; wie heute). */
+  /** Zusätzliche Drehkreuze (Gold einzeln, „Empire builder“; wie im Alt-Code). */
   readonly extraHubs: number;
 }
 
@@ -1505,8 +1510,8 @@ function milestone(
 }
 
 /**
- * Die 31 Meilensteine wie heute (`src/lib/milestones.ts:85-134`), mit den Änderungen aus 6.10: Kasse über
- * `atCost`, Ruf 60 / 70 / 80, Regionen statt Kontinente, keine Ruf-Punkte. Ids wie heute außer Ruf und Regionen
+ * Die 31 Meilensteine wie im Alt-Code (`src/lib/milestones.ts:85-134`), mit den Änderungen aus 6.10: Kasse über
+ * `atCost`, Ruf 60 / 70 / 80, Regionen statt Kontinente, keine Ruf-Punkte. Ids wie im Alt-Code außer Ruf und Regionen
  * (F37). SPEZIFIKATION 6.10.
  */
 export const MILESTONES: readonly MilestoneDef[] = [
@@ -1558,13 +1563,13 @@ export const MILESTONES: readonly MilestoneDef[] = [
 /** Mindest-Marge der Bezugsgröße: `GOAL_MIN_MARGIN × Vorjahreserlös`. Startwert (3.9). SPEZIFIKATION 6.11. */
 export const GOAL_MIN_MARGIN = 0.05;
 
-/** Kleinste Bezugsgröße in $ von 1960 (über `atCost`; heute 2 Mio. $ nominal, `src/lib/annualGoals.ts:58`). SPEZIFIKATION 6.11. */
+/** Kleinste Bezugsgröße in $ von 1960 (über `atCost`; Alt-Code: 2 Mio. $ nominal, `src/lib/annualGoals.ts:58`). SPEZIFIKATION 6.11. */
 export const GOAL_PROFIT_FLOOR_1960 = 2_000_000;
 
-/** Sicheres Gewinnziel: `GOAL_STEADY_FACTOR × goalBase` (wie heute). SPEZIFIKATION 6.11. */
+/** Sicheres Gewinnziel: `GOAL_STEADY_FACTOR × goalBase` (wie im Alt-Code). SPEZIFIKATION 6.11. */
 export const GOAL_STEADY_FACTOR = 1.1;
 
-/** Hohes Gewinnziel: `GOAL_STRETCH_FACTOR × goalBase` (wie heute). SPEZIFIKATION 6.11. */
+/** Hohes Gewinnziel: `GOAL_STRETCH_FACTOR × goalBase` (wie im Alt-Code). SPEZIFIKATION 6.11. */
 export const GOAL_STRETCH_FACTOR = 1.35;
 
 /** Art des angebotenen Ziels: sicher, andere Art, hoch. */
@@ -1583,22 +1588,22 @@ export const GOAL_MIN_REWARD_1960 = 250_000;
 /** Strafe bei verfehltem Ziel als Anteil der Prämie (E58). SPEZIFIKATION 6.11. */
 export const GOAL_MISS_PENALTY_SHARE = 0.5;
 
-/** Ziel „Strecken“: mindestens so viele Strecken mehr (wie heute `src/lib/annualGoals.ts:84`). SPEZIFIKATION 6.11. */
+/** Ziel „Strecken“: mindestens so viele Strecken mehr (wie im Alt-Code `src/lib/annualGoals.ts:84`). SPEZIFIKATION 6.11. */
 export const GOAL_ROUTES_MIN_STEP = 3;
 
-/** Ziel „Strecken“: Anteil mehr Strecken (aufgerundet; wie heute). SPEZIFIKATION 6.11. */
+/** Ziel „Strecken“: Anteil mehr Strecken (aufgerundet; wie im Alt-Code). SPEZIFIKATION 6.11. */
 export const GOAL_ROUTES_SHARE = 0.2;
 
-/** Ziel „Ruf“: so viele Punkte mehr (aufgerundet; wie heute). SPEZIFIKATION 6.11. */
+/** Ziel „Ruf“: so viele Punkte mehr (aufgerundet; wie im Alt-Code). SPEZIFIKATION 6.11. */
 export const GOAL_REPUTATION_STEP = 6;
 
-/** Ziel „Ruf“: höchstens dieser Wert (neue Skala, E36; heute 98). SPEZIFIKATION 6.11. */
+/** Ziel „Ruf“: höchstens dieser Wert (neue Skala, E36; Alt-Code: 98). SPEZIFIKATION 6.11. */
 export const GOAL_REPUTATION_MAX = 90;
 
-/** Ziel „Fluggäste“: Vorjahr × Faktor (wie heute). SPEZIFIKATION 6.11. */
+/** Ziel „Fluggäste“: Vorjahr × Faktor (wie im Alt-Code). SPEZIFIKATION 6.11. */
 export const GOAL_PAX_FACTOR = 1.2;
 
-/** Ziel „Fluggäste“: kleinstes Ziel (wie heute). SPEZIFIKATION 6.11. */
+/** Ziel „Fluggäste“: kleinstes Ziel (wie im Alt-Code). SPEZIFIKATION 6.11. */
 export const GOAL_PAX_MIN = 1000;
 
 // ---------------------------------------------------------------------------
@@ -1611,28 +1616,28 @@ export const CAREER_WEALTH_POINTS = 150;
 /** Vermögens-Einheit in $ von 1960 (über `atCost`, W9). SPEZIFIKATION 6.12. */
 export const CAREER_WEALTH_UNIT_1960 = 1_000_000;
 
-/** Punkte je Rang (nur Normal; wie heute). SPEZIFIKATION 6.12. */
+/** Punkte je Rang (nur Normal; wie im Alt-Code). SPEZIFIKATION 6.12. */
 export const CAREER_RANK_POINTS = 80;
 
-/** Punkte je Meilenstein (wie heute). SPEZIFIKATION 6.12. */
+/** Punkte je Meilenstein (wie im Alt-Code). SPEZIFIKATION 6.12. */
 export const CAREER_MILESTONE_POINTS = 10;
 
-/** Punkte je Ruf-Punkt (wie heute). SPEZIFIKATION 6.12. */
+/** Punkte je Ruf-Punkt (wie im Alt-Code). SPEZIFIKATION 6.12. */
 export const CAREER_REPUTATION_POINTS = 2;
 
-/** Punkte je Übernahme (wie heute). SPEZIFIKATION 6.12. */
+/** Punkte je Übernahme (wie im Alt-Code). SPEZIFIKATION 6.12. */
 export const CAREER_TAKEOVER_POINTS = 25;
 
-/** Punkte je fertigem Bonus-Projekt (heute 15 je Projekt, E43). SPEZIFIKATION 6.12. */
+/** Punkte je fertigem Bonus-Projekt (Alt-Code: 15 je Projekt, E43). SPEZIFIKATION 6.12. */
 export const CAREER_RESEARCH_POINTS = 5;
 
-/** Punkte je vollem Jahr (wie heute). SPEZIFIKATION 6.12. */
+/** Punkte je vollem Jahr (wie im Alt-Code). SPEZIFIKATION 6.12. */
 export const CAREER_YEAR_POINTS = 5;
 
-/** Höchstens so viele Jahre zählen (wie heute). SPEZIFIKATION 6.12. */
+/** Höchstens so viele Jahre zählen (wie im Alt-Code). SPEZIFIKATION 6.12. */
 export const CAREER_MAX_YEARS = 60;
 
-/** Einträge je Ruhmeshalle (wie heute `src/lib/careerScore.ts:83`). SPEZIFIKATION 6.12. */
+/** Einträge je Ruhmeshalle (wie im Alt-Code `src/lib/careerScore.ts:83`). SPEZIFIKATION 6.12. */
 export const HALL_SIZE = 10;
 
 // ---------------------------------------------------------------------------
@@ -1705,7 +1710,7 @@ export const RIVAL_STRENGTH: Readonly<Record<RivalStrength, RivalStrengthDef>> =
   },
 };
 
-/** Zur Vorauswahl der besten Ziele kommen so viele zufällige (heute `:503-521`). SPEZIFIKATION 7.9. */
+/** Zur Vorauswahl der besten Ziele kommen so viele zufällige (Alt-Code: `:503-521`). SPEZIFIKATION 7.9. */
 export const RIVAL_RANDOM_TARGETS = 2;
 
 /** Schalter-Art einer Persönlichkeit: Selbstbedienung, wo lieferbar, oder bedient (E18, E55). SPEZIFIKATION 7.4, 7.10. */
@@ -1734,7 +1739,7 @@ export interface RivalClassService {
 
 /** Werte einer Persönlichkeit: nur Entscheidungen (E45). SPEZIFIKATION 7.4, 7.5. */
 export interface PersonalityDef {
-  /** Angriffslust 1 … 10 (heute `:93`). */
+  /** Angriffslust 1 … 10 (Alt-Code: `:93`). */
   readonly aggression: number;
   /** Preis-Lage `FARE_POSITION` (7.6): Faktor auf das Zielniveau, oder `best` = bester Preis (4.10, Optimizer). */
   readonly farePosition: number | 'best';
@@ -1752,7 +1757,7 @@ export interface PersonalityDef {
   readonly buyChanceMax?: number;
   /** Ein Flugzeug kostet höchstens diesen Anteil der Kasse (7.11). */
   readonly purchaseCashShare: number;
-  /** Reserve nach einem Kauf oder einer Eröffnung in $ von 1960 (`CASH_RESERVE_1960`, heute `:147-149`). */
+  /** Reserve nach einem Kauf oder einer Eröffnung in $ von 1960 (`CASH_RESERVE_1960`, Alt-Code: `:147-149`). */
   readonly cashReserve1960: number;
   /** Höchstzahl der Drehkreuze `MAX_HUBS` (7.13). */
   readonly maxHubs: number;
@@ -1917,7 +1922,7 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
   },
 };
 
-/** Geduld: Grundwert + (Angriffslust − 6), wenn positiv (heute `:950`). SPEZIFIKATION 7.4. */
+/** Geduld: Grundwert + (Angriffslust − 6), wenn positiv (Alt-Code: `:950`). SPEZIFIKATION 7.4. */
 export const PATIENCE_AGGRESSION_PIVOT = 6;
 
 /** Ab dieser Entfernung gilt der Langstrecken-Faktor der Vorauswahl, km. SPEZIFIKATION 7.4, 7.9. */
@@ -1927,16 +1932,16 @@ export const LONG_HAUL_KM = 3500;
 // 7.5 Kabine (Platz-Regel des Kaufdialogs, gilt für Spieler und KI)
 // ---------------------------------------------------------------------------
 
-/** Platz je Sitz der Typ-Kapazität in cm: die Kapazität gilt bei 74 cm Sitzabstand (heute `ConfigurePurchaseView.tsx:359`). SPEZIFIKATION 7.5. */
+/** Platz je Sitz der Typ-Kapazität in cm: die Kapazität gilt bei 74 cm Sitzabstand (Alt-Code: `ConfigurePurchaseView.tsx:359`). SPEZIFIKATION 7.5. */
 export const CABIN_SPACE_PER_CAPACITY_SEAT_CM = 74;
 
-/** Mehr Platz durch kabinenweite Extras, Anteil („Reduced galley“ 3 %, „Minimal services“ 6 %; heute `:361-363`). SPEZIFIKATION 7.5. */
+/** Mehr Platz durch kabinenweite Extras, Anteil („Reduced galley“ 3 %, „Minimal services“ 6 %; Alt-Code: `:361-363`). SPEZIFIKATION 7.5. */
 export const CABIN_EXTRA_SPACE_GAIN: Readonly<Partial<Record<CabinExtra, number>>> = {
   reduced: 0.03,
   minimal: 0.06,
 };
 
-/** Platzbedarf kabinenweiter Extras in cm (heute `ConfigurePurchaseView.tsx:372`). SPEZIFIKATION 7.5. */
+/** Platzbedarf kabinenweiter Extras in cm (Alt-Code: `ConfigurePurchaseView.tsx:372`). SPEZIFIKATION 7.5. */
 export const CABIN_EXTRA_SPACE_CM: Readonly<Partial<Record<CabinExtra, number>>> = {
   catering: 200,
   bar: 400,
@@ -1944,7 +1949,7 @@ export const CABIN_EXTRA_SPACE_CM: Readonly<Partial<Record<CabinExtra, number>>>
 };
 
 /**
- * Platzfaktor je Sitztyp: Platz eines Sitzes = Sitzabstand × Faktor (heute `SEAT_DEFS`, Feld `m`,
+ * Platzfaktor je Sitztyp: Platz eines Sitzes = Sitzabstand × Faktor (Alt-Code: `SEAT_DEFS`, Feld `m`,
  * `ConfigurePurchaseView.tsx:326-353`). Unbekannter Sitztyp wie `Standard` (1). SPEZIFIKATION 7.5.
  */
 export const SEAT_SPACE_FACTOR: Readonly<Record<CabinClass, Readonly<Record<string, number>>>> = {
@@ -1973,10 +1978,10 @@ export const FARE_STEP = 0.03;
 /** Lage höchstens ± so viel. Startwert (3.9). SPEZIFIKATION 7.6. */
 export const YIELD_MAX = 0.15;
 
-/** Preiskampf ab dieser Angriffslust (wie heute `:73`). SPEZIFIKATION 7.6. */
+/** Preiskampf ab dieser Angriffslust (wie im Alt-Code `:73`). SPEZIFIKATION 7.6. */
 export const PRICE_WAR_MIN_AGGRESSION = 7;
 
-/** Preiskampf: Nachlass auf das Preisniveau, einmal (wie heute `:72`). SPEZIFIKATION 7.6. */
+/** Preiskampf: Nachlass auf das Preisniveau, einmal (wie im Alt-Code `:72`). SPEZIFIKATION 7.6. */
 export const PRICE_WAR_CUT = 0.12;
 
 /** Preiskampf: eine andere Gesellschaft hat in so vielen letzten Monaten eröffnet (E59). SPEZIFIKATION 7.6. */
@@ -1995,10 +2000,10 @@ export const PRICE_WAR_MIN_ROUTE_AGE = 2;
 // 7.7 Gründung und Startwerte
 // ---------------------------------------------------------------------------
 
-/** Zufälliger Teil der Startkasse: ± so viel in $ von 1960 (wie heute `:708`). SPEZIFIKATION 7.7. */
+/** Zufälliger Teil der Startkasse: ± so viel in $ von 1960 (wie im Alt-Code `:708`). SPEZIFIKATION 7.7. */
 export const RIVAL_START_CASH_NOISE_1960 = 3_000_000;
 
-/** Startausstattung am Drehkreuz, gleich für Spieler und KI (heute `src/App.tsx:1645-1652`). SPEZIFIKATION 7.7. */
+/** Startausstattung am Drehkreuz, gleich für Spieler und KI (Alt-Code: `src/App.tsx:1645-1652`). SPEZIFIKATION 7.7. */
 export const START_HUB_SETUP = {
   managementTier: 2,
   slots: 0,
@@ -2011,10 +2016,10 @@ export const RIVAL_HUB_MIN_LEVEL = 4;
 /** Siehe `RIVAL_HUB_MIN_LEVEL`. SPEZIFIKATION 7.7. */
 export const RIVAL_HUB_FALLBACK_LEVEL = 2;
 
-/** Bei einer KI: Wahrscheinlichkeit, dass sie erfunden ist (wie heute `:629`). SPEZIFIKATION 7.7. */
+/** Bei einer KI: Wahrscheinlichkeit, dass sie erfunden ist (wie im Alt-Code `:629`). SPEZIFIKATION 7.7. */
 export const FICTIONAL_SINGLE_CHANCE = 0.4;
 
-/** Bei mehreren KI: Anteil erfundener = Grundwert + Spanne × Zufall, mindestens eine (wie heute `:630`). SPEZIFIKATION 7.7. */
+/** Bei mehreren KI: Anteil erfundener = Grundwert + Spanne × Zufall, mindestens eine (wie im Alt-Code `:630`). SPEZIFIKATION 7.7. */
 export const FICTIONAL_SHARE_BASE = 0.3;
 
 /** Siehe `FICTIONAL_SHARE_BASE`. SPEZIFIKATION 7.7. */
@@ -2033,7 +2038,7 @@ export const START_AIRCRAFT_AGE_PENALTY = 0.2;
 export const START_AIRCRAFT_NOISE = 15;
 
 /**
- * Gewichte der Persönlichkeit bei der Wahl der Startflugzeuge (wie heute `:664-668`; E71, Paket 3.9e: LCC `capacity`
+ * Gewichte der Persönlichkeit bei der Wahl der Startflugzeuge (wie im Alt-Code `:664-668`; E71, Paket 3.9e: LCC `capacity`
  * 0,15 → 0,05, Boutique `range` 0,02 → 0,001, sonst nahmen beide 1960 eine DC-8 ohne Strecke mit Gewinn). SPEZIFIKATION 7.7.
  */
 export const START_AIRCRAFT_WEIGHTS: Readonly<
@@ -2078,26 +2083,26 @@ export type RivalDecisionStep = (typeof RIVAL_DECISION_STEPS)[number];
 /** Geglätteter Gewinn: Anteil des alten Werts (früher `src/lib/aiSimulation.ts`, entfernt in 5.2b); der Rest ist der neue Monat. SPEZIFIKATION 7.8. */
 export const AVG_PROFIT_KEEP = 0.65;
 
-/** Verlierer: erst auf diesen Anteil der Flüge (wie heute `:957`). SPEZIFIKATION 7.8. */
+/** Verlierer: erst auf diesen Anteil der Flüge (wie im Alt-Code `:957`). SPEZIFIKATION 7.8. */
 export const THIN_SHARE = 0.4;
 
-/** So viele Strecken behält eine KI mindestens (wie heute `:133`). SPEZIFIKATION 7.8. */
+/** So viele Strecken behält eine KI mindestens (wie im Alt-Code `:133`). SPEZIFIKATION 7.8. */
 export const CORE_NETWORK = 2;
 
-/** Feinabstimmung: Schritt = max(1, Anteil × Flüge) (wie heute `:991`). SPEZIFIKATION 7.8. */
+/** Feinabstimmung: Schritt = max(1, Anteil × Flüge) (wie im Alt-Code `:991`). SPEZIFIKATION 7.8. */
 export const FINE_TUNE_STEP_SHARE = 0.25;
 
-/** Feinabstimmung: behalten, wenn die Planer-Hauptzahl um mehr als diesen Anteil steigt (wie heute `:996`). SPEZIFIKATION 7.8. */
+/** Feinabstimmung: behalten, wenn die Planer-Hauptzahl um mehr als diesen Anteil steigt (wie im Alt-Code `:996`). SPEZIFIKATION 7.8. */
 export const FINE_TUNE_MIN_GAIN = 0.02;
 
-/** Feinabstimmung erst ab diesem Alter der Strecke, Monate (wie heute `:986`). SPEZIFIKATION 7.8. */
+/** Feinabstimmung erst ab diesem Alter der Strecke, Monate (wie im Alt-Code `:986`). SPEZIFIKATION 7.8. */
 export const FINE_TUNE_MIN_ROUTE_AGE = 2;
 
 // ---------------------------------------------------------------------------
 // 7.9 Planung einer Strecke
 // ---------------------------------------------------------------------------
 
-/** Kürzeste KI-Strecke in km (wie heute). SPEZIFIKATION 7.9. */
+/** Kürzeste KI-Strecke in km (wie im Alt-Code). SPEZIFIKATION 7.9. */
 export const MIN_ROUTE_KM = 150;
 
 /** Vorauswahl: Strecken unter diesem Anteil der Reichweite zählen anteilig (`min(1, km / (0,2 × Reichweite))`). SPEZIFIKATION 7.9. */
@@ -2115,10 +2120,10 @@ export const PRESELECT_RIVAL_HUB_WEIGHT = 2;
 /** Bewertete Flugzahlen je Ziel als Anteil der höchsten Umläufe. SPEZIFIKATION 7.9. */
 export const PLAN_FREQUENCY_SHARES: readonly number[] = [1, 0.6, 0.3];
 
-/** Planbare Minuten je Woche und Flugzeug: 7 Tage × 18 h (wie heute `:104`, bis E51 steht). SPEZIFIKATION 7.9. */
+/** Planbare Minuten je Woche und Flugzeug: 7 Tage × 18 h (wie im Alt-Code `:104`, bis E51 steht). SPEZIFIKATION 7.9. */
 export const WEEKLY_OPERATING_MINUTES = 7 * 18 * 60;
 
-/** Höchstens so viele Umläufe je Woche und Flugzeug (wie heute `:107`). SPEZIFIKATION 7.9. */
+/** Höchstens so viele Umläufe je Woche und Flugzeug (wie im Alt-Code `:107`). SPEZIFIKATION 7.9. */
 export const MAX_WEEKLY_ROTATIONS = 21;
 
 // ---------------------------------------------------------------------------
@@ -2150,10 +2155,10 @@ export const NO_PROFIT_PRICE_CASH_SHARE = 1 / 3;
 /** „Gewinn in den letzten Monaten“: so viele Monate. SPEZIFIKATION 7.11. */
 export const PROFIT_LOOKBACK_MONTHS = 3;
 
-/** Modernisierung: Flugzeuge älter als so viele Jahre (wie heute `:1012`). SPEZIFIKATION 7.11. */
+/** Modernisierung: Flugzeuge älter als so viele Jahre (wie im Alt-Code `:1012`). SPEZIFIKATION 7.11. */
 export const MODERNIZE_AGE_YEARS = 20;
 
-/** Modernisierung: so viele Monate nach dem Lieferende des Typs (12 Jahre, wie heute `:1011`). SPEZIFIKATION 7.11. */
+/** Modernisierung: so viele Monate nach dem Lieferende des Typs (12 Jahre, wie im Alt-Code `:1011`). SPEZIFIKATION 7.11. */
 export const MODERNIZE_AFTER_END_MONTHS = 144;
 
 /** Grundüberholung, wenn Zellen- oder Kabinenzustand darunter fällt, %. SPEZIFIKATION 7.11. */
@@ -2169,7 +2174,7 @@ export const CRISIS_IDLE_MONTHS = 12;
 // 7.12 Krise
 // ---------------------------------------------------------------------------
 
-/** Krise ab dieser Stärke (wie heute `src/lib/rivalCrisis.ts:31`). SPEZIFIKATION 7.12. */
+/** Krise ab dieser Stärke (wie im Alt-Code `src/lib/rivalCrisis.ts:31`). SPEZIFIKATION 7.12. */
 export const CRISIS_FROM = 0.25;
 
 /** Treibstoff-Teil der Krise: Mittel der Tabelle über so viele Monate vor dem Monat. SPEZIFIKATION 7.12. */
@@ -2178,13 +2183,13 @@ export const CRISIS_FUEL_WINDOW = 24;
 /** Treibstoff-Teil der Krise: Anstieg gegen das Mittel × diesen Faktor („/ 2“). SPEZIFIKATION 7.12. */
 export const CRISIS_FUEL_WEIGHT = 0.5;
 
-/** Krisen-Fahrplan: Ziel-Auslastung beim Kürzen (wie heute `src/lib/rivalCrisis.ts:54`). SPEZIFIKATION 7.12. */
+/** Krisen-Fahrplan: Ziel-Auslastung beim Kürzen (wie im Alt-Code `src/lib/rivalCrisis.ts:54`). SPEZIFIKATION 7.12. */
 export const CRISIS_TARGET_LOAD = 0.8;
 
-/** Krisen-Fahrplan: ab dieser Auslastung kommen Flüge zurück (wie heute `:57`). SPEZIFIKATION 7.12. */
+/** Krisen-Fahrplan: ab dieser Auslastung kommen Flüge zurück (wie im Alt-Code `:57`). SPEZIFIKATION 7.12. */
 export const CRISIS_FULL_LOAD = 0.95;
 
-/** Krisen-Fahrplan: so viel des alten Plans kommt je Monat zurück (aufgerundet, mindestens 1; wie heute `:60`). SPEZIFIKATION 7.12. */
+/** Krisen-Fahrplan: so viel des alten Plans kommt je Monat zurück (aufgerundet, mindestens 1; wie im Alt-Code `:60`). SPEZIFIKATION 7.12. */
 export const CRISIS_RECOVERY_STEP = 0.25;
 
 // ---------------------------------------------------------------------------
@@ -2209,7 +2214,7 @@ export const NEW_HUB_NO_PROFIT_MONTHS = 3;
 /** Gewicht der Heimatregion bei der Wahl eines neuen Drehkreuzes. Startwert (3.9). SPEZIFIKATION 7.13. */
 export const HOME_REGION_WEIGHT = 4;
 
-/** Gewicht eines Spieler-Drehkreuzes: `3 × Angriffslust / 6` (wie heute). SPEZIFIKATION 7.13. */
+/** Gewicht eines Spieler-Drehkreuzes: `3 × Angriffslust / 6` (wie im Alt-Code). SPEZIFIKATION 7.13. */
 export const PLAYER_HUB_WEIGHT = 3;
 
 /** Siehe `PLAYER_HUB_WEIGHT`: Angriffslust, bei der das Gewicht genau `PLAYER_HUB_WEIGHT` ist. SPEZIFIKATION 7.13. */
@@ -2235,7 +2240,7 @@ export const DIVIDEND_COST_WINDOW = 12;
  */
 export const RIVAL_SUBSIDY_ENABLED = false;
 
-/** Zuschuss je Monat in $ von 1960 bis `SUBSIDY_HIGH_UNTIL` (wie heute nominal, `:47-65`). SPEZIFIKATION 7.14. */
+/** Zuschuss je Monat in $ von 1960 bis `SUBSIDY_HIGH_UNTIL` (wie im Alt-Code nominal, `:47-65`). SPEZIFIKATION 7.14. */
 export const SUBSIDY_HIGH_1960 = 450_000;
 
 /** Zuschuss je Monat in $ von 1960 ab `SUBSIDY_LOW_FROM`. SPEZIFIKATION 7.14. */
@@ -2261,7 +2266,7 @@ export const SALE_TO_LIQUIDATION_MONTHS = 12;
 // 7.16 Übernahme (E48)
 // ---------------------------------------------------------------------------
 
-/** Mindestpreis einer Übernahme in $ von 1960 (heute nominal). SPEZIFIKATION 7.16. */
+/** Mindestpreis einer Übernahme in $ von 1960 (Alt-Code: nominal). SPEZIFIKATION 7.16. */
 export const TAKEOVER_MIN_PRICE_1960 = 1_000_000;
 
 /** Verwaltungsstufe, die der Spieler an jedem Flughafen mit übernommenen Slots mindestens bekommt. SPEZIFIKATION 7.16. */
@@ -2280,9 +2285,9 @@ export type CrisisResponseKind = 'fuelHedge' | 'demandRecovery';
 
 /** Ein geschichtliches Weltereignis (Daten, nach Datum gelesen, nicht gespeichert). SPEZIFIKATION 8.4. */
 export interface HistoricalEventDef {
-  /** Name im Spiel (Oberflächentext, Englisch, wie heute). */
+  /** Name im Spiel (Oberflächentext, Englisch, wie im Alt-Code). */
   readonly title: string;
-  /** Meldungstext (Englisch, wie heute). */
+  /** Meldungstext (Englisch, wie im Alt-Code). */
   readonly description: string;
   /** Erster Spielmonat (0 = Januar 1960). */
   readonly startMonth: number;
@@ -2295,7 +2300,7 @@ export interface HistoricalEventDef {
   /** Krisen-Antwort, die der Spieler beim Beginn kaufen kann (8.5); nur die 6 weltweiten. */
   readonly response?: {
     readonly kind: CrisisResponseKind;
-    /** Rückgewinnungs-Anteil `r` (nur `demandRecovery`; heute `softensDemand`). */
+    /** Rückgewinnungs-Anteil `r` (nur `demandRecovery`; Alt-Code: `softensDemand`). */
     readonly recoveryShare?: number;
   };
 }
@@ -2303,7 +2308,7 @@ export interface HistoricalEventDef {
 const ev = (year: number, monthOfYear: number) => (year - START_YEAR) * 12 + monthOfYear;
 
 /**
- * Die 17 geschichtlichen Ereignisse (6 weltweite mit Krisen-Antwort, 11 regionale), wie heute
+ * Die 17 geschichtlichen Ereignisse (6 weltweite mit Krisen-Antwort, 11 regionale), wie im Alt-Code
  * `src/lib/eventSystem.ts:68-307`. Das Feld `fuelMultiplier` entfällt; die Ölkrisen stehen in `FUEL_CRISES` (E61).
  * Feste Preise der Antworten entfallen (E6, E35). SPEZIFIKATION 8.4, 8.5.
  */
@@ -2342,7 +2347,7 @@ export interface RandomEventTemplate {
 }
 
 /**
- * Die 8 Vorlagen der Zufallsereignisse (heute 11, `src/lib/monthClose.ts:206-287`): 4 Pech, 4 Glück. Es entfallen
+ * Die 8 Vorlagen der Zufallsereignisse (Alt-Code: 11, `src/lib/monthClose.ts:206-287`): 4 Pech, 4 Glück. Es entfallen
  * die drei Treibstoff-Vorlagen (E61); das Feld `fuelMin/fuelMax` entfällt (E8). SPEZIFIKATION 8.4.
  */
 export const RANDOM_EVENT_TEMPLATES: readonly RandomEventTemplate[] = [
@@ -2356,7 +2361,7 @@ export const RANDOM_EVENT_TEMPLATES: readonly RandomEventTemplate[] = [
   { title: 'Regional Aviation Strike Wave', description: 'Airport and airline staff across one region take turns to strike; bookings go elsewhere.', demandMin: 0.82, demandMax: 0.9, durationMin: 2, durationMax: 3, regional: true },
 ];
 
-/** Wahrscheinlichkeit eines Zufallsereignisses je Monat (heute 0,05, `src/lib/monthClose.ts:916`). SPEZIFIKATION 8.4. */
+/** Wahrscheinlichkeit eines Zufallsereignisses je Monat (Alt-Code: 0,05, `src/lib/monthClose.ts:916`). SPEZIFIKATION 8.4. */
 export const RANDOM_EVENT_CHANCE = 0.05;
 
 // ---------------------------------------------------------------------------
@@ -2385,13 +2390,13 @@ export type DisruptionKind = 'defect' | 'airportStrike' | 'weather';
 /** Reihenfolge der Würfe im Übergang (für den Pech-Deckel, 8.8; F40). */
 export const DISRUPTION_KINDS: readonly DisruptionKind[] = ['defect', 'airportStrike', 'weather'];
 
-/** Defekt-Chance je Flugzeug und Monat, Grundwert (wie heute 0,01 / 3, `src/lib/disruptions.ts:64`). SPEZIFIKATION 8.6. */
+/** Defekt-Chance je Flugzeug und Monat, Grundwert (wie im Alt-Code 0,01 / 3, `src/lib/disruptions.ts:64`). SPEZIFIKATION 8.6. */
 export const DEFECT_BASE = 0.01 / 3;
 
-/** … dazu je Punkt Zelle unter 100 (wie heute 0,0008 / 3). SPEZIFIKATION 8.6. */
+/** … dazu je Punkt Zelle unter 100 (wie im Alt-Code 0,0008 / 3). SPEZIFIKATION 8.6. */
 export const DEFECT_PER_AIRFRAME_POINT = 0.0008 / 3;
 
-/** … dazu je Jahr Alter seit dem Baumonat (wie heute 0,001 / 3, R13). SPEZIFIKATION 8.6. */
+/** … dazu je Jahr Alter seit dem Baumonat (wie im Alt-Code 0,001 / 3, R13). SPEZIFIKATION 8.6. */
 export const DEFECT_PER_YEAR = 0.001 / 3;
 
 /** Eigener Hangar an einem Flughafen seiner Strecken: Defekt-Chance × 0,5. SPEZIFIKATION 8.6. */
@@ -2400,7 +2405,7 @@ export const HANGAR_DEFECT_FACTOR = 0.5;
 /** Ein Defekt streicht diesen Anteil aller Flüge des Flugzeugs. SPEZIFIKATION 8.6. */
 export const DEFECT_CANCEL_SHARE = 0.5;
 
-/** Flughafen-Streik je Flughafen mit Abflügen und Monat (wie heute 0,01 / 3). SPEZIFIKATION 8.6. */
+/** Flughafen-Streik je Flughafen mit Abflügen und Monat (wie im Alt-Code 0,01 / 3). SPEZIFIKATION 8.6. */
 export const AIRPORT_STRIKE_CHANCE = 0.01 / 3;
 
 /** Ein Flughafen-Streik streicht diesen Anteil aller Abflüge und Ankünfte dort, für alle Gesellschaften. SPEZIFIKATION 8.6. */
@@ -2412,16 +2417,16 @@ export const WINTER_CHANCE = 0.03;
 /** Winterwetter streicht diesen Anteil aller Flüge mit einem Ende in der Region. SPEZIFIKATION 8.6. */
 export const WINTER_CANCEL_SHARE = 0.15;
 
-/** Regionen mit Winterwetter (wie heute). SPEZIFIKATION 8.6. */
+/** Regionen mit Winterwetter (wie im Alt-Code). SPEZIFIKATION 8.6. */
 export const WINTER_REGIONS: readonly WorldRegion[] = ['EU', 'NA', 'AS'];
 
 /** Wintermonate als Monat im Jahr (0 = Januar): Dezember, Januar, Februar. SPEZIFIKATION 8.6. */
 export const WINTER_MONTHS: readonly number[] = [11, 0, 1];
 
-/** Vogelschlag je fliegendes Flugzeug und Monat (heute je Strecke). SPEZIFIKATION 8.6. */
+/** Vogelschlag je fliegendes Flugzeug und Monat (Alt-Code: je Strecke). SPEZIFIKATION 8.6. */
 export const BIRD_STRIKE_CHANCE = 0.002;
 
-/** Vogelschlag kostet diesen Anteil des Neupreises (5.12; heute 100 000 / 200 000 / 400 000 $ fest). Startwert. SPEZIFIKATION 8.6. */
+/** Vogelschlag kostet diesen Anteil des Neupreises (5.12; Alt-Code: 100 000 / 200 000 / 400 000 $ fest). Startwert. SPEZIFIKATION 8.6. */
 export const BIRD_STRIKE_COST_SHARE = 0.005;
 
 /** Ab diesem gestrichenen Anteil (und mit Erlösverlust) fragt das Spiel: Charter oder streichen. SPEZIFIKATION 8.6. */
@@ -2434,7 +2439,7 @@ export const MAX_DISRUPTION_QUESTIONS = 3;
 // 8.7 Personal: Moral und Streik (nur Spieler)
 // ---------------------------------------------------------------------------
 
-/** Lohn in Prozent des Marktlohns: untere Grenze (wie heute `src/lib/staff.ts:31`). SPEZIFIKATION 8.7, 5.1. */
+/** Lohn in Prozent des Marktlohns: untere Grenze (wie im Alt-Code `src/lib/staff.ts:31`). SPEZIFIKATION 8.7, 5.1. */
 export const SALARY_PCT_MIN = 80;
 
 /** Lohn: obere Grenze. SPEZIFIKATION 8.7, 5.1. */
@@ -2465,7 +2470,7 @@ export const STRIKE_MORALE_PENALTY = 10;
 export const MORALE_STEP = 0.2;
 
 /**
- * Arbeitsmarkt: Lohn-Punkte über dem Marktlohn, die das Personal in diesen Jahren erwartet (Daten wie heute,
+ * Arbeitsmarkt: Lohn-Punkte über dem Marktlohn, die das Personal in diesen Jahren erwartet (Daten wie im Alt-Code,
  * `src/lib/staff.ts:110-123`). Jahre außerhalb: 0. SPEZIFIKATION 8.7.
  */
 export const LABOUR_MARKET: readonly { readonly from: number; readonly to: number; readonly points: number }[] = [
@@ -2502,7 +2507,7 @@ export const STRIKE_FULL_CANCEL_SHARE = 1;
 // 8.8 Pech-Deckel
 // ---------------------------------------------------------------------------
 
-/** Ein Zufalls-Pech-Ereignis beansprucht den Deckel für Dauer × diesen Faktor ab Beginn (wie heute). SPEZIFIKATION 8.8. */
+/** Ein Zufalls-Pech-Ereignis beansprucht den Deckel für Dauer × diesen Faktor ab Beginn (wie im Alt-Code). SPEZIFIKATION 8.8. */
 export const BAD_LUCK_CLAIM_FACTOR = 2;
 
 // ---------------------------------------------------------------------------
@@ -2516,7 +2521,7 @@ export const CHARTER_MARKUP = 1.5;
 // 8.10 Verschleiß
 // ---------------------------------------------------------------------------
 
-/** Kabinen-Verschleiß je geflogene Blockstunde in Punkten (wie heute `src/lib/monthClose.ts:1512-1532`). SPEZIFIKATION 8.10. */
+/** Kabinen-Verschleiß je geflogene Blockstunde in Punkten (wie im Alt-Code `src/lib/monthClose.ts:1512-1532`). SPEZIFIKATION 8.10. */
 export const CABIN_WEAR_PER_HOUR = 0.0012;
 
 /** Zellen-Verschleiß je geflogene Blockstunde in Punkten. SPEZIFIKATION 8.10. */
@@ -2553,7 +2558,7 @@ export const USED_AGE_MIN = 4;
 /** Ältestes Gebraucht-Angebot in Jahren. SPEZIFIKATION 8.11. */
 export const USED_AGE_MAX = 24;
 
-/** Zustand eines Gebraucht-Angebots: `start − perYear × Alter ± spread`, gekappt (wie heute `src/lib/usedMarket.ts:73-76`). SPEZIFIKATION 8.11. */
+/** Zustand eines Gebraucht-Angebots: `start − perYear × Alter ± spread`, gekappt (wie im Alt-Code `src/lib/usedMarket.ts:73-76`). SPEZIFIKATION 8.11. */
 export const USED_CONDITION = {
   airframe: { start: 98, perYear: 2.2, spread: 7 },
   cabin: { start: 92, perYear: 2.8, spread: 11 },
@@ -2596,7 +2601,7 @@ export const PREORDER_DISCOUNT_MAX = 0.12;
 /** Anzahlung als Anteil des geschätzten Preises. SPEZIFIKATION 8.12. */
 export const PREORDER_DEPOSIT_SHARE = 0.2;
 
-/** Lieferung: Erstauslieferung + 1 + ⌊n / PREORDER_BATCH⌋ Monate (wie heute). SPEZIFIKATION 8.12. */
+/** Lieferung: Erstauslieferung + 1 + ⌊n / PREORDER_BATCH⌋ Monate (wie im Alt-Code). SPEZIFIKATION 8.12. */
 export const PREORDER_BASE_WAIT = 1;
 
 /** Siehe `PREORDER_BASE_WAIT`. SPEZIFIKATION 8.12. */
@@ -2615,7 +2620,7 @@ export const LAUNCH_WINDOW_MONTHS = 12;
 // 8.13 Grundüberholung und Kabinen-Umbau
 // ---------------------------------------------------------------------------
 
-/** Zellen-Punkte der k-ten Überholung (k = 1, 2, …); danach keine weitere (wie heute `src/App.tsx:222-229`). SPEZIFIKATION 8.13. */
+/** Zellen-Punkte der k-ten Überholung (k = 1, 2, …); danach keine weitere (wie im Alt-Code `src/App.tsx:222-229`). SPEZIFIKATION 8.13. */
 export const OVERHAUL_POINTS: readonly number[] = [50, 50, 40, 30];
 
 /** Überholung kostet mindestens diesen Anteil des Neupreises (5.12). Startwert (3.9). SPEZIFIKATION 8.13. */
@@ -2627,7 +2632,7 @@ export const EXTERNAL_OVERHAUL_SURCHARGE = 0.25;
 /** Umbau-Lohn je Sitz in $ von 1960 (neu mit Index, W8). SPEZIFIKATION 8.13. */
 export const REFIT_PER_SEAT_1960 = 1_000;
 
-/** Kabinenzustand nach dem Umbau: `max(jetzt, START − STEP × bisherige Umbauten, MIN)` (wie heute). SPEZIFIKATION 8.13. */
+/** Kabinenzustand nach dem Umbau: `max(jetzt, START − STEP × bisherige Umbauten, MIN)` (wie im Alt-Code). SPEZIFIKATION 8.13. */
 export const REFIT_CONDITION_START = 90;
 
 /** Siehe `REFIT_CONDITION_START`. SPEZIFIKATION 8.13. */
@@ -2653,14 +2658,14 @@ export const OVERDRAWN_TO_FORCED_SALE = 6;
 // 8.2 Bericht
 // ---------------------------------------------------------------------------
 
-/** So viele Monatsberichte bleiben im Spielstand (wie heute `src/lib/monthClose.ts:1263`). SPEZIFIKATION 8.2. */
+/** So viele Monatsberichte bleiben im Spielstand (wie im Alt-Code `src/lib/monthClose.ts:1263`). SPEZIFIKATION 8.2. */
 export const REPORT_HISTORY_MONTHS = 120;
 
 // ---------------------------------------------------------------------------
 // 8.15 Szenario-Ziele
 // ---------------------------------------------------------------------------
 
-/** Was ein Szenario-Ziel misst (heute `src/data/scenarios.ts`). SPEZIFIKATION 8.15. */
+/** Was ein Szenario-Ziel misst (Alt-Code: `src/data/scenarios.ts`). SPEZIFIKATION 8.15. */
 export type ScenarioMetric = 'capital' | 'monthlyProfit' | 'reputation' | 'routes' | 'regions' | 'transferPax';
 
 /** Ziele in Dollar: Schwelle als Wert von 1960, geprüft mit `atCost` des Prüfmonats (E6). SPEZIFIKATION 8.15. */
@@ -2676,15 +2681,15 @@ export const MINUTES_PER_HOUR = 60;
 /** Minuten eines Tages (Fahrplan: ein Tag der Woche). */
 export const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
 
-/** Bodenzeit vor jedem Abflug und nach jeder Ankunft eines Umlaufs (Einsteigen, Aussteigen; heute `src/lib/scheduleUtils.ts:22`). */
+/** Bodenzeit vor jedem Abflug und nach jeder Ankunft eines Umlaufs (Einsteigen, Aussteigen; Alt-Code: `src/lib/scheduleUtils.ts:22`). */
 export const BOARDING_MINUTES = 30;
 
-/** Wendezeit am Ziel je Bauart (heute `getTurnoverMinutes`, `src/lib/scheduleUtils.ts:39-44`). */
+/** Wendezeit am Ziel je Bauart (Alt-Code: `getTurnoverMinutes`, `src/lib/scheduleUtils.ts:39-44`). */
 export const TURNAROUND_MINUTES: Readonly<Record<AircraftClass, number>> = {
   Regional: 30,
   Narrowbody: 60,
   Widebody: 90,
 };
 
-/** Raster aller Zeiten im Fahrplan; die Umlaufzeit wird darauf aufgerundet (heute `blockMinutes`, `scheduleUtils.ts:56-58`). */
+/** Raster aller Zeiten im Fahrplan; die Umlaufzeit wird darauf aufgerundet (Alt-Code: `blockMinutes`, `scheduleUtils.ts:56-58`). */
 export const SCHEDULE_STEP_MINUTES = 5;

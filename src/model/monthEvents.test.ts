@@ -529,7 +529,7 @@ describe('Abschnitt 8.9 Gestrichene und gecharterte Flüge', () => {
     near(ownOps + fee, undisturbed - opsWeekly * s.charteredShare * WEEKS_PER_MONTH + CHARTER_MARKUP * opsWeekly * s.charteredShare * WEEKS_PER_MONTH, 1e-6);
   });
 
-  it('8.9: ein halber Flugplan bringt höchstens die Hälfte weniger Sitze (heute −77 %, W5)', () => {
+  it('8.9: ein halber Flugplan bringt höchstens die Hälfte weniger Sitze (Alt-Code: −77 %, W5)', () => {
     assert.equal(offeredSeats(180, 0.5), 90);
   });
 

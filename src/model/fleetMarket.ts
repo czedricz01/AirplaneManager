@@ -209,7 +209,7 @@ export function preorderDiscount(n: number): number {
   return Math.min(PREORDER_DISCOUNT_MAX, PREORDER_DISCOUNT_BASE + PREORDER_DISCOUNT_STEP * (preorderQuantity(n) - 1));
 }
 
-/** Liefermonat: Erstauslieferung + `PREORDER_BASE_WAIT` + ⌊n / `PREORDER_BATCH`⌋ (wie heute). SPEZIFIKATION 8.12. */
+/** Liefermonat: Erstauslieferung + `PREORDER_BASE_WAIT` + ⌊n / `PREORDER_BATCH`⌋ (wie im Alt-Code). SPEZIFIKATION 8.12. */
 export function preorderDeliveryMonth(firstDeliveryOffset: number, n: number): number {
   return firstDeliveryOffset + PREORDER_BASE_WAIT + Math.floor(preorderQuantity(n) / PREORDER_BATCH);
 }

@@ -1,13 +1,25 @@
 # Status
 
-**Nächstes Paket: 5.2c** – Dokumentation aufräumen: `README.md` und `src/model/README.md` auf den Stand nach Phase 4/5 bringen,
-Hinweise auf alte Analysen (`ANALYSE.md`, `SAT-ANALYSE.md`, `docs/CODE_REVIEW.md`) kennzeichnen, die Verweise „heute
-`src/lib/…:Zeile`“ in `src/model/` (vor allem `constants.ts`) auf entfernte oder verschobene Stellen bereinigen, dazu Kleinkram
-(doppelte Zugangs-Prüfung `src/lib/airportAccess.ts`). Danach 5.3 (Spieltest mit Balance-Skript).
-Zu lesen: „Offen aus 5.2d“ (3), (4) und „Offen aus 5.2b“ (3) unten, `README.md`, `src/model/README.md`; die rund 90 Verweise
-findet `grep -rn 'heute .src/lib/' src/model`.
+**Nächstes Paket: 5.3** – Spieltest-Durchlauf mit dem Balance-Skript (`npm run balance`, mit `--long` für die Langläufe der
+KI) und Feinabstimmung. Die gesammelten Punkte für 5.3 abarbeiten: „Offen aus 5.2e“ (1) Charter-Schätzung bei Streichungen,
+(2) Preise von X statt X+1; „Offen aus 5.2d“ (1) Rang-Fortschritt vor dem ersten Abschluss, (2) Dezember-Angebot des
+Jahresziels im Browser; „Offen aus 5.2b“ (4) Spielstart mit 10+ KI, (6) Szenario-Ziele `minWeeklyFlights` und die eigene
+Untergrenze. Zu lesen: diese Punkte unten, `docs/neubau/BALANCE.md`, `scripts/balance.ts`, `src/balance/`. Wird das Paket zu
+groß, in 5.3a (Balance-Bericht und Langläufe auswerten) und 5.3b (Spieltest im Browser) teilen.
 
 Keine offenen Fragen.
+
+Stand: 24.11.2026 · Paket 5.2c erledigt (F78): Dokumentation aufgeräumt. `README.md` (kaputter Abschnitt „Lokale
+Entwicklung“ ersetzt, `npm test` und `npm run balance`, Projektaufbau nach Phase 5) und `src/model/README.md` (Stand nach
+Phase 4/5, wer das Modell aufruft, Regel für Alt-Code-Verweise) sind aktuell. Die rund 230 Stellen „heute …“ in `src/model/`
+heißen jetzt „Alt-Code“; Datei:Zeile dahinter gilt für Commit `231d08b` (Regel im Kopf von `src/model/constants.ts`).
+Drei Verweise auf heutigen Code mit falschen Zeilen und ein veralteter Kommentar (`hedgeLockMonth`) berichtigt.
+`ANALYSE.md`, `SAT-ANALYSE.md`, `docs/CODE_REVIEW.md` tragen oben den Hinweis „Veraltet“. Kleinkram: `airportGate`
+(`src/lib/airportAccess.ts`) prüft mit `isAirportOpen` des Modells statt eigener Regel (`airportStandings` statt
+`exemptAirports`); `LITRES_PER_GALLON` nur noch im Modell. Tests: 1 230 grün (1 neuer: Zugangs-Prüfung = Modell-Regel für alle
+Ränge, Größen, Ausnahmen). Im Browser nicht geprüft (nur Kommentare, Texte und eine gleichwertige Prüfung).
+
+Offen aus 5.2c: keine. Die Punkte „Offen aus 5.2d“ (3), (4) und „Offen aus 5.2b“ (3) sind erledigt.
 
 Stand: 24.11.2026 · Paket 5.2e erledigt (F77): Die Störungs-Frage nennt die Beträge des Modells (8.9, R2). Neu
 `disruptionCharterEstimate` (`src/lib/modelMonthClose.ts`): aus den Strecken-Zahlen des Abschlusses X (`MonthReport.routes`,
@@ -484,7 +496,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.2b | Rest der alten Rechnung in den Ansichten ersetzen oder entfernen (Liste „Offen aus 5.2a“; F75) | erledigt |
 | 5.2d | Karriere-Ansicht nach dem Modell: Forschung (Preis, Sperren, Plätze), Rang-Anzeige, Meilensteine, Jahresziel, Flugzeugklassen (`CareerPanel.tsx`, `src/lib/research.ts`, `airlineRank.ts`, `milestones.ts`, `annualGoals.ts`, `aircraftClasses.ts`; F76) | erledigt |
 | 5.2e | Störungs-Frage mit Charter-Betrag des Modells (`charterAdvantage`, 8.9; Flugkosten je Strecke aus dem Abschluss; F77) | erledigt |
-| 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen) | offen |
+| 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen, Alt-Code-Verweise in `src/model/`; F78) | erledigt |
 | 5.3 | Spieltest-Durchlauf mit Balance-Skript, Feinabstimmung | offen |
 
 ---
@@ -569,3 +581,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 24.11.2026 | 5.2b | Rest der alten Rechnung ersetzt (F75): Ausfälle je Strecke über `disruptionShares`, KI-Gründung beim Spielstart nach 7.7 (`foundStartRivals`), Welt-Zustand ab Monat 1 mit gewürfeltem Startwert, Ereignisse aus den Modell-Daten, Kabine verkaufter Flugzeuge im Gebrauchtmarkt, zwei Ruhmeshallen (E43), Störungs-Frage ohne alte Zahlen; `aiSimulation.ts`, `routeMaturity.ts`, `buildPlayerModifiers` entfernt; neue Pakete 5.2d (Karriere-Ansicht) und 5.2e; Tests 1 243 grün; im Browser geprüft |
 | 24.11.2026 | 5.2d | Karriere-Ansicht nach dem Modell (F76): Forschung mit `researchPrice` (Kostenindex), `researchStartBlocker`, `researchSlots`; Rang-Tabelle und 3-Monats-Mittel des Modells, Freischaltungen aus den Tabellen; Meilensteine und Jahresziel in der Form des Modells (Übersetzungen in der Brücke entfernt); Flugzeugklassen über `sizeClassOf`; `SAVE_VERSION` 9; Tests 1 228 grün; im Browser geprüft |
 | 24.11.2026 | 5.2e | Störungs-Frage mit Beträgen des Modells (F77): `disruptionCharterEstimate` aus `MonthReport.routes` (Flüge, Erlös, Kosten je Fluggast, eigene Flugkosten, `charterFee`, `charterAdvantage`); `buildDisruptionDecision` nennt Gebühr, geretteten Erlös und gesparte Flugkosten; `disruptionStake` entfällt; Tests 1 229 grün |
+| 24.11.2026 | 5.2c | Dokumentation aufgeräumt (F78): `README.md` und `src/model/README.md` nach Phase 4/5; „heute …“ in `src/model/` → „Alt-Code“ (Stand Commit `231d08b`); alte Analysen als veraltet gekennzeichnet; `airportGate` über `isAirportOpen`, `LITRES_PER_GALLON` nur im Modell; Tests 1 230 grün |

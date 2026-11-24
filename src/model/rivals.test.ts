@@ -538,7 +538,7 @@ describe('Abschnitt 7.7 Gründung und Startwerte', () => {
     assert.equal(realRivalWeight({ ...base, demand: 400 }), 20);
   });
 
-  it('7.7: Anteil erfundener wie heute; Nachrücken nur, wenn KI fehlen', () => {
+  it('7.7: Anteil erfundener wie im Alt-Code; Nachrücken nur, wenn KI fehlen', () => {
     assert.equal(fictionalRivalCount(1, 0.3), 1);
     assert.equal(fictionalRivalCount(1, 0.5), 0);
     assert.equal(fictionalRivalCount(5, 0), 2);

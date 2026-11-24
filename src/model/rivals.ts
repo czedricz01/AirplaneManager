@@ -304,7 +304,7 @@ export function rivalAircraft(personality: RivalPersonality, type: CatalogType, 
 
 /**
  * Service einer KI-Klasse auf einer Strecke: das Menü der Persönlichkeit für **jede** Mahlzeit `k` mit
- * `mealWeight(k) > 0` (R14; heute nur Mahlzeit 1), dazu Extras und Bordservice. Bewertet mit `servicePoints`
+ * `mealWeight(k) > 0` (R14; Alt-Code: nur Mahlzeit 1), dazu Extras und Bordservice. Bewertet mit `servicePoints`
  * (2.5), Kosten mit `cateringCost` (5.7), wie beim Spieler. SPEZIFIKATION 7.5.
  */
 export function rivalService(personality: RivalPersonality, cabinClass: CabinClass, blockMinutes: number): ServiceSelection {
@@ -479,7 +479,7 @@ export function weightedPick(weights: readonly number[], u: number): number {
 
 /**
  * Startkasse: `atCost(RIVAL_START_CASH_1960[Stärke]) ± atCost(3 Mio. $) × Zufall`, ohne Persönlichkeits-Faktor
- * (E45). Die Startflotte kommt dazu (wie heute). SPEZIFIKATION 7.7.
+ * (E45). Die Startflotte kommt dazu (wie im Alt-Code). SPEZIFIKATION 7.7.
  *
  * @param noise Zufallszahl in [−1, 1] (`2 × rng(...) − 1`).
  */
@@ -492,7 +492,7 @@ export function rivalStartSetup(): typeof START_HUB_SETUP & { readonly reputatio
   return { ...START_HUB_SETUP, reputation: START_REPUTATION };
 }
 
-/** Wie viele der neuen KI erfunden sind (wie heute): eine → mit 40 % erfunden; mehrere → `round(n × (0,3 + 0,2 u))`, mindestens 1. SPEZIFIKATION 7.7. */
+/** Wie viele der neuen KI erfunden sind (wie im Alt-Code): eine → mit 40 % erfunden; mehrere → `round(n × (0,3 + 0,2 u))`, mindestens 1. SPEZIFIKATION 7.7. */
 export function fictionalRivalCount(count: number, u: number): number {
   if (count <= 0) return 0;
   if (count === 1) return u < FICTIONAL_SINGLE_CHANCE ? 1 : 0;
@@ -504,7 +504,7 @@ export interface HubCandidate {
   readonly id: string;
   /** Flughafen-Größe 1 … 5 (Daten). */
   readonly level: number;
-  /** Nachfrage am Flughafen (wie heute `airportDemand`). */
+  /** Nachfrage am Flughafen (wie im Alt-Code `airportDemand`). */
   readonly demand: number;
   /** Drehkreuz des Spielers? */
   readonly playerHub: boolean;

@@ -138,7 +138,7 @@ export function wearFactor(cabinCondition: number): number {
 }
 
 /**
- * Wie gut die Kabine einer Klasse eines Flugzeugs heute ist, Punkte 0 … 100, einmal gekappt, ungerundet:
+ * Wie gut die Kabine einer Klasse eines Flugzeugs jetzt ist, Punkte 0 … 100, einmal gekappt, ungerundet:
  *
  * `kappen(0,33 × typeAppeal + 0,67 × interiorScore × wearFactor(cabinCondition), 0, 100)`. SPEZIFIKATION 2.4.
  */
@@ -233,7 +233,7 @@ export function deliverableExtras(extras: readonly CabinExtra[], fit: Pick<Cabin
 
 /**
  * Platz einer Kabine in cm: `capacity × 74 cm × (1 + Platz-Gewinn der Extras) − Platzbedarf der Extras`.
- * Nur lieferbare Extras zählen (wie in 2.3). Dieselbe Regel wie im Kaufdialog (heute nur dort,
+ * Nur lieferbare Extras zählen (wie in 2.3). Dieselbe Regel wie im Kaufdialog (Alt-Code: nur dort,
  * `src/components/ConfigurePurchaseView.tsx:355-379`; R3). SPEZIFIKATION 7.5.
  */
 export function cabinSpace(fit: CabinFit): number {

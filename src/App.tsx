@@ -75,7 +75,7 @@ import {
   type GameMode
 } from "./lib/airlineRank";
 import { classGateMessage, classesOfFleet, openClasses, type AircraftClassId } from "./lib/aircraftClasses";
-import { airportGate, exemptAirports, maxAirportLevel } from "./lib/airportAccess";
+import { airportGate, airportStandings, maxAirportLevel } from "./lib/airportAccess";
 import {
   describeGoal,
   goalReports,
@@ -677,11 +677,11 @@ export default function App() {
   }, [career.research.done, career.mode, fleet]);
 
   /** Airports open whatever their level: the home airport, built-up ones and every one a route touches. */
-  const airportExempt = useMemo(() => exemptAirports(selectedHub, airportManagement, routes), [selectedHub, airportManagement, routes]);
+  const airportStanding = useMemo(() => airportStandings(selectedHub, airportManagement, routes), [selectedHub, airportManagement, routes]);
   /** Why an airport cannot be used at the current rank, or null; see airportAccess.ts. */
   const airportRankGate = React.useCallback(
-    (airport: { id: string; name?: string; level?: number } | null | undefined) => airportGate(airport, career.rank, airportExempt),
-    [career.rank, airportExempt]
+    (airport: { id: string; name?: string; level?: number } | null | undefined) => airportGate(airport, career.rank, airportStanding),
+    [career.rank, airportStanding]
   );
 
   /** The year of the chosen annual goal as it stands (model `yearSnapshot`, 6.11), for its progress bar. */

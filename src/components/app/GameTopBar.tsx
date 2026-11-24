@@ -7,12 +7,12 @@ import type { OwnedAircraft } from '../MyFleetView';
 import React from 'react';
 import { GameMenuOption, GameStat } from './AppChrome';
 import { Button } from '../ui/Button';
-import { LITRES_PER_GALLON, formatCurrency, formatNumber } from '../../lib/format';
+import { formatCurrency, formatNumber } from '../../lib/format';
 import { AlertTriangle, Bell, Newspaper, X } from 'lucide-react';
 import { eventRegionLabel } from '../../lib/eventSystem';
 import { eventEffect, type CreditStatus } from '../../lib/modelCompany';
 import { isPaidChoice, type BandEvent } from '../../lib/modelEvents';
-import { CREDIT_LIMIT_SHARE, CREDIT_RATE } from '../../model/constants';
+import { CREDIT_LIMIT_SHARE, CREDIT_RATE, LITRES_PER_GALLON } from '../../model/constants';
 
 export interface GameTopBarProps {
   capital: number;

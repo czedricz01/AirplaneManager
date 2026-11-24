@@ -51,7 +51,7 @@ export function tripBlockMinutes(legMinutes: number, turnMinutes: number, oneWay
 /**
  * Flüge je Tag (E51): so viele Umläufe passen hintereinander in die längste freie Zeit, die die **übrigen Strecken
  * desselben Flugzeugs** an einem Tag lassen. Ab einer Umlaufzeit von einem halben Tag höchstens 1 (die Regel des
- * Planers, heute `RoutePlannerView.tsx:1607`). 0, wenn kein Umlauf passt; der Regler „Multiple Ops“ zeigt dann 1.
+ * Planers, vor Paket 4.4 in `RoutePlannerView.tsx`). 0, wenn kein Umlauf passt; der Regler „Multiple Ops“ zeigt dann 1.
  *
  * @param cycleMinutes Umlaufzeit (`tripBlockMinutes`).
  * @param freeRunMinutes Längste freie Zeit für eine Folge von Umläufen ab einem Tag, höchstens `MINUTES_PER_DAY`

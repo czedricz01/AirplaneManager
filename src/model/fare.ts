@@ -53,7 +53,7 @@ export type PartialClassFigures = Readonly<Partial<Record<CabinClass, number>>>;
 
 /**
  * Preis-Faktor beim Flugzeit-Index `timeIndex` (1 … 8, stufenlos): gerade Linie zwischen den Tabellenwerten
- * `FARE_TIME_FACTOR` (wie heute `byTimeIndex`, `src/lib/financeUtils.ts:271-276`). SPEZIFIKATION 4.1.
+ * `FARE_TIME_FACTOR` (wie im Alt-Code `byTimeIndex`, `src/lib/financeUtils.ts:271-276`). SPEZIFIKATION 4.1.
  */
 export function fareTimeFactor(timeIndex: number): number {
   const table = FARE_TIME_FACTOR;
