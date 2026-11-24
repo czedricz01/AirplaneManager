@@ -7,8 +7,10 @@
  */
 
 import { SCENARIOS } from '../data/scenarios';
+import { disruptionCharterEstimate } from '../lib/modelMonthClose';
 import { costIndex } from '../model/basics';
 import {
+  AIRPORT_STRIKE_CANCEL_SHARE,
   CREDIT_RATE,
   DEALER_SPREAD_BUY,
   DEALER_SPREAD_SELL,
@@ -29,14 +31,15 @@ import {
 } from '../model/constants';
 import { fuelTable } from '../model/costs';
 import { aircraftValue, newPrice, type ValuedAircraft } from '../model/fleet';
-import { creditInterest, creditLimit, overhaulQuote, preorderDeliveryMonth, preorderDiscount, preorderUnitPrice, saleProceeds, usedPrice } from '../model/fleetMarket';
+import { creditInterest, creditLimit, overhaulQuote, refitLabour, refitPrice, preorderDeliveryMonth, preorderDiscount, preorderUnitPrice, saleProceeds, usedPrice } from '../model/fleetMarket';
+import { monthOperations, type CompanyOperations } from '../model/monthClose';
 import { charterAdvantage, charterFee, defectChance, flownHours, historicalEvent, monthlyWear, recoveryPrice } from '../model/monthEvents';
 import { researchEffects } from '../model/progress';
 import { rivalAircraft } from '../model/rivals';
 import { reputationAfter } from './career';
 import { musd, num, pct, usd, type Check, type Section, type Table } from './report';
-import { bestFareRatios, ROUTE_CASES, runCase, type CaseResult, type RouteCase } from './routes';
-import { catalogType, monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, type MarketSpec } from './world';
+import { bestFareRatios, caseMarket, ROUTE_CASES, runCase, type CaseResult, type RouteCase } from './routes';
+import { catalogType, marketState, monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, seatsTotal, type MarketSpec } from './world';
 
 /** Größter Verkaufs-Bonus aus Forschung (resale-1 + resale-2, 6.9). */
 export const MAX_RESALE_BONUS = researchEffects(['resale-1', 'resale-2']).resaleBonus;
@@ -145,6 +148,54 @@ export function charterCase(result: CaseResult, label = result.c.label): Charter
   };
 }
 
+/**
+ * Schätzung der Störungs-Frage gegen die Rechnung des Monats (Paket 5.3a, „Offen aus 5.2e“ (1)). Die Frage schätzt aus
+ * den Zahlen des Monats ohne Störung (`disruptionCharterEstimate`); die Rechnung rechnet denselben Monat einmal mit
+ * gestrichenen und einmal mit gecharterten Flügen (`monthOperations`). Alle Beträge je Monat.
+ */
+export interface CharterEstimateCase {
+  readonly label: string;
+  /** Auslastung ohne Störung. */
+  readonly load: number;
+  /** Erlös der betroffenen Flüge nach der Schätzung. */
+  readonly estimatedRevenue: number;
+  /** Erlös ohne Störung − Erlös mit gestrichenen Flügen (Rechnung). */
+  readonly realRevenueLoss: number;
+  /** Vorteil von Charter nach der Schätzung. */
+  readonly estimatedAdvantage: number;
+  /** Monatsergebnis mit Charter − mit gestrichenen Flügen (Rechnung; Ergebnis = Strecken-Ergebnis − Charter-Kosten). */
+  readonly realAdvantage: number;
+  /** Charter-Gebühr nach der Schätzung und gebucht (`charterCost`). */
+  readonly estimatedFee: number;
+  readonly realFee: number;
+}
+
+export function charterEstimateCase(result: CaseResult, label = result.c.label, share = AIRPORT_STRIKE_CANCEL_SHARE): CharterEstimateCase {
+  const market = caseMarket(result.c, result.best, result.c.departures);
+  const base = marketState(market);
+  const run = (charter?: boolean): CompanyOperations =>
+    monthOperations({
+      ...base,
+      disruptions: charter === undefined ? [] : [{ month: market.month, kind: 'airportStrike', target: market.from, share, charter }],
+      companies: base.companies.map((c) => ({ ...c, inputs: { ...c.inputs, charter: true } })),
+    }).a;
+  const none = run();
+  const cancelled = run(false);
+  const chartered = run(true);
+  const monthResult = (o: CompanyOperations) => o.routes[0].result * WEEKS_PER_MONTH - o.charter;
+  const estimate = disruptionCharterEstimate({ routeIds: [none.routes[0].routeId], cancelShare: share }, none.routes);
+  return {
+    label,
+    load: result.load,
+    estimatedRevenue: estimate.revenue,
+    realRevenueLoss: none.revenue - cancelled.revenue,
+    estimatedAdvantage: estimate.advantage,
+    realAdvantage: monthResult(chartered) - monthResult(cancelled),
+    estimatedFee: estimate.fee,
+    realFee: chartered.charter,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // 8.11–8.13 Flottenmarkt
 // ---------------------------------------------------------------------------
@@ -160,6 +211,31 @@ export function typicalCondition(age: number): { readonly airframe: number; read
 export function valuedPlane(typeId: string, built: number, airframe: number, cabin: number): ValuedAircraft {
   const p = rivalAircraft('flag', catalogType(typeId), built, 'balance');
   return { ...p, airframeCondition: airframe, cabinCondition: cabin };
+}
+
+/** Strecken für den Kabinen-Umbau (B8.11). */
+export const REFIT_ROUTES = ['A320ceo FRA–MAD 1990', 'A320ceo FRA–MAD 2019', 'A330-300 FRA–JFK 2019', 'ATR 72-200 HAM–NUE 1990'];
+
+/** Kabinen-Umbau eines neuen Flugzeugs der Strecke auf dieselbe Kabine (8.13). */
+export interface RefitCase {
+  readonly label: string;
+  readonly seats: number;
+  readonly labour: number;
+  readonly price: number;
+  readonly monthlyResult: number;
+}
+
+export function refitCase(result: CaseResult): RefitCase {
+  const month = sampleMonth(result.c.year);
+  const plane = rivalAircraft(result.c.personality, catalogType(result.c.typeId), month, 'balance');
+  const seats = seatsTotal(plane.seats);
+  return {
+    label: result.c.label,
+    seats,
+    labour: refitLabour(seats, month),
+    price: refitPrice(plane.cabinListPrice1960, seats, month),
+    monthlyResult: result.route.result * WEEKS_PER_MONTH,
+  };
 }
 
 /** Händler-Spanne eines Flugzeugs im Alter `age`. */
@@ -214,8 +290,12 @@ export function overhaulCase(label: string, typeId: string, built: number, month
 // 8.15 Szenario „Oil Shock“ (Ruf-Ziel 55)
 // ---------------------------------------------------------------------------
 
-/** Neues Ruf-Ziel des Szenarios (8.15, 6.15). */
-export const SCENARIO_REPUTATION_TARGET = 55;
+/** Ruf-Ziel des Szenarios aus den Daten (`src/data/scenarios.ts`; 8.15, 6.15: 55). */
+export const SCENARIO_REPUTATION_TARGET = ((): number => {
+  const goal = SCENARIOS.find((s) => s.id === 'oil-shock')?.win.find((g) => g.kind === 'target' && g.metric === 'reputation');
+  if (!goal || goal.kind !== 'target') throw new Error('Szenario oil-shock ohne Ruf-Ziel');
+  return goal.target;
+})();
 
 /** Eine Ausstattung im Szenario: Persönlichkeit der Kabine und Kabinen-Zustand (Zelle bleibt 60). */
 interface ScenarioSetup {
@@ -342,6 +422,33 @@ export function eventSection(inputs: EventInputs, recovery: readonly RecoveryCas
     note: 'Vorteil = Erlös − Kosten je Fluggast − Charter-Gebühr (`charterAdvantage`, 8.9); die eigenen Flugkosten entfallen in beiden Fällen. Dazu kein Ruf-Abzug mit Charter (6.2).',
   });
 
+  // ---- 8.9 Schätzung der Störungs-Frage (5.3a) ----
+  const estimates = [...results.map((r) => charterEstimateCase(r)), ...inputs.smallMarket.map((r) => charterEstimateCase(r, `${r.c.label} × 0,25`))];
+  const ratio = (a: number, b: number) => (Math.abs(b) > 1 ? a / b : Number.NaN);
+  const revRatios = estimates.map((e) => ratio(e.realRevenueLoss, e.estimatedRevenue)).filter(Number.isFinite);
+  const wrongSign = estimates.filter((e) => e.estimatedAdvantage > 0 !== e.realAdvantage > 0);
+  checks.push({
+    id: 'B8.10',
+    spec: '8.9, R2',
+    rule: `Schätzung der Störungs-Frage (\`disruptionCharterEstimate\`, Flughafen-Streik ${pct(AIRPORT_STRIKE_CANCEL_SHARE)}) gegen die Rechnung des Monats mit und ohne Charter`,
+    value: `echter Erlösverlust ÷ geschätzter Erlös ${pct(Math.min(...revRatios))} … ${pct(Math.max(...revRatios))}; Empfehlung (Charter besser oder schlechter) falsch in ${wrongSign.length} von ${estimates.length} Fällen${wrongSign.length ? ` (${wrongSign.map((e) => e.label).join(', ')})` : ''}`,
+    verdict: 'info',
+  });
+  tables.push({
+    title: 'Schätzung der Störungs-Frage gegen die Rechnung (Flughafen-Streik am Start-Flughafen, Monat, Strecken beim besten Preis)',
+    header: ['Strecke', 'Auslastung', 'Erlös betroffen (Schätzung)', 'Erlösverlust (Rechnung)', 'Vorteil Charter (Schätzung)', 'Vorteil Charter (Rechnung)', 'Gebühr Schätzung / gebucht'],
+    rows: estimates.map((e) => [
+      e.label,
+      pct(e.load),
+      usd(e.estimatedRevenue),
+      `${usd(e.realRevenueLoss)} (${pct(ratio(e.realRevenueLoss, e.estimatedRevenue))})`,
+      usd(e.estimatedAdvantage),
+      usd(e.realAdvantage),
+      `${usd(e.estimatedFee)} / ${usd(e.realFee)}`,
+    ]),
+    note: 'Schätzung aus dem Monat ohne Störung (wie die Frage aus dem Abschluss X). Rechnung: derselbe Monat mit `disruptions` (gestrichen bzw. gechartert), Vorteil = Monatsergebnis mit Charter − mit Streichen. Beim Streichen verteilt das Modell die Fluggäste auf die übrigen Sitze (8.9); der echte Erlösverlust ist darum kleiner, je mehr Sitze frei sind.',
+  });
+
   // ---- 8.11 Händler-Spanne ----
   const built = sampleMonth(1990);
   const spreads = [0, 5, 10, 20].map((age) => spreadCase('a320ceo', built, age));
@@ -418,6 +525,22 @@ export function eventSection(inputs: EventInputs, recovery: readonly RecoveryCas
       pct((o.defectBefore - o.defectAfter) * DEFECT_CANCEL_SHARE * 12, 2),
     ]),
     note: 'Ohne Hangar (Defekt-Chance). „Weniger gestrichene Flüge je Jahr“ = Anteil der Flüge des Flugzeugs im Jahr (Defekt streicht 50 % eines Monats). Mit Hangar ist der Netto-Preis (Preis − Wertgewinn) 0, sobald der Wertgewinn den Mindestpreis übersteigt.',
+  });
+
+  // ---- 8.13 Kabinen-Umbau (5.3a) ----
+  const refits = REFIT_ROUTES.map((label) => refitCase(results.find((r) => r.c.label === label) ?? runCase(ROUTE_CASES.find((c) => c.label === label) as RouteCase)));
+  checks.push({
+    id: 'B8.11',
+    spec: '8.13',
+    rule: `Kabinen-Umbau (Kabine + \`REFIT_PER_SEAT_1960\` × Sitze, mit Kostenindex): Preis in Monatsergebnissen der Strecke`,
+    value: refits.map((r) => `${r.label}: ${num(r.price / r.monthlyResult, 1)} (Lohn ${num(r.labour / r.monthlyResult, 2)})`).join('; '),
+    verdict: 'info',
+  });
+  tables.push({
+    title: 'Kabinen-Umbau auf dieselbe Kabine (Flag), Strecke beim besten Preis',
+    header: ['Strecke', 'Sitze', 'Kabine', 'Umbau-Lohn', 'Preis', 'Monatsergebnis der Strecke', 'Preis ÷ Monatsergebnis'],
+    rows: refits.map((r) => [r.label, num(r.seats), musd(r.price - r.labour, 2), musd(r.labour, 2), musd(r.price, 2), musd(r.monthlyResult, 2), num(r.price / r.monthlyResult, 1)]),
+    note: '`refitPrice` (8.13): `atCost(cabinListPrice)` + `refitLabour`. Der Lohn war früher Typ-Kapazität × 1 000 $ ohne Kostenindex. Wie oft umgebaut wird, zeigt der Verschleiß (B8.7, Kabine 50 nach etwa 6–7 Jahren auf Langstrecke).',
   });
 
   // ---- 8.10 Verschleiß ----

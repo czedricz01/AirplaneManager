@@ -498,3 +498,64 @@ Prüfregel 7.14 ist erfüllt: Ohne Zuschuss ist der Median der Jahre bis zur Auf
 „ähnlicher Erfolg“ gilt (Fund 32). Nach E68 ist `RIVAL_SUBSIDY_ENABLED = false` (`src/model/constants.ts`). Die Zeile
 „Subsidy“ bleibt im Monatsergebnis (immer 0). Das Balance-Skript rechnet „ohne Zuschuss“ nur noch, solange der Schalter
 an ist; B7.1 heißt dann „Zuschuss abgeschafft“, B7.2 steht als Info im Bericht.
+
+## Ergebnis Paket 5.3a (Balance-Bericht nach Phase 5, gesammelte 5.3-Punkte)
+
+Bericht mit Langläufen: `balance/5.3a-bericht.md` (LANGLAUF_ZAEHLUNG). Abschnitte 1–6 und 8 rechnen dieselben Zahlen
+wie 3.9e (Phase 4 und 5 haben das Modell der Beispiele nicht verändert); neu sind drei Info-Prüfungen (F79).
+
+### Fund 34: Die Charter-Schätzung empfiehlt richtig, überschätzt aber den Betrag (B8.10) → O71
+
+Flughafen-Streik (60 %) am Start-Flughafen, Monat mit gestrichenen und mit gecharterten Flügen gerechnet
+(`monthOperations`), gegen die Schätzung der Frage aus dem Monat ohne Störung (`disruptionCharterEstimate`):
+
+| Strecke | Auslastung | echter Erlösverlust ÷ Schätzung | Vorteil Charter geschätzt | echt |
+|---|---|---|---|---|
+| Caravelle III FRA–CDG 1962 | 100 % | 100 % | 141 025 $ | 140 958 $ |
+| A320ceo FRA–MAD 1990 | 86 % | 85 % | 641 643 $ | 486 402 $ |
+| A330-300 FRA–JFK 1995 | 89 % | 79 % | 777 188 $ | 393 840 $ |
+| 787-9 FRA–SIN 2019 | 97 % | 93 % | 876 583 $ | 685 712 $ |
+| A330-300 FRA–JFK 1995 × 0,25 | 12 % | 24 % | −200 388 $ | −2 044 795 $ |
+
+- Die Empfehlung (Charter besser oder schlechter als Streichen) stimmt in allen 14 Fällen; die Gebühr ist genau die
+  gebuchte.
+- Beim Streichen verteilt das Modell die Fluggäste auf die übrigen Sitze. Je mehr Sitze frei sind, desto kleiner der
+  echte Verlust: Bei 86–89 % Auslastung überschätzt die Frage den Vorteil um 30–100 %.
+- Preise von X statt X+1 („Offen aus 5.2e“ (2)): Der Kostenindex ändert sich je Monat um höchstens 0,1 %; der
+  Treibstoff aber in 33 Krisen-Monaten um mehr als 5 % (größter Schritt +26 %, 09/1973). Dann liegt auch die Gebühr daneben.
+- Beides löst Weg B von O71 (die Frage rechnet den Monat X+1 mit dem Modell).
+
+### Fund 35: Werbung trägt sich ab 11–24 Strecken (B6.9) → Info, kein Handlungsbedarf
+
+Kampagnen kosten mit dem Kostenindex weniger als früher (4.8 (5): 2015 national 770 882 $ statt 2 032 859 $). Eine
+Kampagne hebt die Fluggäste einer A320ceo-Strecke beim festen besten Preis um 0,6 % (local), 1,3 % (national), 2,2 %
+(global); das Mehr-Ergebnis deckt die Kosten ab 12 / 17 / 24 gleich großen Strecken (1990) bzw. 11 / 15 / 21 (2019).
+Werbung ist damit ein Werkzeug für mittlere und große Netze, nicht für den Start. Mit Rivalen auf denselben Paaren
+wirkt sie stärker (Anziehung gegen andere Angebote statt gegen „Nicht fliegen“).
+
+### Fund 36: Kabinen-Umbau kostet 0,4–2,3 Monatsergebnisse (B8.11) → Info, kein Handlungsbedarf
+
+Umbau auf dieselbe Kabine: A320ceo 1990 0,39 Mio. $ (Lohn 0,19), 2019 1,29 Mio. $ (Lohn 0,27); A330-300 2019
+2,36 Mio. $ (Lohn 0,65); ATR 72-200 1990 0,14 Mio. $ (Lohn 0,10). Das sind 0,4 (Kurz- und Mittelstrecke) bis 2,3
+(Langstrecke) Monatsergebnisse der Strecke, etwa alle 6–7 Jahre (B8.7). Der Lohn mit Kostenindex (4.6a (3)) ist
+höchstens ein Drittel des Preises; spürbar, aber klein.
+
+### Fund 37: Szenario-Ziele rechneten anders als die Anzeige (8.15) → behoben bzw. O72
+
+- `minWeeklyFlights` („30 city pairs with daily service“, Deregulation): Der Abschluss zählte die Zahl der Strecken,
+  die Anzeige tägliche Städtepaare. 30 Strecken mit beliebiger Frequenz (auch mehrere auf einem Paar) hätten gewonnen.
+  Behoben (F79): `servedCityPairs` im Modell, die Anzeige ruft sie.
+- „Oil Shock“ verlangte in den Daten Ruf 60, 8.15 sagt 55; mit 60 erreicht keine Ausstattung das Ziel (beste 58,1).
+  Behoben (F79).
+- Eigene Kassen-Untergrenze (−5 Mio. $, 0 $): Daten und Anzeige rechnen damit, der Abschluss mit −Kreditlinie → O72.
+
+### Fund 38: Spielstart mit 12 KI ist schnell („Offen aus 5.2b“ (4)) → kein Handlungsbedarf
+
+`foundStartRivals` (Node, je 3 Startwerte): 6 KI 0,06–0,17 s, 10 KI 0,05–0,25 s, 12 KI 0,06–0,23 s (1960 AAL und FRA,
+1995 FRA, 2010 JFK); immer alle gegründet. Die ersten vier Abschlüsse mit 12 KI 0,10–0,32 s. Die etwa 3 s beim
+Spielstart im Browser (5.2b) kommen also nicht aus der Gründung; was sie kostet, misst 5.3b im Browser.
+
+### Fund 39: KI darf Widebody-Slots an Flughäfen der Größe 2 kaufen, der Spieler nicht → O73
+
+`WIDEBODY_SLOTS_FROM_SIZE` (3) gilt nur in der Oberfläche; die KI prüft nur die Bahn. Nach der Bahn sind alle
+176 Flughäfen der Größe 2 für Widebodies offen (Codes D–F), die 36 der Größe 1 nicht.

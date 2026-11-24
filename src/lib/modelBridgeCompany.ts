@@ -602,6 +602,7 @@ export function modelScenario(s: AppScenario): ModelScenario {
       metric: g.metric,
       target: SCENARIO_DOLLAR_METRICS.includes(g.metric) ? g.target / per1960 : g.target,
       ...(g.atDeadline ? { atDeadline: true } : {}),
+      ...(g.minWeeklyFlights !== undefined ? { minWeeklyFlights: g.minWeeklyFlights } : {}),
     })),
     floorMonths: def.lose[0]?.months ?? Number.POSITIVE_INFINITY,
     deadline: def.deadlineOffset,

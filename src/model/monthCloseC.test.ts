@@ -23,6 +23,7 @@ import {
   NO_DECISIONS,
   plannerRouteResult,
   scenarioStep,
+  servedCityPairs,
   scenarioTarget,
   sellAircraft,
   type AircraftState,
@@ -398,7 +399,7 @@ describe('Abschnitt 8.15 Szenario-Ziele', () => {
     status: 'running',
     ...extra,
   });
-  const values = { capital: 0, monthlyProfit: 0, reputation: 50, routes: 1, regions: 1, transferPax: 0, creditLimit: 5_000_000, bankrupt: false };
+  const values = { capital: 0, monthlyProfit: 0, reputation: 50, routes: [{ from: 'FRA', to: 'MAD', departuresPerWeek: 14 }], regions: 1, transferPax: 0, creditLimit: 5_000_000, bankrupt: false };
 
   it('8.15: Ziel-Beträge 2020 = Wert 1960 × costIndex 2020; Ruf-Ziele ohne Umrechnung', () => {
     const m2020 = (2020 - 1960) * 12;
@@ -419,6 +420,23 @@ describe('Abschnitt 8.15 Szenario-Ziele', () => {
     const target = scenarioTarget({ metric: 'capital', target: 10_000_000 }, M);
     assert.equal(scenarioStep(scenario(), { ...values, capital: target }, M).status, 'won');
     assert.equal(scenarioStep(scenario(), { ...values, capital: target - 1 }, M + 24).status, 'lost');
+  });
+
+  it('8.15: Ziel `routes` zählt Städtepaare mit `minWeeklyFlights` Hin- und Rückflügen je Woche, beide Richtungen und alle Flugzeuge zusammen', () => {
+    const routes = [
+      { from: 'JFK', to: 'BOS', departuresPerWeek: 8 }, // 4 + 3 = 7 je Woche auf einem Paar: täglich
+      { from: 'BOS', to: 'JFK', departuresPerWeek: 6 },
+      { from: 'JFK', to: 'ORD', departuresPerWeek: 12 }, // 6 je Woche: nicht täglich
+      { from: 'JFK', to: 'MIA', departuresPerWeek: 14 },
+      { from: 'JFK', to: 'MIA', departuresPerWeek: 14 }, // zweites Flugzeug: dasselbe Paar
+    ];
+    assert.equal(servedCityPairs(routes), 3);
+    assert.equal(servedCityPairs(routes, 7), 2);
+    const daily = scenario({ win: [{ id: 'routes', metric: 'routes', target: 2, minWeeklyFlights: 7 }] });
+    assert.equal(scenarioStep(daily, { ...values, routes }, M).status, 'won');
+    assert.equal(scenarioStep(daily, { ...values, routes: routes.slice(0, 3) }, M).status, 'running', 'nur ein täglicher Dienst');
+    const any = scenario({ win: [{ id: 'routes', metric: 'routes', target: 4 }] });
+    assert.equal(scenarioStep(any, { ...values, routes }, M).status, 'running', 'fünf Strecken, aber drei Paare');
   });
 
   it('8.15: das Kassen-Ziel prüft die Kasse am Monatsende nach allen Buchungen (R11)', () => {
