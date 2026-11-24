@@ -31,6 +31,7 @@ import type { StaffStrike } from '../model/monthEvents';
 import type { MonthlyCosts } from '../model/costTotals';
 import { historicalEvents, eventKey } from './eventSystem';
 import { createOwnedAircraft, defaultCabin } from './fleet';
+import { formatCurrency } from './format';
 import { modelCabin } from './modelBridge';
 import type { Career, Marketing, RegionId, ScenarioState as AppScenario, Staff } from './gameState';
 import type { MonthlyReport, ReportLine, SimulatedRoute } from './gameTypes';
@@ -589,8 +590,9 @@ export function appReport(report: MonthReport, ctx: AppReportContext): MonthlyRe
 /**
  * Szenario der Oberfläche als `ScenarioState` des Modells (8.15). Ziele aus `src/data/scenarios.ts`; Dollar-Ziele
  * gelten als $ des Startmonats und werden in $ von 1960 umgerechnet (`SCENARIO_DOLLAR_METRICS`, E6). Verlust: so viele
- * Monatsenden in Folge unter −Kreditgrenze, wie die erste Untergrenze des Szenarios Monate hat (Lesart von E34;
- * ohne Untergrenze nie). Erreichte Ziele und Serie wie gespeichert (neue Felder, fehlt = keine).
+ * Monatsenden in Folge unter der ersten Untergrenze des Szenarios, wie sie Monate hat (Lesart von E34; ohne
+ * Untergrenze nie): `'creditLine'` = −Kreditgrenze, sonst ihre Schwelle in $ des Startmonats, umgerechnet in $ von
+ * 1960 (E77). Erreichte Ziele und Serie wie gespeichert (neue Felder, fehlt = keine).
  */
 export function modelScenario(s: AppScenario): ModelScenario {
   const def = scenarioById(s.id);
@@ -605,6 +607,7 @@ export function modelScenario(s: AppScenario): ModelScenario {
       ...(g.minWeeklyFlights !== undefined ? { minWeeklyFlights: g.minWeeklyFlights } : {}),
     })),
     floorMonths: def.lose[0]?.months ?? Number.POSITIVE_INFINITY,
+    ...(typeof def.lose[0]?.threshold === 'number' ? { floorThreshold: def.lose[0].threshold / per1960 } : {}),
     deadline: def.deadlineOffset,
     floorStreak: s.floorStreak ?? 0,
     met: [...(s.met ?? [])].sort(),
@@ -626,7 +629,7 @@ export function applyScenario(before: AppScenario, s: ModelScenario, month: numb
     s.status === 'won'
       ? 'Every goal met.'
       : s.floorStreak >= s.floorMonths
-        ? `Cash below the credit line at ${s.floorStreak} month-end${s.floorStreak === 1 ? '' : 's'} in a row.`
+        ? `Cash below ${s.floorThreshold === undefined ? 'the negative credit line' : formatCurrency(atCost(s.floorThreshold, month))} at ${s.floorStreak} month-end${s.floorStreak === 1 ? '' : 's'} in a row.`
         : 'The deadline passed with goals still open.';
   return { ...out, result: { offset: month, reason } };
 }

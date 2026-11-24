@@ -19,7 +19,8 @@ const ctx = (over: Partial<ScenarioContext> = {}): ScenarioContext => ({
   regionsServed: 1,
   transferPaxMonth: 0,
   monthlyProfit: 0,
-  capitalHistory: [20_000_000],
+  floorStreak: 0,
+  creditLimit: 10_000_000,
   ...over
 });
 
@@ -75,4 +76,22 @@ test('the briefing names every goal and every way to lose', () => {
   }
   assert.match(scenarioBriefing(oilShock), /decided at the close of 12\/1976/);
   assert.match(scenarioBriefing(jetAge), /won on the spot/);
+});
+
+test('E77: the floor is the model\'s: the negative credit line, or the scenario\'s own threshold', () => {
+  const lose = (s: typeof oilShock, c: Partial<ScenarioContext> = {}) => scenarioGoals(s, ctx(c)).find(g => g.kind === 'lose')!;
+  const bankrupt = lose(deregulation, { offset: deregulation.startOffset, creditLimit: 12_000_000, capital: -13_000_000, floorStreak: 2 });
+  assert.equal(bankrupt.target, -12_000_000);
+  assert.equal(bankrupt.streak, 2);
+  assert.equal(bankrupt.months, 3);
+  assert.equal(bankrupt.below, true);
+  assert.equal(bankrupt.done, false);
+  assert.equal(lose(deregulation, { floorStreak: 3 }).done, true);
+  assert.equal(lose(deregulation, { capital: -9_000_000 }).below, false);
+  assert.match(deregulation.lose[0].label, /negative credit line/);
+  // Oil Shock: never below $0, whatever the credit line.
+  const solvent = lose(oilShock, { offset: oilShock.startOffset + 10, creditLimit: 50_000_000, capital: -1 });
+  assert.equal(solvent.target, 0);
+  assert.equal(solvent.below, true);
+  assert.equal(solvent.months, 1);
 });

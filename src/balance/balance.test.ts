@@ -138,6 +138,13 @@ describe('Balance-Skript: Langläufe (3.9b)', () => {
     assert.ok(withSubsidy.years[1].companies.some((c) => c.routes > 0));
   });
 
+  it('E78: keine KI-Strecke mit Widebody an einem Flughafen unter Größe 3', () => {
+    for (const y of [...withSubsidy.years, ...without.years]) {
+      assert.ok(y.widebodyRoutes !== undefined);
+      assert.equal(y.widebodyRoutesSmallAirport, 0);
+    }
+  });
+
   it('runLong: Auslastung und Marge je Längen-Band zählen jede Strecke genau einmal (E67)', () => {
     for (const y of withSubsidy.years) {
       const bands = y.byLength;
@@ -226,11 +233,14 @@ describe('Balance-Skript: Abschnitte 6 und 8 (3.9c)', () => {
     for (const c of o.cases) assert.ok(Number.isFinite(c.reputationAtDeadline) && c.reputationAtDeadline > 0);
   });
 
-  it('5.3a: Störungs-Schätzung bucht dieselbe Gebühr wie der Abschluss; der echte Erlösverlust ist nie größer als geschätzt', () => {
+  it('E76: Beträge der Störungs-Frage = Rechnung des Monats (Erlösverlust, Gebühr, Vorteil)', () => {
     const e = charterEstimateCase(runCase(A320_1990));
-    assert.ok(Math.abs(e.estimatedFee - e.realFee) < 1e-6 * e.realFee);
-    assert.ok(e.realRevenueLoss > 0 && e.realRevenueLoss <= e.estimatedRevenue + 1e-6);
-    assert.ok(e.estimatedAdvantage > 0 && e.realAdvantage > 0, 'Strecke mit Gewinn: Charter lohnt (8.9)');
+    const near = (a: number, b: number) => assert.ok(Math.abs(a - b) <= 1e-6 * Math.abs(b), `${a} ≠ ${b}`);
+    near(e.estimatedFee, e.realFee);
+    near(e.estimatedRevenue, e.realRevenueLoss);
+    near(e.estimatedAdvantage, e.realAdvantage);
+    assert.ok(e.realRevenueLoss > 0 && e.realRevenueLoss <= e.naiveRevenue + 1e-6);
+    assert.ok(e.estimatedAdvantage > 0, 'Strecke mit Gewinn: Charter lohnt (8.9)');
   });
 
   it('5.3a: Werbung bringt Mehr-Ergebnis; Umbau = Kabine + Lohn', () => {

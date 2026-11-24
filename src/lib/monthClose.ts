@@ -8,7 +8,7 @@
  */
 import { monthOf, yearOf } from './format';
 import { HistoricalEvent, eventScope } from './eventSystem';
-import { GameMessage, MonthlyReport, SimulatedRoute } from './gameTypes';
+import { GameMessage, SimulatedRoute } from './gameTypes';
 import { ScenarioContext } from './scenarioEval';
 
 export const offsetToDateStr = (offset: number) =>
@@ -81,14 +81,6 @@ export function addCapexItem(list: { label: string; amount: number }[], label: s
 
 /** The month a saved report closed, as an offset from 01/1960. */
 export const reportOffset = (r: { year: number; month: number }) => (r.year - 1960) * 12 + (r.month - 1);
-
-/** Capital at the month-ends a scenario has seen so far, oldest first, from the saved reports. */
-export function scenarioCapitalHistory(reports: MonthlyReport[], startedOffset: number): number[] {
-  return reports
-    .filter(r => r && reportOffset(r) >= startedOffset)
-    .map(r => r.capitalAfter)
-    .filter((capital): capital is number => typeof capital === 'number' && Number.isFinite(capital));
-}
 
 /** The player's routes as a scenario's goals count them: by city pair, with their weekly departures. */
 export const scenarioRoutes = (routes: SimulatedRoute[]): ScenarioContext['routes'] =>

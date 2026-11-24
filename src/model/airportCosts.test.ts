@@ -14,6 +14,7 @@ import {
   facilityPrice,
   facilityUpkeep,
   hasStands,
+  slotClassAvailable,
   isDeskTypeAvailable,
   managementTierPrice,
   ownerFeeIncome,
@@ -83,6 +84,15 @@ describe('Abschnitt 5.10 Abstellplätze', () => {
   it('5.10: nur an Flughäfen ab Größe 3', () => {
     assert.equal(hasStands(2), false);
     assert.equal(hasStands(3), true);
+  });
+
+  it('E78: Widebody-Slots erst ab Größe 3, für alle; Regional und Narrowbody überall', () => {
+    for (const size of [1, 2]) assert.equal(slotClassAvailable('Widebody', size), false);
+    for (const size of [3, 4, 5]) assert.equal(slotClassAvailable('Widebody', size), true);
+    for (const size of [1, 2, 3, 5]) {
+      assert.equal(slotClassAvailable('Regional', size), true);
+      assert.equal(slotClassAvailable('Narrowbody', size), true);
+    }
   });
 
   it('5.10 (E28): Stufe 0–1 zahlt Miete 150 / 300 / 600 $, ab Stufe 2 ist sie 0', () => {

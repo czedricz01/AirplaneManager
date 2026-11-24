@@ -87,14 +87,19 @@ export function ScenarioProgressPanel({ scenario, goals, monthsLeft }: ScenarioP
           })}
 
           {lose.map(g => {
-            const danger = (g.streak ?? 0) > 0;
+            const streak = g.streak ?? 0;
+            const danger = streak > 0 || g.below === true;
+            const floor = formatGoalValue('capitalFloor', g.target, true);
+            const ends = `${g.months} month-end${g.months === 1 ? '' : 's'} in a row end${g.months === 1 ? 's' : ''} the scenario.`;
             return (
               <div key={g.id} className={`flex items-start gap-2 text-2xs leading-snug ${danger ? 'text-bad' : 'text-muted'}`}>
                 <ShieldAlert size={12} className="shrink-0 mt-px" aria-hidden="true" />
                 <span>
-                  {danger
-                    ? `Bankruptcy watch: capital below ${formatGoalValue('capitalFloor', g.target, true)} at ${g.streak} month-end${g.streak === 1 ? '' : 's'} in a row. ${g.months} end${g.months === 1 ? 's' : ''} the scenario.`
-                    : g.label}
+                  {streak > 0
+                    ? `Bankruptcy watch: capital below ${floor} at ${streak} month-end${streak === 1 ? '' : 's'} in a row. ${ends}`
+                    : g.below
+                      ? `Capital is below ${floor} now; this month-end would count. ${ends}`
+                      : `${g.label} (now ${floor}).`}
                 </span>
               </div>
             );

@@ -62,23 +62,25 @@ test('the route screens name every cause, with the share the engine applies', ()
   assert.equal(striking.r3.share, 0.5);
 });
 
-test('5.2e: the question names fee, revenue kept and own flight costs from the model (8.9)', () => {
+test('5.2e, E76: the question names fee, revenue lost and own flight costs from the model (8.9)', () => {
   const estimate = { flights: 30.4, revenue: 120_000, passengerCost: 9_000, ownFlightCost: 40_000, fee: 60_000, advantage: 51_000 };
   const q = buildDisruptionDecision(disruption({ id: 'x', cancelShare: 0.5, ref: 'D-ABCD' }), '03/1975', estimate, () => 'FRA-LHR');
   const [charter, cancel] = q.options;
   assert.equal(charter.id, DISRUPTION_OPTION_CHARTER);
   assert.match(charter.detail, new RegExp(`${CHARTER_MARKUP} times your own fuel, crew and landing cost`));
   assert.match(charter.detail, /Fee about \$60,000/);
-  assert.match(charter.detail, /\$9,000 of passenger costs, about \$51,000 better than cancelling/);
+  assert.match(charter.detail, /\$9,000 of passenger costs, the month ends about \$51,000 better than cancelling/);
   assert.doesNotMatch(charter.detail, /% of the ticket revenue/);
   assert.equal(cancel.id, DISRUPTION_OPTION_CANCEL);
-  assert.match(cancel.detail, /\$120,000 of ticket revenue is lost/);
+  assert.match(cancel.detail, /about \$120,000 of ticket revenue is lost/);
   assert.doesNotMatch(cancel.detail, /\d+(\.\d+)? reputation/, 'no one-time reputation loss (E38)');
   assert.ok(q.options.every(o => o.cost === 0));
-  assert.match(q.description, /50% of the flights on FRA-LHR would not operate: about 30 flights with \$120,000/);
+  assert.match(q.description, /50% of the flights on FRA-LHR would not operate: about 30 flights\. Cancelling them loses about \$120,000 of ticket revenue/);
   assert.match(q.description, /saving about \$40,000 of fuel, crew and landing cost/);
+  assert.match(q.description, /Worked out for 03\/1975 with your current schedule and prices\./);
+  assert.doesNotMatch(q.description, /last month's figures/);
 
   const worse = buildDisruptionDecision(disruption({ id: 'y', cancelShare: 0.5 }), '03/1975', { ...estimate, flights: 0.3, advantage: -2_500 }, () => 'FRA-LHR');
   assert.match(worse.options[0].detail, /about \$2,500 worse than cancelling/);
-  assert.match(worse.description, /about 1 flight with/);
+  assert.match(worse.description, /about 1 flight\. Cancelling/);
 });

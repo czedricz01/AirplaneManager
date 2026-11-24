@@ -260,12 +260,16 @@ describe('Fortschritt (4.2c)', () => {
     const oil = modelScenario({ id: 'oil-shock', startedOffset: 165, status: 'running' });
     assert.equal(oil.win[0].target, 55, 'Ruf ohne Umrechnung (8.15: 55)');
     assert.equal(oil.win[0].atDeadline, true);
+    assert.equal(m.floorThreshold, undefined, 'Pleite: −Kreditlinie (E77)');
+    assert.equal(oil.floorThreshold, 0, 'Oil Shock: 0 $ (E77)');
+    assert.equal(oil.floorMonths, 1);
+    assert.match(applyScenario({ id: 'oil-shock', startedOffset: 165, status: 'running' }, { ...oil, floorStreak: 1, status: 'lost' }, M).result!.reason, /Cash below \$0 at 1 month-end in a row/);
     assert.equal(applyScenario(s, m, M), s);
     const won = applyScenario(s, { ...m, met: ['capital'], status: 'won' }, M);
     assert.deepEqual(won.result, { offset: M, reason: 'Every goal met.' });
     assert.deepEqual(won.met, ['capital']);
     const lost = applyScenario(s, { ...m, floorStreak: 3, status: 'lost' }, M);
-    assert.match(lost.result!.reason, /3 month-ends/);
+    assert.match(lost.result!.reason, /below the negative credit line at 3 month-ends/);
     assert.throws(() => modelScenario({ id: 'moon', startedOffset: 0, status: 'running' }), /Unbekanntes Szenario/);
   });
 

@@ -28,7 +28,7 @@ import {
 import { companyValue } from '../model/progress';
 import { RIVAL_INPUTS, pickStartAircraft, rivalAircraft, rivalStartCash, rivalStartSetup, startFleetKinds } from '../model/rivals';
 import { companyValueOf, newRivalAgent, rivalAgentOf, rivalDecisions, rivalHubViable, rivalRefill, rivalSize, rivalSlotCap } from '../model/rivalMonth';
-import { slotLimit } from '../model/airportCosts';
+import { slotClassAvailable, slotLimit } from '../model/airportCosts';
 import { rng } from '../model/rng';
 import { quantile } from './market';
 
@@ -231,6 +231,9 @@ export interface YearStats {
   readonly slotHoldingsAtCap: number;
   /** Größter Anteil aller KI zusammen an der Slot-Grenze eines Flughafens (5.10). */
   readonly maxAirportSlotShare: number;
+  /** Strecken mit Widebody (Klasse `Widebody`) im Januar, davon mit einem Ende unter Größe 3 (E78: soll 0 sein); fehlt in älteren Ergebnissen. */
+  readonly widebodyRoutes?: number;
+  readonly widebodyRoutesSmallAirport?: number;
   /** Umsteiger je Paar mit Direktangebot (nur in Mess-Jahren, sonst `undefined`). */
   readonly transfers?: TransferStats;
   /** Rechenzeit des Jahres in ms. */
@@ -328,6 +331,22 @@ function transferStats(state: ModelState): TransferStats {
 }
 
 /** Slots im Spielstand: Haltungen an der eigenen Grenze, größter Anteil aller an einem Flughafen. */
+/** Strecken mit Widebody im Spielstand, davon mit einem Ende, an dem es keine Widebody-Slots gibt (E78). */
+function widebodyStats(state: ModelState): { routes: number; small: number } {
+  let routes = 0;
+  let small = 0;
+  for (const c of state.companies) {
+    if (rivalAgentOf(c)?.distress.status === 'liquidated') continue;
+    const cls = new Map(c.aircraft.map((p) => [p.id, p.aircraftClass]));
+    for (const r of c.routes) {
+      if (cls.get(r.aircraftId) !== 'Widebody') continue;
+      routes++;
+      if ([r.from, r.to].some((id) => !slotClassAvailable('Widebody', state.airports[id]?.size ?? 1))) small++;
+    }
+  }
+  return { routes, small };
+}
+
 function slotStats(state: ModelState): { holdings: number; atCap: number; maxShare: number } {
   let holdings = 0;
   let atCap = 0;
@@ -458,6 +477,7 @@ export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, air
     }
     const offerCounts = [...pairCompanies.values()].map((set) => set.size);
     const slots = slotStats(state);
+    const widebody = widebodyStats(state);
     const fareByPersonality: Partial<Record<RivalPersonality, number>> = {};
     for (const [p, list] of fareByP) fareByPersonality[p] = spreadOf(list).median;
     const measureTransfers = (y + 1) % transferEvery === 0;
@@ -487,6 +507,8 @@ export function runLong(s: LongRunSettings, onYear?: (y: YearStats) => void, air
       slotHoldings: slots.holdings,
       slotHoldingsAtCap: slots.atCap,
       maxAirportSlotShare: slots.maxShare,
+      widebodyRoutes: widebody.routes,
+      widebodyRoutesSmallAirport: widebody.small,
       transfers: measureTransfers ? transferStats(state) : undefined,
       ms: Date.now() - yearStarted,
     };

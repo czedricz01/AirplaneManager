@@ -66,6 +66,28 @@ export function tripsPerDay(cycleMinutes: number, freeRunMinutes: number): numbe
 }
 
 /**
+ * Umlaufzeit eines Flugzeugs auf einer Strecke (`tripBlockMinutes` mit `timetableLegMinutes` und `turnaroundMinutes`),
+ * wie der Planer sie für den Fahrplan rechnet. SPEZIFIKATION 1.1, 7.9.
+ */
+export function aircraftTripMinutes(greatCircleKm: number, speedKmh: number, cls: AircraftClass): number {
+  return tripBlockMinutes(timetableLegMinutes(greatCircleKm, speedKmh), turnaroundMinutes(cls));
+}
+
+/**
+ * Höchste Umläufe je Woche (E51, 7.9): so viele Umläufe der Umlaufzeit `cycleMinutes` passen dicht hintereinander in die
+ * Zeit der Woche, die die übrigen Umläufe des Flugzeugs frei lassen (`busyMinutes` = Σ ihrer Umlaufzeiten). Für ein
+ * Flugzeug ohne andere Umläufe ist das genau die Zahl des Planers (`findMaxFlightStarts`, `src/lib/scheduleUtils.ts`:
+ * ganze Woche, keine Nachtpause); mit anderen Umläufen kann deren Lage im Planer weniger zulassen. 0, wenn keiner passt.
+ *
+ * @param cycleMinutes Umlaufzeit (`tripBlockMinutes`).
+ * @param busyMinutes Minuten der Woche, die andere Umläufe des Flugzeugs binden.
+ */
+export function weeklyTripCapacity(cycleMinutes: number, busyMinutes = 0): number {
+  if (!(cycleMinutes > 0)) throw new Error(`Ungültige Umlaufzeit: ${cycleMinutes}`);
+  return Math.max(0, Math.floor((MINUTES_PER_WEEK - Math.max(0, busyMinutes)) / cycleMinutes));
+}
+
+/**
  * Slots, die ein Umlauf an einem Ende belegt (1.6): ein Slot je Abflug. Der Hinflug fliegt am Start ab, der Rückflug
  * am Ziel; ein Einweg-Umlauf belegt nur am Start einen Slot. Ankünfte brauchen keinen. Für Umläufe mit Rückflug
  * gleich `departuresAt` (Abflüge je Woche an jedem Ende).

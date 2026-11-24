@@ -11,12 +11,14 @@ import { aircraftList } from '../data/aircraft';
 import { createOwnedAircraft, defaultCabin } from './fleet';
 import { createGameSystems } from './gameState';
 import type { AirportInfrastructure, SimulatedRoute } from './gameTypes';
-import { closeNewsMessages, defaultModelEnv, planesValue, type AppMonth } from './modelMonth';
-import { disruptionCharterEstimate, launchPreviewMessage, modelMonthClose, rivalViewsBefore, type ModelCloseInput } from './modelMonthClose';
+import { PLAYER_ID, closeNewsMessages, defaultModelEnv, planesValue, type AppMonth } from './modelMonth';
+import type { Disruption as AppDisruption } from './gameState';
+import { cancelledOperations, charterQuestionFigures, launchPreviewMessage, modelDisruptionOf, modelMonthClose, rivalViewsBefore, type ModelCloseInput } from './modelMonthClose';
 import { rivalMoves } from './newspaper';
 import { withTradeValue } from './modelBridgeCompany';
-import { WEEKS_PER_MONTH } from '../model/constants';
-import { charterCost, disruptionShares } from '../model/monthEvents';
+import { CHARTER_MARKUP, WEEKS_PER_MONTH } from '../model/constants';
+import { monthOperations } from '../model/monthClose';
+import type { Disruption } from '../model/monthEvents';
 
 const ENV = defaultModelEnv();
 const A320 = aircraftList.find((a) => a.id === 'a320ceo')!;
@@ -198,36 +200,46 @@ describe('Hilfen des Abschlusses (4.2f)', () => {
     assert.equal(jan?.id, 7);
   });
 
-  it('5.2e: Charter-Schätzung einer Störung aus den Strecken-Zahlen des Abschlusses (8.9)', () => {
-    const f = {
-      routeId: 'r1', plannedLegs: 14, shares: disruptionShares([{ share: 0.3, chartered: false }]),
-      revenue: 98_000, passengerCost: { catering: 4_000, fees: 2_300, ffp: 0, total: 6_300 }, flightOpsFull: 42_000,
-    };
-    const e = disruptionCharterEstimate({ routeIds: ['r1', 'neu'], cancelShare: 0.5 }, [f]);
-    const operated = 14 * 0.7;
-    const flights = 14 * WEEKS_PER_MONTH * 0.5;
-    const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≠ ${b}`);
-    near(e.flights, flights);
-    near(e.revenue, (98_000 / operated) * flights);
-    near(e.passengerCost, (6_300 / operated) * flights);
-    near(e.ownFlightCost, (42_000 / 14) * flights);
-    near(e.fee, 1.5 * e.ownFlightCost);
-    near(e.advantage, e.revenue - e.passengerCost - e.fee);
-    // Gebühr = was der Abschluss X+1 bucht, wenn die Störung gechartert wird (`charterCost`).
-    near(e.fee, charterCost([{ flightOpsWeekly: 42_000, plannedLegsPerWeek: 14, charteredShare: 0.5 }]));
-    // Strecke ohne Zahlen oder ohne durchgeführte Flüge: keine Schätzung.
-    const none = disruptionCharterEstimate({ routeIds: ['r1'], cancelShare: 0.5 }, [{ ...f, shares: disruptionShares([{ share: 1, chartered: false }]) }]);
-    assert.equal(none.revenue, 0);
-    assert.equal(disruptionCharterEstimate({ routeIds: ['neu'], cancelShare: 0.5 }, [f]).flights, 0);
+  it('E76: Störungs-Frage rechnet den Monat X+1 zweimal (gestrichen, gechartert)', () => {
+    const out = modelMonthClose(input(), ENV, ids()).month;
+    const strike: Disruption = { month: M + 1, kind: 'airportStrike', target: 'FRA', share: 0.6 };
+    const state = { ...out.state, disruptions: [...out.state.disruptions, strike] };
+    const q = charterQuestionFigures(state, strike);
+    const cancelled = monthOperations(state)[PLAYER_ID];
+    const chartered = monthOperations({ ...state, disruptions: state.disruptions.map((d) => (d === strike ? { ...d, charter: true } : d)) })[PLAYER_ID];
+    const near = (a: number, b: number) => assert.ok(Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b)), `${a} ≠ ${b}`);
+    const r = chartered.routes.find((x) => x.routeId === 'r1');
+    assert.ok(r && r.plannedLegs > 0);
+    near(q.flights, r.plannedLegs * WEEKS_PER_MONTH * 0.6);
+    near(q.revenue, chartered.revenue - cancelled.revenue);
+    near(q.fee, chartered.charter - cancelled.charter);
+    near(q.fee, CHARTER_MARKUP * q.ownFlightCost);
+    assert.ok(q.revenue > 0 && q.fee > 0 && q.passengerCost > 0);
+    const result = (o: typeof cancelled) => o.routes.reduce((s, x) => s + x.result, 0) * WEEKS_PER_MONTH - o.charter;
+    near(q.advantage, result(chartered) - result(cancelled));
+    // Die mitgebrachte Rechnung „gestrichen“ ändert nichts.
+    assert.deepEqual(charterQuestionFigures(state, strike, PLAYER_ID, cancelledOperations(state, strike)), q);
+    // Unbekannte Gesellschaft oder Störung ohne getroffene Strecke: nichts.
+    assert.equal(charterQuestionFigures(state, strike, 'niemand').fee, 0);
+    const elsewhere: Disruption = { month: M + 1, kind: 'airportStrike', target: 'JFK', share: 0.6 };
+    const q2 = charterQuestionFigures({ ...out.state, disruptions: [elsewhere] }, elsewhere);
+    assert.equal(q2.flights, 0);
+    assert.ok(Math.abs(q2.advantage) < 1e-6);
   });
 
-  it('5.2e: Schätzung mit den echten Zahlen des Abschlusses', () => {
-    const figures = modelMonthClose(input(), ENV, ids()).month.modelReport.routes;
-    const r = figures.find((x) => x.routeId === 'r1');
-    assert.ok(r && r.revenue > 0);
-    const e = disruptionCharterEstimate({ routeIds: ['r1'], cancelShare: 0.5 }, figures);
-    assert.ok(e.flights > 0 && e.revenue > 0 && e.fee > 0);
-    assert.ok(Math.abs(e.fee - charterCost([{ flightOpsWeekly: r.flightOpsFull, plannedLegsPerWeek: r.plannedLegs, charteredShare: 0.5 }])) < 1e-6);
+  it('E76: die Gebühr der Frage bucht der nächste Abschluss, wenn der Spieler chartert', () => {
+    const first = modelMonthClose(input(), ENV, ids()).month;
+    const strike: Disruption = { month: M + 1, kind: 'airportStrike', target: 'FRA', share: 0.6 };
+    const q = charterQuestionFigures({ ...first.state, disruptions: [...first.state.disruptions, strike] }, strike);
+    const answered: AppDisruption = { id: 'dis_x', kind: 'airport-strike', offset: M + 1, routeIds: ['r1'], cancelShare: 0.6, ref: 'FRA', mitigated: true };
+    assert.equal(modelDisruptionOf(answered, [strike]), strike);
+    const n1 = next(input(), first);
+    const second = modelMonthClose(
+      { ...n1, modelWorld: { ...first.modelWorld, disruptions: [...first.modelWorld.disruptions, strike] }, disruptions: [answered] },
+      ENV,
+      ids(),
+    ).month;
+    assert.ok(Math.abs(second.modelReport.costs.charter - q.fee) <= 1e-6 * q.fee, `${second.modelReport.costs.charter} ≠ ${q.fee}`);
   });
 
   it('Zufallsereignis meldet die Oberfläche selbst (keine doppelte Meldung)', () => {

@@ -82,6 +82,9 @@ Claude schlägt vor, der Mensch entscheidet.
 | E73 | 23.11.2026 | **Preis der Krisen-Antwort ohne Bezugsgröße und bei spätem Kauf (O69 = A):** (1) Ohne Bezugsgröße (kein Bericht im ersten Monat, oder letzter Monat ohne Flüge, also Treibstoff-Rechnung bzw. Erlös 0) bleibt die kaufende Antwort gesperrt („Priced after a month of flying“), bis ein Monat mit Flügen abgeschlossen ist (Zwischenstand aus F69 (5) wird Regel). „Nichts tun“ bleibt wählbar, „Decision pending“ bleibt im Band. (2) Der Preis rechnet mit der **Restdauer** im Monat der Wahl statt der vollen Dauer: `Restdauer = startMonth + months − Monat`, den laufenden Monat mitgezählt (dessen Abschluss rechnet die Antwort schon mit), höchstens die Dauer, nach dem Ende 0. Wer später kauft, zahlt anteilig weniger; die Antwort wirkt nur noch für den Rest (vergangene Monate sind gebucht). Die Absicherung hält weiter den Preis des Monats vor Beginn (8.5). | Ohne Bezugsgröße wäre die Antwort kostenlos. Mit voller Dauer bei spätem Kauf zahlte der Spieler für Monate, in denen die Antwort nicht mehr wirken kann. |
 | E74 | 23.11.2026 | **Personalstreik nur mit Strecken (O70 = A):** Im Übergang zu X+1 wird der Personalstreik nur gewürfelt, wenn die Gesellschaft am Monatsende mindestens eine Strecke hat (wie die alte Regel `advanceStaff`). Ohne Strecken: keine Streik-Frage, kein −10 im Moral-Ziel, Pech-Deckel bleibt offen. Moral und Moral-Ziel laufen weiter wie bisher. Spezifikation 8.7 ergänzt. | Ein Streik ohne Flüge trifft nichts und bestraft nur. |
 | E75 | 23.11.2026 | **Keine Umwandlung alter Spielstände (Vorgabe des Menschen, 23.11.2026):** Paket 5.1 entfällt. Bisherige Spielstände waren nur Testläufe. `SAVE_VERSION` steigt auf 8; ein Spielstand mit kleinerer Version wird beim Laden gelöscht und der Spieler bekommt eine Meldung. Ein Spielstand mit größerer Version wird nur abgelehnt, nicht gelöscht. Spielstände der aktuellen Version werden weiter Feld für Feld geprüft (keine NaN). | Eine Umwandlung in den Modell-Spielstand (`rivals`, `modelWorld`, `ledgerValues`) wäre aufwendig und hätte keinen Nutzen; ohne sie entfällt auch aller Code, der nur für alte Spielstände da war. |
+| E76 | 24.11.2026 | **Störungs-Frage rechnet den Monat X+1 (O71 = B):** Die Frage nennt Erlösverlust, Charter-Gebühr und Vorteil aus zwei Rechnungen des Modells für den Monat X+1 (`monthOperations` auf dem Spielstand nach dem Abschluss, die Störung einmal gestrichen, einmal gechartert). Vorteil = Monatsergebnis mit Charter − mit Streichen (Strecken-Ergebnisse × `WEEKS_PER_MONTH` − Charter-Kosten). Die Schätzung aus den Zahlen des Monats X entfällt. | Balance-Bericht 5.3a (B8.10): Die Schätzung überschätzte den Vorteil bis zum Doppelten (Fluggäste gestrichener Flüge wandern auf die übrigen Sitze) und nahm die Preise von X; die Rechnung des Modells stimmt in Betrag und Treibstoff-Preis (R2). |
+| E77 | 24.11.2026 | **Kassen-Untergrenze der Szenarien im Modell (O72 = A):** Jede Untergrenze eines Szenarios hat ihre Schwelle im Modell: `BANKRUPTCY` = −Kreditlinie (wie 8.15), „Oil Shock“ = 0 $ (Dollar-Betrag als Wert von 1960, E6). Die Anzeige zeigt Schwelle und Serie aus dem Modell; der Text von `BANKRUPTCY` heißt „Capital below the negative credit line at three month-ends in a row …“. | Bisher rechneten Daten und Anzeige mit −5 Mio. $ bzw. 0 $, der Abschluss mit −Kreditlinie; die Warnung „ends the scenario“ traf nicht ein, und „Oil Shock“ verlangte im Text mehr als die Regel (R2). |
+| E78 | 24.11.2026 | **Widebody-Slots erst ab Flughafengröße 3, für alle (O73 = A):** Die Regel `WIDEBODY_SLOTS_FROM_SIZE` gehört ins Modell und gilt für Spieler und KI (Strecken mit Widebody, Jumbo oder Überschall nur zwischen Flughäfen ab Größe 3, zusätzlich zur Bahn). Im Langlauf prüfen, ob die KI dadurch schwächer wird. | Bisher galt die Regel nur in der Oberfläche; die KI prüfte nur die Bahn (alle 176 Flughäfen der Größe 2 lassen nach der Bahn Widebodies zu). Gegen E44 (gleiche Regeln). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -196,7 +199,7 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
@@ -215,41 +218,7 @@ O70 am 23.11.2026 entschieden (E74, Weg A); umgesetzt mit F72.
 
 E75 am 23.11.2026 vom Menschen vorgegeben (keine Umwandlung alter Spielstände); umgesetzt mit F73.
 
-**O71 – Charter-Schätzung der Störungs-Frage (aus Paket 5.3a, „Offen aus 5.2e“).** Die Frage schätzt aus den
-Strecken-Zahlen des Abschlusses X, als hätte jeder gestrichene Flug so viele Fluggäste wie ein Flug im Mittel. Das
-Balance-Skript (B8.10, 14 Strecken, Flughafen-Streik 60 %) zeigt: Die Empfehlung (Charter besser oder schlechter)
-stimmt in allen 14 Fällen; der Betrag ist aber zu hoch. Echter Erlösverlust 79–100 % der Schätzung bei Auslastung
-86–100 %, nur 24 % bei einer fast leeren Langstrecke (12 %). Vorteil von Charter: geschätzt 641 643 $, echt 486 402 $
-(A320ceo FRA–MAD 1990); geschätzt 777 188 $, echt 393 840 $ (A330-300 FRA–JFK 1995). Dazu gilt die Schätzung mit den
-Preisen von X; gebucht wird in X+1. Der Kostenindex ändert sich je Monat um höchstens 0,1 %, der Treibstoff in 33
-Krisen-Monaten aber um mehr als 5 % (größter Schritt +26 %, 09/1973).
-- **A:** Schätzung bleibt; die Frage bekommt einen Satz „Passengers of cancelled flights partly move to your other
-  flights, so the real loss is usually smaller.“
-- **B (Empfehlung):** Die Frage rechnet den Monat X+1 mit dem Modell zweimal (`monthOperations` auf dem Spielstand nach
-  dem Abschluss, die Störung einmal gestrichen, einmal gechartert) und nennt Erlösverlust, Gebühr und Vorteil daraus.
-  Dann stimmen Betrag und Treibstoff-Preis; Kosten: zwei Rechnungen je großer Störung (höchstens drei Fragen) im Abschluss.
-- **C:** nichts ändern.
-
-**O72 – Kassen-Untergrenze der Szenarien (aus Paket 5.3a, 4.2c (7)).** Spezifikation 8.15 legt fest: verloren nach
-so vielen Monatsenden in Folge unter −`creditLimit`, wie das Szenario nennt (Lesart von E34). Das Modell rechnet so
-(`scenarioStep`). Die Daten und die Anzeige rechnen aber mit der eigenen Schwelle des Szenarios: −5 Mio. $
-(`BANKRUPTCY`, drei Monate) und 0 $ bei „Oil Shock“ („Capital must never be below $0 at a month-end“, ein Monat).
-`ScenarioProgressPanel.tsx` warnt nach `capitalFloorStreak` mit dieser Schwelle („Bankruptcy watch … ends the
-scenario“), der Abschluss beendet das Szenario dann nicht. Bei „Oil Shock“ verliert der Spieler erst unter
-−Kreditlinie, obwohl Text und Werbetext „solvent every single month“ sagen.
-- **A (Empfehlung):** Jede Untergrenze hat ihre Schwelle im Modell: `BANKRUPTCY` = −Kreditlinie (wie 8.15), „Oil Shock“
-  = 0 $ (ein Dollar-Betrag als Wert von 1960, E6). Die Anzeige zeigt Schwelle und Serie aus dem Modell; der Text von
-  `BANKRUPTCY` heißt „Capital below the negative credit line at three month-ends in a row …“.
-- **B:** Alle Szenarien nutzen −Kreditlinie (8.15 wörtlich); „Oil Shock“ bekommt den Text „… never below the negative
-  credit line“; die Anzeige zeigt das Modell.
-
-**O73 – Widebody-Slots an kleinen Flughäfen (aus Paket 5.3a, „Offen aus 4.3“ (3)).** Der Spieler kann Widebody-Slots erst ab
-Flughafengröße 3 kaufen (`WIDEBODY_SLOTS_FROM_SIZE`, `src/lib/modelAirport.ts:166`); das ist eine Regel nur der
-Oberfläche. Die KI prüft nur die Bahn (`runwayFits`, `src/model/rivalMonth.ts:1169`); alle 176 Flughäfen der Größe 2
-lassen nach der Bahn Widebodies zu (kleinster Code der Widebodies D). Gegen E44 (gleiche Regeln).
-- **A (Empfehlung):** Regel ins Modell (Slots der Klasse Widebody erst ab Größe 3, für Spieler und KI); im Langlauf
-  prüfen, ob die KI dadurch schwächer wird.
-- **B:** Regel der Oberfläche streichen; auch der Spieler darf an Größe 2 Widebody-Slots kaufen (die Bahn begrenzt).
+O71–O73 am 24.11.2026 entschieden (E76 Weg B, E77 Weg A, E78 Weg A); Umsetzung in Paket 5.3c.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 

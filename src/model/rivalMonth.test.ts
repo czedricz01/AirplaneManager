@@ -7,6 +7,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { atCost } from './basics';
+import { aircraftTripMinutes, weeklyTripCapacity } from './schedule';
 import { deskLoad } from './satisfaction';
 import { departuresAt, departuresOnPair, facilityPrice, slotLimit, slotPrice, slotResalePrice } from './airportCosts';
 import { aircraftValue } from './fleet';
@@ -17,7 +18,7 @@ import {
   CRISIS_IDLE_MONTHS,
   DIVIDEND_FLOOR_1960,
   MAX_IDLE_MONTHS,
-  MAX_WEEKLY_ROTATIONS,
+  MINUTES_PER_WEEK,
   PERSONALITIES,
   PERSONALITY_IDS,
   RIVAL_DECISION_STEPS,
@@ -47,7 +48,6 @@ import {
   mayOpenRoute,
   mayOverhaul,
   mayTakeOver,
-  maxWeeklyRotations,
   modernizationCandidate,
   needsModernization,
   needsOverhaul,
@@ -64,6 +64,7 @@ import {
   rivalDistressStep,
   rivalDividend,
   rivalManagementTier,
+  rivalMaxRotations,
   rivalMayOpenRouteBetween,
   rivalPlanRoute,
   rivalSize,
@@ -248,12 +249,19 @@ describe('Abschnitt 7.9 Planung einer Strecke', () => {
     }
   });
 
-  it('7.9: höchste Umläufe = abrunden(7 × 18 h / Umlauf), 1 … 21', () => {
-    assert.equal(maxWeeklyRotations(360), 21);
-    assert.equal(maxWeeklyRotations(600), 12);
-    assert.equal(maxWeeklyRotations(10_000), 1);
-    assert.equal(maxWeeklyRotations(1), MAX_WEEKLY_ROTATIONS);
-    assert.throws(() => maxWeeklyRotations(0));
+  it('7.9 (E51): höchste Umläufe = Planer-Regel: Woche ÷ Umlaufzeit (mit Boden- und Wendezeit), ohne die Zeit anderer Umläufe, mindestens 1', () => {
+    // FRA–MAD-ähnlich: 1 420 km mit 830 km/h; Umlauf = 30 + Flug + 60 + Flug + 30, auf 5 Minuten aufgerundet.
+    const cycle = aircraftTripMinutes(1420, 830, 'Narrowbody');
+    assert.equal(cycle % 5, 0);
+    assert.equal(rivalMaxRotations(1420, 830, 'Narrowbody'), Math.floor(MINUTES_PER_WEEK / cycle));
+    assert.equal(rivalMaxRotations(1420, 830, 'Narrowbody', 5 * cycle), Math.floor(MINUTES_PER_WEEK / cycle) - 5);
+    assert.equal(rivalMaxRotations(1420, 830, 'Narrowbody', MINUTES_PER_WEEK), 1);
+    // Kurze Strecke: mehr als die alten 21 (keine Nachtpause, wie im Planer).
+    assert.ok(rivalMaxRotations(300, 500, 'Regional') > 21);
+    // Widebody wendet länger als Narrowbody.
+    assert.ok(aircraftTripMinutes(6000, 900, 'Widebody') > aircraftTripMinutes(6000, 900, 'Narrowbody'));
+    assert.equal(weeklyTripCapacity(MINUTES_PER_WEEK + 1), 0);
+    assert.throws(() => weeklyTripCapacity(0));
   });
 
   it('7.9: bewertet werden 100 %, 60 % und 30 % der höchsten Umläufe', () => {

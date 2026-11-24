@@ -27,6 +27,7 @@ import {
   facilityPrice,
   facilityUpkeep,
   hasStands,
+  slotClassAvailable,
   isDeskTypeAvailable,
   managementTierPrice,
   slotLimit,
@@ -154,7 +155,7 @@ export function slotTradeCost(kind: SlotKind, amount: number, pricing: AirportPr
 
 /** Was an einem Flughafen zu haben ist. */
 export interface InfraAvailability {
-  /** Widebody-Slots: erst ab Flughafengröße 3 (Regel der Oberfläche, wie bisher). */
+  /** Widebody-Slots: erst ab Flughafengröße 3 (`slotClassAvailable`, Regel des Modells für Spieler und KI, E78). */
   readonly widebodySlots: boolean;
   /** Abstellplätze: ab `STANDS_MIN_AIRPORT_SIZE` (`hasStands`). */
   readonly stands: boolean;
@@ -162,13 +163,10 @@ export interface InfraAvailability {
   readonly selfCheckIn: boolean;
 }
 
-/** Widebody-Slots erst an Flughäfen ab dieser Größe (Regel der Oberfläche seit `getInfraAvailability`, nicht im Modell). */
-const WIDEBODY_SLOTS_FROM_SIZE = 3;
-
 /** Was an einem Flughafen der Größe `airportSize` im Monat `month` gebaut werden kann. */
 export function infraAvailability(airportSize: number, month: number): InfraAvailability {
   return {
-    widebodySlots: airportSize >= WIDEBODY_SLOTS_FROM_SIZE,
+    widebodySlots: slotClassAvailable('Widebody', airportSize),
     stands: hasStands(airportSize),
     selfCheckIn: isDeskTypeAvailable('self', month),
   };

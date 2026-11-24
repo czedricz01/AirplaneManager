@@ -1591,6 +1591,8 @@ Alles je Gesellschaft und Flughafen, je Woche. Mieten sind Flughafen-Gebühren u
 
 **Slots** (Definition 1.6, E50)
 - Arten: Regional, Narrowbody, Widebody. Ein Abflug braucht einen Slot der Klasse seines Flugzeugs (wie heute).
+  Widebody-Slots (Widebody, Jumbo, Überschall) gibt es erst ab Flughafengröße `WIDEBODY_SLOTS_MIN_AIRPORT_SIZE = 3`,
+  für Spieler und KI (`slotClassAvailable`, E78).
 - Grenze je Flughafen: `SLOTS_PER_AIRPORT_LEVEL × Flughafengröße` Slots aller Arten und aller Gesellschaften
   zusammen (heute 300 je Stufe, nur in Ansichten, `src/components/AirportDetailView.tsx:128` u. a.).
 - Kaufpreis: `slotPrice(Art) = atCost(SLOT_PRICE_1960[Art], month) × researchCostFactor(slots) × milestoneSlotFactor`
@@ -2574,10 +2576,13 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - **Bewertung:** je Ziel 100 %, 60 % und 30 % der höchsten Umläufe, jeweils mit der **Planer-Hauptzahl** (4.12):
   erwarteter Gewinn mit allen Angeboten des Markts, Anlauf = 1, `fareRatio` aus 7.6 (neue Strecke), Kosten mit
   `costPerPassenger` und `fixedWeeklyCost` (5.8, 5.9). Dazu der Schätzfehler (7.3). Der beste Wert gewinnt (5.19).
-- **Höchste Umläufe** je Flugzeug: dieselbe Funktion wie der Planer für machbare Flüge (E51); bis sie steht wie
-  heute `abrunden(7 × 18 h / Blockzeit eines Umlaufs)`, 1 … 21 (`:105-108`, `:281-285`).
+- **Höchste Umläufe** je Flugzeug: dieselbe Funktion wie der Planer für machbare Flüge (E51):
+  `abrunden((Minuten der Woche − Umlaufzeit der übrigen Umläufe des Flugzeugs) / Umlaufzeit)`, mindestens 1; Umlaufzeit
+  mit Einsteigen, Wende je Bauart und Aussteigen auf 5 Minuten (`aircraftTripMinutes`, `weeklyTripCapacity` in
+  `src/model/schedule.ts`; Paket 5.3c). Keine Nachtpause und keine Obergrenze 21 mehr (vorher 7 × 18 h ohne Bodenzeit).
 - Eröffnung: Kasse ≥ Kaufpreis der fehlenden Slots + Reserve (7.4); keine Pauschale mehr (heute 1,5 Mio. $, `:96`).
-- Regeln (Tests): Planer und KI rechnen für denselben Plan dieselbe Zahl; ein Ziel ohne freie Slots wird nie gewählt;
+- Regeln (Tests): Planer und KI rechnen für denselben Plan dieselbe Zahl; ein Ziel ohne freie Slots wird nie gewählt
+  (Widebody-Slots erst ab Flughafengröße 3, E78);
   Hard (Schätzfehler 0) wählt unter den bewerteten Plänen immer den mit dem höchsten erwarteten Gewinn; ein fremdes
   KI-Drehkreuz zählt doppelt, gleich wie viele Abflüge dort schon sind (E66).
 
@@ -3086,7 +3091,9 @@ Charter-Kosten im Monat              = Σ Strecken charterFee × geplante Abschn
   je Flug (die eigenen Flugkosten entfallen in beiden Fällen), also fast immer auf einer Strecke mit Gewinn
   (Beispiel 8.17; heute nie, W4). *(Berichtigt in 3.8a, F40: vorher stand `CHARTER_MARKUP − 1`, das ist der
   Vergleich mit dem eigenen Flug.)*
-- Die Frage nennt Gebühr, geretteten Erlös und die gesparten eigenen Flugkosten aus dem Modell (R2).
+- Die Frage nennt Gebühr, Erlösverlust und die gesparten eigenen Flugkosten aus dem Modell (R2): Sie rechnet den Monat
+  X+1 auf dem Spielstand nach dem Abschluss zweimal mit `monthOperations`, die Störung einmal gestrichen, einmal
+  gechartert (`charterQuestionFigures`, E76); Vorteil = Monatsergebnis mit Charter − gestrichen.
 - Regeln (Tests): `cancelledShare = 0` ohne Störung; Charter für alle Ursachen → `cancelledShare = 0` und Ruf-Abzug 0;
   Erlös mit Charter = Erlös ohne Störung; Kosten mit Charter = Kosten ohne Störung − eigene Flugkosten der gecharterten
   Flüge + Charter-Gebühr; ein halber Flugplan bringt höchstens die Hälfte weniger Fluggäste (heute −77 %, W5).
@@ -3229,7 +3236,9 @@ im Ergebnis neutral (5.13). Sofort wieder verkauft: −15 % (heute −10 %, durc
 - Ruf-Ziele auf der neuen Skala (E36, 6.15): „Reputation of 60 or more“ (`src/data/scenarios.ts:176`) → 55 (Startwert, Daten umgestellt in Paket 5.3a;
   Balance-Skript 3.9).
 - Verlieren: das Spielende aus 8.14; dazu `capitalFloor` mit Schwelle **−`creditLimit`** statt −5 Mio. $ (Monate wie im
-  Szenario, heute 3). *(Lesart von E34: eine Pleite-Regel.)*
+  Szenario, heute 3). *(Lesart von E34: eine Pleite-Regel.)* Ein Szenario darf eine eigene Schwelle als Dollar-Betrag
+  haben (`floorThreshold`, Wert von 1960, `atCost`): „Oil Shock“ 0 $ an jedem Monatsende (E77). `scenarioFloor` gibt
+  die Schwelle; die Anzeige zeigt sie und die Serie des Modells (`floorStreak`).
 - Startflotte eines Szenarios: Baumonat = Start − `ageMonths`, Zustand aus den Daten; Kasse und Ruf wie angegeben.
 - Regeln (Tests): ein Szenario mit Kassen-Ziel wird nie mit Geld gewonnen, das im selben Abschluss schon ausgegeben ist
   (W7); Ziel-Beträge 2020 = Wert 1960 × `costIndex` 2020.
