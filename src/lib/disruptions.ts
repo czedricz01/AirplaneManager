@@ -123,7 +123,7 @@ export function describeRouteCancellations(
 
 /**
  * The disruptions worth a question: 25% and more, with revenue at stake
- * (`lostOf`, see marginalLostRevenue), largest loss first, three at most.
+ * (`lostOf`, see `disruptionCharterEstimate`), largest loss first, three at most.
  * The rest are only reported.
  */
 export function disruptionsToAsk(disruptions: Disruption[], lostOf: (d: Disruption) => number): Disruption[] {
@@ -137,17 +137,35 @@ export function disruptionsToAsk(disruptions: Disruption[], lostOf: (d: Disrupti
 }
 
 /**
- * The question for one disruption: charter a replacement or cancel. `ref` is the disruption's id. `lost` is the
- * ticket revenue at stake as the last report sees it. Neither answer costs anything up front. The texts give the
- * model's rules (SPEZIFIKATION 8.9, 6.2, E32, E33, E38): a charter is billed at the month's close at
- * `CHARTER_MARKUP` times the airline's own flight costs (fuel, crew, landing) of every chartered flight; cancelled
- * flights are the only penalty, through the reputation target of the month (cancelled seats), with no one-time loss.
- * The old figures (90% of the revenue saved, up to 4 reputation points) were removed in 5.2b.
+ * What charter would cost and bring for one disruption, estimated from the route figures of the month just closed
+ * (`disruptionCharterEstimate` in modelMonthClose.ts, SPEZIFIKATION 8.9). All amounts in dollars for the month.
+ */
+export interface CharterEstimate {
+  /** Flights the disruption takes out in the month. */
+  flights: number;
+  /** Ticket revenue of these flights: lost when cancelled, kept with charter. */
+  revenue: number;
+  /** Costs per passenger (catering, fees, FFP) of these flights: only paid with charter. */
+  passengerCost: number;
+  /** The airline's own fuel, crew and landing cost of these flights: saved either way. */
+  ownFlightCost: number;
+  /** Charter fee: `CHARTER_MARKUP` × own flight cost (`charterFee`). */
+  fee: number;
+  /** Charter against cancelling: revenue − passenger cost − fee (`charterAdvantage`). */
+  advantage: number;
+}
+
+/**
+ * The question for one disruption: charter a replacement or cancel. `ref` is the disruption's id. `estimate` gives
+ * the amounts from the model's figures (SPEZIFIKATION 8.9: fee, revenue kept, own flight costs saved). Neither answer
+ * costs anything up front: a charter is billed at the month's close at `CHARTER_MARKUP` times the airline's own
+ * flight costs (fuel, crew, landing) of every chartered flight; cancelled flights are the only penalty, through the
+ * reputation target of the month (cancelled seats), with no one-time loss (6.2, E32, E33, E38).
  */
 export function buildDisruptionDecision(
   d: Disruption,
   monthLabel: string,
-  lost: number,
+  estimate: CharterEstimate,
   routeName: (routeId: string) => string
 ): GameDecision {
   const pct = Math.round(d.cancelShare * 100);
@@ -159,27 +177,37 @@ export function buildDisruptionDecision(
     : d.kind === 'airport-strike'
       ? `Ground staff at ${d.ref ?? 'an airport you serve'} walk out in ${monthLabel}.`
       : `${disruptionTitle(d)} in ${monthLabel}.`;
+  const flights = Math.max(1, Math.round(estimate.flights));
+  const verdict = estimate.advantage >= 0
+    ? `about ${formatCurrency(estimate.advantage)} better than cancelling`
+    : `about ${formatCurrency(-estimate.advantage)} worse than cancelling`;
   return {
     id: `dec_${d.id}`,
     kind: 'disruption',
     ref: d.id,
     title: disruptionTitle(d),
     description:
-      `${cause} ${pct}% of the flights on ${routes} would not operate, about ${formatCurrency(lost)} of ticket revenue. ` +
-      `The forecast already leaves them out.`,
+      `${cause} ${pct}% of the flights on ${routes} would not operate: about ${formatNumber(flights)} ` +
+      `flight${flights === 1 ? '' : 's'} with ${formatCurrency(estimate.revenue)} of ticket revenue. ` +
+      `Your own aircraft stays on the ground either way, saving about ${formatCurrency(estimate.ownFlightCost)} ` +
+      `of fuel, crew and landing cost. The forecast already leaves these flights out. Estimates from last month's figures.`,
     options: [
       {
         id: DISRUPTION_OPTION_CHARTER,
         label: 'Charter a replacement aircraft',
         detail:
-          `A leased aircraft flies every cancelled flight; passengers notice nothing. Billed with the month's costs: ` +
-          `${formatNumber(CHARTER_MARKUP, 1)} times your own fuel, crew and landing cost of each chartered flight.`,
+          `A leased aircraft flies every cancelled flight; passengers notice nothing. Fee about ` +
+          `${formatCurrency(estimate.fee)}, billed with the month's costs (${formatNumber(CHARTER_MARKUP, 1)} times your ` +
+          `own fuel, crew and landing cost of each chartered flight). With ${formatCurrency(estimate.revenue)} of tickets ` +
+          `kept and ${formatCurrency(estimate.passengerCost)} of passenger costs, ${verdict}.`,
         cost: 0
       },
       {
         id: DISRUPTION_OPTION_CANCEL,
         label: 'Cancel the flights',
-        detail: 'Nothing to pay, but the cancelled seats pull this month\'s reputation target down.',
+        detail:
+          `Nothing to pay, but ${formatCurrency(estimate.revenue)} of ticket revenue is lost and the cancelled seats ` +
+          `pull this month's reputation target down.`,
         cost: 0
       }
     ]
