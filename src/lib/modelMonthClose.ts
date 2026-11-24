@@ -26,6 +26,7 @@ import {
   disruptionTitle,
   disruptionsToAsk,
   type BirdStrike,
+  type CharterEstimate,
 } from './disruptions';
 import { activeEvents, eventKey, type HistoricalEvent } from './eventSystem';
 import { LITRES_PER_GALLON, formatCurrency, formatNumber } from './format';
@@ -46,7 +47,9 @@ import { buildEventEndMessage, buildEventStartMessage, buildRivalOffers, offsetT
 import { buildEdition, rivalMoves, type Edition } from './newspaper';
 import { playerScore } from './modelCompany';
 import { strikeQuestion } from './modelStaff';
-import { MILESTONES, RANKS, STRIKE_MORALE_THRESHOLD } from '../model/constants';
+import { MILESTONES, RANKS, STRIKE_MORALE_THRESHOLD, WEEKS_PER_MONTH } from '../model/constants';
+import type { RouteFigures } from '../model/monthClose';
+import { charterAdvantage, charterFee } from '../model/monthEvents';
 
 /** Was der Abschluss über `AppGame` hinaus aus `App.tsx` liest. */
 export interface ModelCloseInput extends AppGame {
@@ -132,13 +135,42 @@ export function launchPreviewMessage(nextMonth: number, id: number): GameMessage
   };
 }
 
+/** Was die Schätzung einer Störung je Strecke aus dem Abschluss liest (`RouteFigures`, je Woche). */
+export type CharterFigures = Pick<RouteFigures, 'routeId' | 'plannedLegs' | 'shares' | 'revenue' | 'passengerCost' | 'flightOpsFull'>;
+
 /**
- * Geschätzter Erlös, den eine Störung kostet: Erlös der getroffenen Strecken im Bericht X × Anteil (Anzeige der Frage;
- * gebucht wird im Abschluss X+1 nach 8.9).
+ * Schätzung für die Störungs-Frage (8.9, R2): was Charter kostet und bringt, aus den Strecken-Zahlen des Abschlusses X
+ * (`MonthReport.routes`); gebucht wird im Abschluss X+1. Je getroffener Strecke:
+ * - betroffene Flüge im Monat = geplante Abschnitte je Woche × `WEEKS_PER_MONTH` × Anteil der Störung;
+ * - Erlös und Kosten je Fluggast je Flug = Wochenwert / durchgeführte Abschnitte (geplant × (1 − `cancelledShare` in X));
+ * - Gebühr je Flug `charterFee`, eigene Flugkosten je Flug `flightOpsFull` / geplante Abschnitte, Vorteil `charterAdvantage`.
+ * Strecken ohne Zahlen (neu) oder ohne durchgeführte Flüge in X zählen nicht. Die Schätzung nimmt an, dass jeder
+ * gestrichene Flug so viele Fluggäste hätte wie ein Flug im Mittel; das Modell verteilt die Fluggäste auf die
+ * übrigen Sitze um (8.9, „halber Flugplan“), der echte Verlust ist also eher kleiner.
  */
-export function disruptionStake(d: Pick<AppDisruption, 'routeIds' | 'cancelShare'>, report: Pick<MonthlyReport, 'routes'>): number {
-  const revenue = new Map((report.routes ?? []).map((r) => [r.id, r.revenue]));
-  return d.routeIds.reduce((s, id) => s + (revenue.get(id) ?? 0) * d.cancelShare, 0);
+export function disruptionCharterEstimate(
+  d: Pick<AppDisruption, 'routeIds' | 'cancelShare'>,
+  figures: readonly CharterFigures[],
+): CharterEstimate {
+  const byId = new Map(figures.map((f) => [f.routeId, f]));
+  const e: CharterEstimate = { flights: 0, revenue: 0, passengerCost: 0, ownFlightCost: 0, fee: 0, advantage: 0 };
+  for (const id of d.routeIds) {
+    const f = byId.get(id);
+    if (!f || !(f.plannedLegs > 0)) continue;
+    const operated = f.plannedLegs * (1 - f.shares.cancelledShare);
+    if (!(operated > 0)) continue;
+    const flights = f.plannedLegs * WEEKS_PER_MONTH * d.cancelShare;
+    const revenue = f.revenue / operated;
+    const passengerCost = f.passengerCost.total / operated;
+    const fee = charterFee(f.flightOpsFull, f.plannedLegs);
+    e.flights += flights;
+    e.revenue += revenue * flights;
+    e.passengerCost += passengerCost * flights;
+    e.ownFlightCost += (f.flightOpsFull / f.plannedLegs) * flights;
+    e.fee += fee * flights;
+    e.advantage += charterAdvantage(revenue, passengerCost, fee) * flights;
+  }
+  return e;
 }
 
 /**
@@ -234,8 +266,11 @@ export function modelMonthClose(input: ModelCloseInput, env: ModelEnv = defaultM
       },
     });
     const major = rolled.filter((d) => d.cancelShare >= MAJOR_DISRUPTION_SHARE);
-    for (const d of disruptionsToAsk(major, (x) => disruptionStake(x, report))) {
-      decisions.push(ensureFreeOption(buildDisruptionDecision(d, monthStr, disruptionStake(d, report), routeLabel)));
+    const figures = month.modelReport?.routes ?? [];
+    const estimates = new Map(major.map((d) => [d.id, disruptionCharterEstimate(d, figures)]));
+    for (const d of disruptionsToAsk(major, (x) => estimates.get(x.id)?.revenue ?? 0)) {
+      const estimate = estimates.get(d.id);
+      if (estimate) decisions.push(ensureFreeOption(buildDisruptionDecision(d, monthStr, estimate, routeLabel)));
     }
   }
 

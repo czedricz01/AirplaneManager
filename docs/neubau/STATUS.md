@@ -1,13 +1,33 @@
 # Status
 
-**Nächstes Paket: 5.2e** – Störungs-Frage mit Charter-Betrag des Modells: Die Frage bei einer Störung nennt heute nur die Regel
-(Charter = `CHARTER_MARKUP` × eigene Treibstoff-, Besatzungs- und Landekosten je Flug), aber keinen Betrag. Für eine Schätzung mit
-`charterFee` / `charterAdvantage` (8.9) muss `modelMonthClose` die Flugkosten je Strecke (`RouteFigures.flightOpsFull`) aus dem
-Abschluss liefern. Danach 5.2c (Dokumentation aufräumen) und 5.3 (Spieltest mit Balance-Skript).
-Zu lesen: „Offen aus 5.2b“ (2) unten, `src/model/monthEvents.ts` (`charterFee`, `charterAdvantage`), `src/model/monthClose.ts`
-(`RouteFigures`), `src/lib/modelMonthClose.ts`, `src/lib/disruptions.ts`, `src/lib/modelBridgeWorld.ts` (Störungs-Frage).
+**Nächstes Paket: 5.2c** – Dokumentation aufräumen: `README.md` und `src/model/README.md` auf den Stand nach Phase 4/5 bringen,
+Hinweise auf alte Analysen (`ANALYSE.md`, `SAT-ANALYSE.md`, `docs/CODE_REVIEW.md`) kennzeichnen, die Verweise „heute
+`src/lib/…:Zeile`“ in `src/model/` (vor allem `constants.ts`) auf entfernte oder verschobene Stellen bereinigen, dazu Kleinkram
+(doppelte Zugangs-Prüfung `src/lib/airportAccess.ts`). Danach 5.3 (Spieltest mit Balance-Skript).
+Zu lesen: „Offen aus 5.2d“ (3), (4) und „Offen aus 5.2b“ (3) unten, `README.md`, `src/model/README.md`; die rund 90 Verweise
+findet `grep -rn 'heute .src/lib/' src/model`.
 
 Keine offenen Fragen.
+
+Stand: 24.11.2026 · Paket 5.2e erledigt (F77): Die Störungs-Frage nennt die Beträge des Modells (8.9, R2). Neu
+`disruptionCharterEstimate` (`src/lib/modelMonthClose.ts`): aus den Strecken-Zahlen des Abschlusses X (`MonthReport.routes`,
+`RouteFigures.flightOpsFull`) je getroffener Strecke betroffene Flüge im Monat, Ticket-Erlös, Kosten je Fluggast, eigene Flugkosten,
+Charter-Gebühr (`charterFee`) und Vorteil gegenüber Streichen (`charterAdvantage`). `buildDisruptionDecision`
+(`src/lib/disruptions.ts`) bekommt diese Schätzung (`CharterEstimate`) statt des Erlöses allein; die Reihenfolge der Fragen
+(`disruptionsToAsk`) richtet sich nach dem geschätzten Erlös. `disruptionStake` (Erlös des Berichts × Anteil) entfällt. Beispiel
+aus einem echten Abschluss (A320 FRA–MAD, Flughafen-Streik 60 %, 03/1992): „about 37 flights with $692,097 of ticket revenue …
+saving about $349,062 of fuel, crew and landing cost“; Charter „Fee about $523,594 … about $84,756 better than cancelling“.
+Die Gebühr der Schätzung ist gleich dem, was der Abschluss X+1 mit `charterCost` bucht (Test). Tests: 1 229 grün (alter Test von
+`disruptionStake` und der 5.2b-Text-Test ersetzt; neu: Schätzung mit erfundenen und mit echten Abschluss-Zahlen, Texte mit Beträgen,
+Fall „worse than cancelling“). Im Browser nicht geprüft: Eine große Störung ist Zufall; geprüft mit dem echten Abschluss
+(`modelMonthClose`, Monat für Monat bis zur ersten Frage).
+
+Offen aus 5.2e (kein Blocker): (1) Die Schätzung nimmt an, dass jeder gestrichene Flug so viele Fluggäste hätte wie ein Flug im
+Mittel. Das Modell verteilt bei Streichungen Fluggäste auf die übrigen Sitze (8.9, „halber Flugplan“); der echte Erlösverlust ist
+also eher kleiner und der Vorteil von Charter eher überschätzt. In 5.3 mit dem Balance-Skript ansehen, ob die Frage dafür einen
+Hinweis braucht oder die Schätzung mit `disruptionShares` den Monat einmal mit und ohne Charter rechnen soll. (2) Die Schätzung
+nutzt die Preise des Monats X; gebucht wird mit dem Kostenindex von X+1 (Unterschied klein, Text sagt „Estimates from last
+month's figures“).
 
 Stand: 24.11.2026 · Paket 5.2d erledigt (F76): Die Karriere-Ansicht rechnet mit dem Modell; die eigenen Tabellen in `src/lib/`
 sind entfernt. Forschung: Preis mit Kostenindex (`researchPrice`; vorher 4 %/Jahr und zu hohe Klassen-Preise), Sperre
@@ -47,7 +67,7 @@ Konkurrenz-Ansicht mit 6 nach dem Modell gegründeten KI (echte und erfundene, j
 abgeschlossen (KI eröffnet Strecken, Zeitung), Karriere abgelegt („Filed in the hall of fame at position 1“, gespeichert als
 `{ normal: [], free: [...] }`); keine Fehler in der Konsole.
 
-Offen aus 5.2b (kein Blocker): (1) erledigt in 5.2d (F76). **Paket 5.2d – Karriere-Ansicht:** Gefunden beim Vergleich der Tabellen; kein Paket der Phase 4
+Offen aus 5.2b (kein Blocker): (1) erledigt in 5.2d (F76); (2) erledigt in 5.2e (F77). **Paket 5.2d – Karriere-Ansicht:** Gefunden beim Vergleich der Tabellen; kein Paket der Phase 4
 hat sie umgestellt. `src/lib/research.ts` hat eine eigene Forschungs-Tabelle: Rang-Schwellen der Klassen (Narrowbody 3, Widebody 5,
 Jumbo 7, Überschall 8 statt 2 / 4 / 5 / 5, E41), Preise (Widebody 60, Jumbo 200, Überschall 500 Mio. $ statt 40 / 80 / 60), Teuerung
 4 %/Jahr statt Kostenindex, Überschall braucht Jumbo statt Widebody (E42), Forschungsplätze je Rang (`maxParallel` statt
@@ -463,7 +483,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.2a | Alten Monatsabschluss und allen nur von ihm erreichten Code entfernen | erledigt |
 | 5.2b | Rest der alten Rechnung in den Ansichten ersetzen oder entfernen (Liste „Offen aus 5.2a“; F75) | erledigt |
 | 5.2d | Karriere-Ansicht nach dem Modell: Forschung (Preis, Sperren, Plätze), Rang-Anzeige, Meilensteine, Jahresziel, Flugzeugklassen (`CareerPanel.tsx`, `src/lib/research.ts`, `airlineRank.ts`, `milestones.ts`, `annualGoals.ts`, `aircraftClasses.ts`; F76) | erledigt |
-| 5.2e | Störungs-Frage mit Charter-Betrag des Modells (`charterAdvantage`, 8.9; Flugkosten je Strecke aus dem Abschluss) | offen |
+| 5.2e | Störungs-Frage mit Charter-Betrag des Modells (`charterAdvantage`, 8.9; Flugkosten je Strecke aus dem Abschluss; F77) | erledigt |
 | 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen) | offen |
 | 5.3 | Spieltest-Durchlauf mit Balance-Skript, Feinabstimmung | offen |
 
@@ -548,3 +568,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 23.11.2026 | 5.2a | Alter Monatsabschluss und nur von ihm erreichter Code entfernt (F74): rund 9 900 Zeilen in 58 Dateien, 8 Dateien ganz; Tests 1 250 grün; im Browser geprüft |
 | 24.11.2026 | 5.2b | Rest der alten Rechnung ersetzt (F75): Ausfälle je Strecke über `disruptionShares`, KI-Gründung beim Spielstart nach 7.7 (`foundStartRivals`), Welt-Zustand ab Monat 1 mit gewürfeltem Startwert, Ereignisse aus den Modell-Daten, Kabine verkaufter Flugzeuge im Gebrauchtmarkt, zwei Ruhmeshallen (E43), Störungs-Frage ohne alte Zahlen; `aiSimulation.ts`, `routeMaturity.ts`, `buildPlayerModifiers` entfernt; neue Pakete 5.2d (Karriere-Ansicht) und 5.2e; Tests 1 243 grün; im Browser geprüft |
 | 24.11.2026 | 5.2d | Karriere-Ansicht nach dem Modell (F76): Forschung mit `researchPrice` (Kostenindex), `researchStartBlocker`, `researchSlots`; Rang-Tabelle und 3-Monats-Mittel des Modells, Freischaltungen aus den Tabellen; Meilensteine und Jahresziel in der Form des Modells (Übersetzungen in der Brücke entfernt); Flugzeugklassen über `sizeClassOf`; `SAVE_VERSION` 9; Tests 1 228 grün; im Browser geprüft |
+| 24.11.2026 | 5.2e | Störungs-Frage mit Beträgen des Modells (F77): `disruptionCharterEstimate` aus `MonthReport.routes` (Flüge, Erlös, Kosten je Fluggast, eigene Flugkosten, `charterFee`, `charterAdvantage`); `buildDisruptionDecision` nennt Gebühr, geretteten Erlös und gesparte Flugkosten; `disruptionStake` entfällt; Tests 1 229 grün |

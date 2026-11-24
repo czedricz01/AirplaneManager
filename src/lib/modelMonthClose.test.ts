@@ -12,9 +12,11 @@ import { createOwnedAircraft, defaultCabin } from './fleet';
 import { createGameSystems } from './gameState';
 import type { AirportInfrastructure, SimulatedRoute } from './gameTypes';
 import { closeNewsMessages, defaultModelEnv, planesValue, type AppMonth } from './modelMonth';
-import { disruptionStake, launchPreviewMessage, modelMonthClose, rivalViewsBefore, type ModelCloseInput } from './modelMonthClose';
+import { disruptionCharterEstimate, launchPreviewMessage, modelMonthClose, rivalViewsBefore, type ModelCloseInput } from './modelMonthClose';
 import { rivalMoves } from './newspaper';
 import { withTradeValue } from './modelBridgeCompany';
+import { WEEKS_PER_MONTH } from '../model/constants';
+import { charterCost, disruptionShares } from '../model/monthEvents';
 
 const ENV = defaultModelEnv();
 const A320 = aircraftList.find((a) => a.id === 'a320ceo')!;
@@ -196,9 +198,36 @@ describe('Hilfen des Abschlusses (4.2f)', () => {
     assert.equal(jan?.id, 7);
   });
 
-  it('Einsatz einer Störung = Erlös der Strecken im Bericht × Anteil', () => {
-    const report = { routes: [{ id: 'r1', name: '', revenue: 1000, cost: 0, profit: 0, paxPerWeek: 0, capacity: 0, transferPax: 0 }] };
-    assert.equal(disruptionStake({ routeIds: ['r1', 'r2'], cancelShare: 0.5 }, report), 500);
+  it('5.2e: Charter-Schätzung einer Störung aus den Strecken-Zahlen des Abschlusses (8.9)', () => {
+    const f = {
+      routeId: 'r1', plannedLegs: 14, shares: disruptionShares([{ share: 0.3, chartered: false }]),
+      revenue: 98_000, passengerCost: { catering: 4_000, fees: 2_300, ffp: 0, total: 6_300 }, flightOpsFull: 42_000,
+    };
+    const e = disruptionCharterEstimate({ routeIds: ['r1', 'neu'], cancelShare: 0.5 }, [f]);
+    const operated = 14 * 0.7;
+    const flights = 14 * WEEKS_PER_MONTH * 0.5;
+    const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≠ ${b}`);
+    near(e.flights, flights);
+    near(e.revenue, (98_000 / operated) * flights);
+    near(e.passengerCost, (6_300 / operated) * flights);
+    near(e.ownFlightCost, (42_000 / 14) * flights);
+    near(e.fee, 1.5 * e.ownFlightCost);
+    near(e.advantage, e.revenue - e.passengerCost - e.fee);
+    // Gebühr = was der Abschluss X+1 bucht, wenn die Störung gechartert wird (`charterCost`).
+    near(e.fee, charterCost([{ flightOpsWeekly: 42_000, plannedLegsPerWeek: 14, charteredShare: 0.5 }]));
+    // Strecke ohne Zahlen oder ohne durchgeführte Flüge: keine Schätzung.
+    const none = disruptionCharterEstimate({ routeIds: ['r1'], cancelShare: 0.5 }, [{ ...f, shares: disruptionShares([{ share: 1, chartered: false }]) }]);
+    assert.equal(none.revenue, 0);
+    assert.equal(disruptionCharterEstimate({ routeIds: ['neu'], cancelShare: 0.5 }, [f]).flights, 0);
+  });
+
+  it('5.2e: Schätzung mit den echten Zahlen des Abschlusses', () => {
+    const figures = modelMonthClose(input(), ENV, ids()).month.modelReport.routes;
+    const r = figures.find((x) => x.routeId === 'r1');
+    assert.ok(r && r.revenue > 0);
+    const e = disruptionCharterEstimate({ routeIds: ['r1'], cancelShare: 0.5 }, figures);
+    assert.ok(e.flights > 0 && e.revenue > 0 && e.fee > 0);
+    assert.ok(Math.abs(e.fee - charterCost([{ flightOpsWeekly: r.flightOpsFull, plannedLegsPerWeek: r.plannedLegs, charteredShare: 0.5 }])) < 1e-6);
   });
 
   it('Zufallsereignis meldet die Oberfläche selbst (keine doppelte Meldung)', () => {
