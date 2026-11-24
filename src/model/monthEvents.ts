@@ -107,7 +107,7 @@ export function activeWorldEvents(month: number, randomEvents: readonly WorldEve
   return [...HISTORICAL_EVENTS, ...randomEvents].filter((e) => isEventActive(e, month));
 }
 
-/** Pech-Ereignis: `demandMultiplier < 1` (heute auch „Treibstoff > Nachfrage“, entfällt mit E8). SPEZIFIKATION 8.4. */
+/** Pech-Ereignis: `demandMultiplier < 1` (Alt-Code: auch „Treibstoff > Nachfrage“, entfällt mit E8). SPEZIFIKATION 8.4. */
 export function isBadLuckEvent(event: Pick<WorldEvent, 'demandMultiplier'>): boolean {
   return event.demandMultiplier < 1;
 }
@@ -229,7 +229,7 @@ export function hedgedFuelTable(hedgedEvents: readonly Pick<WorldEvent, 'startMo
 /**
  * Monat, dessen Treibstoffpreis die Absicherung festhält: der Monat vor Beginn des ersten laufenden abgesicherten
  * Ereignisses; sonst `undefined` (dann gilt der Preis des Monats). Die Regel hinter `hedgedFuelTable`, getrennt von
- * der Preisquelle, damit die Kopfzeile sie nutzt, solange sie den Preis noch aus `src/lib/` liest (Paket 4.2).
+ * der Preisquelle (seit Paket 4.2).
  * SPEZIFIKATION 8.5.
  */
 export function hedgeLockMonth(hedgedEvents: readonly Pick<WorldEvent, 'startMonth' | 'months'>[], month: number): number | undefined {

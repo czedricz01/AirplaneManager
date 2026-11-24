@@ -373,7 +373,7 @@ describe('Abschnitt 6.7 Rang', () => {
 });
 
 describe('Abschnitt 6.8 Flugzeugklassen', () => {
-  it('6.8: Klassen wie heute (Grenzen 60 / 130 / 500 Sitze, 1 000 km/h)', () => {
+  it('6.8: Klassen wie im Alt-Code (Grenzen 60 / 130 / 500 Sitze, 1 000 km/h)', () => {
     assert.equal(sizeClassOf({ class: 'Regional', capacity: 60, cruiseSpeed: 500 }), 'commuter');
     assert.equal(sizeClassOf({ class: 'Regional', capacity: 61, cruiseSpeed: 500 }), 'regional');
     assert.equal(sizeClassOf({ class: 'Narrowbody', capacity: 130, cruiseSpeed: 850 }), 'regional');

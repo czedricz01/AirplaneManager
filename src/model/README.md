@@ -1,8 +1,17 @@
-# `src/model/` – das neue Rechenmodell
+# `src/model/` – das Rechenmodell
 
-Hier entsteht das Spielmodell nach `docs/neubau/SPEZIFIKATION.md`. Die Spezifikation ist die einzige
-Quelle dafür, was gerechnet wird; der Code folgt ihr. Der alte Code in `src/lib/` bleibt, bis die
-Oberfläche umgestellt ist (Phase 4) und er entfernt wird (Paket 5.2).
+Hier steht das Spielmodell nach `docs/neubau/SPEZIFIKATION.md`. Die Spezifikation ist die einzige
+Quelle dafür, was gerechnet wird; der Code folgt ihr. Seit Phase 4 rechnet das ganze Spiel damit: Monatsabschluss,
+Planer, Ansichten und KI. Die alte Rechnung in `src/lib/` ist entfernt (Pakete 5.2a–5.2e).
+
+## Wer das Modell aufruft
+
+- **Brücke** `src/lib/model*.ts`: baut aus dem Spielstand der Oberfläche einen `ModelState`
+  (`modelBridge*.ts`), schließt den Monat ab (`modelMonth.ts`, `modelMonthClose.ts`) und liefert den Ansichten
+  fertige Zahlen (z. B. `modelRoute.ts` für den Planer, `modelCompany.ts` für die Kopfzeile). Ansichten rufen
+  das Modell nur über diese Dateien oder direkt über reine Funktionen von hier auf; sie rechnen nicht selbst (R2).
+- **Balance-Skript** `src/balance/` (Aufruf `npm run balance`): rechnet Beispielwerte und Langläufe der KI.
+- **Tests** `<datei>.test.ts` hier, siehe unten.
 
 ## Aufbau
 
@@ -13,7 +22,7 @@ Eine Datei je Abschnitt der Spezifikation. Code-Dateien heißen englisch wie im 
 | `constants.ts` | alle | **Alle** Konstanten des Modells, mit Abschnitt-Verweis | 3.1 |
 | `basics.ts` | 1 | Zeit (`yearOf`, `timeOf`), `costIndex`, `atCost`, `clamp`, `clampScale`, `difficultyFactor` | 3.1 |
 | `rng.ts` | 8.3 | Zufallsgeber `rng(seed, month, purpose, key)`; eigene Datei, weil alle Abschnitte ihn nutzen | 3.1 |
-| `index.ts` | – | Öffentlicher Zugang: alles, was Oberfläche und alter Code nutzen dürfen | 3.1 |
+| `index.ts` | – | Öffentlicher Zugang: alles, was Brücke und Oberfläche nutzen dürfen | 3.1 |
 | `satisfaction.ts` | 2 | Zufriedenheit (ohne Kabine): `flightTimeIndex`, `typeAppeal`, `menuPoints`, `mealCount`, `mealWeight`, `serviceCapability`, `servedItems` (auch für 5.7), `servicePoints` (+ `servicePointsParts`); Teile `cabinPart`, `servicePart` (+ `expectedServicePoints`), `groundPart` (+ `groundPartParts`, `deskLoad`, `deskOverloadPoints`), `staffPart`, `researchPart`; `satisfactionBreakdown`, `satisfaction`; `directOfferSatisfaction`, `connectionOfferSatisfaction`, `routeSatisfaction`, `airlineSatisfaction`, `satisfactionFactor` | 3.2a, 3.2b |
 | `cabin.ts` | 2.3, 2.4, 5.13, 7.5 | `interiorScore` (+ `interiorScoreParts`), `cabinExtrasPoints`, `cabinRating`, `wearFactor`, `averageCabinRating`; Listenpreis der Kabine `cabinListPrice` (+ `cabinListPriceParts`); Platz-Regel des Kaufdialogs `deliverableExtras`, `cabinSpace`, `seatSpace`, `economySeatsLeft` (7.5) (Spezifikation nennt `kabine.ts`, F1) | 3.2a, 3.5b, 3.7a |
 | `demand.ts` | 3 | Nachfrage: `distanceKm`, `blockMinutes`, `referenceBlockMinutes`, `citySize`, `worldScale`, `relativeSize`, `businessLinkage`, `tourismLinkage`, `seasonFactor`, `businessShare`, `demandGrowth`, `distanceFactor`, `eventDemandFactor`, `marketSize` (+ `marketSizeParts`), `classShare` | 3.3a |
@@ -54,8 +63,12 @@ Dazu:
   (Zufall nur über `rng`), kein Datum der Uhr.
 - **Ungültige Zahlen nicht verstecken.** `clamp` lässt `NaN` durch; die Prüfung am Ende des
   Monatsabschlusses (Spezifikation 8.16) findet ihn. Kein `|| 0` als Ersatz.
-- **Keine Abhängigkeit von `src/lib/`** (außer reinen Datentabellen in `src/data/`). Das neue Modell
-  steht für sich; doppelte Konstanten (z. B. `LITRES_PER_GALLON`) verschwinden mit dem alten Code (5.2).
+- **Keine Abhängigkeit von `src/lib/`** (außer reinen Datentabellen in `src/data/`). Das Modell
+  steht für sich; `src/lib/` liest Konstanten von hier (z. B. `LITRES_PER_GALLON`), nicht umgekehrt.
+- **Verweise auf den Alt-Code.** Kommentare und Testnamen sagen „Alt-Code“ oder „wie im Alt-Code“, wenn sie
+  die Rechnung vor dem Neubau meinen. Datei:Zeile dahinter gilt für Commit `231d08b` (aufgenommen in
+  `docs/neubau/bestand/`); die Dateien sind heute oft entfernt oder gekürzt. Eine Zeile ohne Datei gehört zur Datei
+  des vorigen Verweises (F78). Neue Verweise auf den heutigen Code nennen Datei und Funktion, keine Zeile.
 
 ## Regeltests
 

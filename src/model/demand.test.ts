@@ -72,7 +72,7 @@ describe('Abschnitt 3.1 Bezugs-Flugzeit', () => {
     assert.notEqual(blockMinutes(1001, 800), Math.round(blockMinutes(1001, 800)));
   });
 
-  it('3.1: Beschleunigen und Bremsen dauern auch auf sehr kurzen Strecken gleich lang (wie heute)', () => {
+  it('3.1: Beschleunigen und Bremsen dauern auch auf sehr kurzen Strecken gleich lang (wie im Alt-Code)', () => {
     assertClose(blockMinutes(0, 800), 20);
     assertClose(blockMinutes(50, 800), 20);
   });
@@ -113,7 +113,7 @@ describe('Abschnitt 3.2 Stadtgrößen und Verflechtung', () => {
     assertClose(citySize(airport, jan(1990) + 1).business - citySize(airport, jan(1990)).business, step);
   });
 
-  it('3.2: nach dem Tabellenende fortgeschrieben wie heute, weiter stetig', () => {
+  it('3.2: nach dem Tabellenende fortgeschrieben wie im Alt-Code, weiter stetig', () => {
     const late = jan(2060) + 3;
     const size = citySize(airport, late);
     assert.ok(Number.isFinite(size.business) && size.business > 0);

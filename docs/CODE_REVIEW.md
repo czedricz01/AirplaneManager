@@ -1,5 +1,7 @@
 # Code-Review AirlineManagerNeo
 
+> **Veraltet (Stand 24.11.2026).** Diese Analyse beschreibt das Spiel **vor** dem Neubau des Rechenmodells (`docs/neubau/`). Die damalige Rechnung in `src/lib/` (u. a. `financeUtils.ts`, alter Monatsabschluss, KI-Simulation) ist ersetzt oder entfernt; heute rechnet `src/model/` nach `docs/neubau/SPEZIFIKATION.md`. Datei:Zeile-Angaben und Beispielzahlen hier stimmen nicht mehr. Nur noch als Geschichte lesen; im Zweifel gelten Code und Spezifikation.
+
 Stand: 10.11.2026 · Branch `claude/vibrant-pasteur-zx25o6` · Phase 1a (Bericht) und Phase 1b (Umsetzung) abgeschlossen.
 Das Ergebnis der Umsetzung steht am Ende unter [Phase 1b – Ergebnis](#phase-1b--ergebnis). Die Zeilenangaben in den Fund-Tabellen beziehen sich auf den Stand vor der Umsetzung.
 

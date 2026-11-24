@@ -183,7 +183,7 @@ describe('Abschnitt 8.12 Neukauf und Vorbestellung', () => {
     assert.equal(preorderDiscount(50), preorderDiscount(PREORDER_MAX));
   });
 
-  it('8.12: Vorbestellen und bei Lieferung verkaufen bringt nie Gewinn (heute bis +120 Mio. $, W2)', () => {
+  it('8.12: Vorbestellen und bei Lieferung verkaufen bringt nie Gewinn (Alt-Code: bis +120 Mio. $, W2)', () => {
     for (let n = 1; n <= PREORDER_MAX; n++) {
       for (const value of [1e7, 1e8]) {
         assert.ok(saleProceeds(value, MAX_RESALE_BONUS) < preorderUnitPrice(value, n));

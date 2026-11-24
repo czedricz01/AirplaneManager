@@ -82,7 +82,7 @@ export function distanceKm(from: Coords, to: Coords): number {
  *
  * Geflogener Weg = Großkreis × `ROUTE_DETOUR`. Das Flugzeug beschleunigt mit `BLOCK_ACCEL` auf
  * `speedKmh`, fliegt den Rest mit `speedKmh` und bremst mit `BLOCK_DECEL` ab. Beschleunigen und
- * Bremsen dauern immer gleich lang, auch auf sehr kurzen Strecken (wie heute
+ * Bremsen dauern immer gleich lang, auch auf sehr kurzen Strecken (wie im Alt-Code
  * `getFlightDurationMinutes`, `src/lib/financeUtils.ts:192-220`, dort gerundet). SPEZIFIKATION 1.1, 3.1.
  *
  * @param greatCircleKm Großkreis-Entfernung in km (`distanceKm`).
@@ -114,7 +114,7 @@ export function referenceBlockMinutes(a: Coords, b: Coords): number {
 /**
  * Stadtgröße eines Flughafens im Spielmonat `month`, stetig über die Zeit (R5):
  * gerade Linie zwischen den Tabellenwerten des Jahres und des Folgejahres, nach `timeOf(month)`.
- * Tabellenwerte und Fortschreibung nach dem Tabellenende wie heute (`getAirportStats`,
+ * Tabellenwerte und Fortschreibung nach dem Tabellenende wie im Alt-Code (`getAirportStats`,
  * `src/data/airports.ts:33-59`). SPEZIFIKATION 3.2.
  */
 export function citySize(airport: MarketAirport, month: number): CitySize {
@@ -210,7 +210,7 @@ export function southernShare(a: Coords, b: Coords): number {
 /**
  * Saison des Tourismus im Spielmonat `month` (0 = Januar): Monatstabelle `SEASON_BY_MONTH`
  * (0,88 … 1,15, Mittel ≈ 1). Die Südhalbkugel ist um 6 Monate versetzt, anteilig je Ende
- * (wie heute `seasonFactor`, `src/lib/financeUtils.ts:297-302`). Wirkt nur auf den Tourismus.
+ * (wie im Alt-Code `seasonFactor`, `src/lib/financeUtils.ts:297-302`). Wirkt nur auf den Tourismus.
  * SPEZIFIKATION 3.2.
  *
  * @param south `southernShare` des Paars, 0 … 1.

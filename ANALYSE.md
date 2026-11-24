@@ -1,5 +1,7 @@
 # AirlineManagerNeo — Analyse und Verbesserungsvorschläge
 
+> **Veraltet (Stand 24.11.2026).** Diese Analyse beschreibt das Spiel **vor** dem Neubau des Rechenmodells (`docs/neubau/`). Die damalige Rechnung in `src/lib/` (u. a. `financeUtils.ts`, alter Monatsabschluss, KI-Simulation) ist ersetzt oder entfernt; heute rechnet `src/model/` nach `docs/neubau/SPEZIFIKATION.md`. Datei:Zeile-Angaben und Beispielzahlen hier stimmen nicht mehr. Nur noch als Geschichte lesen; im Zweifel gelten Code und Spezifikation.
+
 Stand: 22.09.2026 · Branch `claude/tender-faraday-vzday9`
 
 ## Auftrag

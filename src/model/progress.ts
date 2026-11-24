@@ -332,7 +332,7 @@ export function rankDef(rank: number): RankDef {
   return def;
 }
 
-/** Erlaubte Drehkreuze: Rang + Meilenstein-Zuschläge (6.10); im Free Mode unbegrenzt (wie heute). SPEZIFIKATION 6.7. */
+/** Erlaubte Drehkreuze: Rang + Meilenstein-Zuschläge (6.10); im Free Mode unbegrenzt (wie im Alt-Code). SPEZIFIKATION 6.7. */
 export function hubAllowance(rank: number, milestoneHubs: number, mode: GameMode = 'normal'): number {
   if (mode === 'free') return Number.POSITIVE_INFINITY;
   return rankDef(rank).maxHubs + milestoneHubs;
@@ -348,7 +348,7 @@ export function hasUnlock(rank: number, unlock: RankUnlock): boolean {
   return rank >= RANK_UNLOCKS[unlock];
 }
 
-/** Wie ein Flughafen zur Gesellschaft steht (Ausnahmen beim Zugang, wie heute `src/lib/airportAccess.ts:31-44`). */
+/** Wie ein Flughafen zur Gesellschaft steht (Ausnahmen beim Zugang, wie im Alt-Code `src/lib/airportAccess.ts:31-44`). */
 export interface AirportStanding {
   /** Heimat-Drehkreuz. */
   readonly isHome?: boolean;
@@ -386,7 +386,7 @@ export interface RankProgress {
 }
 
 /**
- * Fortschritt zum nächsten Rang aus denselben 3-Monats-Mitteln wie die Prüfung (heute aus einem Monat,
+ * Fortschritt zum nächsten Rang aus denselben 3-Monats-Mitteln wie die Prüfung (Alt-Code: aus einem Monat,
  * `src/lib/airlineRank.ts:166-182`); `null` auf dem höchsten Rang. SPEZIFIKATION 6.7.
  */
 export function rankProgress(currentRank: number, history: readonly RankStats[]): RankProgress | null {
@@ -419,7 +419,7 @@ export interface SizeClassInput {
 }
 
 /**
- * Flugzeugklasse wie heute (`src/lib/aircraftClasses.ts:48-58`): über 1 000 km/h Überschall; Widebody über
+ * Flugzeugklasse wie im Alt-Code (`src/lib/aircraftClasses.ts:48-58`): über 1 000 km/h Überschall; Widebody über
  * 500 Sitze Jumbo, sonst Widebody; Narrowbody bis 130 Sitze Regional, sonst Narrowbody; übrige bis 60 Sitze
  * Commuter, sonst Regional. SPEZIFIKATION 6.8.
  */
@@ -458,7 +458,7 @@ export function openSizeClasses(
 }
 
 /**
- * Klassen-Projekte, die beim Spielstart als fertig gelten: alle, die bis zum Startrang erscheinen (wie heute
+ * Klassen-Projekte, die beim Spielstart als fertig gelten: alle, die bis zum Startrang erscheinen (wie im Alt-Code
  * `src/lib/research.ts:191-193`). SPEZIFIKATION 6.8, 6.13.
  */
 export function startingClassResearch(startRank: number): readonly string[] {
@@ -620,7 +620,7 @@ export function startingResearch(startRank: number): ResearchState {
   return { done: startingClassResearch(startRank), active: [] };
 }
 
-/** Warum ein Projekt nicht starten kann (Reihenfolge der Prüfung wie heute `src/lib/research.ts:286-298`). */
+/** Warum ein Projekt nicht starten kann (Reihenfolge der Prüfung wie im Alt-Code `src/lib/research.ts:286-298`). */
 export type ResearchBlocker = 'done' | 'running' | 'rank' | 'requires' | 'slots' | 'cash';
 
 /**
@@ -673,7 +673,7 @@ export function researchProgress(active: ActiveResearch, month: number): { reado
 }
 
 /**
- * Zu Beginn des Monats `month`: Projekte mit `month − startMonth ≥ Dauer` werden fertig (wie heute
+ * Zu Beginn des Monats `month`: Projekte mit `month − startMonth ≥ Dauer` werden fertig (wie im Alt-Code
  * `src/lib/research.ts:312-323`). SPEZIFIKATION 6.9, Reihenfolge 6.15.
  */
 export function advanceResearch(state: ResearchState, month: number): { readonly state: ResearchState; readonly completed: readonly string[] } {
@@ -805,7 +805,7 @@ export function milestoneHubs(earnedIds: readonly string[]): number {
 
 /**
  * Gewinnserie nach dem Monat: Verlust → 0; ohne Strecken unverändert; Monatsergebnis > 0 → +1; sonst unverändert
- * (wie heute `src/lib/monthClose.ts:611`, F37). SPEZIFIKATION 6.10.
+ * (wie im Alt-Code `src/lib/monthClose.ts:611`, F37). SPEZIFIKATION 6.10.
  *
  * @param monthResult Monatsergebnis (5.16).
  */
@@ -890,7 +890,7 @@ function roundTo(n: number, step: number): number {
   return Math.round(n / step) * step;
 }
 
-/** Glatte Zahl für ein Gewinnziel (wie heute `niceDollars`, `src/lib/annualGoals.ts:62-66`). Nur einmal beim Angebot (R4). */
+/** Glatte Zahl für ein Gewinnziel (wie im Alt-Code `niceDollars`, `src/lib/annualGoals.ts:62-66`). Nur einmal beim Angebot (R4). */
 export function niceDollars(n: number): number {
   if (n >= 100_000_000) return roundTo(n, 5_000_000);
   if (n >= 10_000_000) return roundTo(n, 1_000_000);
@@ -950,7 +950,7 @@ const FOCUS_TARGETS: readonly ((c: GoalOfferInput) => FocusTarget)[] = [
 
 /**
  * Die drei Ziele des Dezember-Angebots: sicheres Gewinnziel, Ziel anderer Art (reihum nach Jahreszahl unter den
- * sinnvollen Arten, wie heute `src/lib/annualGoals.ts:115-121`), hohes Gewinnziel. Ohne sinnvolle andere Art nur
+ * sinnvollen Arten, wie im Alt-Code `src/lib/annualGoals.ts:115-121`), hohes Gewinnziel. Ohne sinnvolle andere Art nur
  * zwei. SPEZIFIKATION 6.11.
  */
 export function annualGoalOffers(input: GoalOfferInput): readonly AnnualGoal[] {
@@ -1141,7 +1141,7 @@ export function careerScore(input: CareerInput): CareerScore {
   };
 }
 
-/** Ein Eintrag der Ruhmeshalle. Ohne `mode` gehört er zu Normal (wie heute `src/lib/careerScore.ts:98`). */
+/** Ein Eintrag der Ruhmeshalle. Ohne `mode` gehört er zu Normal (wie im Alt-Code `src/lib/careerScore.ts:98`). */
 export interface HallEntry {
   readonly id: string;
   readonly airline: string;

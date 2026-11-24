@@ -29,7 +29,7 @@ import {
   type CharterEstimate,
 } from './disruptions';
 import { activeEvents, eventKey, type HistoricalEvent } from './eventSystem';
-import { LITRES_PER_GALLON, formatCurrency, formatNumber } from './format';
+import { formatCurrency, formatNumber } from './format';
 import {
   ensureFreeOption,
   type ChronicleEntry,
@@ -47,7 +47,7 @@ import { buildEventEndMessage, buildEventStartMessage, buildRivalOffers, offsetT
 import { buildEdition, rivalMoves, type Edition } from './newspaper';
 import { playerScore } from './modelCompany';
 import { strikeQuestion } from './modelStaff';
-import { MILESTONES, RANKS, STRIKE_MORALE_THRESHOLD, WEEKS_PER_MONTH } from '../model/constants';
+import { LITRES_PER_GALLON, MILESTONES, RANKS, STRIKE_MORALE_THRESHOLD, WEEKS_PER_MONTH } from '../model/constants';
 import type { RouteFigures } from '../model/monthClose';
 import { charterAdvantage, charterFee } from '../model/monthEvents';
 

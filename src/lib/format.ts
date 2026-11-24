@@ -99,9 +99,6 @@ export function budgetLabel(amount: number): string {
   return `$${Math.round(amount / 1_000_000)}M`;
 }
 
-/** Litres in a US gallon; the fuel price is kept per gallon and shown per litre. */
-export const LITRES_PER_GALLON = 3.78541;
-
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'

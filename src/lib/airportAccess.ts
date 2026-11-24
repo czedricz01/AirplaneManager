@@ -11,8 +11,10 @@
  * rank can never take something away. A game in Free Mode has the top rank and
  * so every airport.
  *
- * Everything here is pure.
+ * The rule itself is the model's (`isAirportOpen`, `src/model/progress.ts`); this file only collects the
+ * airline's standings from the save and words the refusal. Everything here is pure.
  */
+import { isAirportOpen, type AirportStanding } from '../model/progress';
 import { RANKS, clampRank, rankDef } from './airlineRank';
 
 /** The largest airport level the rank may use. */
@@ -27,18 +29,30 @@ export function rankForLevel(level: number): number {
   return found ? found.index : RANKS.length - 1;
 }
 
-/** Airports the airline may use whatever their level: home, built-up, flown to. */
-export function exemptAirports(
+/**
+ * How the airline stands at each airport it already has something at: home, management tier, route end.
+ * These are the exceptions of the model's access rule (`isAirportOpen`, SPEZIFIKATION 6.7); airports
+ * not in the map have none.
+ */
+export function airportStandings(
   homeHub: string | null | undefined,
   management: Record<string, { level?: number } | undefined> | null | undefined,
   routes: ReadonlyArray<{ origin: string; destination: string }> | null | undefined
-): Set<string> {
-  const out = new Set<string>();
-  if (homeHub) out.add(homeHub);
-  for (const [id, infra] of Object.entries(management || {})) if ((infra?.level ?? 0) >= 1) out.add(id);
+): Map<string, AirportStanding> {
+  const out = new Map<string, { isHome?: boolean; managementTier?: number; isRouteEnd?: boolean }>();
+  const at = (id: string) => {
+    let st = out.get(id);
+    if (!st) out.set(id, (st = {}));
+    return st;
+  };
+  if (homeHub) at(homeHub).isHome = true;
+  for (const [id, infra] of Object.entries(management || {})) {
+    const tier = infra?.level ?? 0;
+    if (tier >= 1) at(id).managementTier = tier;
+  }
   for (const r of routes || []) {
-    out.add(r.origin);
-    out.add(r.destination);
+    at(r.origin).isRouteEnd = true;
+    at(r.destination).isRouteEnd = true;
   }
   return out;
 }
@@ -47,11 +61,11 @@ export function exemptAirports(
 export function airportGate(
   airport: { id: string; name?: string; level?: number } | null | undefined,
   rank: number,
-  exempt: ReadonlySet<string>
+  standings: ReadonlyMap<string, AirportStanding>
 ): string | null {
   if (!airport) return null;
   const level = Number(airport.level) || 1;
-  if (exempt.has(airport.id) || level <= maxAirportLevel(rank)) return null;
+  if (isAirportOpen(rank, level, standings.get(airport.id))) return null;
   const needed = rankForLevel(level);
   return `${airport.name || airport.id} is a level ${level} airport. Airports of that size open at the rank ` +
     `${rankDef(needed).title}; your airline is ${rankDef(clampRank(rank)).title}.`;

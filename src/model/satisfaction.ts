@@ -183,7 +183,7 @@ export function mealWeight(k: number, flightTimeIdx: number): number {
   return clamp(mealCount(flightTimeIdx) - (k - 1), 0, 1);
 }
 
-/** Was Flugzeug und Strecke an Bord möglich machen (heute `validateClassConfigs`). SPEZIFIKATION 2.5. */
+/** Was Flugzeug und Strecke an Bord möglich machen (Alt-Code: `validateClassConfigs`). SPEZIFIKATION 2.5. */
 export interface ServiceCapability {
   /** Stufen der Gerichte, die geladen werden können. */
   readonly mealCategories: readonly MealCategory[];
@@ -437,7 +437,7 @@ export function deskLoad(departingSeatsPerWeek: number, desks: Desks): number {
 
 /**
  * Abzug für überlastete Schalter, −20 … 0: bis 80 % nichts; 80 … 100 % −0,2 je Prozentpunkt (−4 bei 100 %);
- * darüber −4 − 1,6 je Prozentpunkt, höchstens −20 (heute `getDeskOverloadSat`). SPEZIFIKATION 2.6.3.
+ * darüber −4 − 1,6 je Prozentpunkt, höchstens −20 (Alt-Code: `getDeskOverloadSat`). SPEZIFIKATION 2.6.3.
  *
  * @param load `deskLoad` als Anteil.
  */

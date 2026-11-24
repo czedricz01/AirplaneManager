@@ -1,5 +1,7 @@
 # SAT-System: Analyse, Logikfehler, Vorschläge
 
+> **Veraltet (Stand 24.11.2026).** Diese Analyse beschreibt das Spiel **vor** dem Neubau des Rechenmodells (`docs/neubau/`). Die damalige Rechnung in `src/lib/` (u. a. `financeUtils.ts`, alter Monatsabschluss, KI-Simulation) ist ersetzt oder entfernt; heute rechnet `src/model/` nach `docs/neubau/SPEZIFIKATION.md`. Datei:Zeile-Angaben und Beispielzahlen hier stimmen nicht mehr. Nur noch als Geschichte lesen; im Zweifel gelten Code und Spezifikation.
+
 Stand 2026-09-29 · Branch `claude/kind-lovelace-e2eml3`
 
 > **Lesehinweis.** Datei:Zeile-Angaben und Beispielzahlen beschreiben den Stand **vor** den Korrekturen (Commit `309c1ba`). Was in diesem Branch behoben wurde, ist mit „behoben“ markiert und in Abschnitt 8 aufgelistet.

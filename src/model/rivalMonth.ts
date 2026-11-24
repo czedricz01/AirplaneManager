@@ -193,7 +193,7 @@ export function thinnedFrequency(weeklyFrequency: number): number {
  * Verlierer (7.8 Schritt 3): Strecken mit geglättetem Gewinn < 0, die mindestens die Geduld (7.4) alt sind; die
  * schlechtesten zuerst, je Monat so viele wie die KI-Stärke erlaubt (Easy/Normal 1, Hard 2). Je Strecke erst auf
  * `THIN_SHARE` der Flüge, wenn das nach der Planer-Hauptzahl Gewinn bringt; sonst streichen, solange mehr als
- * `CORE_NETWORK` Strecken bleiben. Steht das Kernnetz, endet die Liste (wie heute `:970`). SPEZIFIKATION 7.8.
+ * `CORE_NETWORK` Strecken bleiben. Steht das Kernnetz, endet die Liste (wie im Alt-Code `:970`). SPEZIFIKATION 7.8.
  */
 export function loserDecisions(
   routes: readonly RivalRouteView[],
@@ -238,7 +238,7 @@ export interface FineTuneInput {
 }
 
 /**
- * Feinabstimmung einer Strecke (7.8 Schritt 4, wie heute `:982-1001`): Schritt `max(1, runden(25 % der Flüge))`;
+ * Feinabstimmung einer Strecke (7.8 Schritt 4, wie im Alt-Code `:982-1001`): Schritt `max(1, runden(25 % der Flüge))`;
  * bei geglättetem Gewinn ≥ 0 mehr Flüge (höchstens bis zu den höchsten Umläufen und nur so viele, wie Slots frei
  * sind), sonst weniger (mindestens 1). Behalten, wenn die Planer-Hauptzahl um mehr als `FINE_TUNE_MIN_GAIN` ihres
  * Betrags steigt. Ohne Änderung (zu jung, gekürzt, kein Platz, kein Gewinn) `null`. SPEZIFIKATION 7.8.
@@ -268,7 +268,7 @@ export interface TargetCandidate {
   readonly id: string;
   /** Entfernung Drehkreuz–Ziel in km. */
   readonly km: number;
-  /** Geschäfts- und Tourismus-Stärke des Ziels (wie heute `getAirportStats`). */
+  /** Geschäfts- und Tourismus-Stärke des Ziels (wie im Alt-Code `getAirportStats`). */
   readonly business: number;
   readonly tourism: number;
   /** Abflüge je Woche anderer Gesellschaften auf dem Paar. */
@@ -312,7 +312,7 @@ export function isEligibleTarget(target: TargetCandidate, rangeKm: number): bool
 }
 
 /**
- * Wert eines Ziels in der Vorauswahl (billig, ohne Modell-Rechnung; wie heute `:503-521`):
+ * Wert eines Ziels in der Vorauswahl (billig, ohne Modell-Rechnung; wie im Alt-Code `:503-521`):
  * `√(Gewicht(Drehkreuz) × Gewicht(Ziel)) × min(1, km / (0,2 × Reichweite)) × Langstrecken-Faktor × Andrang`.
  * Andrang = `1 / (1 + Abflüge anderer / 14)`; ist das Ziel Drehkreuz einer anderen KI, stattdessen
  * `PRESELECT_RIVAL_HUB_WEIGHT` (E66). Nicht erlaubte Ziele 0. SPEZIFIKATION 7.9.
@@ -361,7 +361,7 @@ export function preselectTargets(
 
 /**
  * Höchste Umläufe je Woche eines Flugzeugs, bis die Planer-Funktion für machbare Flüge (E51) steht:
- * `abrunden(7 × 18 h / Blockzeit eines Umlaufs)`, 1 … 21 (wie heute `:105-108`, `:281-285`). SPEZIFIKATION 7.9.
+ * `abrunden(7 × 18 h / Blockzeit eines Umlaufs)`, 1 … 21 (wie im Alt-Code `:105-108`, `:281-285`). SPEZIFIKATION 7.9.
  *
  * @param roundTripBlockMinutes Blockzeit hin und zurück mit Bodenzeiten, Minuten.
  */
@@ -658,14 +658,14 @@ export interface RivalPlaneView {
 
 /**
  * Muss ein Flugzeug modernisiert werden: älter als 20 Jahre oder mehr als 12 Jahre nach dem Lieferende seines Typs
- * (wie heute `:1006-1031`). SPEZIFIKATION 7.11.
+ * (wie im Alt-Code `:1006-1031`). SPEZIFIKATION 7.11.
  */
 export function needsModernization(plane: Pick<RivalPlaneView, 'builtMonth' | 'typeLastDeliveryOffset'>, month: number): boolean {
   const pastProduction = plane.typeLastDeliveryOffset !== null && month > plane.typeLastDeliveryOffset + MODERNIZE_AFTER_END_MONTHS;
   return pastProduction || month - plane.builtMonth > MODERNIZE_AGE_YEARS * 12;
 }
 
-/** Das Flugzeug, das diesen Monat modernisiert wird: das älteste, das es braucht; −1 = keines. Eines je Monat (wie heute). SPEZIFIKATION 7.11. */
+/** Das Flugzeug, das diesen Monat modernisiert wird: das älteste, das es braucht; −1 = keines. Eines je Monat (wie im Alt-Code). SPEZIFIKATION 7.11. */
 export function modernizationCandidate(planes: readonly RivalPlaneView[], month: number): number {
   let best = -1;
   planes.forEach((p, i) => {
@@ -772,7 +772,7 @@ export interface CrisisScheduleInput {
 }
 
 /**
- * Krisen-Fahrplan (wie heute `src/lib/rivalCrisis.ts:52-85`): in der Krise bei Auslastung < 0,8 auf
+ * Krisen-Fahrplan (wie im Alt-Code `src/lib/rivalCrisis.ts:52-85`): in der Krise bei Auslastung < 0,8 auf
  * `max(1, runden(Flüge × Auslastung / 0,8))`; ab 0,95 + `aufrunden(25 % des alten Plans)`; nach der Krise je Monat
  * + 25 % bis zum alten Plan. Slots bleiben gekauft. SPEZIFIKATION 7.12.
  */
@@ -1087,7 +1087,7 @@ export function takeover(
 // 7.17 Wirkung auf den Spieler und Anzeige
 // ---------------------------------------------------------------------------
 
-/** Ticker-Rang des Spielers: `1 + Anzahl KI mit mehr Fluggästen im Monat` (E46; heute nach Kasse). SPEZIFIKATION 7.17. */
+/** Ticker-Rang des Spielers: `1 + Anzahl KI mit mehr Fluggästen im Monat` (E46; Alt-Code: nach Kasse). SPEZIFIKATION 7.17. */
 export function tickerRank(playerPassengers: number, rivalPassengers: readonly number[]): number {
   return 1 + rivalPassengers.filter((p) => p > playerPassengers).length;
 }
@@ -1165,7 +1165,7 @@ export function rivalBuyableSlots(
   return Math.max(0, Math.min(fairShare, rivalSlotCap(airportSize, ownHub) - ownedTotal));
 }
 
-/** Passt ein Typ auf die Piste: ICAO-Code ≤ größter Code des Flughafens; ohne Angabe ja (wie `fitsAirport` heute). SPEZIFIKATION 7.9. */
+/** Passt ein Typ auf die Piste: ICAO-Code ≤ größter Code des Flughafens; ohne Angabe ja (wie `fitsAirport` im Alt-Code). SPEZIFIKATION 7.9. */
 export function runwayFits(icaoCode: string | undefined, maxIcaoCode: string | undefined): boolean {
   return !icaoCode || !maxIcaoCode || icaoCode <= maxIcaoCode;
 }
