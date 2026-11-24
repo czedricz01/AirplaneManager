@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { weeklyTripCapacity } from '../model/schedule';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -236,5 +237,11 @@ test('W6: planner and schedule editor take block time and flights per day from t
     assert.ok(!/Math\.ceil\([^)]*\/ 5\) \* 5/.test(source), `${file}: own rounding of the block`);
     assert.ok(!source.includes('rawBlockMinutes'), `${file}: rawBlockMinutes`);
     assert.ok(!/DAY_MIN \/ cycleMin|1440 \/ cycleMin/.test(source), `${file}: whole day / block`);
+  }
+});
+
+test('7.9 (E51): the model rule for the most weekly round trips equals the planner on an empty aircraft', () => {
+  for (const cycle of [170, 225, 380, 695, 1170, 1440, 2900]) {
+    assert.equal(findMaxFlightStarts([], cycle, 2100).bestCount, weeklyTripCapacity(cycle), `cycle ${cycle}`);
   }
 });

@@ -57,11 +57,15 @@ export interface TargetGoal {
 /**
  * Bankruptcy: capital below `threshold` at `months` month-ends in a row loses
  * the scenario at once. `months: 1` means capital may never drop below it.
+ * `threshold` is `'creditLine'` (the negative credit line at that month-end,
+ * SPEZIFIKATION 8.15) or dollars of the start month, which follow the cost
+ * index like the dollar targets (E6, E77). The month close decides by the
+ * model's rule (`scenarioStep`).
  */
 export interface CapitalFloorGoal {
   id: string;
   kind: 'capitalFloor';
-  threshold: number;
+  threshold: number | 'creditLine';
   months: number;
   label: string;
 }
@@ -109,13 +113,13 @@ export interface Scenario {
   lose: LoseGoal[];
 }
 
-/** The usual way to lose: three month-ends in a row more than $5M in the red. */
+/** The usual way to lose: three month-ends in a row below the negative credit line (8.15, E77). */
 const BANKRUPTCY: CapitalFloorGoal = {
   id: 'bankruptcy',
   kind: 'capitalFloor',
-  threshold: -5_000_000,
+  threshold: 'creditLine',
   months: 3,
-  label: 'Capital below -$5M at three month-ends in a row means bankruptcy'
+  label: 'Capital below the negative credit line at three month-ends in a row means bankruptcy'
 };
 
 export const SCENARIOS: readonly Scenario[] = [

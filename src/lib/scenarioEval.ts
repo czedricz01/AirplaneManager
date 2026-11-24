@@ -14,13 +14,15 @@
  *     close; every goal must be met at that close.
  *   - When the deadline's close passes without a win, the scenario is lost.
  *   - A lose goal (bankruptcy) ends it at once, whatever else was met in the
- *     same close.
+ *     same close. Its floor and the month-ends in a row below it are the
+ *     model's (`scenarioFloor`, `ScenarioState.floorStreak`, E77).
  *
  * Nothing here keeps state: a goal met in one month and missed in the next
  * is simply not met. Everything is pure.
  */
 import type { CapitalFloorGoal, GoalMetric, Scenario, TargetGoal } from '../data/scenarios';
-import { servedCityPairs } from '../model/monthClose';
+import { atCost } from '../model/basics';
+import { scenarioFloor, servedCityPairs } from '../model/monthClose';
 import { formatCurrency, formatMoneyCompact, formatMonthOffset, formatNumber } from './format';
 import type { ScenarioStatus } from './gameState';
 
@@ -47,8 +49,10 @@ export interface ScenarioContext {
   transferPaxMonth: number | null;
   /** The month's operating profit; null before the scenario's first month has closed. */
   monthlyProfit: number | null;
-  /** Capital at every month-end since the scenario started, oldest first, this one included. */
-  capitalHistory: number[];
+  /** Month-ends in a row below the floor, as the model counted them at the last close (`ScenarioState.floorStreak`). */
+  floorStreak: number;
+  /** The credit line now (`creditStatus`), for a floor at the negative credit line (8.15, E77). */
+  creditLimit: number;
 }
 
 export interface GoalProgress {
@@ -72,6 +76,8 @@ export interface GoalProgress {
   /** For a lose goal: month-ends in a row below the floor, and how many end the game. */
   streak?: number;
   months?: number;
+  /** For a lose goal: capital is below the floor now (the next month-end would count). */
+  below?: boolean;
 }
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
@@ -104,14 +110,14 @@ export function goalValue(goal: TargetGoal, ctx: ScenarioContext): number | null
   return 0;
 }
 
-/** Month-ends in a row, counting back from the newest, with capital below the threshold. */
-export function capitalFloorStreak(history: number[], threshold: number): number {
-  let streak = 0;
-  for (let i = history.length - 1; i >= 0; i--) {
-    if (!(history[i] < threshold)) break;
-    streak++;
-  }
-  return streak;
+/**
+ * The floor of a lose goal in dollars of the month `offset`, by the model's rule (`scenarioFloor`, SPEZIFIKATION 8.15,
+ * E77): the negative credit line, or the scenario's own threshold (dollars of the start month) moved with the cost
+ * index.
+ */
+export function floorThreshold(goal: CapitalFloorGoal, scenario: Pick<Scenario, 'startOffset'>, creditLimit: number, offset: number): number {
+  const t = goal.threshold;
+  return scenarioFloor(typeof t === 'number' ? { floorThreshold: t / atCost(1, scenario.startOffset) } : {}, creditLimit, offset);
 }
 
 /**
@@ -153,26 +159,28 @@ function targetProgress(goal: TargetGoal, ctx: ScenarioContext): GoalProgress {
   };
 }
 
-function floorProgress(goal: CapitalFloorGoal, ctx: ScenarioContext): GoalProgress {
+function floorProgress(goal: CapitalFloorGoal, scenario: Scenario, ctx: ScenarioContext): GoalProgress {
   const months = Math.max(1, Math.round(goal.months));
-  const streak = capitalFloorStreak(ctx.capitalHistory, goal.threshold);
+  const streak = Math.max(0, ctx.floorStreak);
+  const target = floorThreshold(goal, scenario, ctx.creditLimit, ctx.offset);
   return {
     id: goal.id,
     label: goal.label,
     kind: 'lose',
     metric: 'capitalFloor',
     current: ctx.capital,
-    target: goal.threshold,
+    target,
     progress: clamp01(streak / months),
     done: streak >= months,
     streak,
-    months
+    months,
+    below: ctx.capital < target
   };
 }
 
 /** Where the goals stand, without deciding anything: for the progress panel. */
 export function scenarioGoals(scenario: Scenario, ctx: ScenarioContext): GoalProgress[] {
-  return [...scenario.win.map(g => targetProgress(g, ctx)), ...scenario.lose.map(g => floorProgress(g, ctx))];
+  return [...scenario.win.map(g => targetProgress(g, ctx)), ...scenario.lose.map(g => floorProgress(g, scenario, ctx))];
 }
 
 /** Month closes still to come, the current month's included: 1 in the deadline month itself. */

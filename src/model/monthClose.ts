@@ -464,8 +464,10 @@ export interface ScenarioTarget {
 /** Ein laufendes Szenario (8.15). */
 export interface ScenarioState {
   readonly win: readonly ScenarioTarget[];
-  /** Kasse unter −`creditLimit` an so vielen Monatsenden in Folge verliert (`capitalFloor`, Lesart von E34). */
+  /** Kasse unter der Untergrenze (`scenarioFloor`) an so vielen Monatsenden in Folge verliert (`capitalFloor`, E34, E77). */
   readonly floorMonths: number;
+  /** Untergrenze als $ von 1960 (E6); fehlt = −`creditLimit` des Monatsendes (8.15, E77). */
+  readonly floorThreshold?: number;
   /** Letzter Monat, dessen Abschluss zählt. */
   readonly deadline: number;
   readonly floorStreak: number;
@@ -1916,13 +1918,21 @@ export function scenarioValue(target: Pick<ScenarioTarget, 'metric' | 'minWeekly
 }
 
 /**
+ * Untergrenze der Kasse eines Szenarios am Ende von `month` (8.15, E77): −`creditLimit`, oder die eigene Schwelle des
+ * Szenarios (`floorThreshold`, $ von 1960) mit dem Kostenindex des Monats.
+ */
+export function scenarioFloor(s: Pick<ScenarioState, 'floorThreshold'>, creditLimit: number, month: number): number {
+  return s.floorThreshold === undefined ? -creditLimit : atCost(s.floorThreshold, month);
+}
+
+/**
  * Szenario nach dem Abschluss von `month` (8.15): Ziele mit den Werten dieses Abschlusses; verloren bei Spielende (8.14)
- * oder Kasse unter −`creditLimit` an `floorMonths` Monatsenden in Folge; gewonnen, wenn alle Ziele erreicht sind;
- * nach dem Stichtag sonst verloren. SPEZIFIKATION 8.15.
+ * oder Kasse unter der Untergrenze (`scenarioFloor`: −`creditLimit` oder eigene Schwelle, E77) an `floorMonths`
+ * Monatsenden in Folge; gewonnen, wenn alle Ziele erreicht sind; nach dem Stichtag sonst verloren. SPEZIFIKATION 8.15.
  */
 export function scenarioStep(s: ScenarioState, values: ScenarioValues, month: number): ScenarioState {
   if (s.status !== 'running') return s;
-  const floorStreak = values.capital < -values.creditLimit ? s.floorStreak + 1 : 0;
+  const floorStreak = values.capital < scenarioFloor(s, values.creditLimit, month) ? s.floorStreak + 1 : 0;
   if (values.bankrupt || floorStreak >= s.floorMonths) return { ...s, floorStreak, status: 'lost' };
   const met = new Set(s.met);
   for (const t of s.win) {

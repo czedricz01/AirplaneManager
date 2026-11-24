@@ -22,6 +22,7 @@ import {
   newLedger,
   NO_DECISIONS,
   plannerRouteResult,
+  scenarioFloor,
   scenarioStep,
   servedCityPairs,
   scenarioTarget,
@@ -414,6 +415,18 @@ describe('Abschnitt 8.15 Szenario-Ziele', () => {
     assert.equal(scenarioStep(s, { ...values, capital: -6_000_000 }, M + 2).status, 'lost');
     assert.equal(scenarioStep(s, { ...values, capital: 0 }, M + 2).floorStreak, 0);
     assert.equal(scenarioStep(scenario(), { ...values, bankrupt: true }, M).status, 'lost');
+  });
+
+  it('E77: eigene Untergrenze des Szenarios (`floorThreshold`, $ von 1960) statt −creditLimit', () => {
+    const solvent = scenario({ floorMonths: 1, floorThreshold: 0 });
+    assert.equal(scenarioFloor(solvent, 5_000_000, M), 0);
+    assert.equal(scenarioFloor(scenario(), 5_000_000, M), -5_000_000);
+    close(scenarioFloor({ floorThreshold: -1_000_000 }, 5_000_000, M), -1_000_000 * costIndex(M), 1e-12);
+    // −1 $ verliert bei Untergrenze 0 sofort, obwohl die Kreditlinie 5 Mio. $ ist.
+    assert.equal(scenarioStep(solvent, { ...values, capital: -1 }, M).status, 'lost');
+    assert.equal(scenarioStep(solvent, { ...values, capital: 0 }, M).status, 'running');
+    // Ohne eigene Schwelle: −1 $ liegt über −creditLimit.
+    assert.equal(scenarioStep(scenario({ floorMonths: 1 }), { ...values, capital: -1 }, M).floorStreak, 0);
   });
 
   it('8.15: gewonnen, wenn alle Ziele erreicht; nach dem Stichtag sonst verloren', () => {

@@ -15,7 +15,8 @@
 
 import { atCost, clamp, yearOf } from './basics';
 import { subsidy1960, subsidyIncome } from './costTotals';
-import { departuresOnPair, facilityPrice, managementTierPrice, slotLimit, slotPrice, slotResalePrice } from './airportCosts';
+import { aircraftTripMinutes, weeklyTripCapacity } from './schedule';
+import { departuresOnPair, facilityPrice, managementTierPrice, slotClassAvailable, slotLimit, slotPrice, slotResalePrice } from './airportCosts';
 import { fuelTable } from './costs';
 import { creditLimit, overhaulQuote, refitCabinCondition, refitPrice, saleCandidate, saleProceeds } from './fleetMarket';
 import { blockMinutes, citySize, distanceKm, eventDemandFactor, type DemandEvent } from './demand';
@@ -97,7 +98,6 @@ import {
   HOME_REGION_WEIGHT,
   LOUNGE_CASH_COVER,
   MAX_IDLE_MONTHS,
-  MAX_WEEKLY_ROTATIONS,
   MIN_ROUTE_KM,
   MODERNIZE_AFTER_END_MONTHS,
   MODERNIZE_AGE_YEARS,
@@ -126,7 +126,6 @@ import {
   TAKEOVER_MIN_PRICE_1960,
   TAKEOVER_MIN_TIER,
   THIN_SHARE,
-  WEEKLY_OPERATING_MINUTES,
   WORLD_REGIONS,
   CABIN_CLASSES,
   AIRCRAFT_CLASSES,
@@ -360,14 +359,12 @@ export function preselectTargets(
 }
 
 /**
- * Höchste Umläufe je Woche eines Flugzeugs, bis die Planer-Funktion für machbare Flüge (E51) steht:
- * `abrunden(7 × 18 h / Blockzeit eines Umlaufs)`, 1 … 21 (wie im Alt-Code `:105-108`, `:281-285`). SPEZIFIKATION 7.9.
- *
- * @param roundTripBlockMinutes Blockzeit hin und zurück mit Bodenzeiten, Minuten.
+ * Höchste Umläufe je Woche eines Flugzeugs auf einer Strecke (7.9): dieselbe Regel wie der Planer (E51,
+ * `weeklyTripCapacity` mit der Umlaufzeit `aircraftTripMinutes`), mindestens 1. `busyMinutes` = Minuten der Woche, die
+ * andere Umläufe desselben Flugzeugs binden. SPEZIFIKATION 7.9.
  */
-export function maxWeeklyRotations(roundTripBlockMinutes: number): number {
-  if (!(roundTripBlockMinutes > 0)) throw new Error(`Ungültige Blockzeit: ${roundTripBlockMinutes}`);
-  return clamp(Math.floor(WEEKLY_OPERATING_MINUTES / roundTripBlockMinutes), 1, MAX_WEEKLY_ROTATIONS);
+export function rivalMaxRotations(greatCircleKm: number, speedKmh: number, cls: AircraftClass, busyMinutes = 0): number {
+  return Math.max(1, weeklyTripCapacity(aircraftTripMinutes(greatCircleKm, speedKmh, cls), busyMinutes));
 }
 
 /** Bewertete Flugzahlen je Ziel: 100 %, 60 %, 30 % der höchsten Umläufe, gerundet, mindestens 1, ohne doppelte. SPEZIFIKATION 7.9. */
@@ -1310,6 +1307,13 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
   const catalog = ctx.state.catalog ?? [];
   const typeOf = (typeId: string) => catalog.find((t) => t.id === typeId);
   const planeOf = (id: string) => aircraft.find((p) => p.id === id) as AircraftState;
+  /** Minuten der Woche, die die Strecken von `plane` (ohne `exceptRouteId`) binden: Umläufe × Umlaufzeit (7.9, E51). */
+  const busyMinutesOf = (plane: AircraftState, list: readonly RouteState[], exceptRouteId?: string) =>
+    sumOf(
+      list
+        .filter((x) => x.aircraftId === plane.id && x.id !== exceptRouteId)
+        .map((x) => (x.departuresPerWeek / 2) * aircraftTripMinutes(kmOf(x), plane.cruiseSpeed, plane.aircraftClass)),
+    );
   let serial = 0;
   const newId = (kind: string) => `${company.id}-${kind}${next}-${++serial}`;
 
@@ -1402,7 +1406,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
       const plane = aircraft.find((p) => p.id === r.aircraftId) as AircraftState;
       const f = figures.get(r.id);
       if (!f) continue;
-      const otherRotations = sumOf(routes.filter((x) => x.aircraftId === plane.id && x.id !== r.id).map((x) => x.departuresPerWeek / 2));
+      const otherBusy = busyMinutesOf(plane, routes, r.id);
       const slotRoom = Math.min(
         ...[r.from, r.to].map((id) => {
           const owned = company.airports[id]?.slots[plane.aircraftClass] ?? 0;
@@ -1417,7 +1421,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
       const alt = fineTune(
         {
           route: v,
-          maxRotations: Math.max(1, maxWeeklyRotations(2 * f.blockMinutes) - otherRotations),
+          maxRotations: rivalMaxRotations(f.greatCircleKm, plane.cruiseSpeed, plane.aircraftClass, otherBusy),
           slotRoom,
           crisisReduced: memory[r.id].fullFrequency !== undefined && v.weeklyFrequency < (memory[r.id].fullFrequency as number),
         },
@@ -1448,8 +1452,11 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
   const freeAtStart = (id: string) =>
     slotLimit(airports[id].size) - sumOf(ctx.state.companies.map((c) => sumOf(AIRCRAFT_CLASSES.map((cls) => c.airports[id]?.slots[cls] ?? 0))));
   const bought: Record<string, number> = {};
+  // Slots der Klasse: eigene freie und kaufbare (7.10); Widebody erst ab Flughafengröße 3 (E78).
   const room = (id: string, cls: AircraftClass) =>
-    freeOwn(id, cls) + rivalBuyableSlots(airports[id].size, hubs.includes(id), ownedTotal(id), freeAtStart(id), deciders, bought[id] ?? 0);
+    slotClassAvailable(cls, airports[id].size)
+      ? freeOwn(id, cls) + rivalBuyableSlots(airports[id].size, hubs.includes(id), ownedTotal(id), freeAtStart(id), deciders, bought[id] ?? 0)
+      : 0;
   const playerTier3At = (id: string) => others.some((o) => (o.airports[id]?.managementTier ?? 0) >= MAX_MANAGEMENT_TIER);
   const otherRoutes = others.flatMap((o) => o.routes.map((r) => ({ origin: r.from, destination: r.to, weeklyFrequency: r.departuresPerWeek / 2 })));
   const otherRivalHubs = new Set(
@@ -1567,8 +1574,9 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
       for (const i of chosen) items.push({ hub, target: ids[i], km: candidates[i].km });
     }
     if (items.length === 0) return null;
+    const busy = busyMinutesOf(plane, base.routes);
     const maxRot = (i: number) =>
-      Math.max(1, Math.min(maxWeeklyRotations(2 * blockMinutes(items[i].km, plane.cruiseSpeed)), room(items[i].hub, cls), room(items[i].target, cls)));
+      Math.max(1, Math.min(rivalMaxRotations(items[i].km, plane.cruiseSpeed, cls, busy), room(items[i].hub, cls), room(items[i].target, cls)));
     const fares = new Map<number, PartialClassFigures>();
     const evaluate = (i: number, f: number) => {
       const it = items[i];
@@ -1759,7 +1767,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
             runwayFits(t.icaoCode, airports[found.hub].maxIcaoCode) &&
             runwayFits(t.icaoCode, airports[found.target].maxIcaoCode);
           const cls = t.class as AircraftClass;
-          const f = Math.min(found.plan.weeklyFrequency, maxWeeklyRotations(2 * blockMinutes(found.km, t.cruiseSpeed)));
+          const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, t.cruiseSpeed, cls));
           if (!fits || room(found.hub, cls) < f || room(found.target, cls) < f) {
             return { ...t, runwayOk: false, inRange: false, price: 0, expectedProfit: 0 };
           }
@@ -1776,7 +1784,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
         const pick = pickPurchaseType(options, next);
         if (pick >= 0) {
           const plane = rivalAircraft(personality, catalog[pick], next, newId('a'));
-          const f = Math.min(found.plan.weeklyFrequency, maxWeeklyRotations(2 * blockMinutes(found.km, plane.cruiseSpeed)));
+          const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, plane.cruiseSpeed, plane.aircraftClass));
           const price = options[pick].price;
           const slotCost = withRoute(current(), plane, found.hub, found.target, f, {}, planId, 0).slotCost;
           const blocker = rivalBuyBlocker({

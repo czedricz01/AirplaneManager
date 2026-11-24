@@ -41,15 +41,15 @@ import {
 import type { GameMessage, MonthlyReport } from './gameTypes';
 import { CAMPAIGN_SPECS, REGION_LABELS } from './marketing';
 import { nextMessageId } from './messages';
-import { modelWorldEvent, rivalCompanyId } from './modelBridgeWorld';
+import { MODEL_DISRUPTION_KIND, modelWorldEvent, rivalCompanyId } from './modelBridgeWorld';
 import { PLAYER_ID, defaultModelEnv, runModelMonth, type AppGame, type AppMonth, type ModelEnv } from './modelMonth';
 import { buildEventEndMessage, buildEventStartMessage, buildRivalOffers, offsetToDateStr } from './monthClose';
 import { buildEdition, rivalMoves, type Edition } from './newspaper';
 import { playerScore } from './modelCompany';
 import { strikeQuestion } from './modelStaff';
 import { LITRES_PER_GALLON, MILESTONES, RANKS, STRIKE_MORALE_THRESHOLD, WEEKS_PER_MONTH } from '../model/constants';
-import type { RouteFigures } from '../model/monthClose';
-import { charterAdvantage, charterFee } from '../model/monthEvents';
+import { monthOperations, type CompanyOperations, type ModelState } from '../model/monthClose';
+import type { Disruption } from '../model/monthEvents';
 
 /** Was der Abschluss über `AppGame` hinaus aus `App.tsx` liest. */
 export interface ModelCloseInput extends AppGame {
@@ -135,41 +135,68 @@ export function launchPreviewMessage(nextMonth: number, id: number): GameMessage
   };
 }
 
-/** Was die Schätzung einer Störung je Strecke aus dem Abschluss liest (`RouteFigures`, je Woche). */
-export type CharterFigures = Pick<RouteFigures, 'routeId' | 'plannedLegs' | 'shares' | 'revenue' | 'passengerCost' | 'flightOpsFull'>;
+/** Die Störung des Modells zu einer Störung der Oberfläche (Art, Monat, Ziel; wie `applyDisruptionAnswers`). */
+export function modelDisruptionOf(d: Pick<AppDisruption, 'kind' | 'offset' | 'ref'>, disruptions: readonly Disruption[]): Disruption | undefined {
+  return disruptions.find((x) => x.kind === MODEL_DISRUPTION_KIND[d.kind] && x.month === d.offset && x.target === d.ref);
+}
+
+/** `state` mit der Antwort `charter` auf die Störung `target`; alle anderen Störungen wie in `state`. */
+function withCharterAnswer(state: ModelState, target: Disruption, charter: boolean): ModelState {
+  const same = (x: Disruption) => x.month === target.month && x.kind === target.kind && x.target === target.target;
+  return {
+    ...state,
+    disruptions: state.disruptions.map((x) => {
+      if (!same(x)) return x;
+      const { charter: _old, ...rest } = x;
+      return charter ? { ...rest, charter: true } : rest;
+    }),
+  };
+}
+
+/** Monatsergebnis aus Schritt 2, so weit Charter es ändert: Strecken-Ergebnisse (5.9) × `WEEKS_PER_MONTH` − Charter-Kosten. */
+const charterResult = (o: CompanyOperations) => o.routes.reduce((s, r) => s + r.result, 0) * WEEKS_PER_MONTH - o.charter;
+const weeklyPassengerCost = (o: CompanyOperations) => o.routes.reduce((s, r) => s + r.passengerCost.total, 0);
+
+/** Rechnung „gestrichen“ für `charterQuestionFigures`: der Monat mit `target` gestrichen. */
+export function cancelledOperations(state: ModelState, target: Disruption, companyId: string = PLAYER_ID): CompanyOperations | undefined {
+  return monthOperations(withCharterAnswer(state, target, false))[companyId];
+}
 
 /**
- * Schätzung für die Störungs-Frage (8.9, R2): was Charter kostet und bringt, aus den Strecken-Zahlen des Abschlusses X
- * (`MonthReport.routes`); gebucht wird im Abschluss X+1. Je getroffener Strecke:
- * - betroffene Flüge im Monat = geplante Abschnitte je Woche × `WEEKS_PER_MONTH` × Anteil der Störung;
- * - Erlös und Kosten je Fluggast je Flug = Wochenwert / durchgeführte Abschnitte (geplant × (1 − `cancelledShare` in X));
- * - Gebühr je Flug `charterFee`, eigene Flugkosten je Flug `flightOpsFull` / geplante Abschnitte, Vorteil `charterAdvantage`.
- * Strecken ohne Zahlen (neu) oder ohne durchgeführte Flüge in X zählen nicht. Die Schätzung nimmt an, dass jeder
- * gestrichene Flug so viele Fluggäste hätte wie ein Flug im Mittel; das Modell verteilt die Fluggäste auf die
- * übrigen Sitze um (8.9, „halber Flugplan“), der echte Verlust ist also eher kleiner.
+ * Beträge der Störungs-Frage (8.9, E76, R2): Das Modell rechnet den Monat der Störung (`state`, Monat X+1 nach dem
+ * Abschluss) zweimal mit `monthOperations`, die Störung `target` einmal gestrichen, einmal gechartert; alle anderen
+ * Störungen wie in `state`. Daraus je Monat:
+ * - Flüge = Σ geplante Abschnitte je Woche × `WEEKS_PER_MONTH` × gecharterter Anteil (Unterschied der Rechnungen);
+ * - Erlös = Erlös mit Charter − gestrichen (der echte Verlust: Fluggäste gestrichener Flüge wandern zum Teil auf
+ *   die übrigen Sitze);
+ * - Kosten je Fluggast = Unterschied von Σ `passengerCost` × `WEEKS_PER_MONTH`;
+ * - eigene Flugkosten = Σ `flightOpsFull` / geplante Abschnitte × Flüge (entfallen in beiden Fällen);
+ * - Gebühr = Unterschied der Charter-Kosten (= was der Abschluss mit Charter bucht);
+ * - Vorteil = Monatsergebnis mit Charter − gestrichen (`charterResult`).
+ * `cancelled` darf die Rechnung „gestrichen“ mitbringen (dieselbe für alle Fragen eines Abschlusses, wenn keine
+ * Störung beantwortet ist). Ohne die Gesellschaft im Spielstand: alles 0.
  */
-export function disruptionCharterEstimate(
-  d: Pick<AppDisruption, 'routeIds' | 'cancelShare'>,
-  figures: readonly CharterFigures[],
+export function charterQuestionFigures(
+  state: ModelState,
+  target: Disruption,
+  companyId: string = PLAYER_ID,
+  cancelled: CompanyOperations | undefined = cancelledOperations(state, target, companyId),
 ): CharterEstimate {
-  const byId = new Map(figures.map((f) => [f.routeId, f]));
   const e: CharterEstimate = { flights: 0, revenue: 0, passengerCost: 0, ownFlightCost: 0, fee: 0, advantage: 0 };
-  for (const id of d.routeIds) {
-    const f = byId.get(id);
-    if (!f || !(f.plannedLegs > 0)) continue;
-    const operated = f.plannedLegs * (1 - f.shares.cancelledShare);
-    if (!(operated > 0)) continue;
-    const flights = f.plannedLegs * WEEKS_PER_MONTH * d.cancelShare;
-    const revenue = f.revenue / operated;
-    const passengerCost = f.passengerCost.total / operated;
-    const fee = charterFee(f.flightOpsFull, f.plannedLegs);
+  const chartered = monthOperations(withCharterAnswer(state, target, true))[companyId];
+  if (!cancelled || !chartered) return e;
+  const before = new Map(cancelled.routes.map((r) => [r.routeId, r]));
+  for (const r of chartered.routes) {
+    const share = r.shares.charteredShare - (before.get(r.routeId)?.shares.charteredShare ?? 0);
+    if (!(share > 0) || !(r.plannedLegs > 0)) continue;
+    const flights = r.plannedLegs * WEEKS_PER_MONTH * share;
     e.flights += flights;
-    e.revenue += revenue * flights;
-    e.passengerCost += passengerCost * flights;
-    e.ownFlightCost += (f.flightOpsFull / f.plannedLegs) * flights;
-    e.fee += fee * flights;
-    e.advantage += charterAdvantage(revenue, passengerCost, fee) * flights;
+    e.ownFlightCost += (r.flightOpsFull / r.plannedLegs) * flights;
   }
+  e.revenue = chartered.revenue - cancelled.revenue;
+  e.passengerCost = (weeklyPassengerCost(chartered) - weeklyPassengerCost(cancelled)) * WEEKS_PER_MONTH;
+  e.fee = chartered.charter - cancelled.charter;
+  e.advantage = charterResult(chartered) - charterResult(cancelled);
   return e;
 }
 
@@ -265,9 +292,17 @@ export function modelMonthClose(input: ModelCloseInput, env: ModelEnv = defaultM
         content: `The following will cost flights in ${monthStr}:\n\n${rolled.map((d) => describeDisruption(d, routeLabel)).join('\n')}`,
       },
     });
-    const major = rolled.filter((d) => d.cancelShare >= MAJOR_DISRUPTION_SHARE);
-    const figures = month.modelReport?.routes ?? [];
-    const estimates = new Map(major.map((d) => [d.id, disruptionCharterEstimate(d, figures)]));
+    // Beträge aus zwei Rechnungen des Monats X+1 (E76); die Rechnung „gestrichen“ gilt für alle, denn keine neue
+    // Störung ist beantwortet.
+    const major = rolled.filter((d) => !d.mitigated && d.cancelShare >= MAJOR_DISRUPTION_SHARE);
+    const estimates = new Map<string, CharterEstimate>();
+    let cancelled: CompanyOperations | undefined;
+    for (const d of major) {
+      const target = modelDisruptionOf(d, raw.state.disruptions);
+      if (!target) continue;
+      cancelled ??= cancelledOperations(raw.state, target);
+      estimates.set(d.id, charterQuestionFigures(raw.state, target, PLAYER_ID, cancelled));
+    }
     for (const d of disruptionsToAsk(major, (x) => estimates.get(x.id)?.revenue ?? 0)) {
       const estimate = estimates.get(d.id);
       if (estimate) decisions.push(ensureFreeOption(buildDisruptionDecision(d, monthStr, estimate, routeLabel)));

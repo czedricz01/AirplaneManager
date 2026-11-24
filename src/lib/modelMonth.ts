@@ -293,6 +293,11 @@ export interface AppMonth {
   readonly renamed: Readonly<Record<string, string>>;
   /** Vogelschläge des Spielers im Monat X (8.6) mit Reparatur-Kosten, für den Hinweis der Oberfläche. */
   readonly birdStrikes: readonly { readonly registration: string; readonly cost: number }[];
+  /**
+   * Spielstand des Modells für X+1 nach dem Abschluss (Kennungen des Modells, gelieferte Flugzeuge noch ohne
+   * Kennzeichen). Nur für Rechnungen im Abschluss (Störungs-Frage, E76); nicht gespeichert.
+   */
+  readonly state: ModelState;
 }
 
 /** Texte, die nur die Oberfläche kennt (F58): Jahresziel aus `describeGoal`, Szenario mit Titel und Sternen. */
@@ -443,6 +448,7 @@ export function runModelMonth(
     log: result.log,
     renamed: delivered.renamed,
     birdStrikes,
+    state: next,
   };
 }
 

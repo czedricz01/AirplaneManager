@@ -7,7 +7,7 @@
  */
 
 import { SCENARIOS } from '../data/scenarios';
-import { disruptionCharterEstimate } from '../lib/modelMonthClose';
+import { charterQuestionFigures } from '../lib/modelMonthClose';
 import { costIndex } from '../model/basics';
 import {
   AIRPORT_STRIKE_CANCEL_SHARE,
@@ -149,23 +149,25 @@ export function charterCase(result: CaseResult, label = result.c.label): Charter
 }
 
 /**
- * Schätzung der Störungs-Frage gegen die Rechnung des Monats (Paket 5.3a, „Offen aus 5.2e“ (1)). Die Frage schätzt aus
- * den Zahlen des Monats ohne Störung (`disruptionCharterEstimate`); die Rechnung rechnet denselben Monat einmal mit
- * gestrichenen und einmal mit gecharterten Flügen (`monthOperations`). Alle Beträge je Monat.
+ * Beträge der Störungs-Frage gegen die Rechnung des Monats (Paket 5.3a, E76). Die Frage rechnet den Monat der Störung
+ * mit `charterQuestionFigures` (zweimal `monthOperations`: gestrichen, gechartert); hier wird derselbe Monat getrennt
+ * ohne Störung, gestrichen und gechartert gerechnet. Alle Beträge je Monat.
  */
 export interface CharterEstimateCase {
   readonly label: string;
   /** Auslastung ohne Störung. */
   readonly load: number;
-  /** Erlös der betroffenen Flüge nach der Schätzung. */
+  /** Erlösverlust beim Streichen nach der Frage. */
   readonly estimatedRevenue: number;
   /** Erlös ohne Störung − Erlös mit gestrichenen Flügen (Rechnung). */
   readonly realRevenueLoss: number;
-  /** Vorteil von Charter nach der Schätzung. */
+  /** Erlös der betroffenen Flüge im Mittel (Erlös ohne Störung × Anteil; so schätzte die Frage bis 5.3a). */
+  readonly naiveRevenue: number;
+  /** Vorteil von Charter nach der Frage. */
   readonly estimatedAdvantage: number;
   /** Monatsergebnis mit Charter − mit gestrichenen Flügen (Rechnung; Ergebnis = Strecken-Ergebnis − Charter-Kosten). */
   readonly realAdvantage: number;
-  /** Charter-Gebühr nach der Schätzung und gebucht (`charterCost`). */
+  /** Charter-Gebühr nach der Frage und gebucht (`charterCost`). */
   readonly estimatedFee: number;
   readonly realFee: number;
 }
@@ -173,25 +175,24 @@ export interface CharterEstimateCase {
 export function charterEstimateCase(result: CaseResult, label = result.c.label, share = AIRPORT_STRIKE_CANCEL_SHARE): CharterEstimateCase {
   const market = caseMarket(result.c, result.best, result.c.departures);
   const base = marketState(market);
+  const strike = { month: market.month, kind: 'airportStrike' as const, target: market.from, share };
+  const state = { ...base, companies: base.companies.map((c) => ({ ...c, inputs: { ...c.inputs, charter: true } })) };
   const run = (charter?: boolean): CompanyOperations =>
-    monthOperations({
-      ...base,
-      disruptions: charter === undefined ? [] : [{ month: market.month, kind: 'airportStrike', target: market.from, share, charter }],
-      companies: base.companies.map((c) => ({ ...c, inputs: { ...c.inputs, charter: true } })),
-    }).a;
+    monthOperations({ ...state, disruptions: charter === undefined ? [] : [{ ...strike, charter }] }).a;
   const none = run();
   const cancelled = run(false);
   const chartered = run(true);
   const monthResult = (o: CompanyOperations) => o.routes[0].result * WEEKS_PER_MONTH - o.charter;
-  const estimate = disruptionCharterEstimate({ routeIds: [none.routes[0].routeId], cancelShare: share }, none.routes);
+  const question = charterQuestionFigures({ ...state, disruptions: [strike] }, strike, 'a');
   return {
     label,
     load: result.load,
-    estimatedRevenue: estimate.revenue,
+    estimatedRevenue: question.revenue,
     realRevenueLoss: none.revenue - cancelled.revenue,
-    estimatedAdvantage: estimate.advantage,
+    naiveRevenue: none.revenue * share,
+    estimatedAdvantage: question.advantage,
     realAdvantage: monthResult(chartered) - monthResult(cancelled),
-    estimatedFee: estimate.fee,
+    estimatedFee: question.fee,
     realFee: chartered.charter,
   };
 }
@@ -422,31 +423,33 @@ export function eventSection(inputs: EventInputs, recovery: readonly RecoveryCas
     note: 'Vorteil = Erlös − Kosten je Fluggast − Charter-Gebühr (`charterAdvantage`, 8.9); die eigenen Flugkosten entfallen in beiden Fällen. Dazu kein Ruf-Abzug mit Charter (6.2).',
   });
 
-  // ---- 8.9 Schätzung der Störungs-Frage (5.3a) ----
+  // ---- 8.9 Beträge der Störungs-Frage (5.3a, E76) ----
   const estimates = [...results.map((r) => charterEstimateCase(r)), ...inputs.smallMarket.map((r) => charterEstimateCase(r, `${r.c.label} × 0,25`))];
   const ratio = (a: number, b: number) => (Math.abs(b) > 1 ? a / b : Number.NaN);
-  const revRatios = estimates.map((e) => ratio(e.realRevenueLoss, e.estimatedRevenue)).filter(Number.isFinite);
-  const wrongSign = estimates.filter((e) => e.estimatedAdvantage > 0 !== e.realAdvantage > 0);
+  const same = (a: number, b: number) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+  const differs = estimates.filter((e) => !same(e.estimatedRevenue, e.realRevenueLoss) || !same(e.estimatedAdvantage, e.realAdvantage) || !same(e.estimatedFee, e.realFee));
+  const naive = estimates.map((e) => ratio(e.realRevenueLoss, e.naiveRevenue)).filter(Number.isFinite);
   checks.push({
     id: 'B8.10',
-    spec: '8.9, R2',
-    rule: `Schätzung der Störungs-Frage (\`disruptionCharterEstimate\`, Flughafen-Streik ${pct(AIRPORT_STRIKE_CANCEL_SHARE)}) gegen die Rechnung des Monats mit und ohne Charter`,
-    value: `echter Erlösverlust ÷ geschätzter Erlös ${pct(Math.min(...revRatios))} … ${pct(Math.max(...revRatios))}; Empfehlung (Charter besser oder schlechter) falsch in ${wrongSign.length} von ${estimates.length} Fällen${wrongSign.length ? ` (${wrongSign.map((e) => e.label).join(', ')})` : ''}`,
-    verdict: 'info',
+    spec: '8.9, E76, R2',
+    rule: `Beträge der Störungs-Frage (\`charterQuestionFigures\`, Flughafen-Streik ${pct(AIRPORT_STRIKE_CANCEL_SHARE)}) = Rechnung des Monats mit und ohne Charter (Erlösverlust, Gebühr, Vorteil)`,
+    value: `${estimates.length - differs.length} von ${estimates.length} Fällen gleich${differs.length ? ` (abweichend: ${differs.map((e) => e.label).join(', ')})` : ''}; echter Erlösverlust ÷ Erlös im Mittel ${pct(Math.min(...naive))} … ${pct(Math.max(...naive))} (so weit lag die Schätzung bis 5.3a daneben)`,
+    verdict: differs.length === 0 ? 'ok' : 'abweichung',
   });
   tables.push({
-    title: 'Schätzung der Störungs-Frage gegen die Rechnung (Flughafen-Streik am Start-Flughafen, Monat, Strecken beim besten Preis)',
-    header: ['Strecke', 'Auslastung', 'Erlös betroffen (Schätzung)', 'Erlösverlust (Rechnung)', 'Vorteil Charter (Schätzung)', 'Vorteil Charter (Rechnung)', 'Gebühr Schätzung / gebucht'],
+    title: 'Beträge der Störungs-Frage gegen die Rechnung (Flughafen-Streik am Start-Flughafen, Monat, Strecken beim besten Preis)',
+    header: ['Strecke', 'Auslastung', 'Erlös im Mittel × Anteil', 'Erlösverlust (Frage)', 'Erlösverlust (Rechnung)', 'Vorteil Charter (Frage)', 'Vorteil Charter (Rechnung)', 'Gebühr Frage / gebucht'],
     rows: estimates.map((e) => [
       e.label,
       pct(e.load),
+      usd(e.naiveRevenue),
       usd(e.estimatedRevenue),
-      `${usd(e.realRevenueLoss)} (${pct(ratio(e.realRevenueLoss, e.estimatedRevenue))})`,
+      `${usd(e.realRevenueLoss)} (${pct(ratio(e.realRevenueLoss, e.naiveRevenue))})`,
       usd(e.estimatedAdvantage),
       usd(e.realAdvantage),
       `${usd(e.estimatedFee)} / ${usd(e.realFee)}`,
     ]),
-    note: 'Schätzung aus dem Monat ohne Störung (wie die Frage aus dem Abschluss X). Rechnung: derselbe Monat mit `disruptions` (gestrichen bzw. gechartert), Vorteil = Monatsergebnis mit Charter − mit Streichen. Beim Streichen verteilt das Modell die Fluggäste auf die übrigen Sitze (8.9); der echte Erlösverlust ist darum kleiner, je mehr Sitze frei sind.',
+    note: 'Frage: `charterQuestionFigures` auf dem Monat mit der Störung (E76). Rechnung: derselbe Monat ohne Störung, gestrichen und gechartert (`monthOperations`), Vorteil = Monatsergebnis mit Charter − mit Streichen. „Erlös im Mittel × Anteil“ ist die alte Schätzung aus 5.2e: Beim Streichen verteilt das Modell die Fluggäste auf die übrigen Sitze (8.9), der echte Verlust ist darum kleiner, je mehr Sitze frei sind.',
   });
 
   // ---- 8.11 Händler-Spanne ----
@@ -608,14 +611,17 @@ export function eventSection(inputs: EventInputs, recovery: readonly RecoveryCas
     for (const g of s.win) {
       if (g.metric === 'capital' || g.metric === 'monthlyProfit') moneyRows.push([s.title, g.label, usd(g.target), usd(g.target / costIndex(s.startOffset))]);
     }
-    for (const g of s.lose) moneyRows.push([s.title, g.label, usd(g.threshold), usd(g.threshold / costIndex(s.startOffset))]);
+    for (const g of s.lose) {
+      const t = g.threshold;
+      moneyRows.push([s.title, g.label, typeof t === 'number' ? usd(t) : '−Kreditlinie', typeof t === 'number' ? usd(t / costIndex(s.startOffset)) : '−Kreditlinie']);
+    }
     moneyRows.push([s.title, 'Startkasse', usd(s.capital), usd(s.capital / costIndex(s.startOffset))]);
   }
   tables.push({
     title: 'Dollar-Beträge der Szenarien als Wert von 1960 (für Phase 5.1, E6)',
     header: ['Szenario', 'Ziel / Schwelle', 'heute', 'Wert 1960 (÷ Kostenindex des Starts)'],
     rows: moneyRows,
-    note: 'Nach 8.15 stehen Dollar-Ziele als Wert von 1960 in den Daten und laufen über `atCost` des Prüfmonats. Die Pleite-Schwelle wird nach 8.15 durch −`creditLimit` ersetzt.',
+    note: 'Nach 8.15 stehen Dollar-Ziele als Wert von 1960 in den Daten und laufen über `atCost` des Prüfmonats. Die Pleite-Schwelle ist −`creditLimit` (8.15); „Oil Shock“ hat die eigene Schwelle 0 $ (E77).',
   });
 
   return { title: 'Abschnitt 8: Monatsabschluss, Ereignisse, Flottenmarkt', checks, tables };

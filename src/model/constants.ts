@@ -943,6 +943,12 @@ export const SLOT_RESALE_SHARE = 0.5;
 /** Abstellplätze gibt es erst an Flughäfen ab dieser Größe (Alt-Code: `src/lib/financeUtils.ts:1703-1710`). SPEZIFIKATION 5.10. */
 export const STANDS_MIN_AIRPORT_SIZE = 3;
 
+/**
+ * Slots der Klasse Widebody (Widebody, Jumbo, Überschall) gibt es erst an Flughäfen ab dieser Größe, für Spieler und KI
+ * (E78; vorher nur Regel der Oberfläche, `getInfraAvailability`). SPEZIFIKATION 5.10, 7.10.
+ */
+export const WIDEBODY_SLOTS_MIN_AIRPORT_SIZE = 3;
+
 /** Miete eines Abstellplatzes je Woche in $ von 1960, Verwaltungsstufe 0–1 (Alt-Code: `src/lib/financeUtils.ts:31-35`). SPEZIFIKATION 5.10. */
 export const STAND_RENT_1960: Readonly<Record<AircraftClass, number>> = {
   Regional: 150,
@@ -2120,11 +2126,6 @@ export const PRESELECT_RIVAL_HUB_WEIGHT = 2;
 /** Bewertete Flugzahlen je Ziel als Anteil der höchsten Umläufe. SPEZIFIKATION 7.9. */
 export const PLAN_FREQUENCY_SHARES: readonly number[] = [1, 0.6, 0.3];
 
-/** Planbare Minuten je Woche und Flugzeug: 7 Tage × 18 h (wie im Alt-Code `:104`, bis E51 steht). SPEZIFIKATION 7.9. */
-export const WEEKLY_OPERATING_MINUTES = 7 * 18 * 60;
-
-/** Höchstens so viele Umläufe je Woche und Flugzeug (wie im Alt-Code `:107`). SPEZIFIKATION 7.9. */
-export const MAX_WEEKLY_ROTATIONS = 21;
 
 // ---------------------------------------------------------------------------
 // 7.10 Slots, Schalter, Drehkreuze und Einrichtungen der KI

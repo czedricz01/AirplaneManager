@@ -433,6 +433,17 @@ export function competitionSections(runs: readonly LongRunResult[]): Section[] {
       value: `Haltungen an der eigenen Grenze ${pct(mean(allYears.map((y) => (y.slotHoldings > 0 ? y.slotHoldingsAtCap / y.slotHoldings : 0))), 1)}; größter KI-Anteil an einem Flughafen ${pct(Math.max(...allYears.map((y) => y.maxAirportSlotShare)))}`,
       verdict: 'info',
     });
+    const wideYears = allYears.filter((y) => y.widebodyRoutes !== undefined);
+    if (wideYears.length > 0) {
+      const small = wideYears.reduce((n, y) => n + (y.widebodyRoutesSmallAirport ?? 0), 0);
+      checks.push({
+        id: 'B7.11',
+        spec: '5.10, 7.10, E78',
+        rule: 'Widebody-Slots erst ab Flughafengröße 3: keine KI-Strecke mit Widebody an einem kleineren Flughafen',
+        value: `Strecken mit Widebody je Jahr (Januar) im Mittel ${num(mean(wideYears.map((y) => y.widebodyRoutes ?? 0)), 1)}; davon an Flughäfen unter Größe 3: ${small} (alle Jahre und Läufe)`,
+        verdict: small === 0 ? 'ok' : 'abweichung',
+      });
+    }
     checks.push({
       id: 'B7.6',
       spec: '7.13',

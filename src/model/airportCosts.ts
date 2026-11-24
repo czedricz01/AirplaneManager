@@ -27,6 +27,7 @@ import {
   STAND_RENT_1960,
   STANDS_MIN_AIRPORT_SIZE,
   TIER_PRICE_1960,
+  WIDEBODY_SLOTS_MIN_AIRPORT_SIZE,
   type AircraftClass,
   type DeskType,
   type FacilityKind,
@@ -129,6 +130,16 @@ export function slotRent(cls: AircraftClass, month: number, feeFactor: number): 
 /** Ob ein Flughafen Abstellplätze hat: erst ab Größe `STANDS_MIN_AIRPORT_SIZE` (3). SPEZIFIKATION 5.10. */
 export function hasStands(airportSize: number): boolean {
   return airportSize >= STANDS_MIN_AIRPORT_SIZE;
+}
+
+/**
+ * Gibt es an einem Flughafen der Größe `airportSize` Slots der Klasse `cls`? Widebody erst ab
+ * `WIDEBODY_SLOTS_MIN_AIRPORT_SIZE` (3), für Spieler und KI (E78); sonst immer. Eine Strecke braucht Slots ihrer
+ * Klasse an beiden Enden, also fliegen Widebodies nur zwischen Flughäfen ab Größe 3 (zusätzlich zur Bahn).
+ * SPEZIFIKATION 5.10, 7.10.
+ */
+export function slotClassAvailable(cls: AircraftClass, airportSize: number): boolean {
+  return cls !== 'Widebody' || airportSize >= WIDEBODY_SLOTS_MIN_AIRPORT_SIZE;
 }
 
 /**

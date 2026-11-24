@@ -23,6 +23,8 @@ import {
   REPUTATION_NEUTRAL,
   REPUTATION_STEP,
   SCALES,
+  MAX_MANAGEMENT_TIER,
+  MORALE_NEUTRAL,
   USED_CONDITION,
   WINTER_CANCEL_SHARE,
   WINTER_CHANCE,
@@ -38,7 +40,8 @@ import { defectChance } from '../model/monthEvents';
 import { goalBase, goalReward, milestoneDef, reputationChange, reputationTarget, researchPrice } from '../model/progress';
 import { musd, num, pct, usd, type Check, type Section, type Table } from './report';
 import { bestDeparturesCase, caseMarket, ROUTE_CASES, runCase, type CaseResult, type RouteCase } from './routes';
-import { modelAirport, monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, seatsTotal, type MarketSpec } from './world';
+import { marketState, modelAirport, monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, seatsTotal, type MarketSpec } from './world';
+import { monthOperations, type ModelState } from '../model/monthClose';
 import { campaignCost } from '../model/costTotals';
 
 // ---------------------------------------------------------------------------
@@ -93,6 +96,47 @@ export function equipmentResults(): EquipmentResult[] {
           offers: [{ company: 'a', typeId: r.typeId, personality: p, departures: r.departures, inputs: { ...NEUTRAL_INPUTS, completedResearch: research } }],
         }).a.airlineSatisfaction;
       out.push({ route: r.label, personality: p, satisfaction: sat([]), satisfactionResearch: sat(SATISFACTION_RESEARCH) });
+    }
+  }
+  return out;
+}
+
+/**
+ * Beste Spieler-Ausstattung (Paket 5.3c, „Offen aus 3.9c“): Kabine und Service wie `personality` (7.5), dazu alle
+ * Satisfaction-Forschung, Moral 100, VIP-Lounge, Bordküche und Hangar an beiden Enden, Verwaltungsstufe 3.
+ * Airline satisfaction allein auf der Strecke; Ruf-Ziel ohne und mit allen drei Kampagnen (+3, 6.3).
+ */
+export interface PlayerBestCase {
+  readonly route: string;
+  readonly personality: RivalPersonality;
+  readonly satisfaction: number;
+  readonly target: number;
+  readonly targetWithAdvertising: number;
+}
+
+export function playerBestCases(personalities: readonly RivalPersonality[] = ['flag', 'boutique']): PlayerBestCase[] {
+  const out: PlayerBestCase[] = [];
+  for (const r of EQUIPMENT_ROUTES) {
+    for (const p of personalities) {
+      const base = marketState({ from: r.from, to: r.to, month: sampleMonth(r.year), offers: [{ company: 'a', typeId: r.typeId, personality: p, departures: r.departures }] });
+      const state: ModelState = {
+        ...base,
+        companies: base.companies.map((c) => ({
+          ...c,
+          inputs: { ...NEUTRAL_INPUTS, completedResearch: SATISFACTION_RESEARCH, morale: 2 * MORALE_NEUTRAL, staffModel: true },
+          airports: Object.fromEntries(
+            Object.entries(c.airports).map(([id, h]) => [id, { ...h, managementTier: MAX_MANAGEMENT_TIER, facilities: ['vipLounge', 'catering', 'hangar'] as const }]),
+          ),
+        })),
+      };
+      const satisfaction = monthOperations(state).a.airlineSatisfaction;
+      out.push({
+        route: r.label,
+        personality: p,
+        satisfaction,
+        target: targetOf(satisfaction),
+        targetWithAdvertising: reputationTarget({ airlineSatisfaction: satisfaction, campaigns: ['local', 'national', 'global'] }),
+      });
     }
   }
   return out;
@@ -275,6 +319,7 @@ export function advertisingCase(label: string, tier: CampaignTier): AdvertisingC
 export function careerSection(
   equipment: readonly EquipmentResult[] = equipmentResults(),
   rankCases: readonly RankCaseResult[] = RANK_CASES.map(runRankCase),
+  playerBest: readonly PlayerBestCase[] = playerBestCases(),
 ): Section {
   const checks: Check[] = [];
   const tables: Table[] = [];
@@ -405,8 +450,14 @@ export function careerSection(
     id: 'B6.6',
     spec: '6.10',
     rule: 'Ruf-Meilensteine 60 / 70 / 80: Satisfaction, die sie brauchen, und ob eine Ausstattung sie erreicht',
-    value: `${['reputation-bronze', 'reputation-silver', 'reputation-gold'].map((id) => `${num(milestoneDef(id).threshold)} → Satisfaction ${num(satisfactionForReputation(milestoneDef(id).threshold), 0)}`).join(', ')}; Gold ${best >= milestoneGold ? 'erreichbar' : 'mit keiner Ausstattung erreichbar'}`,
+    value: `${['reputation-bronze', 'reputation-silver', 'reputation-gold'].map((id) => `${num(milestoneDef(id).threshold)} → Satisfaction ${num(satisfactionForReputation(milestoneDef(id).threshold), 0)}`).join(', ')}; Gold ${best >= milestoneGold ? 'mit KI-Ausstattung erreichbar' : 'mit keiner KI-Ausstattung erreichbar'}; beste Spieler-Ausstattung: ${playerBest.map((c) => `${PERSONALITY_NAME[c.personality]} ${c.route.split(' ')[1]} ${num(c.target, 1)} (mit Werbung ${num(c.targetWithAdvertising, 1)})`).join(', ')}`,
     verdict: 'info',
+  });
+  tables.push({
+    title: 'Beste Spieler-Ausstattung: Ruf-Ziel gegen die Ruf-Meilensteine (allein auf der Strecke, Mai)',
+    header: ['Strecke', 'Kabine und Service', 'Airline satisfaction', 'Ruf-Ziel', 'mit allen Kampagnen', 'Gold (80)'],
+    rows: playerBest.map((c) => [c.route, PERSONALITY_NAME[c.personality], num(c.satisfaction, 1), num(c.target, 1), num(c.targetWithAdvertising, 1), c.target >= milestoneGold ? 'ja' : c.targetWithAdvertising >= milestoneGold ? 'mit Werbung' : 'nein']),
+    note: 'Alle Satisfaction-Forschung (sat-1 … sat-6, cabin), Moral 100, VIP-Lounge, Bordküche und Hangar an beiden Enden, Verwaltungsstufe 3; Kabine und Service nach der Persönlichkeit (7.5). Die Airline satisfaction ist das Mittel über alle Fluggäste der Gesellschaft: Gold braucht ein Netz, das überwiegend aus solchen Strecken besteht.',
   });
   tables.push({
     title: 'Ruf-Schwellen: nötige Satisfaction und Ausstattungen, die sie erreichen',

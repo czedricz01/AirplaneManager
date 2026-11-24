@@ -197,7 +197,7 @@ import { SettingsDialog } from "./components/app/SettingsDialog";
 import { GameTopBar } from "./components/app/GameTopBar";
 import { GameNavigation } from "./components/app/GameNavigation";
 import { GameDialogs } from "./components/app/GameDialogs";
-import { addCapexItem, buildRivalOffers, offsetToDateStr, reportOffset, scenarioCapitalHistory, scenarioRoutes } from "./lib/monthClose";
+import { addCapexItem, buildRivalOffers, offsetToDateStr, reportOffset, scenarioRoutes } from "./lib/monthClose";
 import {
   SaveMetadata,
   listSaves,
@@ -621,30 +621,6 @@ export default function App() {
     ),
     [routes, disruptions, staff, currentDateOffset]
   );
-
-  /**
-   * The running scenario's goals as they stand, for the progress panel:
-   * standing figures (cash, routes, reputation) as of now, monthly ones
-   * (connecting passengers, profit) from the last closed month, which is
-   * what the close judges them on. Null for a free game or a decided one.
-   */
-  const activeScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
-  const scenarioProgress = useMemo(() => {
-    if (!activeScenario || !scenario) return null;
-    // Until the scenario's first month has closed there is no monthly figure to judge.
-    const lastClose = latestReport && reportOffset(latestReport) >= scenario.startedOffset ? latestReport : null;
-    const ctx: ScenarioContext = {
-      offset: currentDateOffset,
-      capital,
-      routes: scenarioRoutes(routes),
-      reputation,
-      regionsServed: regionsServed(routes, airportsMapAdjusted).size,
-      transferPaxMonth: lastClose ? (typeof lastClose.transferPax === 'number' && Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
-      monthlyProfit: lastClose && Number.isFinite(lastClose.totalProfit) ? lastClose.totalProfit : null,
-      capitalHistory: scenarioCapitalHistory(reportHistory, scenario.startedOffset)
-    };
-    return { goals: scenarioGoals(activeScenario, ctx), monthsLeft: monthsLeft(activeScenario, currentDateOffset) };
-  }, [activeScenario, scenario, currentDateOffset, capital, routes, reputation, latestReport, reportHistory]);
 
   /** A strike is waiting for the player's answer; no second one is called meanwhile. */
   const strikePending = pendingDecisions.some(d => d.kind === 'strike');
@@ -1735,6 +1711,33 @@ export default function App() {
 
   /** The credit line as the month close will see it (8.14): limit from the fleet value, cash, months overdrawn. */
   const credit = useMemo(() => creditStatus(capital, worth.fleetValue, overdrawnMonths), [capital, worth.fleetValue, overdrawnMonths]);
+
+  /**
+   * The running scenario's goals as they stand, for the progress panel:
+   * standing figures (cash, routes, reputation) as of now, monthly ones
+   * (connecting passengers, profit) from the last closed month, which is
+   * what the close judges them on; the floor and the month-ends below it
+   * are the model's (E77). Null for a free game or a decided one.
+   */
+  const activeScenario = scenario?.status === 'running' ? scenarioById(scenario.id) : undefined;
+  const scenarioProgress = useMemo(() => {
+    if (!activeScenario || !scenario) return null;
+    // Until the scenario's first month has closed there is no monthly figure to judge.
+    const lastClose = latestReport && reportOffset(latestReport) >= scenario.startedOffset ? latestReport : null;
+    const ctx: ScenarioContext = {
+      offset: currentDateOffset,
+      capital,
+      routes: scenarioRoutes(routes),
+      reputation,
+      regionsServed: regionsServed(routes, airportsMapAdjusted).size,
+      transferPaxMonth: lastClose ? (typeof lastClose.transferPax === 'number' && Number.isFinite(lastClose.transferPax) ? lastClose.transferPax : 0) : null,
+      monthlyProfit: lastClose && Number.isFinite(lastClose.totalProfit) ? lastClose.totalProfit : null,
+      floorStreak: scenario.floorStreak ?? 0,
+      creditLimit: credit.limit
+    };
+    return { goals: scenarioGoals(activeScenario, ctx), monthsLeft: monthsLeft(activeScenario, currentDateOffset) };
+  }, [activeScenario, scenario, currentDateOffset, capital, routes, reputation, latestReport, credit.limit]);
+
 
   /** The career so far, as the model scores it (6.12). */
   const score = useMemo(() => playerScore({

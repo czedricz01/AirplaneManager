@@ -82,6 +82,9 @@ Claude schlägt vor, der Mensch entscheidet.
 | E73 | 23.11.2026 | **Preis der Krisen-Antwort ohne Bezugsgröße und bei spätem Kauf (O69 = A):** (1) Ohne Bezugsgröße (kein Bericht im ersten Monat, oder letzter Monat ohne Flüge, also Treibstoff-Rechnung bzw. Erlös 0) bleibt die kaufende Antwort gesperrt („Priced after a month of flying“), bis ein Monat mit Flügen abgeschlossen ist (Zwischenstand aus F69 (5) wird Regel). „Nichts tun“ bleibt wählbar, „Decision pending“ bleibt im Band. (2) Der Preis rechnet mit der **Restdauer** im Monat der Wahl statt der vollen Dauer: `Restdauer = startMonth + months − Monat`, den laufenden Monat mitgezählt (dessen Abschluss rechnet die Antwort schon mit), höchstens die Dauer, nach dem Ende 0. Wer später kauft, zahlt anteilig weniger; die Antwort wirkt nur noch für den Rest (vergangene Monate sind gebucht). Die Absicherung hält weiter den Preis des Monats vor Beginn (8.5). | Ohne Bezugsgröße wäre die Antwort kostenlos. Mit voller Dauer bei spätem Kauf zahlte der Spieler für Monate, in denen die Antwort nicht mehr wirken kann. |
 | E74 | 23.11.2026 | **Personalstreik nur mit Strecken (O70 = A):** Im Übergang zu X+1 wird der Personalstreik nur gewürfelt, wenn die Gesellschaft am Monatsende mindestens eine Strecke hat (wie die alte Regel `advanceStaff`). Ohne Strecken: keine Streik-Frage, kein −10 im Moral-Ziel, Pech-Deckel bleibt offen. Moral und Moral-Ziel laufen weiter wie bisher. Spezifikation 8.7 ergänzt. | Ein Streik ohne Flüge trifft nichts und bestraft nur. |
 | E75 | 23.11.2026 | **Keine Umwandlung alter Spielstände (Vorgabe des Menschen, 23.11.2026):** Paket 5.1 entfällt. Bisherige Spielstände waren nur Testläufe. `SAVE_VERSION` steigt auf 8; ein Spielstand mit kleinerer Version wird beim Laden gelöscht und der Spieler bekommt eine Meldung. Ein Spielstand mit größerer Version wird nur abgelehnt, nicht gelöscht. Spielstände der aktuellen Version werden weiter Feld für Feld geprüft (keine NaN). | Eine Umwandlung in den Modell-Spielstand (`rivals`, `modelWorld`, `ledgerValues`) wäre aufwendig und hätte keinen Nutzen; ohne sie entfällt auch aller Code, der nur für alte Spielstände da war. |
+| E76 | 24.11.2026 | **Störungs-Frage rechnet den Monat X+1 (O71 = B):** Die Frage nennt Erlösverlust, Charter-Gebühr und Vorteil aus zwei Rechnungen des Modells für den Monat X+1 (`monthOperations` auf dem Spielstand nach dem Abschluss, die Störung einmal gestrichen, einmal gechartert). Vorteil = Monatsergebnis mit Charter − mit Streichen (Strecken-Ergebnisse × `WEEKS_PER_MONTH` − Charter-Kosten). Die Schätzung aus den Zahlen des Monats X entfällt. | Balance-Bericht 5.3a (B8.10): Die Schätzung überschätzte den Vorteil bis zum Doppelten (Fluggäste gestrichener Flüge wandern auf die übrigen Sitze) und nahm die Preise von X; die Rechnung des Modells stimmt in Betrag und Treibstoff-Preis (R2). |
+| E77 | 24.11.2026 | **Kassen-Untergrenze der Szenarien im Modell (O72 = A):** Jede Untergrenze eines Szenarios hat ihre Schwelle im Modell: `BANKRUPTCY` = −Kreditlinie (wie 8.15), „Oil Shock“ = 0 $ (Dollar-Betrag als Wert von 1960, E6). Die Anzeige zeigt Schwelle und Serie aus dem Modell; der Text von `BANKRUPTCY` heißt „Capital below the negative credit line at three month-ends in a row …“. | Bisher rechneten Daten und Anzeige mit −5 Mio. $ bzw. 0 $, der Abschluss mit −Kreditlinie; die Warnung „ends the scenario“ traf nicht ein, und „Oil Shock“ verlangte im Text mehr als die Regel (R2). |
+| E78 | 24.11.2026 | **Widebody-Slots erst ab Flughafengröße 3, für alle (O73 = A):** Die Regel `WIDEBODY_SLOTS_FROM_SIZE` gehört ins Modell und gilt für Spieler und KI (Strecken mit Widebody, Jumbo oder Überschall nur zwischen Flughäfen ab Größe 3, zusätzlich zur Bahn). Im Langlauf prüfen, ob die KI dadurch schwächer wird. | Bisher galt die Regel nur in der Oberfläche; die KI prüfte nur die Bahn (alle 176 Flughäfen der Größe 2 lassen nach der Bahn Widebodies zu). Gegen E44 (gleiche Regeln). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -192,11 +195,12 @@ jederzeit ändern. Sie ändern keine Spielregel.
 | F77 | 5.2e | **Störungs-Frage mit Beträgen des Modells (8.9, E32, E38, R2).** `disruptionCharterEstimate(d, figures)` (`src/lib/modelMonthClose.ts`) schätzt je Störung aus den Strecken-Zahlen des Abschlusses X (`MonthReport.routes`): je getroffener Strecke betroffene Flüge im Monat = geplante Abschnitte je Woche × `WEEKS_PER_MONTH` × Anteil; Erlös und Kosten je Fluggast je Flug = Wochenwert / durchgeführte Abschnitte (geplant × (1 − `cancelledShare` in X)); Gebühr je Flug `charterFee(flightOpsFull, plannedLegs)`; eigene Flugkosten je Flug `flightOpsFull / plannedLegs`; Vorteil `charterAdvantage`. Strecken ohne Zahlen oder ohne durchgeführte Flüge in X zählen nicht. `buildDisruptionDecision` (`src/lib/disruptions.ts`) nimmt die Schätzung (`CharterEstimate`) und nennt Flüge, Ticket-Erlös, gesparte eigene Flugkosten (bei beiden Antworten), Gebühr und Vorteil („better/worse than cancelling“); `disruptionsToAsk` sortiert nach dem geschätzten Erlös. `disruptionStake` entfällt. Die Gebühr der Schätzung ist gleich `charterCost` mit `charteredShare` = Anteil (Test). Bekannte Abweichung: Das Modell verteilt bei Streichungen Fluggäste auf die übrigen Sitze; die Schätzung überschätzt den Erlösverlust daher eher (5.3). |
 | F78 | 5.2c | **Verweise auf den Alt-Code und Aufräumen (R2).** (1) In `src/model/` heißt die Rechnung vor dem Neubau „Alt-Code“ (vorher „heute“, das nach Phase 4 falsch las); 234 Zeilen in 17 Dateien umbenannt, „wie heute“ → „wie im Alt-Code“, „(heute …“ → „(Alt-Code: …“. Datei:Zeile dahinter gilt für Commit `231d08b` (Bestand Phase 1; `src/lib/`, `src/App.tsx` und `src/components/` sind bis Paket 4.2 unverändert, geprüft mit `git log 231d08b..67a8858 -- src/lib`); eine Zeile ohne Datei gehört zur Datei des vorigen Verweises, im Abschnitt 7 sonst zu `src/lib/aiSimulation.ts`. Regel im Kopf von `src/model/constants.ts` und in `src/model/README.md`. Verweise auf heutigen Code nennen Datei und Funktion ohne Zeile (`hubFacilities` in `gameTypes.ts`, `CampaignTier` in `gameState.ts`, Planer vor 4.4); veralteter Kommentar zu `hedgeLockMonth` berichtigt. (2) `src/lib/airportAccess.ts`: `exemptAirports` (Menge) → `airportStandings` (je Flughafen `AirportStanding`: Heimat, Verwaltungsstufe, Streckenende); `airportGate` prüft mit `isAirportOpen` des Modells und formuliert nur die Ablehnung; Test vergleicht beide für alle Ränge, Größen und Ausnahmen. (3) `LITRES_PER_GALLON` nur noch in `src/model/constants.ts` (Kopie in `src/lib/format.ts` entfernt). (4) `README.md`: kaputter Abschnitt „Lokale Entwicklung“ ersetzt, Befehle `npm test` und `npm run balance`, Projektaufbau nach Phase 5; `src/model/README.md`: Stand nach Phase 4/5, wer das Modell aufruft. (5) `ANALYSE.md`, `SAT-ANALYSE.md`, `docs/CODE_REVIEW.md` tragen oben einen Hinweis „Veraltet“. |
 | F79 | 5.3a | **Balance-Bericht nach Phase 5 und Szenario-Ziele (8.9, 8.13, 8.15, 3.9.5, 5.14, R2).** (1) **Neue Info-Prüfungen im Balance-Skript:** B8.10 Schätzung der Störungs-Frage (`disruptionCharterEstimate`) gegen die Rechnung des Monats mit gestrichenen und mit gecharterten Flügen (`charterEstimateCase`, `src/balance/events.ts`); B6.9 Werbung: Kosten je Monat ÷ Mehr-Ergebnis je Strecke beim festen besten Preis (`advertisingCase`, `src/balance/career.ts`); B8.11 Kabinen-Umbau: `refitPrice` in Monatsergebnissen der Strecke (`refitCase`). (2) **Szenario-Ziel `routes` zählt Städtepaare (8.15):** `servedCityPairs` (`src/model/monthClose.ts`) zählt alle Strecken eines Paars und beide Richtungen zusammen, mit `minWeeklyFlights` nur Paare mit so vielen Hin- und Rückflügen je Woche (Abflüge / 2); `ScenarioTarget.minWeeklyFlights`, `ScenarioValues.routes` sind jetzt die Strecken. Bisher zählte der Abschluss die Zahl der Strecken (Deregulation: 30 Strecken mit beliebiger Frequenz gewannen, die Anzeige verlangte 30 tägliche Paare). `cityPairsServed` (`src/lib/scenarioEval.ts`) ruft die Modell-Funktion. (3) **Szenario „Oil Shock“:** Ruf-Ziel in den Daten 60 → 55, wie 8.15 festlegt (B8.9 prüfte schon 55; mit 60 erreichte keine Ausstattung das Ziel, beste 58,1). Das Balance-Skript liest das Ziel jetzt aus den Daten. | Zahlen, die ein Spieler sieht, müssen die des Abschlusses sein (R2); die drei Prüfungen beantworten die gesammelten 5.3-Punkte mit Zahlen statt Schätzungen. |
+| F80 | 5.3c | **O71–O73 umgesetzt, KI-Umläufe nach der Planer-Regel, Gold-Fall (8.9, 8.15, 5.10, 7.9, 6.10, E76–E78, E51, R2).** (1) **Störungs-Frage (E76):** `runModelMonth` gibt den Spielstand des Modells für X+1 mit (`AppMonth.state`, nicht gespeichert). `charterQuestionFigures(state, Störung)` (`src/lib/modelMonthClose.ts`) rechnet `monthOperations` mit der Störung gestrichen und gechartert: Flüge, Erlösverlust, Kosten je Fluggast, eigene Flugkosten, Gebühr (Unterschied der Charter-Kosten) und Vorteil (Strecken-Ergebnisse × `WEEKS_PER_MONTH` − Charter-Kosten). Die Rechnung „gestrichen“ gilt für alle Fragen eines Abschlusses (`cancelledOperations`). `modelDisruptionOf` sucht die Störung des Modells zur Ansicht. `disruptionCharterEstimate` entfällt. Text: „Cancelling them loses about … of ticket revenue; some passengers move to your other flights … Worked out for MM/YYYY with your current schedule and prices.“ B8.10 prüft jetzt Gleichheit mit der Rechnung (ok statt Info). (2) **Kassen-Untergrenze (E77):** `CapitalFloorGoal.threshold` ist `'creditLine'` oder Dollar des Startmonats; `BANKRUPTCY` = `'creditLine'`, Text „Capital below the negative credit line …“. `ScenarioState.floorThreshold` ($ von 1960, fehlt = −`creditLimit`), `scenarioFloor`; `modelScenario` rechnet „Oil Shock“ 0 $ um. `scenarioGoals` nimmt Serie (`floorStreak`) und Kreditlinie aus dem Modell statt der Kassen-Historie (`scenarioCapitalHistory`, `capitalFloorStreak` entfernt); die Anzeige warnt auch, wenn die Kasse jetzt unter der Schwelle liegt. Grund im Ergebnis nennt die Schwelle. (3) **Widebody-Slots (E78):** `WIDEBODY_SLOTS_MIN_AIRPORT_SIZE = 3`, `slotClassAvailable` (`src/model/airportCosts.ts`); `room` der KI (`rivalDecisions`) ist für Widebody unter Größe 3 null (Vorauswahl, Kauf); `infraAvailability` nutzt dieselbe Funktion. Langlauf zählt Widebody-Strecken an kleinen Flughäfen (B7.11). (4) **Höchste Umläufe (7.9, „Offen aus 4.4“ (2)):** `aircraftTripMinutes`, `weeklyTripCapacity` (`src/model/schedule.ts`) = Woche ÷ Umlaufzeit mit Boden- und Wendezeit ohne die Zeit der übrigen Umläufe; gleich `findMaxFlightStarts` für ein leeres Flugzeug (Test). `rivalMaxRotations` ersetzt `maxWeeklyRotations`; `WEEKLY_OPERATING_MINUTES`, `MAX_WEEKLY_ROTATIONS` entfernt. (5) **Gold (6.10):** `playerBestCases` (`src/balance/career.ts`) misst die beste Spieler-Ausstattung (Forschung, Moral 100, Lounge, Küche, Hangar, Stufe 3) in B6.6. | E76–E78; 7.9 verlangt die Planer-Funktion; „Offen aus 3.9c“. |
 
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
@@ -215,41 +219,40 @@ O70 am 23.11.2026 entschieden (E74, Weg A); umgesetzt mit F72.
 
 E75 am 23.11.2026 vom Menschen vorgegeben (keine Umwandlung alter Spielstände); umgesetzt mit F73.
 
-**O71 – Charter-Schätzung der Störungs-Frage (aus Paket 5.3a, „Offen aus 5.2e“).** Die Frage schätzt aus den
-Strecken-Zahlen des Abschlusses X, als hätte jeder gestrichene Flug so viele Fluggäste wie ein Flug im Mittel. Das
-Balance-Skript (B8.10, 14 Strecken, Flughafen-Streik 60 %) zeigt: Die Empfehlung (Charter besser oder schlechter)
-stimmt in allen 14 Fällen; der Betrag ist aber zu hoch. Echter Erlösverlust 79–100 % der Schätzung bei Auslastung
-86–100 %, nur 24 % bei einer fast leeren Langstrecke (12 %). Vorteil von Charter: geschätzt 641 643 $, echt 486 402 $
-(A320ceo FRA–MAD 1990); geschätzt 777 188 $, echt 393 840 $ (A330-300 FRA–JFK 1995). Dazu gilt die Schätzung mit den
-Preisen von X; gebucht wird in X+1. Der Kostenindex ändert sich je Monat um höchstens 0,1 %, der Treibstoff in 33
-Krisen-Monaten aber um mehr als 5 % (größter Schritt +26 %, 09/1973).
-- **A:** Schätzung bleibt; die Frage bekommt einen Satz „Passengers of cancelled flights partly move to your other
-  flights, so the real loss is usually smaller.“
-- **B (Empfehlung):** Die Frage rechnet den Monat X+1 mit dem Modell zweimal (`monthOperations` auf dem Spielstand nach
-  dem Abschluss, die Störung einmal gestrichen, einmal gechartert) und nennt Erlösverlust, Gebühr und Vorteil daraus.
-  Dann stimmen Betrag und Treibstoff-Preis; Kosten: zwei Rechnungen je großer Störung (höchstens drei Fragen) im Abschluss.
-- **C:** nichts ändern.
+O71–O73 am 24.11.2026 entschieden (E76 Weg B, E77 Weg A, E78 Weg A); Umsetzung in Paket 5.3c.
 
-**O72 – Kassen-Untergrenze der Szenarien (aus Paket 5.3a, 4.2c (7)).** Spezifikation 8.15 legt fest: verloren nach
-so vielen Monatsenden in Folge unter −`creditLimit`, wie das Szenario nennt (Lesart von E34). Das Modell rechnet so
-(`scenarioStep`). Die Daten und die Anzeige rechnen aber mit der eigenen Schwelle des Szenarios: −5 Mio. $
-(`BANKRUPTCY`, drei Monate) und 0 $ bei „Oil Shock“ („Capital must never be below $0 at a month-end“, ein Monat).
-`ScenarioProgressPanel.tsx` warnt nach `capitalFloorStreak` mit dieser Schwelle („Bankruptcy watch … ends the
-scenario“), der Abschluss beendet das Szenario dann nicht. Bei „Oil Shock“ verliert der Spieler erst unter
-−Kreditlinie, obwohl Text und Werbetext „solvent every single month“ sagen.
-- **A (Empfehlung):** Jede Untergrenze hat ihre Schwelle im Modell: `BANKRUPTCY` = −Kreditlinie (wie 8.15), „Oil Shock“
-  = 0 $ (ein Dollar-Betrag als Wert von 1960, E6). Die Anzeige zeigt Schwelle und Serie aus dem Modell; der Text von
-  `BANKRUPTCY` heißt „Capital below the negative credit line at three month-ends in a row …“.
-- **B:** Alle Szenarien nutzen −Kreditlinie (8.15 wörtlich); „Oil Shock“ bekommt den Text „… never below the negative
-  credit line“; die Anzeige zeigt das Modell.
+**O74 – KI-Stärke (aus Paket 5.3c, B7.8, Fund 44).** Nach 40 Jahren (je 3 Läufe Easy und Hard, 10 Normal):
+Easy 619, Normal 952, Hard 1 055 Mio. $ Unternehmenswert (vor 5.3c: 579 / 1 003 / 1 010). Hard ist jetzt 11 % stärker als
+Normal; der Unterschied kommt vor allem aus Startkasse, Startflotte und zwei Entscheidungen je Monat (`RIVAL_STRENGTH`).
+- **A (Empfehlung):** so lassen; im Spieltest (5.3b) prüfen, ob Hard sich schwerer anfühlt.
+- **B:** Hard deutlich stärker: eigener Slot-Anteil je Stärke (`RIVAL_SLOT_SHARE_*` z. B. Hard × 1,5), damit Wachstum
+  an den Drehkreuzen nicht endet (Fund 10); mit Langlauf.
 
-**O73 – Widebody-Slots an kleinen Flughäfen (aus Paket 5.3a, „Offen aus 4.3“ (3)).** Der Spieler kann Widebody-Slots erst ab
-Flughafengröße 3 kaufen (`WIDEBODY_SLOTS_FROM_SIZE`, `src/lib/modelAirport.ts:166`); das ist eine Regel nur der
-Oberfläche. Die KI prüft nur die Bahn (`runwayFits`, `src/model/rivalMonth.ts:1169`); alle 176 Flughäfen der Größe 2
-lassen nach der Bahn Widebodies zu (kleinster Code der Widebodies D). Gegen E44 (gleiche Regeln).
-- **A (Empfehlung):** Regel ins Modell (Slots der Klasse Widebody erst ab Größe 3, für Spieler und KI); im Langlauf
-  prüfen, ob die KI dadurch schwächer wird.
-- **B:** Regel der Oberfläche streichen; auch der Spieler darf an Größe 2 Widebody-Slots kaufen (die Bahn begrenzt).
+**O75 – Stärke der Schwierigkeit (aus Paket 5.3c, B3.5, Fund 46).** `DIFFICULTY_FACTOR` Hard 0,9 / Easy 1,1 wirkt auf
+die Anziehung der Spieler-Angebote: gegen einen gleichen Rivalen −5,7 % / +5,2 % Fluggäste; beim festen Preis auf
+einer vollen Strecke Ergebnis −17 % / +5 %. Allein auf einer Strecke wirkt sie kaum.
+- **A (Empfehlung):** 0,9 / 1,1 lassen (spürbar über das Ergebnis, nicht erdrückend).
+- **B:** 0,8 / 1,2 (Fluggäste −12 %, Ergebnis −36 % / +10 %).
+- **C:** zusätzlich ein zweiter Hebel, der auch ohne Rivalen wirkt (z. B. Treibstoff-Zuschlag auf Hard wie früher).
+
+**O76 – KI ohne Langstrecke (aus Paket 5.3c, Fund 42).** Die KI fliegt fast keine Widebodies (0–3 von 150–520 Strecken)
+und kaum Langstrecke (0–24 Strecken über 3 500 km je Lauf). Grund: Kauf nach Planer-Hauptzahl **je Kaufpreis**
+(`pickPurchaseType`, `src/model/rivalMonth.ts:624`) und Zielsuche mit der Reichweite des jüngsten Flugzeugs
+(`referenceTypeIndex`). Der Spieler hat auf Langstrecke darum fast nie Konkurrenz.
+- **A (Empfehlung):** Bei der Zielsuche vor einem Kauf zusätzlich je Bauart (Narrowbody, Widebody) den beliebtesten
+  lieferbaren Typ als Bezug nehmen, und den Typ nach erwartetem Gewinn **nach Kapitalkosten** wählen (Gewinn −
+  Kaufpreis × Zins je Monat) statt Gewinn je Kaufpreis. Mit Langlauf prüfen (Ziel: Langstrecken-Anteil der KI deutlich
+  über 5 %, B7.1 bleibt ok).
+- **B:** nur die Zielsuche erweitern (Typwahl bleibt).
+- **C:** so lassen (Langstrecke bleibt die Nische des Spielers).
+
+**O77 – Optimizer nach 20 Jahren zu stark (aus Paket 5.3c, B7.1 Abweichung, Fund 43).** Mit den KI-Umläufen nach der
+Planer-Regel (7.9, ohne Nachtpause, ohne Obergrenze 21) ist der Optimizer nach 20 Jahren 2,56 × der Median (Grenze 2);
+nach 40 Jahren 1,79 (ok).
+- **A (Empfehlung):** Planer-Regel behalten und den Optimizer in den ersten 20 Jahren dämpfen, nur über die Werte in
+  `PERSONALITIES` (wie E71); mit Langlauf.
+- **B:** Eine Nachtpause für alle (Spieler und KI): höchstens `18 h` je Tag fliegbar, auch im Planer.
+- **C:** Für die KI wieder die alte Regel (7 × 18 h, höchstens 21); gegen 7.9 und E44.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
