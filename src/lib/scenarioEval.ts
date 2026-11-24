@@ -20,7 +20,7 @@
  * is simply not met. Everything is pure.
  */
 import type { CapitalFloorGoal, GoalMetric, Scenario, TargetGoal } from '../data/scenarios';
-import { marketKey } from './financeUtils';
+import { servedCityPairs } from '../model/monthClose';
 import { formatCurrency, formatMoneyCompact, formatMonthOffset, formatNumber } from './format';
 import type { ScenarioStatus } from './gameState';
 
@@ -80,17 +80,15 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v))
  * City pairs flown with at least `minWeekly` departures a week between them,
  * every aircraft on the pair and both directions counted together: a daily
  * service needing two aircraft (4 + 3 a week) is daily, and thirty aircraft
- * on the same pair are still one city pair.
+ * on the same pair are still one city pair. The model's count
+ * (`servedCityPairs`, SPEZIFIKATION 8.15), so the panel shows what the
+ * month close decides.
  */
 export function cityPairsServed(routes: ScenarioContext['routes'], minWeekly = 0): number {
-  const weekly = new Map<string, number>();
-  for (const r of routes) {
-    const key = marketKey(r.origin, r.destination);
-    weekly.set(key, (weekly.get(key) ?? 0) + Math.max(0, Number(r.weeklyFlights) || 0));
-  }
-  let count = 0;
-  for (const flights of weekly.values()) if (flights >= minWeekly) count++;
-  return count;
+  return servedCityPairs(
+    routes.map((r) => ({ from: r.origin, to: r.destination, departuresPerWeek: 2 * Math.max(0, Number(r.weeklyFlights) || 0) })),
+    minWeekly,
+  );
 }
 
 /** The month's figure a target goal is measured by; null while a monthly figure has no month to show. */

@@ -3221,10 +3221,12 @@ im Ergebnis neutral (5.13). Sofort wieder verkauft: −15 % (heute −10 %, durc
 ### 8.15 Szenario-Ziele (heute `src/data/scenarios.ts`, `scenarioEval.ts`)
 - Geprüft im Schritt 7 mit den Werten dieses Abschlusses: `capital` = Kasse am Monatsende (R11); `monthlyProfit` =
   Monatsergebnis (5.16); `reputation` = Ruf nach der Ruf-Änderung (6.5); `routes`, `regions` (`regionOf`, R15),
-  `transferPax` aus dem Modell.
+  `transferPax` aus dem Modell. `routes` zählt Städtepaare, nicht Strecken: alle Strecken eines Paars und beide
+  Richtungen zusammen; mit `minWeeklyFlights` nur Paare mit so vielen Hin- und Rückflügen je Woche (Abflüge / 2;
+  `servedCityPairs`, Paket 5.3a).
 - Dollar-Ziele und -Schwellen stehen als Wert von 1960 in den Daten und laufen über `atCost` des Prüfmonats (E6). So
   bleiben sie richtig, wenn das Balance-Skript `COST_GROWTH` ändert. Umrechnung der heutigen Zahlen einmal in Phase 3.
-- Ruf-Ziele auf der neuen Skala (E36, 6.15): „Reputation of 60 or more“ (`src/data/scenarios.ts:176`) → 55 (Startwert,
+- Ruf-Ziele auf der neuen Skala (E36, 6.15): „Reputation of 60 or more“ (`src/data/scenarios.ts:176`) → 55 (Startwert, Daten umgestellt in Paket 5.3a;
   Balance-Skript 3.9).
 - Verlieren: das Spielende aus 8.14; dazu `capitalFloor` mit Schwelle **−`creditLimit`** statt −5 Mio. $ (Monate wie im
   Szenario, heute 3). *(Lesart von E34: eine Pleite-Regel.)*

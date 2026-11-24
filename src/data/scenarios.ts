@@ -173,7 +173,7 @@ export const SCENARIOS: readonly Scenario[] = [
     difficulty: 'Normal',
     rivals: { count: 6, difficulty: 'Normal' },
     win: [
-      { id: 'reputation', kind: 'target', metric: 'reputation', target: 60, atDeadline: true, label: 'Reputation of 60 or more at the deadline' }
+      { id: 'reputation', kind: 'target', metric: 'reputation', target: 55, atDeadline: true, label: 'Reputation of 55 or more at the deadline' }
     ],
     lose: [
       { id: 'solvent', kind: 'capitalFloor', threshold: 0, months: 1, label: 'Capital must never be below $0 at a month-end' }

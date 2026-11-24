@@ -13,12 +13,13 @@ import { bestFareRatios, caseMarket, priceDuel, ROUTE_CASES, routeSections, runC
 import { marketState, routeOf, runMarket, sampleMonth, seatsTotal } from './world';
 import { allModelAirports, founderHub, lengthBand, longRunStart, PERSONALITY_ORDER, runLong } from './longRun';
 import { competitionSections, spreadFactor, yearsToLiquidation } from './competition';
-import { careerSection, equipmentResults, goalCase, monthsToRecover, RANK_CASES, reputationAfter, runRankCase, satisfactionForReputation } from './career';
-import { eventSection, hedgeCases, MAX_RESALE_BONUS, oilShockCases, recoveryCase, spreadCase } from './events';
+import { advertisingCase, careerSection, equipmentResults, goalCase, monthsToRecover, RANK_CASES, reputationAfter, runRankCase, satisfactionForReputation } from './career';
+import { charterEstimateCase, eventSection, hedgeCases, MAX_RESALE_BONUS, oilShockCases, recoveryCase, refitCase, spreadCase } from './events';
 import { satisfactionReputation } from '../model/progress';
 import { DEALER_SPREAD_BUY, DEALER_SPREAD_SELL, GOAL_MISS_PENALTY_SHARE, HEDGE_PRICE_SHARE } from '../model/constants';
 
 const A330 = ROUTE_CASES.find((c) => c.label === 'A330-300 FRA–JFK 1995');
+const A320_1990 = ROUTE_CASES.find((c) => c.label === 'A320ceo FRA–MAD 1990')!;
 
 describe('Balance-Skript: Format und Bericht', () => {
   it('num: Dezimalkomma, Tausender, Minuszeichen', () => {
@@ -223,6 +224,20 @@ describe('Balance-Skript: Abschnitte 6 und 8 (3.9c)', () => {
     const o = oilShockCases();
     assert.equal(o.months, 39);
     for (const c of o.cases) assert.ok(Number.isFinite(c.reputationAtDeadline) && c.reputationAtDeadline > 0);
+  });
+
+  it('5.3a: Störungs-Schätzung bucht dieselbe Gebühr wie der Abschluss; der echte Erlösverlust ist nie größer als geschätzt', () => {
+    const e = charterEstimateCase(runCase(A320_1990));
+    assert.ok(Math.abs(e.estimatedFee - e.realFee) < 1e-6 * e.realFee);
+    assert.ok(e.realRevenueLoss > 0 && e.realRevenueLoss <= e.estimatedRevenue + 1e-6);
+    assert.ok(e.estimatedAdvantage > 0 && e.realAdvantage > 0, 'Strecke mit Gewinn: Charter lohnt (8.9)');
+  });
+
+  it('5.3a: Werbung bringt Mehr-Ergebnis; Umbau = Kabine + Lohn', () => {
+    const a = advertisingCase('A320ceo FRA–MAD 1990', 'national');
+    assert.ok(a.paxRatio > 1 && a.gain > 0 && a.breakEvenRoutes > 1);
+    const r = refitCase(runCase(A320_1990));
+    assert.ok(r.labour > 0 && r.price > r.labour && r.monthlyResult > 0);
   });
 
   it('careerSection und eventSection: Prüfregeln mit Werten, ohne NaN, Kennungen eindeutig', () => {

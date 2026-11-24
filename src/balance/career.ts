@@ -28,6 +28,7 @@ import {
   WINTER_CHANCE,
   WINTER_MONTHS,
   type CampaignTier,
+  WEEKS_PER_MONTH,
   type GoalTag,
   type RivalPersonality,
 } from '../model/constants';
@@ -35,9 +36,10 @@ import { atCost } from '../model/basics';
 import { reputationFactor } from '../model/marketSplit';
 import { defectChance } from '../model/monthEvents';
 import { goalBase, goalReward, milestoneDef, reputationChange, reputationTarget, researchPrice } from '../model/progress';
-import { musd, num, pct, type Check, type Section, type Table } from './report';
-import { bestDeparturesCase, runCase, type CaseResult, type RouteCase } from './routes';
-import { monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, seatsTotal } from './world';
+import { musd, num, pct, usd, type Check, type Section, type Table } from './report';
+import { bestDeparturesCase, caseMarket, ROUTE_CASES, runCase, type CaseResult, type RouteCase } from './routes';
+import { modelAirport, monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, seatsTotal, type MarketSpec } from './world';
+import { campaignCost } from '../model/costTotals';
 
 // ---------------------------------------------------------------------------
 // Ruf aus Satisfaction (6.1) und Ausstattung
@@ -243,6 +245,33 @@ const PERSONALITY_NAME: Readonly<Record<RivalPersonality, string>> = {
   boutique: 'Boutique',
 };
 
+/** Strecken für die Werbe-Rechnung (B6.9). */
+export const ADVERTISING_ROUTES = ['A320ceo FRA–MAD 1990', 'A320ceo FRA–MAD 2019'];
+
+/** Werbung auf einer typischen Strecke (B6.9). */
+export interface AdvertisingCase {
+  readonly label: string;
+  readonly tier: CampaignTier;
+  readonly cost: number;
+  readonly paxRatio: number;
+  readonly gain: number;
+  readonly breakEvenRoutes: number;
+}
+
+export function advertisingCase(label: string, tier: CampaignTier): AdvertisingCase {
+  const c = bestDeparturesCase(ROUTE_CASES.find((x) => x.label === label) as RouteCase);
+  const r = runCase(c);
+  const plain = caseMarket(c, r.best, c.departures);
+  const month = plain.month;
+  const regions = tier === 'global' ? [] : [modelAirport(c.from).region];
+  const withAd: MarketSpec = { ...plain, offers: plain.offers.map((o) => ({ ...o, inputs: { ...NEUTRAL_INPUTS, campaigns: [{ tier, regions, endMonth: month }] } })) };
+  const a = runMarket(plain).a;
+  const b = runMarket(withAd).a;
+  const gain = (b.routes[0].result - a.routes[0].result) * WEEKS_PER_MONTH;
+  const cost = campaignCost(tier, month);
+  return { label, tier, cost, paxRatio: b.passengers / a.passengers, gain, breakEvenRoutes: gain > 0 ? cost / gain : Number.POSITIVE_INFINITY };
+}
+
 export function careerSection(
   equipment: readonly EquipmentResult[] = equipmentResults(),
   rankCases: readonly RankCaseResult[] = RANK_CASES.map(runRankCase),
@@ -326,6 +355,22 @@ export function careerSection(
     header: ['Kampagnen', 'Beitrag', 'Ruf nach 12 Monaten', 'Gleichgewicht', '6 Monate nach dem Ende'],
     rows: campaignRows.map((r) => [r.set.join(' + '), num(Math.min(ADVERTISING_REPUTATION_MAX, r.set.reduce((s, t) => s + CAMPAIGN_REPUTATION[t], 0)), 1), num(r.after12, 2), num(r.eq, 2), num(r.off6, 2)]),
     note: 'Der Beitrag steht im Ruf-Ziel (6.4); die Hauptwirkung der Werbung ist die Anziehung (3.9.5), nicht der Ruf.',
+  });
+
+  // ---- 3.9.5, 5.14 Werbung: Kosten gegen Mehr-Ergebnis (5.3a) ----
+  const ads = ADVERTISING_ROUTES.flatMap((label) => tiers.map((tier) => advertisingCase(label, tier)));
+  checks.push({
+    id: 'B6.9',
+    spec: '3.9.5, 5.14',
+    rule: 'Werbung: Kosten je Monat ÷ Mehr-Ergebnis je Strecke (Strecken, ab denen eine Kampagne sich trägt)',
+    value: ads.map((a) => `${a.label.split(' ').pop()} ${a.tier} ${num(a.breakEvenRoutes, 1)}`).join('; '),
+    verdict: 'info',
+  });
+  tables.push({
+    title: 'Werbung: eine Kampagne in der Region der Strecke (global: weltweit), Strecke allein beim besten Preis ohne Werbung',
+    header: ['Strecke', 'Kampagne', 'Kosten je Monat', 'Fluggäste mit ÷ ohne', 'Mehr-Ergebnis je Monat', 'Strecken bis zur Deckung'],
+    rows: ads.map((a) => [a.label, a.tier, usd(a.cost), num(a.paxRatio, 3), usd(a.gain), num(a.breakEvenRoutes, 1)]),
+    note: 'Preis fest (bester Preis ohne Werbung). Mehr-Ergebnis = (Strecken-Ergebnis mit − ohne Kampagne) × `WEEKS_PER_MONTH`. Eine regionale Kampagne wirkt auf alle Strecken mit einem Ende in der Region (3.9.5); „Strecken bis zur Deckung“ zählt gleich große Strecken.',
   });
 
   // ---- 6.7 Ruf-Schwellen der Ränge, 6.10 Ruf-Meilensteine ----

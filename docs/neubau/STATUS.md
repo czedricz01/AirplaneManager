@@ -1,13 +1,36 @@
 # Status
 
-**Nächstes Paket: 5.3** – Spieltest-Durchlauf mit dem Balance-Skript (`npm run balance`, mit `--long` für die Langläufe der
-KI) und Feinabstimmung. Die gesammelten Punkte für 5.3 abarbeiten: „Offen aus 5.2e“ (1) Charter-Schätzung bei Streichungen,
-(2) Preise von X statt X+1; „Offen aus 5.2d“ (1) Rang-Fortschritt vor dem ersten Abschluss, (2) Dezember-Angebot des
-Jahresziels im Browser; „Offen aus 5.2b“ (4) Spielstart mit 10+ KI, (6) Szenario-Ziele `minWeeklyFlights` und die eigene
-Untergrenze. Zu lesen: diese Punkte unten, `docs/neubau/BALANCE.md`, `scripts/balance.ts`, `src/balance/`. Wird das Paket zu
-groß, in 5.3a (Balance-Bericht und Langläufe auswerten) und 5.3b (Spieltest im Browser) teilen.
+**Nächstes Paket: 5.3b** – Spieltest im Browser. Prüfen: (1) Rang-Fortschritt vor dem ersten Abschluss („Reputation 0 / 30“
+bei Ruf 50; braucht die Anzeige einen Hinweis? „Offen aus 5.2d“ (1)); (2) Dezember-Angebot des Jahresziels (12 Monate
+spielen, „Offen aus 5.2d“ (2)); (3) wo die etwa 3 s beim Spielstart mit 6 KI liegen (die Gründung selbst braucht < 0,3 s,
+Fund 38) und ob `monthOperations` bei jeder Änderung mit großen Spielständen stört („Offen aus 4.3“ (4)); (4) Frequent flyer
+und eine Kampagne in einem späten Jahr klicken (4.8 (6)); (5) Szenario „Deregulation“: Fortschritt „30 city pairs with daily
+service“ (F79). Zu lesen: diese Punkte, `CareerPanel.tsx`, `ScenarioProgressPanel.tsx`, `src/lib/modelMonth.ts`.
 
-Keine offenen Fragen.
+**Offene Fragen O71–O73** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“): Charter-Schätzung der Störungs-Frage, Kassen-Untergrenze
+der Szenarien, Widebody-Slots an kleinen Flughäfen. Umgesetzt werden die Antworten in **5.3c** (danach).
+
+Stand: 24.11.2026 · Paket 5.3a erledigt (F79): Balance-Bericht nach Phase 5 mit Langläufen (`balance/5.3a-bericht.md`,
+18 ok · 0 Abweichung · 32 Info; Funde 34–40 in `BALANCE.md`). Die Langläufe gleichen Zahl für Zahl den Läufen „ohne Zuschuss“
+aus 3.9e (KI unverändert; Easy 579 < Normal 1 003 ≈ Hard 1 010 Mio. $). Neue Info-Prüfungen: B8.10 Charter-Schätzung gegen die
+Rechnung (Empfehlung in 14 von 14 Fällen richtig, Vorteil bis doppelt überschätzt → O71), B6.9 Werbung (trägt sich ab 11–24
+Strecken), B8.11 Kabinen-Umbau (0,4–2,3 Monatsergebnisse). Behoben: Szenario-Ziel `routes` zählt im Abschluss Städtepaare mit
+`minWeeklyFlights` (`servedCityPairs`, `src/model/monthClose.ts`; vorher Zahl der Strecken), „Oil Shock“ Ruf-Ziel 60 → 55 (8.15).
+Gemessen: Spielstart mit 12 KI 0,06–0,23 s (Node). Gefunden: eigene Kassen-Untergrenze der Szenarien nur in Anzeige und
+Daten (→ O72), Widebody-Slots ab Größe 3 nur für den Spieler (→ O73). Tests: 1 233 grün (3 neue). Im Browser nicht geprüft.
+
+Offen aus 5.3a (Sammelliste aller 5.3-Punkte; Rest für 5.3b und 5.3c):
+- erledigt: „Offen aus 5.2e“ (1), (2) gemessen → O71; „Offen aus 5.2b“ (4) (Fund 38), (6) (`minWeeklyFlights` behoben,
+  Untergrenze → O72); 4.8 (5) Kampagnen-Preis (Fund 35, kein Handlungsbedarf); „Offen aus 4.6a“ (3) Umbau-Lohn (Fund 36,
+  kein Handlungsbedarf); „Offen aus 4.3“ (3) Widebody-Slots → O73; 3.9e „ähnlicher Erfolg“ nach 50/60 Jahren beobachtet
+  (Fund 40, Faktor 1,88 nach 60 Jahren, nicht Teil der Regel).
+- 5.3b (Browser): „Offen aus 5.2d“ (1), (2); „Offen aus 4.3“ (4) Rechenlast bei jeder Änderung; 4.8 (6); Startzeit im Browser.
+- 5.3c (Umsetzung und Feinabstimmung, mit Langlauf): O71–O73 nach Entscheidung; „Offen aus 4.4“ (2) KI rechnet höchste
+  Umläufe mit `maxWeeklyRotations` statt der Planer-Funktion (7.9 verlangt sie; ändert die Balance); KI-Stärke Normal ≈ Hard
+  (B7.8, `RIVAL_STRENGTH`); Stärke der Schwierigkeit (B3.5, „Offen aus 3.9a“); Ruf-Meilenstein Gold (80) mit
+  Spieler-Ausstattung (Lounge, Personal, Forschung; „Offen aus 3.9c“); bester Preis bei knappen Sitzen weit über dem Markt
+  („Offen aus 4.5a“ (2); heute A320ceo FRA–MAD 1,98–2,21 × Markt bei 86–88 % Auslastung, Regel 4.10 gewollt); Weg B aus O66
+  (mehr Konkurrenz unter der KI) bleibt offen.
 
 Stand: 24.11.2026 · Paket 5.2c erledigt (F78): Dokumentation aufgeräumt. `README.md` (kaputter Abschnitt „Lokale
 Entwicklung“ ersetzt, `npm test` und `npm run balance`, Projektaufbau nach Phase 5) und `src/model/README.md` (Stand nach
@@ -497,7 +520,9 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.2d | Karriere-Ansicht nach dem Modell: Forschung (Preis, Sperren, Plätze), Rang-Anzeige, Meilensteine, Jahresziel, Flugzeugklassen (`CareerPanel.tsx`, `src/lib/research.ts`, `airlineRank.ts`, `milestones.ts`, `annualGoals.ts`, `aircraftClasses.ts`; F76) | erledigt |
 | 5.2e | Störungs-Frage mit Charter-Betrag des Modells (`charterAdvantage`, 8.9; Flugkosten je Strecke aus dem Abschluss; F77) | erledigt |
 | 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen, Alt-Code-Verweise in `src/model/`; F78) | erledigt |
-| 5.3 | Spieltest-Durchlauf mit Balance-Skript, Feinabstimmung | offen |
+| 5.3a | Balance-Bericht mit Langläufen nach Phase 5, gesammelte 5.3-Punkte messen; Szenario-Ziele nach dem Modell (F79) | erledigt |
+| 5.3b | Spieltest im Browser (Rang vor dem ersten Abschluss, Jahresziel im Dezember, Rechenlast, Startzeit, Szenario-Fortschritt) | offen |
+| 5.3c | Umsetzung O71–O73, Feinabstimmung mit Langlauf (KI-Umläufe, KI-Stärke, Schwierigkeit, Gold-Meilenstein) | wartet auf O71–O73 |
 
 ---
 
@@ -582,3 +607,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 24.11.2026 | 5.2d | Karriere-Ansicht nach dem Modell (F76): Forschung mit `researchPrice` (Kostenindex), `researchStartBlocker`, `researchSlots`; Rang-Tabelle und 3-Monats-Mittel des Modells, Freischaltungen aus den Tabellen; Meilensteine und Jahresziel in der Form des Modells (Übersetzungen in der Brücke entfernt); Flugzeugklassen über `sizeClassOf`; `SAVE_VERSION` 9; Tests 1 228 grün; im Browser geprüft |
 | 24.11.2026 | 5.2e | Störungs-Frage mit Beträgen des Modells (F77): `disruptionCharterEstimate` aus `MonthReport.routes` (Flüge, Erlös, Kosten je Fluggast, eigene Flugkosten, `charterFee`, `charterAdvantage`); `buildDisruptionDecision` nennt Gebühr, geretteten Erlös und gesparte Flugkosten; `disruptionStake` entfällt; Tests 1 229 grün |
 | 24.11.2026 | 5.2c | Dokumentation aufgeräumt (F78): `README.md` und `src/model/README.md` nach Phase 4/5; „heute …“ in `src/model/` → „Alt-Code“ (Stand Commit `231d08b`); alte Analysen als veraltet gekennzeichnet; `airportGate` über `isAirportOpen`, `LITRES_PER_GALLON` nur im Modell; Tests 1 230 grün |
+| 24.11.2026 | 5.3a | Balance-Bericht nach Phase 5 (F79): `balance/5.3a-bericht.md` (18 ok · 0 Abweichung · 32 Info), Langläufe gleich 3.9e ohne Zuschuss; neue Info-Prüfungen B6.9 (Werbung), B8.10 (Charter-Schätzung gegen Rechnung), B8.11 (Umbau); Szenario-Ziel `routes` zählt Städtepaare mit `minWeeklyFlights` (`servedCityPairs`), „Oil Shock“ Ruf 55; Funde 34–40; neue Fragen O71–O73; 3 neue Tests (1 233 grün) |

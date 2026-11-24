@@ -258,7 +258,7 @@ describe('Fortschritt (4.2c)', () => {
     close(m.win[0].target, 100e6 / atCost(1, 0));
     assert.deepEqual([m.floorMonths, m.deadline, m.floorStreak, m.met, m.status], [3, (1964 - 1960) * 12 + 11, 0, [], 'running']);
     const oil = modelScenario({ id: 'oil-shock', startedOffset: 165, status: 'running' });
-    assert.equal(oil.win[0].target, 60, 'Ruf bleibt');
+    assert.equal(oil.win[0].target, 55, 'Ruf ohne Umrechnung (8.15: 55)');
     assert.equal(oil.win[0].atDeadline, true);
     assert.equal(applyScenario(s, m, M), s);
     const won = applyScenario(s, { ...m, met: ['capital'], status: 'won' }, M);

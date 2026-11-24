@@ -457,6 +457,8 @@ export interface ScenarioTarget {
   readonly target: number;
   /** Zählt nur im Abschluss des Stichtags. */
   readonly atDeadline?: boolean;
+  /** Nur `routes`: zählt Städtepaare mit mindestens so vielen Hin- und Rückflügen je Woche (`servedCityPairs`). */
+  readonly minWeeklyFlights?: number;
 }
 
 /** Ein laufendes Szenario (8.15). */
@@ -1878,7 +1880,8 @@ export interface ScenarioValues {
   readonly monthlyProfit: number;
   /** Ruf nach der Ruf-Änderung (6.5). */
   readonly reputation: number;
-  readonly routes: number;
+  /** Strecken der Gesellschaft; das Ziel `routes` zählt daraus Städtepaare (`servedCityPairs`). */
+  readonly routes: readonly Pick<RouteState, 'from' | 'to' | 'departuresPerWeek'>[];
   readonly regions: number;
   readonly transferPax: number;
   readonly creditLimit: number;
@@ -1889,6 +1892,27 @@ export interface ScenarioValues {
 /** Schwelle eines Ziels im Monat: Dollar-Ziele als Wert von 1960 über `atCost` (E6). SPEZIFIKATION 8.15. */
 export function scenarioTarget(target: Pick<ScenarioTarget, 'metric' | 'target'>, month: number): number {
   return SCENARIO_DOLLAR_METRICS.includes(target.metric) ? atCost(target.target, month) : target.target;
+}
+
+/**
+ * Städtepaare mit mindestens `minWeeklyFlights` Hin- und Rückflügen je Woche (Abflüge je Woche / 2): alle Strecken
+ * eines Paars und beide Richtungen zusammen, so ist ein täglicher Dienst mit zwei Flugzeugen (4 + 3) täglich, und
+ * dreißig Flugzeuge auf einem Paar sind ein Paar. Ziel `routes` der Szenarien. SPEZIFIKATION 8.15.
+ */
+export function servedCityPairs(routes: readonly Pick<RouteState, 'from' | 'to' | 'departuresPerWeek'>[], minWeeklyFlights = 0): number {
+  const weekly = new Map<string, number>();
+  for (const r of routes) {
+    const key = r.from < r.to ? `${r.from}|${r.to}` : `${r.to}|${r.from}`;
+    weekly.set(key, (weekly.get(key) ?? 0) + Math.max(0, r.departuresPerWeek) / 2);
+  }
+  let count = 0;
+  for (const flights of weekly.values()) if (flights >= minWeeklyFlights) count++;
+  return count;
+}
+
+/** Wert eines Ziels in diesem Abschluss (`routes` über `servedCityPairs`). SPEZIFIKATION 8.15. */
+export function scenarioValue(target: Pick<ScenarioTarget, 'metric' | 'minWeeklyFlights'>, values: ScenarioValues): number {
+  return target.metric === 'routes' ? servedCityPairs(values.routes, target.minWeeklyFlights ?? 0) : values[target.metric];
 }
 
 /**
@@ -1903,7 +1927,7 @@ export function scenarioStep(s: ScenarioState, values: ScenarioValues, month: nu
   const met = new Set(s.met);
   for (const t of s.win) {
     if (t.atDeadline && month !== s.deadline) continue;
-    if (values[t.metric] >= scenarioTarget(t, month)) met.add(t.id);
+    if (scenarioValue(t, values) >= scenarioTarget(t, month)) met.add(t.id);
   }
   const won = s.win.every((t) => met.has(t.id));
   const status = won ? 'won' : month >= s.deadline ? 'lost' : 'running';
@@ -2294,7 +2318,7 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions, after
           capital: company.cash,
           monthlyProfit: result,
           reputation: reputation.reputation,
-          routes: company.routes.length,
+          routes: company.routes,
           regions: new Set(routeEndRegions(state, company.routes)).size,
           transferPax: o.transferPassengers,
           creditLimit: limit,
