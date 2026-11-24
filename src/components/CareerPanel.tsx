@@ -3,47 +3,54 @@ import { Check, Lock } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { Badge, type BadgeTone } from './ui/Badge';
 import { Button } from './ui/Button';
-import { RANKS, rankDef, rankProgress, type RankStats } from '../lib/airlineRank';
+import { RANKS, rankDef, rankUnlockLines } from '../lib/airlineRank';
 import { AIRCRAFT_CLASSES, openClasses } from '../lib/aircraftClasses';
 import {
-  MILESTONES,
   TRACK_LABELS,
   describeReward,
-  type Milestone,
+  type MilestoneDef,
   type MilestonePerks,
   type MilestoneTier,
   type MilestoneTrack
 } from '../lib/milestones';
+import { describeGoal, type AnnualGoal, type GoalOffer } from '../lib/annualGoals';
+import { projectsOfRank, researchBlockerText, type ResearchState } from '../lib/research';
 import {
-  describeGoal,
+  COST_RESEARCH_KINDS,
+  MILESTONES,
+  RAMP_START,
+  RANK_AVERAGE_MONTHS,
+  RESEARCH_PROJECTS,
+  type CostResearchKind,
+  type RankRequirement,
+  type ResearchProjectDef
+} from '../model/constants';
+import {
+  effectiveRank,
   goalFraction,
   goalValue,
-  type AnnualGoal,
-  type GoalOffer,
-  type YearSnapshot
-} from '../lib/annualGoals';
-import {
-  PROJECTS,
-  maxParallel,
-  projectById,
-  projectCost,
-  projectProgress,
-  projectsOfRank,
+  milestoneRequirementText,
+  rankProgress,
+  researchEffectLines,
   researchEffects,
-  startBlocker,
+  researchPrice,
+  researchProgress,
+  researchProject,
+  researchSlots,
+  researchStartBlocker,
+  type RankStats,
   type ResearchEffects,
-  type ResearchProject,
-  type ResearchState
-} from '../lib/research';
+  type YearSnapshot
+} from '../model/progress';
 import type { HallOfFameEntry, ScoreBreakdown } from '../lib/careerScore';
-import { formatCurrency, formatNumber, formatMoneyCompact as compact, yearOf } from '../lib/format';
-import { goalMissPenalty } from '../lib/modelCompany';
+import { formatCurrency, formatNumber, formatMoneyCompact as compact } from '../lib/format';
 
 export interface CareerPanelProps {
   /** Free Mode: a Global Player from the start, no rank to earn. */
   free: boolean;
   rank: number;
-  rankStats: RankStats;
+  /** Rank figures of the last closed months (model 6.7), oldest first; the next close averages the same. */
+  rankHistory: readonly RankStats[];
   perks: MilestonePerks;
   milestones: string[];
   annualGoal: AnnualGoal | null;
@@ -82,9 +89,18 @@ function Bar({ fraction, good }: { fraction: number; good?: boolean }) {
   );
 }
 
-function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankStats; perks: MilestonePerks; free: boolean }) {
+const RANK_LINE_LABELS: Record<keyof RankRequirement, string> = {
+  routes: 'Routes',
+  monthlyPax: 'Passengers per month',
+  reputation: 'Reputation',
+  regions: 'Regions served',
+  years: 'Years in business'
+};
+
+function RankSection({ rank, history, perks, free }: { rank: number; history: readonly RankStats[]; perks: MilestonePerks; free: boolean }) {
   const def = rankDef(rank);
-  const progress = free ? null : rankProgress(rank, stats);
+  // The same 3-month means the month close checks (model 6.7, E40); missing months count as 0.
+  const progress = free || history.length === 0 ? null : rankProgress(rank, history);
   return (
     <Panel>
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
@@ -123,9 +139,9 @@ function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankSt
               <Bar fraction={progress.fraction} />
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mt-3">
                 {progress.lines.map(line => (
-                  <li key={line.label} className="flex items-center justify-between text-2xs">
+                  <li key={line.key} className="flex items-center justify-between text-2xs">
                     <span className={line.met ? 'text-good' : 'text-muted'}>
-                      {line.met ? '✓ ' : '○ '}{line.label}
+                      {line.met ? '✓ ' : '○ '}{RANK_LINE_LABELS[line.key]}
                     </span>
                     <span className={line.met ? 'text-good' : 'text-muted'}>
                       {countLabel(line.current)} / {countLabel(line.target)}
@@ -133,7 +149,10 @@ function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankSt
                   </li>
                 ))}
               </ul>
-              <p className="text-2xs text-muted mt-2">Every figure has to be met at once; the years in business cannot be bought.</p>
+              <p className="text-2xs text-muted mt-2">
+                Averages of the last {RANK_AVERAGE_MONTHS} closed months, missing months counting as nothing. Every figure
+                has to be met at once; the years in business cannot be bought. A rank once reached is never lost.
+              </p>
             </div>
           ) : (
             <p className="text-2xs text-muted mb-4">The highest rank there is. Nothing is left to unlock.</p>
@@ -144,7 +163,7 @@ function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankSt
               const reached = r.index <= rank;
               return (
                 <li
-                  key={r.id}
+                  key={r.index}
                   className={`p-2 border rounded-sm text-2xs font-mono leading-relaxed ${
                     reached ? 'border-good/40 bg-good/5 text-ink' : 'border-line bg-surface text-muted'
                   }`}
@@ -160,7 +179,7 @@ function RankSection({ rank, stats, perks, free }: { rank: number; stats: RankSt
                     </div>
                   )}
                   <ul className="pl-5 mt-1 list-disc">
-                    {r.unlocks.map(u => <li key={u}>{u}</li>)}
+                    {rankUnlockLines(r.index).map(u => <li key={u}>{u}</li>)}
                   </ul>
                 </li>
               );
@@ -181,9 +200,9 @@ export function GoalCard({ goal, onChoose }: { goal: AnnualGoal; onChoose?: () =
       <div className="text-sm font-semibold leading-snug">{describeGoal(goal, formatCurrency, countLabel)}</div>
       <div className="text-2xs text-muted leading-relaxed">
         {/* Money only, from and to cash, not the profit (docs/neubau 6.11, E58). */}
-        Met: bonus {compact(goal.reward.cash)}.
+        Met: bonus {compact(goal.reward)}.
         <br />
-        Missed: penalty {compact(goalMissPenalty(goal.reward.cash))}.
+        Missed: penalty {compact(goal.penalty)}.
       </div>
       {onChoose && (
         <Button variant="primary" onClick={onChoose} className="mt-auto">Choose this goal</Button>
@@ -239,35 +258,45 @@ function GoalSection({ annualGoal, goalOffer, goalSnapshot, onChooseGoal }: Pick
   );
 }
 
-/** What the finished projects add up to, one short phrase each, only those that do something. */
+const COST_SHORT: Record<CostResearchKind, string> = {
+  fuel: 'fuel',
+  crew: 'crews',
+  fees: 'airport charges',
+  catering: 'catering',
+  maintenance: 'maintenance',
+  slots: 'slots'
+};
+
+/** What the finished projects add up to (model `researchEffects`), one short phrase each, only those that do something. */
 function effectLines(fx: ResearchEffects): string[] {
-  const pct = (factor: number) => `${Math.round((1 - factor) * 1000) / 10}%`;
+  const pct = (share: number) => `${Math.round(share * 1000) / 10}%`;
   const lines: string[] = [];
-  if (fx.efficiencyBonus > 0) lines.push(`aircraft efficiency +${Math.round(fx.efficiencyBonus * 100)}`);
-  if (fx.popularityBonus > 0) lines.push(`plane type satisfaction +${Math.round(fx.popularityBonus * 100)}%`);
-  if (fx.maintenanceFactor < 1) lines.push(`maintenance −${pct(fx.maintenanceFactor)}`);
-  if (fx.crewFactor < 1) lines.push(`crews −${pct(fx.crewFactor)}`);
-  if (fx.feeFactor < 1) lines.push(`airport charges −${pct(fx.feeFactor)}`);
-  if (fx.cateringFactor < 1) lines.push(`catering −${pct(fx.cateringFactor)}`);
-  if (fx.wearFactor < 1) lines.push(`wear −${pct(fx.wearFactor)}`);
-  if (fx.fuelFactor < 1) lines.push(`fuel −${pct(fx.fuelFactor)}`);
-  if (fx.resaleBonus > 0) lines.push(`resale +${Math.round(fx.resaleBonus * 1000) / 10}%`);
-  if (fx.demandBonus > 0) lines.push(`demand +${Math.round(fx.demandBonus * 1000) / 10}%`);
-  if (fx.slotFactor < 1) lines.push(`slots −${pct(fx.slotFactor)}`);
+  if (fx.efficiencyPoints > 0) lines.push(`aircraft efficiency +${fx.efficiencyPoints}`);
+  if (fx.satisfactionPoints > 0) lines.push(`satisfaction +${fx.satisfactionPoints}`);
+  for (const kind of COST_RESEARCH_KINDS) if (fx.costFactor[kind] < 1) lines.push(`${COST_SHORT[kind]} −${pct(1 - fx.costFactor[kind])}`);
+  if (fx.demandFactor > 1) lines.push(`demand +${pct(fx.demandFactor - 1)}`);
+  if (fx.hubQualityFactor > 1) lines.push(`hub quality +${pct(fx.hubQualityFactor - 1)}`);
+  if (fx.rampBonus > 0) lines.push(`new routes start at ${pct(RAMP_START + fx.rampBonus)}`);
+  if (fx.defectFactor < 1) lines.push(`defects −${pct(1 - fx.defectFactor)}`);
+  if (fx.wearFactor < 1) lines.push(`wear −${pct(1 - fx.wearFactor)}`);
+  if (fx.resaleBonus > 0) lines.push(`resale +${pct(fx.resaleBonus)}`);
+  if (fx.moralePoints > 0) lines.push(`morale +${fx.moralePoints}`);
   return lines;
 }
 
 function ProjectCard({
-  project, research, rank, capital, year, currentDateOffset, onStart
+  project, research, rank, capital, month, onStart
 }: {
-  project: ResearchProject; research: ResearchState; rank: number; capital: number; year: number;
-  currentDateOffset: number; onStart: (id: string) => void;
+  project: ResearchProjectDef; research: ResearchState; rank: number; capital: number; month: number;
+  onStart: (id: string) => void;
 }) {
   const done = research.done.includes(project.id);
   const running = research.active.find(a => a.id === project.id);
-  const blocker = !done && !running ? startBlocker(research, project, rank, capital, year) : null;
-  const cost = projectCost(project, year);
-  const progress = running ? projectProgress(project, running.startedOffset, currentDateOffset) : null;
+  const price = researchPrice(project.id, month);
+  const blocker = !done && !running
+    ? researchBlockerText(researchStartBlocker(research, project.id, rank, capital, month), project.id, rank, price)
+    : null;
+  const progress = running ? researchProgress(running, month) : null;
   const isClass = project.kind === 'class';
   return (
     <div
@@ -283,7 +312,7 @@ function ProjectCard({
         {done ? <Badge tone="good">Done</Badge> : running ? <Badge tone="yellow">Running</Badge> : <Badge>{project.months} months</Badge>}
       </div>
       {isClass && <Badge tone="yellow" className="self-start">Aircraft class</Badge>}
-      <p className="text-2xs text-muted leading-relaxed">{project.detail}</p>
+      <p className="text-2xs text-muted leading-relaxed">{researchEffectLines(project.id).join('. ')}.</p>
       {progress && (
         <div>
           <div className="flex justify-between text-2xs font-label uppercase tracking-label text-muted mb-1">
@@ -295,27 +324,27 @@ function ProjectCard({
       )}
       {!done && !running && (
         <div className="flex items-center justify-between gap-2 mt-auto">
-          <span className={`text-2xs font-mono ${blocker ? 'text-muted' : 'text-muted'}`}>
-            {blocker ?? `Cost ${formatCurrency(cost)}`}
+          <span className="text-2xs font-mono text-muted">
+            {blocker ?? `Cost ${formatCurrency(price)}`}
           </span>
           <Button variant="primary" disabled={!!blocker} onClick={() => onStart(project.id)}>
-            {formatCurrency(cost)}
+            {formatCurrency(price)}
           </Button>
         </div>
       )}
       {project.requires && !done && (
-        <span className="text-2xs font-mono text-muted">after {projectById(project.requires)?.title}</span>
+        <span className="text-2xs font-mono text-muted">after {researchProject(project.requires).title}</span>
       )}
     </div>
   );
 }
 
 function ResearchSection({ research, rank, free, capital, currentDateOffset, onStartResearch }: Pick<CareerPanelProps, 'research' | 'rank' | 'free' | 'capital' | 'currentDateOffset' | 'onStartResearch'>) {
-  const year = yearOf(currentDateOffset);
+  const rankNow = effectiveRank(free ? 'free' : 'normal', rank);
   const fx = React.useMemo(() => researchEffects(research.done), [research.done]);
   const lines = effectLines(fx);
-  const open = openClasses(research.done, free);
-  const limit = maxParallel(rank);
+  const open = openClasses(research.done, [], free ? 'free' : 'normal');
+  const limit = researchSlots(rankNow);
   const [showAll, setShowAll] = React.useState(false);
   // The ranks reached are shown in full, and the next one as a preview; the rest are folded into a line each.
   const shownRanks = RANKS.filter(r => showAll || r.index <= rank + 1);
@@ -324,13 +353,14 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
       <div className="flex items-baseline justify-between mb-3">
         <span className="text-2xs uppercase tracking-label text-muted font-semibold">Development</span>
         <span className="text-2xs font-mono text-muted">
-          {research.done.length} / {PROJECTS.length} done · {research.active.length} / {limit} running
+          {research.done.length} / {RESEARCH_PROJECTS.length} done · {research.active.length} / {limit} running
         </span>
       </div>
       <p className="text-2xs text-muted leading-relaxed mb-3 max-w-2xl">
         A tree that opens with the rank. Its main points are the aircraft classes: a class has to be developed before its
         aircraft can be bought. In between sit small bonuses, a percent at a time. Each project costs money at once and
-        takes months; {free ? 'every project is open in Free Mode' : 'more can run at once with every third rank'}.
+        takes months; the price follows the cost index of the month it starts in.{' '}
+        {free ? 'Every project is open in Free Mode.' : 'Higher ranks allow more to run at once.'}
       </p>
 
       <div className="flex flex-wrap gap-1.5 mb-3" aria-label="Aircraft classes">
@@ -353,7 +383,7 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
           if (projects.length === 0) return null;
           const reached = free || r.index <= rank;
           return (
-            <section key={r.id} aria-label={r.title} className={reached ? '' : 'opacity-60'}>
+            <section key={r.index} aria-label={r.title} className={reached ? '' : 'opacity-60'}>
               <div className="flex items-center gap-2 text-2xs font-label uppercase tracking-label text-muted mb-2">
                 {reached ? <Check size={12} className="text-good" aria-hidden="true" /> : <Lock size={12} aria-hidden="true" />}
                 {r.title}{reached ? '' : ' · opens with this rank'}
@@ -364,10 +394,9 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
                     key={p.id}
                     project={p}
                     research={research}
-                    rank={rank}
+                    rank={rankNow}
                     capital={capital}
-                    year={year}
-                    currentDateOffset={currentDateOffset}
+                    month={currentDateOffset}
                     onStart={onStartResearch}
                   />
                 ))}
@@ -436,7 +465,7 @@ function ScoreSection({ score, hall, free, onRetire }: Pick<CareerPanelProps, 's
   );
 }
 
-function MilestoneSection({ milestones }: { milestones: string[] }) {
+function MilestoneSection({ milestones, month }: { milestones: string[]; month: number }) {
   const earned = new Set(milestones);
   const byTrack = TRACK_ORDER.map(track => ({ track, list: MILESTONES.filter(m => m.track === track) }));
   return (
@@ -450,7 +479,7 @@ function MilestoneSection({ milestones }: { milestones: string[] }) {
           <div key={track}>
             <div className="text-2xs uppercase tracking-label text-muted font-semibold mb-1">{TRACK_LABELS[track]}</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {list.map((m: Milestone) => {
+              {list.map((m: MilestoneDef) => {
                 const done = earned.has(m.id);
                 return (
                   <div
@@ -466,8 +495,8 @@ function MilestoneSection({ milestones }: { milestones: string[] }) {
                       </span>
                       <Badge tone={TIER_TONE[m.tier]}>{TIER_LABEL[m.tier]}</Badge>
                     </div>
-                    <p className="mt-0.5">{m.detail}</p>
-                    <p className="mt-1 text-muted">{describeReward(m.reward, compact)}</p>
+                    <p className="mt-0.5">{milestoneRequirementText(m, month, compact)}</p>
+                    <p className="mt-1 text-muted">{describeReward(m, month, compact)}</p>
                   </div>
                 );
               })}
@@ -488,9 +517,9 @@ export function CareerPanel({ part, ...props }: CareerPanelProps & { part: Caree
     <div className="flex flex-col gap-3">
       {part === 'rank' && (
         <>
-          <RankSection rank={props.rank} stats={props.rankStats} perks={props.perks} free={props.free} />
+          <RankSection rank={props.rank} history={props.rankHistory} perks={props.perks} free={props.free} />
           <ScoreSection score={props.score} hall={props.hall} free={props.free} onRetire={props.onRetire} />
-          <MilestoneSection milestones={props.milestones} />
+          <MilestoneSection milestones={props.milestones} month={props.currentDateOffset} />
         </>
       )}
       {part === 'development' && (

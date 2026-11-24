@@ -1,12 +1,36 @@
 # Status
 
-**Nächstes Paket: 5.2d** – Karriere-Ansicht nach dem Modell (Forschung, Rang, Meilensteine, Jahresziel, Flugzeugklassen):
-`CareerPanel.tsx` und `App.tsx` rechnen dort noch mit den alten Tabellen in `src/lib/`. Liste unter „Offen aus 5.2b“ (1). Danach
-5.2e (Störungs-Frage mit Charter-Betrag des Modells), 5.2c (Dokumentation aufräumen) und 5.3 (Spieltest mit Balance-Skript).
-Zu lesen: „Offen aus 5.2b“ unten, `src/components/CareerPanel.tsx`, `src/lib/research.ts`, `src/lib/airlineRank.ts`,
-`src/lib/milestones.ts`, `src/lib/annualGoals.ts`, `src/lib/aircraftClasses.ts`, im Modell `src/model/progress.ts` (6.7–6.11).
+**Nächstes Paket: 5.2e** – Störungs-Frage mit Charter-Betrag des Modells: Die Frage bei einer Störung nennt heute nur die Regel
+(Charter = `CHARTER_MARKUP` × eigene Treibstoff-, Besatzungs- und Landekosten je Flug), aber keinen Betrag. Für eine Schätzung mit
+`charterFee` / `charterAdvantage` (8.9) muss `modelMonthClose` die Flugkosten je Strecke (`RouteFigures.flightOpsFull`) aus dem
+Abschluss liefern. Danach 5.2c (Dokumentation aufräumen) und 5.3 (Spieltest mit Balance-Skript).
+Zu lesen: „Offen aus 5.2b“ (2) unten, `src/model/monthEvents.ts` (`charterFee`, `charterAdvantage`), `src/model/monthClose.ts`
+(`RouteFigures`), `src/lib/modelMonthClose.ts`, `src/lib/disruptions.ts`, `src/lib/modelBridgeWorld.ts` (Störungs-Frage).
 
 Keine offenen Fragen.
+
+Stand: 24.11.2026 · Paket 5.2d erledigt (F76): Die Karriere-Ansicht rechnet mit dem Modell; die eigenen Tabellen in `src/lib/`
+sind entfernt. Forschung: Preis mit Kostenindex (`researchPrice`; vorher 4 %/Jahr und zu hohe Klassen-Preise), Sperre
+`researchStartBlocker`, Plätze `researchSlots`, Klassen-Ränge 1 / 2 / 4 / 5 / 5 (E41), Überschall nach Widebody (E42), Texte aus den
+Feldern (`researchEffectLines`); `handleStartResearch` bucht den Preis aus `startResearch`. Rang: Tabelle `RANKS` des Modells
+(Ruf 30 … 65), Fortschritt aus den 3-Monats-Mitteln (E40), Liste „was ein Rang öffnet“ aus den Tabellen (`rankUnlockLines`).
+Meilensteine: Tabelle `MILESTONES`, Texte aus Metrik und Schwelle, Prämie des laufenden Monats, keine Ruf-Punkte; Kennungen wie im
+Modell (Übersetzung in der Brücke entfällt). Jahresziel: gespeichert wie im Modell (`reward`, `penalty` in $), Fortschritt über
+`yearSnapshot`. Flugzeugklassen über `sizeClassOf` / `openSizeClasses`. `SAVE_VERSION` = 9 (Forschung, Meilensteine und Ziel in
+neuer Form; E75). Tests: 1 228 grün (die alten Tabellen-Tests der fünf Dateien und zwei Vergleiche „wie die alte Tabelle“ in
+`progressB.test.ts` entfallen; neue Tests für die Hilfen der Oberfläche). Im Browser geprüft (Normal AAL 01/1960, Free Mode 01/1995):
+Rang-Liste mit Ruf 30 … 65 und „Narrowbody aircraft (development)“ bei Regional Airline; Forschung „Lean flight operations“ für
+$1 200 000 gestartet (Kasse $25,0 → $23,8 Mio.), nach dem Abschluss „1 of 3 months“, Preise im Februar $1 201 193; 1995 Bonus-Projekt
+$1 821 794; Free Mode alle Klassen offen, 5 / 45 fertig, 5 Plätze; Meilensteine „1 route or more · $500K prize“, „slots 2% cheaper“;
+Speichern und Laden mit laufender Forschung; keine Fehler in der Konsole.
+
+Offen aus 5.2d (kein Blocker): (1) Vor dem ersten Abschluss zeigt der Rang-Fortschritt überall 0 (fehlende Monate zählen als 0, E40),
+auch „Reputation 0 / 30“, obwohl der Ruf 50 ist. Das ist die Regel des Abschlusses; in 5.3 ansehen, ob die Anzeige dafür einen
+Hinweis braucht. (2) Das Dezember-Angebot des Jahresziels (Wahl, Prämie, Strafe) ist nur mit Tests geprüft, im Browser nicht
+(12 Monate nötig). (3) 5.2c: Rund 25 Verweise „heute `src/lib/research.ts:…`“ (auch `milestones.ts`, `airlineRank.ts`,
+`annualGoals.ts`, `aircraftClasses.ts`) in `src/model/` zeigen jetzt auf entfernte oder gekürzte Stellen. (4) `src/lib/airportAccess.ts`
+hat eine eigene Zugangs-Prüfung (Flughafen-Größe je Rang, Ausnahmen); sie liest `RANKS` des Modells und stimmt mit `isAirportOpen`
+überein, ist aber doppelt (Kleinkram für 5.2c).
 
 Stand: 24.11.2026 · Paket 5.2b erledigt (F75): Die Liste „Offen aus 5.2a“ ist abgearbeitet. (1) `buildPlayerModifiers` und
 `src/lib/routeMaturity.ts` entfernt; die Ausfall-Anzeige je Strecke rechnet mit `disruptionShares` des Modells
@@ -23,7 +47,7 @@ Konkurrenz-Ansicht mit 6 nach dem Modell gegründeten KI (echte und erfundene, j
 abgeschlossen (KI eröffnet Strecken, Zeitung), Karriere abgelegt („Filed in the hall of fame at position 1“, gespeichert als
 `{ normal: [], free: [...] }`); keine Fehler in der Konsole.
 
-Offen aus 5.2b (kein Blocker): (1) **Paket 5.2d – Karriere-Ansicht:** Gefunden beim Vergleich der Tabellen; kein Paket der Phase 4
+Offen aus 5.2b (kein Blocker): (1) erledigt in 5.2d (F76). **Paket 5.2d – Karriere-Ansicht:** Gefunden beim Vergleich der Tabellen; kein Paket der Phase 4
 hat sie umgestellt. `src/lib/research.ts` hat eine eigene Forschungs-Tabelle: Rang-Schwellen der Klassen (Narrowbody 3, Widebody 5,
 Jumbo 7, Überschall 8 statt 2 / 4 / 5 / 5, E41), Preise (Widebody 60, Jumbo 200, Überschall 500 Mio. $ statt 40 / 80 / 60), Teuerung
 4 %/Jahr statt Kostenindex, Überschall braucht Jumbo statt Widebody (E42), Forschungsplätze je Rang (`maxParallel` statt
@@ -438,7 +462,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.1 | Spielstand-Umwandlung – ersetzt durch E75: ältere Spielstände werden beim Laden gelöscht (`src/lib/saveLoad.ts`, Version 8) | erledigt |
 | 5.2a | Alten Monatsabschluss und allen nur von ihm erreichten Code entfernen | erledigt |
 | 5.2b | Rest der alten Rechnung in den Ansichten ersetzen oder entfernen (Liste „Offen aus 5.2a“; F75) | erledigt |
-| 5.2d | Karriere-Ansicht nach dem Modell: Forschung (Preis, Sperren, Plätze), Rang-Anzeige, Meilensteine, Jahresziel, Flugzeugklassen (`CareerPanel.tsx`, `src/lib/research.ts`, `airlineRank.ts`, `milestones.ts`, `annualGoals.ts`, `aircraftClasses.ts`) | offen |
+| 5.2d | Karriere-Ansicht nach dem Modell: Forschung (Preis, Sperren, Plätze), Rang-Anzeige, Meilensteine, Jahresziel, Flugzeugklassen (`CareerPanel.tsx`, `src/lib/research.ts`, `airlineRank.ts`, `milestones.ts`, `annualGoals.ts`, `aircraftClasses.ts`; F76) | erledigt |
 | 5.2e | Störungs-Frage mit Charter-Betrag des Modells (`charterAdvantage`, 8.9; Flugkosten je Strecke aus dem Abschluss) | offen |
 | 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen) | offen |
 | 5.3 | Spieltest-Durchlauf mit Balance-Skript, Feinabstimmung | offen |
@@ -523,3 +547,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 23.11.2026 | 5.1 | Ersetzt durch E75 (F73): keine Umwandlung alter Spielstände; `SAVE_VERSION` 8, ältere werden beim Laden gelöscht (`src/lib/saveLoad.ts`, `OutdatedSaveError`); `saveMigration.ts` entfernt |
 | 23.11.2026 | 5.2a | Alter Monatsabschluss und nur von ihm erreichter Code entfernt (F74): rund 9 900 Zeilen in 58 Dateien, 8 Dateien ganz; Tests 1 250 grün; im Browser geprüft |
 | 24.11.2026 | 5.2b | Rest der alten Rechnung ersetzt (F75): Ausfälle je Strecke über `disruptionShares`, KI-Gründung beim Spielstart nach 7.7 (`foundStartRivals`), Welt-Zustand ab Monat 1 mit gewürfeltem Startwert, Ereignisse aus den Modell-Daten, Kabine verkaufter Flugzeuge im Gebrauchtmarkt, zwei Ruhmeshallen (E43), Störungs-Frage ohne alte Zahlen; `aiSimulation.ts`, `routeMaturity.ts`, `buildPlayerModifiers` entfernt; neue Pakete 5.2d (Karriere-Ansicht) und 5.2e; Tests 1 243 grün; im Browser geprüft |
+| 24.11.2026 | 5.2d | Karriere-Ansicht nach dem Modell (F76): Forschung mit `researchPrice` (Kostenindex), `researchStartBlocker`, `researchSlots`; Rang-Tabelle und 3-Monats-Mittel des Modells, Freischaltungen aus den Tabellen; Meilensteine und Jahresziel in der Form des Modells (Übersetzungen in der Brücke entfernt); Flugzeugklassen über `sizeClassOf`; `SAVE_VERSION` 9; Tests 1 228 grün; im Browser geprüft |

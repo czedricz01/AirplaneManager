@@ -26,13 +26,12 @@ import {
   type WorldRegion,
 } from '../model/constants';
 import { fleetValue, depositsOf, type CompanyInputs, type CompanyProgress, type MonthLedger, type MonthReport, type ModelAirport, type PreorderState, type ScenarioState as ModelScenario, type AircraftState, type Campaign as ModelCampaign } from '../model/monthClose';
-import { goalPenalty, yearsPlayed, type AnnualGoal as ModelGoal, type RankStats, type ResearchState as ModelResearch } from '../model/progress';
+import { yearsPlayed, type AnnualGoal as ModelGoal, type RankStats } from '../model/progress';
 import type { StaffStrike } from '../model/monthEvents';
 import type { MonthlyCosts } from '../model/costTotals';
 import { historicalEvents, eventKey } from './eventSystem';
 import { createOwnedAircraft, defaultCabin } from './fleet';
 import { modelCabin } from './modelBridge';
-import type { AnnualGoal as AppGoal, GoalKind } from './annualGoals';
 import type { Career, Marketing, RegionId, ScenarioState as AppScenario, Staff } from './gameState';
 import type { MonthlyReport, ReportLine, SimulatedRoute } from './gameTypes';
 import type { PreOrder } from './preorders';
@@ -588,53 +587,6 @@ export function appReport(report: MonthReport, ctx: AppReportContext): MonthlyRe
 // ===========================================================================
 
 /**
- * Meilensteine, deren Kennung sich mit 6.10 geändert hat (F37): Kontinente → Regionen, Ruf-Stufen. Gleiche Stufe,
- * gleiche Kennung im jeweils anderen Spielstand.
- */
-export const MILESTONE_IDS: Readonly<Record<string, string>> = {
-  'continents-2': 'regions-2',
-  'continents-4': 'regions-4',
-  'continents-6': 'regions-6',
-  'reputation-60': 'reputation-bronze',
-  'reputation-80': 'reputation-silver',
-  'reputation-95': 'reputation-gold',
-};
-const APP_MILESTONE_IDS: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(MILESTONE_IDS).map(([a, m]) => [m, a]));
-
-/** Kennungen der Oberfläche → Modell (ohne Doppelte). */
-export const modelMilestones = (ids: readonly string[]): string[] => [...new Set(ids.map((id) => MILESTONE_IDS[id] ?? id))];
-
-/** Text der Ziel-Art in der Oberfläche (`annualGoals.ts`). */
-const GOAL_LABEL: Readonly<Record<GoalKind, string>> = {
-  profit: 'operating profit',
-  routes: 'routes in operation',
-  regions: 'regions served',
-  reputation: 'reputation',
-  pax: 'passengers carried',
-  noLoss: 'months in loss',
-};
-
-/**
- * Ein Jahresziel der Oberfläche als Ziel des Modells (6.11): Jahr, Art, Stufe und Wert wie gespeichert; Prämie = die
- * Geld-Prämie, Strafe = `goalPenalty(Prämie)` (E58: Geld statt Ruf; Ruf-Prämien alter Ziele entfallen).
- */
-export function modelGoal(goal: AppGoal): ModelGoal {
-  return { year: goal.year, kind: goal.kind, tag: goal.tag, target: goal.target, reward: goal.reward.cash, penalty: goalPenalty(goal.reward.cash) };
-}
-
-const sameGoal = (a: AppGoal, b: ModelGoal): boolean =>
-  a.year === b.year && a.kind === b.kind && a.tag === b.tag && a.target === b.target && a.reward.cash === b.reward;
-
-/**
- * Ziel des Modells → Ziel der Oberfläche. Gleiches Ziel wie `before`: `before`. Sonst Text aus der Art, Prämie als
- * Geld, keine Ruf-Prämie und keine Ruf-Strafe (die Geld-Strafe ist `goalPenalty(Prämie)`; Anzeige 4.7).
- */
-export function appGoal(goal: ModelGoal, before?: AppGoal | null): AppGoal {
-  if (before && sameGoal(before, goal)) return before;
-  return { year: goal.year, kind: goal.kind, tag: goal.tag, target: goal.target, label: GOAL_LABEL[goal.kind], reward: { reputation: 0, cash: goal.reward }, penalty: 0 };
-}
-
-/**
  * Szenario der Oberfläche als `ScenarioState` des Modells (8.15). Ziele aus `src/data/scenarios.ts`; Dollar-Ziele
  * gelten als $ des Startmonats und werden in $ von 1960 umgerechnet (`SCENARIO_DOLLAR_METRICS`, E6). Verlust: so viele
  * Monatsenden in Folge unter −Kreditgrenze, wie die erste Untergrenze des Szenarios Monate hat (Lesart von E34;
@@ -682,7 +634,7 @@ export function applyScenario(before: AppScenario, s: ModelScenario, month: numb
 export interface PlayerProgressSource {
   readonly career: Career;
   readonly milestones: readonly string[];
-  readonly annualGoal: AppGoal | null;
+  readonly annualGoal: ModelGoal | null;
   readonly scenario: AppScenario | null;
   /** Erster Spielmonat (`startDateOffset`). */
   readonly startMonth: number;
@@ -707,21 +659,18 @@ export function rankHistory(reports: readonly MonthlyReport[], startMonth: numbe
     }));
 }
 
-/** Forschung der Oberfläche → Modell (`startedOffset` → `startMonth`). */
-const modelResearch = (r: AppResearch): ModelResearch => ({ done: r.done, active: r.active.map((a) => ({ id: a.id, startMonth: a.startedOffset })) });
-
 /** Fortschritt des Spielers im Monat `month`. */
 export function companyProgress(src: PlayerProgressSource, month: number): CompanyProgress {
-  const offers = src.career.goalOffer?.options.map(modelGoal);
+  const offers = src.career.goalOffer?.options;
   return {
     startMonth: src.startMonth,
     rank: src.career.rank,
     rankHistory: rankHistory(src.reports, src.startMonth, month),
-    research: modelResearch(src.career.research),
-    milestones: modelMilestones(src.milestones),
+    research: src.career.research,
+    milestones: src.milestones,
     careerPax: src.career.careerPax,
     takeovers: src.career.takeovers,
-    ...(src.annualGoal ? { goal: modelGoal(src.annualGoal) } : {}),
+    ...(src.annualGoal ? { goal: src.annualGoal } : {}),
     ...(offers && offers.length > 0 ? { goalOffers: offers } : {}),
     ...(src.scenario ? { scenario: modelScenario(src.scenario) } : {}),
   };
@@ -731,15 +680,18 @@ export function companyProgress(src: PlayerProgressSource, month: number): Compa
 export interface AppliedProgress {
   readonly career: Career;
   readonly milestones: readonly string[];
-  readonly annualGoal: AppGoal | null;
+  readonly annualGoal: ModelGoal | null;
   readonly scenario: AppScenario | null;
 }
 
 const sameStrings = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
+const sameGoal = (a: ModelGoal, b: ModelGoal): boolean =>
+  a.year === b.year && a.kind === b.kind && a.tag === b.tag && a.target === b.target && a.reward === b.reward && a.penalty === b.penalty;
+
 /**
  * Schreibt den Fortschritt zurück (`month` = Monat des Abschlusses X): Rang, Fluggäste, Übernahmen, Forschung,
- * Meilensteine (Kennungen der Oberfläche), Jahresziel und neues Angebot (Dezember: Angebot für das neue Jahr, das
+ * Meilensteine (Kennungen des Modells, 6.10), Jahresziel und neues Angebot (Dezember: Angebot für das neue Jahr, das
  * sichere Ziel gilt, bis der Spieler wählt), Szenario. Unverändertes bleibt dasselbe Objekt.
  */
 export function applyCompanyProgress(src: PlayerProgressSource, p: CompanyProgress, month: number): AppliedProgress {
@@ -753,16 +705,16 @@ export function applyCompanyProgress(src: PlayerProgressSource, p: CompanyProgre
     read.research.active.length === p.research.active.length &&
     read.research.active.every((a, i) => a.id === p.research.active[i].id && a.startMonth === p.research.active[i].startMonth);
   if (!researchSame) {
-    career = { ...career, research: { done: [...p.research.done], active: p.research.active.map((a) => ({ id: a.id, startedOffset: a.startMonth })) } };
+    career = { ...career, research: { done: [...p.research.done], active: p.research.active.map((a) => ({ ...a })) } };
   }
   const offers = p.goalOffers ?? [];
   const oldOffers = read.goalOffers ?? [];
-  const offersSame = offers.length === oldOffers.length && offers.every((g, i) => src.career.goalOffer && sameGoal(src.career.goalOffer.options[i], g));
+  const offersSame = offers.length === oldOffers.length && offers.every((g, i) => sameGoal(oldOffers[i], g));
   if (!offersSame) {
-    career = { ...career, goalOffer: offers.length > 0 ? { year: offers[0].year, options: offers.map((g) => appGoal(g)) } : null };
+    career = { ...career, goalOffer: offers.length > 0 ? { year: offers[0].year, options: offers.map((g) => ({ ...g })) } : null };
   }
-  const milestones = sameStrings(read.milestones, p.milestones) ? src.milestones : p.milestones.map((id) => APP_MILESTONE_IDS[id] ?? id);
-  const annualGoal = p.goal ? appGoal(p.goal, src.annualGoal) : null;
+  const milestones = sameStrings(read.milestones, p.milestones) ? src.milestones : [...p.milestones];
+  const annualGoal = p.goal ? (src.annualGoal && sameGoal(src.annualGoal, p.goal) ? src.annualGoal : { ...p.goal }) : null;
   const scenario = src.scenario && p.scenario ? applyScenario(src.scenario, p.scenario, month) : src.scenario;
   return { career, milestones, annualGoal, scenario };
 }

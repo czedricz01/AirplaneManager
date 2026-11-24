@@ -6,8 +6,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PROJECTS as OLD_PROJECTS } from '../lib/research';
-import { MILESTONES as OLD_MILESTONES } from '../lib/milestones';
 import { costIndex } from './basics';
 import { slotPrice } from './airportCosts';
 import {
@@ -24,7 +22,6 @@ import {
   START_CAPITAL_TIERS_1960,
   START_REPUTATION,
   type MilestoneMetric,
-  type ResearchEffect,
 } from './constants';
 import {
   advanceResearch,
@@ -84,50 +81,12 @@ const ALL_IDS = RESEARCH_PROJECTS.map((p) => p.id);
 // 6.9 Forschung
 // ---------------------------------------------------------------------------
 
-/** Wirkung eines alten Projekts (`src/lib/research.ts`) in den neuen Feldern (6.9). */
-function oldEffectAsFields(effect: Record<string, number> = {}): ResearchEffect {
-  const out: Record<string, unknown> = {};
-  const costSaving: Record<string, number> = {};
-  for (const [key, value] of Object.entries(effect)) {
-    if ((COST_RESEARCH_KINDS as readonly string[]).includes(key)) costSaving[key] = value;
-    else if (key === 'efficiency') out.efficiencyPoints = Math.round(value * 100);
-    else if (key === 'popularity') out.satisfactionPoints = Math.round(value * 100);
-    else if (key === 'sat') out.satisfactionPoints = value;
-    else if (key === 'demand') out.demandFactor = 1 + value;
-    else if (key === 'transfer') out.hubQualityFactor = 1 + value;
-    else if (key === 'ramp') out.rampBonus = value;
-    else if (key === 'defects') out.defectSaving = value;
-    else if (key === 'wear') out.wearSaving = value;
-    else if (key === 'resale') out.resaleBonus = value;
-    else if (key === 'morale') out.moralePoints = value;
-    else throw new Error(`unbekanntes altes Feld ${key}`);
-  }
-  if (Object.keys(costSaving).length > 0) out.costSaving = costSaving;
-  return out as ResearchEffect;
-}
-
 describe('Abschnitt 6.9 Forschung', () => {
   it('6.9: 45 Projekte (5 Klassen, 40 Bonus), Ids eindeutig', () => {
     assert.equal(RESEARCH_PROJECTS.length, 45);
     assert.equal(RESEARCH_PROJECTS.filter((p) => p.kind === 'class').length, 5);
     assert.equal(RESEARCH_PROJECTS.filter((p) => p.kind === 'bonus').length, 40);
     assert.equal(new Set(ALL_IDS).size, 45);
-  });
-
-  it('6.9: Bonus-Projekte wie heute: Id, Rang, Kette, Dauer, Preis von 1960 und Wirkung', () => {
-    const oldBonus = OLD_PROJECTS.filter((p) => p.kind === 'bonus');
-    assert.deepEqual(
-      RESEARCH_PROJECTS.filter((p) => p.kind === 'bonus').map((p) => p.id).sort(),
-      oldBonus.map((p) => p.id).sort(),
-    );
-    for (const old of oldBonus) {
-      const project = researchProject(old.id);
-      assert.equal(project.rank, old.rank, old.id);
-      assert.equal(project.requires, old.requires ?? null, old.id);
-      assert.equal(project.months, old.months, old.id);
-      assert.equal(project.price1960, old.baseCost, old.id);
-      assert.deepEqual(project.effect, oldEffectAsFields(old.effect as Record<string, number>), old.id);
-    }
   });
 
   it('6.9: Klassen-Projekte aus CLASS_RESEARCH (6.8), Vorgänger als Projekt-Id', () => {
@@ -336,16 +295,12 @@ const HUGE_CONTEXT: MilestoneContext = Object.fromEntries(
 ) as Record<MilestoneMetric, number>;
 
 describe('Abschnitt 6.10 Meilensteine', () => {
-  it('6.10: 31 Meilensteine, Ids eindeutig; dieselben Spuren und Stufen wie heute', () => {
+  it('6.10: 31 Meilensteine, Ids eindeutig; Zusatz-Drehkreuze bei drei Meilensteinen', () => {
     assert.equal(MILESTONES.length, 31);
     assert.equal(new Set(MILESTONES.map((m) => m.id)).size, 31);
     assert.deepEqual(
-      MILESTONES.map((m) => `${m.track}/${m.tier}`),
-      OLD_MILESTONES.map((m) => `${m.track}/${m.tier}`),
-    );
-    assert.deepEqual(
-      MILESTONES.map((m) => m.extraHubs),
-      OLD_MILESTONES.map((m) => m.reward.extraHubs),
+      MILESTONES.filter((m) => m.extraHubs > 0).map((m) => m.id),
+      ['routes-150', 'pax-100m', 'takeover-3'],
     );
   });
 

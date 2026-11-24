@@ -9,7 +9,8 @@
  */
 import type { Campaign, CampaignTier, Marketing, RegionId } from './gameState';
 import { regionOf } from './geoUtils';
-import { RANK_NEEDED, rankGateMessage } from './airlineRank';
+import { RANK_UNLOCKS } from '../model/constants';
+import { rankGateMessage } from './airlineRank';
 
 // --- Regions -------------------------------------------------------------------
 
@@ -91,14 +92,14 @@ export function campaignBlocker(marketing: Marketing, tier: CampaignTier, region
 
 /** The refusal for a campaign tier the airline's rank does not yet allow, or null. */
 export function campaignRankGate(tier: CampaignTier, rank: number): string | null {
-  if (tier === 'national') return rankGateMessage(rank, RANK_NEEDED.nationalCampaign, 'A national campaign');
-  if (tier === 'global') return rankGateMessage(rank, RANK_NEEDED.globalCampaign, 'A global campaign');
+  if (tier === 'national') return rankGateMessage(rank, RANK_UNLOCKS.nationalCampaign, 'A national campaign');
+  if (tier === 'global') return rankGateMessage(rank, RANK_UNLOCKS.globalCampaign, 'A global campaign');
   return null;
 }
 
 /** The refusal for the frequent-flyer programme at this rank, or null. */
 export function ffpRankGate(rank: number): string | null {
-  return rankGateMessage(rank, RANK_NEEDED.frequentFlyer, 'The frequent-flyer programme');
+  return rankGateMessage(rank, RANK_UNLOCKS.frequentFlyer, 'The frequent-flyer programme');
 }
 
 /** A new campaign starting in the month at `offset`. */

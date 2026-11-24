@@ -9,6 +9,7 @@ import { normalizeOrders } from './preorders';
 import { normalizeResearch } from './research';
 import { logWarn } from './debugLog';
 import { aircraftList } from '../data/aircraft';
+import { MILESTONES } from '../model/constants';
 import {
   CAMPAIGN_TIERS,
   CHRONICLE_KINDS,
@@ -48,7 +49,7 @@ import {
  */
 
 /** Written into every new save. Raise it whenever the shape changes; older saves are then deleted on load. */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /** Thrown for a save written by an older version of the game. */
 export class OutdatedSaveError extends Error {
@@ -243,6 +244,7 @@ function loadChronicle(list: unknown): ChronicleEntry[] {
 }
 
 const KNOWN_AIRCRAFT = new Set(aircraftList.map(a => a.id));
+const KNOWN_MILESTONES = new Set(MILESTONES.map(m => m.id));
 
 function loadCareer(raw: unknown): Career {
   const src = asObject<any>(raw, {});
@@ -331,7 +333,7 @@ export function loadSave(raw: any): any {
     reportHistory: asArray<any>(raw.reportHistory).filter(r => r && typeof r === 'object'),
     eventChoices: asObject<Record<string, string>>(raw.eventChoices, {}),
     reputation: clamp(finiteOr(raw.reputation, 50), 0, 100),
-    milestones: asArray<unknown>(raw.milestones).filter(isString),
+    milestones: asArray<unknown>(raw.milestones).filter((id): id is string => isString(id) && KNOWN_MILESTONES.has(id)),
     profitStreak: Math.max(0, finiteOr(raw.profitStreak, 0)),
     annualGoal: normalizeGoal(raw.annualGoal),
     startDateOffset,

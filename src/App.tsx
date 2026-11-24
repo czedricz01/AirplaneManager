@@ -56,7 +56,7 @@ import {
 import { withTradeValue, type LedgerValues } from "./lib/modelBridgeCompany";
 import { modelRivals, modelWorldEvent, newWorldSeed, newWorldState, type RivalRecord, type WorldState } from "./lib/modelBridgeWorld";
 import { rivalSlotsByAirport, tierPrice, type AirportPricing } from "./lib/modelAirport";
-import { crisisResponses, modelMilestones } from "./lib/modelBridgeCompany";
+import { crisisResponses, rankHistory as reportRankHistory } from "./lib/modelBridgeCompany";
 import { defaultModelEnv, foundStartRivals, modelGame, planesValue } from "./lib/modelMonth";
 import { type PlannerModel } from "./lib/modelRoute";
 import { EMPTY_PLAYER_MONTH, ffpForecast, playerMonth, type PlayerMonth } from "./lib/modelNetwork";
@@ -68,18 +68,17 @@ import {
 } from "./lib/milestones";
 import {
   FREE_MODE_RANK,
-  RANK_NEEDED,
+  clampRank,
+  effectiveRank,
   managementGate,
   rankGateMessage,
-  startingRank,
-  type GameMode,
-  type RankStats
+  type GameMode
 } from "./lib/airlineRank";
 import { classGateMessage, classesOfFleet, openClasses, type AircraftClassId } from "./lib/aircraftClasses";
 import { airportGate, exemptAirports, maxAirportLevel } from "./lib/airportAccess";
 import {
-  buildYearSnapshot,
   describeGoal,
+  goalReports,
   type AnnualGoal
 } from "./lib/annualGoals";
 import { creditStatus, fleetMix, playerScore, playerWorth } from "./lib/modelCompany";
@@ -96,14 +95,7 @@ import {
   type HallsOfFame,
   type ScenarioStars
 } from "./lib/careerScore";
-import {
-  projectById,
-  projectCost,
-  startBlocker as researchBlocker,
-  projectsForClasses,
-  startingResearch,
-  startProject
-} from "./lib/research";
+import { projectsForClasses, researchBlockerText } from "./lib/research";
 import {
   createGameSystems,
   decisionTargetExists,
@@ -133,11 +125,22 @@ import { Button } from "./components/ui/Button";
 import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { budgetLabel, formatCurrency, formatNumber, formatTrend, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
-import { START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, STRIKE_PAY_RAISE, WEEKS_PER_MONTH } from "./model/constants";
+import { RANK_UNLOCKS, START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, STRIKE_PAY_RAISE, WEEKS_PER_MONTH } from "./model/constants";
 import { badLuckCapOpen } from "./model/monthEvents";
 import { seasonFactor as modelSeasonFactor } from "./model/demand";
 import { refitCabinCondition } from "./model/fleetMarket";
-import { milestoneSlotFactor, startCapital, yearsPlayed } from "./model/progress";
+import {
+  milestoneSlotFactor,
+  researchPrice,
+  researchProject,
+  researchStartBlocker,
+  startCapital,
+  startResearch,
+  startingResearch,
+  yearSnapshot,
+  yearsPlayed,
+  type RankStats
+} from "./model/progress";
 import type { ActiveWindow, AirportInfrastructure, GameMessage, ManagementLevel, MonthlyReport, ScheduledTrip, SimulatedRoute, ViewState } from "./lib/gameTypes";
 export type { GameMessage };
 import type { OwnedAircraft } from "./components/MyFleetView";
@@ -652,15 +655,17 @@ export default function App() {
   /** What the fleet's make-up does to maintenance, for My Company. */
   const commonality = useMemo(() => fleetMix(fleet), [fleet]);
 
-  /** The figures the rank is judged on, as they stand now, for the Career tab. */
+  /**
+   * The figures the rank is judged on (model 6.7): those of the last closed months, as the reports saved them,
+   * the same list the next close averages. Without a closed month, one month of nothing.
+   */
   const yearsInBusiness = yearsPlayed(currentDateOffset - startDateOffset);
-  const rankStats = useMemo<RankStats>(() => ({
-    routes: routes.length,
-    monthlyPax: reportHistory.length > 0 ? Math.max(0, reportHistory[reportHistory.length - 1].paxTotal ?? 0) : 0,
-    reputation,
-    regions: Object.values(regionRouteCounts).filter(n => n > 0).length,
-    years: yearsInBusiness
-  }), [routes.length, reportHistory, reputation, regionRouteCounts, yearsInBusiness]);
+  const rankHistory = useMemo<RankStats[]>(() => {
+    const history = reportRankHistory(reportHistory, startDateOffset, currentDateOffset);
+    return history.length > 0 ? history : [{ routes: 0, monthlyPax: 0, reputation: 0, regions: 0, years: yearsInBusiness }];
+  }, [reportHistory, startDateOffset, currentDateOffset, yearsInBusiness]);
+  /** Regions the network touches now, for the regions goal. */
+  const regionCount = Object.values(regionRouteCounts).filter(n => n > 0).length;
 
   /**
    * The aircraft classes the airline may buy: those it has developed (all of
@@ -668,10 +673,8 @@ export default function App() {
    * taken away from a fleet. See aircraftClasses.ts.
    */
   const aircraftClassesOpen = useMemo<ReadonlySet<AircraftClassId>>(() => {
-    const open = openClasses(career.research.done, freeMode);
-    classesOfFleet(fleet).forEach(c => open.add(c));
-    return open;
-  }, [career.research.done, freeMode, fleet]);
+    return openClasses(career.research.done, fleet, career.mode);
+  }, [career.research.done, career.mode, fleet]);
 
   /** Airports open whatever their level: the home airport, built-up ones and every one a route touches. */
   const airportExempt = useMemo(() => exemptAirports(selectedHub, airportManagement, routes), [selectedHub, airportManagement, routes]);
@@ -681,12 +684,12 @@ export default function App() {
     [career.rank, airportExempt]
   );
 
-  /** The year of the chosen annual goal as it stands, for its progress bar. */
+  /** The year of the chosen annual goal as it stands (model `yearSnapshot`, 6.11), for its progress bar. */
   const goalSnapshot = useMemo(
     () => annualGoal
-      ? buildYearSnapshot(reportHistory, annualGoal.year, { routes: rankStats.routes, regions: rankStats.regions, reputation })
+      ? yearSnapshot(goalReports(reportHistory), annualGoal.year, { routes: routes.length, regions: regionCount, reputation })
       : null,
-    [annualGoal, reportHistory, rankStats.routes, rankStats.regions, reputation]
+    [annualGoal, reportHistory, routes.length, regionCount, reputation]
   );
 
   /** Takes one of the board's offered goals for the coming year. */
@@ -1518,7 +1521,7 @@ export default function App() {
     const mode: GameMode = chosen ? 'normal' : newGameMode;
     const startRank = mode === 'free'
       ? FREE_MODE_RANK
-      : startingRank({ routes: 0, monthlyPax: 0, reputation: START_REPUTATION, regions: 0, years: 0 }, chosen?.startRank ?? 0);
+      : clampRank(chosen?.startRank ?? 0);
     const systems: GameSystems = {
       ...createGameSystems(),
       career: {
@@ -1673,7 +1676,7 @@ export default function App() {
     return {
       month: currentDateOffset,
       completedResearch: career.research.done,
-      milestoneSlotFactor: milestoneSlotFactor(modelMilestones(milestones)),
+      milestoneSlotFactor: milestoneSlotFactor(milestones),
       rivalSlots: rivalSlotsByAirport(modelRivals({ rivals, aiAirlines }, ctx)),
     };
   }, [currentDateOffset, career.research.done, milestones, rivals, aiAirlines]);
@@ -1824,19 +1827,22 @@ export default function App() {
     setAirportManagement(prev => ({ ...prev, [airportId]: applyManagementUnlock(prev[airportId], tier) }));
   };
 
-  /** Starts a development project; the cost is paid at once. */
+  /**
+   * Starts a development project (model 6.9): the price of this month (`researchPrice`, cost index) is paid at
+   * once; the rank that counts is the top one in Free Mode.
+   */
   const handleStartResearch = (projectId: string) => {
-    const project = projectById(projectId);
-    if (!project) return;
-    const year = yearOf(currentDateOffset);
-    const blocker = researchBlocker(career.research, project, career.rank, capital, year);
+    const project = researchProject(projectId);
+    const rank = effectiveRank(career.mode, career.rank);
+    const price = researchPrice(projectId, currentDateOffset);
+    const blocker = researchBlockerText(researchStartBlocker(career.research, projectId, rank, capital, currentDateOffset), projectId, rank, price);
     if (blocker) {
       setAppAlert(blocker);
       return;
     }
-    const cost = projectCost(project, year);
-    spend(cost, 'Development Projects');
-    setCareer(prev => ({ ...prev, research: startProject(prev.research, projectId, currentDateOffset) }));
+    const started = startResearch(career.research, projectId, rank, capital, currentDateOffset);
+    spend(started.price, 'Development Projects');
+    setCareer(prev => ({ ...prev, research: started.state }));
     setToast(`Development started: ${project.title} (${project.months} months)`);
   };
 
@@ -2569,7 +2575,7 @@ export default function App() {
                           milestones={milestones}
                           free={freeMode}
                           rank={career.rank}
-                          rankStats={rankStats}
+                          rankHistory={rankHistory}
                           perks={perks}
                           goalOffer={career.goalOffer}
                           goalSnapshot={goalSnapshot}
@@ -2861,7 +2867,7 @@ export default function App() {
                           airport: airportRankGate(selectedAirport),
                           tier2: managementGate(2, career.rank, perks.extraHubs, airportManagement, selectedAirport.id, freeMode),
                           tier3: managementGate(3, career.rank, perks.extraHubs, airportManagement, selectedAirport.id, freeMode),
-                          vipLounge: rankGateMessage(career.rank, RANK_NEEDED.vipLounge, 'The VIP lounge')
+                          vipLounge: rankGateMessage(career.rank, RANK_UNLOCKS.vipLounge, 'The VIP lounge')
                         }}
                         onClose={() => setSelectedAirport(null)}
                         fleet={fleet}

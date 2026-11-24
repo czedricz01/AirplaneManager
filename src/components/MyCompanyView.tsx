@@ -13,11 +13,12 @@ import { ChronicleView } from './ChronicleView';
 import { LineChart } from './charts/LineChart';
 import { CareerPanel, type CareerPart, type CareerPanelProps } from './CareerPanel';
 import { rankDef } from '../lib/airlineRank';
-import { describeGoal, goalFraction, goalValue } from '../lib/annualGoals';
+import { describeGoal } from '../lib/annualGoals';
+import { goalFraction, goalValue } from '../model/progress';
 import type { Branding, ChronicleEntry } from '../lib/gameState';
 import type { MonthlyReport } from '../lib/gameTypes';
 import { CHART_COLORS } from '../lib/theme';
-import { fleetMixText, goalMissPenalty, reputationEffect, type CompanyWorth, type CreditStatus, type FleetMix } from '../lib/modelCompany';
+import { fleetMixText, reputationEffect, type CompanyWorth, type CreditStatus, type FleetMix } from '../lib/modelCompany';
 import { reportView } from '../lib/modelReport';
 import { CREDIT_LIMIT_SHARE } from '../model/constants';
 
@@ -137,7 +138,7 @@ function MyCompanyViewImpl({
   capital, reportHistory, worth, credit, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
   staff, profitStreak, monthlyCrewCost, strikePending, completedResearch, badLuckCapOpen, onSetSalary,
-  page = 'company', onOpenProgression, free, rank, rankStats, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
+  page = 'company', onOpenProgression, free, rank, rankHistory, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
   ...marketingProps
 }: Props) {
   const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
@@ -202,7 +203,7 @@ function MyCompanyViewImpl({
               part={careerTab}
               free={free}
               rank={rank}
-              rankStats={rankStats}
+              rankHistory={rankHistory}
               perks={perks}
               milestones={milestones}
               annualGoal={annualGoal}
@@ -302,11 +303,9 @@ function MyCompanyViewImpl({
                   <span className="block text-2xs text-muted mt-1">
                     {describeGoal(annualGoal, compact, n => String(Math.round(n)))}
                   </span>
-                  {annualGoal.reward.cash > 0 && (
-                    <span className="block text-2xs text-muted">
-                      met +{compact(annualGoal.reward.cash)} · missed &minus;{compact(goalMissPenalty(annualGoal.reward.cash))}
-                    </span>
-                  )}
+                  <span className="block text-2xs text-muted">
+                    met +{compact(annualGoal.reward)} · missed &minus;{compact(annualGoal.penalty)}
+                  </span>
                   <div className="w-full h-1 bg-raised mt-2 overflow-hidden">
                     <div className={`h-full ${fraction >= 1 ? 'bg-good' : 'bg-accent'}`} style={{ width: `${fraction * 100}%` }} />
                   </div>

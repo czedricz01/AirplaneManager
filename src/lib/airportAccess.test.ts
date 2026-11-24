@@ -8,7 +8,7 @@ const ap = (id: string, level: number) => ({ id, name: `Port ${id}`, level });
 const nobody = new Set<string>();
 
 test('airports up to level 4 are open from the start, each level after opens one rank later, level 7 at National', () => {
-  const national = RANKS.findIndex(r => r.id === 'national');
+  const national = RANKS.findIndex(r => r.title === 'National Airline');
   assert.equal(maxAirportLevel(0), 4);
   assert.equal(maxAirportLevel(1), 5);
   assert.equal(maxAirportLevel(3), 6);

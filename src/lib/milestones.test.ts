@@ -1,26 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { MILESTONES, SLOT_DISCOUNT_CAP, milestonePerks } from './milestones';
+import { TRACK_LABELS, describeReward, milestonePerks } from './milestones';
+import { MILESTONE_SLOT_DISCOUNT_MAX, MILESTONES } from '../model/constants';
+import { milestoneDef, milestonePrize } from '../model/progress';
 
-test('ids are unique and every milestone has a track and tier', () => {
-  const ids = MILESTONES.map(m => m.id);
-  assert.equal(new Set(ids).size, ids.length);
-  assert.ok(MILESTONES.length >= 28);
+test('every track of the model table has a name', () => {
+  for (const m of MILESTONES) assert.ok(TRACK_LABELS[m.track], m.id);
 });
 
-test('the seven original milestones keep their ids, so earned ones stay earned', () => {
-  for (const id of ['first-route', 'fleet-10', 'longhaul', 'continents-4', 'capital-100m', 'profit-12', 'reputation-80']) {
-    assert.ok(MILESTONES.some(m => m.id === id), id);
-  }
-});
-
-test('slot discounts add up but stop at the cap, and gold milestones give hubs', () => {
-  assert.equal(milestonePerks([]).slotPriceFactor, 1);
+test('slot discounts add up but stop at the cap, and gold milestones give hubs (6.10)', () => {
+  assert.deepEqual(milestonePerks([]), { slotPriceFactor: 1, extraHubs: 0 });
   const some = milestonePerks(['routes-50']);
-  assert.ok(some.slotPriceFactor < 1 && some.slotPriceFactor > 1 - SLOT_DISCOUNT_CAP);
+  assert.ok(some.slotPriceFactor < 1 && some.slotPriceFactor > 1 - MILESTONE_SLOT_DISCOUNT_MAX);
   const all = milestonePerks(MILESTONES.map(m => m.id));
-  assert.equal(Math.round(all.slotPriceFactor * 1000) / 1000, 1 - SLOT_DISCOUNT_CAP);
-  assert.ok(all.extraHubs >= 2);
+  assert.equal(Math.round(all.slotPriceFactor * 1000) / 1000, 1 - MILESTONE_SLOT_DISCOUNT_MAX);
+  assert.equal(all.extraHubs, 3);
   assert.equal(milestonePerks(['no-such-milestone']).slotPriceFactor, 1);
+});
+
+test('the reward text names the prize of the month, the slot discount and the hubs, no reputation (E38)', () => {
+  const money = (n: number) => '$' + Math.round(n);
+  const first = milestoneDef('first-route');
+  assert.equal(describeReward(first, 0, money), money(milestonePrize(first, 0)) + ' prize');
+  const gold = describeReward(milestoneDef('routes-150'), 300, money);
+  assert.match(gold, /slots 3% cheaper/);
+  assert.match(gold, /room for 1 more hub$/);
+  assert.doesNotMatch(gold, /reputation/);
+  assert.notEqual(describeReward(first, 600, money), describeReward(first, 0, money), 'prize with the cost index');
 });

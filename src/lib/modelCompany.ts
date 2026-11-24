@@ -17,7 +17,7 @@ import { creditLimit, creditState, type CreditState } from '../model/fleetMarket
 import { reputationFactor } from '../model/marketSplit';
 import { crisisResponseFactor, historicalEvent } from '../model/monthEvents';
 import type { CompanyState, ModelState } from '../model/monthClose';
-import { careerScore, companyValue, completedBonusResearch, goalPenalty, type GameMode } from '../model/progress';
+import { careerScore, companyValue, completedBonusResearch, type GameMode } from '../model/progress';
 import { companyValueOf } from '../model/rivalMonth';
 import type { ScoreBreakdown } from './careerScore';
 import { aircraftState } from './modelBridge';
@@ -224,9 +224,4 @@ export function fleetMixText(): string {
     `Running more than ${FREE_FAMILIES} families costs ${pct(VARIETY_PENALTY_PER_FAMILY)} on every aircraft for each one beyond, ` +
     `at most ${pct(VARIETY_PENALTY_MAX)}.`
   );
-}
-
-/** Geld-Strafe eines verfehlten Jahresziels (6.11, E58): aus der Kasse, nicht im Monatsergebnis. */
-export function goalMissPenalty(rewardCash: number): number {
-  return goalPenalty(rewardCash);
 }
