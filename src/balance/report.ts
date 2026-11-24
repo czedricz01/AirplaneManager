@@ -58,6 +58,7 @@ export function num(value: number, digits = 0): string {
 
 /** Anteil als Prozent. */
 export function pct(share: number, digits = 0): string {
+  if (!Number.isFinite(share)) return '–';
   return `${num(share * 100, digits)} %`;
 }
 

@@ -14,10 +14,10 @@ npm run balance
 npm run balance -- --out docs/neubau/balance/3.9c-bericht.md
 ```
 
-Mit den Langläufen der KI (Paket 3.9b, 26 Läufe, mit 4 Prozessen etwa 45 min):
+Mit den Langläufen der KI (seit E68 16 Läufe, je 3–6 min Rechenzeit; mit 4 Prozessen je nach Rechner 30–90 min):
 
 ```bash
-npm run balance -- --long --jobs 4 --out docs/neubau/balance/3.9b-bericht.md
+npm run balance -- --long --jobs 4 --out docs/neubau/balance/5.3a-bericht.md
 ```
 
 Weitere Optionen: `--runs`, `--years`, `--strength-runs`, `--cache`, `--reuse` (siehe `scripts/balance.ts`).
@@ -40,7 +40,9 @@ Weitere Optionen: `--runs`, `--years`, `--strength-runs`, `--cache`, `--reuse` (
 | `docs/neubau/balance/O61-O62-bericht.md` | Ausgabe des Skripts nach E64 (`DEMAND_GROWTH_1960_2019` = 2,25) und E65 |
 | `docs/neubau/balance/3.9b-bericht.md` | Ausgabe mit Langläufen (Abschnitte 1–5, 7: 10 ok · 0 Abweichung · 20 Info) |
 | `docs/neubau/balance/3.9c-bericht.md` | Ausgabe ohne Langläufe (Stand 3.9c, Abschnitte 1–6 und 8: 15 ok · 0 Abweichung · 21 Info) |
-| `docs/neubau/balance/3.9d-bericht.md` | Ausgabe ohne Langläufe nach E66 und `HEDGE_PRICE_SHARE` 0,35 (aktueller Stand: 15 ok · 0 Abweichung · 21 Info) |
+| `docs/neubau/balance/3.9d-bericht.md` | Ausgabe ohne Langläufe nach E66 und `HEDGE_PRICE_SHARE` 0,35 |
+| `docs/neubau/balance/3.9e-bericht.md` | Ausgabe mit Langläufen nach E71 (20 ok · 0 Abweichung · 28 Info) |
+| `docs/neubau/balance/5.3a-bericht.md` | Ausgabe mit Langläufen nach Phase 5, ohne Zuschuss (aktueller Stand: 18 ok · 0 Abweichung · 32 Info) |
 
 Der Code liegt in `src/balance/`, damit `npm run lint` ihn prüft (`scripts/` ist davon ausgenommen). Die Oberfläche
 importiert nichts von dort.
@@ -501,7 +503,8 @@ an ist; B7.1 heißt dann „Zuschuss abgeschafft“, B7.2 steht als Info im Beri
 
 ## Ergebnis Paket 5.3a (Balance-Bericht nach Phase 5, gesammelte 5.3-Punkte)
 
-Bericht mit Langläufen: `balance/5.3a-bericht.md` (LANGLAUF_ZAEHLUNG). Abschnitte 1–6 und 8 rechnen dieselben Zahlen
+Bericht mit Langläufen: `balance/5.3a-bericht.md` (**18 ok · 0 Abweichung · 32 Info**; 10 Läufe × 60 Jahre Normal, je 3 × 40 Jahre
+Easy und Hard, ohne Zuschuss). Abschnitte 1–6 und 8 rechnen dieselben Zahlen
 wie 3.9e (Phase 4 und 5 haben das Modell der Beispiele nicht verändert); neu sind drei Info-Prüfungen (F79).
 
 ### Fund 34: Die Charter-Schätzung empfiehlt richtig, überschätzt aber den Betrag (B8.10) → O71
@@ -559,3 +562,20 @@ Spielstart im Browser (5.2b) kommen also nicht aus der Gründung; was sie kostet
 
 `WIDEBODY_SLOTS_FROM_SIZE` (3) gilt nur in der Oberfläche; die KI prüft nur die Bahn. Nach der Bahn sind alle
 176 Flughäfen der Größe 2 für Widebodies offen (Codes D–F), die 36 der Größe 1 nicht.
+
+### Fund 40: Langläufe unverändert seit 3.9e; KI-Stärke Normal ≈ Hard (B7.1–B7.10, B3.13) → kein neuer Handlungsbedarf
+
+- Die 10 Haupt-Läufe (ohne Zuschuss, E68) ergeben **dieselben Zahlen** wie die Läufe „ohne Zuschuss“ in 3.9e:
+  „ähnlicher Erfolg“ Faktor 1,81 nach 20 und 1,70 nach 40 Jahren (B7.1 ok), Boutique 0,78 schwächste, Expansionist 1,70
+  stärkste; nach 60 Jahren 1,88 (Expansionist), Optimizer 0,67. Phase 4 und 5 haben die Rechnung der KI also nicht
+  verändert.
+- Marge der KI 24 % (B7.10 ok), Auslastung 100 %, Preisniveau Y Median 1,09; geteilte Paare 1,00 je Paar, Preiskampf
+  0,1 % der Strecken. Weg B aus O66 (mehr Konkurrenz unter der KI) bleibt offen; ohne geteilte Paare ist die
+  Auslastung der KI kein Maß für die Marktgröße (E71).
+- Optimizer-Sprünge 1,7 % der Strecken-Monate (p90 0,10, B7.4): nicht störend, keine Schrittgrenze.
+- KI-Stärke (B7.8, 3 Läufe je Stärke × 40 Jahre): Easy 579 < Normal 1 003 ≈ Hard 1 010 Mio. $. Hard kauft mehr, verdient
+  aber nicht mehr, weil Wachstum an Drehkreuzen und Slots endet (Fund 10). Ob Hard spürbar stärker sein soll, ist eine
+  Stellschraube für 5.3c (Wert `RIVAL_STRENGTH`), keine Abweichung.
+- Rechenzeit (B7.9): 734 ms je Monat in den 2010ern, 5,9 min je Lauf (3.9e: 555 ms, 4,2 min). Während der Läufe liefen
+  auf demselben Rechner Tests und Berichte; der Unterschied ist darum kein sicherer Hinweis auf langsameren Code.
+- Bericht: „NaN %“ in Jahrzehnten ohne Langstrecke heißt jetzt „–“ (`pct`, `src/balance/report.ts`).
