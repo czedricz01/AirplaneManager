@@ -636,10 +636,14 @@ export default function App() {
    * the same list the next close averages. Without a closed month, one month of nothing.
    */
   const yearsInBusiness = yearsPlayed(currentDateOffset - startDateOffset);
-  const rankHistory = useMemo<RankStats[]>(() => {
-    const history = reportRankHistory(reportHistory, startDateOffset, currentDateOffset);
-    return history.length > 0 ? history : [{ routes: 0, monthlyPax: 0, reputation: 0, regions: 0, years: yearsInBusiness }];
-  }, [reportHistory, startDateOffset, currentDateOffset, yearsInBusiness]);
+  const closedRankHistory = useMemo(
+    () => reportRankHistory(reportHistory, startDateOffset, currentDateOffset),
+    [reportHistory, startDateOffset, currentDateOffset]
+  );
+  const rankHistory = useMemo<RankStats[]>(
+    () => closedRankHistory.length > 0 ? closedRankHistory : [{ routes: 0, monthlyPax: 0, reputation: 0, regions: 0, years: yearsInBusiness }],
+    [closedRankHistory, yearsInBusiness]
+  );
   /** Regions the network touches now, for the regions goal. */
   const regionCount = Object.values(regionRouteCounts).filter(n => n > 0).length;
 
@@ -2579,6 +2583,7 @@ export default function App() {
                           free={freeMode}
                           rank={career.rank}
                           rankHistory={rankHistory}
+                          closedMonths={closedRankHistory.length}
                           perks={perks}
                           goalOffer={career.goalOffer}
                           goalSnapshot={goalSnapshot}

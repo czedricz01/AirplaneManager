@@ -99,7 +99,8 @@ export function ScenarioProgressPanel({ scenario, goals, monthsLeft }: ScenarioP
                     ? `Bankruptcy watch: capital below ${floor} at ${streak} month-end${streak === 1 ? '' : 's'} in a row. ${ends}`
                     : g.below
                       ? `Capital is below ${floor} now; this month-end would count. ${ends}`
-                      : `${g.label} (now ${floor}).`}
+                      // A floor of $0 stays $0 in every month's prices; only a moving floor needs today's figure.
+                      : g.target === 0 ? `${g.label}.` : `${g.label} (now ${floor}).`}
                 </span>
               </div>
             );

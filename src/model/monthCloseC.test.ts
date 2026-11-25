@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { aircraftList } from '../data/aircraft';
 import { airportsData } from '../data/airports';
 import { costIndex } from './basics';
-import { FARE_RATIO_DEFAULT, WEEKS_PER_MONTH, type WorldRegion } from './constants';
+import { FARE_RATIO_DEFAULT, REPORT_HISTORY_MONTHS, RIVAL_REPORT_MONTHS, WEEKS_PER_MONTH, type WorldRegion } from './constants';
 import { aircraftValue } from './fleet';
 import { marketFares } from './fare';
 import { creditLimit, saleProceeds } from './fleetMarket';
@@ -18,6 +18,7 @@ import { distanceKm } from './demand';
 import {
   closeMonth,
   fleetValue,
+  keptReports,
   monthOperations,
   newLedger,
   NO_DECISIONS,
@@ -375,6 +376,47 @@ describe('Abschnitt 6.7–6.11 Fortschritt im Abschluss', () => {
     assert.equal(p.goal?.tag, 'steady');
     assert.ok((p.goalOffers?.length ?? 0) >= 2);
     assert.ok(result.news.some((n) => n.kind === 'goalMissed'));
+  });
+
+  it('6.11: Gewählt wird bis zum Januar-Abschluss; danach ist das Angebot weg und das gewählte Ziel gilt (5.3b)', () => {
+    const dec = M + 11;
+    const pl = company('pl', PLAYER, { progress: progress({ milestones: ['first-route'] }) });
+    const afterDec = closeMonth(world([pl], { month: dec }), NO_DECISIONS).state;
+    const offered = companyAfter(afterDec, 'pl').progress as CompanyProgress;
+    assert.ok((offered.goalOffers?.length ?? 0) >= 2);
+    // Der Spieler wählt im Januar das hohe Ziel; der Januar-Abschluss beendet das Angebot.
+    const stretch = offered.goalOffers?.find((g) => g.tag === 'stretch');
+    assert.ok(stretch);
+    const chosen = afterDec.companies.map((c) => (c.id === 'pl' ? { ...c, progress: { ...offered, goal: stretch } } : c));
+    const afterJan = closeMonth({ ...afterDec, companies: chosen }, NO_DECISIONS).state;
+    const p = companyAfter(afterJan, 'pl').progress as CompanyProgress;
+    assert.equal(p.goalOffers, undefined);
+    assert.deepEqual(p.goal, stretch);
+  });
+
+  it('8.2: Berichte im Spielstand: höchstens REPORT_HISTORY_MONTHS, Strecken-Zahlen nur im neuesten (5.3b)', () => {
+    const s0 = world([company('pl', PLAYER)]);
+    const s1 = closeMonth(s0, NO_DECISIONS).state;
+    const s2 = closeMonth(s1, NO_DECISIONS).state;
+    const reports = companyAfter(s2, 'pl').reports;
+    assert.equal(reports.length, 2);
+    assert.equal(reports[0].routes.length, 0);
+    assert.ok(reports[1].routes.length > 0);
+    // Alle übrigen Zahlen des älteren Berichts bleiben.
+    const first = companyAfter(s1, 'pl').reports[0];
+    assert.deepEqual({ ...reports[0], routes: first.routes }, first);
+    // Länge bleibt begrenzt.
+    const many = Array.from({ length: REPORT_HISTORY_MONTHS + 5 }, (_, i) => ({ ...first, month: M - 200 + i }));
+    const kept = keptReports(many, { ...first, month: M });
+    assert.equal(kept.length, REPORT_HISTORY_MONTHS);
+    assert.equal(kept[kept.length - 1].month, M);
+    assert.ok(kept.slice(0, -1).every((r) => r.routes.length === 0));
+    // Eine KI behält nur RIVAL_REPORT_MONTHS Berichte; der Spieler weiter REPORT_HISTORY_MONTHS.
+    const old = Array.from({ length: 20 }, (_, i) => ({ ...first, companyId: 'ai', month: M - 20 + i }));
+    const withHistory = world([company('pl', PLAYER, { reports: old.map((r) => ({ ...r, companyId: 'pl' })) }), rival('ai', {}, { reports: old })]);
+    const closed = closeMonth(withHistory, NO_DECISIONS).state;
+    assert.equal(companyAfter(closed, 'ai').reports.length, RIVAL_REPORT_MONTHS);
+    assert.equal(companyAfter(closed, 'pl').reports.length, 21);
   });
 
   it('6.9: Forschung wird im Übergang fertig und wirkt ab X+1 (`completedResearch` = `research.done`)', () => {

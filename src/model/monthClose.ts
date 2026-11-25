@@ -23,6 +23,7 @@ import {
   OWNER_TIER,
   RANK_AVERAGE_MONTHS,
   REPORT_HISTORY_MONTHS,
+  RIVAL_REPORT_MONTHS,
   SCENARIO_DOLLAR_METRICS,
   WEEKS_PER_MONTH,
   type AircraftClass,
@@ -413,7 +414,7 @@ export interface CompanyState {
   /** Gewinnserie (6.10, Moral 8.7). */
   readonly profitStreak: number;
   readonly ledger: MonthLedger;
-  /** Berichte, ältester zuerst, höchstens `REPORT_HISTORY_MONTHS` (8.2). */
+  /** Berichte, ältester zuerst, höchstens `REPORT_HISTORY_MONTHS`, KI `RIVAL_REPORT_MONTHS` (8.2, `keptReports`). */
   readonly reports: readonly MonthReport[];
   /** Drehkreuze (Flughafen-Kennungen): Umsteige-Verbindungen (3.13). */
   readonly hubs?: readonly string[];
@@ -1745,7 +1746,10 @@ export interface MonthReport {
   readonly airlineSatisfaction: number;
   /** Ruf-Änderung mit Ursachen (6.5). */
   readonly reputation: ReputationChange;
-  /** Strecken-Zahlen (je Woche). */
+  /**
+   * Strecken-Zahlen (je Woche). Nur der neueste Bericht im Spielstand behält sie; ältere Berichte haben `[]`
+   * (`keptReports`), sonst sprengen die Berichte der KI den Speicher des Browsers (Paket 5.3b, F82).
+   */
   readonly routes: readonly RouteFigures[];
 }
 
@@ -2111,7 +2115,8 @@ function progressStep(
   if (rank > p.rank) news.push({ companyId: company.id, kind: 'rankUp', amount: rank });
 
   let goal = p.goal;
-  let goalOffers = p.goalOffers;
+  // Gewählt wird bis zum Januar-Abschluss; danach gilt das Ziel, das bis dahin gewählt ist, ohne Wahl das sichere (6.11).
+  let goalOffers = isDecember(X) ? p.goalOffers : undefined;
   let goalCash = 0;
   if (isDecember(X)) {
     const year = yearOf(X);
@@ -2145,6 +2150,18 @@ function progressStep(
     goalCash,
     news,
   };
+}
+
+/**
+ * Berichte im Spielstand nach dem Abschluss (8.2): die letzten `limit` (Spieler `REPORT_HISTORY_MONTHS`, KI
+ * `RIVAL_REPORT_MONTHS`), ältester zuerst. Die Strecken-Zahlen (`routes`) behält nur der neue Bericht; die älteren
+ * tragen `[]`. Kein Leser braucht sie (Ansicht der KI und Abschluss lesen nur den letzten Bericht), und mit ihnen wächst
+ * der Spielstand der KI um etwa 1 KB je Strecke und Monat: nach 7 Jahren mit 6 KI über 5 MB, die Grenze des
+ * Browser-Speichers (Paket 5.3b, F82).
+ */
+export function keptReports(reports: readonly MonthReport[], report: MonthReport, limit = REPORT_HISTORY_MONTHS): readonly MonthReport[] {
+  const older = limit > 1 ? reports.slice(-(limit - 1)).map((r) => (r?.routes?.length ? { ...r, routes: [] } : r)) : [];
+  return [...older, report];
 }
 
 /**
@@ -2375,7 +2392,7 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions, after
       routes: o.routes,
     };
     reports[company.id] = report;
-    return { ...company, reports: [...company.reports, report].slice(-REPORT_HISTORY_MONTHS) };
+    return { ...company, reports: keptReports(company.reports, report, company.agent ? RIVAL_REPORT_MONTHS : REPORT_HISTORY_MONTHS) };
   });
 
   const next = transition({ ...state, companies: closed }, sold);

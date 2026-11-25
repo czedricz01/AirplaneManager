@@ -13,7 +13,7 @@ import {
   type MilestoneTier,
   type MilestoneTrack
 } from '../lib/milestones';
-import { describeGoal, type AnnualGoal, type GoalOffer } from '../lib/annualGoals';
+import { describeGoal, goalOfferLines, type AnnualGoal, type GoalOffer } from '../lib/annualGoals';
 import { projectsOfRank, researchBlockerText, type ResearchState } from '../lib/research';
 import {
   COST_RESEARCH_KINDS,
@@ -51,6 +51,8 @@ export interface CareerPanelProps {
   rank: number;
   /** Rank figures of the last closed months (model 6.7), oldest first; the next close averages the same. */
   rankHistory: readonly RankStats[];
+  /** Closed months behind `rankHistory`, at most `RANK_AVERAGE_MONTHS`; 0 before the first month-end. */
+  closedMonths: number;
   perks: MilestonePerks;
   milestones: string[];
   annualGoal: AnnualGoal | null;
@@ -97,7 +99,7 @@ const RANK_LINE_LABELS: Record<keyof RankRequirement, string> = {
   years: 'Years in business'
 };
 
-function RankSection({ rank, history, perks, free }: { rank: number; history: readonly RankStats[]; perks: MilestonePerks; free: boolean }) {
+function RankSection({ rank, history, closedMonths, perks, free }: { rank: number; history: readonly RankStats[]; closedMonths: number; perks: MilestonePerks; free: boolean }) {
   const def = rankDef(rank);
   // The same 3-month means the month close checks (model 6.7, E40); missing months count as 0.
   const progress = free || history.length === 0 ? null : rankProgress(rank, history);
@@ -153,6 +155,13 @@ function RankSection({ rank, history, perks, free }: { rank: number; history: re
                 Averages of the last {RANK_AVERAGE_MONTHS} closed months, missing months counting as nothing. Every figure
                 has to be met at once; the years in business cannot be bought. A rank once reached is never lost.
               </p>
+              {closedMonths < RANK_AVERAGE_MONTHS && (
+                <p className="text-2xs text-muted mt-1">
+                  {closedMonths === 0
+                    ? `No month has been closed yet, so every figure still reads 0; the first month-end counts as one of ${RANK_AVERAGE_MONTHS}.`
+                    : `${closedMonths} of ${RANK_AVERAGE_MONTHS} months closed so far: the figures are still diluted by the months before the start.`}
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-2xs text-muted mb-4">The highest rank there is. Nothing is left to unlock.</p>
@@ -222,8 +231,7 @@ function GoalSection({ annualGoal, goalOffer, goalSnapshot, onChooseGoal }: Pick
       {goalOffer ? (
         <>
           <p className="text-2xs text-muted leading-relaxed mb-3 max-w-2xl">
-            The board offers three goals for {goalOffer.year}. A harder goal pays more and costs more to miss.
-            Without a choice, the first is taken when {goalOffer.year} begins.
+            {goalOfferLines(goalOffer).intro} {goalOfferLines(goalOffer).deadline}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {goalOffer.options.map((g, i) => <GoalCard key={`${g.kind}-${i}`} goal={g} onChoose={() => onChooseGoal(g)} />)}
@@ -517,7 +525,7 @@ export function CareerPanel({ part, ...props }: CareerPanelProps & { part: Caree
     <div className="flex flex-col gap-3">
       {part === 'rank' && (
         <>
-          <RankSection rank={props.rank} history={props.rankHistory} perks={props.perks} free={props.free} />
+          <RankSection rank={props.rank} history={props.rankHistory} closedMonths={props.closedMonths} perks={props.perks} free={props.free} />
           <ScoreSection score={props.score} hall={props.hall} free={props.free} onRetire={props.onRetire} />
           <MilestoneSection milestones={props.milestones} month={props.currentDateOffset} />
         </>
