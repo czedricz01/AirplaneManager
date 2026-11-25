@@ -85,6 +85,10 @@ Claude schlägt vor, der Mensch entscheidet.
 | E76 | 24.11.2026 | **Störungs-Frage rechnet den Monat X+1 (O71 = B):** Die Frage nennt Erlösverlust, Charter-Gebühr und Vorteil aus zwei Rechnungen des Modells für den Monat X+1 (`monthOperations` auf dem Spielstand nach dem Abschluss, die Störung einmal gestrichen, einmal gechartert). Vorteil = Monatsergebnis mit Charter − mit Streichen (Strecken-Ergebnisse × `WEEKS_PER_MONTH` − Charter-Kosten). Die Schätzung aus den Zahlen des Monats X entfällt. | Balance-Bericht 5.3a (B8.10): Die Schätzung überschätzte den Vorteil bis zum Doppelten (Fluggäste gestrichener Flüge wandern auf die übrigen Sitze) und nahm die Preise von X; die Rechnung des Modells stimmt in Betrag und Treibstoff-Preis (R2). |
 | E77 | 24.11.2026 | **Kassen-Untergrenze der Szenarien im Modell (O72 = A):** Jede Untergrenze eines Szenarios hat ihre Schwelle im Modell: `BANKRUPTCY` = −Kreditlinie (wie 8.15), „Oil Shock“ = 0 $ (Dollar-Betrag als Wert von 1960, E6). Die Anzeige zeigt Schwelle und Serie aus dem Modell; der Text von `BANKRUPTCY` heißt „Capital below the negative credit line at three month-ends in a row …“. | Bisher rechneten Daten und Anzeige mit −5 Mio. $ bzw. 0 $, der Abschluss mit −Kreditlinie; die Warnung „ends the scenario“ traf nicht ein, und „Oil Shock“ verlangte im Text mehr als die Regel (R2). |
 | E78 | 24.11.2026 | **Widebody-Slots erst ab Flughafengröße 3, für alle (O73 = A):** Die Regel `WIDEBODY_SLOTS_FROM_SIZE` gehört ins Modell und gilt für Spieler und KI (Strecken mit Widebody, Jumbo oder Überschall nur zwischen Flughäfen ab Größe 3, zusätzlich zur Bahn). Im Langlauf prüfen, ob die KI dadurch schwächer wird. | Bisher galt die Regel nur in der Oberfläche; die KI prüfte nur die Bahn (alle 176 Flughäfen der Größe 2 lassen nach der Bahn Widebodies zu). Gegen E44 (gleiche Regeln). |
+| E79 | 25.11.2026 | **KI-Stärke bleibt (O74 = A):** `RIVAL_STRENGTH` unverändert (Easy < Normal < Hard, nach 5.3c 619 / 952 / 1 055 Mio. $ nach 40 Jahren). Im Spieltest (5.3b) prüfen, ob Hard sich schwerer anfühlt; kein eigener Slot-Anteil je Stärke. | Hard ist nach 5.3c 11 % stärker als Normal (Fund 44); der Abstand kommt aus Startkasse, Startflotte und zwei Entscheidungen je Monat. Ob das reicht, zeigt erst das Spielgefühl. |
+| E80 | 25.11.2026 | **Stärke der Schwierigkeit bleibt (O75 = A):** `DIFFICULTY_FACTOR` Hard 0,9 / Easy 1,1 auf die Anziehung der Spieler-Angebote (E53). Kein zweiter Hebel. | Gegen einen gleichen Rivalen −5,7 % / +5,2 % Fluggäste, beim festen Preis auf voller Strecke Ergebnis −17 % / +5 % (Fund 46): spürbar, nicht erdrückend. |
+| E81 | 25.11.2026 | **KI mit Langstrecke (O76 = A):** Vor einem Kauf sucht die KI Strecken mit mehreren Bezugs-Typen: dem bisherigen (`referenceTypeIndex`) und je Bauart Narrowbody und Widebody dem beliebtesten lieferbaren Typ (`referenceTypeIndices`). Pläne und Typen vergleicht sie nach erwartetem Gewinn **nach Kapitalkosten**: Planer-Hauptzahl − Kaufpreis × `RIVAL_CAPITAL_RATE` (8 % je Jahr) / 12 (`profitAfterCapital`), statt Planer-Hauptzahl je Kaufpreis; auch bei der Modernisierung. Mit Langlauf prüfen: Langstrecken-Anteil der KI deutlich über 5 %, B7.1 bleibt ok. | Fund 42: Die KI flog 0–3 Widebodies und 0–24 Langstrecken je Lauf; „je Kaufpreis“ wählte fast immer einen günstigen Narrowbody, und Ziele außerhalb der Reichweite des jüngsten Flugzeugs kamen nicht in die Vorauswahl. Der Spieler hatte auf Langstrecke keine Konkurrenz. |
+| E82 | 25.11.2026 | **Optimizer in den ersten 20 Jahren dämpfen (O77 = A):** Die Planer-Regel für die höchsten Umläufe der KI (7.9, E44) bleibt; gedämpft wird nur über die Werte in `PERSONALITIES` (wie E71). Ziel B7.1 Faktor ≤ 2 nach 20 und 40 Jahren; Werte mit Langlauf. | Fund 43: Mit den Umläufen nach der Planer-Regel ist der Optimizer nach 20 Jahren 2,56 × der Median (Grenze 2). Eine Nachtpause oder die alte Regel widerspräche 7.9 und E44. |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -200,7 +204,7 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
@@ -221,38 +225,7 @@ E75 am 23.11.2026 vom Menschen vorgegeben (keine Umwandlung alter Spielstände);
 
 O71–O73 am 24.11.2026 entschieden (E76 Weg B, E77 Weg A, E78 Weg A); Umsetzung in Paket 5.3c.
 
-**O74 – KI-Stärke (aus Paket 5.3c, B7.8, Fund 44).** Nach 40 Jahren (je 3 Läufe Easy und Hard, 10 Normal):
-Easy 619, Normal 952, Hard 1 055 Mio. $ Unternehmenswert (vor 5.3c: 579 / 1 003 / 1 010). Hard ist jetzt 11 % stärker als
-Normal; der Unterschied kommt vor allem aus Startkasse, Startflotte und zwei Entscheidungen je Monat (`RIVAL_STRENGTH`).
-- **A (Empfehlung):** so lassen; im Spieltest (5.3b) prüfen, ob Hard sich schwerer anfühlt.
-- **B:** Hard deutlich stärker: eigener Slot-Anteil je Stärke (`RIVAL_SLOT_SHARE_*` z. B. Hard × 1,5), damit Wachstum
-  an den Drehkreuzen nicht endet (Fund 10); mit Langlauf.
-
-**O75 – Stärke der Schwierigkeit (aus Paket 5.3c, B3.5, Fund 46).** `DIFFICULTY_FACTOR` Hard 0,9 / Easy 1,1 wirkt auf
-die Anziehung der Spieler-Angebote: gegen einen gleichen Rivalen −5,7 % / +5,2 % Fluggäste; beim festen Preis auf
-einer vollen Strecke Ergebnis −17 % / +5 %. Allein auf einer Strecke wirkt sie kaum.
-- **A (Empfehlung):** 0,9 / 1,1 lassen (spürbar über das Ergebnis, nicht erdrückend).
-- **B:** 0,8 / 1,2 (Fluggäste −12 %, Ergebnis −36 % / +10 %).
-- **C:** zusätzlich ein zweiter Hebel, der auch ohne Rivalen wirkt (z. B. Treibstoff-Zuschlag auf Hard wie früher).
-
-**O76 – KI ohne Langstrecke (aus Paket 5.3c, Fund 42).** Die KI fliegt fast keine Widebodies (0–3 von 150–520 Strecken)
-und kaum Langstrecke (0–24 Strecken über 3 500 km je Lauf). Grund: Kauf nach Planer-Hauptzahl **je Kaufpreis**
-(`pickPurchaseType`, `src/model/rivalMonth.ts:624`) und Zielsuche mit der Reichweite des jüngsten Flugzeugs
-(`referenceTypeIndex`). Der Spieler hat auf Langstrecke darum fast nie Konkurrenz.
-- **A (Empfehlung):** Bei der Zielsuche vor einem Kauf zusätzlich je Bauart (Narrowbody, Widebody) den beliebtesten
-  lieferbaren Typ als Bezug nehmen, und den Typ nach erwartetem Gewinn **nach Kapitalkosten** wählen (Gewinn −
-  Kaufpreis × Zins je Monat) statt Gewinn je Kaufpreis. Mit Langlauf prüfen (Ziel: Langstrecken-Anteil der KI deutlich
-  über 5 %, B7.1 bleibt ok).
-- **B:** nur die Zielsuche erweitern (Typwahl bleibt).
-- **C:** so lassen (Langstrecke bleibt die Nische des Spielers).
-
-**O77 – Optimizer nach 20 Jahren zu stark (aus Paket 5.3c, B7.1 Abweichung, Fund 43).** Mit den KI-Umläufen nach der
-Planer-Regel (7.9, ohne Nachtpause, ohne Obergrenze 21) ist der Optimizer nach 20 Jahren 2,56 × der Median (Grenze 2);
-nach 40 Jahren 1,79 (ok).
-- **A (Empfehlung):** Planer-Regel behalten und den Optimizer in den ersten 20 Jahren dämpfen, nur über die Werte in
-  `PERSONALITIES` (wie E71); mit Langlauf.
-- **B:** Eine Nachtpause für alle (Spieler und KI): höchstens `18 h` je Tag fliegbar, auch im Planer.
-- **C:** Für die KI wieder die alte Regel (7 × 18 h, höchstens 21); gegen 7.9 und E44.
+O74–O77 am 25.11.2026 entschieden (E79–E82, je Weg A); Umsetzung in Paket 5.3d.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 

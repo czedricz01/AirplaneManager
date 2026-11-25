@@ -1719,6 +1719,16 @@ export const RIVAL_STRENGTH: Readonly<Record<RivalStrength, RivalStrengthDef>> =
 /** Zur Vorauswahl der besten Ziele kommen so viele zufällige (Alt-Code: `:503-521`). SPEZIFIKATION 7.9. */
 export const RIVAL_RANDOM_TARGETS = 2;
 
+/**
+ * Kapitalkosten der KI beim Kauf: Zins je Jahr auf den Kaufpreis (E81, O76). Die Typwahl rechnet
+ * `Planer-Hauptzahl − Kaufpreis × RIVAL_CAPITAL_RATE / 12`; die Abschreibung steckt schon in der Planer-Hauptzahl
+ * (`aircraftShare`, 5.9). Startwert = Kreditzins `CREDIT_RATE` (8.14). SPEZIFIKATION 7.11.
+ */
+export const RIVAL_CAPITAL_RATE = 0.08;
+
+/** Bauarten, für die die KI vor einem Kauf zusätzlich mit dem beliebtesten lieferbaren Typ sucht (E81, O76). SPEZIFIKATION 7.11. */
+export const RIVAL_REFERENCE_CLASSES: readonly AircraftClass[] = ['Narrowbody', 'Widebody'];
+
 /** Schalter-Art einer Persönlichkeit: Selbstbedienung, wo lieferbar, oder bedient (E18, E55). SPEZIFIKATION 7.4, 7.10. */
 export type RivalDeskChoice = 'selfWhereAvailable' | 'served';
 

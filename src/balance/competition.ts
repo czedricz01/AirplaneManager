@@ -185,6 +185,18 @@ function marketTable(runs: readonly LongRunResult[]): Table {
 
 const BAND_NAMES: Readonly<Record<LengthBand, string>> = { short: 'kurz', medium: 'mittel', long: 'lang' };
 
+/** Ab diesem Jahr zählt der Langstrecken-Anteil der KI (B7.12): vorher gibt es kaum Typen mit genug Reichweite. */
+const LONG_SHARE_FROM_YEAR = 1990;
+/** Ziel aus E81 (O76): Langstrecken-Anteil der KI deutlich über 5 %. */
+const LONG_SHARE_TARGET = 0.05;
+
+/** Anteil der Langstrecken an allen KI-Strecken-Monaten eines Jahres (`byLength`); NaN ohne Strecken. */
+export function longRouteShare(y: YearStats): number {
+  if (!y.byLength) return Number.NaN;
+  const total = LENGTH_BANDS.reduce((s, b) => s + (y.byLength?.[b].load.n ?? 0), 0);
+  return total > 0 ? y.byLength.long.load.n / total : Number.NaN;
+}
+
 /** Auslastung und Marge je Länge (Median je Jahr, Mittel der Jahre eines Jahrzehnts); nur Läufe mit `byLength`. */
 function lengthTable(runs: readonly LongRunResult[]): Table {
   const pick = (b: LengthBand, k: 'load' | 'margin') => (y: YearStats) => y.byLength?.[b][k].median ?? Number.NaN;
@@ -195,12 +207,13 @@ function lengthTable(runs: readonly LongRunResult[]): Table {
       `${pct(decadeMean(runs, d, pick(b, 'load')))} / ${pct(decadeMean(runs, d, pick(b, 'margin')))}`,
       num(decadeMean(runs, d, count(b)) / 12, 0),
     ]),
+    num(decadeMean(runs, d, (y) => y.widebodyRoutes ?? Number.NaN), 0),
   ]);
   return {
     title: 'Auslastung / Marge je Streckenlänge (Median je Jahr, Mittel der Jahre, Haupt-Läufe; E67)',
-    header: ['Jahrzehnt', ...LENGTH_BANDS.flatMap((b) => [BAND_NAMES[b], 'Strecken'])],
+    header: ['Jahrzehnt', ...LENGTH_BANDS.flatMap((b) => [BAND_NAMES[b], 'Strecken']), 'mit Widebody'],
     rows,
-    note: 'kurz unter 1 000 km, mittel bis 3 500 km, lang darüber (Großkreis). „Strecken“ = KI-Strecken je Monat und Lauf.',
+    note: 'kurz unter 1 000 km, mittel bis 3 500 km, lang darüber (Großkreis). „Strecken“ = KI-Strecken je Monat und Lauf. „mit Widebody“ = KI-Strecken mit einem Flugzeug der Klasse Widebody im Januar, je Lauf (E81).',
   };
 }
 
@@ -442,6 +455,17 @@ export function competitionSections(runs: readonly LongRunResult[]): Section[] {
         rule: 'Widebody-Slots erst ab Flughafengröße 3: keine KI-Strecke mit Widebody an einem kleineren Flughafen',
         value: `Strecken mit Widebody je Jahr (Januar) im Mittel ${num(mean(wideYears.map((y) => y.widebodyRoutes ?? 0)), 1)}; davon an Flughäfen unter Größe 3: ${small} (alle Jahre und Läufe)`,
         verdict: small === 0 ? 'ok' : 'abweichung',
+      });
+    }
+    const longYears = allYears.filter((y) => y.year >= LONG_SHARE_FROM_YEAR && Number.isFinite(longRouteShare(y)));
+    if (longYears.length > 0) {
+      const share = mean(longYears.map(longRouteShare));
+      checks.push({
+        id: 'B7.12',
+        spec: '7.11, E81',
+        rule: `Langstrecke der KI: Anteil der KI-Strecken über 3 500 km ab ${LONG_SHARE_FROM_YEAR} deutlich über ${pct(LONG_SHARE_TARGET)} (Ziel aus O76)`,
+        value: `${pct(share, 1)} der Strecken-Monate; Strecken mit Widebody (Januar) ab ${LONG_SHARE_FROM_YEAR} im Mittel ${num(mean(longYears.map((y) => y.widebodyRoutes ?? 0)), 1)} je Lauf`,
+        verdict: share > LONG_SHARE_TARGET ? 'ok' : 'abweichung',
       });
     }
     checks.push({
