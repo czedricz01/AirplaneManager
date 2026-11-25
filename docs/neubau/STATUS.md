@@ -23,8 +23,9 @@ hohes Jahresziel zahlt bei kleinen Gesellschaften nicht mehr als das sichere (�
 
 Offen aus 5.3b: (1) Nicht im Browser geprüft, braucht eigene Strecken (der Planer ließ sich im Skript nicht bedienen):
 Störungs-Frage, Deregulation-Zähler mit täglichen Strecken, Spielgefühl der KI-Stärke für einen Menschen. (2) Mit 12 KI
-im späten Spiel liegt der Spielstand nach F82 noch unter der Grenze (siehe Bericht Abschnitt 8), aber Hard oder 12 KI
-brauchen 1,5–2 s je Abschluss (Fund 53, Info). (3) Deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55,
+2015 liegt der Spielstand nach F82 bei grob 3,7–4,2 Mio. Zeichen (Grenze etwa 5,2 Mio., wenig Abstand), und ein
+Abschluss dauert 2,3–2,5 s ab 2000, 4,5 s 2015 (Fund 53, Info; Hard mit 6 KI 1989 1,6 s). Kein Fehler; wird es zu
+langsam, wäre ein eigenes Paket nötig (Rechenzeit der KI-Planung, Fund 50). (3) Deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55,
 Datenpflege, nicht Teil des Neubaus). (4) Spielstände in der Cloud (Supabase) nicht getestet.
 
 Stand: 25.11.2026 · Paket 5.3d erledigt (F81): O74–O77 entschieden (E79–E82, je Weg A) und umgesetzt. Die KI sucht vor

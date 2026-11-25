@@ -705,8 +705,8 @@ Ab 1967 (6 KI Normal) scheiterte jede Autosicherung mit „Saving failed: the br
 Spielstand 1970: 5,1 Mio. Zeichen, davon 4,96 Mio. die KI, fast alles Monatsberichte: Jeder Bericht trug die Zahlen aller
 Strecken (rund 1 KB je Strecke), 120 Berichte je KI. Behoben: Strecken-Zahlen nur im neuesten Bericht (`keptReports`),
 KI behält 12 Berichte (`RIVAL_REPORT_MONTHS`). Danach 6 KI Normal: 1,5 Mio. (1970) … 3,0 Mio. Zeichen (2015, noch mit
-120 Berichten je KI), keine Fehlermeldung mehr. Mit 12 KI (Node, nur KI-Teil, beide Teile von F82) siehe Bericht
-Abschnitt 8. Spielstände in der Cloud (Supabase) waren nicht im Test.
+120 Berichten je KI), keine Fehlermeldung mehr. Mit 12 KI (Node, nur KI-Teil, beide Teile von F82) 2015
+3,1 Mio. Zeichen; mit Ansicht und Spieler grob 3,7–4,2 Mio., unter der Grenze von etwa 5,2 Mio., aber knapp. Spielstände in der Cloud (Supabase) waren nicht im Test.
 
 ### Fund 52: Jahresziel: Angebot blieb offen, Texte falsch → behoben (F82); hohes Ziel ohne Mehr-Prämie → O78
 
@@ -721,7 +721,8 @@ liegt, zahlen alle Ziele die Mindest-Prämie (250 000 $ von 1960) und dieselbe S
 Spielstart 0,15–0,34 s (6 und 12 KI, 1960 und 2010; die „3 s“ aus 5.2b sind nicht nachzustellen). Monatsabschluss mit
 6 KI Normal: 0,13 s (1960) → 0,44 s (1989) → 0,58 s (1999) → 0,67–0,87 s (2004–2014), Spitze 1,26 s. Hard (größere KI)
 1989 1,56 s. Eine Änderung an Kasse oder Flotte rechnet den ganzen Monat neu (`plannerModel`): längste Aufgabe 0,23 s
-(2000), Ansichtswechsel nie über 50 ms. Mit 12 KI ohne Oberfläche 1990 1,3 s, 1995 1,8 s je Abschluss.
+(2000), Ansichtswechsel nie über 50 ms. Mit 12 KI ohne Oberfläche 1990 1,3 s, 2000–2010 2,3–2,5 s, 2015 4,5 s je
+Abschluss: Mit vielen KI wird das Warten im späten Spiel deutlich (Fund 50).
 
 ### Fund 54: KI-Stärke und Langstrecke im Spiel → Info; Widebodies → O79
 
