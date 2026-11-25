@@ -114,9 +114,11 @@ import {
   PRESELECT_CROWDING_DEPARTURES,
   PRESELECT_RIVAL_HUB_WEIGHT,
   PRESELECT_RANGE_SHARE,
+  RIVAL_CAPITAL_RATE,
   RIVAL_HUB_TIER,
   RIVAL_OVERHAUL_BELOW,
   RIVAL_RANDOM_TARGETS,
+  RIVAL_REFERENCE_CLASSES,
   RIVAL_SLOT_IDLE_MONTHS,
   RIVAL_SLOT_SHARE_HUB,
   RIVAL_SLOT_SHARE_OTHER,
@@ -617,16 +619,32 @@ export interface PurchaseOption {
 }
 
 /**
- * Wahl des Typs (7.11): unter den im Monat lieferbaren Typen mit passender Piste und Reichweite der mit der besten
- * Planer-Hauptzahl je Kaufpreis. Typen aus vorhandenen Familien haben ihren Wartungs-Vorteil schon in der
- * Planer-Hauptzahl (5.12). −1, wenn keiner passt. SPEZIFIKATION 7.11.
+ * Kapitalkosten eines Kaufs je Monat: `Kaufpreis × RIVAL_CAPITAL_RATE / 12` (E81). SPEZIFIKATION 7.11.
+ */
+export function capitalCostPerMonth(price: number): number {
+  return (price * RIVAL_CAPITAL_RATE) / 12;
+}
+
+/**
+ * Erwarteter Gewinn nach Kapitalkosten (E81): Planer-Hauptzahl (mit Abschreibung, 5.9) − `capitalCostPerMonth`.
+ * Danach vergleicht die KI Typen und Pläne beim Kauf. SPEZIFIKATION 7.11.
+ */
+export function profitAfterCapital(expectedProfit: number, price: number): number {
+  return expectedProfit - capitalCostPerMonth(price);
+}
+
+/**
+ * Wahl des Typs (7.11): unter den im Monat lieferbaren Typen mit passender Piste und Reichweite der mit dem besten
+ * erwarteten Gewinn nach Kapitalkosten (`profitAfterCapital`, E81; bis 5.3c: Planer-Hauptzahl je Kaufpreis, das
+ * bevorzugte fast immer einen günstigen Narrowbody). Typen aus vorhandenen Familien haben ihren Wartungs-Vorteil schon
+ * in der Planer-Hauptzahl (5.12). −1, wenn keiner passt. SPEZIFIKATION 7.11.
  */
 export function pickPurchaseType(options: readonly PurchaseOption[], month: number): number {
   let best = -1;
   let bestValue = Number.NEGATIVE_INFINITY;
   options.forEach((o, i) => {
     if (!isOnMarket(o, month) || !o.runwayOk || !o.inRange || !(o.price > 0)) return;
-    const value = o.expectedProfit / o.price;
+    const value = profitAfterCapital(o.expectedProfit, o.price);
     if (value > bestValue) {
       bestValue = value;
       best = i;
@@ -1193,6 +1211,27 @@ export function referenceTypeIndex(catalog: readonly CatalogType[], newestTypeId
   return best;
 }
 
+/**
+ * Bezugs-Typen für die Streckensuche vor einem Kauf (E81, O76): zuerst `referenceTypeIndex`, dazu je Bauart aus
+ * `RIVAL_REFERENCE_CLASSES` (Narrowbody, Widebody) der beliebteste lieferbare Typ; ohne doppelte. So kommen auch Ziele in
+ * Reichweite eines Widebody in die Vorauswahl, wenn die KI bisher nur Narrowbodies fliegt. Leer = keiner lieferbar.
+ * SPEZIFIKATION 7.11.
+ */
+export function referenceTypeIndices(catalog: readonly CatalogType[], newestTypeId: string | undefined, month: number): number[] {
+  const out: number[] = [];
+  const first = referenceTypeIndex(catalog, newestTypeId, month);
+  if (first >= 0) out.push(first);
+  for (const kind of RIVAL_REFERENCE_CLASSES) {
+    let best = -1;
+    catalog.forEach((t, i) => {
+      if (t.class !== kind || !isOnMarket(t, month)) return;
+      if (best === -1 || t.popularity > catalog[best].popularity) best = i;
+    });
+    if (best >= 0 && !out.includes(best)) out.push(best);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // 7.8 Entscheidungen im Monatsabschluss (Paket 3.8c)
 // ---------------------------------------------------------------------------
@@ -1627,7 +1666,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
     say('planeSold', planeId, proceeds);
   };
 
-  // 5a Modernisierung: das älteste Flugzeug, das sie braucht; Ersatz derselben Bauart nach Planer-Hauptzahl je Preis.
+  // 5a Modernisierung: das älteste Flugzeug, das sie braucht; Ersatz derselben Bauart nach Gewinn nach Kapitalkosten (E81).
   if (catalog.length > 0 && !severityGrowthStop) {
     const views = aircraft.map((p) => ({
       id: p.id,
@@ -1753,60 +1792,68 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
   const allFlying = aircraft.every((p) => routes.some((r) => r.aircraftId === p.id));
   if (catalog.length > 0 && hubs.length > 0 && allFlying && !severityGrowthStop && uBuy < buyChance) {
     const newest = [...aircraft].sort((a, b) => b.builtMonth - a.builtMonth || (a.id < b.id ? -1 : 1))[0];
-    const ref = referenceTypeIndex(catalog, newest?.typeId, next);
-    if (ref >= 0) {
-      const candidateId = `${company.id}-candidate`;
+    // Suche mit jedem Bezugs-Typ (E81); der Plan mit dem besten Wert nach Schätzfehler und Kapitalkosten des Bezugs-Typs gewinnt.
+    const candidateId = `${company.id}-candidate`;
+    const uOpen = rng(ctx.seed, X, 'open', `${company.id}|buy`);
+    let found: ReturnType<typeof planOpening> = null;
+    let foundValue = Number.NEGATIVE_INFINITY;
+    for (const [k, ref] of referenceTypeIndices(catalog, newest?.typeId, next).entries()) {
       const refPlane = rivalAircraft(personality, catalog[ref], next, candidateId);
-      const found = planOpening(refPlane, current(), 'buy');
-      const wanted = found !== null && mayOpenRoute(found.plan, agent.strength, rng(ctx.seed, X, 'open', `${company.id}|buy`), Infinity, 0, 0);
-      if (found && wanted) {
-        const options: PurchaseOption[] = catalog.map((t) => {
-          const fits =
-            isOnMarket(t, next) &&
-            t.maxRange >= found.km &&
-            runwayFits(t.icaoCode, airports[found.hub].maxIcaoCode) &&
-            runwayFits(t.icaoCode, airports[found.target].maxIcaoCode);
-          const cls = t.class as AircraftClass;
-          const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, t.cruiseSpeed, cls));
-          if (!fits || room(found.hub, cls) < f || room(found.target, cls) < f) {
-            return { ...t, runwayOk: false, inRange: false, price: 0, expectedProfit: 0 };
-          }
-          const candidate = rivalAircraft(personality, t, next, candidateId);
-          const built = withRoute(current(), candidate, found.hub, found.target, f, found.fareRatios, planId, RAMP_MONTHS);
-          return {
-            ...t,
-            runwayOk: true,
-            inRange: true,
-            price: newAircraftPrice(candidate.listPrice1960, candidate.cabinListPrice1960, next),
-            expectedProfit: plannerRouteResult(stateWith(built.company), company.id, planId, 2 * f),
-          };
+      const plan = planOpening(refPlane, current(), k === 0 ? 'buy' : `buy|${catalog[ref].id}`);
+      if (!plan || !mayOpenRoute(plan.plan, agent.strength, uOpen, Infinity, 0, 0)) continue;
+      const value = profitAfterCapital(plan.plan.forecast, newAircraftPrice(refPlane.listPrice1960, refPlane.cabinListPrice1960, next));
+      if (value > foundValue) {
+        found = plan;
+        foundValue = value;
+      }
+    }
+    if (found) {
+      const options: PurchaseOption[] = catalog.map((t) => {
+        const fits =
+          isOnMarket(t, next) &&
+          t.maxRange >= found.km &&
+          runwayFits(t.icaoCode, airports[found.hub].maxIcaoCode) &&
+          runwayFits(t.icaoCode, airports[found.target].maxIcaoCode);
+        const cls = t.class as AircraftClass;
+        const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, t.cruiseSpeed, cls));
+        if (!fits || room(found.hub, cls) < f || room(found.target, cls) < f) {
+          return { ...t, runwayOk: false, inRange: false, price: 0, expectedProfit: 0 };
+        }
+        const candidate = rivalAircraft(personality, t, next, candidateId);
+        const built = withRoute(current(), candidate, found.hub, found.target, f, found.fareRatios, planId, RAMP_MONTHS);
+        return {
+          ...t,
+          runwayOk: true,
+          inRange: true,
+          price: newAircraftPrice(candidate.listPrice1960, candidate.cabinListPrice1960, next),
+          expectedProfit: plannerRouteResult(stateWith(built.company), company.id, planId, 2 * f),
+        };
+      });
+      const pick = pickPurchaseType(options, next);
+      if (pick >= 0) {
+        const plane = rivalAircraft(personality, catalog[pick], next, newId('a'));
+        const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, plane.cruiseSpeed, plane.aircraftClass));
+        const price = options[pick].price;
+        const slotCost = withRoute(current(), plane, found.hub, found.target, f, {}, planId, 0).slotCost;
+        const blocker = rivalBuyBlocker({
+          personality,
+          strength: agent.strength,
+          month: next,
+          cash,
+          allFlying,
+          growthStop: severityGrowthStop,
+          routeFound: true,
+          price,
+          slotCost,
+          recentProfit: hadRecentProfit([...company.reports.map((r) => r.result), ctx.result]),
+          u: uBuy,
+          buyChance,
         });
-        const pick = pickPurchaseType(options, next);
-        if (pick >= 0) {
-          const plane = rivalAircraft(personality, catalog[pick], next, newId('a'));
-          const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, plane.cruiseSpeed, plane.aircraftClass));
-          const price = options[pick].price;
-          const slotCost = withRoute(current(), plane, found.hub, found.target, f, {}, planId, 0).slotCost;
-          const blocker = rivalBuyBlocker({
-            personality,
-            strength: agent.strength,
-            month: next,
-            cash,
-            allFlying,
-            growthStop: severityGrowthStop,
-            routeFound: true,
-            price,
-            slotCost,
-            recentProfit: hadRecentProfit([...company.reports.map((r) => r.result), ctx.result]),
-            u: uBuy,
-            buyChance,
-          });
-          if (blocker === null) {
-            cash -= price;
-            aircraft = [...aircraft, plane];
-            say('planeBought', plane.id, price);
-            openRoute(plane, found.hub, found.target, f, plannedFares(current(), plane, found.hub, found.target, f));
-          }
+        if (blocker === null) {
+          cash -= price;
+          aircraft = [...aircraft, plane];
+          say('planeBought', plane.id, price);
+          openRoute(plane, found.hub, found.target, f, plannedFares(current(), plane, found.hub, found.target, f));
         }
       }
     }

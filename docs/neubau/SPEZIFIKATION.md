@@ -2414,7 +2414,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   | Zielgewicht Geschäft / Tourismus (7.9) | 0,6 / 1,4 | 1 / 1 | 1 / 1 | 1,5 / 0,5 | 1,5 / 0,5 |
   | Langstrecken-Abzug über 3 500 km | × 0,4 | – | – | – | – |
   | Geduld (Monate bis zum Urteil, 7.8) | 4 + 2 | 5 + 3 | 3 | 6 | 6 |
-  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,7 | 1 | 0,9 (vor E71: 0,6) |
+  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,4 (vor E82: 0,7) | 1 | 0,9 (vor E71: 0,6) |
   | Preis ≤ Anteil der Kasse beim Kauf | 65 % | 65 % | 45 % | 45 % | 45 % |
   | Reserve nach Kauf `CASH_RESERVE_1960` | 5 Mio. $ | 5 Mio. $ | 10 Mio. $ | 10 Mio. $ | 10 Mio. $ |
   | Drehkreuze höchstens `MAX_HUBS` (7.13) | 3 | 4 | 2 | 3 | 2 (vor E71: 1) |
@@ -2436,7 +2436,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   1960 liegt nach 20 und nach 40 Jahren bei jeder Persönlichkeit innerhalb des Faktors 2 des Medians aller
   (heute Faktor 25 und mehr, W1). Stellschrauben: `FARE_POSITION`, Kabinen-Werte (7.5), Zielgewichte, Kaufneigung,
   Drehkreuze, Gewichte der Startflugzeuge (7.7). Eingestellt in Paket 3.9e (E71): LCC Preis-Lage 0,95, Boutique
-  Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeuge ohne DC-8-Sog (`BALANCE.md` Fund 31).
+  Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeuge ohne DC-8-Sog (`BALANCE.md` Fund 31). In Paket 5.3d (E82): Optimizer
+  Kaufneigung 0,4 (`BALANCE.md` Fund 48).
 - Persönlichkeiten echter Gesellschaften: aus den Daten (`src/data/rivalAirlines.ts`), wie heute.
 - Regeln (Tests): `PERSONALITIES` und `AGGRESSION` gibt es nur einmal (heute Kopie in `src/lib/saveMigration.ts:57-58`);
   jede Persönlichkeit hat in jeder Zeile einen Wert.
@@ -2613,17 +2614,25 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - **Kauf** (heute `:1111-1168`): Wenn alle Flugzeuge fliegen, kein Wachstumsstopp (7.12) gilt und eine Strecke mit
   freien Slots gefunden wird; mit Wahrscheinlichkeit Kaufneigung (7.3 × 7.4). Preis = Kaufpreis nach dem Wertmodell
   mit Kabine (`valueBase`, 5.13; E54). Bedingungen: Preis ≤ Anteil der Kasse (7.4) und Preis + Slot-Kosten ≤ Kasse −
-  Reserve; ohne Gewinn in den letzten 3 Monaten nur, wenn Preis ≤ Kasse / 3. Wahl: unter den lieferbaren Typen
-  (Lieferzeitraum der Daten, passende Piste) der mit der besten Planer-Hauptzahl je Kaufpreis für die gefundene
-  Strecke; Typen aus vorhandenen Familien bekommen den Vorteil ihrer niedrigeren Wartung über `fixedWeeklyCost`
-  von selbst (5.12).
+  Reserve; ohne Gewinn in den letzten 3 Monaten nur, wenn Preis ≤ Kasse / 3.
+  **Streckensuche vor dem Kauf (E81):** Planung nach 7.9 mit mehreren Bezugs-Typen (`referenceTypeIndices`): dem Typ
+  des jüngsten eigenen Flugzeugs (noch lieferbar; sonst der beliebteste derselben Bauart, sonst der beliebteste), dazu
+  je Bauart Narrowbody und Widebody (`RIVAL_REFERENCE_CLASSES`) dem beliebtesten lieferbaren; ohne doppelte. Es gewinnt
+  der Plan mit dem besten Wert nach Schätzfehler minus Kapitalkosten des Bezugs-Typs.
+  **Wahl des Typs (E81):** unter den lieferbaren Typen (Lieferzeitraum der Daten, passende Piste, Reichweite, Slots)
+  der mit dem besten erwarteten Gewinn **nach Kapitalkosten** für die gefundene Strecke:
+  `Planer-Hauptzahl − Kaufpreis × RIVAL_CAPITAL_RATE / 12` (`profitAfterCapital`, `RIVAL_CAPITAL_RATE = 0,08` je Jahr
+  wie der Kreditzins 8.14; die Abschreibung steckt schon in der Planer-Hauptzahl, 5.9). Bis 5.3c: Planer-Hauptzahl je
+  Kaufpreis; das wählte fast immer einen günstigen Narrowbody (`BALANCE.md` Fund 42). Typen aus vorhandenen Familien
+  bekommen den Vorteil ihrer niedrigeren Wartung über `fixedWeeklyCost` von selbst (5.12).
 - **Keine Klassen-Sperre:** Die KI kauft jede lieferbare Flugzeugklasse, auch Jumbo und Überschall; sie hat keinen Rang
   und keine Forschung (7.2, 6.15). Grenzen sind nur Kasse, Reichweite, Piste und Lieferzeitraum. *(Lesart von 6.15:
   Sperren sind Fortschritt des Spielers.)*
 - **Modernisierung** (heute `:1006-1031`): ein Flugzeug älter als 20 Jahre oder mehr als 12 Jahre nach dem Bauende
   seines Typs wird ersetzt, wenn es einen lieferbaren Typ derselben Klasse gibt, der die Strecke schafft und
-  bezahlbar ist. Das alte Flugzeug wird an den Markt verkauft (Händler-Spanne, Abschnitt 8) und kommt mit Alter und
-  Zustand in den Gebrauchtmarkt (R13); heute fest 20 % des Listenpreises (W7).
+  bezahlbar ist; Wahl wie beim Kauf nach Gewinn nach Kapitalkosten (E81). Das alte Flugzeug wird an den Markt
+  verkauft (Händler-Spanne, Abschnitt 8) und kommt mit Alter und Zustand in den Gebrauchtmarkt (R13); heute fest 20 %
+  des Listenpreises (W7).
 - **Grundüberholung:** fällt der Zellen- oder Kabinenzustand unter `RIVAL_OVERHAUL_BELOW = 60` %, lässt die KI das
   Flugzeug zum Preis aus Abschnitt 8 überholen, wenn die Kasse es nach Reserve erlaubt. Die Kabine erneuert sie
   (dieselbe Kabine, F43) nur, wenn der Kabinenzustand danach wieder mindestens `RIVAL_OVERHAUL_BELOW` ist (F45).

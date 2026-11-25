@@ -13,6 +13,7 @@ import { departuresAt, departuresOnPair, facilityPrice, slotLimit, slotPrice, sl
 import { aircraftValue } from './fleet';
 import { companyValue } from './progress';
 import { rivalCashReserve } from './rivals';
+import type { CatalogType } from './monthClose';
 import {
   CORE_NETWORK,
   CRISIS_IDLE_MONTHS,
@@ -21,6 +22,7 @@ import {
   MINUTES_PER_WEEK,
   PERSONALITIES,
   PERSONALITY_IDS,
+  RIVAL_CAPITAL_RATE,
   RIVAL_DECISION_STEPS,
   RIVAL_SLOT_SHARE_HUB,
   RIVAL_SLOT_SHARE_OTHER,
@@ -56,6 +58,9 @@ import {
   nextIdleMonths,
   pickPurchaseType,
   planFrequencies,
+  profitAfterCapital,
+  referenceTypeIndex,
+  referenceTypeIndices,
   preselectScore,
   preselectTargets,
   rivalBuildsLounge,
@@ -454,7 +459,7 @@ describe('Abschnitt 7.11 Flotte der KI', () => {
     assert.equal(rivalBuyBlocker(buyInput({ recentProfit: false, price: 60e6 })), null);
   });
 
-  it('7.11: Typ mit der besten Planer-Hauptzahl je Kaufpreis unter den lieferbaren mit Piste und Reichweite', () => {
+  it('7.11: Typ mit dem besten Gewinn nach Kapitalkosten unter den lieferbaren mit Piste und Reichweite (E81)', () => {
     const m = at(1990);
     const opt = (over: Partial<PurchaseOption>): PurchaseOption => ({
       firstDeliveryOffset: 0,
@@ -475,6 +480,57 @@ describe('Abschnitt 7.11 Flotte der KI', () => {
     ];
     assert.equal(pickPurchaseType(options, m), 1);
     assert.equal(pickPurchaseType(options.slice(2), m), -1);
+  });
+
+  it('7.11: Kapitalkosten = Kaufpreis × Zins / 12; der teure Typ mit mehr Gewinn schlägt den mit mehr Gewinn je Preis (E81)', () => {
+    assert.equal(profitAfterCapital(1e6, 12e6), 1e6 - (12e6 * RIVAL_CAPITAL_RATE) / 12);
+    const m = at(1990);
+    const opt = (price: number, expectedProfit: number): PurchaseOption => ({
+      firstDeliveryOffset: 0,
+      lastDeliveryOffset: null,
+      runwayOk: true,
+      inRange: true,
+      price,
+      expectedProfit,
+    });
+    // Narrowbody 30 Mio. $ mit 0,6 Mio. $ je Monat (2 % je Preis), Widebody 120 Mio. $ mit 1,5 Mio. $ (1,25 % je Preis).
+    const options = [opt(30e6, 0.6e6), opt(120e6, 1.5e6)];
+    assert.ok(options[0].expectedProfit / options[0].price > options[1].expectedProfit / options[1].price);
+    assert.equal(pickPurchaseType(options, m), 1);
+    // Reicht der Mehrgewinn nicht für die Zinsen, bleibt es beim günstigen Typ.
+    assert.equal(pickPurchaseType([opt(30e6, 0.6e6), opt(120e6, 0.6e6 + (90e6 * RIVAL_CAPITAL_RATE) / 12 - 1)], m), 0);
+  });
+
+  it('7.11: Bezugs-Typen vor einem Kauf: eigener Typ, dazu der beliebteste lieferbare Narrowbody und Widebody, ohne doppelte (E81)', () => {
+    const m = at(1990);
+    const type = (id: string, cls: string, popularity: number, first = 0, last: number | null = null): CatalogType => ({
+      id,
+      family: id,
+      class: cls,
+      capacity: 150,
+      cruiseSpeed: 800,
+      efficiency: 1,
+      popularity,
+      maxRange: 5000,
+      basePrice: 1e6,
+      icaoCode: 'C',
+      firstDeliveryOffset: first,
+      lastDeliveryOffset: last,
+    });
+    const catalog = [
+      type('rj', 'Regional', 9),
+      type('nb1', 'Narrowbody', 5),
+      type('nb2', 'Narrowbody', 7),
+      type('wb-old', 'Widebody', 9, 0, m - 1),
+      type('wb', 'Widebody', 4),
+      type('wb-new', 'Widebody', 8, m + 1),
+    ];
+    assert.deepEqual(referenceTypeIndices(catalog, 'rj', m), [0, 2, 4]);
+    // Eigener Typ ist schon der beliebteste Narrowbody: nicht doppelt.
+    assert.deepEqual(referenceTypeIndices(catalog, 'nb2', m), [2, 4]);
+    assert.equal(referenceTypeIndices(catalog, 'nb1', m)[0], referenceTypeIndex(catalog, 'nb1', m));
+    // Ohne lieferbaren Widebody nur die anderen.
+    assert.deepEqual(referenceTypeIndices(catalog.slice(0, 4), undefined, m), [0, 2]);
   });
 
   it('7.11: Modernisierung ab 20 Jahren oder 12 Jahre nach dem Lieferende des Typs, das älteste zuerst', () => {

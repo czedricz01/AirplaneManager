@@ -639,3 +639,57 @@ Hard −17 %, Easy +5 %. Mit 0,8 / 1,2: Fluggäste −11,9 %, Ergebnis −36 % /
   (Knappheit wirkt über den Preis) ist gewollt.
 - Weg B aus O66 (mehr Konkurrenz unter der KI): weiter 1,00 Gesellschaften je Paar (B7.3); offen, hängt mit O76
   zusammen.
+
+## Ergebnis Paket 5.3d (E79–E82: KI-Langstrecke, Optimizer)
+
+Umgesetzt (F81): E81 (Streckensuche vor dem Kauf mit Bezugs-Typen je Bauart, `referenceTypeIndices`; Typwahl nach
+Gewinn nach Kapitalkosten, `profitAfterCapital`, `src/model/rivalMonth.ts`), E82 (Optimizer-Kaufneigung 0,7 → 0,4,
+`PERSONALITIES`, `src/model/constants.ts`). E79 und E80 ändern nichts. Neue Prüfregel B7.12 (Langstrecken-Anteil der KI
+ab 1990) und Spalte „mit Widebody“ in der Tabelle je Streckenlänge (`src/balance/competition.ts`).
+Bericht mit Langläufen: `balance/5.3d-bericht.md` (**21 ok · 0 Abweichung · 31 Info**; 10 Läufe × 60 Jahre Normal,
+je 3 × 40 Jahre Easy und Hard).
+
+### Fund 47: Die KI fliegt Langstrecke, aber fast nur mit Narrowbodies (B7.12, E81) → ok, beobachten
+
+- Langstrecken-Anteil der KI ab 1990: **15,3 %** der Strecken-Monate (Ziel aus O76: deutlich über 5 %). Langstrecken je
+  Lauf und Monat: 1990er 77, 2000er 64, 2010er 61 (5.3c: 22, 12, 12).
+- Strecken mit Widebody bleiben selten: im Januar 0–1 je Lauf (B7.11, im Mittel 0,3). Die Langstrecken fliegen
+  Narrowbodies großer Reichweite. Vermutung (nicht einzeln gemessen): Auf den gefundenen Strecken bringt ein
+  Narrowbody großer Reichweite nach Zinsen mehr als ein Widebody, weil die KI ihre Paare allein fliegt und die Flugzahl
+  so wählt, dass die Maschine voll ist. Folge: Der Spieler hat auf Langstrecke jetzt Konkurrenz, auf Widebody-Strecken großer
+  Flughäfen weiter selten. Kein Fehler; im Spieltest (5.3b) ansehen.
+- Marge der Langstrecken der KI in den 1970ern −7 % (Ölkrisen, 4 Strecken je Lauf), danach 16–37 %.
+
+### Fund 48: Optimizer gedämpft, „ähnlicher Erfolg“ wieder erfüllt (B7.1, E82) → ok
+
+Hilfsläufe in Kopien der Werte (10 Läufe, nicht im Projekt), Faktor des Optimizers nach 20 Jahren (mit E81):
+
+| Variante | Optimizer nach 20 Jahren | Faktor 20 / 40 Jahre |
+|---|---|---|
+| nur E81 (Kaufneigung 0,7) | 2,67 | 2,67 / – |
+| Reserve 30 statt 10 Mio. $ | 2,73 | 2,73 / – |
+| Preis ≤ 30 % statt 45 % der Kasse | 2,63 | 2,63 / – |
+| Kaufneigung 0,5 | 2,09 | 2,09 / 1,98 |
+| Kaufneigung 0,5, 3 Drehkreuze | 2,09 | 2,09 / 1,98 |
+| Kaufneigung 0,5, Wachstumsstopp ab 0,35 | 2,09 | 2,09 / 1,90 |
+| **Kaufneigung 0,4 = gewählt** | **1,46** | **1,69 / 1,88** |
+
+Reserve und Kassen-Anteil binden nur kurz (die Kasse des Optimizers wächst schnell); die Kaufneigung wirkt. Im
+Langlauf: Faktor **1,69 nach 20, 1,88 nach 40 Jahren** (B7.1 ok); nach 50 / 60 Jahren 1,86 / 1,79. Stärkste nach
+40 Jahren ist jetzt Flag (1,88, nahe an der Grenze), schwächste Boutique (0,76). Der Optimizer liegt nach 40 und
+60 Jahren bei 0,95 bzw. 1,00 (5.3c: 0,81 bzw. 0,71): Er fällt im späten Spiel nicht mehr zurück.
+
+### Fund 49: Die KI ist insgesamt deutlich stärker (B7.8, B7.3) → Info, Spieltest
+
+- Median des Unternehmenswerts aller Gründer nach 40 Jahren **1 605 Mio. $** (5.3c: 952), nach 60 Jahren 2 590
+  (5.3c: 1 430). Erlös je KI in den 1990ern 1 092 statt 688 Mio. $, Flugzeuge je KI in den 2010ern 106 statt 89.
+  Grund: Mit den zusätzlichen Bezugs-Typen findet die KI mehr Strecken mit Gewinn, auch lange.
+- Marge 24 % (B7.10 ok), Preisniveau Y Median 1,05, 1,01 Gesellschaften je Paar: Die KI teilt Paare weiter fast nie.
+- KI-Stärke (E79, 3 Läufe je Stärke): Easy 741 < Normal 1 605 < Hard 1 721 Mio. $; Hard 7 % über Normal (5.3c: 11 %).
+  Ob sich das im Spiel richtig anfühlt, prüft 5.3b.
+
+### Fund 50: Rechenzeit der KI steigt um gut die Hälfte (B7.9) → Info, Spieltest
+
+1 091 ms je Monat in den 2010ern (5.3c: 626), 5,6 min je Lauf (5.3c: 3,9). Je KI-Strecke 2,1 statt 1,4 ms: Vor einem
+Kauf plant die KI jetzt bis zu dreimal (je Bezugs-Typ). Gemessen mit 4 Läufen gleichzeitig. Ob der Monatsabschluss im
+Browser spürbar langsamer wird, prüft 5.3b.
