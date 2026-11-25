@@ -2144,7 +2144,9 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
 ### 6.11 Jahresziel (Code-Name: `annualGoal`)
 - Bedeutung: Jeden Dezember bietet der Vorstand drei Ziele für das neue Jahr an: ein sicheres Gewinnziel, ein
   Ziel anderer Art, ein hohes Gewinnziel (wie heute, `src/lib/annualGoals.ts:115-121`). Ohne Wahl gilt im Januar
-  das sichere.
+  das sichere. Gewählt wird bis zum Januar-Abschluss; danach ist das Angebot weg und das gewählte Ziel gilt für das
+  ganze Jahr (Paket 5.3b, F82: vorher blieb das Angebot bis Dezember offen, und der Spieler konnte kurz vor der
+  Messung das Ziel wählen, das er schon erreicht hatte).
 - **Bezugsgröße** (R15: aus Vorjahr und Größe):
   ```
   goalBase = max(Vorjahresergebnis, GOAL_MIN_MARGIN × Vorjahreserlös, atCost(GOAL_PROFIT_FLOOR_1960))
@@ -2921,7 +2923,9 @@ Abschluss von Monat X (ein Aufruf closeMonth, reine Funktion: Spielstand rein, S
   diesem Abschnitt (Charter, Krisen-Antworten, Zinsen, Vogelschläge; KI: Zuschuss als eigene Zeile); Monatsergebnis;
   Einmalausgaben je Art; Prämien und Ziel-Strafe; Kasse am Monatsanfang und -ende; Flottenwert; Kreditgrenze und -stand; Fluggäste;
   `cancelledShare`; Ruf mit Ursachen-Liste (6.5). Die Berichte der letzten `REPORT_HISTORY_MONTHS = 120` Monate bleiben
-  im Spielstand (wie heute, Monat:1263).
+  im Spielstand (wie heute, Monat:1263). Die Strecken-Zahlen je Strecke (`routes`) behält nur der neueste Bericht
+  (`keptReports`, Paket 5.3b, F82); mit ihnen in allen Berichten war der Spielstand mit 6 KI nach 7 Jahren größer als
+  der Browser-Speicher (5 MB).
 - Regeln (Tests): Kassen-Gleichung gilt in jedem Monat für jede Gesellschaft; „Kasse danach“ im Bericht = Kasse des
   Spielstands nach dem Abschluss (heute bis 768 Mio. $ daneben, W7); kein Leser rechnet „Kasse + Ergebnis“ selbst.
 

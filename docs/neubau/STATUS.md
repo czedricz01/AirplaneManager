@@ -1,16 +1,32 @@
 # Status
 
-**Nächstes Paket: 5.3b** – Spieltest im Browser. Prüfen: (1) Rang-Fortschritt vor dem ersten Abschluss („Reputation 0 / 30“
-bei Ruf 50; braucht die Anzeige einen Hinweis? „Offen aus 5.2d“ (1)); (2) Dezember-Angebot des Jahresziels (12 Monate
-spielen, „Offen aus 5.2d“ (2)); (3) wo die etwa 3 s beim Spielstart mit 6 KI liegen (die Gründung selbst braucht < 0,3 s,
-Fund 38) und ob `monthOperations` bei jeder Änderung mit großen Spielständen stört („Offen aus 4.3“ (4)); (4) Frequent flyer
-und eine Kampagne in einem späten Jahr klicken (4.8 (6)); (5) Szenario „Deregulation“: Fortschritt „30 city pairs with daily
-service“ (F79); (6) Szenario-Untergrenze in der Anzeige und Text der Störungs-Frage („Offen aus 5.3c“ (1)); (7) KI-Stärke
-im Spiel: fühlt sich Hard schwerer an als Normal (E79), ist die KI nach 5.3d (Fund 49) zu stark, gibt es auf Langstrecke
-Konkurrenz (Fund 47)? (8) Dauer eines Monatsabschlusses im späten Spiel mit mehreren KI (Fund 50: KI-Rechnung +50 %).
-Zu lesen: diese Punkte, `CareerPanel.tsx`, `ScenarioProgressPanel.tsx`, `src/lib/modelMonth.ts`.
+**Nächstes Paket: 5.3e** – Umsetzung der Antworten auf O78 (Jahresziel: Prämie des hohen Ziels bei kleinen
+Gesellschaften) und O79 (KI kauft nie einen Widebody: erst messen oder Regel ändern). Wartet auf die Entscheidung.
+Zu lesen: O78, O79 in `ENTSCHEIDUNGEN.md`, Funde 52 und 54 in `BALANCE.md`; für O78 `src/model/progress.ts`
+(`goalReward`, `annualGoalOffers`) und `src/model/constants.ts` (`GOAL_*`); für O79 `src/model/rivalMonth.ts`
+(`pickPurchaseType`, `profitAfterCapital`, `referenceTypeIndices`), `src/balance/competition.ts`.
 
-Keine offenen Fragen.
+**Offene Fragen O78, O79** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+
+Stand: 25.11.2026 · Paket 5.3b erledigt (F82): Spieltest im Browser (Produktions-Build, Chromium über Playwright;
+Bericht `balance/5.3b-spieltest.md`, Funde 51–55 in `BALANCE.md`), mit Langläufen im Browser 6 KI Normal 1960–2015 und
+6 KI Hard 1960–1990. Gefunden und behoben: (1) Der Spielstand sprengte ab 1967 den Browser-Speicher („Saving failed“):
+jeder KI-Bericht trug die Zahlen aller Strecken, 120 Berichte je KI. Jetzt Strecken-Zahlen nur im neuesten Bericht
+(`keptReports`), KI behält 12 Berichte (`RIVAL_REPORT_MONTHS`); 6 KI 2015: 3,0 Mio. Zeichen ohne Fehler. (2) Das
+Jahresziel-Angebot blieb das ganze Jahr wählbar; jetzt endet es mit dem Januar-Abschluss (6.11). (3) Texte: Ziel-Angebot
+(`goalOfferLines`: Zahl, „pays more“ nur bei höherer Prämie, Frist, Menü-Pfad), Hinweis in der Rang-Ansicht vor dem
+dritten Abschluss (`closedMonths`), „Oil Shock“ ohne „(now $0)“. Gemessen: Spielstart 0,15–0,34 s (die 3 s aus 5.2b
+nicht nachzustellen); Abschluss 6 KI Normal 0,13 s (1960) bis 0,67–0,87 s (2004–2014), Spitze 1,26 s; Hard 1989 1,56 s;
+Änderung im späten Spiel blockiert bis 0,23 s. Frequent flyer und Kampagne 2015: Vorschau = Buchung. KI: Hard klar
+stärker als Normal (je ein Lauf, 1990 × 3,3), Langstrecke 8,8–12,5 % der KI-Strecken, aber kein einziger Widebody (→ O79);
+hohes Jahresziel zahlt bei kleinen Gesellschaften nicht mehr als das sichere (→ O78). Tests: 1 243 grün (3 neue).
+
+Offen aus 5.3b: (1) Nicht im Browser geprüft, braucht eigene Strecken (der Planer ließ sich im Skript nicht bedienen):
+Störungs-Frage, Deregulation-Zähler mit täglichen Strecken, Spielgefühl der KI-Stärke für einen Menschen. (2) Mit 12 KI
+2015 liegt der Spielstand nach F82 bei grob 3,7–4,2 Mio. Zeichen (Grenze etwa 5,2 Mio., wenig Abstand), und ein
+Abschluss dauert 2,3–2,5 s ab 2000, 4,5 s 2015 (Fund 53, Info; Hard mit 6 KI 1989 1,6 s). Kein Fehler; wird es zu
+langsam, wäre ein eigenes Paket nötig (Rechenzeit der KI-Planung, Fund 50). (3) Deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55,
+Datenpflege, nicht Teil des Neubaus). (4) Spielstände in der Cloud (Supabase) nicht getestet.
 
 Stand: 25.11.2026 · Paket 5.3d erledigt (F81): O74–O77 entschieden (E79–E82, je Weg A) und umgesetzt. Die KI sucht vor
 einem Kauf auch mit dem beliebtesten Narrowbody und Widebody als Bezug (`referenceTypeIndices`) und wählt Typ und Plan nach
@@ -551,9 +567,10 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.2e | Störungs-Frage mit Charter-Betrag des Modells (`charterAdvantage`, 8.9; Flugkosten je Strecke aus dem Abschluss; F77) | erledigt |
 | 5.2c | Dokumentation aufräumen (`README.md`, `src/model/README.md`, Hinweise auf alte Analysen, Alt-Code-Verweise in `src/model/`; F78) | erledigt |
 | 5.3a | Balance-Bericht mit Langläufen nach Phase 5, gesammelte 5.3-Punkte messen; Szenario-Ziele nach dem Modell (F79) | erledigt |
-| 5.3b | Spieltest im Browser (Rang vor dem ersten Abschluss, Jahresziel im Dezember, Rechenlast, Startzeit, Szenario-Fortschritt) | offen |
+| 5.3b | Spieltest im Browser (Rang vor dem ersten Abschluss, Jahresziel im Dezember, Rechenlast, Startzeit, Szenario-Fortschritt; F82) | erledigt |
 | 5.3c | Umsetzung O71–O73, Feinabstimmung mit Langlauf (KI-Umläufe, KI-Stärke, Schwierigkeit, Gold-Meilenstein; F80) | erledigt |
 | 5.3d | Umsetzung O74–O77 mit Langlauf (KI-Stärke, Schwierigkeit, KI-Langstrecke, Optimizer; F81) | erledigt |
+| 5.3e | Umsetzung O78 (Jahresziel-Prämie) und O79 (KI ohne Widebody: messen oder Regel) | offen, wartet auf Entscheidung |
 
 ---
 
@@ -641,3 +658,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 24.11.2026 | 5.3a | Balance-Bericht nach Phase 5 (F79): `balance/5.3a-bericht.md` (18 ok · 0 Abweichung · 32 Info), Langläufe gleich 3.9e ohne Zuschuss; neue Info-Prüfungen B6.9 (Werbung), B8.10 (Charter-Schätzung gegen Rechnung), B8.11 (Umbau); Szenario-Ziel `routes` zählt Städtepaare mit `minWeeklyFlights` (`servedCityPairs`), „Oil Shock“ Ruf 55; Funde 34–40; neue Fragen O71–O73; 3 neue Tests (1 233 grün) |
 | 24.11.2026 | 5.3c | O71–O73 umgesetzt (F80, E76–E78): Störungs-Frage aus zwei Rechnungen des Monats X+1, Szenario-Untergrenze im Modell, Widebody-Slots ab Größe 3 für alle; KI-Umläufe nach der Planer-Regel (7.9); Gold-Fall mit Spieler-Ausstattung; Langlauf `balance/5.3c-bericht.md` (19 ok · 1 Abweichung · 31 Info), Funde 41–46; neue Fragen O74–O77, Paket 5.3d; Tests 1 238 grün |
 | 25.11.2026 | 5.3d | O74–O77 entschieden und umgesetzt (E79–E82, F81): KI sucht vor dem Kauf mit Bezugs-Typen je Bauart und wählt nach Gewinn nach Kapitalkosten; Optimizer-Kaufneigung 0,4; Langlauf `balance/5.3d-bericht.md` (21 ok · 0 Abweichung · 31 Info), Funde 47–50 (Langstrecke 15,3 %, B7.1 1,69 / 1,88, KI stärker, Rechenzeit +74 %); neue Prüfregel B7.12; Tests 1 240 grün |
+| 25.11.2026 | 5.3b | Spieltest im Browser (F82): `balance/5.3b-spieltest.md`, Funde 51–55; Spielstand sprengte den Browser-Speicher (KI-Berichte mit Strecken-Zahlen) → `keptReports`, `RIVAL_REPORT_MONTHS` = 12; Jahresziel-Angebot endet mit dem Januar-Abschluss; Texte Ziel-Angebot, Rang-Hinweis, „Oil Shock“; Zeiten gemessen (Start < 0,4 s, Abschluss bis 0,87 s im Mittel mit 6 KI); neue Fragen O78, O79, Paket 5.3e; Tests 1 243 grün |

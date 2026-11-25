@@ -693,3 +693,53 @@ Langlauf: Faktor **1,69 nach 20, 1,88 nach 40 Jahren** (B7.1 ok); nach 50 / 60 J
 1 091 ms je Monat in den 2010ern (5.3c: 626), 5,6 min je Lauf (5.3c: 3,9). Je KI-Strecke 2,1 statt 1,4 ms: Vor einem
 Kauf plant die KI jetzt bis zu dreimal (je Bezugs-Typ). Gemessen mit 4 Läufen gleichzeitig. Ob der Monatsabschluss im
 Browser spürbar langsamer wird, prüft 5.3b.
+
+## Ergebnis Paket 5.3b (Spieltest im Browser)
+
+Bericht: `balance/5.3b-spieltest.md` (Produktions-Build in Chromium über Playwright; Langläufe im Browser 6 KI Normal
+1960–2015 und 6 KI Hard 1960–1990, Free Mode ohne eigene Strecken). Behoben mit F82; neue Fragen O78, O79.
+
+### Fund 51: Spielstand größer als der Browser-Speicher → behoben (F82)
+
+Ab 1967 (6 KI Normal) scheiterte jede Autosicherung mit „Saving failed: the browser storage is full or blocked“.
+Spielstand 1970: 5,1 Mio. Zeichen, davon 4,96 Mio. die KI, fast alles Monatsberichte: Jeder Bericht trug die Zahlen aller
+Strecken (rund 1 KB je Strecke), 120 Berichte je KI. Behoben: Strecken-Zahlen nur im neuesten Bericht (`keptReports`),
+KI behält 12 Berichte (`RIVAL_REPORT_MONTHS`). Danach 6 KI Normal: 1,5 Mio. (1970) … 3,0 Mio. Zeichen (2015, noch mit
+120 Berichten je KI), keine Fehlermeldung mehr. Mit 12 KI (Node, nur KI-Teil, beide Teile von F82) 2015
+3,1 Mio. Zeichen; mit Ansicht und Spieler grob 3,7–4,2 Mio., unter der Grenze von etwa 5,2 Mio., aber knapp. Spielstände in der Cloud (Supabase) waren nicht im Test.
+
+### Fund 52: Jahresziel: Angebot blieb offen, Texte falsch → behoben (F82); hohes Ziel ohne Mehr-Prämie → O78
+
+Das Dezember-Angebot blieb das ganze Jahr wählbar (das Modell löschte es nie); der Spieler konnte im Dezember das schon
+erreichte Ziel nehmen. Jetzt endet es mit dem Januar-Abschluss (6.11). Texte: „three goals“ bei zwei, „A harder goal pays
+more“ bei gleicher Prämie, falscher Menü-Pfad. Bleibt als Regel-Frage: Solange die Bezugsgröße unter 5 Mio. $ von 1960
+liegt, zahlen alle Ziele die Mindest-Prämie (250 000 $ von 1960) und dieselbe Strafe; das hohe Ziel lohnt sich nie
+(Beispiel 1961: Steady 2,2 Mio. $ und Stretch 2,7 Mio. $ Gewinn, beide $253K / $126K) → O78.
+
+### Fund 53: Rechenzeit im Browser → Info, kein Handlungsbedarf
+
+Spielstart 0,15–0,34 s (6 und 12 KI, 1960 und 2010; die „3 s“ aus 5.2b sind nicht nachzustellen). Monatsabschluss mit
+6 KI Normal: 0,13 s (1960) → 0,44 s (1989) → 0,58 s (1999) → 0,67–0,87 s (2004–2014), Spitze 1,26 s. Hard (größere KI)
+1989 1,56 s. Eine Änderung an Kasse oder Flotte rechnet den ganzen Monat neu (`plannerModel`): längste Aufgabe 0,23 s
+(2000), Ansichtswechsel nie über 50 ms. Mit 12 KI ohne Oberfläche 1990 1,3 s, 2000–2010 2,3–2,5 s, 2015 4,5 s je
+Abschluss: Mit vielen KI wird das Warten im späten Spiel deutlich (Fund 50).
+
+### Fund 54: KI-Stärke und Langstrecke im Spiel → Info; Widebodies → O79
+
+- Hard gegen Normal (je ein Lauf, eigener Zufall): Kasse aller KI 1970 438 gegen 193, 1990 4 668 gegen 1 433 Mio. $
+  (× 3,3). Hard ist in der Konkurrenz-Ansicht klar stärker; der Langlauf (5.3d, Mittel über Läufe) sah nur + 7 % nach 40
+  Jahren. E79 bleibt; ein Urteil „zu stark für einen Menschen“ braucht einen Spieler mit Strecken.
+- Langstrecke (über 3 500 km): Normal 2010 48 von 508 KI-Strecken (9,4 %), 2015 53 von 605 (8,8 %), Hard 1990 62 von 496
+  (12,5 %). Konkurrenz auf Langstrecke gibt es also (z. B. Kuwait Airways mit Drehkreuzen KWI, SFO, DEN).
+- **Keine KI besaß je einen Widebody** (0 von 496–605 Flugzeugen). Die Langstrecken fliegen Narrowbodies großer
+  Reichweite. Widebody-Strecken großer Flughäfen bleiben ohne Konkurrenz → O79 („Offen aus 5.3d“ (1)).
+
+### Fund 55: Kleinkram aus dem Spieltest
+
+- Rang-Ansicht vor dem dritten Abschluss: Zahlen wirken falsch („Reputation 0 / 30“ bei Ruf 50). Hinweis eingebaut (F82).
+- „Oil Shock“: „(now $0)“ hinter einer Schwelle von 0 $ entfernt (F82).
+- Frequent flyer und Kampagne 2015: Vorschau, Buchung und Kasse stimmen auf den Dollar (Bericht Abschnitt 4).
+- Ortsnamen in den Flughafen-Daten sind teils deutsch („München“, „Kairo“, „Mexiko-Stadt“, „Wien“, „Genf“;
+  `src/data/airportsRows.ts`) und erscheinen so in Zeitung und Planer; Oberflächentexte sind sonst englisch. Kein Teil des
+  Rechenmodells; als Datenpflege außerhalb des Neubaus vormerken.
+- Nicht geprüft (braucht eigene Strecken): Störungs-Frage im Browser, Deregulation-Zähler mit echten täglichen Strecken.

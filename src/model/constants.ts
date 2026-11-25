@@ -2673,6 +2673,14 @@ export const OVERDRAWN_TO_FORCED_SALE = 6;
 /** So viele Monatsberichte bleiben im Spielstand (wie im Alt-Code `src/lib/monthClose.ts:1263`). SPEZIFIKATION 8.2. */
 export const REPORT_HISTORY_MONTHS = 120;
 
+/**
+ * So viele Monatsberichte behält eine KI (Gesellschaft mit Entscheidungs-Zustand `agent`) im Spielstand. Gelesen werden
+ * nur der letzte (Ansicht), die letzten `PROFIT_LOOKBACK_MONTHS` Ergebnisse (7.8) und die letzten 12 Ergebnisse
+ * (Gewinn-Verlauf der Konkurrenz-Ansicht). Mit 120 Berichten je KI war der Spielstand mit 12 KI im späten Spiel größer
+ * als der Browser-Speicher (Paket 5.3b, F82). SPEZIFIKATION 8.2.
+ */
+export const RIVAL_REPORT_MONTHS = 12;
+
 // ---------------------------------------------------------------------------
 // 8.15 Szenario-Ziele
 // ---------------------------------------------------------------------------

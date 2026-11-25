@@ -2,7 +2,7 @@ import { Target } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { GoalCard } from './CareerPanel';
-import type { AnnualGoal, GoalOffer } from '../lib/annualGoals';
+import { goalOfferLines, type AnnualGoal, type GoalOffer } from '../lib/annualGoals';
 
 interface Props {
   offer: GoalOffer | null;
@@ -12,7 +12,7 @@ interface Props {
   onLater: () => void;
 }
 
-/** The board's three goals for the coming year, put to the player after the December close. */
+/** The board's goals for the coming year (two or three), put to the player after the December close. */
 export function GoalOfferDialog({ offer, open, onChoose, onLater }: Props) {
   return (
     <Modal
@@ -27,9 +27,8 @@ export function GoalOfferDialog({ offer, open, onChoose, onLater }: Props) {
       {offer && (
         <div className="flex flex-col gap-3">
           <p className="text-xs text-muted leading-relaxed">
-            Pick one goal for {offer.year}. A harder goal pays more and costs more to miss.
-            If you decide later, you find the offer under My Company &rsaquo; Career; without a choice
-            the first goal is taken when {offer.year} begins.
+            {goalOfferLines(offer).intro} If you decide later, you find the offer under Career &rsaquo; Board goals.{' '}
+            {goalOfferLines(offer).deadline}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {offer.options.map((g, i) => (

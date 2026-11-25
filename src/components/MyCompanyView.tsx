@@ -138,7 +138,7 @@ function MyCompanyViewImpl({
   capital, reportHistory, worth, credit, fleetCount, commonality, routeCount, reputation,
   branding, airlineName, airlineCode, onBrandingChange, chronicle,
   staff, profitStreak, monthlyCrewCost, strikePending, completedResearch, badLuckCapOpen, onSetSalary,
-  page = 'company', onOpenProgression, free, rank, rankHistory, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
+  page = 'company', onOpenProgression, free, rank, rankHistory, closedMonths, perks, milestones, annualGoal, goalOffer, goalSnapshot, onChooseGoal, research, onStartResearch, score, hall, onRetire,
   ...marketingProps
 }: Props) {
   const [section, setSection] = useState<'overview' | 'career' | 'marketing' | 'staff' | 'history'>('overview');
@@ -204,6 +204,7 @@ function MyCompanyViewImpl({
               free={free}
               rank={rank}
               rankHistory={rankHistory}
+              closedMonths={closedMonths}
               perks={perks}
               milestones={milestones}
               annualGoal={annualGoal}
