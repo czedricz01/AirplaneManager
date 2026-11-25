@@ -2414,7 +2414,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   | Zielgewicht Geschäft / Tourismus (7.9) | 0,6 / 1,4 | 1 / 1 | 1 / 1 | 1,5 / 0,5 | 1,5 / 0,5 |
   | Langstrecken-Abzug über 3 500 km | × 0,4 | – | – | – | – |
   | Geduld (Monate bis zum Urteil, 7.8) | 4 + 2 | 5 + 3 | 3 | 6 | 6 |
-  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,7 | 1 | 0,9 (vor E71: 0,6) |
+  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,4 (vor E82: 0,7) | 1 | 0,9 (vor E71: 0,6) |
   | Preis ≤ Anteil der Kasse beim Kauf | 65 % | 65 % | 45 % | 45 % | 45 % |
   | Reserve nach Kauf `CASH_RESERVE_1960` | 5 Mio. $ | 5 Mio. $ | 10 Mio. $ | 10 Mio. $ | 10 Mio. $ |
   | Drehkreuze höchstens `MAX_HUBS` (7.13) | 3 | 4 | 2 | 3 | 2 (vor E71: 1) |
@@ -2436,7 +2436,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   1960 liegt nach 20 und nach 40 Jahren bei jeder Persönlichkeit innerhalb des Faktors 2 des Medians aller
   (heute Faktor 25 und mehr, W1). Stellschrauben: `FARE_POSITION`, Kabinen-Werte (7.5), Zielgewichte, Kaufneigung,
   Drehkreuze, Gewichte der Startflugzeuge (7.7). Eingestellt in Paket 3.9e (E71): LCC Preis-Lage 0,95, Boutique
-  Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeuge ohne DC-8-Sog (`BALANCE.md` Fund 31).
+  Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeuge ohne DC-8-Sog (`BALANCE.md` Fund 31). In Paket 5.3d (E82): Optimizer
+  Kaufneigung 0,4 (`BALANCE.md` Fund 48).
 - Persönlichkeiten echter Gesellschaften: aus den Daten (`src/data/rivalAirlines.ts`), wie heute.
 - Regeln (Tests): `PERSONALITIES` und `AGGRESSION` gibt es nur einmal (heute Kopie in `src/lib/saveMigration.ts:57-58`);
   jede Persönlichkeit hat in jeder Zeile einen Wert.

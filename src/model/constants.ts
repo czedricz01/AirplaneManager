@@ -1854,7 +1854,8 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     targetWeight: { business: 1, tourism: 1 },
     longHaulFactor: 1,
     patienceBase: 3,
-    buyFactor: 0.7,
+    // 0,7 → 0,4 (E82, Paket 5.3d): Mit den Umläufen nach der Planer-Regel war der Optimizer nach 20 Jahren 2,56 × der Median.
+    buyFactor: 0.4,
     purchaseCashShare: 0.45,
     cashReserve1960: 10_000_000,
     maxHubs: 2,
