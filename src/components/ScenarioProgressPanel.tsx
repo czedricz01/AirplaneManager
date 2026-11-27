@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, Flag, ShieldAlert } from 'lucide-react';
 import type { Scenario } from '../data/scenarios';
-import { formatGoalValue, type GoalProgress } from '../lib/scenarioEval';
+import { floorRuleEnd, formatGoalValue, type GoalProgress } from '../lib/scenarioEval';
 import { formatMonthOffset } from '../lib/format';
 import { readString, writeString } from '../lib/safeStorage';
 
@@ -90,7 +90,7 @@ export function ScenarioProgressPanel({ scenario, goals, monthsLeft }: ScenarioP
             const streak = g.streak ?? 0;
             const danger = streak > 0 || g.below === true;
             const floor = formatGoalValue('capitalFloor', g.target, true);
-            const ends = `${g.months} month-end${g.months === 1 ? '' : 's'} in a row end${g.months === 1 ? 's' : ''} the scenario.`;
+            const ends = floorRuleEnd(g.months ?? 1);
             return (
               <div key={g.id} className={`flex items-start gap-2 text-2xs leading-snug ${danger ? 'text-bad' : 'text-muted'}`}>
                 <ShieldAlert size={12} className="shrink-0 mt-px" aria-hidden="true" />

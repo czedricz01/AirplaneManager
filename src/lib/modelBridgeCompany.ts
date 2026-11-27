@@ -629,7 +629,7 @@ export function applyScenario(before: AppScenario, s: ModelScenario, month: numb
     s.status === 'won'
       ? 'Every goal met.'
       : s.floorStreak >= s.floorMonths
-        ? `Cash below ${s.floorThreshold === undefined ? 'the negative credit line' : formatCurrency(atCost(s.floorThreshold, month))} at ${s.floorStreak} month-end${s.floorStreak === 1 ? '' : 's'} in a row.`
+        ? `Cash below ${s.floorThreshold === undefined ? 'the negative credit line' : formatCurrency(atCost(s.floorThreshold, month))} ${s.floorStreak === 1 ? 'at a month-end' : `at ${s.floorStreak} month-ends in a row`}.`
         : 'The deadline passed with goals still open.';
   return { ...out, result: { offset: month, reason } };
 }

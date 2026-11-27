@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DISRUPTION_OPTION_CANCEL, DISRUPTION_OPTION_CHARTER, DISRUPTION_SPECS, MAX_DISRUPTION_DECISIONS, buildDisruptionDecision, describeRouteCancellations, disruptionsToAsk, routeCancelShare } from './disruptions';
+import { DISRUPTION_OPTION_CANCEL, DISRUPTION_OPTION_CHARTER, DISRUPTION_SPECS, MAX_DISRUPTION_DECISIONS, buildDisruptionDecision, describeDisruption, describeRouteCancellations, disruptionRoutesLabel, disruptionsToAsk, routeCancelShare } from './disruptions';
 import { CHARTER_MARKUP } from '../model/constants';
 import type { Disruption } from './gameState';
 
@@ -75,6 +75,9 @@ test('5.2e, E76: the question names fee, revenue lost and own flight costs from 
   assert.match(cancel.detail, /about \$120,000 of ticket revenue is lost/);
   assert.doesNotMatch(cancel.detail, /\d+(\.\d+)? reputation/, 'no one-time reputation loss (E38)');
   assert.ok(q.options.every(o => o.cost === 0));
+  // 5.3g: nothing is paid now, but the charter fee comes with the month's costs; the dialog says so instead of "No cost".
+  assert.equal(charter.costNote, 'Fee about $60,000 at month-end');
+  assert.equal(cancel.costNote, 'No fee');
   assert.match(q.description, /50% of the flights on FRA-LHR would not operate: about 30 flights\. Cancelling them loses about \$120,000 of ticket revenue/);
   assert.match(q.description, /saving about \$40,000 of fuel, crew and landing cost/);
   assert.match(q.description, /Worked out for 03\/1975 with your current schedule and prices\./);
@@ -83,4 +86,12 @@ test('5.2e, E76: the question names fee, revenue lost and own flight costs from 
   const worse = buildDisruptionDecision(disruption({ id: 'y', cancelShare: 0.5 }), '03/1975', { ...estimate, flights: 0.3, advantage: -2_500 }, () => 'FRA-LHR');
   assert.match(worse.options[0].detail, /about \$2,500 worse than cancelling/);
   assert.match(worse.description, /about 1 flight\. Cancelling/);
+});
+
+test('5.3g: two routes on one city pair are named once', () => {
+  const names: Record<string, string> = { a: 'JFK-BOS', b: 'JFK-ORD', c: 'JFK-ORD', d: 'JFK-IAD' };
+  const d = disruption({ id: 's', kind: 'airport-strike', cancelShare: 0.6, routeIds: ['a', 'b', 'c', 'd'], ref: 'JFK' });
+  assert.equal(disruptionRoutesLabel(d, id => names[id]), 'JFK-BOS, JFK-ORD, JFK-IAD');
+  assert.equal(disruptionRoutesLabel(d, id => names[id], 2), 'JFK-BOS, JFK-ORD and 1 more');
+  assert.match(describeDisruption(d, id => names[id]), /60% of flights cancelled on JFK-BOS, JFK-ORD, JFK-IAD\./);
 });

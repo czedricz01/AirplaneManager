@@ -794,3 +794,35 @@ eine Frage des Spielmodells (Kosten 5.3, Satisfaction), nicht der KI → O80.
 
 Entschieden (E85, O80 = A, 27.11.2026): so lassen. Kein Größen-Vorteil im Treibstoff, kein Komfort-Abzug; B7.13 und
 B7.14 bleiben Info-Prüfungen.
+
+## Ergebnis Paket 5.3g (Spieltest mit eigenen Strecken)
+
+Bericht: `balance/5.3g-spieltest.md` (Produktions-Build in Chromium über Playwright; Szenario „Deregulation“ mit vier im
+Planer angelegten Strecken, „Oil Shock“; Störung und Untergrenze über geänderten Startwert bzw. geänderte Kasse im
+Spielstand ausgelöst). Behoben mit F84 (nur Texte).
+
+### Fund 58: Deregulation-Zähler zählt Städtepaare richtig → ok
+
+Täglich JFK–BOS zählt (1), JFK–ORD mit 4 + 3 Umläufen auf zwei Flugzeugen zählt als ein Paar (2), JFK–IAD mit 6 Umläufen
+nicht. Anzeige und Abschluss gleich (`servedCityPairs`), nach drei Abschlüssen weiter 2.
+
+### Fund 59: Störungs-Frage = Buchung auf den Dollar → ok; zwei Texte behoben (F84)
+
+Flughafen-Streik JFK (4 Strecken, 104 Flüge) und Defekt N-ACAA (1 Strecke, 30 Flüge): Flüge, Gebühr (1,5 × eigene
+Flugkosten), Kosten je Fluggast und Vorteil stimmen. Beide Antworten aus demselben Spielstand gespielt: Erlös-Unterschied
+843 367 $, Gebühr 1 172 922 $, Ergebnis-Unterschied −481 722 $, genau die Beträge der Frage (E76, R2). Ruf nach Streichen
+49 → 42, mit Charter 49. Behoben: (1) „No cost“ neben der Charter-Antwort (die Gebühr kommt mit dem Monat), jetzt „Fee
+about $… at month-end“ bzw. „No fee“; (2) doppelte Strecken-Namen in Zeitung und Posteingang („JFK-ORD, JFK-ORD“).
+
+### Fund 60: Szenario-Untergrenze im Spiel → ok; Text bei einem Monat behoben (F84)
+
+Deregulation: Warnung „Capital is below -$27.3M now …“ vor dem Abschluss, „Bankruptcy watch … 1 / 2 month-ends“, Ende
+nach dem dritten; die Schwelle folgt der Kreditlinie (−27,2 / −27,1 Mio. $). „Oil Shock“: Warnung und Ende nach einem
+Abschluss. „1 month-end in a row“ hieß jetzt „A single month-end below it ends the scenario.“ bzw. „Cash below $0 at a
+month-end.“
+
+### Fund 61: Planer im Skript bedienbar; offen bleibt nur das Spielgefühl → Info
+
+5.3b scheiterte am gesperrten Ziel („Unlock T1“) und an fehlenden Slots, nicht am Planer; der Ablauf steht im Bericht.
+Abschluss mit 8 KI 1978 und vier Strecken 0,17–0,25 s. Ob die KI (Normal, Hard) einem Menschen zu stark oder zu schwach
+ist, kann kein Skript beurteilen.

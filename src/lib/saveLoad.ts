@@ -222,7 +222,15 @@ function loadDecisions(list: unknown): GameDecision[] {
       description: isString(d.description) ? d.description : '',
       options: asArray<any>(d.options)
         .filter(o => o && isString(o.id) && isString(o.label))
-        .map(o => ({ ...o, detail: isString(o.detail) ? o.detail : '', cost: Math.max(0, finiteOr(o.cost, 0)) }))
+        .map(o => {
+          const { costNote, ...rest } = o;
+          return {
+            ...rest,
+            detail: isString(o.detail) ? o.detail : '',
+            cost: Math.max(0, finiteOr(o.cost, 0)),
+            ...(isString(costNote) && costNote ? { costNote } : {})
+          };
+        })
     }))
     // A question with nothing to answer would block the game, and so would
     // one whose every answer costs more than the player has.

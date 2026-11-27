@@ -202,7 +202,8 @@ export function buildDisruptionDecision(
           `${formatCurrency(estimate.fee)}, billed with the month's costs (${formatNumber(CHARTER_MARKUP, 1)} times your ` +
           `own fuel, crew and landing cost of each chartered flight). With ${formatCurrency(estimate.revenue)} of tickets ` +
           `kept and ${formatCurrency(estimate.passengerCost)} of passenger costs, the month ends ${verdict}.`,
-        cost: 0
+        cost: 0,
+        costNote: `Fee about ${formatCurrency(estimate.fee)} at month-end`
       },
       {
         id: DISRUPTION_OPTION_CANCEL,
@@ -210,15 +211,19 @@ export function buildDisruptionDecision(
         detail:
           `Nothing to pay, but about ${formatCurrency(estimate.revenue)} of ticket revenue is lost and the cancelled ` +
           `seats pull this month's reputation target down.`,
-        cost: 0
+        cost: 0,
+        costNote: 'No fee'
       }
     ]
   };
 }
 
-/** "FRA-LHR, FRA-CDG and 3 more": the routes a disruption hits, the first `max` by name. */
+/**
+ * "FRA-LHR, FRA-CDG and 3 more": the routes a disruption hits, the first `max` by name. Two routes on one city pair
+ * (two aircraft) share a name; it is named once (Paket 5.3g).
+ */
 export function disruptionRoutesLabel(d: Pick<Disruption, 'routeIds'>, routeName: (routeId: string) => string, max = 4): string {
-  const names = d.routeIds.map(routeName);
+  const names = [...new Set(d.routeIds.map(routeName))];
   return names.length <= max ? names.join(', ') : `${names.slice(0, max).join(', ')} and ${names.length - max} more`;
 }
 

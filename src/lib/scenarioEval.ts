@@ -80,6 +80,16 @@ export interface GoalProgress {
   below?: boolean;
 }
 
+/**
+ * The end of the bankruptcy warning: how many month-ends below the floor end the scenario. One month-end is said so,
+ * without "in a row" (Paket 5.3g).
+ */
+export function floorRuleEnd(months: number): string {
+  return months === 1
+    ? 'A single month-end below it ends the scenario.'
+    : `${months} month-ends in a row end the scenario.`;
+}
+
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
 /**

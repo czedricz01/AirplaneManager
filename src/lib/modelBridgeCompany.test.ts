@@ -263,7 +263,7 @@ describe('Fortschritt (4.2c)', () => {
     assert.equal(m.floorThreshold, undefined, 'Pleite: −Kreditlinie (E77)');
     assert.equal(oil.floorThreshold, 0, 'Oil Shock: 0 $ (E77)');
     assert.equal(oil.floorMonths, 1);
-    assert.match(applyScenario({ id: 'oil-shock', startedOffset: 165, status: 'running' }, { ...oil, floorStreak: 1, status: 'lost' }, M).result!.reason, /Cash below \$0 at 1 month-end in a row/);
+    assert.match(applyScenario({ id: 'oil-shock', startedOffset: 165, status: 'running' }, { ...oil, floorStreak: 1, status: 'lost' }, M).result!.reason, /^Cash below \$0 at a month-end\.$/);
     assert.equal(applyScenario(s, m, M), s);
     const won = applyScenario(s, { ...m, met: ['capital'], status: 'won' }, M);
     assert.deepEqual(won.result, { offset: M, reason: 'Every goal met.' });
