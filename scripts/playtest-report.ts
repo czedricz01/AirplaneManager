@@ -56,3 +56,19 @@ for (const r of runs.filter((x) => x.settings.label.startsWith('probe-')).sort((
   const worst = rs.reduce((w, x) => (x.avgMonthlyAfterRamp < w.avgMonthlyAfterRamp ? x : w), rs[0]);
   console.log(`| ${era} | ${diff} | ${plane} | ${pos}/${rs.length} | ${mio(median(rs.map((x) => x.avgMonthlyAfterRamp)))} | ${worst ? `${worst.pair} ${mio(worst.avgMonthlyAfterRamp)}` : '–'} | ${pct(median(rs.map((x) => x.loadFactor)))} | ${[...new Set(rs.map((x) => x.type))].join(', ')} |${r.bankrupt ? ' Pleite' : ''}`);
 }
+
+// Prognose gegen Ergebnis: erstes Jahr nach dem Anlauf (Monate 10–21) gegen „Expected weekly profit“ × Wochen je Monat.
+console.log('\n#### Prognose beim Eröffnen gegen Ergebnis im ersten Jahr nach dem Anlauf (Monate 10–21)\n');
+console.log('| Gruppe | Strecken | Prognose je Monat (Median) | Ergebnis je Monat (Median) | Ergebnis ≥ 50 % der Prognose | Ergebnis < 0 bei Prognose > 0 |\n|---|---|---|---|---|---|');
+const WPM = 4.348;
+const acc = new Map<string, { f: number; a: number }[]>();
+for (const r of runs) {
+  const key = r.settings.label.startsWith('probe-') ? 'Streckenprobe' : `${r.settings.label.split('-')[0]} ${r.settings.difficulty}`;
+  for (const x of r.routes) if (x.avgMonthlyYear1 !== undefined && Number.isFinite(x.forecastWeekly)) acc.set(key, [...(acc.get(key) ?? []), { f: x.forecastWeekly * WPM, a: x.avgMonthlyYear1 }]);
+}
+for (const [k, xs] of [...acc.entries()].sort()) {
+  const half = xs.filter((x) => x.f > 0 && x.a >= 0.5 * x.f).length;
+  const flip = xs.filter((x) => x.f > 0 && x.a < 0).length;
+  const posF = xs.filter((x) => x.f > 0).length;
+  console.log(`| ${k} | ${xs.length} | ${mio(median(xs.map((x) => x.f)))} | ${mio(median(xs.map((x) => x.a)))} | ${half}/${posF} | ${flip}/${posF} |`);
+}

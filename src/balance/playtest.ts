@@ -113,6 +113,8 @@ export interface PlayRoute {
   readonly forecastWeekly: number;
   /** Mittleres Ergebnis je Monat nach dem Anlauf (ab Monat 4). */
   readonly avgMonthlyAfterRamp: number;
+  /** Mittleres Ergebnis je Monat in den Monaten 10–21 (erstes Jahr nach dem vollen Anlauf, `RAMP_MONTHS` = 9). */
+  readonly avgMonthlyYear1?: number;
   readonly months: number;
   readonly loadFactor: number;
   /** Beliebtheit des Ziels: Tourismus + Geschäft im Eröffnungsjahr. */
@@ -481,6 +483,7 @@ export function play(s: PlaySettings, onYear?: (year: number, cash: number) => v
     return {
       pair: e.pair, type: e.type, opened: e.opened, closed: e.closed, forecastWeekly: e.forecast,
       avgMonthlyAfterRamp: after.length > 0 ? after.reduce((a, b) => a + b, 0) / after.length : NaN,
+      avgMonthlyYear1: e.results.length >= 21 ? e.results.slice(9, 21).reduce((a, b) => a + b, 0) / 12 : undefined,
       months: e.results.length,
       loadFactor: e.loads.length > 0 ? e.loads.slice(3).reduce((a, b) => a + b, 0) / Math.max(1, e.loads.slice(3).length) : NaN,
       destPopularity: e.pop, km: e.km,
