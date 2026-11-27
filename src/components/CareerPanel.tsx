@@ -96,8 +96,7 @@ const RANK_LINE_LABELS: Record<keyof RankRequirement, string> = {
   routes: 'Routes',
   monthlyPax: 'Passengers per month',
   reputation: 'Reputation',
-  regions: 'Regions served',
-  years: 'Years in business'
+  regions: 'Regions served'
 };
 
 function RankSection({ rank, history, closedMonths, perks, free }: { rank: number; history: readonly RankStats[]; closedMonths: number; perks: MilestonePerks; free: boolean }) {
@@ -154,7 +153,7 @@ function RankSection({ rank, history, closedMonths, perks, free }: { rank: numbe
               </ul>
               <p className="text-2xs text-muted mt-2">
                 Averages of the last {RANK_AVERAGE_MONTHS} closed months, missing months counting as nothing. Every figure
-                has to be met at once; the years in business cannot be bought. A rank once reached is never lost.
+                has to be met at once. A rank once reached is never lost.
               </p>
               {closedMonths < RANK_AVERAGE_MONTHS && (
                 <p className="text-2xs text-muted mt-1">
@@ -185,7 +184,7 @@ function RankSection({ rank, history, closedMonths, perks, free }: { rank: numbe
                   {r.index > 0 && (
                     <div className="pl-5 text-2xs text-muted">
                       {countLabel(r.requires.routes)} routes · {paxLabel(r.requires.monthlyPax)} pax/month · reputation {r.requires.reputation}
-                      {r.requires.regions > 1 ? ` · ${r.requires.regions} regions` : ''}{r.requires.years > 0 ? ` · ${r.requires.years} yrs` : ''}
+                      {r.requires.regions > 1 ? ` · ${r.requires.regions} regions` : ''}
                     </div>
                   )}
                   <ul className="pl-5 mt-1 list-disc">

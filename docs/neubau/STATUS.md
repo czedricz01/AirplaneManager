@@ -9,6 +9,13 @@ am Spieltest, nicht am Modell). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche
 
 Offen: nichts.
 
+Stand: 27.11.2026 · Wunsch im Chat (F89): Rang verlangt keine Mindest-Jahre im Geschäft mehr; Reichweiten von
+6 Typen (A321neo 6 500 km statt 7 400 wie der LR, 727-Reihe, DC-8-63/-73) und Spannweite/ICAO-Code von 87 Typen mit
+Platzhaltern korrigiert. Spezifikation 6.7/6.8 nachgezogen. Tests: 1 268 grün, Lint ohne Fehler. Im Browser nicht
+geprüft. Langlauf nicht neu gemessen (frühere Ränge und andere Pisten-Codes können die Balance leicht verschieben).
+
+Offen aus diesem Stand: nichts.
+
 Stand: 27.11.2026 · O100 im Chat entschieden: A (E106). Der Kosten-Faktor je Stufe bleibt 0,85 / 1 / 1,1 (E87); das
 Hard-Ziel aus E94 heißt jetzt „etwa 30–50 % des Easy-Ergebnisses guter Strategien, klar gewinnbar“. Damit erfüllen
 alle gemessenen guten Strategien das Ziel (31–46 %, `balance/5.4h-spieltest.md`). Kein Code geändert; Fund 77 in

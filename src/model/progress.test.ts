@@ -264,7 +264,7 @@ const stats = (routes: number, monthlyPax: number, reputation: number, regions: 
 });
 
 /** Genau die Bedingungen einer Stufe. */
-const exactly = (rank: number): RankStats => ({ ...RANKS[rank].requires });
+const exactly = (rank: number): RankStats => ({ ...RANKS[rank].requires, years: 0 });
 
 describe('Abschnitt 6.7 Rang', () => {
   it('6.7: rankStats zählt Fluggäste × WEEKS_PER_MONTH, Regionen einmal, volle Jahre', () => {
@@ -304,7 +304,7 @@ describe('Abschnitt 6.7 Rang', () => {
   });
 
   it('6.7: jede Stufe verlangt in jeder Spalte mindestens so viel wie die Stufe davor', () => {
-    const keys: (keyof RankRequirement)[] = ['routes', 'monthlyPax', 'reputation', 'regions', 'years'];
+    const keys: (keyof RankRequirement)[] = ['routes', 'monthlyPax', 'reputation', 'regions'];
     for (let rank = 1; rank <= MAX_RANK; rank++) {
       for (const key of keys) assert.ok(RANKS[rank].requires[key] >= RANKS[rank - 1].requires[key], `${key} Rang ${rank}`);
       assert.ok(RANKS[rank].maxHubs >= RANKS[rank - 1].maxHubs);
@@ -420,11 +420,10 @@ describe('Abschnitt 6.8 Flugzeugklassen', () => {
     assert.equal(startingClassResearch(MAX_RANK).length, 5);
   });
 
-  it('6.8: Erreichbarkeit: Jahre des Rangs + Dauer aller nötigen Projekte < letzter Liefermonat der Klasse (Start 1960)', () => {
+  it('6.8: Erreichbarkeit: Dauer aller nötigen Projekte < letzter Liefermonat der Klasse (Start 1960)', () => {
     for (const sizeClass of SIZE_CLASSES) {
       if (sizeClass === 'commuter') continue;
-      const project = CLASS_RESEARCH[sizeClass];
-      const ready = RANKS[project.rank].requires.years * 12 + classResearchChainMonths(sizeClass);
+      const ready = classResearchChainMonths(sizeClass);
       const types = aircraftList.filter((a) => sizeClassOf(a) === sizeClass);
       assert.ok(types.length > 0, `keine Typen der Klasse ${sizeClass}`);
       const lastDelivery = Math.max(...types.map((a) => a.lastDeliveryOffset ?? Number.POSITIVE_INFINITY));
