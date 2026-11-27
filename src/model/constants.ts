@@ -578,10 +578,10 @@ export const LINK_EXP = 0.448351;
 
 /**
  * Maßstab der Marktgröße, Fluggäste je Woche (Alt-Code: 29 × 0,9 bei Normal; E67, E70: 14,5). Mit den realen
- * Stadtwerten (Paket D1, E107) 4,5: Die 30 größten Märkte der Spieltest-Drehkreuze (FRA 1995/2025, DUS 1970) bleiben
- * im Mittel so groß wie vorher. SPEZIFIKATION 3.6.
+ * Stadtwerten (Paket D1, E107) 6,0: Die 100 größten Märkte in Reichweite der Spieltest-Drehkreuze (FRA 1995/2025,
+ * DUS 1970) bleiben in Summe etwa so groß wie vorher; die 10 größten werden größer, die kleinen kleiner. SPEZIFIKATION 3.6.
  */
-export const DEMAND_SCALE = 4.5;
+export const DEMAND_SCALE = 6.0;
 
 // ---------------------------------------------------------------------------
 // 3.7 Klassen-Anteil
