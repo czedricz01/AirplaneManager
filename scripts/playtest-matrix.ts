@@ -29,6 +29,10 @@ export const STRATEGIES: Strategy[] = [
   S('vorsichtig', { plane: 'mid', price: 'best', needPositiveForecast: true, cutAfter: 6 }),
   // Ryanair: dichte Kabine ohne Service, 15 % unter Markt, größter Typ bis 150 Sitze, Frequenz nach Prognose.
   S('ryanair', { style: 'lcc', price: 0.85, pick: 'forecast', plane: 'mid', trips: 'fit', cutAfter: 4, needPositiveForecast: true, buysPerMonth: 2 }),
+  // Wie „ryanair“, aber mehrere Strecken je Flugzeug hintereinander am Tag (Paket 5.4f, E98: kurze Wende zählt nur so).
+  S('ryanair-pack', { style: 'lcc', price: 0.85, pick: 'forecast', plane: 'mid', trips: 'fit', cutAfter: 4, needPositiveForecast: true, buysPerMonth: 2, pack: true }),
+  // Wie „vorsichtig“, aber ebenfalls mehrere Strecken je Flugzeug (Vergleich zu „ryanair-pack“).
+  S('vorsichtig-pack', { plane: 'mid', price: 'best', needPositiveForecast: true, cutAfter: 6, pack: true }),
   // Wie „ryanair“, aber mit dem größten Schmalrumpf (757, A321).
   S('ryanair-gross', { style: 'lcc', price: 0.85, pick: 'forecast', plane: 'narrow', trips: 'fit', cutAfter: 4, needPositiveForecast: true, buysPerMonth: 2 }),
   // Luxus: Boutique-Kabine und -Service, bester Preis (Zahlungsbereitschaft), effiziente Flugzeuge.

@@ -77,6 +77,10 @@ export interface Strategy {
   readonly typeId?: string;
   /** Flugzeuge ohne Strecke nach so vielen Monaten verkaufen (wie „Sell“ in der Flotte); 0 = nie. Standard 2. */
   readonly sellIdleAfter?: number;
+  /** Neue Strecken zuerst auf ein Flugzeug legen, das am Tag noch Zeit hat (Umläufe hinter die vorhandenen, bis
+   * Mitternacht); erst wenn keins passt, ein Flugzeug kaufen. So teilen sich mehrere Strecken die Flugzeug-Kosten
+   * (`aircraftShare`, 5.9). Paket 5.4f (E98). */
+  readonly pack?: boolean;
 }
 
 export interface PlaySettings {
@@ -325,14 +329,22 @@ function prepareAirport(g: Game, id: string, kind: SlotKind, need: number): void
 // Strecken
 // ===========================================================================
 
-/** Fahrplan: `trips` Umläufe je Woche, gleichmäßig über die Tage, ab 6 Uhr hintereinander (wie der Planer, E51). */
-function schedule(origin: Airport, dest: Airport, t: Aircraft, want: number | 'max' | 'fit'): ScheduledTrip[] {
+/** Erster freier Abflug je Tag (1–7), Minuten nach Mitternacht; fehlt ein Tag, 6 Uhr. */
+type DayStarts = Readonly<Record<number, number>>;
+
+/**
+ * Fahrplan: `trips` Umläufe je Woche, gleichmäßig über die Tage, ab 6 Uhr hintereinander (wie der Planer, E51).
+ * Mit `starts` (Flugzeug fliegt schon andere Strecken, `pack`) je Tag ab dem ersten freien Abflug, bis Mitternacht.
+ */
+function schedule(origin: Airport, dest: Airport, t: Aircraft, want: number | 'max' | 'fit', starts?: DayStarts): ScheduledTrip[] {
   if (want === 'fit') want = 7;
   const durMin = getFlightDurationMinutes(origin, dest, t);
-  const turnoverMin = getTurnoverMinutes(t.class);
+  const turnoverMin = getTurnoverMinutes(t.class, t);
   const cycle = tripBlock({ durMin, turnoverMin });
-  const perDay = Math.max(0, Math.floor((24 * 60 - 6 * 60) / cycle));
+  const startOf = (d: number) => starts?.[d] ?? 6 * 60;
+  const perDay = Math.max(0, Math.min(...[1, 2, 3, 4, 5, 6, 7].map((d) => Math.floor((24 * 60 - startOf(d)) / cycle))));
   const trips: ScheduledTrip[] = [];
+  if (starts && cycle > 24 * 60) return trips;
   if (cycle > 24 * 60) {
     // Langstrecke: ein Umlauf dauert über einen Tag; jeden zweiten/dritten Tag.
     const every = Math.ceil(cycle / (24 * 60));
@@ -342,7 +354,7 @@ function schedule(origin: Airport, dest: Airport, t: Aircraft, want: number | 'm
     const n = want === 'max' ? maxPerWeek : Math.min(want, maxPerWeek);
     const daily = Math.ceil(n / 7);
     for (let d = 1; d <= 7 && trips.length < n; d++) {
-      for (let k = 0; k < daily && trips.length < n; k++) trips.push(trip(d, 6 * 60 + k * cycle, durMin, turnoverMin, trips.length));
+      for (let k = 0; k < daily && trips.length < n; k++) trips.push(trip(d, startOf(d) + k * cycle, durMin, turnoverMin, trips.length));
     }
   }
   while (trips.length > 0 && tripsUtilization(trips) > 1) trips.pop();
@@ -360,9 +372,9 @@ function popularity(a: Airport, month: number): number {
 
 let routeSeq = 0;
 
-function draftRoute(g: Game, origin: Airport, dest: Airport, plane: OwnedAircraft, st: Strategy, fares: Record<string, number>, trips?: number): SimulatedRoute {
+function draftRoute(g: Game, origin: Airport, dest: Airport, plane: OwnedAircraft, st: Strategy, fares: Record<string, number>, trips?: number, starts?: DayStarts): SimulatedRoute {
   const km = distanceKm(origin.coords, dest.coords);
-  const sched = schedule(origin, dest, plane, trips ?? st.trips);
+  const sched = schedule(origin, dest, plane, trips ?? st.trips, starts);
   return {
     id: `pt${++routeSeq}`, airline: g.airlineCode, origin: origin.id, destination: dest.id, distance: Math.round(km), aircraft: plane.registration,
     weeklyFlights: sched.length, paxPerWeek: 0, schedule: sched, classConfigs: classConfigsOf(st.style, km, plane) as never,
@@ -519,11 +531,40 @@ export function play(s: PlaySettings, onYear?: (year: number, cash: number) => v
 
 const ym = (m: number): string => `${String((m % 12) + 1).padStart(2, '0')}/${1960 + Math.floor(m / 12)}`;
 
-/** Freies Flugzeug (ohne Strecke) oder Kauf, dann die beste Strecke nach der Strategie. */
+/** Kleinste freie Zeit am Tag, ab der ein Flugzeug noch eine weitere Strecke bekommt (`pack`), Minuten. */
+const PACK_MIN_FREE_MINUTES = 3 * 60;
+
+/**
+ * Flugzeug mit Strecken und der meisten freien Zeit an seinem vollsten Tag (`pack`): erster freier Abflug je Tag =
+ * Ende des letzten Umlaufs. Keins, wenn ein Umlauf über einen Tag dauert oder weniger als `PACK_MIN_FREE_MINUTES` frei sind.
+ */
+function packablePlane(g: Game): { plane: OwnedAircraft; starts: DayStarts } | undefined {
+  let best: { plane: OwnedAircraft; starts: DayStarts; free: number } | undefined;
+  for (const plane of g.fleet) {
+    const trips = g.routes.filter((r) => r.aircraft === plane.registration).flatMap((r) => r.schedule ?? []);
+    if (trips.length === 0) continue;
+    const starts: Record<number, number> = {};
+    let tooLong = false;
+    for (const t of trips) {
+      const block = tripBlock(t);
+      if (block > 24 * 60) tooLong = true;
+      const end = (Number(t.startHour) || 0) * 60 + (Number(t.startMin) || 0) + block;
+      const d = Number(t.dayId) || 1;
+      starts[d] = Math.max(starts[d] ?? 6 * 60, end);
+    }
+    if (tooLong) continue;
+    const free = Math.min(...[1, 2, 3, 4, 5, 6, 7].map((d) => 24 * 60 - (starts[d] ?? 6 * 60)));
+    if (free >= PACK_MIN_FREE_MINUTES && (!best || free > best.free)) best = { plane, starts, free };
+  }
+  return best && { plane: best.plane, starts: best.starts };
+}
+
+/** Freies Flugzeug (ohne Strecke), mit `pack` ein Flugzeug mit freier Zeit, sonst Kauf; dann die beste Strecke nach der Strategie. */
 function openRoute(
   g: Game, s: PlaySettings, st: Strategy, hub: Airport, rng: () => number,
   log: Map<string, { pair: string; type: string; opened: number; forecast: number; results: number[]; loads: number[]; pop: number; km: number; closed?: number }>,
   events: string[],
+  noPack = false,
 ): boolean {
   const served = new Set(g.routes.filter((r) => r.origin === hub.id || r.destination === hub.id).map((r) => (r.origin === hub.id ? r.destination : r.origin)));
   const idle = g.fleet.find((p) => !g.routes.some((r) => r.aircraft === p.registration));
@@ -551,8 +592,10 @@ function openRoute(
       .sort((x, y) => y.pop - x.pop);
 
   // Flugzeug: das freie, sonst der erste bezahlbare Typ (Preis + Slots + Verwaltung + Reserve).
-  let plane: OwnedAircraft | undefined = idle;
-  let type: Aircraft | undefined = idle ? (aircraftList.find((a) => a.id === idle.id) ?? idle) : undefined;
+  const packed = st.pack && !idle && !noPack ? packablePlane(g) : undefined;
+  let plane: OwnedAircraft | undefined = idle ?? packed?.plane;
+  let type: Aircraft | undefined = plane ? (aircraftList.find((a) => a.id === plane!.id) ?? plane) : undefined;
+  const starts = packed?.starts;
   if (!plane) {
     for (const t of order) {
       if (g.capital - priceOf(t) - reserve > 0) {
@@ -587,7 +630,7 @@ function openRoute(
   for (const c of list) {
     const tripOptions = st.trips === 'fit' ? [7, 14, 21, 28] : [undefined];
     for (const n of tripOptions) {
-      const draft = draftRoute(test, hub, c.a, testPlane!, st, {}, n);
+      const draft = draftRoute(test, hub, c.a, testPlane!, st, {}, n, starts);
       const need = draft.schedule!.length;
       if (need === 0 || (n !== undefined && need < n)) continue;
       const costHub = airportCost(g, hub.id, kind, need);
@@ -610,7 +653,7 @@ function openRoute(
     }
     if (st.pick !== 'forecast' && best) break;
   }
-  if (!best) return false;
+  if (!best) return packed ? openRoute(g, s, st, hub, rng, log, events, true) : false;
   if (st.pick === 'forecast' && !(best.forecast > 0) && !plane) return false;
 
   // Kaufen und eröffnen.

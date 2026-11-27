@@ -17,6 +17,7 @@ import {
   economySeatsLeft,
   interiorScore,
   isDeliverable,
+  quickTurnCabin,
   seatSpace,
   type CabinFit,
   type ClassInterior,
@@ -299,6 +300,7 @@ export function rivalAircraft(personality: RivalPersonality, type: CatalogType, 
     cabinInstalledMonth: month,
     airframeCondition: 100,
     cabinCondition: 100,
+    ...(quickTurnCabin(seats, cabin.fit) ? { quickTurn: true } : {}),
   };
 }
 

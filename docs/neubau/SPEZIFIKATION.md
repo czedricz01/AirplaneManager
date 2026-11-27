@@ -34,6 +34,8 @@ Alle späteren Abschnitte (2–8) halten sich daran. Grundlage: E4–E14, E36, E
 | Jahr | – | 12 Monate ≈ 52,18 Wochen. Jahreswerte (z. B. Abschreibung, E29) werden durch 12 geteilt, nie durch 48 oder 52. |
 | Monatsabschluss | `closeMonth` | Einziger Zeitschritt des Spiels. Alles, was sich über die Zeit ändert (Kasse, Ruf, Zustand, Strecken-Alter), ändert sich hier, einmal je Monat. |
 | Flugzeit | `blockMinutes` | Minuten (Blockzeit), ungerundet. Stunden nur in der Anzeige. |
+| Umlaufzeit | `tripBlockMinutes`, `aircraftTripMinutes` | Einsteigen (`BOARDING_MINUTES` 30) + Hinflug + Wende am Ziel + Rückflug + Aussteigen (30), aufgerundet auf 5 Minuten. Wende je Bauart `TURNAROUND_MINUTES`: Regional 30, Narrowbody 60, Widebody 90. |
+| Wende mit LCC-Kabine | `turnaroundMinutes(cls, quickTurn)`, `quickTurnCabin` | **E98 (Paket 5.4f):** Ein Flugzeug mit nur Economy-Sitzen und dem Extra „Minimal services“ (Kaufdialog „Ultra-High Density Mode“) wendet in `QUICK_TURN_FACTOR` × Wende, gerundet auf 5 Minuten (Faktor 0,5: 15 / 30 / 45). Einsteigen und Aussteigen bleiben. Gilt für Spieler und KI (R1; die KI-LCC hat diese Kabine, 7.5). Kein Kostennachlass: Der Vorteil sind mehr Umläufe je Flugzeug und Woche. |
 
 Regeln (Tests):
 - Ein Wochenwert × `WEEKS_PER_MONTH` × 12 = Wochenwert × 52,18 (Erlös und Kosten nutzen dieselbe Jahreslänge).
@@ -2607,7 +2609,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   `costPerPassenger` und `fixedWeeklyCost` (5.8, 5.9). Dazu der Schätzfehler (7.3). Der beste Wert gewinnt (5.19).
 - **Höchste Umläufe** je Flugzeug: dieselbe Funktion wie der Planer für machbare Flüge (E51):
   `abrunden((Minuten der Woche − Umlaufzeit der übrigen Umläufe des Flugzeugs) / Umlaufzeit)`, mindestens 1; Umlaufzeit
-  mit Einsteigen, Wende je Bauart und Aussteigen auf 5 Minuten (`aircraftTripMinutes`, `weeklyTripCapacity` in
+  mit Einsteigen, Wende je Bauart (mit LCC-Kabine kürzer, 1.1, E98) und Aussteigen auf 5 Minuten (`aircraftTripMinutes`, `weeklyTripCapacity` in
   `src/model/schedule.ts`; Paket 5.3c). Keine Nachtpause und keine Obergrenze 21 mehr (vorher 7 × 18 h ohne Bodenzeit).
 - Eröffnung: Kasse ≥ Kaufpreis der fehlenden Slots + Reserve (7.4); keine Pauschale mehr (heute 1,5 Mio. $, `:96`).
 - Regeln (Tests): Planer und KI rechnen für denselben Plan dieselbe Zahl; ein Ziel ohne freie Slots wird nie gewählt

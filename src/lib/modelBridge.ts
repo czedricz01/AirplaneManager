@@ -30,7 +30,7 @@ import {
   type FacilityKind,
   type WorldRegion,
 } from '../model/constants';
-import { cabinListPrice, deliverableExtras, interiorScore, type CabinFit, type ClassInterior, type PricedClass } from '../model/cabin';
+import { cabinListPrice, deliverableExtras, interiorScore, quickTurnCabin, type CabinFit, type ClassInterior, type PricedClass } from '../model/cabin';
 import { distanceKm } from '../model/demand';
 import { clampFareRatio, marketFare, type PartialClassFigures } from '../model/fare';
 import type { ServiceSelection } from '../model/satisfaction';
@@ -142,6 +142,8 @@ export interface ModelCabin {
   readonly cabinListPrice1960: number;
   readonly hasWifi: boolean;
   readonly hasPremiumGalley: boolean;
+  /** LCC-Kabine (`quickTurnCabin`, E98): kürzere Wendezeit. */
+  readonly quickTurn: boolean;
 }
 
 /**
@@ -169,7 +171,29 @@ export function modelCabin(config: Partial<ConfigOutput> | undefined, fit: Omit<
     cabinListPrice1960: cabinListPrice(priced, full),
     hasWifi: fitted.includes('wifi'),
     hasPremiumGalley: fitted.includes('catering'),
+    quickTurn: quickTurnCabin(seats, full),
   };
+}
+
+/** Flugzeug der Flotte, soweit die Wendezeit es braucht. */
+export interface QuickTurnPlane {
+  readonly config?: Partial<ConfigOutput> | { readonly details?: unknown };
+  readonly capacity?: number;
+  readonly purchasedAt?: number;
+  readonly cabinInstalledAt?: number;
+}
+
+/**
+ * Hat ein Flugzeug der Flotte eine LCC-Kabine (`quickTurnCabin`, E98)? Dieselbe Regel wie `modelCabin`; Einbaumonat
+ * `cabinInstalledAt`, sonst `purchasedAt`.
+ */
+export function planeQuickTurn(plane: QuickTurnPlane | undefined | null): boolean {
+  if (!plane?.config) return false;
+  const config = plane.config as Partial<ConfigOutput>;
+  const seats: Partial<Record<CabinClass, number>> = {};
+  for (const c of CABIN_CLASSES) seats[c] = seatsOf(config, c);
+  const installedMonth = plane.cabinInstalledAt ?? plane.purchasedAt ?? 0;
+  return quickTurnCabin(seats, { installedMonth, capacity: plane.capacity ?? 0, extras: cabinExtras(config.details) });
 }
 
 // ===========================================================================
@@ -212,6 +236,7 @@ export function aircraftState(plane: OwnedAircraft, catalog: readonly Aircraft[]
     airframeCondition: plane.conditionGeneral,
     cabinCondition: plane.conditionInterior,
     launchCustomer: plane.launchBonusUntil !== undefined ? true : undefined,
+    ...(cabin.quickTurn ? { quickTurn: true } : {}),
   };
 }
 

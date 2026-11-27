@@ -250,7 +250,7 @@ function adaptRoute(route: RouteLike, plane: PlaneLike, ctx: AssignmentContext):
   const origin = ctx.airports.get(route.origin);
   const dest = ctx.airports.get(route.destination);
   const durMin = origin && dest ? getFlightDurationMinutes(origin, dest, plane) : Number(route.durMin) || 0;
-  const turnoverMin = getTurnoverMinutes(plane.class);
+  const turnoverMin = getTurnoverMinutes(plane.class, plane);
   const schedule = (route.schedule || []).map(t => ({
     ...t,
     dayId: Number(t.dayId) || 1,

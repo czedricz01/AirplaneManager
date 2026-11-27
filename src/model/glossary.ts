@@ -60,6 +60,7 @@ import {
   WEAR_FLOOR,
 } from './constants';
 import { cabinWeight, deskOverloadPoints, groundWeight, maxServiceShortfall, satisfactionFactor } from './satisfaction';
+import { turnaroundMinutes } from './schedule';
 
 /** Ein Glossar-Eintrag: Überschrift und Erklärung (Absätze mit Leerzeile getrennt). */
 export interface GlossaryEntry {
@@ -364,7 +365,7 @@ export const MODEL_GLOSSARY: Readonly<Record<GlossaryKey, GlossaryEntry>> = {
     title: 'Utilization',
     desc:
       `How much of the aircraft's week is already committed to flying, out of the ${textNumber(MINUTES_PER_WEEK / MINUTES_PER_HOUR)} hours available.\n\n` +
-      `Each round trip blocks the aircraft for ${textNumber(BOARDING_MINUTES)} minutes of boarding, the flight out, the turnaround (${textNumber(TURNAROUND_MINUTES.Regional)} minutes for regional aircraft, ${textNumber(TURNAROUND_MINUTES.Narrowbody)} for narrowbodies, ${textNumber(TURNAROUND_MINUTES.Widebody)} for widebodies), the flight back and ${textNumber(BOARDING_MINUTES)} minutes of deboarding, rounded up to ${textNumber(SCHEDULE_STEP_MINUTES)} minutes. So it reaches 100% well before the aircraft is literally airborne all week.\n\n` +
+      `Each round trip blocks the aircraft for ${textNumber(BOARDING_MINUTES)} minutes of boarding, the flight out, the turnaround (${textNumber(TURNAROUND_MINUTES.Regional)} minutes for regional aircraft, ${textNumber(TURNAROUND_MINUTES.Narrowbody)} for narrowbodies, ${textNumber(TURNAROUND_MINUTES.Widebody)} for widebodies; an all-Economy cabin with Ultra-High Density Mode turns in ${textNumber(turnaroundMinutes('Regional', true))} / ${textNumber(turnaroundMinutes('Narrowbody', true))} / ${textNumber(turnaroundMinutes('Widebody', true))}), the flight back and ${textNumber(BOARDING_MINUTES)} minutes of deboarding, rounded up to ${textNumber(SCHEDULE_STEP_MINUTES)} minutes. So it reaches 100% well before the aircraft is literally airborne all week.\n\n` +
       `Trips a day counts the round trips that fit back to back into the longest free stretch the aircraft's other routes leave on a day; a trip of ${textNumber(MINUTES_PER_DAY / 2 / MINUTES_PER_HOUR)} hours or more flies at most once a day.`,
   },
 };

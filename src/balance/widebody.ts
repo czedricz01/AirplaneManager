@@ -87,7 +87,7 @@ export function typeOnPair(pair: Pick<LongPair, 'from' | 'to'>, type: CatalogTyp
   const plane = rivalAircraft(personality, type, month, 'probe');
   const cls = type.class as AircraftClass;
   const km = pairKm(pair.from, pair.to);
-  const maxRotations = rivalMaxRotations(km, type.cruiseSpeed, cls);
+  const maxRotations = rivalMaxRotations(km, type.cruiseSpeed, cls, 0, plane.quickTurn);
   const state = (f: number, fareRatios: PartialClassFigures = {}) =>
     marketState({ from: pair.from, to: pair.to, month, offers: [{ company: 'a', typeId: type.id, personality, departures: 2 * f, ageMonths: RAMP_MONTHS, fareRatios }] });
   // Preisniveau einer neuen KI-Strecke (7.6): aus der Satisfaction bei den höchsten Umläufen, Lage 0, kein Preiskampf.

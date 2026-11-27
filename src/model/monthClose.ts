@@ -316,6 +316,8 @@ export interface AircraftState extends ValuedAircraft {
   readonly interiorScore: PartialClassFigures;
   /** Erstkunde (8.12). */
   readonly launchCustomer?: boolean;
+  /** LCC-Kabine (`quickTurnCabin`, E98): kürzere Wendezeit. Fehlt = nein. */
+  readonly quickTurn?: boolean;
 }
 
 /** Eine Strecke: Hin und Zurück zwischen `from` und `to`, ein Flugzeug. */
@@ -1296,7 +1298,10 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
   const freeSeats: Record<string, number> = {};
   for (const p of prepared) {
     if (focusCompany && p.company.id !== focusCompany.id) continue;
-    const direct = passengersByRoute.get(routeKey(p)) as Record<CabinClass, number>;
+    // Planer-Rechnung: Strecken desselben Flugzeugs auf anderen Paaren zählen nur für den Flugzeug-Anteil (5.9) und
+    // werden nicht aufgeteilt (Paket 5.4f).
+    const direct = passengersByRoute.get(routeKey(p));
+    if (!direct) continue;
     for (const c of CABIN_CLASSES) {
       const key = legKey(p.company.id, p.pair, c);
       freeSeats[key] = (freeSeats[key] ?? 0) + Math.max(0, p.offeredSeats[c] - direct[c]);

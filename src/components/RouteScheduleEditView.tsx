@@ -205,7 +205,7 @@ const RouteScheduleEditView: React.FC<RouteScheduleEditViewProps> = ({
     const first = (route.schedule || [])[0];
     return {
       durMin: Number(first?.durMin) || getFlightDurationMinutes(selectedOrigin, selectedDest, aircraft) || Number(route.durMin) || 0,
-      turnoverMin: Number(first?.turnoverMin) || getTurnoverMinutes(aircraft.class),
+      turnoverMin: Number(first?.turnoverMin) || getTurnoverMinutes(aircraft.class, aircraft),
       isOneWay: !!first?.isOneWay
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

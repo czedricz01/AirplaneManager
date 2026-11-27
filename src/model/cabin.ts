@@ -268,3 +268,17 @@ export function economySeatsLeft(
   }
   return Math.max(0, Math.floor((space - used) / seatSpace('economy', economy)));
 }
+
+/**
+ * LCC-Kabine (E98): nur Economy-Sitze und das Extra „Minimal services“ (Kaufdialog: „Ultra-High Density Mode“),
+ * lieferbar im Einbaumonat. Ein solches Flugzeug wendet schneller (`turnaroundMinutes`, `QUICK_TURN_FACTOR`).
+ * Gilt für Spieler und KI gleich (R1). SPEZIFIKATION 1.1.
+ *
+ * @param seats Sitze je Klasse.
+ * @param fit Einbau: Monat, Typ-Kapazität, Extras.
+ */
+export function quickTurnCabin(seats: Readonly<Partial<Record<CabinClass, number>>>, fit: CabinFit): boolean {
+  if (!((seats.economy ?? 0) > 0)) return false;
+  if ((['premium', 'business', 'first'] as const).some((c) => (seats[c] ?? 0) > 0)) return false;
+  return deliverableExtras(fit.extras, fit).includes('minimal');
+}
