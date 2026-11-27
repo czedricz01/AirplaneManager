@@ -10,6 +10,7 @@ import {
   BOARDING_MINUTES,
   MINUTES_PER_DAY,
   MINUTES_PER_WEEK,
+  QUICK_TURN_FACTOR,
   SCHEDULE_STEP_MINUTES,
   TURNAROUND_MINUTES,
   type AircraftClass,
@@ -27,9 +28,16 @@ export function timetableLegMinutes(greatCircleKm: number, speedKmh: number): nu
   return Math.round(blockMinutes(greatCircleKm, speedKmh));
 }
 
-/** Wendezeit am Ziel in Minuten (`TURNAROUND_MINUTES`). */
-export function turnaroundMinutes(cls: AircraftClass): number {
-  return TURNAROUND_MINUTES[cls];
+/**
+ * Wendezeit am Ziel in Minuten (`TURNAROUND_MINUTES`); mit LCC-Kabine (`quickTurnCabin`, E98) × `QUICK_TURN_FACTOR`,
+ * gerundet auf `SCHEDULE_STEP_MINUTES`, mindestens ein Schritt.
+ *
+ * @param quickTurn Flugzeug mit LCC-Kabine.
+ */
+export function turnaroundMinutes(cls: AircraftClass, quickTurn = false): number {
+  const base = TURNAROUND_MINUTES[cls];
+  if (!quickTurn) return base;
+  return Math.max(SCHEDULE_STEP_MINUTES, Math.round((base * QUICK_TURN_FACTOR) / SCHEDULE_STEP_MINUTES) * SCHEDULE_STEP_MINUTES);
 }
 
 /**
@@ -68,9 +76,11 @@ export function tripsPerDay(cycleMinutes: number, freeRunMinutes: number): numbe
 /**
  * Umlaufzeit eines Flugzeugs auf einer Strecke (`tripBlockMinutes` mit `timetableLegMinutes` und `turnaroundMinutes`),
  * wie der Planer sie für den Fahrplan rechnet. SPEZIFIKATION 1.1, 7.9.
+ *
+ * @param quickTurn Flugzeug mit LCC-Kabine (E98).
  */
-export function aircraftTripMinutes(greatCircleKm: number, speedKmh: number, cls: AircraftClass): number {
-  return tripBlockMinutes(timetableLegMinutes(greatCircleKm, speedKmh), turnaroundMinutes(cls));
+export function aircraftTripMinutes(greatCircleKm: number, speedKmh: number, cls: AircraftClass, quickTurn = false): number {
+  return tripBlockMinutes(timetableLegMinutes(greatCircleKm, speedKmh), turnaroundMinutes(cls, quickTurn));
 }
 
 /**

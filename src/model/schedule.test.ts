@@ -5,10 +5,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BOARDING_MINUTES, MINUTES_PER_DAY, MINUTES_PER_WEEK, SCHEDULE_STEP_MINUTES, TURNAROUND_MINUTES } from './constants';
+import { BOARDING_MINUTES, MINUTES_PER_DAY, MINUTES_PER_WEEK, QUICK_TURN_FACTOR, SCHEDULE_STEP_MINUTES, TURNAROUND_MINUTES } from './constants';
 import { departuresAt } from './airportCosts';
 import { blockMinutes } from './demand';
-import { timetableLegMinutes, tripBlockMinutes, tripSlotsAt, tripsPerDay, turnaroundMinutes, weeklyUtilization } from './schedule';
+import { aircraftTripMinutes, timetableLegMinutes, tripBlockMinutes, tripSlotsAt, tripsPerDay, turnaroundMinutes, weeklyUtilization } from './schedule';
 
 describe('Zeitplan (4.4)', () => {
   it('Flugzeit im Fahrplan = blockMinutes (3.1), gerundet', () => {
@@ -58,5 +58,18 @@ describe('Zeitplan (4.4)', () => {
   it('Auslastung = Summe der Umlaufzeiten / Woche', () => {
     assert.equal(weeklyUtilization([]), 0);
     assert.equal(weeklyUtilization([MINUTES_PER_WEEK / 4, MINUTES_PER_WEEK / 4]), 0.5);
+  });
+
+  it('E98: LCC-Kabine wendet schneller (× QUICK_TURN_FACTOR, auf das Raster gerundet); Einsteigen bleibt', () => {
+    for (const cls of ['Regional', 'Narrowbody', 'Widebody'] as const) {
+      const quick = turnaroundMinutes(cls, true);
+      assert.equal(quick % SCHEDULE_STEP_MINUTES, 0);
+      assert.ok(quick >= SCHEDULE_STEP_MINUTES);
+      assert.ok(quick < turnaroundMinutes(cls), cls);
+      assert.ok(Math.abs(quick - TURNAROUND_MINUTES[cls] * QUICK_TURN_FACTOR) <= SCHEDULE_STEP_MINUTES / 2, cls);
+      assert.equal(turnaroundMinutes(cls, false), TURNAROUND_MINUTES[cls]);
+    }
+    const gain = aircraftTripMinutes(1000, 800, 'Narrowbody') - aircraftTripMinutes(1000, 800, 'Narrowbody', true);
+    assert.equal(gain, turnaroundMinutes('Narrowbody') - turnaroundMinutes('Narrowbody', true));
   });
 });

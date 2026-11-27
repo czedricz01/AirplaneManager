@@ -13,7 +13,7 @@ import { aircraftList as AIRCRAFT } from '../data/aircraft';
 import { EXTRAS_OPTIONS, MEAL_DATA, SERVICE_OPTIONS } from '../data/catering';
 import { REAL_AIRLINES } from '../data/rivalAirlines';
 import { costIndex, difficultyFactor } from './basics';
-import { cabinRating, cabinSpace, economySeatsLeft, interiorScore, seatSpace } from './cabin';
+import { cabinRating, cabinSpace, economySeatsLeft, interiorScore, quickTurnCabin, seatSpace } from './cabin';
 import { aircraftEfficiency, cabinCrew, payFactor, researchCostFactor } from './costs';
 import { routeFare } from './fare';
 import { advertisingRegionFactor, frequentFlyerFactor, rampFactor } from './marketSplit';
@@ -51,6 +51,7 @@ import {
   priceWarStep,
   realRivalWeight,
   rivalBuyChance,
+  rivalAircraft,
   rivalCabin,
   rivalCashReserve,
   rivalDeskType,
@@ -557,3 +558,19 @@ describe('Abschnitt 7.7 Gründung und Startwerte', () => {
     assert.equal(weightedPick([0, 2, 0], 0.999), 1);
   });
 });
+
+describe('LCC-Kabine wendet schneller (E98)', () => {
+  const fit = { installedMonth: M1990, capacity: 186, extras: ['minimal'] as const };
+  it('quickTurnCabin: nur Economy und „Minimal services“', () => {
+    assert.equal(quickTurnCabin({ economy: 200 }, { ...fit, extras: ['minimal'] }), true);
+    assert.equal(quickTurnCabin({ economy: 200 }, { ...fit, extras: ['minimal', 'reduced'] }), true);
+    assert.equal(quickTurnCabin({ economy: 200 }, { ...fit, extras: ['reduced'] }), false);
+    assert.equal(quickTurnCabin({ economy: 180, business: 8 }, { ...fit, extras: ['minimal'] }), false);
+    assert.equal(quickTurnCabin({}, { ...fit, extras: ['minimal'] }), false);
+  });
+  it('dieselbe Regel für die KI: die LCC-Kabine (7.5) wendet schneller, andere nicht (R1)', () => {
+    assert.equal(rivalAircraft('lcc', A320, M1990, 'x').quickTurn, true);
+    for (const p of ['expansionist', 'optimizer', 'flag', 'boutique'] as const) assert.ok(!rivalAircraft(p, A320, M1990, 'x').quickTurn, p);
+  });
+});
+

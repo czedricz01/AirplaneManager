@@ -363,10 +363,10 @@ export function preselectTargets(
 /**
  * Höchste Umläufe je Woche eines Flugzeugs auf einer Strecke (7.9): dieselbe Regel wie der Planer (E51,
  * `weeklyTripCapacity` mit der Umlaufzeit `aircraftTripMinutes`), mindestens 1. `busyMinutes` = Minuten der Woche, die
- * andere Umläufe desselben Flugzeugs binden. SPEZIFIKATION 7.9.
+ * andere Umläufe desselben Flugzeugs binden; `quickTurn` = LCC-Kabine (E98). SPEZIFIKATION 7.9.
  */
-export function rivalMaxRotations(greatCircleKm: number, speedKmh: number, cls: AircraftClass, busyMinutes = 0): number {
-  return Math.max(1, weeklyTripCapacity(aircraftTripMinutes(greatCircleKm, speedKmh, cls), busyMinutes));
+export function rivalMaxRotations(greatCircleKm: number, speedKmh: number, cls: AircraftClass, busyMinutes = 0, quickTurn = false): number {
+  return Math.max(1, weeklyTripCapacity(aircraftTripMinutes(greatCircleKm, speedKmh, cls, quickTurn), busyMinutes));
 }
 
 /** Bewertete Flugzahlen je Ziel: 100 %, 60 %, 30 % der höchsten Umläufe, gerundet, mindestens 1, ohne doppelte. SPEZIFIKATION 7.9. */
@@ -1351,7 +1351,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
     sumOf(
       list
         .filter((x) => x.aircraftId === plane.id && x.id !== exceptRouteId)
-        .map((x) => (x.departuresPerWeek / 2) * aircraftTripMinutes(kmOf(x), plane.cruiseSpeed, plane.aircraftClass)),
+        .map((x) => (x.departuresPerWeek / 2) * aircraftTripMinutes(kmOf(x), plane.cruiseSpeed, plane.aircraftClass, plane.quickTurn)),
     );
   let serial = 0;
   const newId = (kind: string) => `${company.id}-${kind}${next}-${++serial}`;
@@ -1460,7 +1460,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
       const alt = fineTune(
         {
           route: v,
-          maxRotations: rivalMaxRotations(f.greatCircleKm, plane.cruiseSpeed, plane.aircraftClass, otherBusy),
+          maxRotations: rivalMaxRotations(f.greatCircleKm, plane.cruiseSpeed, plane.aircraftClass, otherBusy, plane.quickTurn),
           slotRoom,
           crisisReduced: memory[r.id].fullFrequency !== undefined && v.weeklyFrequency < (memory[r.id].fullFrequency as number),
         },
@@ -1615,7 +1615,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
     if (items.length === 0) return null;
     const busy = busyMinutesOf(plane, base.routes);
     const maxRot = (i: number) =>
-      Math.max(1, Math.min(rivalMaxRotations(items[i].km, plane.cruiseSpeed, cls, busy), room(items[i].hub, cls), room(items[i].target, cls)));
+      Math.max(1, Math.min(rivalMaxRotations(items[i].km, plane.cruiseSpeed, cls, busy, plane.quickTurn), room(items[i].hub, cls), room(items[i].target, cls)));
     const fares = new Map<number, PartialClassFigures>();
     const evaluate = (i: number, f: number) => {
       const it = items[i];
@@ -1815,11 +1815,12 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
           runwayFits(t.icaoCode, airports[found.hub].maxIcaoCode) &&
           runwayFits(t.icaoCode, airports[found.target].maxIcaoCode);
         const cls = t.class as AircraftClass;
-        const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, t.cruiseSpeed, cls));
-        if (!fits || room(found.hub, cls) < f || room(found.target, cls) < f) {
+        if (!fits) return { ...t, runwayOk: false, inRange: false, price: 0, expectedProfit: 0 };
+        const candidate = rivalAircraft(personality, t, next, candidateId);
+        const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, t.cruiseSpeed, cls, 0, candidate.quickTurn));
+        if (room(found.hub, cls) < f || room(found.target, cls) < f) {
           return { ...t, runwayOk: false, inRange: false, price: 0, expectedProfit: 0 };
         }
-        const candidate = rivalAircraft(personality, t, next, candidateId);
         const built = withRoute(current(), candidate, found.hub, found.target, f, found.fareRatios, planId, RAMP_MONTHS);
         return {
           ...t,
@@ -1832,7 +1833,7 @@ function rivalMonth(company: CompanyState, agent: RivalAgent, ctx: DecisionConte
       const pick = pickPurchaseType(options, next);
       if (pick >= 0) {
         const plane = rivalAircraft(personality, catalog[pick], next, newId('a'));
-        const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, plane.cruiseSpeed, plane.aircraftClass));
+        const f = Math.min(found.plan.weeklyFrequency, rivalMaxRotations(found.km, plane.cruiseSpeed, plane.aircraftClass, 0, plane.quickTurn));
         const price = options[pick].price;
         const slotCost = withRoute(current(), plane, found.hub, found.target, f, {}, planId, 0).slotCost;
         const blocker = rivalBuyBlocker({

@@ -2757,5 +2757,12 @@ export const TURNAROUND_MINUTES: Readonly<Record<AircraftClass, number>> = {
   Widebody: 90,
 };
 
+/**
+ * Wendezeit am Ziel mit LCC-Kabine (`quickTurnCabin`): Anteil von `TURNAROUND_MINUTES`, auf `SCHEDULE_STEP_MINUTES`
+ * gerundet (E98, Paket 5.4f). Einsteigen und Aussteigen (`BOARDING_MINUTES`) bleiben. Gilt für Spieler und KI (R1).
+ * SPEZIFIKATION 1.1.
+ */
+export const QUICK_TURN_FACTOR = 0.5;
+
 /** Raster aller Zeiten im Fahrplan; die Umlaufzeit wird darauf aufgerundet (Alt-Code: `blockMinutes`, `scheduleUtils.ts:56-58`). */
 export const SCHEDULE_STEP_MINUTES = 5;

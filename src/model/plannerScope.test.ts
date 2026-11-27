@@ -118,3 +118,22 @@ describe('Planer-Rechnungen nur auf den gebrauchten Märkten (3.9b)', () => {
     }
   });
 });
+
+describe('Planer mit einem Flugzeug, das schon eine andere Strecke fliegt (Paket 5.4f)', () => {
+  it('rechnet die neue Strecke wie monthOperations; die andere Strecke zählt nur für den Flugzeug-Anteil', () => {
+    const company = WORLD.companies.find((c) => c.routes.length > 0) as CompanyState;
+    const first = company.routes[0];
+    const used = new Set(company.routes.flatMap((r) => [r.from, r.to]));
+    const to = IDS.find((id) => AIRPORTS[id] && !used.has(id)) as string;
+    const added = { ...first, id: `${first.id}-zweite`, to, departuresPerWeek: 4, ageMonths: 0 };
+    const state: ModelState = {
+      ...WORLD,
+      companies: WORLD.companies.map((c) => (c.id === company.id ? { ...c, routes: [...c.routes, added] } : c)),
+    };
+    const fast = plannerRouteFigures(state, company.id, added.id, 4);
+    const full = monthOperations(plannerState(state, company.id, added.id, (r) => ({ ...r, departuresPerWeek: 4 })));
+    assert.deepEqual(fast, full[company.id].routes.find((r) => r.routeId === added.id));
+    assert.ok(fast.fixed.aircraftShare > 0);
+  });
+});
+

@@ -37,6 +37,7 @@ import {
   modelCabin,
   modelCatalog,
   modelOperations,
+  planeQuickTurn,
   routeKm,
   routeSchedule,
   routeState,
@@ -338,3 +339,19 @@ describe('Zurückschreiben nach closeMonth (4.2b)', () => {
     assert.equal(routeState(r1, ctx1).ageMonths, state.companies[0].routes[0].ageMonths);
   });
 });
+
+describe('planeQuickTurn (E98)', () => {
+  it('Flotte: dieselbe Regel wie modelCabin (nur Economy und „Minimal services“)', () => {
+    const lcc = { economy: 189, details: { hasMinimalServices: true } } as unknown as ConfigOutput;
+    const mixed = { economy: 150, business: 12, details: { hasMinimalServices: true } } as unknown as ConfigOutput;
+    const plain = { economy: 180, details: {} } as unknown as ConfigOutput;
+    assert.equal(planeQuickTurn({ config: lcc, capacity: 180, purchasedAt: 400 }), true);
+    assert.equal(planeQuickTurn({ config: mixed, capacity: 180, purchasedAt: 400 }), false);
+    assert.equal(planeQuickTurn({ config: plain, capacity: 180, purchasedAt: 400 }), false);
+    assert.equal(planeQuickTurn(undefined), false);
+    for (const config of [lcc, mixed, plain]) {
+      assert.equal(modelCabin(config, { installedMonth: 400, capacity: 180 }).quickTurn, planeQuickTurn({ config, capacity: 180, purchasedAt: 400 }));
+    }
+  });
+});
+

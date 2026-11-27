@@ -589,7 +589,7 @@ function RoutePlannerInner({
   }
 
   function getTurnoverMinutes() {
-    return turnoverForClass(selectedAircraft?.class);
+    return turnoverForClass(selectedAircraft?.class, selectedAircraft);
   }
 
   const validDestinations = useMemo(() => {

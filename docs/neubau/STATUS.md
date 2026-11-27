@@ -1,16 +1,31 @@
 # Status
 
-**Nächstes Paket: 5.4f – Kürzere Bodenzeit der LCC-Kabine (E98).** Die LCC-Kabine bekommt eine kürzere Bodenzeit
-(mehr Umläufe je Woche), danach Spieltest-Matrix gegen die Ziele (vor allem „ryanair“, O92); Ziel „standard auf Hard
-pleite“ aus der Bewertung streichen (E99). Liest: `balance/5.4-spieltest.md`, `ENTSCHEIDUNGEN.md` E98–E100,
-`src/balance/playtest.ts`, die Umlauf-/Bodenzeit-Rechnung in `src/model/`. Ergebnis in `balance/5.4f-spieltest.md`.
-Danach 5.4g (Umsetzung O95–O98, sobald beantwortet).
+**Nächstes Paket: 5.4g – Umsetzung E101–E104 mit Balance-Langlauf.** Optimizer-Kaufneigung 0,4 → 0,6 (E101),
+Preise der Klassen-Forschung × 0,7 (E102), Prüfregel B4.2 anpassen (E103: tiefster Preis ≥ 90 % der Schwelle, Gewinn
+nur mit einem Flugzeug je Seite), Kampagnen-Kosten halbieren (E104). Danach Balance-Langlauf wie 5.4e (auch: ändert
+die kürzere Wende der KI-LCC aus 5.4f die Prüfregel B7.1?). Liest: `balance/5.4e-bericht.md` (Auswertung),
+`ENTSCHEIDUNGEN.md` E101–E104, `SPEZIFIKATION.md` 6.8, 7.4, 3.9.5; Konstanten in `src/model/constants.ts`
+(Optimizer-Kaufneigung, Klassen-Forschung, `CAMPAIGN_COST_1960`), Prüfregel B4.2 im Balance-Skript (`src/balance/`).
+Ergebnis in `balance/5.4g-bericht.md`.
 
-**Offene Fragen: O95–O98** (aus 5.4e, Tabelle in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; Empfehlung jeweils A):
-O95 Optimizer-Kaufneigung 0,4 → 0,6 (B7.1), O96 Klassen-Forschung × 0,7 (B6.7), O97 Regel B4.2 anpassen (Preis-Duell
-bei Überkapazität), O98 Werbe-Kosten halbieren (B6.9). 5.4f hängt nicht davon ab. Weiter vorgemerkt (keine Pakete):
-Spielgefühl der KI-Stärke (Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI
-(Fund 53), Spielstände in der Cloud (Supabase).
+**Offene Frage: O99** (aus 5.4f, Tabelle in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; Empfehlung A): Soll ein fester
+Billigpreis (0,85 × Markt) mit LCC-Kabine stärker tragen? Die LCC-Kabine selbst trägt (mit bestem Preis und mehreren
+Strecken je Flugzeug). 5.4g hängt nicht davon ab. Weiter vorgemerkt (keine Pakete): Spielgefühl der KI-Stärke
+(Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53), Spielstände in
+der Cloud (Supabase).
+
+Stand: 27.11.2026 · O95–O98 im Chat entschieden, jeweils A (E101–E104). Paket 5.4f erledigt (F87): **LCC-Kabine**
+(nur Economy + „Minimal services“) wendet in der halben Zeit (`QUICK_TURN_FACTOR` 0,5: 15 / 30 / 45 Minuten), für
+Spieler und KI. Gemessen (`balance/5.4f-spieltest.md`, Funde 72–73): Die Wende ist nicht der Engpass, weil ein
+Flugzeug auf einer Strecke ohnehin meist steht; „ryanair“ bleibt klein (1995 Normal −3,2 Mio. $ · 7 Strecken). Neue
+Spieltest-Option `pack` (mehrere Strecken je Flugzeug): ryanair-pack +47 · 65; LCC-Kabine + bester Preis + pack
++238 gegen vorsichtig-pack +226 → E91 für die LCC-Kabine erreicht; fester Preis 0,85 → O99. Faktor 0,5 gegen 1
+innerhalb der Streuung. **Fehler behoben:** Planer und Streckenansicht zeigten keine Prognose, wenn das Flugzeug schon
+eine Strecke auf einem anderen Paar flog (`operationsCore`, `src/model/monthClose.ts`). E99 (Ziel „standard auf Hard
+pleite“ gestrichen) und E100 (Wucher bleibt) ohne Code. Spezifikation 1.1, 7.9 und Glossar nachgezogen. Tests:
+1 261 grün (5 neu). Im Browser nicht geprüft.
+
+Offen aus diesem Stand: (1) O99. (2) Wirkung der kürzeren KI-LCC-Wende im Langlauf (→ 5.4g).
 
 Stand: 27.11.2026 · Paket 5.4e erledigt: Balance-Langlauf nach E87–E97 (`balance/5.4e-bericht.md`, Auswertung oben im
 Bericht; Funde 67–71 in `BALANCE.md`): **18 ok · 3 Abweichung · 33 Info** (5.3d: 21 · 0 · 31). Abweichungen:
@@ -650,8 +665,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.4c | Preis-Empfindlichkeit getrennt in Anziehung und „Nicht fliegen“ (E90, E91, E97) (F86) | erledigt |
 | 5.4d | Spieltest-Matrix und Planer-Probe nach 5.4a–c gegen die Ziele (E88, E91, E92, E94–E96; `balance/5.4-spieltest.md`) | erledigt |
 | 5.4e | Balance-Langlauf nach E87–E97: KI-Stärke, Preiskämpfe, Prüfregeln (`balance/5.4e-bericht.md`; Funde 67–71, Fragen O95–O98) | erledigt |
-| 5.4f | Kürzere Bodenzeit der LCC-Kabine (E98) mit Spieltest-Matrix; Ziel „standard auf Hard pleite“ aus der Bewertung streichen (E99); Wucher bleibt (E100) | offen |
-| 5.4g | Umsetzung O95–O98 (Optimizer-Kaufneigung, Klassen-Forschung, Regel B4.2, Werbe-Kosten) mit Balance-Langlauf | wartet auf Antworten |
+| 5.4f | Kürzere Bodenzeit der LCC-Kabine (E98) mit Spieltest-Matrix; Ziel „standard auf Hard pleite“ aus der Bewertung streichen (E99); Wucher bleibt (E100); Planer-Fehler bei geteiltem Flugzeug (F87; `balance/5.4f-spieltest.md`, Funde 72–73, Frage O99) | erledigt |
+| 5.4g | Umsetzung E101–E104 (Optimizer-Kaufneigung, Klassen-Forschung, Regel B4.2, Werbe-Kosten) mit Balance-Langlauf | offen |
 
 ---
 
@@ -746,3 +761,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.4a–5.4d | O81–O91 entschieden (E87–E97); Kosten-Faktor je Stufe, Pleite-Frist, Commuter-Besatzung, getrennte Preis-Empfindlichkeit (F86); Spieltest `balance/5.4-spieltest.md` (Funde 62–66): Easy-Ziel und Hard-Abstand erreicht, LCC, Pleite auf Hard und Wucher offen (O92–O94) |
 | 27.11.2026 | O92–O94 | Im Chat entschieden, jeweils die Empfehlung (E98–E100): LCC-Kabine kürzere Bodenzeit, Hard ohne Pleite-Ziel für „standard“, Wucher bleibt |
 | 27.11.2026 | 5.4e | Balance-Langlauf nach E87–E97 (`balance/5.4e-bericht.md`, 18 ok · 3 Abweichung · 33 Info): Optimizer früh zu schwach (B7.1), Klassen-Forschung zu teuer (B6.7), Preis-Duell bei Überkapazität unter der Schwelle (B4.2), Werbung halb so wirksam (B6.9); Hilfsläufe Optimizer-Kaufneigung 0,5 / 0,6; KI-Stärke Hard > Normal je Lauf; Funde 67–71; neue Fragen O95–O98, Paket 5.4g; kein Code geändert |
+| 27.11.2026 | O95–O98 | Im Chat entschieden, jeweils A (E101–E104): Optimizer-Kaufneigung 0,6, Klassen-Forschung × 0,7, Prüfregel B4.2 angepasst, Kampagnen-Kosten halbiert; Umsetzung in 5.4g |
+| 27.11.2026 | 5.4f | LCC-Kabine wendet in der halben Zeit (E98, F87); Spieltest-Option `pack`; Planer-Fehler bei geteiltem Flugzeug behoben; `balance/5.4f-spieltest.md` (Funde 72–73): Wende kaum wirksam, LCC-Kabine trägt mit bestem Preis und gepackten Flugzeugen; neue Frage O99 |

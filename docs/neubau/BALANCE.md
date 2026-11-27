@@ -901,3 +901,26 @@ statt 1,006–1,024; der Mehr-Gewinn je Fluggast ist zudem kleiner. Halbe Kosten
 - Marge beim besten Preis lang 23 % / kurz-mittel 32 % (5.3d 27 / 42 %), gewollt (E90, E97).
 - Rückgewinnung (B8.2): Pandemie mit Marktgröße × 0,25 bringt 0,71 × den Preis zurück (Info).
 - Rechenzeit 1 009 ms je Monat in den 2010ern (5.3d 1 091).
+
+## Paket 5.4f: Kürzere Wende der LCC-Kabine (27.11.2026)
+
+Bericht: `balance/5.4f-spieltest.md`. `QUICK_TURN_FACTOR` = 0,5 (E98). Gemessen: ryanair, ryanair-gross, neue
+Strategien ryanair-pack und vorsichtig-pack (Option `pack`: mehrere Strecken je Flugzeug), Zusatzlauf LCC-Kabine +
+bester Preis + pack; je 2 Startwerte, 1995 und 1970.
+
+### Fund 72: Die Wende ist nicht der Engpass; der Hebel ist ein Flugzeug für mehrere Strecken → Frage O99
+
+Ein Flugzeug auf einer Strecke fliegt 7–14 Umläufe je Woche und steht den Rest der Zeit; mehr Umläufe bringen weniger
+zusätzliche Fluggäste, als sie kosten (737-300 FRA 1995, LCC, 0,85: 14 Umläufe +24 447 $/Woche, 21 Umläufe −50 475).
+Darum ändert E98 „ryanair“ kaum (1995 Normal −3,2 · 7 Strecken; vorher ±0 · 9). Mit `pack` teilen sich 2–2,3 Strecken
+ein Flugzeug und seine Kosten (`aircraftShare`, 5.9): ryanair-pack 1995 Normal +47 · 65, Faktor 0,5 gegen 1 innerhalb
+der Streuung (Easy +16 %, Normal −4 %, Hard +18 %). LCC-Kabine + bester Preis + pack: +444 / +238 / +139 Mio. $
+(Easy / Normal / Hard) gegen vorsichtig-pack +364 / +226 / +115. Die LCC-Kabine trägt also; klein bleibt nur der feste
+Preis 0,85. 1970 trägt keine LCC (nur Commuter, Ölkrise).
+
+### Fund 73: Planer ohne Prognose bei geteiltem Flugzeug (Fehler, behoben)
+
+Flog das gewählte Flugzeug schon eine Strecke auf einem anderen Paar, brach `plannerRouteFigures` ab
+(`operationsCore`, Schleife „freie Sitze“, `src/model/monthClose.ts`); Planer und Streckenansicht zeigten keine
+Prognose (Warnung im Log). Die KI war nicht betroffen (sonst wären Langläufe abgebrochen). Behoben in F87.
+

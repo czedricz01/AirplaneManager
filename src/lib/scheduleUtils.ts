@@ -32,6 +32,7 @@ import {
   weeklyUtilization,
   type AircraftClass
 } from '../model';
+import { planeQuickTurn, type QuickTurnPlane } from './modelBridge';
 
 export const WEEK_MIN = MINUTES_PER_WEEK;
 export const DAY_MIN = MINUTES_PER_DAY;
@@ -59,9 +60,12 @@ function modelClass(aircraftClass: string | undefined | null): AircraftClass {
   return 'Narrowbody';
 }
 
-/** Turnaround at the outstation, by aircraft class (`turnaroundMinutes`). */
-export function getTurnoverMinutes(aircraftClass: string | undefined | null): number {
-  return turnaroundMinutes(modelClass(aircraftClass));
+/**
+ * Turnaround at the outstation, by aircraft class (`turnaroundMinutes`); shorter for a plane with an LCC cabin
+ * (only Economy and "Minimal services", `planeQuickTurn`, E98).
+ */
+export function getTurnoverMinutes(aircraftClass: string | undefined | null, plane?: QuickTurnPlane | null): number {
+  return turnaroundMinutes(modelClass(aircraftClass), planeQuickTurn(plane));
 }
 
 /** Minutes the aircraft is committed to one trip, rounded up to 5 (`tripBlockMinutes`). */
