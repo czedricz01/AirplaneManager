@@ -173,7 +173,8 @@ Zwei Läufe mit `scripts/playtest-matrix.ts --jobs 4`:
 2. **Verkleinerte Matrix mit `DEMAND_SCALE` 6,0** (endgültig): optimierer, vorsichtig, luxus, standard je Startwert 1,
    alle Zeitalter und Stufen (33 Spiele, kein Fehler).
 
-Ergebnis der letzten 12 Monate in Mio. $ · Strecken (tiefste Kasse); Vergleich `5.4h-spieltest.md` (alte Stadtwerte,
+Gemessen vor dem Zusammenführen mit F89 (Rang ohne Mindest-Jahre, korrigierte Reichweiten); danach nur Tests und
+Balance-Skript wiederholt. Ergebnis der letzten 12 Monate in Mio. $ · Strecken (tiefste Kasse); Vergleich `5.4h-spieltest.md` (alte Stadtwerte,
 Mittel zweier Startwerte).
 
 **Free Mode, FRA, 1995–2004**
