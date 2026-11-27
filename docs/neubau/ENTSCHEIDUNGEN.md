@@ -307,6 +307,12 @@ O99 aus Paket 5.4f (`balance/5.4f-spieltest.md`, Abschnitt 5; Fund 72), gestellt
 |---|---|---|---|
 | O99 | Die LCC-Kabine trägt mit bestem Preis und mehreren Strecken je Flugzeug (1995 Normal +238 Mio. $ gegen „vorsichtig-pack“ +226). Fest 0,85 × Markt bleibt klein (+47 gepackt, −3 ungepackt). Soll ein fester Billigpreis stärker tragen? | A: so lassen (Billigpreis ist eine Entscheidung, kein Vorteil an sich; E91 gilt für die LCC-Kabine als erreicht). B: Nachfrage unter dem Marktpreis stärker wachsen lassen (`NO_FLY_SENSITIVITY`, ändert E97). C: Kostenvorteil je Fluggast für die LCC-Kabine (widerspricht E98). | A → E105 |
 
+O100 aus Paket 5.4h (`balance/5.4h-spieltest.md`, Abschnitt 6; Fund 77), gestellt am 27.11.2026.
+
+| Nr. | Frage | Wege | Antwort |
+|---|---|---|---|
+| O100 | Die pack-Strategien bringen auf Hard nur 31–32 % ihres Easy-Ergebnisses (1995: vorsichtig-pack +115 von +363, lcc-best-pack +139 von +444 Mio. $); E94 will etwa 40–50 %. Andere gute Strategien liegen bei 37–46 %. Hard bleibt klar gewinnbar. | A: so lassen, Band als „etwa 30–50 %“ lesen. B: Kosten-Faktor Hard 1,1 → 1,05. C: Kosten-Faktor Easy 0,85 → 0,9 (E88 neu prüfen). | offen (Empfehlung A) |
+
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
 ### Abhängigkeiten
