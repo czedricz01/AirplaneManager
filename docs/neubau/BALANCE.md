@@ -760,7 +760,7 @@ lohnt ab einer Chance von 60 % (in allen 6 Beispielen von B6.8; vorher bei Minde
 (1961, Bezugsgröße Mindestwert): sicher $253K Prämie / $126K Strafe, hoch $632K / $316K. Der Satz „This year each pays
 the same minimum bonus …“ im Ziel-Angebot entfällt (`goalOfferLines`).
 
-### Fund 57: Warum die KI keinen Widebody kauft (B7.13, B7.14, E84) → O80
+### Fund 57: Warum die KI keinen Widebody kauft (B7.13, B7.14, E84) → O80 → E85 (so lassen)
 
 1. **Größte Langstrecken-Paare** (je Jahr die 20 größten über 3 500 km zwischen Flughäfen ab Größe 3; 1990, 2000, 2010;
    Flag-Ausstattung, Rechnung der KI vor dem Kauf): Der beste Widebody liegt auf **0 von 60** Paaren vorn, und zwar
@@ -791,3 +791,6 @@ the same minimum bonus …“ im Ziel-Angebot entfällt (`goalOfferLines`).
 Folgerung: Die KI rechnet richtig; der Widebody ist im Modell nur dort besser, wo kein Narrowbody die Reichweite hat.
 Dasselbe gilt für den Spieler (gleiche Kosten-Rechnung, R1). Ob Widebodies wirtschaftlich attraktiver werden sollen, ist
 eine Frage des Spielmodells (Kosten 5.3, Satisfaction), nicht der KI → O80.
+
+Entschieden (E85, O80 = A, 27.11.2026): so lassen. Kein Größen-Vorteil im Treibstoff, kein Komfort-Abzug; B7.13 und
+B7.14 bleiben Info-Prüfungen.

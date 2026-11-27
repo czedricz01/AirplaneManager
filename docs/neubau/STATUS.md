@@ -1,12 +1,22 @@
 # Status
 
-**Nächstes Paket: 5.3f** – Antwort auf O80 (Widebodies lohnen sich im Modell fast nie: so lassen, Größen-Vorteil im
-Treibstoff oder Komfort-Abzug für Narrowbodies auf Langstrecke). Wartet auf die Entscheidung. Bei A nur Dokumentation;
-bei B oder C zu lesen: O80 in `ENTSCHEIDUNGEN.md`, Fund 57 in `BALANCE.md`, `src/balance/widebody.ts`; für B
-`src/model/costs.ts` (`fuelLitresPerSeat100km`, `fuelCost`), Spezifikation 5.3; für C `src/model/satisfaction.ts`,
-Spezifikation Abschnitt 2; danach Balance-Bericht mit Langlauf (`npm run balance -- --long`).
+**Nächstes Paket: 5.3g** (Vorschlag) – Spieltest im Browser mit eigenen Strecken: die Punkte, die 5.3b nicht
+prüfen konnte („Offen aus 5.3b“ (1), „Offen aus 5.3c“ (1)): Störungs-Frage (Text und Beträge), Deregulation-Zähler mit
+täglichen Strecken, Szenario-Anzeige der Untergrenze („now -$…“, Warnung unter der Schwelle). Weil der Planer sich im
+Skript nicht bedienen ließ, einen Spielstand mit Strecken über `src/lib/saveLoad.ts` (Version 8) direkt in den
+Browser-Speicher legen und laden. Zu lesen: `balance/5.3b-spieltest.md` (Abschnitt „Grenzen“), `src/lib/saveLoad.ts`,
+für die Störungs-Frage `buildDisruptionDecision` und `charterQuestionFigures`. Ergebnis in `balance/5.3g-spieltest.md`
+und `BALANCE.md`. Das Spielgefühl der KI-Stärke kann nur ein Mensch beurteilen; danach ist der Neubau abgeschlossen,
+falls keine neue Frage entsteht.
 
-**Offene Frage O80** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+**Keine offene Frage** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+
+Stand: 27.11.2026 · Paket 5.3f erledigt: O80 entschieden (E85, Weg A): Widebodies bleiben, wie sie sind; kein
+Größen-Vorteil im Treibstoff, kein Komfort-Abzug, keine eigene Regel für die KI. Nur Dokumentation: Spezifikation 5.3
+(Absatz „Kein Größen-Vorteil“), Fund 57 in `BALANCE.md` (Entscheidung nachgetragen), Verweise der Info-Prüfungen B7.13
+und B7.14 auf E84/E85 (`src/balance/widebody.ts:271`, `:278`). Keine Rechnung geändert. Tests: 1 247 grün.
+
+Offen aus 5.3f: Die Punkte „Offen aus 5.3b“ (1)–(4) bleiben; (1) wird Paket 5.3g.
 
 Stand: 27.11.2026 · Paket 5.3e erledigt (F83): O78 und O79 entschieden (E83, E84, je Weg A). E83 umgesetzt: Die
 Mindest-Prämie des Jahresziels ist je Art gestaffelt (`goalMinReward`: 250 000 / 375 000 / 625 000 $ von 1960); das hohe
@@ -585,7 +595,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.3c | Umsetzung O71–O73, Feinabstimmung mit Langlauf (KI-Umläufe, KI-Stärke, Schwierigkeit, Gold-Meilenstein; F80) | erledigt |
 | 5.3d | Umsetzung O74–O77 mit Langlauf (KI-Stärke, Schwierigkeit, KI-Langstrecke, Optimizer; F81) | erledigt |
 | 5.3e | Umsetzung O78 (Jahresziel-Prämie) und O79 (KI ohne Widebody: messen; F83) | erledigt |
-| 5.3f | Antwort auf O80 (Wirtschaftlichkeit der Widebodies: so lassen, Treibstoff-Größenvorteil oder Komfort) | offen, wartet auf Entscheidung |
+| 5.3f | Antwort auf O80 (Wirtschaftlichkeit der Widebodies): so lassen (E85), nur Dokumentation | erledigt |
+| 5.3g | Spieltest im Browser mit eigenen Strecken (Störungs-Frage, Deregulation-Zähler, Szenario-Untergrenze; „Offen aus 5.3b“ (1)) | offen (Vorschlag) |
 
 ---
 
@@ -675,3 +686,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 25.11.2026 | 5.3d | O74–O77 entschieden und umgesetzt (E79–E82, F81): KI sucht vor dem Kauf mit Bezugs-Typen je Bauart und wählt nach Gewinn nach Kapitalkosten; Optimizer-Kaufneigung 0,4; Langlauf `balance/5.3d-bericht.md` (21 ok · 0 Abweichung · 31 Info), Funde 47–50 (Langstrecke 15,3 %, B7.1 1,69 / 1,88, KI stärker, Rechenzeit +74 %); neue Prüfregel B7.12; Tests 1 240 grün |
 | 25.11.2026 | 5.3b | Spieltest im Browser (F82): `balance/5.3b-spieltest.md`, Funde 51–55; Spielstand sprengte den Browser-Speicher (KI-Berichte mit Strecken-Zahlen) → `keptReports`, `RIVAL_REPORT_MONTHS` = 12; Jahresziel-Angebot endet mit dem Januar-Abschluss; Texte Ziel-Angebot, Rang-Hinweis, „Oil Shock“; Zeiten gemessen (Start < 0,4 s, Abschluss bis 0,87 s im Mittel mit 6 KI); neue Fragen O78, O79, Paket 5.3e; Tests 1 243 grün |
 | 27.11.2026 | 5.3e | O78, O79 entschieden (E83, E84); Mindest-Prämie des Jahresziels je Art gestaffelt (`goalMinReward`); Messung der KI-Flugzeugwahl (`src/balance/widebody.ts`, B7.13, B7.14; Hilfsläufe): Widebody nur jenseits der Narrowbody-Reichweite besser, KI kauft ihn dort; neue Frage O80; `balance/5.3e-bericht.md`; Tests 1 247 grün |
+| 27.11.2026 | 5.3f | O80 entschieden (E85, Weg A): Widebodies so lassen, kein Größen-Vorteil im Treibstoff, kein Komfort-Abzug; Spezifikation 5.3 und Fund 57 nachgetragen, Verweise B7.13/B7.14; keine Rechnung geändert; neues Paket 5.3g (Spieltest mit eigenen Strecken) vorgeschlagen |

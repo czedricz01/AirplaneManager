@@ -268,14 +268,14 @@ export function widebodySection(data: WidebodyData = widebodyData()): Section {
   const checks: Check[] = [
     {
       id: 'B7.13',
-      spec: '7.11, E81, O79',
+      spec: '7.11, E81, E84, E85',
       rule: `Größte Langstrecken-Paare (über ${num(LONG_HAUL_KM)} km, beide Flughäfen ab Größe ${WIDEBODY_SLOTS_MIN_AIRPORT_SIZE}): bringt der beste Widebody der KI mehr als der beste Narrowbody?`,
       value: `${wideBeforeCapital} von ${both.length} Paaren vor Kapitalkosten (Planer-Zahl), ${wideAfterCapital} von ${both.length} nach Kapitalkosten (${WIDEBODY_YEARS.join(', ')}, je ${WIDEBODY_PAIRS} Paare)`,
       verdict: 'info',
     },
     {
       id: 'B7.14',
-      spec: '7.11, E81, O79',
+      spec: '7.11, E81, E84, E85',
       rule: `Paare über ${num(ULTRA_LONG_KM)} km (fast nur Widebodies haben die Reichweite): Widebody vorn und nach Kapitalkosten mit Gewinn`,
       value: `Widebody vorn auf ${ultraWide.length} von ${data.ultra.length} Paaren, davon mit Gewinn nach Kapitalkosten ${ultraPositive.length}`,
       verdict: 'info',
