@@ -292,8 +292,8 @@ export function AirportDetailView({
             infrastructure.level === 1 ? 'Standard' :
             infrastructure.level === 2 ? 'Hub' : 'Owner'
           } />
-          <Metric label="Business" value={formatNumber(getAirportStats(airport, currentYear).business)} />
-          <Metric label="Tourism" value={formatNumber(getAirportStats(airport, currentYear).tourism)} />
+          <Metric label="Business (k pax/yr)" value={formatNumber(getAirportStats(airport, currentYear).business)} />
+          <Metric label="Tourism (k pax/yr)" value={formatNumber(getAirportStats(airport, currentYear).tourism)} />
           <Metric label="Departing Seats / wk" value={formatNumber(desks.departingSeats)} />
           <div className="flex flex-col relative group min-w-[100px]">
             <span className="text-muted text-2xs mb-0.5 flex items-center gap-1 cursor-pointer hover:text-ink transition-colors" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => setShowCostBreakdown(!showCostBreakdown)}>

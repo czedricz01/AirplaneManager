@@ -17,6 +17,7 @@ import {
   CABIN_CLASSES,
   CLASS_BASE,
   CLASS_BUSINESS_GAIN,
+  CLASS_BUSINESS_REF,
   CLASS_TIME_FROM,
   CLASS_TIME_GAIN,
   CLASS_TIME_TO,
@@ -238,7 +239,7 @@ export function businessShare(a: CitySize, b: CitySize): number {
 // ---------------------------------------------------------------------------
 
 /**
- * Wie viel mehr Menschen weltweit fliegen als 1960: Faktor, 1 im Januar 1960, 2,5 im Januar 2019.
+ * Wie viel mehr Menschen weltweit fliegen als 1960: Faktor, 1 im Januar 1960, `DEMAND_GROWTH_1960_2019` im Januar 2019.
  * `DEMAND_GROWTH_1960_2019 ^ ((timeOf(month) − 1960) / 59)`, Zeit begrenzt auf 1960 … 2100.
  * Die einzige Wachstumsregel der Nachfrage (E7, W8). SPEZIFIKATION 3.3.
  */
@@ -374,7 +375,7 @@ export function marketSize(input: MarketSizeInput): number {
 /**
  * Welcher Teil der Marktgröße in der Klasse `cabinClass` reist (E21, W5). Für die höheren Klassen:
  * ```
- * CLASS_BASE × (1 + CLASS_BUSINESS_GAIN × (businessShare − 0,5)) × (1 + CLASS_TIME_GAIN × timeRamp)
+ * CLASS_BASE × (1 + CLASS_BUSINESS_GAIN × (businessShare − CLASS_BUSINESS_REF)) × (1 + CLASS_TIME_GAIN × timeRamp)
  * timeRamp = kappen((referenceBlockMinutes − 60) / (720 − 60), 0, 1)
  * ```
  * Economy ist der Rest; die vier Anteile ergeben zusammen 1. SPEZIFIKATION 3.7.
@@ -401,7 +402,7 @@ function upperClassShare(cabinClass: UpperCabinClass, businessShareValue: number
   const timeRamp = clamp((referenceMinutes - CLASS_TIME_FROM) / (CLASS_TIME_TO - CLASS_TIME_FROM), 0, 1);
   return (
     CLASS_BASE[cabinClass] *
-    (1 + CLASS_BUSINESS_GAIN[cabinClass] * (businessShareValue - 0.5)) *
+    (1 + CLASS_BUSINESS_GAIN[cabinClass] * (businessShareValue - CLASS_BUSINESS_REF)) *
     (1 + CLASS_TIME_GAIN[cabinClass] * timeRamp)
   );
 }

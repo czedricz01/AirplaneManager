@@ -222,9 +222,9 @@ describe('Abschnitt 3.2 Stadtgrößen und Verflechtung', () => {
 });
 
 describe('Abschnitt 3.3 Nachfrage-Wachstum', () => {
-  it('3.3: 1 im Januar 1960, 2,25 im Januar 2019 (E64)', () => {
+  it('3.3: 1 im Januar 1960, 1,97 im Januar 2019 (E64, E107)', () => {
     assert.equal(demandGrowth(0), 1);
-    assertClose(demandGrowth(jan(2019)), 2.25);
+    assertClose(demandGrowth(jan(2019)), 1.97);
   });
 
   it('3.3: steigt stetig mit jedem Monat', () => {
@@ -350,10 +350,10 @@ describe('Abschnitt 3.7 Klassen-Anteil', () => {
 
   it('3.7: Beispielwerte der Spezifikation (Premium / Business / First / Economy)', () => {
     const cases: [bs: number, minutes: number, expected: [number, number, number, number]][] = [
-      [0, SHORT, [0.049, 0.01, 0.0024, 0.9386]],
-      [0.5, SHORT, [0.07, 0.05, 0.012, 0.868]],
-      [0.5, LONG, [0.105, 0.08, 0.03, 0.785]],
-      [1, LONG, [0.1365, 0.144, 0.054, 0.6655]],
+      [0, SHORT, [0.0574, 0.026, 0.00624, 0.91036]],
+      [0.3, SHORT, [0.07, 0.05, 0.012, 0.868]],
+      [0.3, LONG, [0.105, 0.08, 0.03, 0.785]],
+      [1, LONG, [0.1491, 0.1696, 0.0636, 0.6177]],
     ];
     for (const [bs, minutes, [premium, business, first, economy]] of cases) {
       const shares = classShares(bs, minutes);
