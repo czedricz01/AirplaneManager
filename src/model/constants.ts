@@ -544,10 +544,11 @@ export const WORLD_REGIONS: readonly WorldRegion[] = ['EU', 'NA', 'SA', 'AF', 'A
 
 /**
  * Wachstum der Weltnachfrage 1960 → 2019 (E7, W8). Die einzige Wachstumsregel der Nachfrage.
- * 2,25 statt 2,5, weil sich die Weltanteile der Städte verschieben: Die Summe der Marktgrößen aller Paare wächst
- * damit 1960 → 2019 um etwa × 2,5 (E64, Balance-Skript B3.1). SPEZIFIKATION 3.3.
+ * Kleiner als 2,5, weil sich die Weltanteile der Städte verschieben: Die Summe der Marktgrößen aller Paare wächst
+ * damit 1960 → 2019 um etwa × 2,5 (E64, Balance-Skript B3.1). Mit den realen Stadtwerten (Paket D1, E107) 1,97,
+ * vorher 2,25. SPEZIFIKATION 3.3.
  */
-export const DEMAND_GROWTH_1960_2019 = 2.25;
+export const DEMAND_GROWTH_1960_2019 = 1.97;
 
 /** Jahre von 1960 bis 2019, Bezugszeitraum von `DEMAND_GROWTH_1960_2019`. SPEZIFIKATION 3.3. */
 export const DEMAND_GROWTH_YEARS = 59;
@@ -575,8 +576,12 @@ export const DISTANCE_EXP = 0.3;
 /** Hochzahl der Verflechtung (Abstand großer zu kleinen Paaren; Alt-Code: `src/lib/financeUtils.ts:683`). SPEZIFIKATION 3.6. */
 export const LINK_EXP = 0.448351;
 
-/** Maßstab der Marktgröße, Fluggäste je Woche (Alt-Code: 29 × 0,9 bei Normal; E67, E70: halbiert). Aus dem Balance-Skript (Paket 3.9d). SPEZIFIKATION 3.6. */
-export const DEMAND_SCALE = 14.5;
+/**
+ * Maßstab der Marktgröße, Fluggäste je Woche (Alt-Code: 29 × 0,9 bei Normal; E67, E70: 14,5). Mit den realen
+ * Stadtwerten (Paket D1, E107) 4,5: Die 30 größten Märkte der Spieltest-Drehkreuze (FRA 1995/2025, DUS 1970) bleiben
+ * im Mittel so groß wie vorher. SPEZIFIKATION 3.6.
+ */
+export const DEMAND_SCALE = 4.5;
 
 // ---------------------------------------------------------------------------
 // 3.7 Klassen-Anteil
@@ -598,6 +603,13 @@ export const CLASS_BUSINESS_GAIN: Readonly<Record<UpperCabinClass, number>> = {
   business: 1.6,
   first: 1.6,
 };
+
+/**
+ * Geschäftsanteil eines Paars, bei dem `CLASS_BASE` gilt (E107). Vor den realen Stadtwerten fest 0,5; mit ihnen
+ * liegt der mittlere Geschäftsanteil aller Paare um 0,2 tiefer (0,46 → 0,26), deshalb 0,3: Die Klassen-Anteile
+ * typischer Paare bleiben wie vorher. SPEZIFIKATION 3.7.
+ */
+export const CLASS_BUSINESS_REF = 0.3;
 
 /** Wie stark lange Flugzeit den Klassen-Anteil hebt (E21). Startwerte (3.9). SPEZIFIKATION 3.7. */
 export const CLASS_TIME_GAIN: Readonly<Record<UpperCabinClass, number>> = {

@@ -1,5 +1,5 @@
 import { airportsData } from './airports';
-import { Airport, STATS_BASE_YEAR } from './airportTypes';
+import { Airport } from './airportTypes';
 import { moreAirports } from './more_airports';
 
 /**
@@ -10,8 +10,7 @@ import { moreAirports } from './more_airports';
  * RouteDetailView and RoutePricingEditView let `moreAirports` overwrite it. Eight
  * ids are in both (SKG HER RHO AYT ADB ESB BJV DLM), so those airports had a
  * different level, ICAO code and demand depending on which screen you were
- * looking at. Only App applied the era adjustment below, so the airports table
- * showed unadjusted demand while the planner and the map used adjusted values.
+ * looking at.
  *
  * Everything now comes from here.
  */
@@ -24,52 +23,16 @@ for (const a of moreAirports) {
   if (!byId.has(a.id)) byId.set(a.id, a as unknown as Airport);
 }
 
-/** Merged, before the era adjustment. */
+/** Merged core and secondary airports. */
 export const rawAirports: Airport[] = Array.from(byId.values());
 
-const sovietAirports = new Set([
-  'SVO', 'DME', 'VKO', 'LED', 'OVB', 'KBP', 'MSQ', 'TAS', 'ALA', 'EVN',
-  'GYD', 'TBS', 'KIV', 'PRG', 'WAW', 'BUD', 'SOF', 'OTP', 'SXF'
-]);
-const westernAirports = new Set([
-  'JFK', 'EWR', 'LGA', 'ORD', 'LAX', 'SFO', 'ATL', 'DFW', 'MIA', 'IAD',
-  'DCA', 'LHR', 'LGW', 'CDG', 'ORY', 'FRA', 'MUC', 'AMS', 'MAD', 'BCN',
-  'FCO', 'MXP', 'ZRH'
-]);
-
 /**
- * Airports with the era adjustment applied: Soviet-bloc traffic damped before
- * 1990 and through the transition, major Western hubs lifted before 1975.
+ * The list every screen uses. It used to apply an era adjustment here (Soviet-bloc traffic × 0.45–0.65,
+ * major Western hubs × 1.15 before 1975) to correct invented demand tables. The tables now come from real
+ * passenger statistics (scripts/airport-traffic), which already contain those effects, so the list is the
+ * merged data unchanged. The name `airportsMapAdjusted` stays for the callers.
  */
-export const airports: Airport[] = rawAirports.map(a => {
-  const isSoviet = sovietAirports.has(a.id);
-  const isWesternMajor = westernAirports.has(a.id);
-
-  if ((!isSoviet && !isWesternMajor) || !a.stats) return a;
-
-  // The stats array is tourism and business interleaved from STATS_BASE_YEAR,
-  // so the year for index i is STATS_BASE_YEAR + (i >> 1).
-  const src = a.stats;
-  const out = src.slice();
-  for (let i = 0; i < src.length; i += 2) {
-    const year = STATS_BASE_YEAR + i / 2;
-    let multiplier = 1.0;
-
-    if (isSoviet) {
-      if (year < 1990) multiplier = 0.45;        // Soviet era
-      else if (year < 2000) multiplier = 0.55;   // post-Soviet collapse
-      else multiplier = 0.65;                    // modern Russian aviation
-    } else if (isWesternMajor) {
-      if (year < 1975) multiplier = 1.15;        // early Western hubs
-    }
-
-    if (multiplier !== 1.0) {
-      out[i] = Math.max(1, Math.round(src[i] * multiplier));
-      out[i + 1] = Math.max(1, Math.round(src[i + 1] * multiplier));
-    }
-  }
-  return { ...a, stats: out };
-});
+export const airports: Airport[] = rawAirports;
 
 /** Lookup over the adjusted list. This is what every screen should use. */
 export const airportsMapAdjusted = new Map<string, Airport>();

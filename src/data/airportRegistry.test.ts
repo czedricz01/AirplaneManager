@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { airportRows } from './airportsRows';
+import { moreAirportRows } from './moreAirportsRows';
+import { STATS_BASE_YEAR } from './airportTypes';
+import { TRAFFIC } from '../../scripts/airport-traffic/data';
+import { FIRST_YEAR, LAST_YEAR, statsRow } from '../../scripts/airport-traffic/series';
 import { airports, airportsMapAdjusted, rawAirports } from './airportRegistry';
 
 /**
@@ -40,63 +44,42 @@ test('every airport has usable coordinates and a demand table', () => {
 });
 
 /**
- * Demand is meant to start low and grow steadily. These checks run on
- * `rawAirports` -- the merged list before the Soviet/Western era multipliers
- * in airportRegistry.ts, which are a deliberate runtime effect, not a data
- * error -- and only from each channel's first nonzero year onward, since a
- * leading run of zeros represents an airport that has not opened yet.
- *
- * Below MIN_MAGNITUDE, a single passenger swings the ratio by double-digit
- * percentages -- that is integer quantization, not a demand-curve problem, so
- * the frozen-run and spike checks only apply once a value clears that floor.
- * A decrease is checked regardless of magnitude.
- *
- * Keep these constants in sync with scripts/fix_airport_stats.ts, which uses
- * the same thresholds to smooth violations of these invariants.
+ * The demand tables are generated from real passenger statistics by scripts/airport-traffic/build.ts.
+ * Real traffic falls as well as rises (wars, closures, a hub moving to a new airport), so the old
+ * "grows steadily" invariant no longer applies. Instead: the generated rows must match the source data
+ * exactly (nobody edits them by hand), and the values must be plausible.
  */
-const MAX_ANNUAL_GROWTH = 1.2;
-const MAX_FROZEN_RUN = 4;
-const MIN_MAGNITUDE = 15;
 
-function checkChannel(id: string, label: string, stats: number[], offset: number): string[] {
-  const problems: string[] = [];
-  const n = stats.length / 2;
-  let anchor = -1;
-  for (let i = 0; i < n; i++) {
-    if (stats[i * 2 + offset] > 0) {
-      anchor = i;
-      break;
-    }
+test('generated demand tables match the source data (re-run scripts/airport-traffic/build.ts)', () => {
+  const stale: string[] = [];
+  for (const row of [...airportRows, ...moreAirportRows]) {
+    const entry = TRAFFIC[row[0]];
+    if (!entry || JSON.stringify(statsRow(entry)) !== JSON.stringify(row[6])) stale.push(row[0]);
   }
-  if (anchor === -1) return problems;
+  assert.deepEqual(stale, []);
+});
 
-  let frozenRun = 1;
-  for (let i = anchor + 1; i < n; i++) {
-    const prev = stats[(i - 1) * 2 + offset];
-    const curr = stats[i * 2 + offset];
-    const magnitudeOk = prev >= MIN_MAGNITUDE;
-    if (curr < prev) problems.push(`${id} ${label} decreases at index ${i} (${prev} -> ${curr})`);
-    if (curr === prev) {
-      frozenRun++;
-      if (magnitudeOk && frozenRun > MAX_FROZEN_RUN) {
-        problems.push(`${id} ${label} frozen for ${frozenRun} years ending at index ${i}`);
-      }
-    } else {
-      frozenRun = 1;
-    }
-    if (magnitudeOk && prev > 0 && curr / prev > MAX_ANNUAL_GROWTH) {
-      problems.push(`${id} ${label} spikes at index ${i} (${prev} -> ${curr}, ${((curr / prev - 1) * 100).toFixed(0)}%)`);
-    }
-  }
-  return problems;
-}
-
-test('demand tables start low and grow steadily, with no frozen runs, dips or spikes', () => {
-  const problems: string[] = [];
+test('demand tables cover 1960-2025 with finite, non-negative values', () => {
+  assert.equal(FIRST_YEAR, STATS_BASE_YEAR);
+  const years = LAST_YEAR - FIRST_YEAR + 1;
   for (const a of rawAirports) {
-    if (!a.stats) continue;
-    problems.push(...checkChannel(a.id, 'tourism', a.stats, 0));
-    problems.push(...checkChannel(a.id, 'business', a.stats, 1));
+    assert.ok(a.stats, `${a.id} has a table`);
+    assert.equal(a.stats.length, years * 2, `${a.id} covers every year`);
+    assert.ok(a.stats.every((v) => Number.isFinite(v) && v >= 0), `${a.id} values`);
   }
-  assert.deepEqual(problems, []);
+});
+
+test('2019 local traffic matches the known order of magnitude', () => {
+  const at = (id: string, year: number) => {
+    const s = rawAirports.find((a) => a.id === id)!.stats!;
+    const i = (year - STATS_BASE_YEAR) * 2;
+    return s[i] + s[i + 1];
+  };
+  // Thousand origin/destination passengers per year: London (LHR+LGW) far above Frankfurt, Frankfurt far above Saarbrücken.
+  assert.ok(at('LHR', 2019) > 90_000 && at('LHR', 2019) < 120_000);
+  assert.ok(at('FRA', 2019) > 30_000 && at('FRA', 2019) < 40_000);
+  assert.ok(at('SCN', 2019) > 200 && at('SCN', 2019) < 600);
+  // Dubai barely existed in 1960; Kyiv has had no civil flights since 2022.
+  assert.ok(at('DXB', 1960) < 20);
+  assert.equal(at('KBP', 2024), 0);
 });

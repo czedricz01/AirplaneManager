@@ -198,7 +198,7 @@ export interface RankCase {
 }
 
 export const RANK_CASES: readonly RankCase[] = [
-  { rank: 1, reachedMonth: monthOf(1960, 4), reachedLabel: 'April 1960', route: { label: 'F27-200 HAM–NUE 1960 (Commuter)', from: 'HAM', to: 'NUE', typeId: 'f27-200', year: 1960, departures: 14, personality: 'flag', short: true } },
+  { rank: 1, reachedMonth: monthOf(1960, 4), reachedLabel: 'April 1960', route: { label: 'F27-200 HAM–FRA 1960 (Commuter)', from: 'HAM', to: 'FRA', typeId: 'f27-200', year: 1960, departures: 14, personality: 'flag', short: true } },
   { rank: 2, reachedMonth: monthOf(1961, 1), reachedLabel: 'Jan. 1961', route: { label: 'Caravelle III FRA–CDG 1961 (Regional)', from: 'FRA', to: 'CDG', typeId: 'caravelle-iii', year: 1961, departures: 14, personality: 'flag', short: true } },
   { rank: 4, reachedMonth: monthOf(1966, 1), reachedLabel: 'Jan. 1966', route: { label: '727-100 FRA–MAD 1966 (Narrowbody)', from: 'FRA', to: 'MAD', typeId: '727-100', year: 1966, departures: 14, personality: 'flag' } },
   { rank: 5, reachedMonth: monthOf(1970, 1), reachedLabel: 'Jan. 1970', route: { label: '727-200 FRA–MAD 1970 (Narrowbody)', from: 'FRA', to: 'MAD', typeId: '727-200', year: 1970, departures: 14, personality: 'flag' } },

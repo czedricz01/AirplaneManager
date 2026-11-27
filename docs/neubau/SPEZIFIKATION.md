@@ -619,7 +619,10 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
 
 ### 3.2 Stadtgrößen und Verflechtung
 **Stadtgröße** je Flughafen `a`: Geschäft `G(a)` und Tourismus `T(a)` aus `src/data/airports.ts:33-59`
-(Daten, unverändert; nach Tabellenende fortgeschrieben wie heute).
+(nach Tabellenende fortgeschrieben wie heute). Seit Paket D1 (E107) reale Werte: Ziel- und Quellverkehr der Stadt in
+tausend Fluggästen je Jahr (Fluggäste laut Flughafen-Statistik ohne Umsteiger, mit den Flughäfen derselben Stadt,
+die nicht im Spiel sind), aufgeteilt nach Reisezweck; Herleitung und Quellen in `scripts/airport-traffic/` und
+`balance/D1-stadtwerte.md`. Krisenjahre, die ein Ereignis (8.4) abbildet, sind in den Daten geglättet.
 - Neu, stetige Zeit (R5): zwischen zwei Tabellenjahren gerade Linie über `timeOf(month)` (heute Sprung am
   Jahreswechsel).
 - Neu, **Weltanteil** (Code-Name: `relativeSize`): `Grel(a) = G(a) × ΣG(1960) / ΣG(jetzt)`, ebenso `Trel`,
@@ -643,9 +646,10 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
 - Einheit und Bereich: Faktor, 1 im Januar 1960.
 - Formel: `demandGrowth = DEMAND_GROWTH_1960_2019 ^ ((timeOf(month) − 1960) / 59)`, Zeit begrenzt auf
   1960 … 2100 (wie `costIndex`).
-- Konstanten: `DEMAND_GROWTH_1960_2019 = 2,25` (E64). Kleiner als das Ziel × 2,5 (E7), weil sich die Weltanteile
-  der Städte verschieben: Die Verflechtung ist ein Produkt zweier Städte, darum wächst die Summe über alle Paare
-  stärker als `demandGrowth` (Balance-Skript: mit 2,5 Summe × 2,78, mit 2,25 Summe × 2,51).
+- Konstanten: `DEMAND_GROWTH_1960_2019 = 1,97` (E64, E107; vor den realen Stadtwerten 2,25). Kleiner als das Ziel
+  × 2,5 (E7), weil sich die Weltanteile der Städte verschieben: Die Verflechtung ist ein Produkt zweier Städte, darum
+  wächst die Summe über alle Paare stärker als `demandGrowth` (mit den realen Stadtwerten und 2,25 Summe × 2,86,
+  mit 1,97 Summe × 2,50).
 - Regeln (Tests): steigt stetig; `demandGrowth` 2019 = `DEMAND_GROWTH_1960_2019`; die **Summe** der Marktgrößen
   aller Paare wächst 1960 → 2019 um × 2,5 ± 10 % (Balance-Skript B3.1, E64; einzelne Paare mehr oder weniger, je
   nach Weltanteil ihrer Städte). Nicht das Mittel der Verhältnisse: Es wird von kleinen Paaren mit großem Zuwachs
@@ -681,7 +685,9 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
 - Hängt ab von: 3.1–3.5. **Nicht** von Flugzeug, Gesellschaft, Ruf, Preis, Satisfaction, Schwierigkeit.
 - Wirkt auf: Potenzial je Klasse (3.10).
 - Konstanten: `LINK_EXP = 0,448351` (heute `:683`; bestimmt nur noch den Abstand großer zu kleinen Paaren);
-  `DEMAND_SCALE = 14,5` (Balance-Skript, Paket 3.9d, E67, E70; Startwert 29 wie heute `:683` ohne den Normal-Abzug 0,9, E4).
+  `DEMAND_SCALE = 4,5` (E107: mit den realen Stadtwerten so, dass die 30 größten Märkte der Spieltest-Drehkreuze im
+  Mittel so groß bleiben wie vorher; davor 14,5 aus Paket 3.9d, E67, E70; Startwert 29 wie heute `:683` ohne den
+  Normal-Abzug 0,9, E4).
   Damit ist ein Flugzeug allein beim besten Preis und der gewinnbesten Flugzahl auf Mittelstrecke zu 86–88 % ausgelastet
   (Langstrecke mit wenigen Flügen 89–99 %), nicht mehr überall voll (Bericht `balance/3.9d-bericht.md`, Abschnitt 4).
 - Regeln (Tests): gleich für Spieler, KI, Planer, Umsteiger-Rechnung (W1, W9); ändert sich nicht mit der
@@ -693,7 +699,7 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
 - Einheit und Bereich: Anteil 0 … 1 je Klasse; Summe der vier = 1.
 - Formel je Klasse `c` ∈ {premium, business, first}:
   ```
-  classShare(c) = CLASS_BASE[c] × (1 + CLASS_BUSINESS_GAIN[c] × (businessShare − 0,5))
+  classShare(c) = CLASS_BASE[c] × (1 + CLASS_BUSINESS_GAIN[c] × (businessShare − CLASS_BUSINESS_REF))
                                 × (1 + CLASS_TIME_GAIN[c] × timeRamp)
   timeRamp      = kappen((referenceBlockMinutes − CLASS_TIME_FROM) / (CLASS_TIME_TO − CLASS_TIME_FROM), 0, 1)
   classShare(economy) = 1 − Summe der drei anderen
@@ -709,10 +715,12 @@ Ruf, Werbung, Frequent flyer, Forschung, Schwierigkeit ─► Anziehung ─► A
   | business | 0,05 | 1,6 | 0,6 |
   | first | 0,012 | 1,6 | 1,5 |
 
-  `CLASS_TIME_FROM = 60` min, `CLASS_TIME_TO = 720` min.
-  Ergebnis (Premium / Business / First / Economy): kurz, reiner Tourismus 4,9 / 1,0 / 0,2 / 93,9 %;
-  kurz, gemischt (0,5) 7,0 / 5,0 / 1,2 / 86,8 %; lang, gemischt 10,5 / 8,0 / 3,0 / 78,5 %;
-  lang, reines Geschäft 13,7 / 14,4 / 5,4 / 66,6 %.
+  `CLASS_TIME_FROM = 60` min, `CLASS_TIME_TO = 720` min. `CLASS_BUSINESS_REF = 0,3` (E107; vorher fest 0,5: Mit den
+  realen Stadtwerten liegt der Geschäftsanteil der Paare im Mittel um 0,2 tiefer, die Klassen-Anteile typischer Paare
+  bleiben so wie vorher).
+  Ergebnis (Premium / Business / First / Economy): kurz, reiner Tourismus 5,7 / 2,6 / 0,6 / 91,0 %;
+  kurz, gemischt (0,3) 7,0 / 5,0 / 1,2 / 86,8 %; lang, gemischt 10,5 / 8,0 / 3,0 / 78,5 %;
+  lang, reines Geschäft 14,9 / 17,0 / 6,4 / 61,8 %.
 - Regeln (Tests): Summe = 1; Economy ≥ 0,5 bei allen Eingaben; höherer `businessShare` hebt Economy nie
   und hebt Business und First (berichtigt in 3.3a, F13); Premium schwankt über alle Paare spürbar (Balance-Skript: 5 %- bis
   95 %-Wert mindestens 3 Prozentpunkte auseinander).

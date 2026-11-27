@@ -284,8 +284,8 @@ describe('Balance-Skript: Flugzeugwahl der KI auf Langstrecke (5.3e, O79)', () =
   });
 
   it('pairChoice: Wert = Planer-Zahl nach Kapitalkosten; Flugzahl höchstens die höchsten Umläufe', () => {
-    const [pair] = largestLongPairs(2000, 1);
-    const c = pairChoice(pair, 2000, 'flag');
+    // Das größte Paar, das auch ein Schmalrumpf erreicht (seit den realen Stadtwerten ist LHR–HND das größte, E107).
+    const c = largestLongPairs(2000, 10).map((p) => pairChoice(p, 2000, 'flag')).find((x) => x.narrow && x.wide)!;
     assert.ok(c.narrow && c.wide);
     for (const t of [c.narrow, c.wide]) {
       assert.equal(t.value, profitAfterCapital(t.expectedProfit, t.price));

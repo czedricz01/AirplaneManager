@@ -1774,8 +1774,8 @@ function RoutePlannerInner({
                                 SLOTS: {slots.free}/{slots.total}
                               </div>
                               <div className="flex gap-2 text-2xs">
-                                <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
-                                <span className="text-ink">B: {getAirportStats(a, currentYear).business}</span>
+                                <span className="text-accent">T: {formatNumber(getAirportStats(a, currentYear).tourism)}</span>
+                                <span className="text-ink">B: {formatNumber(getAirportStats(a, currentYear).business)}</span>
                               </div>
                             </div>
                           </div>
@@ -1791,8 +1791,8 @@ function RoutePlannerInner({
                       <div className="flex flex-col">
                          <div className="text-2xs text-muted truncate w-32 md:w-auto">{selectedOrigin.name}</div>
                          <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
-                           <span>B:{getAirportStats(selectedOrigin, currentYear).business}</span>
-                           <span>T:{getAirportStats(selectedOrigin, currentYear).tourism}</span>
+                           <span>B:{formatNumber(getAirportStats(selectedOrigin, currentYear).business)}</span>
+                           <span>T:{formatNumber(getAirportStats(selectedOrigin, currentYear).tourism)}</span>
                            <span className={slotsAt(selectedOrigin).own > 0 ? "text-accent font-semibold" : ""}>S:{slotsAt(selectedOrigin).free}/{slotsAt(selectedOrigin).total}</span>
                          </div>
                       </div>
@@ -2122,8 +2122,8 @@ function RoutePlannerInner({
                                 SLOTS: {destSlots.free}/{destSlots.total}
                              </div>
                              <div className="flex gap-2 text-2xs">
-                               <span className="text-accent">T: {getAirportStats(a, currentYear).tourism}</span>
-                               <span className="text-ink">B: {getAirportStats(a, currentYear).business}</span>
+                               <span className="text-accent">T: {formatNumber(getAirportStats(a, currentYear).tourism)}</span>
+                               <span className="text-ink">B: {formatNumber(getAirportStats(a, currentYear).business)}</span>
                              </div>
                           </div>
                         </div>
@@ -2139,8 +2139,8 @@ function RoutePlannerInner({
                       <div className="flex flex-col">
                          <div className="text-2xs text-muted truncate w-32 md:w-auto">{selectedDest.name}</div>
                          <div className="flex gap-2 text-2xs uppercase tracking-label font-label text-muted">
-                           <span>B:{getAirportStats(selectedDest, currentYear).business}</span>
-                           <span>T:{getAirportStats(selectedDest, currentYear).tourism}</span>
+                           <span>B:{formatNumber(getAirportStats(selectedDest, currentYear).business)}</span>
+                           <span>T:{formatNumber(getAirportStats(selectedDest, currentYear).tourism)}</span>
                            <span className={slotsAt(selectedDest).own > 0 ? "text-accent font-semibold" : ""}>S:{slotsAt(selectedDest).free}/{slotsAt(selectedDest).total}</span>
                          </div>
                       </div>

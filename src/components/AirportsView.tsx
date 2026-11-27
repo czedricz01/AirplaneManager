@@ -11,6 +11,7 @@ import { Search, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { ViewHeader } from './ui/ViewHeader';
 import { TableScrollContainer, Table, Thead, Th, Td } from './ui/Table';
 import { slotCapacity, type AirportPricing } from '../lib/modelAirport';
+import { formatNumber } from '../lib/format';
 
 type SortField = 'id' | 'name' | 'business' | 'tourism' | 'level' | 'maxIcaoCode';
 type SortDir = 'asc' | 'desc';
@@ -178,8 +179,8 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, pri
             <Th className="w-16 rail:w-auto" sortable onClick={() => toggleSort('level')}>Level {getSortIcon('level')}</Th>
             <Th className="hidden rail:table-cell" sortable onClick={() => toggleSort('maxIcaoCode')}>ICAO {getSortIcon('maxIcaoCode')}</Th>
             <Th className="hidden rail:table-cell" sortable={false}>Slots free / total</Th>
-            <Th className="w-14 rail:w-auto" sortable onClick={() => toggleSort('business')}><span className="rail:hidden">Bus.</span><span className="hidden rail:inline">Business demand</span> {getSortIcon('business')}</Th>
-            <Th className="w-14 rail:w-auto" sortable onClick={() => toggleSort('tourism')}><span className="rail:hidden">Tour.</span><span className="hidden rail:inline">Tourism demand</span> {getSortIcon('tourism')}</Th>
+            <Th className="w-14 rail:w-auto" sortable onClick={() => toggleSort('business')}><span className="rail:hidden">Bus.</span><span className="hidden rail:inline">Business (k pax/yr)</span> {getSortIcon('business')}</Th>
+            <Th className="w-14 rail:w-auto" sortable onClick={() => toggleSort('tourism')}><span className="rail:hidden">Tour.</span><span className="hidden rail:inline">Tourism (k pax/yr)</span> {getSortIcon('tourism')}</Th>
           </Thead>
           <tbody>
             {filteredAndSortedAirports.length === 0 ? (
@@ -216,8 +217,8 @@ function AirportsViewImpl({ currentYear, onSelectAirport, airportManagement, pri
                     </Td>
                     <Td className="hidden rail:table-cell text-xs font-mono">{airport.maxIcaoCode}</Td>
                     <Td className="hidden rail:table-cell text-xs font-mono">{slots.free} <span className="text-muted">/</span> {slots.total}</Td>
-                    <Td className="text-xs font-mono">{businessDemand}</Td>
-                    <Td className="text-xs font-mono">{tourismDemand}</Td>
+                    <Td className="text-xs font-mono">{formatNumber(businessDemand)}</Td>
+                    <Td className="text-xs font-mono">{formatNumber(tourismDemand)}</Td>
                   </tr>
                 );
               })}
