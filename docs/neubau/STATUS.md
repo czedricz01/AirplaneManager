@@ -1,15 +1,27 @@
 # Status
 
-**Nächstes Paket: 5.4e – Balance-Langlauf nach der Schwierigkeit.** Das Balance-Skript (`npm run balance`, Langlauf)
-prüft, wie die neue Preis-Empfindlichkeit (E97) und die Commuter-Kosten (E89) die KI verändern (KI-Stärke, Preiskämpfe,
-Prüfregeln B3–B8). Liest: `balance/5.4-spieltest.md`, `BALANCE.md` Funde 62–66, `src/balance/` (Langlauf, Prüfregeln),
-`scripts/balance.ts`. Ergebnis in `balance/5.4e-bericht.md`. Danach 5.4f (kürzere Bodenzeit der LCC-Kabine, E98).
+**Nächstes Paket: 5.4f – Kürzere Bodenzeit der LCC-Kabine (E98).** Die LCC-Kabine bekommt eine kürzere Bodenzeit
+(mehr Umläufe je Woche), danach Spieltest-Matrix gegen die Ziele (vor allem „ryanair“, O92); Ziel „standard auf Hard
+pleite“ aus der Bewertung streichen (E99). Liest: `balance/5.4-spieltest.md`, `ENTSCHEIDUNGEN.md` E98–E100,
+`src/balance/playtest.ts`, die Umlauf-/Bodenzeit-Rechnung in `src/model/`. Ergebnis in `balance/5.4f-spieltest.md`.
+Danach 5.4g (Umsetzung O95–O98, sobald beantwortet).
 
-**Offene Fragen: keine.** O92–O94 am 27.11.2026 entschieden (E98–E100, jeweils die Empfehlung): LCC-Kabine bekommt
-eine kürzere Bodenzeit (E98, Umsetzung in 5.4f), Ziel „standard geht auf Hard pleite“ gestrichen (E99), Wucher mit
-kleinen Flugzeugen bleibt (E100). Weiter vorgemerkt
-(keine Pakete): Spielgefühl der KI-Stärke (Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55),
-Rechenzeit mit 12 KI (Fund 53), Spielstände in der Cloud (Supabase).
+**Offene Fragen: O95–O98** (aus 5.4e, Tabelle in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; Empfehlung jeweils A):
+O95 Optimizer-Kaufneigung 0,4 → 0,6 (B7.1), O96 Klassen-Forschung × 0,7 (B6.7), O97 Regel B4.2 anpassen (Preis-Duell
+bei Überkapazität), O98 Werbe-Kosten halbieren (B6.9). 5.4f hängt nicht davon ab. Weiter vorgemerkt (keine Pakete):
+Spielgefühl der KI-Stärke (Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI
+(Fund 53), Spielstände in der Cloud (Supabase).
+
+Stand: 27.11.2026 · Paket 5.4e erledigt: Balance-Langlauf nach E87–E97 (`balance/5.4e-bericht.md`, Auswertung oben im
+Bericht; Funde 67–71 in `BALANCE.md`): **18 ok · 3 Abweichung · 33 Info** (5.3d: 21 · 0 · 31). Abweichungen:
+(1) B7.1 Optimizer nach 20 Jahren 0,43 × Median (Faktor 2,31), weil sein bester Preis nach E97 näher am Markt liegt;
+Hilfsläufe: Kaufneigung 0,6 → 1,77 / 1,75 (→ O95). (2) B6.7 Klassen-Forschung 13–17 statt höchstens 12
+Monatsergebnisse (→ O96). (3) B4.2 Preis-Duell mit 28 Abflügen tiefster Preis 0,71 unter der Schwelle 0,76 (→ O97).
+Dazu B6.9 Werbung trägt sich erst ab 24–79 Strecken (→ O98). KI-Stärke: Median Hard 1 430 < Normal 1 548 Mio. $,
+aber mit denselben Läufen Summe Hard in 3 von 3 Läufen über Normal (+8 %), Easy ≈ 38 %; KI-Preiskämpfe 0,1 %, Fund 66
+zeigt sich im Langlauf nicht. Keine Konstante und kein Code geändert. Tests: 1 256 grün.
+
+Offen aus diesem Stand: O95–O98 (→ 5.4g).
 
 Stand: 27.11.2026 · Pakete 5.4a–5.4d erledigt (F86): O81–O90 im Chat gestellt und entschieden (E87–E96, jeweils die
 Empfehlung), O91 bei der Umsetzung dazu (E97). Umgesetzt: (1) **Kosten-Faktor je Stufe** auf Flugbetrieb und Kosten je
@@ -637,8 +649,9 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.4b | Commuter: Besatzung nach Größe (E89) (F86) | erledigt |
 | 5.4c | Preis-Empfindlichkeit getrennt in Anziehung und „Nicht fliegen“ (E90, E91, E97) (F86) | erledigt |
 | 5.4d | Spieltest-Matrix und Planer-Probe nach 5.4a–c gegen die Ziele (E88, E91, E92, E94–E96; `balance/5.4-spieltest.md`) | erledigt |
-| 5.4e | Balance-Langlauf nach E87–E97: KI-Stärke, Preiskämpfe, Prüfregeln (`balance/5.4e-bericht.md`) | offen |
-| 5.4f | Kürzere Bodenzeit der LCC-Kabine (E98) mit Spieltest-Matrix; Ziel „standard auf Hard pleite“ aus der Bewertung streichen (E99); Wucher bleibt (E100) | offen (nach 5.4e) |
+| 5.4e | Balance-Langlauf nach E87–E97: KI-Stärke, Preiskämpfe, Prüfregeln (`balance/5.4e-bericht.md`; Funde 67–71, Fragen O95–O98) | erledigt |
+| 5.4f | Kürzere Bodenzeit der LCC-Kabine (E98) mit Spieltest-Matrix; Ziel „standard auf Hard pleite“ aus der Bewertung streichen (E99); Wucher bleibt (E100) | offen |
+| 5.4g | Umsetzung O95–O98 (Optimizer-Kaufneigung, Klassen-Forschung, Regel B4.2, Werbe-Kosten) mit Balance-Langlauf | wartet auf Antworten |
 
 ---
 
@@ -732,3 +745,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.3g | Spieltest im Browser mit eigenen Strecken (Planer im Skript, Szenario Deregulation): Deregulation-Zähler, Störungs-Frage (Streik, Defekt; Buchung = Frage auf den Dollar) und Szenario-Untergrenze stimmen; drei Texte behoben (F84: `costNote`, Strecken-Namen einmal, „A single month-end“); `balance/5.3g-spieltest.md`, Funde 58–61; Tests 1 250 grün; Neubau abgeschlossen, keine Frage offen |
 | 27.11.2026 | 5.4a–5.4d | O81–O91 entschieden (E87–E97); Kosten-Faktor je Stufe, Pleite-Frist, Commuter-Besatzung, getrennte Preis-Empfindlichkeit (F86); Spieltest `balance/5.4-spieltest.md` (Funde 62–66): Easy-Ziel und Hard-Abstand erreicht, LCC, Pleite auf Hard und Wucher offen (O92–O94) |
 | 27.11.2026 | O92–O94 | Im Chat entschieden, jeweils die Empfehlung (E98–E100): LCC-Kabine kürzere Bodenzeit, Hard ohne Pleite-Ziel für „standard“, Wucher bleibt |
+| 27.11.2026 | 5.4e | Balance-Langlauf nach E87–E97 (`balance/5.4e-bericht.md`, 18 ok · 3 Abweichung · 33 Info): Optimizer früh zu schwach (B7.1), Klassen-Forschung zu teuer (B6.7), Preis-Duell bei Überkapazität unter der Schwelle (B4.2), Werbung halb so wirksam (B6.9); Hilfsläufe Optimizer-Kaufneigung 0,5 / 0,6; KI-Stärke Hard > Normal je Lauf; Funde 67–71; neue Fragen O95–O98, Paket 5.4g; kein Code geändert |

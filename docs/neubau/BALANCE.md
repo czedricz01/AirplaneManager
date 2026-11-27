@@ -858,3 +858,46 @@ auf großen Märkten voll werden; 1970 jetzt Verlust auf allen Stufen.
 
 `priceDuel` (FRA–MAD, A320, 14 Umläufe): Economy fest 1,43 × Markt, Premium springt 0,77 ↔ 1,16. Mit 28 Umläufen springt
 auch Economy 0,76 ↔ 0,95 unter die Gewinnschwelle. Test prüft nur noch Economy (F86).
+
+## Paket 5.4e: Balance-Langlauf nach der Schwierigkeit (27.11.2026)
+
+Bericht: `balance/5.4e-bericht.md` (**18 ok · 3 Abweichung · 33 Info**; 10 Läufe × 60 Jahre Normal, je 3 × 40 Jahre
+Easy und Hard; Auswertung und Hilfsläufe oben im Bericht). Vergleich mit `5.3d-bericht.md`. Keine Konstante geändert.
+
+### Fund 67: Optimizer nach 20 Jahren zu schwach (B7.1) → Frage O95
+
+Faktor 2,31 nach 20 Jahren (Grenze 2), 1,70 nach 40. Der Optimizer liegt nach 10 / 20 / 40 Jahren bei 0,64 / 0,43 /
+0,84 × Median (5.3d: 1,31 / 1,46 / 0,95). Grund: Er setzt als einziger den besten Preis, und der liegt nach E97 näher
+am Markt (Preisniveau Y 1970er 1,45 statt 1,71). Hilfsläufe (10 × 40 Jahre, Kopie): Kaufneigung 0,5 → Faktor 2,09 /
+1,73; **0,6 → 1,77 / 1,75 (ok)**, Marge der KI 22 %, Langstrecke 15,2 %.
+
+### Fund 68: Klassen-Forschung braucht 13–17 Monatsergebnisse (B6.7) → Frage O96
+
+Rang 1 / 2 / 4 / 5: 13,1 / 16,7 / 5,8 / 13,0 Monatsergebnisse (5.3d: 8,3 / 9,1 / 3,3 / 7,1; Regel 6.8: höchstens 12).
+Das Ergebnis je Fluggast beim besten Preis fiel um 37–46 % (gewollt nach E90/E97), die Preise der Forschung blieben.
+Preise × 0,7 brächten 9,2 / 11,7 / 4,1 / 9,1.
+
+### Fund 69: Preis-Duell bei Überkapazität kurz unter der Gewinnschwelle (B4.2) → Frage O97
+
+Zwei gleiche Gesellschaften, A320ceo FRA–MAD 1990, abwechselnd bester Preis: mit 14 Abflügen fest bei 1,43 in Economy
+(Schwelle 0,87, Gewinn 68 681 $ je Woche); mit 28 Abflügen Zyklus 0,71 ↔ 0,95, tiefster Preis 0,71 unter der
+Schwelle 0,76 (5.3d: fest 0,92). Im Langlauf kommt der Fall nicht vor (1,00 Gesellschaften je Paar, Preiskampf
+0,1 %); möglich nur zwischen Spieler und Optimizer, der ohne Preiskampf keinen Boden über `FARE_RATIO_MIN` hat
+(`rivalPriceFloor`, `src/model/rivals.ts:362`).
+
+### Fund 70: Werbung halb so wirksam (B6.9) → Frage O98
+
+Eine Kampagne trägt sich erst ab 24–79 gleich großen Strecken (5.3d: 11–24). Mehr Fluggäste mit Kampagne 1,003–1,011
+statt 1,006–1,024; der Mehr-Gewinn je Fluggast ist zudem kleiner. Halbe Kosten brächten etwa 12–40 Strecken.
+
+### Fund 71: KI-Stärke, Preiskämpfe, Rest → ok, Info
+
+- KI-Stärke (B7.8): Median Easy 572 · Normal 1 548 · Hard 1 430 Mio. $. Mit denselben Läufen 0–2 liegt die Summe der
+  Gründer auf Hard in allen drei Läufen über Normal (im Mittel +8 %, 5.3d +7 %); Easy ≈ 38 % von Normal. Kein
+  Handlungsbedarf (E79).
+- Preiskämpfe der KI fast nie (0,1 %), Optimizer-Sprünge 0,9 % der Strecken-Monate (5.3d 1,5 %). Fund 66 zeigt sich im
+  Langlauf nicht.
+- Marge der KI 23 % (B7.10 ok), Langstrecke 11,7 % (B7.12 ok), Widebody-Strecken je Lauf ab 1990 1,3 (5.3d 0,5).
+- Marge beim besten Preis lang 23 % / kurz-mittel 32 % (5.3d 27 / 42 %), gewollt (E90, E97).
+- Rückgewinnung (B8.2): Pandemie mit Marktgröße × 0,25 bringt 0,71 × den Preis zurück (Info).
+- Rechenzeit 1 009 ms je Monat in den 2010ern (5.3d 1 091).
