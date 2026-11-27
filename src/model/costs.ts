@@ -40,6 +40,9 @@ import {
   LITRES_PER_GALLON,
   MAX_MANAGEMENT_TIER,
   MIN_CABIN_CREW,
+  ATTENDANT_FROM_SEATS,
+  PILOT_RATE_MIN_SHARE,
+  PILOT_RATE_REFERENCE_SEATS,
   PILOT_RATE_1960,
   PROPELLER_FEE_SHARE,
   PROPELLER_MAX_SPEED,
@@ -225,7 +228,8 @@ export function fuelCost(input: FuelCostInput): number {
 // ---------------------------------------------------------------------------
 
 /**
- * Flugbegleiter nach eingebauter Kabine: `max(MIN_CABIN_CREW, Σ Sitze(c) / SEATS_PER_ATTENDANT[c])`.
+ * Flugbegleiter nach eingebauter Kabine: `max(MIN_CABIN_CREW, Σ Sitze(c) / SEATS_PER_ATTENDANT[c])`; unter
+ * `ATTENDANT_FROM_SEATS` Sitzen keine (E89, wie bei echten Commutern bis 19 Sitze).
  * Kommazahl, ungerundet (R4). SPEZIFIKATION 5.4.
  *
  * @param seats eingebaute Sitze je Klasse; fehlende Klasse = 0.
@@ -233,16 +237,27 @@ export function fuelCost(input: FuelCostInput): number {
 export function cabinCrew(seats: PartialClassFigures): number {
   let crew = 0;
   for (const c of CABIN_CLASSES) crew += (seats[c] ?? 0) / SEATS_PER_ATTENDANT[c];
+  if (totalSeats(seats) < ATTENDANT_FROM_SEATS) return 0;
   return Math.max(MIN_CABIN_CREW, crew);
+}
+
+const totalSeats = (seats: PartialClassFigures): number => CABIN_CLASSES.reduce((n, c) => n + (seats[c] ?? 0), 0);
+
+/**
+ * Anteil des Piloten-Lohns nach Größe (E89): `clamp(Sitze / PILOT_RATE_REFERENCE_SEATS, PILOT_RATE_MIN_SHARE, 1)`.
+ * Kleine Flugzeuge zahlen weniger je Blockstunde. SPEZIFIKATION 5.4.
+ */
+export function pilotRateShare(seats: PartialClassFigures): number {
+  return Math.min(1, Math.max(PILOT_RATE_MIN_SHARE, totalSeats(seats) / PILOT_RATE_REFERENCE_SEATS));
 }
 
 /**
  * Stundensatz der Besatzung im Monat `month` (Geld dieses Monats, ohne Lohn-Faktor und Forschung):
- * `atCost(COCKPIT_CREW × PILOT_RATE_1960 + cabinCrew × ATTENDANT_RATE_1960, month)`. Auch für die
+ * `atCost(COCKPIT_CREW × PILOT_RATE_1960 × pilotRateShare + cabinCrew × ATTENDANT_RATE_1960, month)`. Auch für die
  * Anzeige im Planer. SPEZIFIKATION 5.4.
  */
 export function crewHourlyRate(seats: PartialClassFigures, month: number): number {
-  return atCost(COCKPIT_CREW * PILOT_RATE_1960 + cabinCrew(seats) * ATTENDANT_RATE_1960, month);
+  return atCost(COCKPIT_CREW * PILOT_RATE_1960 * pilotRateShare(seats) + cabinCrew(seats) * ATTENDANT_RATE_1960, month);
 }
 
 /** Eingaben für `crewCost`. */

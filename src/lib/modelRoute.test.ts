@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 import type { OwnedAircraft } from '../components/MyFleetView';
 import { aircraftList } from '../data/aircraft';
-import { CABIN_CLASSES, RAMP_MONTHS, WEEKS_PER_MONTH } from '../model/constants';
+import { CABIN_CLASSES, DIFFICULTY_COST_FACTOR, RAMP_MONTHS, WEEKS_PER_MONTH } from '../model/constants';
 import { NO_DECISIONS, closeMonth, monthOperations, type ModelState } from '../model/monthClose';
 import { cateringCostParts } from '../model/costs';
 import { classShares, eventDemandFactor, marketSizeParts, worldScale } from '../model/demand';
@@ -73,6 +73,25 @@ describe('Paket 4.5a: Prognose einer Strecke (4.11, 4.12)', () => {
     const ops = monthOperations(STATE)[PLAYER_ID].routes.find((r) => r.routeId === 'r1')!;
     assert.ok(Math.abs(f.weeklyProfit - ops.result) < 1e-6, `${f.weeklyProfit} ≠ ${ops.result}`);
     assert.ok(Math.abs(f.figures.revenue - ops.revenue) < 1e-6);
+  });
+
+  it('E87: Schwierigkeit als Faktor auf Flugbetrieb und Kosten je Fluggast; Prognose = Abschluss; Slot- und Flugzeug-Anteil ohne Faktor', () => {
+    const at = (difficulty: 'Easy' | 'Normal' | 'Hard') => {
+      const state = modelGame(game({ difficulty }), ENV).state;
+      return { f: routeForecast(state, EXISTING)!, ops: monthOperations(state)[PLAYER_ID].routes.find((r) => r.routeId === 'r1')! };
+    };
+    const n = at('Normal').f.figures;
+    for (const d of ['Easy', 'Hard'] as const) {
+      const { f, ops } = at(d);
+      const k = DIFFICULTY_COST_FACTOR[d];
+      for (const part of ['fuel', 'crew', 'landing'] as const) assert.ok(Math.abs(f.figures.fixed[part] - k * n.fixed[part]) < 1e-6, `${d} ${part}`);
+      assert.ok(Math.abs(f.figures.fixed.slotShare - n.fixed.slotShare) < 1e-9);
+      assert.ok(Math.abs(f.figures.fixed.aircraftShare - n.fixed.aircraftShare) < 1e-9);
+      assert.ok(Math.abs((f.figures.costPerPassenger.economy ?? 0) - k * (n.costPerPassenger.economy ?? 0)) < 1e-9);
+      assert.ok(Math.abs(f.weeklyProfit - ops.result) < 1e-6, 'Prognose = Abschluss (R2)');
+    }
+    assert.ok(at('Easy').f.weeklyProfit > at('Normal').f.weeklyProfit);
+    assert.ok(at('Hard').f.weeklyProfit < at('Normal').f.weeklyProfit);
   });
 
   it('eine bestehende Strecke wird ersetzt, nicht doppelt gezählt', () => {

@@ -66,8 +66,12 @@ function creditText(credit: CreditStatus): string {
   if (credit.state === 'credit') {
     return `Interest ${formatNumber(CREDIT_RATE * 100)}% a year on the amount used. The credit line is ${formatNumber(CREDIT_LIMIT_SHARE * 100)}% of the fleet value; purchases need cash above zero.`;
   }
-  const when = credit.closesToForcedSale === 1 ? 'at the next month close' : `in ${credit.closesToForcedSale} month closes`;
-  return `Cash is below the credit line. If it still is at the month's end, the bank sells an aircraft ${when}; with no aircraft left the airline is bankrupt.`;
+  const closes = (n: number | null) => (n === 1 ? 'at the next month close' : `in ${n} month closes`);
+  const end = `the airline is bankrupt ${closes(credit.closesToBankruptcy)} or when no aircraft is left`;
+  if ((credit.closesToBankruptcy ?? 0) <= (credit.closesToForcedSale ?? 0)) {
+    return `Cash is below the credit line. If it stays there at each month's end, ${end}.`;
+  }
+  return `Cash is below the credit line. If it still is at the month's end, the bank sells an aircraft ${closes(credit.closesToForcedSale)}; ${end}.`;
 }
 
 export function GameTopBar({

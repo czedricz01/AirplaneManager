@@ -645,6 +645,10 @@ export interface ProbeRow {
   readonly revenue: number;
   /** Preisniveau der Economy (1 = Marktpreis). */
   readonly fareRatio: number;
+  /** Feste Kosten je Woche nach Posten (Treibstoff, Besatzung, Landung, Slot-Anteil, Flugzeug-Anteil). */
+  readonly fixed: { readonly fuel: number; readonly crew: number; readonly landing: number; readonly slotShare: number; readonly aircraftShare: number };
+  /** Kosten aller Fluggäste je Woche. */
+  readonly passengerCost: number;
 }
 
 /**
@@ -678,7 +682,7 @@ export function probeForecasts(s: PlaySettings, typeIds: readonly string[], top:
       if (!f) continue;
       const seatsW = CABIN_CLASSES.reduce((n, c) => n + f.figures.offeredSeats[c], 0);
       const paxW = CABIN_CLASSES.reduce((n, c) => n + f.figures.passengers[c], 0);
-      rows.push({ dest: d.a.id, km: Math.round(d.km), popularity: d.pop, type: t.id, seats: t.capacity, trips: draft.schedule!.length, weekly: f.weeklyProfit, load: seatsW > 0 ? paxW / seatsW : 0, revenue: f.figures.revenue, fareRatio: f.classes.economy?.fareRatio ?? NaN });
+      rows.push({ dest: d.a.id, km: Math.round(d.km), popularity: d.pop, type: t.id, seats: t.capacity, trips: draft.schedule!.length, weekly: f.weeklyProfit, load: seatsW > 0 ? paxW / seatsW : 0, revenue: f.figures.revenue, fareRatio: f.classes.economy?.fareRatio ?? NaN, fixed: f.figures.fixed, passengerCost: f.figures.passengerCost.total });
     }
   }
   return rows;

@@ -115,6 +115,16 @@ export const DIFFICULTY_FACTOR: Readonly<Record<Difficulty, number>> = {
   Hard: 0.9,
 };
 
+/**
+ * Faktor auf die Betriebskosten des Spielers: Flugbetrieb (Treibstoff, Besatzung, Landung) und Kosten je Fluggast
+ * (Verpflegung, Gebühren, Frequent flyer). Normal = 1; KI immer 1 (E87). SPEZIFIKATION 1.8.
+ */
+export const DIFFICULTY_COST_FACTOR: Readonly<Record<Difficulty, number>> = {
+  Easy: 0.85,
+  Normal: 1,
+  Hard: 1.1,
+};
+
 // ---------------------------------------------------------------------------
 // 2.1 Flugzeit-Index
 // ---------------------------------------------------------------------------
@@ -613,10 +623,24 @@ export const REFERENCE_FREQUENCY = 7;
 export const FREQUENCY_EXP = 0.5;
 
 /**
- * Preis-Empfindlichkeit je Klasse (Hochzahl in `priceFactor`). Muss über 1 liegen, sonst brächte jeder
- * höhere Preis mehr Erlös; daraus folgt auch `noFlyAppeal` (3.10). Startwerte (3.9). SPEZIFIKATION 3.9.2.
+ * Preis-Empfindlichkeit je Klasse (Hochzahl in `priceFactor`): wie stark der Preis die Anziehung eines Angebots
+ * ändert. Bis E97 2,2 / 2,0 / 1,8 / 1,7 und zugleich Grundlage von `noFlyAppeal`; jetzt größer, damit Billigpreise
+ * Fluggäste bringen und Wucher sie kostet (E90, E91, E97). Startwerte (3.9). SPEZIFIKATION 3.9.2.
  */
 export const PRICE_SENSITIVITY: Readonly<Record<CabinClass, number>> = {
+  economy: 3.4,
+  premium: 3.0,
+  business: 2.6,
+  first: 2.4,
+};
+
+/**
+ * Preis-Empfindlichkeit des Gesamtmarkts: bestimmt „Nicht fliegen“ (3.10) und das Potenzial je Klasse. Getrennt von
+ * `PRICE_SENSITIVITY` (Anziehung zwischen den Angeboten, E97): Beim Marktpreis fliegen allein weiter genau
+ * `marketSize × classShare`, aber billige Angebote ziehen mehr aus dem Markt und von Rivalen. Startwerte (3.9).
+ * SPEZIFIKATION 3.10.
+ */
+export const NO_FLY_SENSITIVITY: Readonly<Record<CabinClass, number>> = {
   economy: 2.2,
   premium: 2.0,
   business: 1.8,
@@ -858,6 +882,15 @@ export const SEATS_PER_ATTENDANT: Readonly<Record<CabinClass, number>> = {
 
 /** Mindestens so viele Flugbegleiter je Flug. SPEZIFIKATION 5.4. */
 export const MIN_CABIN_CREW = 1;
+
+/** Ab so vielen Sitzen gilt `MIN_CABIN_CREW`; darunter nur die Flugbegleiter nach Sitzen (E89). SPEZIFIKATION 5.4. */
+export const ATTENDANT_FROM_SEATS = 20;
+
+/** Sitze, ab denen ein Pilot den vollen Satz bekommt; darunter anteilig (E89). Startwert (3.9). SPEZIFIKATION 5.4. */
+export const PILOT_RATE_REFERENCE_SEATS = 60;
+
+/** Kleinster Anteil des Piloten-Satzes (E89). Startwert (3.9). SPEZIFIKATION 5.4. */
+export const PILOT_RATE_MIN_SHARE = 0.4;
 
 // ---------------------------------------------------------------------------
 // 5.5 Landegebühr
@@ -2668,6 +2701,16 @@ export const CREDIT_RATE = 0.08;
 
 /** Ab so vielen überzogenen Monaten in Folge: Zwangsverkauf, ein Flugzeug je Abschluss. SPEZIFIKATION 8.14. */
 export const OVERDRAWN_TO_FORCED_SALE = 6;
+
+/**
+ * Spielende des Spielers nach so vielen überzogenen Monatsenden in Folge, je Schwierigkeit (E93). Gilt zusätzlich zu
+ * „überzogen und kein Flugzeug mehr“; die KI hat kein Spielende (7.15). SPEZIFIKATION 8.14.
+ */
+export const BANKRUPTCY_OVERDRAWN_MONTHS: Readonly<Record<Difficulty, number>> = {
+  Easy: 12,
+  Normal: 6,
+  Hard: 3,
+};
 
 // ---------------------------------------------------------------------------
 // 8.2 Bericht

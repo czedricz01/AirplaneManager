@@ -1,15 +1,28 @@
 # Status
 
-**Nächstes Paket: keines; als Nächstes eine Sitzung zur Schwierigkeit.** Der Neubau des Rechenmodells ist mit 5.3g
-abgeschlossen. Der Spieltest mit Strategien (`balance/spieltest-strategien.md`) zeigt: Easy, Normal und Hard rechnen
-bei vollen Flugzeugen gleich; der beste Preis entscheidet fast alles; „Ryanair“ (Billigpreis) trägt nicht; Pleite nur bei
-groben Fehlern, auf jeder Stufe gleich. Die zehn Fragen in Abschnitt 10 des Berichts werden in einer neuen Sitzung im
-Chat gestellt; die Antworten werden O81 ff. / E87 ff. und danach Pakete. Weiter vorgemerkt (keine Pakete): Spielgefühl der
-KI-Stärke (Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53),
-Spielstände in der Cloud (Supabase).
+**Nächstes Paket: 5.4e – Balance-Langlauf nach der Schwierigkeit.** Das Balance-Skript (`npm run balance`, Langlauf)
+prüft, wie die neue Preis-Empfindlichkeit (E97) und die Commuter-Kosten (E89) die KI verändern (KI-Stärke, Preiskämpfe,
+Prüfregeln B3–B8). Liest: `balance/5.4-spieltest.md`, `BALANCE.md` Funde 62–66, `src/balance/` (Langlauf, Prüfregeln),
+`scripts/balance.ts`. Ergebnis in `balance/5.4e-bericht.md`. Danach 5.4f (Umsetzung O92–O94).
 
-**Keine offene Frage eingetragen** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“); die Fragen zur Schwierigkeit stehen im
-Bericht und werden erst nach der Sitzung eingetragen.
+**Offene Fragen: O92–O94** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“): LCC-Vorteil (O92), Pleite von „standard“ auf Hard
+(O93), Gewinn mit Wucherpreisen und kleinen Flugzeugen (O94). Sie blockieren 5.4e nicht, nur 5.4f. Weiter vorgemerkt
+(keine Pakete): Spielgefühl der KI-Stärke (Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55),
+Rechenzeit mit 12 KI (Fund 53), Spielstände in der Cloud (Supabase).
+
+Stand: 27.11.2026 · Pakete 5.4a–5.4d erledigt (F86): O81–O90 im Chat gestellt und entschieden (E87–E96, jeweils die
+Empfehlung), O91 bei der Umsetzung dazu (E97). Umgesetzt: (1) **Kosten-Faktor je Stufe** auf Flugbetrieb und Kosten je
+Fluggast des Spielers, Easy 0,85 · Normal 1 · Hard 1,1 (E87). (2) **Pleite-Frist** 12 / 6 / 3 überzogene Monate (E93).
+(3) **Commuter**: ohne Flugbegleiter unter 20 Sitzen, Piloten-Satz nach Größe (E89). (4) **Preis-Empfindlichkeit
+getrennt**: Anziehung 3,4 / 3,0 / 2,6 / 2,4, „Nicht fliegen“ und Potenzial unverändert (E97, hebt E24 auf).
+Gemessen (`balance/5.4-spieltest.md`, 141 Spiele, Funde 62–66): Easy-Ziel erreicht (passendes Flugzeug 17–20/20),
+Hard 37–46 % von Easy, bester Preis 0,94–1,31 × Markt, Ruf 45 statt 30–35, optimierer 125 Strecken / 2 Mrd. $.
+Nicht erreicht: „ryanair“ trägt nicht (O92), „standard“ geht auf Hard nicht pleite (O93), „wucher“ verdient 1995 mit
+Commutern (O94). Spezifikation 1.8, 2.10, 3.9.2, 3.10, 3.12, 3.15, 4.3, 4.10, 4.13, 5.4, 8.14 nachgezogen. Tests:
+1 256 grün (4 neu, 8 angepasst). Im Browser nicht geprüft (Rechnung und zwei Warntexte).
+
+Offen aus diesem Stand: (1) O92–O94. (2) Balance-Langlauf nach E87–E97 (5.4e). (3) Preis-Duell mit springenden
+Premium-Preisen (Fund 66).
 
 Stand: 27.11.2026 · Fehler und Spieltest (F85, E86): (1) **Forecast fehlte** nach weiteren Strecken, wenn am Hub eines
 kleinen Flughafens (Größe 1–2) Slots gekauft wurden: Slots am Hub brachten Abstellplätze mit, die es dort nicht gibt,
@@ -619,6 +632,12 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.3e | Umsetzung O78 (Jahresziel-Prämie) und O79 (KI ohne Widebody: messen; F83) | erledigt |
 | 5.3f | Antwort auf O80 (Wirtschaftlichkeit der Widebodies): so lassen (E85), nur Dokumentation | erledigt |
 | 5.3g | Spieltest im Browser mit eigenen Strecken (Störungs-Frage, Deregulation-Zähler, Szenario-Untergrenze; „Offen aus 5.3b“ (1); F84) | erledigt |
+| 5.4a | Schwierigkeit: Kosten-Faktor je Stufe (E87) und Pleite-Frist (E93) (F86) | erledigt |
+| 5.4b | Commuter: Besatzung nach Größe (E89) (F86) | erledigt |
+| 5.4c | Preis-Empfindlichkeit getrennt in Anziehung und „Nicht fliegen“ (E90, E91, E97) (F86) | erledigt |
+| 5.4d | Spieltest-Matrix und Planer-Probe nach 5.4a–c gegen die Ziele (E88, E91, E92, E94–E96; `balance/5.4-spieltest.md`) | erledigt |
+| 5.4e | Balance-Langlauf nach E87–E97: KI-Stärke, Preiskämpfe, Prüfregeln (`balance/5.4e-bericht.md`) | offen |
+| 5.4f | Umsetzung O92–O94 (LCC-Vorteil, Pleite auf Hard, Wucher) mit Spieltest-Matrix | wartet auf O92–O94 |
 
 ---
 
@@ -710,3 +729,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.3e | O78, O79 entschieden (E83, E84); Mindest-Prämie des Jahresziels je Art gestaffelt (`goalMinReward`); Messung der KI-Flugzeugwahl (`src/balance/widebody.ts`, B7.13, B7.14; Hilfsläufe): Widebody nur jenseits der Narrowbody-Reichweite besser, KI kauft ihn dort; neue Frage O80; `balance/5.3e-bericht.md`; Tests 1 247 grün |
 | 27.11.2026 | 5.3f | O80 entschieden (E85, Weg A): Widebodies so lassen, kein Größen-Vorteil im Treibstoff, kein Komfort-Abzug; Spezifikation 5.3 und Fund 57 nachgetragen, Verweise B7.13/B7.14; keine Rechnung geändert; neues Paket 5.3g (Spieltest mit eigenen Strecken) vorgeschlagen |
 | 27.11.2026 | 5.3g | Spieltest im Browser mit eigenen Strecken (Planer im Skript, Szenario Deregulation): Deregulation-Zähler, Störungs-Frage (Streik, Defekt; Buchung = Frage auf den Dollar) und Szenario-Untergrenze stimmen; drei Texte behoben (F84: `costNote`, Strecken-Namen einmal, „A single month-end“); `balance/5.3g-spieltest.md`, Funde 58–61; Tests 1 250 grün; Neubau abgeschlossen, keine Frage offen |
+| 27.11.2026 | 5.4a–5.4d | O81–O91 entschieden (E87–E97); Kosten-Faktor je Stufe, Pleite-Frist, Commuter-Besatzung, getrennte Preis-Empfindlichkeit (F86); Spieltest `balance/5.4-spieltest.md` (Funde 62–66): Easy-Ziel und Hard-Abstand erreicht, LCC, Pleite auf Hard und Wucher offen (O92–O94) |

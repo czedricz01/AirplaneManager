@@ -352,8 +352,8 @@ export function forcedSale(planes: readonly SaleCandidatePlane[], overdrawnMonth
 }
 
 /** Spielende (Pleite): überzogen und kein Flugzeug mehr. Nur Spieler; die KI folgt 7.15. SPEZIFIKATION 8.14. */
-export function isBankrupt(state: CreditState, planeCount: number): boolean {
-  return state === 'overdrawn' && planeCount === 0;
+export function isBankrupt(state: CreditState, planeCount: number, overdrawnMonths = 0, bankruptcyMonths = Infinity): boolean {
+  return state === 'overdrawn' && (planeCount === 0 || overdrawnMonths >= bankruptcyMonths);
 }
 
 /** Einmalausgaben nur aus Guthaben: Kasse ≥ Preis. Die Kreditlinie deckt nur laufende Verluste und Zinsen. SPEZIFIKATION 8.14. */

@@ -11,6 +11,8 @@ import {
   CABIN_CLASSES,
   FARE_RATIO_MAX,
   FARE_RATIO_MIN,
+  NO_FLY_SENSITIVITY,
+  PRICE_SENSITIVITY,
   REFERENCE_SPEED,
   START_YEAR,
   WEEKS_PER_MONTH,
@@ -78,6 +80,9 @@ function referenceMarket(
 }
 
 const EQUAL_RIVAL = [{ id: 'rival', appeal: 1, seats: Infinity }];
+
+/** Erlösbestes Preisniveau allein (E97): `((s − 1) / (s₀ − 1))^(−1/s)` mit s = PRICE_SENSITIVITY, s₀ = NO_FLY_SENSITIVITY. */
+const ALONE_RATIO = ((PRICE_SENSITIVITY.economy - 1) / (NO_FLY_SENSITIVITY.economy - 1)) ** (-1 / PRICE_SENSITIVITY.economy);
 
 // ---------------------------------------------------------------------------
 
@@ -339,17 +344,17 @@ describe('Abschnitt 4.9 Monatserlös', () => {
 });
 
 describe('Abschnitt 4.10 Bester Preis', () => {
-  it('4.10 (E24): Bezugsangebot allein, Sitze reichen, keine Kosten → bester Preis = Marktpreis', () => {
+  it('4.10 (E97): Bezugsangebot allein, Sitze reichen, keine Kosten → bester Preis = Marktpreis × aloneRatio (0,816)', () => {
     const best = bestFare(referenceMarket());
-    assertClose(best.fare, 100, 0.5);
-    assertClose(best.passengers, 1000, 1e-6);
+    assertClose(best.fare, 100 * ALONE_RATIO, 0.5);
+    assert.ok(best.passengers > 1000, 'unter dem Marktpreis fliegen mehr als die Marktgröße');
   });
 
-  it('4.10: allein mit Satisfaction s → bester Preis = Marktpreis × satisfactionFactor (± 0,5 %)', () => {
+  it('4.10: allein mit Satisfaction s → bester Preis = Marktpreis × satisfactionFactor × aloneRatio (± 0,5 %)', () => {
     for (const s of [40, 80, 130, 160]) {
       const factor = satisfactionFactor(s);
       const best = bestFare(referenceMarket(1e6, { appeal: { referenceBlockMinutes: REF_MINUTES, satisfactionFactor: factor } }));
-      assertClose(best.fare / (100 * factor), 1, 0.005, `Satisfaction ${s}`);
+      assertClose(best.fare / (100 * factor * ALONE_RATIO), 1, 0.005, `Satisfaction ${s}`);
     }
   });
 
@@ -376,23 +381,24 @@ describe('Abschnitt 4.10 Bester Preis', () => {
   });
 
   it('4.10, 4.13: Beispiel-Tabelle', () => {
+    // Werte mit PRICE_SENSITIVITY 3,4 und NO_FLY_SENSITIVITY 2,2 (E97).
     const alone = bestFare(referenceMarket());
-    assertClose(alone.profit, 100000, 1);
+    assertClose(alone.profit, 105544, 5);
 
     const scarce = bestFare(referenceMarket(800));
-    assertClose(scarce.fare, 122, 0.2);
+    assertClose(scarce.fare, 113.8, 0.2);
     assertClose(scarce.passengers, 800, 1);
-    assertClose(scarce.profit, 97633, 20);
+    assertClose(scarce.profit, 90975, 20);
 
     const costs = bestFare(referenceMarket(), 20);
-    assertClose(costs.fare, 118, 0.5);
-    assertClose(costs.passengers, 831, 2);
-    assertClose(costs.profit, 81690, 5);
+    assertClose(costs.fare, 91, 0.5);
+    assertClose(costs.passengers, 1142.5, 2);
+    assertClose(costs.profit, 81115, 5);
 
     const rival = bestFare(referenceMarket(1e6, { otherOffers: EQUAL_RIVAL }));
-    assertClose(rival.fare, 70, 0.2);
-    assertClose(rival.passengers, 1000, 1);
-    assertClose(rival.profit, 69880, 5);
+    assertClose(rival.fare, 64.7, 0.2);
+    assertClose(rival.passengers, 1293.7, 1);
+    assertClose(rival.profit, 83700, 5);
   });
 
   it('4.10: Ergebnis im zulässigen Bereich, auf 0,001 genau; bei Gleichstand der niedrigere Preis', () => {

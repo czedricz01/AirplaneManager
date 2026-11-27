@@ -26,6 +26,7 @@ import {
   FLIGHT_TIME_EXP,
   FREQUENCY_EXP,
   PRICE_SENSITIVITY,
+  NO_FLY_SENSITIVITY,
   RAMP_MONTHS,
   RAMP_START,
   REFERENCE_FREQUENCY,
@@ -312,20 +313,20 @@ export function offerAppeal(cabinClass: CabinClass, input: OfferAppealInput): nu
 // ---------------------------------------------------------------------------
 
 /**
- * Anziehung von „Nicht fliegen“: `1 / (PRICE_SENSITIVITY[c] − 1)`. Folgt aus 3.9.2: Nur so ist das
- * Bezugsangebot ohne Rivalen erlösbest am Marktpreis (E24). Keine eigene Stellschraube. SPEZIFIKATION 3.10.
+ * Anziehung von „Nicht fliegen“: `1 / (NO_FLY_SENSITIVITY[c] − 1)`. Seit E97 getrennt von `PRICE_SENSITIVITY`:
+ * Das Bezugsangebot allein ist nicht mehr genau am Marktpreis erlösbest (E24 aufgehoben). SPEZIFIKATION 3.10.
  */
 export function noFlyAppeal(cabinClass: CabinClass): number {
-  return 1 / (PRICE_SENSITIVITY[cabinClass] - 1);
+  return 1 / (NO_FLY_SENSITIVITY[cabinClass] - 1);
 }
 
 /**
  * Alle Reisewilligen einer Klasse:
- * `marketSize × classShare(c) × PRICE_SENSITIVITY[c] / (PRICE_SENSITIVITY[c] − 1)`.
+ * `marketSize × classShare(c) × NO_FLY_SENSITIVITY[c] / (NO_FLY_SENSITIVITY[c] − 1)`.
  * So fliegen beim Bezugsangebot allein genau `marketSize × classShare(c)`. SPEZIFIKATION 3.10.
  */
 export function classPotential(cabinClass: CabinClass, marketSizeValue: number, classShareValue: number): number {
-  const sensitivity = PRICE_SENSITIVITY[cabinClass];
+  const sensitivity = NO_FLY_SENSITIVITY[cabinClass];
   return (marketSizeValue * classShareValue * sensitivity) / (sensitivity - 1);
 }
 

@@ -110,6 +110,10 @@ describe('Unternehmenswert und Kreditlinie (6.12, 8.14)', () => {
     assert.equal(creditStatus(-25e6, 40e6, OVERDRAWN_TO_FORCED_SALE - 1).closesToForcedSale, 1);
     assert.equal(creditStatus(-25e6, 40e6, OVERDRAWN_TO_FORCED_SALE + 3).closesToForcedSale, 1);
     assert.equal(creditStatus(-1, 0, 0).state, 'overdrawn', 'ohne Flugzeuge ist die Grenze 0');
+    assert.equal(creditStatus(-25e6, 40e6, 0, 'Hard').closesToBankruptcy, 3);
+    assert.equal(creditStatus(-25e6, 40e6, 2, 'Normal').closesToBankruptcy, 4);
+    assert.equal(creditStatus(-25e6, 40e6, 0, 'Easy').closesToBankruptcy, 12);
+    assert.equal(creditStatus(-5e6, 40e6, 0, 'Hard').closesToBankruptcy, null);
   });
 });
 

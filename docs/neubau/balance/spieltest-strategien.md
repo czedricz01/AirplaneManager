@@ -8,6 +8,9 @@ Herausforderung, aber nicht unmöglich; **mehrere Strategien** sollen tragen (Lu
 Dieses Dokument hält die Erkenntnisse fest. Geändert an der Balance wurde **nichts**; die Fragen am Ende sind für eine
 neue Sitzung gedacht.
 
+**Nachtrag:** Die Fragen in Abschnitt 10 sind entschieden (O81–O91 → E87–E97); Umsetzung und neue Messung in
+`5.4-spieltest.md`.
+
 ## 1. Fehler: Forecast fehlt nach weiteren Strecken (behoben)
 
 **Was passierte:** Im Planer stand bei „4. Pricing“ nur „No forecast“, ebenso fehlten die Zahlen in Streckenliste und

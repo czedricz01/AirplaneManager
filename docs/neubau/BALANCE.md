@@ -826,3 +826,35 @@ month-end.“
 5.3b scheiterte am gesperrten Ziel („Unlock T1“) und an fehlenden Slots, nicht am Planer; der Ablauf steht im Bericht.
 Abschluss mit 8 KI 1978 und vier Strecken 0,17–0,25 s. Ob die KI (Normal, Hard) einem Menschen zu stark oder zu schwach
 ist, kann kein Skript beurteilen.
+
+## Pakete 5.4a–5.4d: Schwierigkeit (27.11.2026)
+
+Bericht: `balance/5.4-spieltest.md` (Spieltest-Matrix 141 Spiele und Planer-Probe nach E87, E89, E93, E97).
+
+### Fund 62: Stufen rechnen verschieden; Easy-Ziel erreicht → ok
+
+Mit dem Kosten-Faktor (E87) unterscheiden sich die Stufen auch bei vollen Flugzeugen (ATR 72 FRA 1995: 22 500 /
+14 400 / 9 000 $/Woche). Mit passendem Flugzeug verdienen auf Easy 17–20 von 20 beliebten Zielen (E88). Hard bringt
+37–46 % des Easy-Ergebnisses guter Strategien im Free Mode (E94: 40–50 %).
+
+### Fund 63: Bester Preis näher am Markt → ok
+
+Normal: Preisniveau 0,94–1,31 (Commuter 1,40), vorher 1,08–2,0; Vorteil gegen den Marktpreis 1,3- bis 3,3-fach statt
+2- bis 6-fach. Gute Strategien verdienen 49–70 % weniger als vorher; optimierer 1995 125 Strecken, 2,0 Mrd. $ (E96 ok).
+Ruf mit bestem Preis 45 statt 30–35 (E95 ok).
+
+### Fund 64: „ryanair“ trägt weiter nicht → Frage O92
+
+1995 Normal ±0 Mio. $ · 9 Strecken gegen „vorsichtig“ +63 · 57; die ersten vier Jahre gleichauf, danach Verluste mit
+festem Preis 0,85 und mehr KI-Strecken. Nach E92 wird ein Kostenvorteil der LCC-Kabine eine Frage.
+
+### Fund 65: „standard“ geht auf Hard nicht pleite; „wucher“ verdient 1995 mit kleinen Flugzeugen → Fragen O93, O94
+
+standard Hard: −5,7 (1995) / −5,1 (1970) Mio. $ im letzten Jahr, tiefste Kasse −5,4 / −9,6, aber nie drei Monate unter
+der Kreditlinie. schlecht-wucher 1995: +87 / +49 / +18 (vorher +7), weil die günstigeren Commuter (E89) zu 1,6 × Markt
+auf großen Märkten voll werden; 1970 jetzt Verlust auf allen Stufen.
+
+### Fund 66: Preis-Duell mit springenden Preisen in kleinen Klassen → Info, Balance-Langlauf 5.4e
+
+`priceDuel` (FRA–MAD, A320, 14 Umläufe): Economy fest 1,43 × Markt, Premium springt 0,77 ↔ 1,16. Mit 28 Umläufen springt
+auch Economy 0,76 ↔ 0,95 unter die Gewinnschwelle. Test prüft nur noch Economy (F86).
