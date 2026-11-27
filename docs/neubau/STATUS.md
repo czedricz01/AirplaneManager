@@ -1,12 +1,26 @@
 # Status
 
-**Nächstes Paket: 5.3e** – Umsetzung der Antworten auf O78 (Jahresziel: Prämie des hohen Ziels bei kleinen
-Gesellschaften) und O79 (KI kauft nie einen Widebody: erst messen oder Regel ändern). Wartet auf die Entscheidung.
-Zu lesen: O78, O79 in `ENTSCHEIDUNGEN.md`, Funde 52 und 54 in `BALANCE.md`; für O78 `src/model/progress.ts`
-(`goalReward`, `annualGoalOffers`) und `src/model/constants.ts` (`GOAL_*`); für O79 `src/model/rivalMonth.ts`
-(`pickPurchaseType`, `profitAfterCapital`, `referenceTypeIndices`), `src/balance/competition.ts`.
+**Nächstes Paket: 5.3f** – Antwort auf O80 (Widebodies lohnen sich im Modell fast nie: so lassen, Größen-Vorteil im
+Treibstoff oder Komfort-Abzug für Narrowbodies auf Langstrecke). Wartet auf die Entscheidung. Bei A nur Dokumentation;
+bei B oder C zu lesen: O80 in `ENTSCHEIDUNGEN.md`, Fund 57 in `BALANCE.md`, `src/balance/widebody.ts`; für B
+`src/model/costs.ts` (`fuelLitresPerSeat100km`, `fuelCost`), Spezifikation 5.3; für C `src/model/satisfaction.ts`,
+Spezifikation Abschnitt 2; danach Balance-Bericht mit Langlauf (`npm run balance -- --long`).
 
-**Offene Fragen O78, O79** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+**Offene Frage O80** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+
+Stand: 27.11.2026 · Paket 5.3e erledigt (F83): O78 und O79 entschieden (E83, E84, je Weg A). E83 umgesetzt: Die
+Mindest-Prämie des Jahresziels ist je Art gestaffelt (`goalMinReward`: 250 000 / 375 000 / 625 000 $ von 1960); das hohe
+Ziel zahlt jetzt auch bei kleinen Gesellschaften das 2,5-Fache des sicheren (Fund 56), der Text „same minimum bonus“
+entfällt. E84 gemessen (neuer Abschnitt `src/balance/widebody.ts`, B7.13/B7.14; Bericht `balance/5.3e-bericht.md`,
+16 ok · 0 Abweichung · 25 Info ohne Langlauf; Fund 57): Die KI rechnet richtig. Auf den 20 größten Langstrecken-Paaren
+1990/2000/2010 liegt der beste Widebody auf 0 von 60 vorn, schon vor den Kapitalkosten (ein kleinerer Zins hilft also
+nicht); nur über 7 500 km liegt er auf 11 von 30 vorn. In 4 Hilfsläufen 1960–2009 war ein Widebody in 9 von 3 599
+Kaufrunden besser, alle 9 wurden gekauft, keiner scheiterte an der Kasse. Ursache: kein Größen-Vorteil je Sitz
+(Treibstoff je Sitz nur nach Effizienz) und die größten Märkte füllen einen Widebody nur zur Hälfte seiner Umläufe;
+gilt auch für den Spieler (→ O80). Tests: 1 247 grün (4 neue, 1 ersetzt). Im Browser nicht geprüft (nur ein Text im
+Ziel-Angebot und Beträge der Prämie).
+
+Offen aus 5.3e: (1) O80. (2) Die Punkte „Offen aus 5.3b“ (1)–(4) bleiben.
 
 Stand: 25.11.2026 · Paket 5.3b erledigt (F82): Spieltest im Browser (Produktions-Build, Chromium über Playwright;
 Bericht `balance/5.3b-spieltest.md`, Funde 51–55 in `BALANCE.md`), mit Langläufen im Browser 6 KI Normal 1960–2015 und
@@ -570,7 +584,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.3b | Spieltest im Browser (Rang vor dem ersten Abschluss, Jahresziel im Dezember, Rechenlast, Startzeit, Szenario-Fortschritt; F82) | erledigt |
 | 5.3c | Umsetzung O71–O73, Feinabstimmung mit Langlauf (KI-Umläufe, KI-Stärke, Schwierigkeit, Gold-Meilenstein; F80) | erledigt |
 | 5.3d | Umsetzung O74–O77 mit Langlauf (KI-Stärke, Schwierigkeit, KI-Langstrecke, Optimizer; F81) | erledigt |
-| 5.3e | Umsetzung O78 (Jahresziel-Prämie) und O79 (KI ohne Widebody: messen oder Regel) | offen, wartet auf Entscheidung |
+| 5.3e | Umsetzung O78 (Jahresziel-Prämie) und O79 (KI ohne Widebody: messen; F83) | erledigt |
+| 5.3f | Antwort auf O80 (Wirtschaftlichkeit der Widebodies: so lassen, Treibstoff-Größenvorteil oder Komfort) | offen, wartet auf Entscheidung |
 
 ---
 
@@ -659,3 +674,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 24.11.2026 | 5.3c | O71–O73 umgesetzt (F80, E76–E78): Störungs-Frage aus zwei Rechnungen des Monats X+1, Szenario-Untergrenze im Modell, Widebody-Slots ab Größe 3 für alle; KI-Umläufe nach der Planer-Regel (7.9); Gold-Fall mit Spieler-Ausstattung; Langlauf `balance/5.3c-bericht.md` (19 ok · 1 Abweichung · 31 Info), Funde 41–46; neue Fragen O74–O77, Paket 5.3d; Tests 1 238 grün |
 | 25.11.2026 | 5.3d | O74–O77 entschieden und umgesetzt (E79–E82, F81): KI sucht vor dem Kauf mit Bezugs-Typen je Bauart und wählt nach Gewinn nach Kapitalkosten; Optimizer-Kaufneigung 0,4; Langlauf `balance/5.3d-bericht.md` (21 ok · 0 Abweichung · 31 Info), Funde 47–50 (Langstrecke 15,3 %, B7.1 1,69 / 1,88, KI stärker, Rechenzeit +74 %); neue Prüfregel B7.12; Tests 1 240 grün |
 | 25.11.2026 | 5.3b | Spieltest im Browser (F82): `balance/5.3b-spieltest.md`, Funde 51–55; Spielstand sprengte den Browser-Speicher (KI-Berichte mit Strecken-Zahlen) → `keptReports`, `RIVAL_REPORT_MONTHS` = 12; Jahresziel-Angebot endet mit dem Januar-Abschluss; Texte Ziel-Angebot, Rang-Hinweis, „Oil Shock“; Zeiten gemessen (Start < 0,4 s, Abschluss bis 0,87 s im Mittel mit 6 KI); neue Fragen O78, O79, Paket 5.3e; Tests 1 243 grün |
+| 27.11.2026 | 5.3e | O78, O79 entschieden (E83, E84); Mindest-Prämie des Jahresziels je Art gestaffelt (`goalMinReward`); Messung der KI-Flugzeugwahl (`src/balance/widebody.ts`, B7.13, B7.14; Hilfsläufe): Widebody nur jenseits der Narrowbody-Reichweite besser, KI kauft ihn dort; neue Frage O80; `balance/5.3e-bericht.md`; Tests 1 247 grün |

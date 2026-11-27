@@ -34,10 +34,9 @@ import {
   type GoalTag,
   type RivalPersonality,
 } from '../model/constants';
-import { atCost } from '../model/basics';
 import { reputationFactor } from '../model/marketSplit';
 import { defectChance } from '../model/monthEvents';
-import { goalBase, goalReward, milestoneDef, reputationChange, reputationTarget, researchPrice } from '../model/progress';
+import { goalBase, goalMinReward, goalReward, milestoneDef, reputationChange, reputationTarget, researchPrice } from '../model/progress';
 import { musd, num, pct, usd, type Check, type Section, type Table } from './report';
 import { bestDeparturesCase, caseMarket, ROUTE_CASES, runCase, type CaseResult, type RouteCase } from './routes';
 import { marketState, modelAirport, monthOf, NEUTRAL_INPUTS, runMarket, sampleMonth, seatsTotal, type MarketSpec } from './world';
@@ -271,8 +270,7 @@ export function goalCase(label: string, yearProfit: number, yearRevenue: number,
   const base = goalBase(yearProfit, yearRevenue, month);
   const tags: GoalTag[] = ['steady', 'focus', 'stretch'];
   const reward = Object.fromEntries(tags.map((t) => [t, goalReward(t, base, month)])) as Record<GoalTag, number>;
-  const minimum = atCost(GOAL_MIN_REWARD_1960, month);
-  const minBinds = Object.fromEntries(tags.map((t) => [t, Math.abs(reward[t] - minimum) < 1e-6])) as Record<GoalTag, boolean>;
+  const minBinds = Object.fromEntries(tags.map((t) => [t, Math.abs(reward[t] - goalMinReward(t, month)) < 1e-6])) as Record<GoalTag, boolean>;
   const k = GOAL_MISS_PENALTY_SHARE;
   return { label, month, yearProfit, yearRevenue, base, reward, minBinds, stretchBreakEven: (reward.steady / reward.stretch + k) / (1 + k) };
 }
@@ -499,12 +497,11 @@ export function careerSection(
     ...rankCases.slice(-1).map((r) => goalCase(`Rang ${r.rc.rank}, ${r.rc.route.year}, Marge ${pct(LOW_MARGIN)}`, 12 * r.monthlyRevenue * LOW_MARGIN, 12 * r.monthlyRevenue, r.rc.reachedMonth)),
     ...rankCases.slice(-1).map((r) => goalCase(`Rang ${r.rc.rank}, ${r.rc.route.year}, Verlustjahr (−5 %)`, -0.05 * 12 * r.monthlyRevenue, 12 * r.monthlyRevenue, r.rc.reachedMonth)),
   ];
-  const big = goals.filter((g) => !g.minBinds.stretch);
   checks.push({
     id: 'B6.8',
     spec: '6.11, E58',
     rule: 'Ziel-, Prämien- und Straf-Anteile: Prämie in Monatsergebnissen und nötige Chance, damit das hohe Ziel mehr bringt als das sichere',
-    value: `Prämie sicher / hoch = ${num(12 * GOAL_REWARD_SHARE.steady, 2)} / ${num(12 * GOAL_REWARD_SHARE.stretch, 2)} Monatsergebnisse (ohne Mindestbetrag); hohes Ziel lohnt ab Chance ${big.length > 0 ? pct(Math.min(...big.map((g) => g.stretchBreakEven))) : '–'}; Mindestprämie bindet bei ${goals.filter((g) => g.minBinds.stretch).length} von ${goals.length} Beispielen (dann lohnt das hohe Ziel nie)`,
+    value: `Prämie sicher / hoch = ${num(12 * GOAL_REWARD_SHARE.steady, 2)} / ${num(12 * GOAL_REWARD_SHARE.stretch, 2)} Monatsergebnisse (ohne Mindestbetrag); hohes Ziel lohnt ab Chance ${pct(Math.min(...goals.map((g) => g.stretchBreakEven)))} … ${pct(Math.max(...goals.map((g) => g.stretchBreakEven)))}; Mindestprämie bindet bei ${goals.filter((g) => g.minBinds.stretch).length} von ${goals.length} Beispielen (gestaffelt nach Art, E83: auch dann zahlt das hohe Ziel mehr)`,
     verdict: 'info',
   });
   tables.push({
@@ -521,7 +518,7 @@ export function careerSection(
       musd(GOAL_MISS_PENALTY_SHARE * g.reward.stretch, 2),
       g.stretchBreakEven >= 1 ? 'nie' : pct(g.stretchBreakEven),
     ]),
-    note: `* = Mindestprämie (${musd(GOAL_MIN_REWARD_1960, 2)} von 1960 über \`atCost\`). „Lohnt ab Chance“: Das hohe Ziel bringt im Mittel mehr als ein sicher erreichtes sicheres Ziel, wenn es mit dieser Wahrscheinlichkeit erreicht wird (Strafe = ${pct(GOAL_MISS_PENALTY_SHARE)} der Prämie, E58). Das sichere Ziel selbst lohnt ab einer Chance von ${pct(GOAL_MISS_PENALTY_SHARE / (1 + GOAL_MISS_PENALTY_SHARE))}.`,
+    note: `* = Mindestprämie (sicher ${musd(GOAL_MIN_REWARD_1960, 2)} von 1960 über \`atCost\`, andere Art und hoch im Verhältnis der Anteile, E83). „Lohnt ab Chance“: Das hohe Ziel bringt im Mittel mehr als ein sicher erreichtes sicheres Ziel, wenn es mit dieser Wahrscheinlichkeit erreicht wird (Strafe = ${pct(GOAL_MISS_PENALTY_SHARE)} der Prämie, E58). Das sichere Ziel selbst lohnt ab einer Chance von ${pct(GOAL_MISS_PENALTY_SHARE / (1 + GOAL_MISS_PENALTY_SHARE))}.`,
   });
 
   return { title: 'Abschnitt 6: Ruf, Rang, Fortschritt', checks, tables };

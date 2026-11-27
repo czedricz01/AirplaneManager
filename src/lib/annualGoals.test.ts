@@ -35,14 +35,13 @@ test('a saved goal is kept exactly as the model made it; anything else is droppe
   assert.equal(normalizeOffer({ year: 1971, options: [] }), null);
 });
 
-test('the offer text counts the goals, says whether a harder goal pays more, and names the January deadline (5.3b)', () => {
-  // A small airline without routes: two goals, both at the minimum bonus (model 6.11).
+test('the offer text counts the goals, says that a harder goal pays more, and names the January deadline (5.3b, E83)', () => {
+  // A small airline without routes: two goals at the minimum bonus, graded by goal (model 6.11, E83).
   const small = annualGoalOffers({ year: 1961, month: 11, lastYearProfit: -25_000, lastYearRevenue: 0, lastYearPax: 0, routes: 0, regions: 0, reputation: 50 });
   assert.equal(small.length, 2);
-  assert.equal(small[0].reward, small[1].reward);
+  assert.ok(small[1].reward > small[0].reward, 'the harder goal pays more also for a small airline');
   const smallText = goalOfferLines({ year: 1961, options: [...small] });
-  assert.match(smallText.intro, /offers two goals for 1961/);
-  assert.match(smallText.intro, /same minimum bonus/);
+  assert.match(smallText.intro, /offers two goals for 1961\. A harder goal pays more/);
   assert.equal(smallText.deadline, 'Choose before January 1961 is closed; without a choice the first goal stands.');
   // A large airline: three goals, a harder one pays more.
   const big = annualGoalOffers({ year: 1991, month: 371, lastYearProfit: 400e6, lastYearRevenue: 4e9, lastYearPax: 5e6, routes: 40, regions: 3, reputation: 60 });

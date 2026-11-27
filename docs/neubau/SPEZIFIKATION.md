@@ -2160,8 +2160,13 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
     Regionen + 1 (über `regionOf`), Ruf + 6 (höchstens 90), Fluggäste × 1,2, kein Verlustmonat.
   - Das Ziel wird beim Angebot **einmal** auf eine glatte Zahl gesetzt und so gespeichert (wie heute
     `niceDollars`); es ist ein fester Wert wie ein eingestellter Preis, keine Zwischenrechnung (R4).
-- **Belohnung** nur in Geld (E38): `Prämie = max(atCost(GOAL_MIN_REWARD_1960), GOAL_REWARD_SHARE[Art] × goalBase)`,
+- **Belohnung** nur in Geld (E38): `Prämie = max(goalMinReward(Art), GOAL_REWARD_SHARE[Art] × goalBase)`,
   ungerundet (heute auf 50 000 $ gerundet, beim sicheren Ziel oft 0, W10). In die Kasse, nicht ins Monatsergebnis.
+  Mindest-Prämie je Art im Verhältnis der Anteile (E83, Paket 5.3e):
+  `goalMinReward(Art) = atCost(GOAL_MIN_REWARD_1960 × GOAL_REWARD_SHARE[Art] / GOAL_REWARD_SHARE.sicher)`, also
+  sicher 250 000 $, andere Art 375 000 $, hoch 625 000 $ von 1960. Die Mindest-Prämie bindet damit für alle Arten
+  bei derselben Bezugsgröße (unter 12,5 Mio. $ von 1960), und das hohe Ziel zahlt auch bei kleinen Gesellschaften
+  das 2,5-Fache des sicheren (vorher eine Mindest-Prämie für alle: hohes Ziel nur schwerer, Fund 52).
 - **Verfehlt** (E58): Geld-Strafe `Strafe = GOAL_MISS_PENALTY_SHARE × Prämie` des gewählten Ziels, ungerundet, aus
   der Kasse, nicht im Monatsergebnis (wie die Prämie). Kein Ruf-Abzug (E38). Das Wagnis liegt so in der Wahl und im
   Ergebnis: Das hohe Ziel zahlt mehr, kostet beim Verfehlen aber auch mehr (2,5 % statt 1 % der Bezugsgröße).
@@ -2171,9 +2176,10 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
   `yearSnapshot` für Abschluss und Fortschrittsbalken.
 - Konstanten (Startwerte, endgültig aus 3.9): `GOAL_MIN_MARGIN = 0,05`; `GOAL_PROFIT_FLOOR_1960 = 2 000 000`;
   `GOAL_STEADY_FACTOR = 1,1`, `GOAL_STRETCH_FACTOR = 1,35` (wie heute); `GOAL_REWARD_SHARE` sicher 0,02 · andere
-  Art 0,03 · hoch 0,05; `GOAL_MIN_REWARD_1960 = 250 000`; `GOAL_MISS_PENALTY_SHARE = 0,5` (E58).
+  Art 0,03 · hoch 0,05; `GOAL_MIN_REWARD_1960 = 250 000` (sicheres Ziel; andere Arten nach E83);
+  `GOAL_MISS_PENALTY_SHARE = 0,5` (E58).
 - Regeln (Tests): Ziel nach einem Verlustjahr hängt vom Vorjahreserlös ab; Prämie nie unter dem Mindestbetrag;
-  hohes Ziel ≥ sicheres Ziel und hohe Prämie ≥ sichere Prämie; kein Ziel ändert den Ruf; verfehlt: Kasse sinkt um
+  hohes Ziel ≥ sicheres Ziel und hohe Prämie ≥ sichere Prämie, bei der kleinsten Bezugsgröße genau das 2,5-Fache (E83); kein Ziel ändert den Ruf; verfehlt: Kasse sinkt um
   genau die Hälfte der Prämie, das Monatsergebnis bleibt gleich; erreicht: keine Strafe.
 
 ### 6.12 Karriere-Punkte und Ruhmeshallen (Code-Name: `careerScore`)

@@ -13,6 +13,7 @@ import {
   COST_RESEARCH_KINDS,
   GOAL_MIN_REWARD_1960,
   GOAL_PROFIT_FLOOR_1960,
+  GOAL_REWARD_SHARE,
   HALL_SIZE,
   MAX_RANK,
   MILESTONE_TIER_REWARD,
@@ -35,6 +36,7 @@ import {
   goalBase,
   goalFraction,
   goalMet,
+  goalMinReward,
   goalReward,
   isDecember,
   milestoneDef,
@@ -455,6 +457,24 @@ describe('Abschnitt 6.11 Jahresziel', () => {
       close(g.penalty, g.reward / 2);
     }
     close(goalReward('steady', 0, 0), GOAL_MIN_REWARD_1960);
+  });
+
+  it('E83: Mindest-Prämie je Art im Verhältnis der Anteile (250 000 / 375 000 / 625 000 $ von 1960)', () => {
+    close(goalMinReward('steady', 0), 250_000);
+    close(goalMinReward('focus', 0), 375_000);
+    close(goalMinReward('stretch', 0), 625_000);
+    close(goalMinReward('stretch', DEC_1979), 625_000 * costIndex(DEC_1979));
+    // Neue Gesellschaft (Bezugsgröße = Mindestwert): das hohe Ziel zahlt mehr und kostet beim Verfehlen mehr.
+    const offers = annualGoalOffers({ ...OFFER, lastYearProfit: 0, lastYearRevenue: 0 });
+    const steady = offers.find((g) => g.tag === 'steady') as AnnualGoal;
+    const stretch = offers.find((g) => g.tag === 'stretch') as AnnualGoal;
+    close(stretch.reward / steady.reward, 2.5);
+    assert.ok(stretch.penalty > steady.penalty);
+    // Ab einer Bezugsgröße von 12,5 Mio. $ von 1960 zählt für alle Arten der Anteil (Schwelle gleich für alle).
+    for (const tag of ['steady', 'focus', 'stretch'] as const) {
+      close(goalReward(tag, 12_500_000, 0), goalMinReward(tag, 0));
+      close(goalReward(tag, 20e6, 0), GOAL_REWARD_SHARE[tag] * 20e6);
+    }
   });
 
   it('6.11: hohes Ziel kostet beim Verfehlen 2,5 % statt 1 % der Bezugsgröße', () => {

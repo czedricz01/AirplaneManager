@@ -10,10 +10,11 @@ import { eventSection, smallMarketResults } from './events';
 import { demandSection, satisfactionSection, timeAndMoney } from './market';
 import { renderMarkdown, type Section } from './report';
 import { ROUTE_CASES, routeCaseResults, routeSections } from './routes';
+import { widebodySection } from './widebody';
 
 export { renderMarkdown, verdictCounts, type Check, type Section, type Table, type Verdict } from './report';
 
-/** Alle Abschnitte des Berichts ohne Langlauf (Pakete 3.9a und 3.9c: Abschnitte 1–6 und 8 der Spezifikation). */
+/** Alle Abschnitte des Berichts ohne Langlauf (Pakete 3.9a, 3.9c, 5.3e: Abschnitte 1–6, die Flugzeugwahl der KI aus 7 und 8). */
 export function balanceSections(): Section[] {
   const results = routeCaseResults();
   return [
@@ -22,6 +23,7 @@ export function balanceSections(): Section[] {
     demandSection(),
     ...routeSections(results),
     careerSection(),
+    widebodySection(),
     eventSection({ results, smallMarket: smallMarketResults(ROUTE_CASES) }),
   ];
 }
