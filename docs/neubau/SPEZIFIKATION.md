@@ -2010,7 +2010,7 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
   | `monthlyPax` | Fluggäste des Monats, jede Teilstrecke gezählt (Umsteiger doppelt, wie heute), = Fluggäste je Woche × `WEEKS_PER_MONTH` (E5) |
   | `reputation` | Ruf nach der Ruf-Änderung (6.5) |
   | `regions` | Regionen mit mindestens einem Strecken-Ende, über `regionOf` (R15) |
-  | `years` | volle Jahre seit Spielstart (zählt nicht im Mittel) |
+  | `years` | volle Jahre seit Spielstart; nur Anzeige und Karriere-Punkte, **keine Rang-Bedingung** (F89) |
 - **Prüfung** (E40): Für `routes`, `monthlyPax`, `reputation`, `regions` zählt das **Mittel der letzten 3 Monate**.
   Monate vor Spielstart zählen als 0. Rang = höchste Stufe, deren Bedingungen alle erfüllt sind, Stufen der
   Reihe nach; neuer Rang = max(alter Rang, Prüfung).
@@ -2018,23 +2018,25 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
   `src/App.tsx:794-801`).
 - **Tabelle der Ränge** (Code-Name: `RANKS`, je Stufe ein Datensatz; alle Texte daraus erzeugt, E42, E52):
 
-  | Stufe | Strecken | Fluggäste / Monat | Ruf | Regionen | Jahre | Drehkreuze | Flughafen-Größe bis | Forschungsplätze | Klassen-Forschung erscheint | Weitere Freischaltungen |
-  |---|---|---|---|---|---|---|---|---|---|---|
-  | 0 Startup | 0 | 0 | 0 | 0 | 0 | 1 | 4 | 2 | (Commuter offen) | lokale Werbung |
-  | 1 Local | 3 | 8 000 | 30 | 1 | 0 | 1 | 5 | 2 | Regional | – |
-  | 2 Regional | 6 | 25 000 | 35 | 1 | 1 | 2 | 5 | 2 | Narrowbody | Frequent flyer |
-  | 3 Domestic | 12 | 70 000 | 40 | 1 | 3 | 2 | 6 | 2 | – | nationale Werbung |
-  | 4 National | 24 | 170 000 | 45 | 1 | 6 | 3 | 7 | **3** | Widebody | VIP-Lounge |
-  | 5 Continental | 40 | 350 000 | 50 | 2 | 10 | 4 | 7 | 3 | Jumbo, Überschall | – |
-  | 6 International | 65 | 700 000 | 53 | 3 | 15 | 5 | 7 | **4** | – | globale Werbung, Übernahme in der Krise |
-  | 7 Intercontinental | 95 | 1 200 000 | 56 | 4 | 22 | 6 | 7 | 4 | – | – |
-  | 8 Flag Carrier | 135 | 2 000 000 | 60 | 5 | 30 | 8 | 7 | **5** | – | Verwaltungsstufe 3 |
-  | 9 Global Player | 190 | 3 500 000 | 65 | 6 | 40 | 12 | 7 | 5 | – | Übernahme eines gesunden Rivalen |
+  | Stufe | Strecken | Fluggäste / Monat | Ruf | Regionen | Drehkreuze | Flughafen-Größe bis | Forschungsplätze | Klassen-Forschung erscheint | Weitere Freischaltungen |
+  |---|---|---|---|---|---|---|---|---|---|
+  | 0 Startup | 0 | 0 | 0 | 0 | 1 | 4 | 2 | (Commuter offen) | lokale Werbung |
+  | 1 Local | 3 | 8 000 | 30 | 1 | 1 | 5 | 2 | Regional | – |
+  | 2 Regional | 6 | 25 000 | 35 | 1 | 2 | 5 | 2 | Narrowbody | Frequent flyer |
+  | 3 Domestic | 12 | 70 000 | 40 | 1 | 2 | 6 | 2 | – | nationale Werbung |
+  | 4 National | 24 | 170 000 | 45 | 1 | 3 | 7 | **3** | Widebody | VIP-Lounge |
+  | 5 Continental | 40 | 350 000 | 50 | 2 | 4 | 7 | 3 | Jumbo, Überschall | – |
+  | 6 International | 65 | 700 000 | 53 | 3 | 5 | 7 | **4** | – | globale Werbung, Übernahme in der Krise |
+  | 7 Intercontinental | 95 | 1 200 000 | 56 | 4 | 6 | 7 | 4 | – | – |
+  | 8 Flag Carrier | 135 | 2 000 000 | 60 | 5 | 8 | 7 | **5** | – | Verwaltungsstufe 3 |
+  | 9 Global Player | 190 | 3 500 000 | 65 | 6 | 12 | 7 | 5 | – | Übernahme eines gesunden Rivalen |
 
-  - Strecken, Fluggäste, Regionen, Jahre, Drehkreuze, Flughafen-Größen und weitere Freischaltungen wie heute
+  - Strecken, Fluggäste, Regionen, Drehkreuze, Flughafen-Größen und weitere Freischaltungen wie heute
     (`src/lib/airlineRank.ts:42-103`, `:187-197`); Startwerte, endgültig aus dem Balance-Skript (3.9).
     Hinweis: Mit `WEEKS_PER_MONTH` statt 4 Wochen sind die Fluggast-Schwellen gleich hoher Nachfrage rund 9 %
     leichter erreichbar.
+  - **Keine Mindest-Jahre im Geschäft** (F89, 27.11.2026): Die frühere Spalte „Jahre“ (0 / 0 / 1 / 3 / 6 / 10 / 15 / 22 /
+    30 / 40) ist gestrichen. Wer die übrigen Bedingungen erfüllt, steigt auf.
   - **Ruf-Schwellen neu** (heute 40 … 80): Der Neutralpunkt sinkt von 75 auf 50 (E36), und der Zustand zählt
     nicht mehr (E39). Ruf 50 heißt jetzt „Fluggäste im Mittel wie erwartet zufrieden“ (Satisfaction 100);
     Ruf 65 heißt Satisfaction ≈ 118. Die alten Werte wären mit der neuen Skala für die oberen Ränge kaum
@@ -2075,7 +2077,8 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
     Gesellschaft auf Rang 5 um 1975 mehrere Jahresergebnisse (Prüfregel unten).
   - Mit E102 (Paket 5.4g) alle Preise × 0,7 (vorher 3 / 12 / 40 / 80 / 60 Mio. $): Nach E97 verdient der Spieler beim
     besten Preis weniger; an der Rang-Schwelle kostete die Klasse 13–17 Monatsergebnisse (Prüfregel unten).
-- **Prüfung der Erreichbarkeit** (Start Januar 1960, schnellster Weg; Rang frühestens nach den Jahren der Tabelle):
+- **Prüfung der Erreichbarkeit** (Start Januar 1960, schnellster Weg; Stand vor F89, als der Rang noch Mindest-Jahre
+  verlangte; ohne sie ist jede Klasse früher erreichbar):
 
   | Klasse | Rang erreicht frühestens | Forschung fertig frühestens | Lieferzeitraum (Daten) | Spielraum |
   |---|---|---|---|---|
@@ -2090,7 +2093,7 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
 - Spielstart nach 1960 oder Szenario: Klassen-Projekte bis zum Startrang gelten als fertig (wie heute,
   `src/lib/research.ts:191-193`).
 - Regeln (Tests):
-  - Für jede Klasse gilt: Jahre-Bedingung ihres Rangs + Dauer aller nötigen Projekte (nacheinander) <
+  - Für jede Klasse gilt: Dauer aller nötigen Projekte (nacheinander) <
     letzter Liefermonat der Klasse (bei Start 1960).
   - Balance-Skript (3.9) prüft: Eine Gesellschaft, die die Bedingungen des Rangs gerade erfüllt, bezahlt die
     Klassen-Forschung dieses Rangs aus höchstens 12 Monatsergebnissen (5.16).

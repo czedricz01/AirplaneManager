@@ -298,7 +298,7 @@ export const aircraftList: Aircraft[] = [
     "lastDeliveryOffset": null,
     "popularity": 78,
     "efficiency": 95,
-    "maxRange": 7400,
+    "maxRange": 6500,
     "capacity": 244,
     "cruiseSpeed": 828,
     "basePrice": 58000000,
@@ -1078,7 +1078,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 11000000,
     "class": "Regional"
   ,
-    "wingspan": 28.6,
+    "wingspan": 30.63,
     "icaoCode": "C"
   },
   {
@@ -1306,7 +1306,7 @@ export const aircraftList: Aircraft[] = [
     "lastDeliveryOffset": 156,
     "popularity": 52,
     "efficiency": 22,
-    "maxRange": 5000,
+    "maxRange": 4170,
     "capacity": 131,
     "cruiseSpeed": 890,
     "basePrice": 14000000,
@@ -1324,7 +1324,7 @@ export const aircraftList: Aircraft[] = [
     "lastDeliveryOffset": 296,
     "popularity": 55,
     "efficiency": 25,
-    "maxRange": 4450,
+    "maxRange": 3520,
     "capacity": 189,
     "cruiseSpeed": 890,
     "basePrice": 16000000,
@@ -1342,7 +1342,7 @@ export const aircraftList: Aircraft[] = [
     "lastDeliveryOffset": 296,
     "popularity": 58,
     "efficiency": 28,
-    "maxRange": 4800,
+    "maxRange": 4720,
     "capacity": 189,
     "cruiseSpeed": 890,
     "basePrice": 17500000,
@@ -2158,8 +2158,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 14000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 21.21,
+    "icaoCode": "B"
   },
   {
     "id": "crj200",
@@ -2176,8 +2176,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 15000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 21.21,
+    "icaoCode": "B"
   },
   {
     "id": "crj440",
@@ -2194,8 +2194,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 15000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 21.21,
+    "icaoCode": "B"
   },
   {
     "id": "crj700",
@@ -2212,8 +2212,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 19000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 23.24,
+    "icaoCode": "B"
   },
   {
     "id": "crj900",
@@ -2230,7 +2230,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 21000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 24.85,
     "icaoCode": "C"
   },
   {
@@ -2248,7 +2248,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 25000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 26.18,
     "icaoCode": "C"
   },
   {
@@ -2302,8 +2302,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 43.36,
+    "icaoCode": "D"
   },
   {
     "id": "britannia-310",
@@ -2320,8 +2320,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6500000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 43.36,
+    "icaoCode": "D"
   },
   {
     "id": "208-grand-caravan",
@@ -2338,8 +2338,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 1500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 15.88,
+    "icaoCode": "B"
   },
   {
     "id": "arj21-700",
@@ -2356,7 +2356,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 16000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 27.29,
     "icaoCode": "C"
   },
   {
@@ -2374,7 +2374,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 18000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 27.29,
     "icaoCode": "C"
   },
   {
@@ -2392,7 +2392,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 43000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 35.8,
     "icaoCode": "C"
   },
   {
@@ -2410,8 +2410,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 14000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 36.58,
+    "icaoCode": "D"
   },
   {
     "id": "cv-990",
@@ -2428,8 +2428,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 16000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 36.58,
+    "icaoCode": "D"
   },
   {
     "id": "mercure-100",
@@ -2446,7 +2446,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 18000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 30.55,
     "icaoCode": "C"
   },
   {
@@ -2482,7 +2482,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 10500000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 32.87,
     "icaoCode": "C"
   },
   {
@@ -2518,7 +2518,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 7000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 28.35,
     "icaoCode": "C"
   },
   {
@@ -2608,8 +2608,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 2500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 16.97,
+    "icaoCode": "B"
   },
   {
     "id": "do-228-200",
@@ -2626,8 +2626,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 3000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 16.97,
+    "icaoCode": "B"
   },
   {
     "id": "do-328-100",
@@ -2644,8 +2644,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 20.98,
+    "icaoCode": "B"
   },
   {
     "id": "328jet",
@@ -2662,8 +2662,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 10000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 20.98,
+    "icaoCode": "B"
   },
   {
     "id": "dc-8-10",
@@ -2800,7 +2800,7 @@ export const aircraftList: Aircraft[] = [
     "lastDeliveryOffset": 148,
     "popularity": 50,
     "efficiency": 22,
-    "maxRange": 11200,
+    "maxRange": 7240,
     "capacity": 259,
     "cruiseSpeed": 876,
     "basePrice": 22000000,
@@ -2824,8 +2824,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 28000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 43.41,
+    "icaoCode": "D"
   },
   {
     "id": "dc-8-72",
@@ -2842,8 +2842,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 27000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 45.23,
+    "icaoCode": "D"
   },
   {
     "id": "dc-8-73",
@@ -2854,14 +2854,14 @@ export const aircraftList: Aircraft[] = [
     "lastDeliveryOffset": 336,
     "popularity": 55,
     "efficiency": 48,
-    "maxRange": 11200,
+    "maxRange": 8950,
     "capacity": 259,
     "cruiseSpeed": 876,
     "basePrice": 30000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 45.23,
+    "icaoCode": "D"
   },
   {
     "id": "emb-110",
@@ -2878,8 +2878,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 2000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 15.33,
+    "icaoCode": "B"
   },
   {
     "id": "emb-120",
@@ -2896,8 +2896,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 19.78,
+    "icaoCode": "B"
   },
   {
     "id": "erj-135",
@@ -2968,8 +2968,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 16500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 20.04,
+    "icaoCode": "B"
   },
   {
     "id": "e170",
@@ -3112,7 +3112,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 5000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3130,7 +3130,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 5500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3148,8 +3148,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 2000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 14.1,
+    "icaoCode": "A"
   },
   {
     "id": "metro-iii",
@@ -3166,8 +3166,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 2500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 17.37,
+    "icaoCode": "B"
   },
   {
     "id": "metro-23",
@@ -3184,8 +3184,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 3000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 17.37,
+    "icaoCode": "B"
   },
   {
     "id": "f27-100",
@@ -3202,7 +3202,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3220,7 +3220,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6200000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3238,7 +3238,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6200000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3256,7 +3256,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3274,7 +3274,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 7000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3292,7 +3292,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6800000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29,
     "icaoCode": "C"
   },
   {
@@ -3310,8 +3310,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 9000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 23.58,
+    "icaoCode": "B"
   },
   {
     "id": "f28-2000",
@@ -3328,8 +3328,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 10000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 23.58,
+    "icaoCode": "B"
   },
   {
     "id": "f28-3000",
@@ -3346,7 +3346,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 11000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 25.07,
     "icaoCode": "C"
   },
   {
@@ -3364,7 +3364,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 12000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 25.07,
     "icaoCode": "C"
   },
   {
@@ -3400,7 +3400,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 18000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 28.08,
     "icaoCode": "C"
   },
   {
@@ -3418,7 +3418,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 23000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 28.08,
     "icaoCode": "C"
   },
   {
@@ -3436,7 +3436,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 5000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 28.88,
     "icaoCode": "C"
   },
   {
@@ -3454,7 +3454,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 10000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 27.38,
     "icaoCode": "C"
   },
   {
@@ -3472,7 +3472,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 11000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 28.96,
     "icaoCode": "C"
   },
   {
@@ -3490,7 +3490,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 12000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 29.87,
     "icaoCode": "C"
   },
   {
@@ -3508,7 +3508,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 14000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 29.87,
     "icaoCode": "C"
   },
   {
@@ -3526,7 +3526,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 30.02,
     "icaoCode": "C"
   },
   {
@@ -3544,8 +3544,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 37.4,
+    "icaoCode": "D"
   },
   {
     "id": "il-18d",
@@ -3562,8 +3562,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 9000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 37.4,
+    "icaoCode": "D"
   },
   {
     "id": "il-62",
@@ -3598,8 +3598,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 15000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 43.2,
+    "icaoCode": "D"
   },
   {
     "id": "il-86",
@@ -3652,7 +3652,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 10000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 30,
     "icaoCode": "C"
   },
   {
@@ -3670,7 +3670,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 15000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 30,
     "icaoCode": "C"
   },
   {
@@ -3688,7 +3688,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 45000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 35.9,
     "icaoCode": "C"
   },
   {
@@ -3706,8 +3706,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 2000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 19.98,
+    "icaoCode": "B"
   },
   {
     "id": "l-188a",
@@ -3724,7 +3724,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 30.18,
     "icaoCode": "C"
   },
   {
@@ -3742,7 +3742,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8500000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 30.18,
     "icaoCode": "C"
   },
   {
@@ -3778,8 +3778,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 62000000,
     "class": "Widebody"
   ,
-    "wingspan": 60,
-    "icaoCode": "E"
+    "wingspan": 47.35,
+    "icaoCode": "D"
   },
   {
     "id": "l-1011-200",
@@ -3940,8 +3940,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 66000000,
     "class": "Widebody"
   ,
-    "wingspan": 60,
-    "icaoCode": "E"
+    "wingspan": 47.34,
+    "icaoCode": "D"
   },
   {
     "id": "dc-10-30",
@@ -4084,7 +4084,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 32000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 32.87,
     "icaoCode": "C"
   },
   {
@@ -4120,8 +4120,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 98000000,
     "class": "Widebody"
   ,
-    "wingspan": 60,
-    "icaoCode": "E"
+    "wingspan": 51.97,
+    "icaoCode": "D"
   },
   {
     "id": "ys-11",
@@ -4138,7 +4138,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 6000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 32,
     "icaoCode": "C"
   },
   {
@@ -4156,8 +4156,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 21.44,
+    "icaoCode": "B"
   },
   {
     "id": "saab-340b",
@@ -4174,8 +4174,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 22.75,
+    "icaoCode": "B"
   },
   {
     "id": "saab-2000",
@@ -4192,7 +4192,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 13000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 24.76,
     "icaoCode": "C"
   },
   {
@@ -4210,8 +4210,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 1500000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 19.79,
+    "icaoCode": "B"
   },
   {
     "id": "330",
@@ -4228,8 +4228,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 3000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 22.76,
+    "icaoCode": "B"
   },
   {
     "id": "360",
@@ -4246,8 +4246,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 4000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 22.8,
+    "icaoCode": "B"
   },
   {
     "id": "caravelle-i",
@@ -4408,7 +4408,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 22000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 27.8,
     "icaoCode": "C"
   },
   {
@@ -4426,7 +4426,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 34.54,
     "icaoCode": "C"
   },
   {
@@ -4444,8 +4444,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 12000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 51.1,
+    "icaoCode": "D"
   },
   {
     "id": "tu-124",
@@ -4462,7 +4462,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 7000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 25.55,
     "icaoCode": "C"
   },
   {
@@ -4516,8 +4516,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 14000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 37.55,
+    "icaoCode": "D"
   },
   {
     "id": "tu-154b",
@@ -4534,8 +4534,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 15000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 37.55,
+    "icaoCode": "D"
   },
   {
     "id": "tu-154m",
@@ -4552,8 +4552,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 16000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 37.55,
+    "icaoCode": "D"
   },
   {
     "id": "tu-204-100",
@@ -4570,8 +4570,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 32000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 41.8,
+    "icaoCode": "D"
   },
   {
     "id": "tu-204-300",
@@ -4588,8 +4588,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 30000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 41.8,
+    "icaoCode": "D"
   },
   {
     "id": "tu-214",
@@ -4606,8 +4606,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 33000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 41.8,
+    "icaoCode": "D"
   },
   {
     "id": "tu-334",
@@ -4624,7 +4624,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 20000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 29.77,
     "icaoCode": "C"
   },
   {
@@ -4642,8 +4642,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 8000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
-    "icaoCode": "C"
+    "wingspan": 21.5,
+    "icaoCode": "B"
   },
   {
     "id": "vanguard",
@@ -4660,7 +4660,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 9000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
+    "wingspan": 35.96,
     "icaoCode": "C"
   },
   {
@@ -4678,8 +4678,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 16000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 44.55,
+    "icaoCode": "D"
   },
   {
     "id": "super-vc10",
@@ -4696,8 +4696,8 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 18000000,
     "class": "Narrowbody"
   ,
-    "wingspan": 35,
-    "icaoCode": "C"
+    "wingspan": 44.55,
+    "icaoCode": "D"
   },
   {
     "id": "yak-40",
@@ -4750,7 +4750,7 @@ export const aircraftList: Aircraft[] = [
     "basePrice": 12000000,
     "class": "Regional"
   ,
-    "wingspan": 28,
+    "wingspan": 34.88,
     "icaoCode": "C"
   }
 ];
