@@ -964,7 +964,7 @@ früher, kauft dann den größten Typ bis 150 Sitze (DC-9), findet damit kaum po
 mehr (52–63 statt 82 Strecken, Kasse liegt brach). Grenze der Test-Strategie, kein Modellfehler; Streckenprobe mit
 F27 / HS 748 unverändert 10/10 auf Easy.
 
-### Fund 77: pack-Strategien auf Hard 31–32 % von Easy → Frage O100
+### Fund 77: pack-Strategien auf Hard 31–32 % von Easy → Frage O100 (E106: so lassen, Band etwa 30–50 %)
 
 vorsichtig-pack 1995 +363 / +226 / +115, lcc-best-pack +444 / +238 / +139 Mio. $ (Easy / Normal / Hard): Hard 32 % und
 31 % von Easy, unter dem Ziel 40–50 % aus E94 (optimierer 46 %, luxus 42 %, vorsichtig 37 %). Werte wie in 5.4f, dort

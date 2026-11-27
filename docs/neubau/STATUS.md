@@ -1,14 +1,20 @@
 # Status
 
-**Nächstes: Frage O100 beantworten** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; Bericht `balance/5.4h-spieltest.md`,
-Abschnitt 6). Die pack-Strategien bringen auf Hard 31–32 % ihres Easy-Ergebnisses, E94 will etwa 40–50 %. Bei A
-(Empfehlung, so lassen) ist kein Paket nötig, nur der Eintrag E106. Bei B oder C: Kosten-Faktor ändern, Tests
-anpassen, Spieltest-Matrix neu (`scripts/playtest-matrix.ts --jobs 4`, etwa 25 min) und Planer-Probe für E88.
+**Nächstes: kein Paket offen.** Alle Pakete der Phasen 0–5 sind erledigt, keine Frage ist offen. Ob und womit es
+weitergeht, entscheidet der Mensch. Mögliche nächste Pakete (keins davon gehört zum Kern des Neubaus):
+(1) Spieltest im Browser durch einen Menschen: Spielgefühl der KI-Stärke (die Matrix misst den Spieler fast ohne KI
+am eigenen Drehkreuz, Fund 76). (2) Typ-Wahl der Test-Strategien verbessern (größter Typ bis 150 Sitze, Fund 76; Arbeit
+am Spieltest, nicht am Modell). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche Ortsnamen in
+`src/data/airportsRows.ts` (Fund 55). (5) Spielstände in der Cloud (Supabase) testen.
 
-Offen: O100. Weiter vorgemerkt (keine Pakete): Spielgefühl der KI-Stärke (Mensch; die Matrix misst den Spieler fast
-ohne KI am eigenen Drehkreuz, Fund 76), Typ-Wahl der Test-Strategien (größter Typ bis 150 Sitze, Fund 76), deutsche
-Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53), Spielstände in der Cloud
-(Supabase).
+Offen: nichts.
+
+Stand: 27.11.2026 · O100 im Chat entschieden: A (E106). Der Kosten-Faktor je Stufe bleibt 0,85 / 1 / 1,1 (E87); das
+Hard-Ziel aus E94 heißt jetzt „etwa 30–50 % des Easy-Ergebnisses guter Strategien, klar gewinnbar“. Damit erfüllen
+alle gemessenen guten Strategien das Ziel (31–46 %, `balance/5.4h-spieltest.md`). Kein Code geändert; Fund 77 in
+`BALANCE.md` mit der Entscheidung ergänzt. Tests: 1 262 grün, Lint ohne Fehler.
+
+Offen aus diesem Stand: nichts.
 
 Stand: 27.11.2026 · Paket 5.4h erledigt: Spieltest-Matrix nach E101–E105 (`balance/5.4h-spieltest.md`, Funde 76–77):
 177 Spiele, kein Fehler, kein Modell-Code geändert; Matrix um Strategie `lcc-best-pack` ergänzt
@@ -19,7 +25,7 @@ Werte genau): „vorsichtig“ Easy +31 → +14 Mio. $, weil die Test-Strategie 
 gelten weiter. Neu: vorsichtig-pack und lcc-best-pack auf Hard 32 / 31 % von Easy (E94: 40–50 %) → O100. Tests:
 1 262 grün. Im Browser nicht geprüft.
 
-Offen aus diesem Stand: O100.
+Offen aus diesem Stand: O100 (→ E106, entschieden 27.11.2026).
 
 Stand: 27.11.2026 · O99 im Chat entschieden: A (E105, fester Billigpreis bleibt ohne Sonderhilfe). Paket 5.4g erledigt
 (F88): E101–E104 umgesetzt – Optimizer-Kaufneigung 0,6, Klassen-Forschung × 0,7 (2,1 / 8,4 / 28 / 56 / 42 Mio. $ von
@@ -686,7 +692,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.4e | Balance-Langlauf nach E87–E97: KI-Stärke, Preiskämpfe, Prüfregeln (`balance/5.4e-bericht.md`; Funde 67–71, Fragen O95–O98) | erledigt |
 | 5.4f | Kürzere Bodenzeit der LCC-Kabine (E98) mit Spieltest-Matrix; Ziel „standard auf Hard pleite“ aus der Bewertung streichen (E99); Wucher bleibt (E100); Planer-Fehler bei geteiltem Flugzeug (F87; `balance/5.4f-spieltest.md`, Funde 72–73, Frage O99) | erledigt |
 | 5.4g | Umsetzung E101–E104 (Optimizer-Kaufneigung, Klassen-Forschung, Regel B4.2, Werbe-Kosten) mit Balance-Langlauf (F88; `balance/5.4g-bericht.md`, Funde 74–75) | erledigt |
-| 5.4h | Spieltest-Matrix nach E101–E105: Spieler-Ziele (E88, E91, E100) mit den neuen Preisen (`balance/5.4h-spieltest.md`) | offen |
+| 5.4h | Spieltest-Matrix nach E101–E105: Spieler-Ziele (E88, E91, E100) mit den neuen Preisen (`balance/5.4h-spieltest.md`; Funde 76–77, Frage O100 → E106) | erledigt |
 
 ---
 
@@ -785,3 +791,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.4f | LCC-Kabine wendet in der halben Zeit (E98, F87); Spieltest-Option `pack`; Planer-Fehler bei geteiltem Flugzeug behoben; `balance/5.4f-spieltest.md` (Funde 72–73): Wende kaum wirksam, LCC-Kabine trägt mit bestem Preis und gepackten Flugzeugen; neue Frage O99 |
 | 27.11.2026 | O99 | Im Chat entschieden: A (E105): fester Billigpreis bleibt ohne Sonderhilfe |
 | 27.11.2026 | 5.4g | E101–E104 umgesetzt (F88); Langlauf `balance/5.4g-bericht.md` 21 ok · 0 Abweichung · 33 Info (B7.1 1,82 / 1,82, B6.7 ≤ 11,7, B4.2 ok); KI-Stärke Easy < Normal < Hard im Median; KI-LCC-Wende ohne Wirkung auf B7.1; Funde 74–75; Tests 1 262 grün; neues Paket 5.4h vorgeschlagen |
+| 27.11.2026 | 5.4h | Spieltest-Matrix nach E101–E105 (`balance/5.4h-spieltest.md`, 177 Spiele, Funde 76–77): Ziele E88, E91/E105, E93, E95, E96, E99, E100 gelten weiter; pack-Strategien auf Hard 31–32 % von Easy → O100; Strategie `lcc-best-pack` ergänzt; kein Modell-Code geändert |
+| 27.11.2026 | O100 | Im Chat entschieden: A (E106): Kosten-Faktor bleibt, Hard-Ziel etwa 30–50 % von Easy; kein Paket offen |
