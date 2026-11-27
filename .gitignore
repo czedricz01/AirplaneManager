@@ -18,3 +18,4 @@ dist-static/
 
 # Langläufe des Balance-Skripts (npm run balance -- --long)
 .balance-runs/
+.playtest-runs/

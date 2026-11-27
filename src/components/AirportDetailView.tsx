@@ -175,6 +175,7 @@ export function AirportDetailView({
       requestedAmount,
       hubAutoUpgrade,
       autoBuyStands: !!infrastructure.autoBuyStands,
+      standsAvailable: avail.stands,
       availableSlots,
       utilizedSlots: utilizedSlots[subType as 'regional' | 'narrowbody' | 'widebody'] || 0,
       costPerUnit: type === 'slots' ? slotBuyPrice(slotKind, pricing) : 0,

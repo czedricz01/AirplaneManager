@@ -305,6 +305,12 @@ export interface InfraChangeParams {
   refundPerUnit?: number;
   /** Desks of subType 'normal' can't be sold below this (0 unless the caller enforces a minimum). */
   minNormalDesks?: number;
+  /**
+   * Whether this airport has stands at all (`hasStands`, model 5.10: only from size 3). Without them no stand is
+   * bought, neither directly nor with a slot (hub auto-upgrade, auto-buy); the model rejects stands there.
+   * Defaults to true.
+   */
+  standsAvailable?: boolean;
 }
 
 export interface InfraChangeResult {
@@ -328,7 +334,7 @@ export interface InfraChangeResult {
 export function applyInfrastructureChange(params: InfraChangeParams): InfraChangeResult {
   const {
     infra, type, subType, requestedAmount, hubAutoUpgrade, autoBuyStands,
-    availableSlots, utilizedSlots, costPerUnit, minNormalDesks = 0
+    availableSlots, utilizedSlots, costPerUnit, minNormalDesks = 0, standsAvailable = true
   } = params;
   const refundPerUnit = params.refundPerUnit ?? costPerUnit * 0.5;
 
@@ -350,6 +356,10 @@ export function applyInfrastructureChange(params: InfraChangeParams): InfraChang
     if (actualAmount < 0 && currentCount + actualAmount < utilizedSlots) {
       actualAmount = utilizedSlots - currentCount;
     }
+  }
+
+  if (type === 'stands' && actualAmount > 0 && !standsAvailable) {
+    actualAmount = 0;
   }
 
   if (type === 'stands' && actualAmount > 0) {
@@ -378,7 +388,7 @@ export function applyInfrastructureChange(params: InfraChangeParams): InfraChang
     // Selling pays in the resale price (model: SLOT_RESALE_SHARE of today's price).
     cost = actualAmount > 0 ? costPerUnit * actualAmount : refundPerUnit * actualAmount;
 
-    if (actualAmount > 0 && (hubAutoUpgrade || autoBuyStands)) {
+    if (actualAmount > 0 && standsAvailable && (hubAutoUpgrade || autoBuyStands)) {
       newInfra.stands = { ...newInfra.stands };
       newInfra.stands[subType] = (newInfra.stands[subType] || 0) + actualAmount;
     }
