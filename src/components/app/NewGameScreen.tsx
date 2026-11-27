@@ -21,6 +21,9 @@ import { START_CAPITAL_TIERS_1960 } from '../../model/constants';
 import { startCapital } from '../../model/progress';
 import { writeString } from '../../lib/safeStorage';
 
+/** Latest start month a new game offers: 12/2025 (months since 01/1960). Airport and fuel data run past it. */
+const LAST_START_OFFSET = (2025 - 1960) * 12 + 11;
+
 export interface NewGameScreenProps {
   setView: React.Dispatch<React.SetStateAction<ViewState>>;
   newGameScenarioId: string | null;
@@ -284,7 +287,7 @@ export function NewGameScreen({
                         id="new-game-start"
                         type="range"
                         min="0"
-                        max="731"
+                        max={LAST_START_OFFSET}
                         value={startDateOffset}
                         disabled={!!newGameScenario}
                         onChange={(e) => setStartDateOffset(parseInt(e.target.value))}
@@ -292,7 +295,7 @@ export function NewGameScreen({
                       />
                       <div className="flex justify-between text-2xs text-muted">
                         <span>01/1960</span>
-                        <span>12/2020</span>
+                        <span>{formatDate(LAST_START_OFFSET)}</span>
                       </div>
                     </div>
 

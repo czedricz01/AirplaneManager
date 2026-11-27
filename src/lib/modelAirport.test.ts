@@ -19,7 +19,7 @@ import {
 import { facilityPrice, managementTierPrice, slotPrice } from '../model/airportCosts';
 import { landingFee } from '../model/costs';
 import { managementTierFeatures } from '../model/glossary';
-import { monthOperations } from '../model/monthClose';
+import { NO_DECISIONS, closeMonth, monthOperations } from '../model/monthClose';
 import { hubQuality } from '../model/transfers';
 import { applyInfrastructureChange } from './financeUtils';
 import { createOwnedAircraft, defaultCabin } from './fleet';
@@ -252,5 +252,36 @@ describe('4.3 Drehkreuz-Güte und Texte', () => {
   it('jede Verwaltungsstufe hat ihre Wirkungen als Text, ohne feste Zahlen in der Ansicht', () => {
     for (const tier of [1, 2, 3]) assert.ok(managementTierFeatures(tier).length > 0, String(tier));
     assert.deepEqual(managementTierFeatures(4), []);
+  });
+});
+
+describe('Fehler „Forecast fehlt nach weiteren Strecken“: keine Stands an kleinen Flughäfen (5.10)', () => {
+  it('Slot-Kauf am Hub eines Flughafens ohne Stands bringt keinen Stand mit; mit Stands wie bisher', () => {
+    const base = infra(2, { stands: { regional: 0, narrowbody: 0, widebody: 0 } });
+    const args = { infra: base, type: 'slots' as const, subType: 'narrowbody', requestedAmount: 5, hubAutoUpgrade: true, autoBuyStands: true,
+      availableSlots: 100, utilizedSlots: 0, costPerUnit: 1 };
+    assert.equal(applyInfrastructureChange({ ...args, standsAvailable: false }).infra.stands.narrowbody, 0);
+    assert.equal(applyInfrastructureChange({ ...args, standsAvailable: true }).infra.stands.narrowbody, 5);
+    const direct = applyInfrastructureChange({ ...args, type: 'stands', standsAvailable: false });
+    assert.equal(direct.actualAmount, 0);
+  });
+
+  it('ein Spielstand mit Stands an einem Flughafen der Größe 2 (AAL) bleibt rechenbar; die Stands zählen nicht', () => {
+    const route: SimulatedRoute = {
+      id: 'r1', airline: 'Player', origin: 'AAL', destination: 'CPH', distance: 230, aircraft: 'D-AAAA', weeklyFlights: 7, paxPerWeek: 0,
+      classConfigs: { economy: { catering: [['b15']], extras: [], service: [] } }, ticketPrices: { economy: 80 }, openedOffset: M,
+    };
+    const sys = createGameSystems();
+    const g: AppGame = {
+      month: M, startMonth: M, airlineCode: 'XA', selectedHub: 'AAL', difficulty: 'Normal', aiDifficulty: 'Normal', aiAirlinesCount: 0,
+      capital: 150e6, monthlyCapex: [], fleet: [plane('D-AAAA')], routes: [route],
+      airportManagement: { AAL: infra(2, { stands: { regional: 0, narrowbody: 20, widebody: 0 } }), CPH: infra(1, { stands: { regional: 0, narrowbody: 0, widebody: 0 } }) },
+      reputation: 55, profitStreak: 0, staff: { salaryPct: 100, morale: 70, strike: null }, marketing: sys.marketing, eventChoices: {},
+      career: sys.career, milestones: [], annualGoal: null, scenario: null, reportHistory: [], aiAirlines: [], randomEvents: [], disruptions: [],
+    };
+    const { state } = modelGame(g, ENV);
+    const holding = state.companies.find((c) => c.id === PLAYER_ID)!.airports.AAL;
+    assert.equal(holding.stands.Narrowbody ?? 0, 0);
+    assert.doesNotThrow(() => closeMonth(state, NO_DECISIONS));
   });
 });

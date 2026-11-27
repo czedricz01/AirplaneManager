@@ -1411,6 +1411,8 @@ function RoutePlannerInner({
         requestedAmount,
         hubAutoUpgrade,
         autoBuyStands: !!infra.autoBuyStands,
+        // A small airport has no stands (5.10): a slot bought at a hub there must not bring one along.
+        standsAvailable: infraAvailability(airportsMap.get(airportId)?.level ?? 0, pricing.month).stands,
         availableSlots,
         utilizedSlots: type === 'slots' ? getUsedWeeklySlots(airportId, subType) : 0,
         costPerUnit,

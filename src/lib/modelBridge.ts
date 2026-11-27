@@ -34,6 +34,7 @@ import { cabinListPrice, deliverableExtras, interiorScore, type CabinFit, type C
 import { distanceKm } from '../model/demand';
 import { clampFareRatio, marketFare, type PartialClassFigures } from '../model/fare';
 import type { ServiceSelection } from '../model/satisfaction';
+import { hasStands } from '../model/airportCosts';
 import type {
   AircraftState,
   CatalogType,
@@ -441,7 +442,13 @@ export function modelOperations(ops: PlayerOperations, ctx: RouteContext, catalo
     if (!regs.has(r.aircraft)) throw new Error(`Strecke ${r.id}: Flugzeug ${r.aircraft} fehlt in der Flotte`);
   }
   const airports: Record<string, HoldingState> = {};
-  for (const [id, infra] of Object.entries(ops.airportManagement)) airports[id] = holdingState(infra);
+  for (const [id, infra] of Object.entries(ops.airportManagement)) {
+    const holding = holdingState(infra);
+    // Stands an einem Flughafen ohne Abstellplätze (5.10, Größe < 3) kamen aus älteren Ständen über den Slot-Kauf am
+    // Hub dazu; das Modell lehnt sie ab und der ganze Spielstand wäre ohne Prognose. Sie zählen nicht und kosten nichts.
+    const size = ctx.airports[id]?.size;
+    airports[id] = size !== undefined && !hasStands(size) ? { ...holding, stands: {} } : holding;
+  }
   return {
     aircraft: ops.fleet.map((p) => aircraftState(p, catalog)),
     routes: ops.routes.map((r) => routeState(r, ctx)),
