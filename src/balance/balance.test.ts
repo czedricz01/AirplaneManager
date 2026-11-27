@@ -1,5 +1,5 @@
 /**
- * Tests des Balance-Skripts (Pakete 3.9a–3.9c): Format, Bericht, Beispiel-Welten, Langläufe. Die Balance-Regeln selbst prüft das Skript
+ * Tests des Balance-Skripts (Pakete 3.9a–3.9c, 5.3e): Format, Bericht, Beispiel-Welten, Langläufe. Die Balance-Regeln selbst prüft das Skript
  * (`npm run balance`); hier nur, dass es richtig rechnet und gleich bleibt.
  */
 
@@ -16,6 +16,9 @@ import { competitionSections, spreadFactor, yearsToLiquidation } from './competi
 import { advertisingCase, careerSection, equipmentResults, goalCase, monthsToRecover, RANK_CASES, reputationAfter, runRankCase, satisfactionForReputation } from './career';
 import { charterEstimateCase, eventSection, hedgeCases, MAX_RESALE_BONUS, oilShockCases, recoveryCase, refitCase, spreadCase } from './events';
 import { satisfactionReputation } from '../model/progress';
+import { largestLongPairs, pairChoice, seatCostRows, widebodySection, winner } from './widebody';
+import { profitAfterCapital } from '../model/rivalMonth';
+import { LONG_HAUL_KM } from '../model/constants';
 import { DEALER_SPREAD_BUY, DEALER_SPREAD_SELL, GOAL_MISS_PENALTY_SHARE, HEDGE_PRICE_SHARE } from '../model/constants';
 
 const A330 = ROUTE_CASES.find((c) => c.label === 'A330-300 FRA–JFK 1995');
@@ -260,5 +263,38 @@ describe('Balance-Skript: Abschnitte 6 und 8 (3.9c)', () => {
     const ids = sections.flatMap((s) => s.checks.map((c) => c.id));
     assert.equal(new Set(ids).size, ids.length);
     for (const s of sections) for (const c of s.checks) assert.ok(c.value.length > 0 && !c.value.includes('NaN'), `${c.id}: ${c.value}`);
+  });
+});
+
+describe('Balance-Skript: Flugzeugwahl der KI auf Langstrecke (5.3e, O79)', () => {
+  it('largestLongPairs: größte Paare zuerst, alle über der Grenze', () => {
+    const pairs = largestLongPairs(2000, 3);
+    assert.equal(pairs.length, 3);
+    for (const p of pairs) assert.ok(p.km > LONG_HAUL_KM);
+    assert.ok(pairs[0].marketSize >= pairs[1].marketSize && pairs[1].marketSize >= pairs[2].marketSize);
+  });
+
+  it('pairChoice: Wert = Planer-Zahl nach Kapitalkosten; Flugzahl höchstens die höchsten Umläufe', () => {
+    const [pair] = largestLongPairs(2000, 1);
+    const c = pairChoice(pair, 2000, 'flag');
+    assert.ok(c.narrow && c.wide);
+    for (const t of [c.narrow, c.wide]) {
+      assert.equal(t.value, profitAfterCapital(t.expectedProfit, t.price));
+      assert.ok(t.rotations >= 1 && t.rotations <= t.maxRotations && t.load > 0 && t.load <= 1 + 1e-9);
+    }
+    assert.equal(winner(c), c.wide.value > c.narrow.value ? 'Widebody' : 'Narrowbody');
+  });
+
+  it('widebodySection: Prüfregeln B7.13/B7.14 mit Werten, ohne NaN', () => {
+    const [pair] = largestLongPairs(2000, 1);
+    const [ultra] = largestLongPairs(2000, 1, 7500);
+    const section = widebodySection({
+      long: [pairChoice(pair, 2000, 'flag')],
+      ultra: [pairChoice(ultra, 2000, 'flag')],
+      seatCost: seatCostRows('LHR', 'JFK', 2000, ['737-700', 'a330-300']),
+    });
+    assert.deepEqual(section.checks.map((c) => c.id), ['B7.13', 'B7.14']);
+    for (const c of section.checks) assert.ok(c.value.length > 0 && !c.value.includes('NaN'), `${c.id}: ${c.value}`);
+    for (const t of section.tables) for (const row of t.rows) for (const cell of row) assert.ok(!cell.includes('NaN'), `${t.title}: ${cell}`);
   });
 });

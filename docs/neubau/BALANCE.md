@@ -743,3 +743,51 @@ Abschluss: Mit vielen KI wird das Warten im späten Spiel deutlich (Fund 50).
   `src/data/airportsRows.ts`) und erscheinen so in Zeitung und Planer; Oberflächentexte sind sonst englisch. Kein Teil des
   Rechenmodells; als Datenpflege außerhalb des Neubaus vormerken.
 - Nicht geprüft (braucht eigene Strecken): Störungs-Frage im Browser, Deregulation-Zähler mit echten täglichen Strecken.
+
+## Ergebnis Paket 5.3e (E83 Jahresziel, E84 Widebody der KI)
+
+Umgesetzt (F83): E83 (gestaffelte Mindest-Prämie, `goalMinReward`, `src/model/progress.ts`). Gemessen nach E84:
+neuer Abschnitt im Balance-Skript `src/balance/widebody.ts` (Prüfregeln B7.13, B7.14; läuft ohne `--long`), dazu vier
+Hilfsläufe mit vorübergehenden Protokoll-Zeilen in der Kauf-Kette der KI (nicht im Projekt). Bericht:
+`balance/5.3e-bericht.md` (**16 ok · 0 Abweichung · 25 Info**, ohne Langläufe; KI-Regeln unverändert, die Langläufe
+gleichen 5.3d).
+
+### Fund 56: Hohes Jahresziel zahlt jetzt immer mehr (B6.8, E83) → ok
+
+Die Mindest-Prämie ist je Art gestaffelt (250 000 / 375 000 / 625 000 $ von 1960). Sie bindet für alle Arten bei
+derselben Bezugsgröße (unter 12,5 Mio. $ von 1960); das hohe Ziel zahlt dann wie sonst das 2,5-Fache des sicheren und
+lohnt ab einer Chance von 60 % (in allen 6 Beispielen von B6.8; vorher bei Mindest-Prämie „nie“). Beispiel aus Fund 52
+(1961, Bezugsgröße Mindestwert): sicher $253K Prämie / $126K Strafe, hoch $632K / $316K. Der Satz „This year each pays
+the same minimum bonus …“ im Ziel-Angebot entfällt (`goalOfferLines`).
+
+### Fund 57: Warum die KI keinen Widebody kauft (B7.13, B7.14, E84) → O80
+
+1. **Größte Langstrecken-Paare** (je Jahr die 20 größten über 3 500 km zwischen Flughäfen ab Größe 3; 1990, 2000, 2010;
+   Flag-Ausstattung, Rechnung der KI vor dem Kauf): Der beste Widebody liegt auf **0 von 60** Paaren vorn, und zwar
+   schon **vor** den Kapitalkosten (Planer-Zahl), nicht erst danach. Beispiel 2000 LHR–JFK: 737-700, 10 Umläufe,
+   1,20 Mio. $ je Monat (nach Zins 0,81); bester Widebody IL-96-300, 6 Umläufe, 0,80 (nach Zins 0,20). Auch mit freier
+   Wahl jeder Flugzahl (statt 100 / 60 / 30 %) bleibt der Narrowbody vorn (Hilfsrechnung). Ein niedrigerer Zins
+   (O79 Weg B) ändert daran nichts.
+2. **Ursache: kein Größen-Vorteil je Sitz.** Kosten je Sitz und Woche, LHR–JFK 2000 (Tabelle im Bericht):
+   Treibstoff je Sitz ist gleich (737-700 159 $, A330-300 159 $; er hängt nur an der Effizienz des Typs, 5.3);
+   Besatzung + Landung je Sitz sind beim Widebody kleiner (43 gegen 78 $); der Flugzeug-Anteil je Sitz ist gleich, wenn
+   beide alle Umläufe fliegen (31 gegen 35 $). Der größte Markt (rund 3 200 Fluggäste je Woche bei 10 Umläufen) füllt
+   einen A330 aber nur bei der Hälfte der Umläufe; dann trägt jeder Sitz den doppelten Flugzeug-Anteil (61 $), und
+   feste Kosten je Sitz sind fast gleich (265 gegen 261–275 $). Mit weniger Abflügen gewinnt der Narrowbody zudem etwas
+   mehr Fluggäste je Sitz (A321ceo 10 Umläufe 2 828 gegen A330-300 5 Umläufe 2 735 bei gleich vielen Sitzen). Ein
+   Widebody auf zwei Strecken (je halbe Umläufe, nur der Spieler kann das) bringt vor Zins so viel wie zwei 737-700
+   (2,08–2,19 gegen 2,13 Mio. $ je Monat, LHR–JFK + LHR–BOS 2000, Hilfsrechnung), nach Zins weniger.
+3. **Jenseits der Narrowbody-Reichweite** (Paare über 7 500 km): Widebody vorn auf 11 von 30 Paaren, alle mit Gewinn
+   nach Zins (2000: alle 10, IL-96-300, 0,30–0,80 Mio. $ je Monat; 1990 nur HND–JFK, sonst die IL-62M mit großer
+   Reichweite und 22 Mio. $ Kaufpreis). 2010 fliegt auf diesen Paaren nichts mit Gewinn nach Zins (737-700ER −0,1,
+   Widebody −0,6 Mio. $).
+4. **Kauf-Kette im Langlauf** (4 Läufe Normal, 1960–2009, 3 599 Kaufrunden mit gefundener Strecke): Ein Widebody passte
+   (Reichweite, Piste, Slots) in 1 958 Runden; besser nach Zins war er in **9**, alle 1993–1997 auf 9 600–13 200 km
+   (IL-96-300, MD-11ER). Alle 9 wurden gekauft; **kein** Widebody-Kauf scheiterte an Kasse oder Reserve (gesperrt
+   wurden nur Narrowbodies und Regionalflugzeuge: 457 × Kassen-Anteil, 212 × Reserve). Median Widebody − Narrowbody nach
+   Zins je Runde −0,8 bis −1,2 Mio. $ je Monat. Die Planung mit dem Widebody als Bezug (E81) ergab nur in 227 Runden einen
+   Plan mit Gewinn und gewann 8-mal.
+
+Folgerung: Die KI rechnet richtig; der Widebody ist im Modell nur dort besser, wo kein Narrowbody die Reichweite hat.
+Dasselbe gilt für den Spieler (gleiche Kosten-Rechnung, R1). Ob Widebodies wirtschaftlich attraktiver werden sollen, ist
+eine Frage des Spielmodells (Kosten 5.3, Satisfaction), nicht der KI → O80.

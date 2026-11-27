@@ -1588,7 +1588,10 @@ export const GOAL_REWARD_SHARE: Readonly<Record<GoalTag, number>> = {
   stretch: 0.05,
 };
 
-/** Kleinste Prämie in $ von 1960 (über `atCost`). SPEZIFIKATION 6.11. */
+/**
+ * Kleinste Prämie des sicheren Ziels in $ von 1960 (über `atCost`); die anderen Arten im Verhältnis von
+ * `GOAL_REWARD_SHARE` (andere Art × 1,5, hoch × 2,5; E83, `goalMinReward`). SPEZIFIKATION 6.11.
+ */
 export const GOAL_MIN_REWARD_1960 = 250_000;
 
 /** Strafe bei verfehltem Ziel als Anteil der Prämie (E58). SPEZIFIKATION 6.11. */

@@ -85,16 +85,13 @@ export function normalizeOffer(raw: unknown): GoalOffer | null {
 }
 
 /**
- * What the board's offer says about itself: how many goals, whether a harder one pays more (while the airline is
- * small every goal pays the minimum bonus, model 6.11), and until when the choice is open (the January close).
+ * What the board's offer says about itself: how many goals, that a harder goal pays more (also while the airline is
+ * small: the minimum bonus is graded by goal, model 6.11, E83), and until when the choice is open (the January close).
  */
 export function goalOfferLines(offer: GoalOffer): { intro: string; deadline: string } {
   const count = offer.options.length === 3 ? 'three' : offer.options.length === 2 ? 'two' : String(offer.options.length);
-  const samePay = offer.options.every(g => g.reward === offer.options[0].reward && g.penalty === offer.options[0].penalty);
   return {
-    intro: `The board offers ${count} goals for ${offer.year}. ${samePay
-      ? 'This year each pays the same minimum bonus and penalty, so a harder goal is only harder to meet.'
-      : 'A harder goal pays more and costs more to miss.'}`,
+    intro: `The board offers ${count} goals for ${offer.year}. A harder goal pays more and costs more to miss.`,
     deadline: `Choose before January ${offer.year} is closed; without a choice the first goal stands.`
   };
 }

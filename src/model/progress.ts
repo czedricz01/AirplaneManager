@@ -876,9 +876,18 @@ export function goalBase(lastYearProfit: number, lastYearRevenue: number, month:
   return Math.max(lastYearProfit, GOAL_MIN_MARGIN * lastYearRevenue, atCost(GOAL_PROFIT_FLOOR_1960, month));
 }
 
-/** Prämie: `max(atCost(GOAL_MIN_REWARD_1960), GOAL_REWARD_SHARE[Art] × goalBase)`, ungerundet. SPEZIFIKATION 6.11. */
+/**
+ * Mindest-Prämie je Art (E83): `atCost(GOAL_MIN_REWARD_1960 × GOAL_REWARD_SHARE[Art] / GOAL_REWARD_SHARE.steady)`,
+ * also im Verhältnis der Anteile (sicher 250 000 $, andere Art 375 000 $, hoch 625 000 $ von 1960). So zahlt das hohe
+ * Ziel auch bei kleinen Gesellschaften mehr als das sichere. SPEZIFIKATION 6.11.
+ */
+export function goalMinReward(tag: GoalTag, month: number): number {
+  return atCost((GOAL_MIN_REWARD_1960 * GOAL_REWARD_SHARE[tag]) / GOAL_REWARD_SHARE.steady, month);
+}
+
+/** Prämie: `max(goalMinReward(Art), GOAL_REWARD_SHARE[Art] × goalBase)`, ungerundet. SPEZIFIKATION 6.11. */
 export function goalReward(tag: GoalTag, base: number, month: number): number {
-  return Math.max(atCost(GOAL_MIN_REWARD_1960, month), GOAL_REWARD_SHARE[tag] * base);
+  return Math.max(goalMinReward(tag, month), GOAL_REWARD_SHARE[tag] * base);
 }
 
 /** Strafe bei verfehltem Ziel: `GOAL_MISS_PENALTY_SHARE × Prämie` (E58). SPEZIFIKATION 6.11. */
