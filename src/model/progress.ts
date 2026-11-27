@@ -230,7 +230,10 @@ export function reputationBand(reputation: number): ReputationBand {
 // ---------------------------------------------------------------------------
 
 /** Rang-Werte eines Monats. */
-export type RankStats = RankRequirement;
+export interface RankStats extends RankRequirement {
+  /** Volle Jahre seit Spielstart. Nur zur Anzeige und für Karriere-Punkte; keine Rang-Bedingung mehr. */
+  readonly years: number;
+}
 
 /** Eingaben für `rankStats` am Ende des Abschlusses. */
 export interface RankStatsInput {
@@ -248,7 +251,7 @@ export interface RankStatsInput {
 
 /**
  * Rang-Werte eines Monats: Strecken, Fluggäste des Monats (`je Woche × WEEKS_PER_MONTH`, E5), Ruf, Zahl der
- * Regionen, volle Jahre seit Spielstart. Eine Funktion für Abschluss und Karriere-Ansicht (R2). SPEZIFIKATION 6.7.
+ * Regionen, volle Jahre seit Spielstart (nur Anzeige, keine Bedingung). Eine Funktion für Abschluss und Karriere-Ansicht (R2). SPEZIFIKATION 6.7.
  */
 export function rankStats(input: RankStatsInput): RankStats {
   return {
@@ -261,7 +264,7 @@ export function rankStats(input: RankStatsInput): RankStats {
 }
 
 /**
- * Volle Jahre im Geschäft: `⌊max(0, Spielmonate) / 12⌋`. Eine Funktion für Rang (6.7), Karriere-Punkte (6.12) und
+ * Volle Jahre im Geschäft: `⌊max(0, Spielmonate) / 12⌋`. Eine Funktion für Rang-Werte (6.7, nur Anzeige), Karriere-Punkte (6.12) und
  * Ruhmeshalle (statt dreier Kopien in `src/App.tsx`, Bestand 1.8 Art D). SPEZIFIKATION 6.7.
  *
  * @param monthsPlayed Spielmonate seit Spielstart (Monat − Startmonat).
@@ -291,7 +294,7 @@ export function averageRankStats(history: readonly RankStats[]): RankStats {
   };
 }
 
-const RANK_KEYS: readonly (keyof RankRequirement)[] = ['routes', 'monthlyPax', 'reputation', 'regions', 'years'];
+const RANK_KEYS: readonly (keyof RankRequirement)[] = ['routes', 'monthlyPax', 'reputation', 'regions'];
 
 function meets(stats: RankStats, requirement: RankRequirement): boolean {
   return RANK_KEYS.every((key) => stats[key] >= requirement[key]);

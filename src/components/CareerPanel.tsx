@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Lock, Plane } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Lock, Plane, X } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { Badge, type BadgeTone } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -96,8 +96,7 @@ const RANK_LINE_LABELS: Record<keyof RankRequirement, string> = {
   routes: 'Routes',
   monthlyPax: 'Passengers per month',
   reputation: 'Reputation',
-  regions: 'Regions served',
-  years: 'Years in business'
+  regions: 'Regions served'
 };
 
 function RankSection({ rank, history, closedMonths, perks, free }: { rank: number; history: readonly RankStats[]; closedMonths: number; perks: MilestonePerks; free: boolean }) {
@@ -154,7 +153,7 @@ function RankSection({ rank, history, closedMonths, perks, free }: { rank: numbe
               </ul>
               <p className="text-2xs text-muted mt-2">
                 Averages of the last {RANK_AVERAGE_MONTHS} closed months, missing months counting as nothing. Every figure
-                has to be met at once; the years in business cannot be bought. A rank once reached is never lost.
+                has to be met at once. A rank once reached is never lost.
               </p>
               {closedMonths < RANK_AVERAGE_MONTHS && (
                 <p className="text-2xs text-muted mt-1">
@@ -185,7 +184,7 @@ function RankSection({ rank, history, closedMonths, perks, free }: { rank: numbe
                   {r.index > 0 && (
                     <div className="pl-5 text-2xs text-muted">
                       {countLabel(r.requires.routes)} routes · {paxLabel(r.requires.monthlyPax)} pax/month · reputation {r.requires.reputation}
-                      {r.requires.regions > 1 ? ` · ${r.requires.regions} regions` : ''}{r.requires.years > 0 ? ` · ${r.requires.years} yrs` : ''}
+                      {r.requires.regions > 1 ? ` · ${r.requires.regions} regions` : ''}
                     </div>
                   )}
                   <ul className="pl-5 mt-1 list-disc">
@@ -350,9 +349,9 @@ function ProjectCard({
 
 /** Size of the tree in pixels: a project box, the gap between columns and rows, the rank header. */
 const NODE_W = 172;
-const NODE_H = 62;
+const NODE_H = 56;
 const GAP_X = 44;
-const GAP_Y = 18;
+const GAP_Y = 14;
 const HEAD_H = 40;
 const PITCH_X = NODE_W + GAP_X;
 const PITCH_Y = NODE_H + GAP_Y;
@@ -472,6 +471,38 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
   React.useEffect(() => {
     if (scroller.current && !free) scroller.current.scrollLeft = Math.max(0, rank - 1) * PITCH_X;
   }, [free, rank]);
+  // Drag with the mouse to move the tree (touch screens scroll on their own). A drag is not a click on a project.
+  const drag = React.useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || !scroller.current) return;
+    drag.current = { x: e.clientX, y: e.clientY, left: scroller.current.scrollLeft, top: scroller.current.scrollTop, moved: false };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || !scroller.current) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.moved) {
+      if (Math.abs(dx) + Math.abs(dy) < 5) return;
+      d.moved = true;
+      // Keep the drag going when the mouse leaves the tree's frame.
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    scroller.current.scrollLeft = d.left - dx;
+    scroller.current.scrollTop = d.top - dy;
+  };
+  const endDrag = () => {
+    // Keep the flag until the click that follows the release has been swallowed.
+    if (drag.current?.moved) window.setTimeout(() => { drag.current = null; }, 0);
+    else drag.current = null;
+  };
+  const swallowClickAfterDrag = (e: React.MouseEvent) => {
+    if (drag.current?.moved) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+  const scrollBy = (cols: number) => scroller.current?.scrollBy({ left: cols * PITCH_X, behavior: 'smooth' });
   const selectedProject = selected ? RESEARCH_PROJECTS.find(p => p.id === selected) ?? null : null;
   const width = layout.cols * PITCH_X - GAP_X;
   const height = HEAD_H + layout.rows * PITCH_Y - GAP_Y;
@@ -483,13 +514,11 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
           {research.done.length} / {RESEARCH_PROJECTS.length} done · {research.active.length} / {limit} running
         </span>
       </div>
-      <p className="text-2xs text-muted leading-relaxed mb-3 max-w-2xl">
-        A tree that opens with the rank, one column per rank. Its main points are the aircraft classes (top row): a class
-        has to be developed before its aircraft can be bought. The other rows are chains of small bonuses; an arrow
-        means the project needs the one before it. Each project costs money at once and takes months; the price follows
-        the cost index of the month it starts in.{' '}
-        {free ? 'Every project is open in Free Mode.' : 'Higher ranks allow more to run at once.'} Select a project to see
-        what it does and to start it.
+      <p className="text-2xs text-muted leading-relaxed mb-3 max-w-3xl">
+        One column per rank. Top row: the aircraft classes, needed before their aircraft can be bought. Below: chains
+        of small bonuses; an arrow means the project needs the one before it. A project costs money at once and takes
+        months. {free ? 'Every project is open in Free Mode.' : 'Higher ranks allow more to run at once.'} Click a
+        project to see it and start it.
       </p>
 
       <div className="flex flex-wrap gap-1.5 mb-3" aria-label="Aircraft classes">
@@ -506,16 +535,29 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
         </p>
       )}
 
-      <div className="flex flex-wrap gap-3 mb-2 text-2xs text-muted" aria-label="Legend">
+      <div className="flex flex-wrap items-center gap-3 mb-2 text-2xs text-muted" aria-label="Legend">
         <span className="flex items-center gap-1"><span className="w-3 h-3 border border-good bg-good/10" />Done</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 border border-accent bg-accent/10" />Running</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 border border-accent/70" />Can start</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 border border-rule" />No slot or money</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 border border-line opacity-60" />Closed</span>
+        <span className="ml-auto flex items-center gap-1">
+          <span className="hidden sm:inline">Drag or scroll sideways</span>
+          <Button variant="secondary" onClick={() => scrollBy(-2)} aria-label="Earlier ranks"><ChevronLeft size={14} /></Button>
+          <Button variant="secondary" onClick={() => scrollBy(2)} aria-label="Later ranks"><ChevronRight size={14} /></Button>
+        </span>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-3 items-stretch">
-      <div ref={scroller} className="flex-1 min-w-0 overflow-auto max-h-[70vh] border border-line bg-ground rounded-sm">
+      <div className="relative">
+      <div
+        ref={scroller}
+        className="overflow-auto max-h-[75vh] border border-line bg-ground rounded-sm select-none cursor-grab active:cursor-grabbing"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={swallowClickAfterDrag}
+      >
         <div className="relative m-3" style={{ width, height }}>
           {/* Rank columns: header and a band per column, the ranks reached a little lighter. */}
           {RANKS.slice(0, layout.cols).map(r => {
@@ -549,20 +591,29 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
         </div>
       </div>
 
-      <div className="lg:w-72 shrink-0">
-        {selectedProject ? (
-          <ProjectCard
-            project={selectedProject}
-            research={research}
-            rank={rankNow}
-            capital={capital}
-            month={currentDateOffset}
-            onStart={onStartResearch}
-          />
-        ) : (
-          <p className="text-2xs text-muted">Select a project in the tree to see what it does and to start it.</p>
-        )}
-      </div>
+      {/* The selected project floats in the screen's corner, so the tree keeps the full width. */}
+      {selectedProject && (
+        <div className="fixed right-4 bottom-20 lg:bottom-4 z-30 w-[min(20rem,calc(100vw-2rem))] shadow-lg shadow-black/50">
+          <button
+            type="button"
+            onClick={() => setSelected(null)}
+            aria-label="Close"
+            className="absolute -top-2 -right-2 z-10 p-1 rounded-full border border-line bg-surface text-muted hover:text-ink"
+          >
+            <X size={12} />
+          </button>
+          <div className="bg-surface rounded-sm">
+            <ProjectCard
+              project={selectedProject}
+              research={research}
+              rank={rankNow}
+              capital={capital}
+              month={currentDateOffset}
+              onStart={onStartResearch}
+            />
+          </div>
+        </div>
+      )}
       </div>
     </Panel>
   );
