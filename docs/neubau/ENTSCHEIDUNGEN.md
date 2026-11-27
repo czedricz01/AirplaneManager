@@ -283,7 +283,15 @@ gestellt und entschieden, jeweils die Empfehlung (E98–E100). Umsetzung von E98
 | O93 | „standard“ geht auf Hard nicht pleite (tiefste Kasse −5,4 / −9,6 Mio. $; nie 3 Monate unter der Kreditlinie). Ziel aus E94 beibehalten? | Ziel streichen (A) → E99 |
 | O94 | „schlecht-wucher“ (1,6 × Markt, billigste Flugzeuge) verdient 1995 +49 Mio. $ auf Normal (vorher +7), weil günstigere Commuter (E89) auf großen Märkten voll werden; 1970 verliert er. Hinnehmen? | hinnehmen (A) → E100 |
 
-Keine offenen Fragen.
+O95–O98 aus dem Balance-Langlauf nach der Schwierigkeit (`balance/5.4e-bericht.md`, Abschnitt „Auswertung“;
+Funde 67–70 in `BALANCE.md`), gestellt am 27.11.2026, **offen**. Umsetzung nach der Antwort in Paket 5.4g.
+
+| Nr. | Frage | Wege | Empfehlung |
+|---|---|---|---|
+| O95 | Optimizer nach 20 Jahren nur 0,43 × Median (B7.1: Faktor 2,31, Grenze 2), weil sein bester Preis nach E97 näher am Markt liegt. | A: Kaufneigung 0,4 → 0,6 (Hilfslauf: Faktor 1,77 / 1,75). B: so lassen (nach 40 Jahren ok). | A |
+| O96 | Klassen-Forschung kostet an der Rang-Schwelle 13–17 Monatsergebnisse (B6.7, Regel 6.8: höchstens 12). | A: Preise der Klassen-Forschung × 0,7 (→ 9,2 / 11,7 / 4,1 / 9,1). B: Regel auf 18 Monatsergebnisse, Preise lassen. | A |
+| O97 | Preis-Duell mit zwei Flugzeugen je Seite fällt kurz auf 0,71 unter die Gewinnschwelle 0,76 (B4.2); im Langlauf kommt der Fall nicht vor. | A: Regel B4.2 anpassen (kein Lauf gegen 0: tiefster Preis ≥ 90 % der Schwelle; Gewinn mit einem Flugzeug je Seite). B: Boden für den Optimizer auch ohne Preiskampf = Gewinnschwelle voller Maschine. | A |
+| O98 | Werbung trägt sich erst ab 24–79 Strecken (vorher 11–24, B6.9). | A: Kampagnen-Kosten halbieren. B: Wirkung verdoppeln. C: so lassen. | A |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
