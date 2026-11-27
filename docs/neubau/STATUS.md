@@ -1,15 +1,25 @@
 # Status
 
-**Nächstes Paket: 5.3g** (Vorschlag) – Spieltest im Browser mit eigenen Strecken: die Punkte, die 5.3b nicht
-prüfen konnte („Offen aus 5.3b“ (1), „Offen aus 5.3c“ (1)): Störungs-Frage (Text und Beträge), Deregulation-Zähler mit
-täglichen Strecken, Szenario-Anzeige der Untergrenze („now -$…“, Warnung unter der Schwelle). Weil der Planer sich im
-Skript nicht bedienen ließ, einen Spielstand mit Strecken über `src/lib/saveLoad.ts` (Version 8) direkt in den
-Browser-Speicher legen und laden. Zu lesen: `balance/5.3b-spieltest.md` (Abschnitt „Grenzen“), `src/lib/saveLoad.ts`,
-für die Störungs-Frage `buildDisruptionDecision` und `charterQuestionFigures`. Ergebnis in `balance/5.3g-spieltest.md`
-und `BALANCE.md`. Das Spielgefühl der KI-Stärke kann nur ein Mensch beurteilen; danach ist der Neubau abgeschlossen,
-falls keine neue Frage entsteht.
+**Nächstes Paket: keines.** Der Neubau des Rechenmodells ist mit 5.3g abgeschlossen; es ist keine Frage offen.
+Offen bleibt nur, was kein Skript prüfen kann: das **Spielgefühl der KI-Stärke** (Normal und Hard, über einige Jahre mit
+eigenen Strecken gespielt). Das spielt ein Mensch; meldet er „zu stark“ oder „zu schwach“, wird daraus eine neue Frage
+(Stellschrauben: `RIVAL_STRENGTH`, E79, E80). Mögliche Arbeiten außerhalb des Neubaus (keine Pakete, nur vorgemerkt):
+deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit und Spielstand-Größe mit 12 KI im späten Spiel
+(Fund 53, „Offen aus 5.3b“ (2)), Spielstände in der Cloud (Supabase) testen („Offen aus 5.3b“ (4)).
 
 **Keine offene Frage** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+
+Stand: 27.11.2026 · Paket 5.3g erledigt (F84): Spieltest im Browser mit eigenen Strecken (Bericht
+`balance/5.3g-spieltest.md`, Funde 58–61 in `BALANCE.md`). Der Planer ließ sich im Skript bedienen (5.3b scheiterte am
+gesperrten Ziel und fehlenden Slots). Szenario „Deregulation“ mit vier Strecken: Der Zähler „30 city pairs with daily
+service“ zählt richtig (zwei Flugzeuge 4 + 3 auf einem Paar = 1, 6 Umläufe = 0), vor und nach dem Abschluss gleich.
+Störungs-Frage (Streik am JFK und Defekt, ausgelöst über einen anderen Startwert im Spielstand): Flüge, Gebühr und Vorteil
+stimmen; beide Antworten gespielt, die Buchung gleicht der Frage auf den Dollar. Untergrenze (Kasse im Spielstand
+geändert): Warnung, Serie und Ende stimmen bei Deregulation (−Kreditlinie, 3 Monate) und „Oil Shock“ (0 $, 1 Monat).
+Behoben (nur Texte): „No cost“ neben der Charter-Antwort → „Fee about $… at month-end“ (`costNote`); doppelte
+Strecken-Namen in Zeitung und Posteingang; „1 month-end in a row“ → „A single month-end …“. Tests: 1 250 grün (3 neue).
+
+Offen aus 5.3g: (1) Spielgefühl der KI-Stärke (Mensch). (2) „Offen aus 5.3b“ (2)–(4) bleiben, außerhalb des Neubaus.
 
 Stand: 27.11.2026 · Paket 5.3f erledigt: O80 entschieden (E85, Weg A): Widebodies bleiben, wie sie sind; kein
 Größen-Vorteil im Treibstoff, kein Komfort-Abzug, keine eigene Regel für die KI. Nur Dokumentation: Spezifikation 5.3
@@ -596,7 +606,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.3d | Umsetzung O74–O77 mit Langlauf (KI-Stärke, Schwierigkeit, KI-Langstrecke, Optimizer; F81) | erledigt |
 | 5.3e | Umsetzung O78 (Jahresziel-Prämie) und O79 (KI ohne Widebody: messen; F83) | erledigt |
 | 5.3f | Antwort auf O80 (Wirtschaftlichkeit der Widebodies): so lassen (E85), nur Dokumentation | erledigt |
-| 5.3g | Spieltest im Browser mit eigenen Strecken (Störungs-Frage, Deregulation-Zähler, Szenario-Untergrenze; „Offen aus 5.3b“ (1)) | offen (Vorschlag) |
+| 5.3g | Spieltest im Browser mit eigenen Strecken (Störungs-Frage, Deregulation-Zähler, Szenario-Untergrenze; „Offen aus 5.3b“ (1); F84) | erledigt |
 
 ---
 
@@ -687,3 +697,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 25.11.2026 | 5.3b | Spieltest im Browser (F82): `balance/5.3b-spieltest.md`, Funde 51–55; Spielstand sprengte den Browser-Speicher (KI-Berichte mit Strecken-Zahlen) → `keptReports`, `RIVAL_REPORT_MONTHS` = 12; Jahresziel-Angebot endet mit dem Januar-Abschluss; Texte Ziel-Angebot, Rang-Hinweis, „Oil Shock“; Zeiten gemessen (Start < 0,4 s, Abschluss bis 0,87 s im Mittel mit 6 KI); neue Fragen O78, O79, Paket 5.3e; Tests 1 243 grün |
 | 27.11.2026 | 5.3e | O78, O79 entschieden (E83, E84); Mindest-Prämie des Jahresziels je Art gestaffelt (`goalMinReward`); Messung der KI-Flugzeugwahl (`src/balance/widebody.ts`, B7.13, B7.14; Hilfsläufe): Widebody nur jenseits der Narrowbody-Reichweite besser, KI kauft ihn dort; neue Frage O80; `balance/5.3e-bericht.md`; Tests 1 247 grün |
 | 27.11.2026 | 5.3f | O80 entschieden (E85, Weg A): Widebodies so lassen, kein Größen-Vorteil im Treibstoff, kein Komfort-Abzug; Spezifikation 5.3 und Fund 57 nachgetragen, Verweise B7.13/B7.14; keine Rechnung geändert; neues Paket 5.3g (Spieltest mit eigenen Strecken) vorgeschlagen |
+| 27.11.2026 | 5.3g | Spieltest im Browser mit eigenen Strecken (Planer im Skript, Szenario Deregulation): Deregulation-Zähler, Störungs-Frage (Streik, Defekt; Buchung = Frage auf den Dollar) und Szenario-Untergrenze stimmen; drei Texte behoben (F84: `costNote`, Strecken-Namen einmal, „A single month-end“); `balance/5.3g-spieltest.md`, Funde 58–61; Tests 1 250 grün; Neubau abgeschlossen, keine Frage offen |

@@ -142,6 +142,11 @@ export interface GameDecisionOption {
   detail: string;
   /** Charged once, when the option is taken. */
   cost: number;
+  /**
+   * Shown in place of "No cost" when the option costs nothing now but money later, e.g. a charter fee billed with
+   * the month's costs (Paket 5.3g).
+   */
+  costNote?: string;
 }
 
 /**

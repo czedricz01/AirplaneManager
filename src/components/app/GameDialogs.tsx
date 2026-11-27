@@ -138,8 +138,8 @@ export function GameDialogs({
                       >
                         <div className="flex items-baseline justify-between gap-3 mb-1">
                           <span className="font-semibold uppercase tracking-label text-2xs text-ink">{option.label}</span>
-                          <span className={`font-mono text-2xs font-semibold shrink-0 ${option.cost > 0 ? 'text-accent' : 'text-good'}`}>
-                            {option.cost > 0 ? formatCurrency(option.cost) : 'No cost'}
+                          <span className={`font-mono text-2xs font-semibold shrink-0 ${option.cost > 0 || option.costNote ? 'text-accent' : 'text-good'}`}>
+                            {option.cost > 0 ? formatCurrency(option.cost) : option.costNote ?? 'No cost'}
                           </span>
                         </div>
                         <p className="text-2xs text-muted leading-relaxed">{option.detail}</p>

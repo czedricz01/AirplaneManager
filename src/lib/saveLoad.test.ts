@@ -90,6 +90,24 @@ test('a loaded decision with only paid answers gets a free one', () => {
   assert.deepEqual(loaded.pendingDecisions[0].options.map((o: any) => o.id), ['buy-peace', FREE_OPTION_ID]);
 });
 
+test('5.3g: an option keeps its cost note only when it is text', () => {
+  const loaded = loadSave({
+    ...save(),
+    disruptions: [{ id: 'now', kind: 'technical', offset: 12, routeIds: ['r1'], cancelShare: 0.5 }],
+    pendingDecisions: [
+      {
+        id: 'q', kind: 'disruption', ref: 'now', title: 'Defect', options: [
+          { id: 'charter', label: 'Charter', cost: 0, costNote: 'Fee about $5,000 at month-end' },
+          { id: 'cancel', label: 'Cancel', cost: 0, costNote: 7 }
+        ]
+      }
+    ]
+  });
+  const [charter, cancel] = loaded.pendingDecisions[0].options;
+  assert.equal(charter.costNote, 'Fee about $5,000 at month-end');
+  assert.equal('costNote' in cancel, false);
+});
+
 test('strikes and disruptions dated after the current month are dropped, and so are questions about them', () => {
   const loaded = loadSave({
     ...save(),

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatGoalValue, goalValue, meetsTarget, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from './scenarioEval';
+import { floorRuleEnd, formatGoalValue, goalValue, meetsTarget, monthsLeft, scenarioBriefing, scenarioGoals, type ScenarioContext } from './scenarioEval';
 import { SCENARIOS, scenarioById } from '../data/scenarios';
 import { setDecimalSymbol } from './format';
 
@@ -94,4 +94,9 @@ test('E77: the floor is the model\'s: the negative credit line, or the scenario\
   assert.equal(solvent.target, 0);
   assert.equal(solvent.below, true);
   assert.equal(solvent.months, 1);
+});
+
+test('5.3g: the bankruptcy warning names a single month-end without "in a row"', () => {
+  assert.equal(floorRuleEnd(1), 'A single month-end below it ends the scenario.');
+  assert.equal(floorRuleEnd(3), '3 month-ends in a row end the scenario.');
 });
