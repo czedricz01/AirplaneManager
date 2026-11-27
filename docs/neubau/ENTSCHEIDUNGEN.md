@@ -111,6 +111,7 @@ Claude schlägt vor, der Mensch entscheidet.
 | E102 | 27.11.2026 | **Klassen-Forschung billiger (O96 = A):** Preise der Klassen-Forschung × 0,7; an der Rang-Schwelle dann 9,2 / 11,7 / 4,1 / 9,1 Monatsergebnisse (Rang 1 / 2 / 4 / 5). Regel 6.8 (höchstens 12 Monatsergebnisse) bleibt. | Langlauf 5.4e (B6.7): an der Rang-Schwelle 13–17 Monatsergebnisse, weil der Spieler beim besten Preis nach E97 weniger verdient. |
 | E103 | 27.11.2026 | **Prüfregel B4.2 angepasst (O97 = A):** Das Preis-Duell zweier gleicher Gesellschaften verlangt nur noch „kein Lauf gegen 0“: tiefster Preis ≥ 90 % der Gewinnschwelle voller Maschine; Ergebnis > 0 nur mit einem Flugzeug je Seite. Kein neuer Preis-Boden für den Optimizer. | Langlauf 5.4e: Mit zwei Flugzeugen je Seite (Überkapazität) kurz 0,71 bei Schwelle 0,76; der Verlust kommt aus der Überkapazität, nicht aus dem Unterbieten; im Langlauf kommt der Fall nicht vor. |
 | E104 | 27.11.2026 | **Werbung halb so teuer (O98 = A):** Kampagnen-Kosten halbieren (`CAMPAIGN_COST_1960`); Wirkung (`ADVERTISING_BOOST`) bleibt. | Langlauf 5.4e (B6.9): Werbung trägt sich erst ab 24–79 Strecken (vorher 11–24); billiger statt stärker, weil B6.4 den Ruf-Anstieg aus Werbung auf 3 Punkte begrenzt (gemessen 3,00). |
+| E105 | 27.11.2026 | **Fester Billigpreis bleibt ohne Sonderhilfe (O99 = A):** Keine Änderung an Preis-Empfindlichkeit (E97, `NO_FLY_SENSITIVITY`) oder Kosten der LCC-Kabine (E98). Ein Billigpreis ist eine Entscheidung, kein Vorteil an sich; E91 gilt für die LCC-Kabine als erreicht. | Spieltest 5.4f (Fund 72): LCC-Kabine mit bestem Preis und mehreren Strecken je Flugzeug 1995 Normal +238 Mio. $ gegen „vorsichtig-pack“ +226; fest 0,85 × Markt +47 (gepackt) bzw. −3 (ungepackt). B hätte E97 geändert, C widerspricht E98. |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -233,7 +234,7 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84, O80 → E85, O81–O90 → E87–E96, O91 → E97, O92–O94 → E98–E100, O95–O98 → E101–E104.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84, O80 → E85, O81–O90 → E87–E96, O91 → E97, O92–O94 → E98–E100, O95–O98 → E101–E104, O99 → E105.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
@@ -299,11 +300,11 @@ Funde 67–70 in `BALANCE.md`), gestellt am 27.11.2026, am selben Tag im Chat en
 | O97 | Preis-Duell mit zwei Flugzeugen je Seite fällt kurz auf 0,71 unter die Gewinnschwelle 0,76 (B4.2); im Langlauf kommt der Fall nicht vor. | A: Regel B4.2 anpassen (kein Lauf gegen 0: tiefster Preis ≥ 90 % der Schwelle; Gewinn mit einem Flugzeug je Seite). B: Boden für den Optimizer auch ohne Preiskampf = Gewinnschwelle voller Maschine. | A → E103 |
 | O98 | Werbung trägt sich erst ab 24–79 Strecken (vorher 11–24, B6.9). | A: Kampagnen-Kosten halbieren. B: Wirkung verdoppeln. C: so lassen. | A → E104 |
 
-O99 aus Paket 5.4f (`balance/5.4f-spieltest.md`, Abschnitt 5; Fund 72), gestellt am 27.11.2026, **offen**.
+O99 aus Paket 5.4f (`balance/5.4f-spieltest.md`, Abschnitt 5; Fund 72), gestellt am 27.11.2026, am selben Tag im Chat entschieden: A (E105).
 
-| Nr. | Frage | Wege | Empfehlung |
+| Nr. | Frage | Wege | Antwort |
 |---|---|---|---|
-| O99 | Die LCC-Kabine trägt mit bestem Preis und mehreren Strecken je Flugzeug (1995 Normal +238 Mio. $ gegen „vorsichtig-pack“ +226). Fest 0,85 × Markt bleibt klein (+47 gepackt, −3 ungepackt). Soll ein fester Billigpreis stärker tragen? | A: so lassen (Billigpreis ist eine Entscheidung, kein Vorteil an sich; E91 gilt für die LCC-Kabine als erreicht). B: Nachfrage unter dem Marktpreis stärker wachsen lassen (`NO_FLY_SENSITIVITY`, ändert E97). C: Kostenvorteil je Fluggast für die LCC-Kabine (widerspricht E98). | A |
+| O99 | Die LCC-Kabine trägt mit bestem Preis und mehreren Strecken je Flugzeug (1995 Normal +238 Mio. $ gegen „vorsichtig-pack“ +226). Fest 0,85 × Markt bleibt klein (+47 gepackt, −3 ungepackt). Soll ein fester Billigpreis stärker tragen? | A: so lassen (Billigpreis ist eine Entscheidung, kein Vorteil an sich; E91 gilt für die LCC-Kabine als erreicht). B: Nachfrage unter dem Marktpreis stärker wachsen lassen (`NO_FLY_SENSITIVITY`, ändert E97). C: Kostenvorteil je Fluggast für die LCC-Kabine (widerspricht E98). | A → E105 |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -320,6 +321,7 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - E87 ergänzt E4/E53/E80: Die Schwierigkeit wirkt zusätzlich als Faktor auf die Betriebskosten des Spielers; die KI bleibt neutral.
 - E97 ersetzt E24 (Marktpreis erlösbest ohne Rivalen) und setzt E90/E91 um.
 - E98 setzt E92 fort (LCC-Vorteil nach der Messung); E99 ändert das Ziel aus E94, nicht die Hebel.
+- E105 bestätigt E97 und E98 (kein Billigpreis-Vorteil an sich).
 - E101 ersetzt die Kaufneigung aus E82; E103 ändert nur die Prüfregel B4.2, nicht die KI-Preise (7.6).
 - E90/E91 vor E92, E95, E96: LCC-Vorteil, Ruf und Wachstum werden erst nach der neuen Preis-Empfindlichkeit gemessen.
 - `SPEZIFIKATION.md` 2.8 und 2.10 setzen voraus, dass Abschnitt 3 die Fluggäste eines Angebots nach Sitzen auf seine Strecken verteilt und die Satisfaction als Zahlungsbereitschaft in die Anziehung nimmt. Erfüllt in 3.9.2 und 3.11 (Paket 2.4).

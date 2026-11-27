@@ -394,11 +394,11 @@ describe('Abschnitt 6.8 Flugzeugklassen', () => {
     assert.deepEqual(
       Object.entries(CLASS_RESEARCH).map(([c, p]) => [c, p.rank, p.requires, p.months, p.price1960]),
       [
-        ['regional', 1, null, 6, 3_000_000],
-        ['narrowbody', 2, 'regional', 9, 12_000_000],
-        ['widebody', 4, 'narrowbody', 12, 40_000_000],
-        ['jumbo', 5, 'widebody', 18, 80_000_000],
-        ['supersonic', 5, 'widebody', 24, 60_000_000],
+        ['regional', 1, null, 6, 2_100_000],
+        ['narrowbody', 2, 'regional', 9, 8_400_000],
+        ['widebody', 4, 'narrowbody', 12, 28_000_000],
+        ['jumbo', 5, 'widebody', 18, 56_000_000],
+        ['supersonic', 5, 'widebody', 24, 42_000_000],
       ],
     );
     assert.equal(classResearchChainMonths('supersonic'), 6 + 9 + 12 + 24);

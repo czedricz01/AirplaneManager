@@ -139,10 +139,10 @@ describe('Abschnitt 5.9 Feste Kosten und Ergebnis je Strecke', () => {
 
 describe('Abschnitt 5.14 Werbung und Frequent flyer', () => {
   it('5.14: Kampagnen 150 000 / 400 000 / 1 000 000 $ (1960) mit Kostenindex, ohne Jahresstufen', () => {
-    assert.equal(campaignCost('local', 0), 150_000);
-    assert.equal(campaignCost('national', 0), 400_000);
-    assert.equal(campaignCost('global', 0), 1_000_000);
-    close(campaignCost('global', m(2000, 7)), atCost(1_000_000, m(2000, 7)));
+    assert.equal(campaignCost('local', 0), 75_000);
+    assert.equal(campaignCost('national', 0), 200_000);
+    assert.equal(campaignCost('global', 0), 500_000);
+    close(campaignCost('global', m(2000, 7)), atCost(500_000, m(2000, 7)));
     // Stetig über den Jahreswechsel (keine 3-%-Stufe).
     assert.ok(campaignCost('local', m(2001)) / campaignCost('local', m(2000, 12)) < 1.002);
   });

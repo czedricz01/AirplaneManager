@@ -185,7 +185,7 @@ describe('Abschnitt 6.9 Forschung', () => {
   it('6.9: Preis 2020 = Preis 1960 × costIndex 2020 (W9)', () => {
     close(researchPrice('fuel-1', jan(2020)), 4_000_000 * costIndex(jan(2020)), 1e-3);
     assert.equal(researchPrice('fuel-1', 0), 4_000_000);
-    close(researchPrice('class-supersonic', jan(1975)), 60_000_000 * costIndex(jan(1975)), 1e-3);
+    close(researchPrice('class-supersonic', jan(1975)), 42_000_000 * costIndex(jan(1975)), 1e-3);
   });
 
   it('6.9: jeder Projekt-Text enthält die Zahl aus seinem Feld (E52)', () => {

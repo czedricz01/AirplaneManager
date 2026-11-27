@@ -33,7 +33,7 @@ test('the texts of a blocker follow the model check (6.9)', () => {
 
 test('the price is the model price with the cost index, not a yearly 4 %', () => {
   assert.notEqual(researchPrice('class-widebody', 0), 60_000_000);
-  assert.equal(researchPrice('class-widebody', 0), 40_000_000);
+  assert.equal(researchPrice('class-widebody', 0), 28_000_000);
 });
 
 test('the projects a fleet needs include the classes before the one it flies', () => {

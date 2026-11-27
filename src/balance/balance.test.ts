@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { CABIN_CLASSES, RIVAL_SUBSIDY_ENABLED } from '../model/constants';
 import { quantile, satisfactionSection, timeAndMoney } from './market';
 import { num, pct, renderMarkdown, verdictCounts, type Section } from './report';
-import { bestFareRatios, caseMarket, priceDuel, ROUTE_CASES, routeSections, runCase } from './routes';
+import { bestFareRatios, caseMarket, DUEL_FLOOR_SHARE, priceDuel, ROUTE_CASES, routeSections, runCase } from './routes';
 import { marketState, routeOf, runMarket, sampleMonth, seatsTotal } from './world';
 import { allModelAirports, founderHub, lengthBand, longRunStart, PERSONALITY_ORDER, runLong } from './longRun';
 import { competitionSections, spreadFactor, yearsToLiquidation } from './competition';
@@ -100,6 +100,13 @@ describe('Balance-Skript: Beispiel-Welten', () => {
     const n = d.path.length;
     assert.ok(n >= 2 && Math.abs(d.path[n - 1] - d.path[n - 2]) < 0.002);
     assert.ok((d.final.economy ?? 0) > d.breakEvenFull);
+  });
+
+  it('B4.2 (E103): Preis-Duell mit zwei Flugzeugen je Seite (Überkapazität) läuft nicht gegen 0', () => {
+    // Mit 28 Abflügen springt Economy zwischen Unterbieten und Hochsetzen (5.4e: tiefster Preis 0,71 bei Schwelle 0,76).
+    const d = priceDuel({ from: 'FRA', to: 'MAD', month: sampleMonth(1990) }, { typeId: 'a320ceo', personality: 'flag', departures: 28 });
+    const lowest = Math.min(...d.path, d.final.economy ?? Number.NaN);
+    assert.ok(lowest >= DUEL_FLOOR_SHARE * d.breakEvenFull, `${lowest} < ${DUEL_FLOOR_SHARE} × ${d.breakEvenFull}`);
   });
 
   it('routeSections: Prüfregeln B4/B5 mit Werten, ohne NaN', () => {

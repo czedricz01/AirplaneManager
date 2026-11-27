@@ -1736,9 +1736,10 @@ Alles je Gesellschaft und Flughafen, je Woche. Mieten sind Flughafen-Gebühren u
 - Anzeige: Flottenansicht „Value“ je Flugzeug, Bericht (zwei Zeilen), Bilanz „Fleet value“.
 
 ### 5.14 Werbung und Frequent flyer (Kosten)
-- **Kampagnen:** `atCost(CAMPAIGN_COST_1960[Stufe], month)` je laufendem Monat. Konstanten wie heute:
-  lokal 150 000, national 400 000, global 1 000 000 (`src/lib/marketing.ts:75-77`); die eigene Teuerung
-  `MARKETING_INFLATION = 0,03` in Jahresstufen entfällt (E6, R5). Wirkung: 3.9.5 und Abschnitt 6.
+- **Kampagnen:** `atCost(CAMPAIGN_COST_1960[Stufe], month)` je laufendem Monat. Konstanten: lokal 75 000,
+  national 200 000, global 500 000 (E104: halb so viel wie heute, `src/lib/marketing.ts:75-77`: 150 000 / 400 000 /
+  1 000 000; mit voller Höhe trug sich eine Kampagne erst ab 24–79 Strecken). Die eigene Teuerung
+  `MARKETING_INFLATION = 0,03` in Jahresstufen entfällt (E6, R5). Wirkung: 3.9.5 und Abschnitt 6 (unverändert).
 - **Frequent flyer:** Grundbetrag `atCost(FFP_BASE_COST_1960, month)` je Monat, solange das Programm läuft;
   dazu `ffpCostPerPassenger` je Reise in `costPerPassenger` (5.8). Konstanten wie heute
   (`src/lib/marketing.ts:187-189`): `FFP_BASE_COST_1960 = 50 000`, `FFP_COST_PER_PAX_1960 = 0,8`
@@ -2062,16 +2063,18 @@ Meilensteine, Jahresziel ─► Geld, Slot-Nachlass, Drehkreuze (keine Ruf-Punkt
 
   | Projekt | Erscheint ab Rang (heute) | Braucht (heute) | Dauer | Preis 1960 (heute) |
   |---|---|---|---|---|
-  | Regional | 1 (1) | – | 6 Monate | 3 Mio. $ (3) |
-  | Narrowbody | **2** (3) | Regional | 9 Monate | 12 Mio. $ (12) |
-  | Widebody | **4** (5) | Narrowbody | 12 Monate | **40** Mio. $ (60) |
-  | Jumbo | **5** (7) | Widebody | 18 Monate | **80** Mio. $ (200) |
-  | Überschall | **5** (8) | **Widebody** (Jumbo) | 24 Monate | **60** Mio. $ (500) |
+  | Regional | 1 (1) | – | 6 Monate | **2,1** Mio. $ (3) |
+  | Narrowbody | **2** (3) | Regional | 9 Monate | **8,4** Mio. $ (12) |
+  | Widebody | **4** (5) | Narrowbody | 12 Monate | **28** Mio. $ (60) |
+  | Jumbo | **5** (7) | Widebody | 18 Monate | **56** Mio. $ (200) |
+  | Überschall | **5** (8) | **Widebody** (Jumbo) | 24 Monate | **42** Mio. $ (500) |
 
   - Überschall braucht Widebody statt Jumbo: So liegen beide Projekte auf Rang 5 nebeneinander, und die
     Concorde (Narrowbody-Rumpf) hängt nicht an der 747.
   - Preise gesenkt, damit die Klasse im Zeitraum auch bezahlbar ist: 500 Mio. $ von 1960 sind für eine
     Gesellschaft auf Rang 5 um 1975 mehrere Jahresergebnisse (Prüfregel unten).
+  - Mit E102 (Paket 5.4g) alle Preise × 0,7 (vorher 3 / 12 / 40 / 80 / 60 Mio. $): Nach E97 verdient der Spieler beim
+    besten Preis weniger; an der Rang-Schwelle kostete die Klasse 13–17 Monatsergebnisse (Prüfregel unten).
 - **Prüfung der Erreichbarkeit** (Start Januar 1960, schnellster Weg; Rang frühestens nach den Jahren der Tabelle):
 
   | Klasse | Rang erreicht frühestens | Forschung fertig frühestens | Lieferzeitraum (Daten) | Spielraum |
@@ -2444,7 +2447,7 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   | Zielgewicht Geschäft / Tourismus (7.9) | 0,6 / 1,4 | 1 / 1 | 1 / 1 | 1,5 / 0,5 | 1,5 / 0,5 |
   | Langstrecken-Abzug über 3 500 km | × 0,4 | – | – | – | – |
   | Geduld (Monate bis zum Urteil, 7.8) | 4 + 2 | 5 + 3 | 3 | 6 | 6 |
-  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,4 (vor E82: 0,7) | 1 | 0,9 (vor E71: 0,6) |
+  | Kaufneigung × (höchstens) | 1,25 (0,85) | 1,35 (0,90) | 0,6 (E101; vor E82: 0,7, E82: 0,4) | 1 | 0,9 (vor E71: 0,6) |
   | Preis ≤ Anteil der Kasse beim Kauf | 65 % | 65 % | 45 % | 45 % | 45 % |
   | Reserve nach Kauf `CASH_RESERVE_1960` | 5 Mio. $ | 5 Mio. $ | 10 Mio. $ | 10 Mio. $ | 10 Mio. $ |
   | Drehkreuze höchstens `MAX_HUBS` (7.13) | 3 | 4 | 2 | 3 | 2 (vor E71: 1) |
@@ -2467,7 +2470,8 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
   (heute Faktor 25 und mehr, W1). Stellschrauben: `FARE_POSITION`, Kabinen-Werte (7.5), Zielgewichte, Kaufneigung,
   Drehkreuze, Gewichte der Startflugzeuge (7.7). Eingestellt in Paket 3.9e (E71): LCC Preis-Lage 0,95, Boutique
   Kaufneigung 0,9 und 2 Drehkreuze, Startflugzeuge ohne DC-8-Sog (`BALANCE.md` Fund 31). In Paket 5.3d (E82): Optimizer
-  Kaufneigung 0,4 (`BALANCE.md` Fund 48).
+  Kaufneigung 0,4 (`BALANCE.md` Fund 48); in Paket 5.4g (E101) 0,6, weil sein bester Preis nach E97 näher am Markt
+  liegt (`BALANCE.md` Fund 67).
 - Persönlichkeiten echter Gesellschaften: aus den Daten (`src/data/rivalAirlines.ts`), wie heute.
 - Regeln (Tests): `PERSONALITIES` und `AGGRESSION` gibt es nur einmal (heute Kopie in `src/lib/saveMigration.ts:57-58`);
   jede Persönlichkeit hat in jeder Zeile einen Wert.
@@ -2530,8 +2534,10 @@ der neutrale Wert. Die Liste ist eine Konstante im Modell, die Rivalen-Ansicht z
 - **Grenzen des Unterbietens** (Vorgabe 4.10, 4.14): Der Preiskampf-Nachlass wirkt einmal, die Lage höchstens
   ± `YIELD_MAX`, und der Boden `priceFloor` liegt über den Kosten einer vollen Maschine. Damit gilt für jede KI:
   `fareRatio ≥ max(FARE_FLOOR[p], breakEvenFareLevel(1))`, auch wenn zwei KI gleichzeitig kämpfen. Der Optimizer
-  antwortet mit dem besten Preis (4.10) auf die Preise der anderen. Wechselseitige beste Antworten bleiben über den
-  Kosten, nicht gegen 0 (Balance-Skript B4.2). Ein fester Punkt ist **nicht** nötig (E65): Wird eine Gesellschaft
+  antwortet mit dem besten Preis (4.10) auf die Preise der anderen. Wechselseitige beste Antworten laufen nicht gegen 0
+  (Balance-Skript B4.2, E103): der tiefste Preis bleibt bei mindestens 90 % der Gewinnschwelle voller Maschine; mit
+  einem Flugzeug je Seite auch mit Gewinn. Ein Verlust mit mehr Sitzen, als der Markt füllt, kommt aus der
+  Überkapazität, nicht aus dem Unterbieten. Ein fester Punkt ist **nicht** nötig (E65): Wird eine Gesellschaft
   gerade voll, geht der Überlauf (3.11) zur anderen, und die besten Antworten springen zwischen zwei Werten
   (B4.3, Info). Ob die KI-Preise im laufenden Spiel störend springen, misst der Langlauf (3.9b); nur dann bekommt
   der Optimizer eine Schrittgrenze wie die anderen Persönlichkeiten (`FARE_STEP`).
