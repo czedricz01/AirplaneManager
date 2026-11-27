@@ -14,8 +14,9 @@ Business- und Tourism-Wert abschätzen, auf Grund echter Faktenlage.“
 - **Folgen im Spiel:** Große Städte sind jetzt viel größer als kleine (London 2019: 105 Mio. Ziel- und Quellverkehr,
   Saarbrücken 0,4 Mio.). Strecken zwischen Metropolen werden größer, Strecken zu kleinen Orten viel kleiner.
 - **Drei Konstanten neu eingestellt (E107)**, damit die Balance aus den Paketen 3.9–5.4h möglichst bleibt:
-  `DEMAND_SCALE` 14,5 → 4,5, `DEMAND_GROWTH_1960_2019` 2,25 → 1,97, neu `CLASS_BUSINESS_REF` = 0,3.
-- Spieltest-Matrix: Abschnitt 6.
+  `DEMAND_SCALE` 14,5 → 6,0, `DEMAND_GROWTH_1960_2019` 2,25 → 1,97, neu `CLASS_BUSINESS_REF` = 0,3.
+- **Spieltest:** 1995 und 2025 etwa wie vorher; 1970 ab DUS deutlich schwerer (auf Hard nur knapp Gewinn) → Frage O101
+  (Abschnitt 8).
 
 ## 1. Was die Werte bedeuten
 
@@ -135,38 +136,106 @@ Konstanten:
 
 | Konstante | vorher | jetzt | Grund |
 |---|---|---|---|
-| `DEMAND_SCALE` (3.6) | 14,5 | **4,5** | Die 30 größten Märkte der Spieltest-Drehkreuze (FRA 1995, FRA 2025, DUS 1970) im geometrischen Mittel gleich groß wie vorher (neu / alt mit 14,5: 3,29 / 2,75 / 3,70 → Mittel 3,22) |
+| `DEMAND_SCALE` (3.6) | 14,5 | **6,0** | Die 100 größten Märkte in Reichweite der Spieltest-Drehkreuze (FRA 1995, FRA 2025, DUS 1970) in Summe etwa wie vorher. Erster Versuch 4,5 (30 größte Märkte gleich): gute Strategien verdienten nur 30–60 % von vorher, weil sie 50–100 Strecken fliegen und die Märkte ab Platz 30 jetzt 25–30 % kleiner sind (Abschnitt 6) |
 | `DEMAND_GROWTH_1960_2019` (3.3) | 2,25 | **1,97** | Regel E64: Summe der Marktgrößen aller Paare 1960 → 2019 × 2,5. Mit realen Werten und 2,25 wären es × 2,86 (B3.1, Januar, 481 Flughäfen) |
-| `CLASS_BUSINESS_REF` (3.7) | fest 0,5 | **0,3** | Der Geschäftsanteil der Paare liegt im Mittel 0,2 tiefer (alle Paare 0,46 → 0,26; Top-30 ab FRA 0,57 → 0,36). Mit 0,3 bleiben die Klassen-Anteile typischer Paare wie vorher |
+| `CLASS_BUSINESS_REF` (3.7) | fest 0,5 | **0,3** | Der Geschäftsanteil der Paare liegt im Mittel 0,2 tiefer (alle Paare 0,46 → 0,26; 30 größte ab FRA 0,57 → 0,36). Mit 0,3 bleiben die Klassen-Anteile typischer Paare wie vorher |
 
 Marktgröße einzelner Paare (Fluggäste je Woche, Mai; vorher → jetzt, beide mit ihren Konstanten):
 
 | Paar | 1961 | 1970 | 1990 | 2019 | 2025 |
 |---|---|---|---|---|---|
-| FRA–CDG | 2 669 → 4 188 | 3 362 → 5 169 | 4 224 → 7 073 | 4 798 → 6 376 | 4 620 → 6 110 |
-| FRA–LHR | 2 470 → 4 036 | 3 113 → 5 093 | 3 871 → 6 729 | 4 415 → 5 795 | 4 257 → 5 582 |
-| FRA–MAD | 1 398 → 2 052 | 1 852 → 2 791 | 3 035 → 3 342 | 3 431 → 3 735 | 3 357 → 3 780 |
-| FRA–JFK | 1 506 → 2 547 | 1 849 → 2 874 | 2 118 → 3 074 | 2 364 → 2 653 | 2 276 → 2 600 |
-| FRA–MUC | 2 525 → 1 955 | 3 184 → 2 871 | 3 993 → 3 471 | 4 606 → 4 183 | 4 440 → 3 897 |
-| FRA–HAM | 2 353 → 2 576 | 2 963 → 3 283 | 3 741 → 3 380 | 4 338 → 3 109 | 4 188 → 2 862 |
-| FRA–PMI | 971 → 1 442 | 1 282 → 2 168 | 2 119 → 2 589 | 2 375 → 2 329 | 2 314 → 2 351 |
-| FRA–SCN | 1 638 → 174 | 1 918 → 222 | 2 395 → 285 | 3 235 → 275 | 3 318 → 234 |
-| DUS–PMI | 878 → 1 190 | 1 149 → 1 938 | 1 986 → 2 091 | 2 330 → 1 763 | 2 279 → 1 692 |
-| LHR–JFK | 1 435 → 5 450 | 1 746 → 5 125 | 2 295 → 4 951 | 2 680 → 3 954 | 2 593 → 4 136 |
+| FRA–CDG | 2.669 → 5.584 | 3.362 → 6.893 | 4.224 → 9.430 | 4.798 → 8.511 | 4.620 → 8.148 |
+| FRA–LHR | 2.470 → 5.381 | 3.113 → 6.791 | 3.871 → 8.972 | 4.415 → 7.735 | 4.257 → 7.443 |
+| FRA–MAD | 1.398 → 2.736 | 1.852 → 3.721 | 3.035 → 4.455 | 3.431 → 4.986 | 3.357 → 5.041 |
+| FRA–JFK | 1.506 → 3.396 | 1.849 → 3.832 | 2.118 → 4.099 | 2.364 → 3.542 | 2.276 → 3.467 |
+| FRA–MUC | 2.525 → 2.607 | 3.184 → 3.828 | 3.993 → 4.627 | 4.606 → 5.583 | 4.440 → 5.197 |
+| FRA–HAM | 2.353 → 3.435 | 2.963 → 4.378 | 3.741 → 4.506 | 4.338 → 4.150 | 4.188 → 3.816 |
+| FRA–PMI | 971 → 1.923 | 1.282 → 2.890 | 2.119 → 3.452 | 2.375 → 3.109 | 2.314 → 3.135 |
+| FRA–SCN | 1.638 → 232 | 1.918 → 296 | 2.395 → 381 | 3.235 → 368 | 3.318 → 312 |
+| DUS–PMI | 878 → 1.587 | 1.149 → 2.584 | 1.986 → 2.788 | 2.330 → 2.354 | 2.279 → 2.256 |
+| LHR–JFK | 1.435 → 7.266 | 1.746 → 6.834 | 2.295 → 6.601 | 2.680 → 5.278 | 2.593 → 5.516 |
 
-Lesart: Metropolen-Paare (FRA–CDG, LHR–JFK) größer, besonders früh; Paare mit kleinen Städten (FRA–SCN) etwa ein
-Zehntel. Früh im Spiel sind die großen westlichen Märkte größer als vorher, spät etwas kleiner, weil der Weltanteil
-Europas und Nordamerikas real sinkt (Asien wächst).
+Lesart: Metropolen-Paare (FRA–CDG, LHR–JFK) deutlich größer, besonders früh; Paare mit kleinen Städten (FRA–SCN)
+etwa ein Zehntel. Der Weltanteil Europas und Nordamerikas sinkt real (Asien wächst), deshalb wachsen westliche Märkte
+von 1970 bis 2025 weniger als vorher.
 
 Angepasste Tests: 3.3 (`demandGrowth` 2019 = 1,97), 3.7 (Beispielwerte mit `CLASS_BUSINESS_REF`), Rang-Beispiel 1
 des Balance-Skripts HAM–NUE → HAM–FRA (`src/balance/career.ts:201`; HAM–NUE ist 1960 real zu klein für eine F27 mit
-14 Flügen, 368 statt 644 Fluggäste, Ergebnis −0,3 Tsd. $), Flugzeugwahl-Test nimmt das größte Langstrecken-Paar, das
-auch ein Schmalrumpf erreicht (das größte ist jetzt London–Tokio, 9 600 km).
+14 Flügen), Flugzeugwahl-Test nimmt das größte Langstrecken-Paar, das auch ein Schmalrumpf erreicht (das größte ist
+jetzt London–Tokio, 9 600 km), Anlauf-Test der Strecke mit hohem Preis (FRA–MAD ist sonst auch im Anlauf voll,
+`src/lib/modelRoute.test.ts:277`).
 
 ## 6. Spieltest-Matrix
 
-(folgt)
+Zwei Läufe mit `scripts/playtest-matrix.ts --jobs 4`:
+
+1. **Volle Matrix mit `DEMAND_SCALE` 4,5** (177 Spiele, 2 Std. 20 Min., kein Fehler).
+2. **Verkleinerte Matrix mit `DEMAND_SCALE` 6,0** (endgültig): optimierer, vorsichtig, luxus, standard je Startwert 1,
+   alle Zeitalter und Stufen (33 Spiele, kein Fehler).
+
+Ergebnis der letzten 12 Monate in Mio. $ · Strecken (tiefste Kasse); Vergleich `5.4h-spieltest.md` (alte Stadtwerte,
+Mittel zweier Startwerte).
+
+**Free Mode, FRA, 1995–2004**
+
+| Strategie | 5.4h (alt) Easy / Normal / Hard | 4,5 | **6,0** |
+|---|---|---|---|
+| standard | −1,3 / −3,7 / −5,7 | −0,3 / −3,8 / −4,8 | −0,6 / −3,7 / −4,7 |
+| vorsichtig | +106 / +63 / +39 | +93 / +55 / +30 | **+131 / +89 / +59** |
+| luxus | +271 / +170 / +115 | +131 / +84 / +53 | **+202 / +135 / +89** |
+| optimierer | +527 / +385 / +241 | +199 / +114 / +50 | **+343 / +184 / +121** |
+
+Mit 4,5 außerdem: vorsichtig-pack +115 / +76 / +41 (alt +363 / +226 / +115), lcc-best-pack +127 / +96 / +70
+(alt +444 / +238 / +139), ryanair-pack +93 / +29 / +2 (alt +291 / +47 / +20), schlecht-wucher +6 / −3 / −2 (alt
++87 / +49 / +18), schlecht-dumping pleite wie vorher.
+
+**Normal Mode, DUS, 1970–1979**
+
+| Strategie | 5.4h (alt) | 4,5 | **6,0** |
+|---|---|---|---|
+| standard | +1,1 / −3,0 / −5,5 | −0,9 / −3,1 / −5,0 | +0,4 / −3,1 / −4,8 |
+| vorsichtig | +14 / +4,2 / −2,0 | +3,1 / −7,5 / −7,4 | +17 / −8,1 / −8,1 |
+| luxus | +65 / +38 / +21 | +18 / +6,6 / −0,2 | **+31 / +19 / +5,1** |
+| optimierer | +80 / +59 / +34 | +26 / +3,9 / +0,0 | **+47 / +23 / +1,0** |
+
+Mit 4,5 außerdem: schlecht-wucher jetzt auf allen Stufen pleite (alt Verlust ohne Pleite), ryanair/ryanair-gross
+Easy in einem Lauf pleite.
+
+**Free Mode, FRA, 2025–2029**
+
+| Strategie | 5.4h (alt) | 4,5 | **6,0** |
+|---|---|---|---|
+| standard | +17 / +10 / +6,1 | +3,5 / +0,2 / −1,3 | +3,5 / +0,2 / −1,3 |
+| luxus | +140 / +104 / +83 | +111 / +84 / +71 | **+150 / +114 / +91** |
+| optimierer | +303 / +199 / +115 | +211 / +137 / +90 | **+313 / +222 / +164** |
+
+Hard / Easy mit 6,0: 1995 optimierer 35 %, luxus 44 %, vorsichtig 45 %; 2025 optimierer 52 %, luxus 61 %.
 
 ## 7. Funde
 
-(folgt)
+- **Fund 78 – 1995 und 2025 fast wie vorher, 1970 deutlich schwächer → Frage O101.** Mit 6,0 liegen gute Strategien
+  1995 bei 65–125 % und 2025 bei 100–140 % der alten Ergebnisse. 1970 ab DUS: optimierer und luxus auf Hard nur noch
+  +1 / +5 Mio. $ (alt +34 / +21), vorsichtig auf Normal/Hard im Verlust. Grund: 1970 gab es real nur wenige große
+  Märkte (Europa und Nordamerika), die Märkte ab Platz 30 sind ab DUS 1970 nur noch 30–60 % so groß wie vorher; das
+  Ziel aus E94/E106 („Hard mit jeder guten Strategie klar gewinnbar“) ist 1970 nicht mehr erfüllt.
+- **Fund 79 – „standard“ 2025 schwächer** (+3,5 statt +17 auf Easy): Die Strategie nimmt die beliebtesten Ziele
+  nach Stadtgröße; das sind jetzt Metropolen in großer Entfernung, für die ihr Flugzeug nicht passt. Info, kein
+  Modellfehler.
+- **Fund 80 – Doppelte Flughäfen in den Daten.** Basel-Mulhouse steht dreimal im Spiel (EAP, BSL, MLH), Verona
+  zweimal (VRN, VVR – kein echter Code). Hier ist der Verkehr auf die Einträge verteilt (EAP 50 %, BSL 30 %, MLH 20 %;
+  VVR klein gehalten). Besser wäre, die Doppel zu streichen (eigene Aufgabe, ändert Spielstände).
+- **Fund 81 – New York und andere Städte mit mehreren Spiel-Flughäfen** (JFK/EWR/LGA, Washington IAD/DCA/BWI,
+  Mailand MXP/LIN/BGY, Tokio HND/NRT, Shanghai PVG/SHA, Peking PEK/PKX, Dubai DXB/DWC, Istanbul IST/SAW, London
+  LHR/STN/LTN/LCY/SEN): Jeder Flughafen hat nur seinen eigenen Verkehr; die Stadt ist auf mehrere Märkte verteilt.
+  Real so, aber das größte Langstrecken-Paar ist dadurch London–Tokio statt London–New York. Info.
+
+## 8. Frage O101
+
+1970 ist mit realen Stadtwerten schwerer als vorher (Fund 78). Wege:
+
+- **A: so lassen.** Realistisch: 1970 lohnten sich nur wenige große Strecken. Ziel E94/E106 gilt dann nur ab 1990.
+- **B (Empfehlung): Wachstum flacher.** `DEMAND_GROWTH_1960_2019` kleiner (etwa 1,75) und `DEMAND_SCALE` so, dass
+  2025 gleich bleibt: frühe Märkte größer, späte gleich. Regel E64 (Summe × 2,5) wird dann z. B. × 2,2. Messung mit
+  verkleinerter Matrix im nächsten Paket.
+- **C: nur 1970 stützen** über andere Hebel (Startkapital im Normal Mode, Kosten früher Flugzeuge). Greift in
+  bereits abgestimmte Werte ein.

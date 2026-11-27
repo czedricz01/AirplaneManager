@@ -1,13 +1,22 @@
 # Status
 
-**Nächstes: kein Paket offen.** Alle Pakete der Phasen 0–5 sind erledigt, keine Frage ist offen. Ob und womit es
-weitergeht, entscheidet der Mensch. Mögliche nächste Pakete (keins davon gehört zum Kern des Neubaus):
-(1) Spieltest im Browser durch einen Menschen: Spielgefühl der KI-Stärke (die Matrix misst den Spieler fast ohne KI
-am eigenen Drehkreuz, Fund 76). (2) Typ-Wahl der Test-Strategien verbessern (größter Typ bis 150 Sitze, Fund 76; Arbeit
-am Spieltest, nicht am Modell). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche Ortsnamen in
-`src/data/airportsRows.ts` (Fund 55). (5) Spielstände in der Cloud (Supabase) testen.
+**Nächstes: Frage O101 beantworten** (1970 nach den realen Stadtwerten schwerer: so lassen, Wachstum flacher oder
+1970 gezielt stützen; `balance/D1-stadtwerte.md`, Abschnitt 8). Danach ggf. Paket D2 (Umsetzung und Spieltest).
+Weitere mögliche Pakete (nicht Kern des Neubaus): (1) Spieltest im Browser durch einen Menschen (Fund 76).
+(2) Typ-Wahl der Test-Strategien verbessern (Fund 76, 79). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche Ortsnamen
+in `src/data/airportsRows.ts` (Fund 55; Namen bleiben beim Erzeugen erhalten). (5) Spielstände in der Cloud testen.
+(6) Doppelte Flughäfen streichen (Basel EAP/BSL/MLH, Verona VRN/VVR; Fund 80).
 
-Offen: nichts.
+Offen: O101.
+
+Stand: 27.11.2026 · Paket D1 erledigt: Stadtwerte aus realen Passagierzahlen (`balance/D1-stadtwerte.md`, Funde
+78–81, E107). Alle 628 Flughäfen, alle Jahre 1960–2025: Ziel- und Quellverkehr (ohne Umsteiger, mit nicht
+spielbaren Flughäfen derselben Stadt) in tausend Fluggästen je Jahr, aufgeteilt nach Reisezweck; Quellen und
+Generator in `scripts/airport-traffic/`. Kalibrierung: `DEMAND_SCALE` 14,5 → 6,0, `DEMAND_GROWTH_1960_2019`
+2,25 → 1,97 (B3.1 = 2,50), neu `CLASS_BUSINESS_REF` 0,3; Zeitalter-Faktoren in `airportRegistry.ts` entfallen.
+Spieltest: 1995 und 2025 etwa wie vorher, 1970 ab DUS deutlich schwächer (Hard: optimierer +1, luxus +5 Mio. $) →
+O101. Balance-Skript 16 ok · 0 Abweichung (`balance/D1-bericht.md`). Tests: 1 270 grün, Lint ohne Fehler. Im Browser
+nicht geprüft.
 
 Stand: 27.11.2026 · O100 im Chat entschieden: A (E106). Der Kosten-Faktor je Stufe bleibt 0,85 / 1 / 1,1 (E87); das
 Hard-Ziel aus E94 heißt jetzt „etwa 30–50 % des Easy-Ergebnisses guter Strategien, klar gewinnbar“. Damit erfüllen
@@ -694,6 +703,13 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.4g | Umsetzung E101–E104 (Optimizer-Kaufneigung, Klassen-Forschung, Regel B4.2, Werbe-Kosten) mit Balance-Langlauf (F88; `balance/5.4g-bericht.md`, Funde 74–75) | erledigt |
 | 5.4h | Spieltest-Matrix nach E101–E105: Spieler-Ziele (E88, E91, E100) mit den neuen Preisen (`balance/5.4h-spieltest.md`; Funde 76–77, Frage O100 → E106) | erledigt |
 
+## Zusatz – Daten
+
+| Paket | Inhalt | Status |
+|---|---|---|
+| D1 | Stadtwerte aus realen Passagierzahlen, Kalibrierung `DEMAND_SCALE`, `DEMAND_GROWTH_1960_2019`, `CLASS_BUSINESS_REF` (E107; `balance/D1-stadtwerte.md`, Funde 78–81, Frage O101) | erledigt |
+| D2 | Umsetzung der Antwort auf O101 mit verkleinerter Spieltest-Matrix | wartet auf O101 |
+
 ---
 
 ## Verlauf
@@ -793,3 +809,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.4g | E101–E104 umgesetzt (F88); Langlauf `balance/5.4g-bericht.md` 21 ok · 0 Abweichung · 33 Info (B7.1 1,82 / 1,82, B6.7 ≤ 11,7, B4.2 ok); KI-Stärke Easy < Normal < Hard im Median; KI-LCC-Wende ohne Wirkung auf B7.1; Funde 74–75; Tests 1 262 grün; neues Paket 5.4h vorgeschlagen |
 | 27.11.2026 | 5.4h | Spieltest-Matrix nach E101–E105 (`balance/5.4h-spieltest.md`, 177 Spiele, Funde 76–77): Ziele E88, E91/E105, E93, E95, E96, E99, E100 gelten weiter; pack-Strategien auf Hard 31–32 % von Easy → O100; Strategie `lcc-best-pack` ergänzt; kein Modell-Code geändert |
 | 27.11.2026 | O100 | Im Chat entschieden: A (E106): Kosten-Faktor bleibt, Hard-Ziel etwa 30–50 % von Easy; kein Paket offen |
+| 27.11.2026 | D1 | Stadtwerte aus realen Passagierzahlen (`balance/D1-stadtwerte.md`, Funde 78–81, E107): 628 Flughäfen 1960–2025 in tausend Fluggästen je Jahr, Reisezweck geschätzt; `DEMAND_SCALE` 6,0, `DEMAND_GROWTH_1960_2019` 1,97, `CLASS_BUSINESS_REF` 0,3; 1970 schwerer → O101 |

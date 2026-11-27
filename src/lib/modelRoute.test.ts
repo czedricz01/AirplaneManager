@@ -276,10 +276,15 @@ describe('Paket 4.5c: Zahlen der Strecken im laufenden Monat (8.1, R2)', () => {
 
   it('Alter der Strecke aus dem Spielstand; neue Strecke im Anlauf (3.12)', () => {
     assert.equal(routesThisMonth(STATE).get('r1')!.ageMonths, 24);
-    const fresh = modelGame(game({ routes: [{ ...ROUTE, openedOffset: M }] }), ENV).state;
+    // Hoher Preis, damit die Strecke nicht voll ist (sonst begrenzen die Sitze beide gleich; FRA–MAD ist seit den
+    // realen Stadtwerten groß, E107).
+    const dear = { ...ROUTE, ticketPrices: { economy: 450 } };
+    const aged = routesThisMonth(modelGame(game({ routes: [dear] }), ENV).state).get('r1')!;
+    const fresh = modelGame(game({ routes: [{ ...dear, openedOffset: M }] }), ENV).state;
     const m = routesThisMonth(fresh).get('r1')!;
     assert.equal(m.ageMonths, 0);
-    assert.ok(m.passengers < routesThisMonth(STATE).get('r1')!.passengers);
+    assert.ok(aged.passengers < aged.seatsPerWeek);
+    assert.ok(m.passengers < aged.passengers);
   });
 });
 

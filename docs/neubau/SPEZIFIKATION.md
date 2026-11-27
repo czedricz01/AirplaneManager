@@ -685,8 +685,8 @@ die nicht im Spiel sind), aufgeteilt nach Reisezweck; Herleitung und Quellen in 
 - Hängt ab von: 3.1–3.5. **Nicht** von Flugzeug, Gesellschaft, Ruf, Preis, Satisfaction, Schwierigkeit.
 - Wirkt auf: Potenzial je Klasse (3.10).
 - Konstanten: `LINK_EXP = 0,448351` (heute `:683`; bestimmt nur noch den Abstand großer zu kleinen Paaren);
-  `DEMAND_SCALE = 4,5` (E107: mit den realen Stadtwerten so, dass die 30 größten Märkte der Spieltest-Drehkreuze im
-  Mittel so groß bleiben wie vorher; davor 14,5 aus Paket 3.9d, E67, E70; Startwert 29 wie heute `:683` ohne den
+  `DEMAND_SCALE = 6,0` (E107: mit den realen Stadtwerten so, dass die 100 größten Märkte in Reichweite der
+  Spieltest-Drehkreuze in Summe etwa so groß bleiben wie vorher; davor 14,5 aus Paket 3.9d, E67, E70; Startwert 29 wie heute `:683` ohne den
   Normal-Abzug 0,9, E4).
   Damit ist ein Flugzeug allein beim besten Preis und der gewinnbesten Flugzahl auf Mittelstrecke zu 86–88 % ausgelastet
   (Langstrecke mit wenigen Flügen 89–99 %), nicht mehr überall voll (Bericht `balance/3.9d-bericht.md`, Abschnitt 4).

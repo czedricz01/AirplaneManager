@@ -971,3 +971,30 @@ vorsichtig-pack 1995 +363 / +226 / +115, lcc-best-pack +444 / +238 / +139 Mio. $
 nicht gegen E94 geprüft. Vermutung: Der Kosten-Faktor je Stufe (E87) wirkt nicht auf Flugzeug-Kosten; gepackt ist
 deren Anteil kleiner, der Faktor wirkt stärker. Hard bleibt klar gewinnbar (tiefste Kasse 3,8–4,9 Mio. $).
 
+## Paket D1: Realistische Stadtwerte (27.11.2026)
+
+Bericht: `balance/D1-stadtwerte.md`; Balance-Skript `balance/D1-bericht.md` (16 ok · 0 Abweichung · 25 Info).
+
+### Fund 78: 1995 und 2025 fast wie vorher, 1970 deutlich schwächer → Frage O101
+
+Mit `DEMAND_SCALE` 6,0 (verkleinerte Matrix, Startwert 1): 1995 optimierer +343 / +184 / +121, luxus +202 / +135 /
++89, vorsichtig +131 / +89 / +59 Mio. $ (Easy / Normal / Hard; vorher +527 / +385 / +241, +271 / +170 / +115,
++106 / +63 / +39). 2025 optimierer +313 / +222 / +164, luxus +150 / +114 / +91 (vorher +303 / +199 / +115, +140 /
++104 / +83). 1970 ab DUS optimierer +47 / +23 / +1,0, luxus +31 / +19 / +5,1, vorsichtig +17 / −8,1 / −8,1 (vorher
++80 / +59 / +34, +65 / +38 / +21, +14 / +4,2 / −2,0). Grund: 1970 gab es real nur wenige große Märkte; ab DUS sind
+die Märkte ab Platz 30 nur noch 30–60 % so groß wie vorher.
+
+### Fund 79: „standard“ 2025 schwächer → Info
+
++3,5 / +0,2 / −1,3 statt +17 / +10 / +6,1: Die Strategie nimmt die beliebtesten Ziele nach Stadtgröße, jetzt oft
+ferne Metropolen, für die ihr Flugzeug nicht passt. Schwäche der Test-Strategie.
+
+### Fund 80: Doppelte Flughäfen in den Daten → eigene Aufgabe
+
+Basel-Mulhouse dreimal (EAP, BSL, MLH), Verona zweimal (VRN, VVR). Verkehr verteilt (EAP 50 %, BSL 30 %, MLH 20 %;
+VVR klein). Streichen der Doppel ändert Spielstände.
+
+### Fund 81: Städte mit mehreren Spiel-Flughäfen → Info
+
+New York (JFK/EWR/LGA), London (LHR/STN/LTN/LCY/SEN), Tokio, Shanghai, Peking, Mailand, Washington, Dubai,
+Istanbul: Jeder Flughafen hat nur seinen eigenen Verkehr. Das größte Langstrecken-Paar ist dadurch London–Tokio.
