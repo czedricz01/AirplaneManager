@@ -9,6 +9,73 @@ Urteile: **ok** = Regel der Spezifikation gilt; **Abweichung** = Regel gilt nich
 
 Prüfregeln: 19 ok · 2 Abweichung · 33 Info.
 
+## Auswertung Paket D3 (von Hand ergänzt, 27.11.2026)
+
+Langlauf nach F89 (Rang ohne Mindest-Jahre, Reichweiten, ICAO-Codes), D1 (reale Stadtwerte) und D2 (flacheres
+Wachstum). Läufe wie in 5.4g: 10 × 60 Jahre Normal, je 3 × 40 Jahre Easy und Hard, 4 Prozesse. Um die Wirkung zu
+trennen, drei Stände gerechnet:
+
+| Stand | Commit | Bericht | Prüfregeln |
+|---|---|---|---|
+| 5.4g | – | `5.4g-bericht.md` | 21 ok · 0 Abweichung · 33 Info |
+| nach F89, vor D1 | `6e76c7c` | `D3-f89-bericht.md` | 21 ok · 0 Abweichung · 33 Info |
+| nach D1 | `dbd7b8b` | `D3-d1-bericht.md` | 20 ok · **1** Abweichung · 33 Info |
+| **nach D2 (jetzt)** | dieser PR | dieser Bericht | **19 ok · 2 Abweichung · 33 Info** |
+
+Funde 83–86 in `BALANCE.md`, Frage O103.
+
+### Ergebnis kurz
+
+- **F89 ändert die Balance kaum.** Alle Prüfregeln wie in 5.4g; B7.1 nach 20 Jahren 1,46 statt 1,82, nach 40
+  Jahren 1,83 statt 1,82; Widebody-Strecken der KI 0,5 statt 0,3 je Jahr.
+- **D1 verschiebt die KI stark.** Die KI-Gesellschaften sind 2- bis 3-mal so viel wert, fliegen viel mehr Widebodies,
+  und Flag liegt nach 40 Jahren über dem Faktor 2 (B7.1: 2,09).
+- **D2 verstärkt das etwas:** B7.1 2,54, KI-Marge 26 % (B7.10, Band 10–25 %).
+
+### Was sich geändert hat (Langlauf-Prüfregeln)
+
+| Prüfregel | 5.4g | nach F89 | nach D1 | nach D2 |
+|---|---|---|---|---|
+| B7.1 ähnlicher Erfolg (Faktor nach 20 / 40 Jahren) | 1,82 / 1,82 | 1,46 / 1,83 | 1,80 / **2,09** | 1,30 / **2,54** |
+| B7.10 KI-Marge (Band 10–25 %) | 23 % | 23 % | 25 % | **26 %** |
+| B7.3 Preisniveau Y Median · Preiskampf · Gesellschaften je Paar | 1,05 · 0,1 % · 1,00 | 1,05 · 0,0 % · 1,01 | 1,03 · 0,6 % · 1,04 | 1,03 · 0,6 % · 1,03 |
+| B7.11 Strecken mit Widebody je Jahr (Januar) | 0,3 | 0,5 | 29,8 | 44,5 |
+| B7.12 Langstrecke der KI (Strecken-Monate) | 12,5 % | 12,7 % | 33,8 % | 34,0 % |
+| B3.13 Umsteiger p90 · Paare über 25 % | 1,1 % · 0,3 % | 1,5 % · 0,6 % | 5,9 % · 1,9 % | 8,4 % · 3,4 % |
+| B7.6 Dividende je KI und Jahr (Mio. $ von 1960) | 122 | 126 | 313 | 370 |
+| B7.8 KI-Stärke Easy / Normal / Hard (Median nach 40 Jahren, Mio. $) | 731 / 1 487 / 1 556 | 692 / 1 535 / 1 670 | 1 601 / 3 061 / 2 757 | 1 995 / 2 864 / 2 812 |
+| B7.9 Rechenzeit 2010er (ms je Monat) | 1 095 | 1 710¹ | 936 | 1 130¹ |
+
+¹ Zwei Langläufe rechneten gleichzeitig auf 4 Kernen; nicht vergleichbar. Allein (nach D1) 936 ms.
+
+Die Prüfregeln ohne Langlauf sind gegen `D1-bericht.md` kaum verändert (`D2-spieltest.md`, Abschnitt 3).
+
+### Unternehmenswert je Persönlichkeit (÷ Median aller)
+
+| nach Jahren | Median aller | flag | lcc | expansionist | optimizer | boutique |
+|---|---|---|---|---|---|---|
+| 10, 5.4g / D1 / D2 | 217 / 661 / 989 | 1,42 / 1,21 / 1,22 | 0,99 / 0,70 / 0,83 | 0,94 / 0,88 / 0,85 | 0,87 / 1,32 / 1,19 | 1,16 / 0,85 / 0,96 |
+| 20 | 205 / 637 / 831 | 1,82 / 1,53 / 1,29 | 1,01 / 0,56 / 0,86 | 0,65 / 1,14 / 0,98 | 1,14 / 1,08 / 1,30 | 0,96 / 0,79 / 0,89 |
+| 40 | 1 487 / 3 061 / 2 864 | 1,82 / 2,09 / **2,54** | 0,88 / 0,60 / 0,86 | 1,69 / 1,53 / 1,88 | 0,98 / 1,15 / 0,97 | 0,66 / 0,76 / 0,83 |
+| 60 | 2 225 / 3 060 / 3 055 | 1,40 / 2,23 / 2,74 | 0,71 / 0,69 / 0,81 | 1,72 / 1,53 / 1,53 | 1,00 / 1,09 / 0,99 | 0,58 / 0,78 / 0,90 |
+
+Median aller in Mio. $ von 1960.
+
+### Warum
+
+- **Große Drehkreuze sind jetzt groß.** Die KI gründet im Langlauf an festen Drehkreuzen (`FOUNDER_HUBS`,
+  `src/balance/longRun.ts:42`: JFK, LHR, FRA, ORD, CDG, LAX, HND, SIN, ATL, SYD; E71). Mit realen Stadtwerten sind die Märkte dort viel größer als vorher; `DEMAND_SCALE` wurde in D1 nur an den
+  Spieler-Drehkreuzen FRA und DUS geeicht. Darum mehr Wert, mehr Dividende, mehr Widebodies (B7.13/B7.14 schon in D1:
+  Widebody auf 37 von 49 großen Langstrecken-Paaren vorn).
+- **Flag profitiert am meisten:** große Flugzeuge, beliebte Ziele, Marktpreis. Nach 40 Jahren 6 386 (D1) und
+  7 269 Mio. $ (D2) gegen 2 702 in 5.4g. Flag an LAX erreicht 13 854 Mio. $.
+- **Drehkreuze in Asien und Australien bleiben früh klein.** Real flogen dort 1960–1980 wenige Menschen. Gründer an
+  SYD, SIN und einmal HND enden in 6 von 50 Fällen bei 61–231 Mio. $ (nach F89 an SYD 714–3 864 Mio. $).
+- **D2** macht frühe Märkte größer (1960 × 1,35), das stärkt den frühen Vorsprung der großen Drehkreuze weiter.
+- **KI-Stärke:** Easy < Normal, aber Hard (2 812) nicht mehr über Normal (2 864) im Median (5.4g 1 556 > 1 487).
+  Mit drei Läufen je Stufe innerhalb der Streuung.
+
+
 ## Übersicht der Prüfregeln
 
 | Nr. | Spez. | Regel | Wert | Urteil |

@@ -1,13 +1,34 @@
 # Status
 
-**Nächstes: Frage O101 beantworten** (1970 nach den realen Stadtwerten schwerer: so lassen, Wachstum flacher oder
-1970 gezielt stützen; `balance/D1-stadtwerte.md`, Abschnitt 8). Danach ggf. Paket D2 (Umsetzung und Spieltest).
+**Nächstes: Fragen O102–O104 beantworten** (`docs/neubau/ENTSCHEIDUNGEN.md`): O102 1970 auf Hard nur 21–23 % von
+Easy (`balance/D2-spieltest.md`, Abschnitt 5); O103 Flag-KI mit realen Stadtwerten zu stark (B7.1: 2,54); O104
+KI-Marge 26 % über dem Band (B7.10) (`balance/D3-bericht.md`, Auswertung). Danach Paket D4 (Umsetzung, bei O103 = B mit
+Hilfsläufen).
 Weitere mögliche Pakete (nicht Kern des Neubaus): (1) Spieltest im Browser durch einen Menschen (Fund 76).
 (2) Typ-Wahl der Test-Strategien verbessern (Fund 76, 79). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche Ortsnamen
 in `src/data/airportsRows.ts` (Fund 55; Namen bleiben beim Erzeugen erhalten). (5) Spielstände in der Cloud testen.
 (6) Doppelte Flughäfen streichen (Basel EAP/BSL/MLH, Verona VRN/VVR; Fund 80).
 
-Offen: O101.
+Offen: O102, O103, O104.
+
+Stand: 27.11.2026 · Paket D3 erledigt: Balance-Langlauf nach F89, D1 und D2 (`balance/D3-bericht.md`, Auswertung oben;
+Funde 83–86). Drei Stände gerechnet: nach F89 vor D1 21 ok · 0 Abweichung · 33 Info wie 5.4g (`D3-f89-bericht.md`:
+F89 ändert die Balance kaum); nach D1 20 · 1 · 33 (`D3-d1-bericht.md`); nach D2 **19 · 2 · 33**. Abweichungen:
+B7.1 Flag nach 40 Jahren 2,54 × Median (nach D1 2,09) → O103; B7.10 KI-Marge 26 % → O104. Ursache vor allem D1: Die
+Langlauf-Drehkreuze (JFK, LHR, LAX …) sind mit realen Werten viel größer, die KI ist 2- bis 3-mal so viel wert und
+fliegt viel mehr Widebodies (44,5 statt 0,3 Strecken je Jahr). Kein Code geändert.
+
+Offen aus diesem Stand: O103, O104.
+
+Stand: 27.11.2026 · O101 im Chat entschieden: B (E108). Paket D2 erledigt (`balance/D2-spieltest.md`, Fund 82):
+`DEMAND_GROWTH_1960_2019` 1,97 → 1,5, `DEMAND_SCALE` 6,0 → 8,1 (Märkte 2025 gleich, 1995 × 1,15, 1970 × 1,29); Regel
+E64 jetzt Summe × 1,9 (B3.1). Der Vorschlag 1,75 hob 1970 nur um 12 % (Hard optimierer +4 Mio. $). Mit 1,5 auf
+1970 Hard optimierer +16, luxus +11 Mio. $ (Mittel zweier Startwerte; D1 +1 / +5, vor D1 +34 / +21); 1995 und 2025 im
+Band. Hard nur 21–23 % von Easy 1970 → O102. `scripts/playtest-matrix.ts`: `--only` als regulärer Ausdruck.
+Umsteiger-Test 4.7b mit Preis 200 $ (`src/lib/modelNetwork.test.ts:50`). Spezifikation 3.3, 3.6 nachgezogen. Tests:
+1 270 grün, Lint ohne Fehler. Im Browser nicht geprüft.
+
+Offen aus diesem Stand: O102.
 
 Stand: 27.11.2026 · Paket D1 erledigt: Stadtwerte aus realen Passagierzahlen (`balance/D1-stadtwerte.md`, Funde
 78–81, E107). Alle 628 Flughäfen, alle Jahre 1960–2025: Ziel- und Quellverkehr (ohne Umsteiger, mit nicht
@@ -715,7 +736,9 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | Paket | Inhalt | Status |
 |---|---|---|
 | D1 | Stadtwerte aus realen Passagierzahlen, Kalibrierung `DEMAND_SCALE`, `DEMAND_GROWTH_1960_2019`, `CLASS_BUSINESS_REF` (E107; `balance/D1-stadtwerte.md`, Funde 78–81, Frage O101) | erledigt |
-| D2 | Umsetzung der Antwort auf O101 mit verkleinerter Spieltest-Matrix | wartet auf O101 |
+| D2 | Umsetzung der Antwort auf O101 (E108: Wachstum 1,5, `DEMAND_SCALE` 8,1) mit verkleinerter Spieltest-Matrix (`balance/D2-spieltest.md`, Fund 82, Frage O102) | erledigt |
+| D3 | Balance-Langlauf nach F89, D1 und D2 (`balance/D3-bericht.md`, Funde 83–86, Fragen O103, O104) | erledigt |
+| D4 | Umsetzung der Antworten auf O102–O104 (bei O103 = B Hilfsläufe) | wartet auf O102–O104 |
 
 ---
 
@@ -817,3 +840,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.4h | Spieltest-Matrix nach E101–E105 (`balance/5.4h-spieltest.md`, 177 Spiele, Funde 76–77): Ziele E88, E91/E105, E93, E95, E96, E99, E100 gelten weiter; pack-Strategien auf Hard 31–32 % von Easy → O100; Strategie `lcc-best-pack` ergänzt; kein Modell-Code geändert |
 | 27.11.2026 | O100 | Im Chat entschieden: A (E106): Kosten-Faktor bleibt, Hard-Ziel etwa 30–50 % von Easy; kein Paket offen |
 | 27.11.2026 | D1 | Stadtwerte aus realen Passagierzahlen (`balance/D1-stadtwerte.md`, Funde 78–81, E107): 628 Flughäfen 1960–2025 in tausend Fluggästen je Jahr, Reisezweck geschätzt; `DEMAND_SCALE` 6,0, `DEMAND_GROWTH_1960_2019` 1,97, `CLASS_BUSINESS_REF` 0,3; 1970 schwerer → O101 |
+| 27.11.2026 | D2 | O101 = B (E108): `DEMAND_GROWTH_1960_2019` 1,5, `DEMAND_SCALE` 8,1, E64 Summe × 1,9; 1970 Hard optimierer +16 / luxus +11 Mio. $ (`balance/D2-spieltest.md`, Fund 82); Hard 1970 nur 21–23 % von Easy → O102 |
+| 27.11.2026 | D3 | Langlauf nach F89 / D1 / D2 (`balance/D3-bericht.md`, Funde 83–86): F89 wie 5.4g; nach D2 19 ok · 2 Abweichung · 33 Info (B7.1 Flag 2,54, B7.10 Marge 26 %) → O103, O104 |

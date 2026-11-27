@@ -329,6 +329,13 @@ O102 aus Paket D2 (`balance/D2-spieltest.md`, Abschnitt 5; Fund 82), gestellt am
 |---|---|---|---|
 | O102 | Nach E108 ist 1970 (Normal Mode, DUS) wieder klar gewinnbar, aber Hard bringt nur 21–23 % des Easy-Ergebnisses guter Strategien (optimierer +16 von +77, luxus +11 von +49 Mio. $; Firmenwert 37–39 %). E106 nennt etwa 30–50 %. 1995 (36–43 %) und 2025 (51–62 %) passen. | A (Empfehlung): so lassen, Band aus E106 gilt ab 1990. B: Wachstum noch flacher (≈ 1,3, `DEMAND_SCALE` 9,5; Summe × 1,65). C: Kosten-Faktor Hard vor 1980 kleiner (neue Regel zu E87). | offen |
 
+O103 und O104 aus Paket D3 (`balance/D3-bericht.md`, Auswertung; Funde 84, 85), gestellt am 27.11.2026.
+
+| Nr. | Frage | Wege | Antwort |
+|---|---|---|---|
+| O103 | Mit realen Stadtwerten liegt Flag im Langlauf nach 40 Jahren bei 2,54 × Median (nach D1 2,09; Regel B7.1 / 7.4: höchstens Faktor 2). Alle KI-Gesellschaften sind 2- bis 3-mal so viel wert wie in 5.4g. | A: Regel B7.1 lockern (Faktor 3), weil der Erfolg jetzt real vom Drehkreuz abhängt. B (Empfehlung): Flag dämpfen (Kaufneigung oder Flugzeuggröße), Wert mit Hilfsläufen im nächsten Paket wie bei E101. C: Abstand großer zu kleinen Märkten verkleinern (`LINK_EXP`), wirkt auch auf den Spieler und nimmt einen Teil von D1 zurück. | offen |
+| O104 | KI-Marge im Langlauf 26 % (B7.10, Band 10–25 %; nach D1 25 %). | A (Empfehlung): Band 10–30 %; die Spieler-Ziele (3.9d) betrifft das nicht. B: `DEMAND_SCALE` kleiner (ändert die Messung aus D2). | offen |
+
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
 ### Abhängigkeiten
