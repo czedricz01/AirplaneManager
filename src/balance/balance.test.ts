@@ -94,9 +94,11 @@ describe('Balance-Skript: Beispiel-Welten', () => {
     assert.deepEqual(bestFareRatios(m, 'a'), bestFareRatios(m, 'a'));
   });
 
-  it('priceDuel: zwei gleiche Gesellschaften mit knappen Sitzen enden in einem festen Punkt über der Gewinnschwelle', () => {
+  it('priceDuel: zwei gleiche Gesellschaften mit knappen Sitzen: Economy fest über der Gewinnschwelle', () => {
+    // Seit E97 können kleine Klassen (Premium) zwischen Unterbieten und Hochsetzen springen; Economy bleibt fest.
     const d = priceDuel({ from: 'FRA', to: 'MAD', month: sampleMonth(1990) }, { typeId: 'a320ceo', personality: 'flag', departures: 14 }, 6);
-    assert.ok(d.converged);
+    const n = d.path.length;
+    assert.ok(n >= 2 && Math.abs(d.path[n - 1] - d.path[n - 2]) < 0.002);
     assert.ok((d.final.economy ?? 0) > d.breakEvenFull);
   });
 

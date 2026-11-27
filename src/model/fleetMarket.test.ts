@@ -15,6 +15,7 @@ import { RIVAL_INPUTS } from './rivals';
 import { emergencySaleCandidate, liquidate } from './rivalMonth';
 import {
   DEALER_SPREAD_SELL,
+  BANKRUPTCY_OVERDRAWN_MONTHS,
   OVERDRAWN_TO_FORCED_SALE,
   OVERHAUL_PRICE_SHARE,
   PREORDER_DISCOUNT_MAX,
@@ -332,6 +333,17 @@ describe('Abschnitt 8.14 Kreditlinie, Zwangsverkauf, Spielende', () => {
     assert.deepEqual(counts.slice(0, OVERDRAWN_TO_FORCED_SALE - 1), [4, 4, 4, 4, 4]);
     assert.deepEqual(counts.slice(OVERDRAWN_TO_FORCED_SALE - 1), [3, 2, 1, 0]);
     assert.equal(bankrupt, true);
+  });
+
+  it('8.14 (E93): Spielende auch nach N überzogenen Monaten in Folge, mit Flugzeugen', () => {
+    assert.equal(isBankrupt('overdrawn', 3, 2, BANKRUPTCY_OVERDRAWN_MONTHS.Hard), false);
+    assert.equal(isBankrupt('overdrawn', 3, 3, BANKRUPTCY_OVERDRAWN_MONTHS.Hard), true);
+    assert.equal(isBankrupt('overdrawn', 3, 5, BANKRUPTCY_OVERDRAWN_MONTHS.Normal), false);
+    assert.equal(isBankrupt('overdrawn', 3, 6, BANKRUPTCY_OVERDRAWN_MONTHS.Normal), true);
+    assert.equal(isBankrupt('overdrawn', 3, 11, BANKRUPTCY_OVERDRAWN_MONTHS.Easy), false);
+    assert.equal(isBankrupt('credit', 3, 20, BANKRUPTCY_OVERDRAWN_MONTHS.Hard), false, 'nur überzogen zählt');
+    assert.equal(isBankrupt('overdrawn', 3, 20), false, 'ohne Frist (KI) nur ohne Flugzeuge');
+    assert.ok(BANKRUPTCY_OVERDRAWN_MONTHS.Hard < BANKRUPTCY_OVERDRAWN_MONTHS.Normal && BANKRUPTCY_OVERDRAWN_MONTHS.Normal < BANKRUPTCY_OVERDRAWN_MONTHS.Easy);
   });
 
   it('8.14: Zwangsverkauf endet, wenn die Kasse wieder über −Grenze liegt', () => {

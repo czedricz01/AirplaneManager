@@ -22,6 +22,7 @@ import {
   aircraftEfficiency,
   airportFeeFactor,
   cabinCrew,
+  pilotRateShare,
   cateringCost,
   cateringCostParts,
   checkInFee,
@@ -234,11 +235,20 @@ describe('Abschnitt 5.3 Treibstoff je Strecke', () => {
 });
 
 describe('Abschnitt 5.4 Besatzung', () => {
-  it('5.4: Flugbegleiter nach eingebauter Kabine, mindestens 1', () => {
+  it('5.4: Flugbegleiter nach eingebauter Kabine, mindestens 1; unter 20 Sitzen keine (E89)', () => {
     close(cabinCrew({ economy: 80 }), 1.6);
     close(cabinCrew({ economy: 150, business: 12 }), 3 + 0.6);
-    assert.equal(cabinCrew({ economy: 10 }), 1);
-    assert.equal(cabinCrew({}), 1);
+    assert.equal(cabinCrew({ economy: 20 }), 1);
+    assert.equal(cabinCrew({ economy: 19 }), 0);
+    assert.equal(cabinCrew({}), 0);
+  });
+
+  it('5.4 (E89): Piloten-Satz nach Größe: Sitze / 60, mindestens 0,4, höchstens 1', () => {
+    assert.equal(pilotRateShare({ economy: 19 }), 0.4);
+    close(pilotRateShare({ economy: 30 }), 0.5);
+    assert.equal(pilotRateShare({ economy: 60 }), 1);
+    assert.equal(pilotRateShare({ economy: 150, business: 12 }), 1);
+    close(crewHourlyRate({ economy: 19 }, m(1962)), atCost(200 * 0.4, m(1962)));
   });
 
   it('5.4: mehr Sitze → nie weniger Besatzung; Business-Sitz teurer als Economy-Sitz', () => {

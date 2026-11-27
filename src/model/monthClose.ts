@@ -15,13 +15,14 @@
  *   fertige Werte; alles, was sich mit Monat, Zustand, Ruf oder Markt ändert, rechnet der Abschluss (F41).
  */
 
-import { atCost, difficultyFactor, yearOf } from './basics';
+import { atCost, difficultyCostFactor, difficultyFactor, yearOf } from './basics';
 import { cabinRating } from './cabin';
 import {
   CABIN_CLASSES,
   MINUTES_PER_WEEK,
   OWNER_TIER,
   RANK_AVERAGE_MONTHS,
+  BANKRUPTCY_OVERDRAWN_MONTHS,
   REPORT_HISTORY_MONTHS,
   RIVAL_REPORT_MONTHS,
   SCENARIO_DOLLAR_METRICS,
@@ -1379,8 +1380,10 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
     const research = inputs.completedResearch;
     const holding = (id: string) => company.airports[id] ?? EMPTY_HOLDING;
     const feeFactor = (id: string) => airportFeeFactor(holding(id).managementTier, research);
-    const fuel$ = fuelPrice(X, research, hedgedFuelTable(inputs.hedgedEvents.map(historicalEvent), X));
-    const pay = payFactor(inputs.salaryPct);
+    // Schwierigkeit auf die Betriebskosten (E87): Flugbetrieb und Kosten je Fluggast; KI immer 1 (Normal).
+    const costF = difficultyCostFactor(inputs.difficulty);
+    const fuel$ = fuelPrice(X, research, hedgedFuelTable(inputs.hedgedEvents.map(historicalEvent), X)) * costF;
+    const pay = payFactor(inputs.salaryPct) * costF;
     const ffpActive = inputs.ffpMonthsRunning > 0;
     const commonality = fleetCommonalityFactors(company.aircraft);
     const own = prepared.filter((p) => p.company.id === company.id);
@@ -1397,8 +1400,8 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
       const legs = L * p.shares.flownShare;
       const efficiency = aircraftEfficiency(plane.efficiency, research);
       const landingPlane: LandingAircraft = { aircraftClass: plane.aircraftClass, capacity: plane.capacity, cruiseSpeed: plane.cruiseSpeed };
-      const landingA = landingFee(landingPlane, A.size, X, feeFactor(A.id));
-      const landingB = landingFee(landingPlane, B.size, X, feeFactor(B.id));
+      const landingA = landingFee(landingPlane, A.size, X, feeFactor(A.id)) * costF;
+      const landingB = landingFee(landingPlane, B.size, X, feeFactor(B.id)) * costF;
       const ops = (n: number) => ({
         fuel: fuelCost({ efficiency, capacity: plane.capacity, greatCircleKm: p.km, flownLegs: n, fuelPrice: fuel$ }),
         crew: crewCost({ seats: plane.seats, blockMinutes: p.minutes, flownLegs: n, month: X, payFactor: pay, completedResearch: research }),
@@ -1425,7 +1428,7 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
         }),
       });
 
-      const end = (id: string, size: number): EndFees => ({ checkInFee: checkInFee(X, feeFactor(id)), handlingFee: handlingFee(size, X, feeFactor(id)), departureShare: 0.5 });
+      const end = (id: string, size: number): EndFees => ({ checkInFee: checkInFee(X, feeFactor(id)) * costF, handlingFee: handlingFee(size, X, feeFactor(id)) * costF, departureShare: 0.5 });
       const ends: [EndFees, EndFees] = [end(A.id, A.size), end(B.id, B.size)];
       const cateringFacility = holding(A.id).facilities.includes('catering') || holding(B.id).facilities.includes('catering');
       const capability = serviceCapability({ aircraftClass: plane.aircraftClass, hasWifi: plane.hasWifi, hasPremiumGalley: plane.hasPremiumGalley, cateringFacility });
@@ -1436,9 +1439,9 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
         if (!((plane.seats[c] ?? 0) > 0)) continue;
         const selection = route.service[c] ?? { meals: [], extras: [], onboardService: [] };
         const cost = costPerPassengerParts({
-          cateringCost: cateringCost(selection, p.minutes, capability, X, research),
+          cateringCost: cateringCost(selection, p.minutes, capability, X, research) * costF,
           ends,
-          ffpCostPerPassenger: ffpCostPerPassenger(ffpActive, X),
+          ffpCostPerPassenger: ffpCostPerPassenger(ffpActive, X) * costF,
         });
         costPerPassenger[c] = cost.total;
         if (passengers[c] > 0) direct[c] = { passengers: passengers[c], cost };
@@ -1452,10 +1455,10 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
         const selection = route.service[c] ?? { meals: [], extras: [], onboardService: [] };
         const outerIndex = A.id === hubId ? 1 : 0;
         const cost = transferCostPerPassengerParts({
-          cateringCost: cateringCost(selection, p.minutes, capability, X, research),
+          cateringCost: cateringCost(selection, p.minutes, capability, X, research) * costF,
           outer: ends[outerIndex],
           hub: ends[1 - outerIndex],
-          ffpCostPerPassenger: ffpCostPerPassenger(ffpActive, X),
+          ffpCostPerPassenger: ffpCostPerPassenger(ffpActive, X) * costF,
         });
         // Mittlerer Kostensatz je Klasse (eine Strecke kann an beiden Enden Drehkreuz sein).
         const before = transfer[c];
@@ -2314,7 +2317,9 @@ export function closeMonth(state: ModelState, decisions: CompanyDecisions, after
     }
     const limit = creditLimit(valueEnd + decisionsValueChange);
     const credit = creditState(company.cash, limit);
-    const isOver = company.inputs.forcedSale && isBankrupt(credit, company.aircraft.length);
+    const isOver =
+      company.inputs.forcedSale &&
+      isBankrupt(credit, company.aircraft.length, overdrawnMonths, BANKRUPTCY_OVERDRAWN_MONTHS[company.inputs.difficulty]);
     if (isOver) {
       bankrupt.push(company.id);
       news.push({ companyId: company.id, kind: 'bankrupt' });

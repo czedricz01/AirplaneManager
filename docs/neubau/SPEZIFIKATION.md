@@ -173,21 +173,29 @@ Neue Namen nach E9. Die Oberfläche nutzt die englischen Namen; der Code dieselb
     oft 0, 1.1 W6).
   - Keine Modell-Funktion gibt für eine Skala einen Wert außerhalb ihres Bereichs zurück.
 
-### 1.8 Schwierigkeit (E4)
+### 1.8 Schwierigkeit (E4, E87, E93)
 
 **Schwierigkeit** (Code-Name: `difficulty`, Werte `Easy` · `Normal` · `Hard`)
-- Bedeutung: Wie leicht der **Spieler** Fluggäste gewinnt.
+- Bedeutung: Wie leicht der **Spieler** Fluggäste gewinnt, was sein Flugbetrieb kostet und wie lange die Bank
+  eine überzogene Kasse duldet.
 - Formel: ein Faktor `difficultyFactor`: Normal = 1; Easy > 1; Hard < 1. Startwerte Easy 1,1 und
   Hard 0,9; endgültige Werte aus dem Balance-Skript (3.9).
 - Wirkt auf: **nur die Anziehung der Spieler-Angebote** im gemeinsamen Markt (E53), an genau einer Stelle
   (Abschnitt 3), wie ein fester Zu- oder Abschlag. Die Marktgröße und die Rechnung der KI bleiben ohne
   Schwierigkeit. Ohne Rivalen wirkt der Faktor etwas schwächer als sein Wert (Wettbewerb nur gegen
   „Nicht fliegen“); die Stärke wird im Balance-Skript (3.9) eingestellt.
-- Wirkt nicht auf: Preise, Marktpreis, Treibstoff, Kosten, Satisfaction, Ruf, Rang; nie auf die KI.
+- **Kosten-Faktor** `difficultyCostFactor` (E87): `DIFFICULTY_COST_FACTOR` Easy 0,85 · Normal 1 · Hard 1,1
+  (Startwerte) auf den Flugbetrieb des Spielers (Treibstoff 5.3, Besatzung 5.4, Landung 5.5) und auf die
+  Kosten je Fluggast (Verpflegung, Gebühren, Frequent flyer; 5.8). Abschluss und Planer rechnen damit gleich
+  (R2). Nicht auf Flugzeug-Unterhalt, Abschreibung, Slots und Flughafen-Kosten (feste Kosten der Gesellschaft).
+- **Pleite-Frist** (E93): `BANKRUPTCY_OVERDRAWN_MONTHS` Easy 12 · Normal 6 · Hard 3 überzogene Monatsenden in
+  Folge (8.14).
+- Wirkt nicht auf: Preise, Marktpreis, Satisfaction, Ruf, Rang; nie auf die KI (sie rechnet mit Normal).
 - Regeln (Tests):
   - Auf Normal ändert die Schwierigkeit keine Zahl im Modell.
   - KI-Ergebnisse auf einem Paar ohne Spieler sind auf Easy, Normal und Hard gleich.
-  - Ein Wechsel der Schwierigkeit ändert keine Kosten und keinen Preis.
+  - Ein Wechsel der Schwierigkeit ändert keinen Preis; Treibstoff, Besatzung, Landung und Kosten je Fluggast
+    des Spielers ändern sich genau um `difficultyCostFactor`, Slot- und Flugzeug-Anteil nicht.
 
 **KI-Stärke** (Code-Name: `rivalStrength`, Werte `Easy` · `Normal` · `Hard`; Oberfläche wie heute)
 - Bedeutung: Wie geschickt die KI handelt. Getrennte Einstellung beim Spielstart (wie heute).
@@ -509,7 +517,7 @@ einzeln gerundet oder gekappt, außer wo eine Grenze ausdrücklich zur Form geh�
   Zahlungsbereitschaft: Ein Angebot mit Satisfaction `s` und Preis `p` ist so anziehend wie ein sonst
   gleiches Angebot mit Satisfaction 100 und Preis `p / satisfactionFactor(s)`. Abschnitt 3 baut die
   Anziehung so; Abschnitt 4 leitet daraus ab: ohne Rivalen liegt der erlösbeste Preis bei etwa
-  `marketFare × satisfactionFactor` (bei 100 also beim Marktpreis, E24).
+  `marketFare × satisfactionFactor × aloneBestRatio` (3.9.2; vor E97 genau beim Marktpreis, E24).
 - Wirkt nicht auf: Marktgröße, Marktpreis, Kosten.
 - Ersetzt: `getSatMultiplier` mit fairem Preis `satBase` (`:740-750`, `:1410-1414`) und die
   Qualitäts-Anziehung (`:1122-1137`, `:1425-1429`), die heute beide wirken (W8).
@@ -761,20 +769,23 @@ auf Normal. Seine Anziehung ist 1. Allein im Markt bekommt es genau `marketSize 
   - `marketFare(c)`: Marktpreis des Paars (Abschnitt 4), gleich für alle Angebote.
   - `satisfactionFactor(c)`: aus `offerSatisfaction(c)` (2.10). So gilt die Vorgabe aus 2.10 wörtlich:
     Satisfaction `s` und Preis `p` ziehen so stark an wie Satisfaction 100 und Preis `p / satisfactionFactor(s)`.
-- Konstanten (Startwerte): `PRICE_SENSITIVITY` Economy 2,2 · Premium 2,0 · Business 1,8 · First 1,7.
-  Größer als heute (1,2 / 1,0 / 0,8 / 0,7, `:1002-1004`), weil die Zahl eine andere Bedeutung hat: Die
-  Empfindlichkeit der eigenen Fluggäste ist `PRICE_SENSITIVITY × (1 − Anteil)` (Anteil an allen Reisewilligen
-  einschließlich „Nicht fliegen“). Sie muss über 1 liegen, sonst brächte jeder höhere Preis mehr Erlös.
-- Folge (E24): Ohne Rivalen liegt der erlösbeste Preis des Bezugsangebots genau bei
-  `marketFare × satisfactionFactor` (Herleitung: Erlös steigt, solange `PRICE_SENSITIVITY × (1 − Anteil) < 1`;
-  beim Bezugsangebot ist der Anteil an den Reisewilligen genau `1 − 1 / PRICE_SENSITIVITY`, 3.10).
-  Ein Angebot mit mehr Anziehung aus anderen Gründen (z. B. 14 Abflüge je Richtung) hat einen etwas
-  höheren erlösbesten Preis (Faktor `(übrige Anziehung)^(1 / PRICE_SENSITIVITY)`, bei 14 Abflügen
-  Economy ≈ 1,17). Billiger als `marketFare × satisfactionFactor` lohnt bei voller Anziehung nur gegen
-  Rivalen oder zum Füllen der Sitze (E24).
-- Regeln (Tests): Bezugsangebot allein im Markt, Sitze reichen: erlösbester Preis = `marketFare × satisfactionFactor`
-  (± 1 %); 10 % billiger und 10 % teurer bringen beide weniger Erlös; gegen einen gleichen Rivalen bringt
-  10 % billiger mehr Erlös.
+- Konstanten (Startwerte, E97): `PRICE_SENSITIVITY` Economy 3,4 · Premium 3,0 · Business 2,6 · First 2,4
+  (bis E97 2,2 / 2,0 / 1,8 / 1,7). Die Zahl sagt, wie stark der Preis die Anziehung zwischen den Angeboten
+  ändert. „Nicht fliegen“ und das Potenzial (3.10) haben eine eigene, kleinere Zahl `NO_FLY_SENSITIVITY`
+  (Economy 2,2 · Premium 2,0 · Business 1,8 · First 1,7). Grund (O91): Mit einer Zahl für beide begrenzt eine
+  höhere Empfindlichkeit zugleich, wie viele Reisewillige ein billiger Preis gewinnen kann (Potenzial
+  `s / (s − 1)` × Marktgröße), und Billigpreise wurden schlechter statt besser.
+- Folge (E97, ersetzt E24): Ohne Rivalen liegt der erlösbeste Preis des Bezugsangebots bei
+  `marketFare × satisfactionFactor × aloneBestRatio` mit
+  `aloneBestRatio = ((PRICE_SENSITIVITY − 1) / (NO_FLY_SENSITIVITY − 1))^(−1 / PRICE_SENSITIVITY)`
+  (Herleitung: Erlös am größten, wenn Anziehung = (s − 1) × `noFlyAppeal`); mit den Startwerten in allen
+  Klassen `2^(−1/s)`: Economy 0,816 · Premium 0,794 · Business 0,766 · First 0,749. Im Spiel reichen die
+  Sitze auf beliebten Paaren selten; dann liegt der beste Preis über dem Markt (4.10). Ein Angebot mit mehr
+  Anziehung aus anderen Gründen (z. B. 14 Abflüge je Richtung) hat einen höheren erlösbesten Preis
+  (Faktor `(übrige Anziehung)^(1 / PRICE_SENSITIVITY)`, bei 14 Abflügen Economy ≈ 1,11).
+- Regeln (Tests): Bezugsangebot allein im Markt, Sitze reichen: erlösbester Preis = `marketFare ×
+  satisfactionFactor × aloneBestRatio` (± 1 %); 10 % darunter und darüber bringen weniger Erlös; allein
+  bringt 90 $ mehr Erlös als 100 $; gegen einen gleichen Rivalen bringt 10 % billiger mehr Erlös.
 
 #### 3.9.3 Flugzeit (Code-Name: `flightTimeFactor`)
 - Bedeutung: Kürzere Reisezeit zieht spürbar mehr an (E20). Langsame Flugzeuge verlieren Anteil, machen
@@ -818,13 +829,12 @@ auf Normal. Seine Anziehung ist 1. Allein im Markt bekommt es genau `marketSize 
 **Nicht fliegen** (Code-Name: `noFlyAppeal`)
 - Bedeutung: Wer reisen könnte, aber keines der Angebote nimmt (zu teuer, zu selten, zu langsam), wählt
   „Nicht fliegen“. Ein eigener Mitbewerber mit fester Anziehung (E13).
-- Formel: `noFlyAppeal(c) = 1 / (PRICE_SENSITIVITY[c] − 1)`: Economy 0,83 · Premium 1,0 · Business 1,25 ·
-  First 1,43. Folgt aus 3.9.2: Nur mit diesem Wert ist das Bezugsangebot ohne Rivalen erlösbest am
-  Marktpreis (E24). Keine eigene Stellschraube.
+- Formel: `noFlyAppeal(c) = 1 / (NO_FLY_SENSITIVITY[c] − 1)`: Economy 0,83 · Premium 1,0 · Business 1,25 ·
+  First 1,43 (Werte wie vor E97). Stellschraube für die Marktausweitung durch billige Preise.
 
 **Potenzial** (Code-Name: `classPotential`)
 - Bedeutung: Alle Reisewilligen einer Klasse; die Obergrenze, wenn die Angebote unendlich anziehend wären.
-- Formel: `classPotential(c) = marketSize × classShare(c) × PRICE_SENSITIVITY[c] / (PRICE_SENSITIVITY[c] − 1)`.
+- Formel: `classPotential(c) = marketSize × classShare(c) × NO_FLY_SENSITIVITY[c] / (NO_FLY_SENSITIVITY[c] − 1)`.
   So fliegen beim Bezugsangebot allein genau `marketSize × classShare(c)` (3.9.0).
 - Regel (Test): Bezugsangebot allein, Sitze reichen → Fluggäste = `marketSize × classShare(c)`.
 
@@ -861,7 +871,7 @@ auf Normal. Seine Anziehung ist 1. Allein im Markt bekommt es genau `marketSize 
 - Formel: `rampFactor = RAMP_START + (1 − RAMP_START) × kappen(offerAgeMonths / RAMP_MONTHS, 0, 1)`.
   Mit der Forschung „Route planning suite“: `RAMP_START + RAMP_RESEARCH_BONUS`.
 - Wirkt in 3.11 Schritt 2, **nach** der Wahl, nicht auf die Anziehung. So bleibt der erlösbeste Preis
-  während des Anlaufs derselbe (E24), und Rivalen gewinnen nicht automatisch dazu.
+  während des Anlaufs derselbe, und Rivalen gewinnen nicht automatisch dazu.
 - Gilt je Angebot, nicht je Strecke (3.8): Eine weitere Strecke auf einem bedienten Paar läuft nicht an.
   Umsteige-Verbindungen haben keinen Anlauf (wie heute).
 - Konstanten: `RAMP_START = 0,6`, `RAMP_MONTHS = 9`, `RAMP_RESEARCH_BONUS = 0,15` (heute
@@ -914,21 +924,22 @@ auf Normal. Seine Anziehung ist 1. Allein im Markt bekommt es genau `marketSize 
 - Regeln (Tests): beide Anteile aller Gesellschaften eines Paars ergeben zusammen 1 (wenn jemand fliegt).
 
 ### 3.15 Beispiel
-Economy, Marktgröße × Klassen-Anteil = 1 000, Marktpreis 100 $, `PRICE_SENSITIVITY` 2,2 → `noFlyAppeal` 0,83,
-Potenzial 1 833. Sitze reichen, wo nicht anders genannt.
+Economy, Marktgröße × Klassen-Anteil = 1 000, Marktpreis 100 $, `PRICE_SENSITIVITY` 3,4, `NO_FLY_SENSITIVITY`
+2,2 → `noFlyAppeal` 0,83, Potenzial 1 833 (E97). Sitze reichen, wo nicht anders genannt.
 
 | Fall | Fluggäste Spieler | Erlös Spieler | Hinweis |
 |---|---|---|---|
-| Bezugsangebot allein, 100 $ | 1 000 | 100 000 $ | erlösbest (E24) |
-| allein, 90 $ | 1 104 | 99 342 $ | billiger: weniger Erlös |
-| allein, 110 $ | 904 | 99 454 $ | teurer: weniger Erlös |
-| allein, Satisfaction 130, 100 $ | 1 183 | 118 327 $ | `satisfactionFactor` 1,21 |
-| allein, Satisfaction 130, 120,85 $ | 1 000 | 120 850 $ | erlösbest bei 100 × 1,2085 |
-| allein, 14 Abflüge je Richtung | 1 154 | 115 358 $ | erlösbest erst bei 117 $ |
+| Bezugsangebot allein, 100 $ | 1 000 | 100 000 $ | Marktgröße beim Marktpreis |
+| allein, 90 $ | 1 159 | 104 270 $ | billiger: mehr Erlös (E97) |
+| allein, 110 $ | 852 | 93 700 $ | teurer: weniger Erlös |
+| allein, 81,56 $ | 1 294 | 105 544 $ | erlösbest (`aloneBestRatio` 0,816) |
+| allein, Satisfaction 130, 100 $ | 1 275 | 127 518 $ | `satisfactionFactor` 1,21 |
+| allein, Satisfaction 130, 120,85 $ | 1 000 | 120 850 $ | wie Satisfaction 100 zu 100 $ |
+| allein, 14 Abflüge je Richtung | 1 154 | 115 358 $ | erlösbest erst bei 90 $ |
 | allein, 10 % längere Flugzeit | 957 | 95 652 $ | |
 | allein, erster Monat (Anlauf 0,6) | 600 | 60 000 $ | |
 | mit gleichem Rivalen, beide 100 $ | 647 (Rivale 647) | 64 706 $ | Markt wächst auf 1 294 |
-| mit gleichem Rivalen, Spieler 90 $ | 747 (Rivale 593) | 67 236 $ | gegen Rivalen lohnt billiger |
+| mit gleichem Rivalen, Spieler 90 $ | 804 (Rivale 562) | 72 326 $ | gegen Rivalen lohnt billiger |
 | mit gleichem Rivalen, Rivale nur 500 Sitze | 727 (Rivale 500) | 72 727 $ | 80 von 147 übergelaufenen Gästen |
 
 ### 3.16 Vorgaben an andere Abschnitte
@@ -1055,7 +1066,7 @@ Marktpreis Start–Ziel × 0,9 ─► Umsteiger-Tarif ─► Umsteiger (3.13) �
 
 ### 4.3 Marktpreis (Code-Name: `marketFare`)
 - Bedeutung: Der Bezugspreis einer Klasse auf einem Paar. An ihm wird jedes Angebot gemessen (3.9.2); er
-  ist der erlösbeste Preis eines Bezugsangebots ohne Rivalen (E24).
+  ist der Preis, bei dem ein Bezugsangebot allein genau die Marktgröße fliegt (3.10; vor E97 auch erlösbest, E24).
 - Einheit und Bereich: $ des aktuellen Monats > 0, ungerundet.
 - Formel: `marketFare(c) = atCost(baseFareEconomy × classFareRatio(c), month)` (1.3, E7).
 - Hängt ab von: 4.1, 4.2, Kostenindex. **Nicht** von Fluggästen, Sitzen, Satisfaction, Ruf, Saison,
@@ -1181,15 +1192,16 @@ Marktpreis Start–Ziel × 0,9 ─► Umsteiger-Tarif ─► Umsteiger (3.13) �
 - Suche: Gitter über `fareRatio` in Schritten von 0,01, dann um den besten Gitterpunkt ± 0,01 in Schritten
   von 0,001. Bei Gleichstand der niedrigere Preis. Ergebnis ist damit eindeutig und für Planer und KI gleich.
 - Was herauskommt (folgt aus 3.9.2, Test):
-  - Bezugsangebot allein, Sitze reichen, keine Kosten je Fluggast: `bestFare = marketFare × satisfactionFactor`
-    (E24, ± 0,5 %).
+  - Bezugsangebot allein, Sitze reichen, keine Kosten je Fluggast: `bestFare = marketFare × satisfactionFactor
+    × aloneBestRatio` (3.9.2, E97, ± 0,5 %).
   - Kosten je Fluggast > 0 → bester Preis höher.
   - Sitze knapp → bester Preis höher (4.4).
   - Mehr Anziehung aus anderen Gründen (Abflüge, Ruf, Flugzeit) → bester Preis höher (3.9.2).
   - Gleich starker Rivale → bester Preis niedriger.
 - Hinweis für das Balance-Skript (3.9) und Abschnitt 7: Mit den Startwerten aus 3.9.2 liegt der beste Preis
-  gegen einen gleichen Rivalen bei 70 % des Marktpreises (4.13). Gehen beide so vor, sinken die Preise
-  weiter (Preiskampf). Ob das gewollt ist, prüft das Balance-Skript; Stellschraube ist `PRICE_SENSITIVITY`.
+  gegen einen gleichen Rivalen bei 65 % des Marktpreises, wenn die Sitze reichen (4.13). Gehen beide so vor,
+  sinken die Preise weiter (Preiskampf). Mit knappen Sitzen bleibt Economy fest über der Gewinnschwelle;
+  kleine Klassen (Premium) können seit E97 zwischen Unterbieten und Hochsetzen springen (Spieltest 5.4).
 - Anzeige: Planer je Klasse „Best fare“ als Marke am Preisregler und Knopf „Set best fares“ (4.5).
 
 ### 4.11 Gewinnschwelle (Code-Name: `breakEvenFareLevel`)
@@ -1239,14 +1251,14 @@ Grundpreise 1960 (Bezugs-Flugzeit mit 800 km/h; Klassen-Verhältnis in Klammern)
 (Bis Paket 3.9d mit dem alten Preis-Faktor: 60 / 114 / 339 / 881 $ Economy.)
 
 Bester Preis, Economy, Daten wie 3.15 (Marktgröße × Klassen-Anteil 1 000, Marktpreis 100 $,
-`PRICE_SENSITIVITY` 2,2), Bezugsangebot:
+`PRICE_SENSITIVITY` 3,4, `NO_FLY_SENSITIVITY` 2,2; E97), Bezugsangebot:
 
 | Fall | Bester Preis | Fluggäste | Erlös (− Kosten je Fluggast) | Hinweis |
 |---|---|---|---|---|
-| allein, Sitze reichen | 100 $ | 1 000 | 100 000 $ | E24 |
-| allein, nur 800 Sitze | 122 $ | 800 | 97 633 $ | beim Marktpreis nur 80 000 $ (4.4) |
-| allein, 20 $ Kosten je Fluggast | 118 $ | 831 | 81 690 $ | gewinnbest, nicht erlösbest |
-| gleicher Rivale zu 100 $ | 70 $ | 1 000 | 69 880 $ | beim Marktpreis 64 706 $ (3.15) |
+| allein, Sitze reichen | 81,6 $ | 1 293 | 105 544 $ | `aloneBestRatio` (3.9.2) |
+| allein, nur 800 Sitze | 113,8 $ | 800 | 90 975 $ | beim Marktpreis nur 80 000 $ (4.4) |
+| allein, 20 $ Kosten je Fluggast | 91 $ | 1 143 | 81 115 $ | gewinnbest, nicht erlösbest |
+| gleicher Rivale zu 100 $ | 64,7 $ | 1 294 | 83 700 $ | beim Marktpreis 64 706 $ (3.15) |
 
 Umsteiger Paris–New York über Frankfurt, Economy: Marktpreis O–D 189 $ → `transferFare` 170 $. Anteil
 Paris–Frankfurt 55 / (55 + 197) = 22 % → 37 $; Frankfurt–New York 133 $ (nach Entfernung heute 7 % → 12 $).
@@ -1272,7 +1284,7 @@ Business 222 $.
 |---|---|
 | W1 Planer-Hauptzahl steigt mit jedem Preis | 4.12 Hauptzahl = erwarteter Gewinn, „volle Maschine“ nur Nebenzahl beim Marktpreis (E26) |
 | W2 Feste Klassen-Faktoren 1,6 / 3 / 5 | 4.2 eine Funktion `classFareRatio` für alle Zwecke (E23) |
-| W3 Unter Marktpreis mehr Erlös | 3.9.2, 4.10 Marktpreis ist erlösbest ohne Rivalen (E24) |
+| W3 Unter Marktpreis mehr Erlös | 3.9.2, 4.10 bis E97 war der Marktpreis erlösbest ohne Rivalen (E24); seit E97 gewollt etwas darunter, aber auf beliebten Paaren reichen die Sitze nicht (O91) |
 | W4 KI-Preise ohne Marktpreis | 4.6 `fareRatio × marketFare` mit derselben Funktion (R7) |
 | W5 Umsteiger nach eigenen Regeln | 4.8 `TRANSFER_FARE_SHARE × marketFare` O–D, Aufteilung nach Marktpreisen (E25) |
 | W6 Monat = 4 Wochen | 4.9 `WEEKS_PER_MONTH` (E5) |
@@ -1442,14 +1454,18 @@ nur gelesen (R2; heute zwei Quellen für den Gebühren-Faktor, siehe 5.20).
 - Formel:
   ```
   cabinCrew = max(MIN_CABIN_CREW, Σ c: Sitze(c) / SEATS_PER_ATTENDANT[c])      (eingebaute Kabine, R6)
-  hourlyRate1960 = COCKPIT_CREW × PILOT_RATE_1960 + cabinCrew × ATTENDANT_RATE_1960
+             = 0 unter ATTENDANT_FROM_SEATS Sitzen (E89)
+  pilotRateShare = kappen(Sitze / PILOT_RATE_REFERENCE_SEATS, PILOT_RATE_MIN_SHARE, 1)          (E89)
+  hourlyRate1960 = COCKPIT_CREW × PILOT_RATE_1960 × pilotRateShare + cabinCrew × ATTENDANT_RATE_1960
   crewCost = atCost(hourlyRate1960, month) × blockMinutes × flownLegs / 60
              × payFactor × researchCostFactor(crew)
   ```
   `cabinCrew` ist eine Kommazahl (Mittel über Umläufe), ungerundet (R4); heute `aufrunden(Höchstsitze / 50)`.
 - Konstanten: `COCKPIT_CREW = 2`, `PILOT_RATE_1960 = 100` $/h, `ATTENDANT_RATE_1960 = 40` $/h (heute `:1263`);
   `SEATS_PER_ATTENDANT` Economy 50 · Premium 35 · Business 20 · First 10 (neu; Economy wie heute);
-  `MIN_CABIN_CREW = 1`.
+  `MIN_CABIN_CREW = 1`; `ATTENDANT_FROM_SEATS = 20`, `PILOT_RATE_REFERENCE_SEATS = 60`,
+  `PILOT_RATE_MIN_SHARE = 0,4` (Startwerte, E89: ein voller Commuter bis 19 Sitze macht zum Marktpreis auf
+  Normal etwa ±0; Spieltest 5.4). Der Spieler zahlt zusätzlich `difficultyCostFactor` (1.8, E87).
 - Folge (E45): Eine dichte Economy-Kabine braucht weniger Personal je Sitz als eine Kabine mit Business und
   First. Billigflieger sparen so ohne eigenen Faktor.
 - Bodenpersonal: entfällt als eigener Posten (W11); es ist in der Abfertigung (5.6) enthalten.
@@ -3237,7 +3253,9 @@ im Ergebnis neutral (5.13). Sofort wieder verkauft: −15 % (heute −10 %, durc
 - **Zwangsverkauf**: ab `overdrawnMonths ≥ OVERDRAWN_TO_FORCED_SALE = 6` je Abschluss **ein** Flugzeug, zuerst ein
   abgestelltes, sonst das mit dem schlechtesten Strecken-Ergebnis (5.9), zu `saleProceeds` (8.11); so lange, bis die
   Kasse wieder ≥ −`creditLimit` ist (dieselbe Regel wie der Notverkauf der KI, 7.11).
-- **Spielende**: überzogen und kein Flugzeug mehr. Free und Normal: wie Ruhestand (Karriere-Punkte 6.12, Ruhmeshalle),
+- **Spielende**: überzogen und kein Flugzeug mehr, **oder** (E93) `overdrawnMonths ≥ BANKRUPTCY_OVERDRAWN_MONTHS[Schwierigkeit]`
+  (Easy 12 · Normal 6 · Hard 3; auf Normal nach dem Zwangsverkauf desselben Abschlusses, auf Hard vor jedem
+  Zwangsverkauf). Free und Normal: wie Ruhestand (Karriere-Punkte 6.12, Ruhmeshalle),
   Meldung „Bankruptcy“; Szenario: verloren.
 - **KI**: dieselbe Grenze und dieselben Zinsen; Notlage, Verkauf und Auflösung nach 7.15 („Kasse unter der Kreditgrenze“
   = überzogen). Kein Spielende.
@@ -3245,7 +3263,8 @@ im Ergebnis neutral (5.13). Sofort wieder verkauft: −15 % (heute −10 %, durc
 - Regeln (Tests): ohne Flugzeuge ist die Grenze 0; ein überzogener Monat zwischen gesunden setzt den Zähler zurück; nach
   6 überzogenen Monaten in Folge sinkt die Flugzeugzahl um 1 je Monat; Zinsen = 0 bei Kasse ≥ 0; kein Kauf lässt die
   Kasse unter 0 fallen.
-- Anzeige: Kopfzeile „Credit used x of y“, Monatsbericht, Warnung mit Monaten bis zum Zwangsverkauf (Texte aus den
+- Anzeige: Kopfzeile „Credit used x of y“, Monatsbericht, Warnung mit Monaten bis zum Zwangsverkauf und bis zum
+  Spielende (`closesToBankruptcy`, E93) (Texte aus den
   Konstanten, E52).
 
 ### 8.15 Szenario-Ziele (heute `src/data/scenarios.ts`, `scenarioEval.ts`)

@@ -10,8 +10,8 @@
  * Alles hier ist rein (keine Zustände, keine globalen Daten).
  */
 import type { OwnedAircraft } from '../components/MyFleetView';
-import type { HistoricalEventDef } from '../model/constants';
-import { COMMONALITY_DISCOUNTS, FREE_FAMILIES, OVERDRAWN_TO_FORCED_SALE, VARIETY_PENALTY_MAX, VARIETY_PENALTY_PER_FAMILY } from '../model/constants';
+import type { Difficulty, HistoricalEventDef } from '../model/constants';
+import { BANKRUPTCY_OVERDRAWN_MONTHS, COMMONALITY_DISCOUNTS, FREE_FAMILIES, OVERDRAWN_TO_FORCED_SALE, VARIETY_PENALTY_MAX, VARIETY_PENALTY_PER_FAMILY } from '../model/constants';
 import { aircraftValue, commonalityFactor, familyDiscount, varietyPenalty } from '../model/fleet';
 import { creditLimit, creditState, type CreditState } from '../model/fleetMarket';
 import { reputationFactor } from '../model/marketSplit';
@@ -83,10 +83,12 @@ export interface CreditStatus {
    * Der nächste Abschluss zählt den Monat mit (`nextOverdrawnMonths`), verkauft wird ab `OVERDRAWN_TO_FORCED_SALE`.
    */
   readonly closesToForcedSale: number | null;
+  /** Abschlüsse bis zum Spielende, wenn die Kasse so bleibt (E93); nur bei `overdrawn`, sonst null. */
+  readonly closesToBankruptcy: number | null;
 }
 
 /** Kreditlinie aus Kasse, Flottenwert und überzogenen Monaten (`creditLimit`, `creditState`, `forcedSale`). */
-export function creditStatus(cash: number, fleetValue: number, overdrawnMonths: number): CreditStatus {
+export function creditStatus(cash: number, fleetValue: number, overdrawnMonths: number, difficulty: Difficulty = 'Normal'): CreditStatus {
   const limit = creditLimit(fleetValue);
   const state = creditState(cash, limit);
   return {
@@ -95,6 +97,7 @@ export function creditStatus(cash: number, fleetValue: number, overdrawnMonths: 
     state,
     overdrawnMonths,
     closesToForcedSale: state === 'overdrawn' ? Math.max(1, OVERDRAWN_TO_FORCED_SALE - overdrawnMonths) : null,
+    closesToBankruptcy: state === 'overdrawn' ? Math.max(1, BANKRUPTCY_OVERDRAWN_MONTHS[difficulty] - overdrawnMonths) : null,
   };
 }
 

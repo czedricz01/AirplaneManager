@@ -249,7 +249,7 @@ function MyCompanyViewImpl({
                   ? `credit line ${compact(credit.limit)}`
                   : credit.state === 'credit'
                     ? `credit used ${compact(credit.used)} of ${compact(credit.limit)}`
-                    : `overdrawn, ${credit.closesToForcedSale === 1 ? 'aircraft sold at the next close' : `aircraft sold in ${credit.closesToForcedSale} closes`}`}
+                    : `overdrawn, ${credit.closesToBankruptcy === 1 ? 'bankrupt at the next close' : `bankrupt in ${credit.closesToBankruptcy} closes`}`}
               </span>
             </StatTile>
             <StatTile size="md" label="Fleet value" value={formatCurrency(worth.fleetValue)}>

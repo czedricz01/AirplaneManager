@@ -125,7 +125,7 @@ import { Button } from "./components/ui/Button";
 import { useStableCallback } from "./lib/useStableCallback";
 import { logError, logWarn, setDiagnosticsSummaryProvider, getDiagnostics, getLogEntries } from "./lib/debugLog";
 import { budgetLabel, formatCurrency, formatNumber, formatTrend, setDecimalSymbol as setNumberFormatSymbol, DecimalSymbol, yearOf, monthOf } from "./lib/format";
-import { RANK_UNLOCKS, START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, STRIKE_PAY_RAISE, WEEKS_PER_MONTH } from "./model/constants";
+import { RANK_UNLOCKS, START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, STRIKE_PAY_RAISE, WEEKS_PER_MONTH, type Difficulty } from "./model/constants";
 import { badLuckCapOpen } from "./model/monthEvents";
 import { seasonFactor as modelSeasonFactor } from "./model/demand";
 import { refitCabinCondition } from "./model/fleetMarket";
@@ -1714,7 +1714,7 @@ export default function App() {
   );
 
   /** The credit line as the month close will see it (8.14): limit from the fleet value, cash, months overdrawn. */
-  const credit = useMemo(() => creditStatus(capital, worth.fleetValue, overdrawnMonths), [capital, worth.fleetValue, overdrawnMonths]);
+  const credit = useMemo(() => creditStatus(capital, worth.fleetValue, overdrawnMonths, difficulty as Difficulty), [capital, worth.fleetValue, overdrawnMonths, difficulty]);
 
   /**
    * The running scenario's goals as they stand, for the progress panel:

@@ -11,6 +11,7 @@ import {
   ADVERTISING_MAX,
   CABIN_CLASSES,
   FLIGHT_TIME_EXP,
+  NO_FLY_SENSITIVITY,
   PRICE_SENSITIVITY,
   RAMP_MONTHS,
   RAMP_RESEARCH_BONUS,
@@ -68,6 +69,15 @@ function split(offers: SplitOffer[], potential = POTENTIAL, cabinClass: CabinCla
 /** Fluggäste des Spieler-Angebots allein im Economy-Markt, Sitze reichen. */
 function alone(appeal: number, ramp = 1): number {
   return split([{ id: 'player', appeal, seats: Infinity, ramp }]).passengers.player;
+}
+
+/**
+ * Erlösbestes Preisniveau des Bezugsangebots allein (E97): `((PRICE_SENSITIVITY − 1) / (NO_FLY_SENSITIVITY − 1))^(−1 / PRICE_SENSITIVITY)`.
+ * Folgt aus d(Preis × Fluggäste)/dPreis = 0 mit Anziehung `x^−s` gegen „Nicht fliegen“ `1 / (s₀ − 1)`.
+ */
+function aloneBestRatio(cabinClass: CabinClass): number {
+  const s = PRICE_SENSITIVITY[cabinClass];
+  return ((s - 1) / (NO_FLY_SENSITIVITY[cabinClass] - 1)) ** (-1 / s);
 }
 
 /** Erlösbester Preis allein im Markt (Suche in Schritten von 0,01 $). */
@@ -225,17 +235,21 @@ describe('Abschnitt 3.9 Anziehung', () => {
     assertClose(priceFactor('first', 500, 400, 1.25), priceFactor('first', 400, 400, 1));
   });
 
-  it('3.9.2: Bezugsangebot allein, Sitze reichen: erlösbester Preis = marketFare × satisfactionFactor (± 1 %)', () => {
+  it('3.9.2 (E97): Bezugsangebot allein, Sitze reichen: erlösbester Preis = marketFare × satisfactionFactor × aloneBestRatio (± 1 %)', () => {
     for (const cabinClass of CABIN_CLASSES) {
-      assertClose(bestFareAlone(cabinClass, 1), 100, 1, cabinClass);
-      assertClose(bestFareAlone(cabinClass, 1, 1.2085), 120.85, 1.2085, `${cabinClass}, Satisfaction 130`);
+      const r = aloneBestRatio(cabinClass);
+      assert.ok(r < 1, `${cabinClass}: allein unter dem Marktpreis`);
+      assertClose(bestFareAlone(cabinClass, 1), 100 * r, r, cabinClass);
+      assertClose(bestFareAlone(cabinClass, 1, 1.2085), 120.85 * r, 1.2085 * r, `${cabinClass}, Satisfaction 130`);
     }
   });
 
-  it('3.9.2: allein bringen 10 % billiger und 10 % teurer weniger Erlös', () => {
+  it('3.9.2: allein bringen 10 % unter und über dem erlösbesten Preis weniger Erlös; der Marktpreis liegt darüber (E97)', () => {
     const revenue = (fare: number) => alone(priceFactor('economy', fare, 100, 1)) * fare;
-    assert.ok(revenue(90) < revenue(100));
-    assert.ok(revenue(110) < revenue(100));
+    const best = 100 * aloneBestRatio('economy');
+    assert.ok(revenue(best * 0.9) < revenue(best));
+    assert.ok(revenue(best * 1.1) < revenue(best));
+    assert.ok(revenue(90) > revenue(100), 'billiger als der Markt bringt allein mehr Erlös');
   });
 
   it('3.9.2: gegen einen gleichen Rivalen bringt 10 % billiger mehr Erlös', () => {
@@ -248,8 +262,8 @@ describe('Abschnitt 3.9 Anziehung', () => {
   });
 
   it('3.9.2: mehr übrige Anziehung (14 Abflüge) hebt den erlösbesten Preis um (Anziehung)^(1 / PRICE_SENSITIVITY)', () => {
-    const expected = 100 * frequencyFactor(14) ** (1 / PRICE_SENSITIVITY.economy);
-    assertClose(expected, 117.06, 0.01);
+    const expected = 100 * aloneBestRatio('economy') * frequencyFactor(14) ** (1 / PRICE_SENSITIVITY.economy);
+    assertClose(expected, 90.31, 0.01);
     assertClose(bestFareAlone('economy', frequencyFactor(14)), expected, 1);
   });
 
@@ -458,7 +472,8 @@ describe('Abschnitt 3.12 Anlauf', () => {
 
   it('3.12: Anlauf nach der Wahl: erlösbester Preis bleibt gleich, Rivalen gewinnen nicht dazu', () => {
     const revenueAt = (fare: number) => alone(priceFactor('economy', fare, 100, 1), rampFactor(0)) * fare;
-    assert.ok(revenueAt(100) > revenueAt(99) && revenueAt(100) > revenueAt(101));
+    const best = 100 * aloneBestRatio('economy');
+    assert.ok(revenueAt(best) > revenueAt(best - 1) && revenueAt(best) > revenueAt(best + 1));
     const ramping = split([{ id: 'p', appeal: 1, seats: Infinity, ramp: 0.6 }, { id: 'r', appeal: 1, seats: Infinity }]);
     const full = split([{ id: 'p', appeal: 1, seats: Infinity }, { id: 'r', appeal: 1, seats: Infinity }]);
     assertClose(ramping.passengers.r, full.passengers.r);
@@ -480,14 +495,15 @@ describe('Abschnitt 3.14 Passenger share und Departure share', () => {
 });
 
 describe('Abschnitt 3.15 Beispiel', () => {
-  // Economy, Marktgröße × Klassen-Anteil = 1 000, Marktpreis 100 $, PRICE_SENSITIVITY 2,2.
+  // Economy, Marktgröße × Klassen-Anteil = 1 000, Marktpreis 100 $, PRICE_SENSITIVITY 3,4, NO_FLY_SENSITIVITY 2,2 (E97).
   const price = (fare: number, satisfaction = 1) => priceFactor('economy', fare, 100, satisfaction);
   const cases: readonly [string, number, number, number][] = [
     // Fall, Fluggäste, Preis, Erlös
     ['Bezugsangebot allein, 100 $', alone(1), 100, 100_000],
-    ['allein, 90 $', alone(price(90)), 90, 99_342],
-    ['allein, 110 $', alone(price(110)), 110, 99_454],
-    ['allein, Satisfaction 130, 100 $', alone(price(100, 1.2085)), 100, 118_327],
+    ['allein, 90 $', alone(price(90)), 90, 104_270],
+    ['allein, 110 $', alone(price(110)), 110, 93_700],
+    ['allein, erlösbest 81,56 $', alone(price(81.56)), 81.56, 105_544],
+    ['allein, Satisfaction 130, 100 $', alone(price(100, 1.2085)), 100, 127_518],
     ['allein, Satisfaction 130, 120,85 $', alone(price(120.85, 1.2085)), 120.85, 120_850],
     ['allein, 14 Abflüge je Richtung', alone(frequencyFactor(14)), 100, 115_358],
     ['allein, 10 % längere Flugzeit', alone(flightTimeFactor(1.1, 1)), 100, 95_652],
@@ -506,11 +522,11 @@ describe('Abschnitt 3.15 Beispiel', () => {
     assertClose(result.passengers.p * 100, 64_706, 1);
   });
 
-  it('3.15: mit gleichem Rivalen, Spieler 90 $ → 747 (Rivale 593), Erlös 67 236 $', () => {
+  it('3.15: mit gleichem Rivalen, Spieler 90 $ → 804 (Rivale 562), Erlös 72 326 $', () => {
     const result = split([{ id: 'p', appeal: price(90), seats: Infinity }, { id: 'r', appeal: 1, seats: Infinity }]);
-    assertClose(result.passengers.p, 747.07, 0.01);
-    assertClose(result.passengers.r, 592.51, 0.01);
-    assertClose(result.passengers.p * 90, 67_236, 1);
+    assertClose(result.passengers.p, 803.62, 0.01);
+    assertClose(result.passengers.r, 561.66, 0.01);
+    assertClose(result.passengers.p * 90, 72_326, 1);
   });
 
   it('3.15: mit gleichem Rivalen, Rivale nur 500 Sitze → 727 (Rivale 500), Erlös 72 727 $', () => {

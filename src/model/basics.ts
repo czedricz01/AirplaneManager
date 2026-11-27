@@ -8,6 +8,7 @@
 import {
   COST_GROWTH,
   COST_INDEX_LAST_YEAR,
+  DIFFICULTY_COST_FACTOR,
   DIFFICULTY_FACTOR,
   SCALES,
   START_YEAR,
@@ -104,8 +105,16 @@ export function clampScale(scale: ScaleName, value: number): number {
 /**
  * Faktor der Schwierigkeit auf die Anziehung der Spieler-Angebote:
  * Normal = 1, Easy > 1, Hard < 1. Wirkt an genau einer Stelle (Abschnitt 3),
- * nie auf die KI, nie auf Preise oder Kosten. SPEZIFIKATION 1.8, E4, E53.
+ * nie auf die KI, nie auf Preise. SPEZIFIKATION 1.8, E4, E53.
  */
 export function difficultyFactor(difficulty: Difficulty): number {
   return DIFFICULTY_FACTOR[difficulty];
+}
+
+/**
+ * Faktor der Schwierigkeit auf die Betriebskosten des Spielers (Treibstoff, Besatzung, Landung, Kosten je Fluggast):
+ * Normal = 1, Easy < 1, Hard > 1. Nie auf die KI (sie rechnet mit Normal). SPEZIFIKATION 1.8, E87.
+ */
+export function difficultyCostFactor(difficulty: Difficulty): number {
+  return DIFFICULTY_COST_FACTOR[difficulty];
 }
