@@ -235,8 +235,8 @@ export function allPairs(airports: readonly MarketAirport[] = airportsData): All
   };
 }
 
-/** Ziel der Regel 3.3: Die Summe der Marktgrößen aller Paare wächst 1960 → 2019 um × 2,5 (E7, E64). */
-export const GROWTH_TARGET = 2.5;
+/** Ziel der Regel 3.3: Die Summe der Marktgrößen aller Paare wächst 1960 → 2019 um × 1,9 (E7, E64; vor E108 × 2,5). */
+export const GROWTH_TARGET = 1.9;
 
 /** Toleranz für „Summe × 2,5“ (3.3): ± 10 %. Festlegung des Balance-Skripts, nicht der Spezifikation. */
 export const GROWTH_TOLERANCE = 0.1;
@@ -246,7 +246,7 @@ export function demandSection(all: AllPairs = allPairs()): Section {
     {
       id: 'B3.1',
       spec: '3.3',
-      rule: 'Die Summe der Marktgrößen aller Paare wächst 1960 → 2019 um × 2,5 (± 10 %, E64)',
+      rule: 'Die Summe der Marktgrößen aller Paare wächst 1960 → 2019 um × 1,9 (± 10 %, E64, E108)',
       value: `Summe ${num(all.sumRatio, 2)}, Mittel der Verhältnisse ${num(all.meanRatio, 2)}, Median ${num(all.medianRatio, 2)} (${num(all.pairs)} Paare)`,
       verdict: Math.abs(all.sumRatio / GROWTH_TARGET - 1) <= GROWTH_TOLERANCE ? 'ok' : 'abweichung',
     },
