@@ -908,7 +908,7 @@ Bericht: `balance/5.4f-spieltest.md`. `QUICK_TURN_FACTOR` = 0,5 (E98). Gemessen:
 Strategien ryanair-pack und vorsichtig-pack (Option `pack`: mehrere Strecken je Flugzeug), Zusatzlauf LCC-Kabine +
 bester Preis + pack; je 2 Startwerte, 1995 und 1970.
 
-### Fund 72: Die Wende ist nicht der Engpass; der Hebel ist ein Flugzeug für mehrere Strecken → Frage O99
+### Fund 72: Die Wende ist nicht der Engpass; der Hebel ist ein Flugzeug für mehrere Strecken → Frage O99 (E105: so lassen)
 
 Ein Flugzeug auf einer Strecke fliegt 7–14 Umläufe je Woche und steht den Rest der Zeit; mehr Umläufe bringen weniger
 zusätzliche Fluggäste, als sie kosten (737-300 FRA 1995, LCC, 0,85: 14 Umläufe +24 447 $/Woche, 21 Umläufe −50 475).
@@ -924,3 +924,27 @@ Flog das gewählte Flugzeug schon eine Strecke auf einem anderen Paar, brach `pl
 (`operationsCore`, Schleife „freie Sitze“, `src/model/monthClose.ts`); Planer und Streckenansicht zeigten keine
 Prognose (Warnung im Log). Die KI war nicht betroffen (sonst wären Langläufe abgebrochen). Behoben in F87.
 
+## Paket 5.4g: Umsetzung E101–E104 und Balance-Langlauf (27.11.2026)
+
+Bericht: `balance/5.4g-bericht.md` (**21 ok · 0 Abweichung · 33 Info**; Läufe wie 5.4e; Auswertung oben im Bericht).
+Geändert: Optimizer-Kaufneigung 0,6 (E101), Klassen-Forschung × 0,7 (E102), Prüfregel B4.2 (E103), Kampagnen halb so
+teuer (E104). Im Lauf wirkt auch die kürzere Wende der KI-LCC aus 5.4f (E98).
+
+### Fund 74: Die drei Abweichungen aus 5.4e sind behoben → ok
+
+- B7.1: Faktor 1,82 nach 20 und nach 40 Jahren (5.4e 2,31 / 1,70). Optimizer 0,87 / 1,14 / 0,98 × Median nach 10 / 20 /
+  40 Jahren; er nimmt vor allem Boutique (20 Jahre 1,50 → 0,96) und Expansionist (0,88 → 0,65) Platz weg. Der
+  Hilfslauf aus 5.4e (1,77 / 1,75) traf es fast.
+- B6.7: 9,2 / 11,7 / 4,1 / 9,1 Monatsergebnisse an der Rang-Schwelle (Rang 1 / 2 / 4 / 5), wie vorausgerechnet.
+- B4.2: Werte gleich (28 Abflüge: 0,71 bei Schwelle 0,76 = 93 %), Regel nach E103 erfüllt.
+- B6.9 (Info): Werbung trägt sich ab 12–40 Strecken (5.4e 24–79, 5.3d 11–24).
+
+### Fund 75: Kürzere KI-LCC-Wende ändert B7.1 nicht; KI-Stärke in richtiger Reihenfolge → Info
+
+- LCC nach 10 / 20 / 40 / 60 Jahren 0,99 / 1,01 / 0,88 / 0,71 × Median (5.4e 1,00 / 1,04 / 1,00 / 0,87): eher tiefer,
+  im Faktor 2. Ursache des Rückgangs nach 40 Jahren nicht getrennt gemessen (kürzere Wende und stärkerer Optimizer
+  im selben Lauf).
+- KI-Stärke (B7.8): Median nach 40 Jahren Easy 731 · Normal 1 487 · Hard 1 556 Mio. $; die Reihenfolge stimmt jetzt
+  auch im Median (5.4e nur in der Summe je Lauf).
+- Langstrecke der KI 12,5 % (B7.12 ok), Marge 23 %, Preiskampf 0,1 %, Optimizer-Sprünge 0,8 %, Rechenzeit 1 095 ms je
+  Monat in den 2010ern.

@@ -58,7 +58,7 @@ describe('Paket 4.8: Kampagnenpreis mit dem Kostenindex (5.14)', () => {
     for (const tier of ['local', 'national', 'global'] as const) {
       assert.equal(campaignMonthCost(tier, M), atCost(CAMPAIGN_COST_1960[tier], M));
     }
-    assert.equal(campaignMonthCost('local', 0), 150_000);
+    assert.equal(campaignMonthCost('local', 0), 75_000);
   });
 
   it('Laufzeit-Preis = Summe der Monatspreise, jeder zum Index seines Monats', () => {

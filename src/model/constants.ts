@@ -1130,11 +1130,14 @@ export const CABIN_EXTRA_PRICE_1960: Readonly<Record<CabinExtra, number>> = {
 /** Stufen einer Werbe-Kampagne (Namen wie im Spielstand, `CampaignTier` in `src/lib/gameState.ts`). */
 export type CampaignLevel = 'local' | 'national' | 'global';
 
-/** Kosten einer Kampagne je laufendem Monat in $ von 1960 (Alt-Code: `src/lib/marketing.ts:75-77`; eigene Teuerung entfällt). SPEZIFIKATION 5.14. */
+/**
+ * Kosten einer Kampagne je laufendem Monat in $ von 1960 (Alt-Code `src/lib/marketing.ts:75-77`: 150 000 / 400 000 /
+ * 1 000 000; halbiert mit E104, Paket 5.4g; eigene Teuerung entfällt). SPEZIFIKATION 5.14.
+ */
 export const CAMPAIGN_COST_1960: Readonly<Record<CampaignLevel, number>> = {
-  local: 150_000,
-  national: 400_000,
-  global: 1_000_000,
+  local: 75_000,
+  national: 200_000,
+  global: 500_000,
 };
 
 /** Grundbetrag des Frequent-flyer-Programms je Monat in $ von 1960 (Alt-Code: `src/lib/marketing.ts:187`). SPEZIFIKATION 5.14. */
@@ -1301,14 +1304,14 @@ export interface ClassResearch {
 
 /**
  * Klassen-Projekte (Startwerte; Preise endgültig aus 3.9). Commuter ist ohne Projekt offen. Überschall braucht
- * Widebody statt Jumbo (E41). SPEZIFIKATION 6.8.
+ * Widebody statt Jumbo (E41). Preise × 0,7 mit E102 (Paket 5.4g; vorher 3 / 12 / 40 / 80 / 60 Mio. $). SPEZIFIKATION 6.8.
  */
 export const CLASS_RESEARCH: Readonly<Record<Exclude<SizeClass, 'commuter'>, ClassResearch>> = {
-  regional: { id: 'class-regional', title: 'Regional aircraft class', rank: 1, requires: null, months: 6, price1960: 3_000_000 },
-  narrowbody: { id: 'class-narrowbody', title: 'Narrowbody aircraft class', rank: 2, requires: 'regional', months: 9, price1960: 12_000_000 },
-  widebody: { id: 'class-widebody', title: 'Wide-body aircraft class', rank: 4, requires: 'narrowbody', months: 12, price1960: 40_000_000 },
-  jumbo: { id: 'class-jumbo', title: 'Jumbo aircraft class', rank: 5, requires: 'widebody', months: 18, price1960: 80_000_000 },
-  supersonic: { id: 'class-supersonic', title: 'Supersonic aircraft class', rank: 5, requires: 'widebody', months: 24, price1960: 60_000_000 },
+  regional: { id: 'class-regional', title: 'Regional aircraft class', rank: 1, requires: null, months: 6, price1960: 2_100_000 },
+  narrowbody: { id: 'class-narrowbody', title: 'Narrowbody aircraft class', rank: 2, requires: 'regional', months: 9, price1960: 8_400_000 },
+  widebody: { id: 'class-widebody', title: 'Wide-body aircraft class', rank: 4, requires: 'narrowbody', months: 12, price1960: 28_000_000 },
+  jumbo: { id: 'class-jumbo', title: 'Jumbo aircraft class', rank: 5, requires: 'widebody', months: 18, price1960: 56_000_000 },
+  supersonic: { id: 'class-supersonic', title: 'Supersonic aircraft class', rank: 5, requires: 'widebody', months: 24, price1960: 42_000_000 },
 };
 
 // ---------------------------------------------------------------------------
@@ -1891,7 +1894,8 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     longHaulFactor: 1,
     patienceBase: 3,
     // 0,7 → 0,4 (E82, Paket 5.3d): Mit den Umläufen nach der Planer-Regel war der Optimizer nach 20 Jahren 2,56 × der Median.
-    buyFactor: 0.4,
+    // 0,4 → 0,6 (E101, Paket 5.4g): Nach E97 liegt sein bester Preis näher am Markt; mit 0,4 nach 20 Jahren 0,43 × der Median.
+    buyFactor: 0.6,
     purchaseCashShare: 0.45,
     cashReserve1960: 10_000_000,
     maxHubs: 2,

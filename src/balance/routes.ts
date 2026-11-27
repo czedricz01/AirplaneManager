@@ -238,6 +238,12 @@ function maxChange(before: PartialClassFigures, after: PartialClassFigures): num
 // Abschnitte
 // ---------------------------------------------------------------------------
 
+/**
+ * Prüfregel B4.2 (E103): Der tiefste Preis im Preis-Duell muss mindestens bei diesem Anteil der Gewinnschwelle
+ * voller Maschine liegen („kein Lauf gegen 0“). Kein Preis-Boden im Modell, nur die Grenze der Prüfung.
+ */
+export const DUEL_FLOOR_SHARE = 0.9;
+
 /** Faktoren auf die Marktgröße für die Empfindlichkeits-Tabelle (wie ein kleineres `DEMAND_SCALE`). */
 export const DEMAND_SCALES = [1, 0.5, 0.25, 0.1];
 
@@ -305,10 +311,10 @@ export function routeSections(
   const lowest = (d: PriceDuel) => Math.min(...d.path, d.final.economy ?? Number.NaN);
   priceChecks.push({
     id: 'B4.2',
-    spec: '4.10, 7.6',
-    rule: 'Wechselseitige beste Antworten zweier gleicher Gesellschaften bleiben über den Kosten (Preis über der Gewinnschwelle voller Maschine), nicht gegen 0; mit einem Flugzeug je Gesellschaft (erster Fall) auch Ergebnis > 0. Ein Verlust mit mehr Sitzen, als der Markt füllt, kommt aus der Überkapazität, nicht aus dem Unterbieten (Paket 3.9d)',
-    value: duels.map((d) => `${d.departures} Abflüge: tiefster Preis Y ${num(lowest(d), 2)}, Schwelle ${num(d.breakEvenFull, 2)}, Ergebnis ${usd(d.route.result)}`).join('; '),
-    verdict: duels.every((d) => lowest(d) > d.breakEvenFull) && (duels[0]?.route.result ?? 0) > 0 ? 'ok' : 'abweichung',
+    spec: '4.10, 7.6, E103',
+    rule: `Wechselseitige beste Antworten zweier gleicher Gesellschaften laufen nicht gegen 0: tiefster Preis ≥ ${pct(DUEL_FLOOR_SHARE)} der Gewinnschwelle voller Maschine; mit einem Flugzeug je Gesellschaft (erster Fall) auch Ergebnis > 0. Ein Verlust mit mehr Sitzen, als der Markt füllt, kommt aus der Überkapazität, nicht aus dem Unterbieten (Paket 3.9d, E103)`,
+    value: duels.map((d) => `${d.departures} Abflüge: tiefster Preis Y ${num(lowest(d), 2)}, Schwelle ${num(d.breakEvenFull, 2)} (${pct(lowest(d) / d.breakEvenFull)}), Ergebnis ${usd(d.route.result)}`).join('; '),
+    verdict: duels.every((d) => lowest(d) >= DUEL_FLOOR_SHARE * d.breakEvenFull) && (duels[0]?.route.result ?? 0) > 0 ? 'ok' : 'abweichung',
   });
   priceChecks.push({
     id: 'B4.3',

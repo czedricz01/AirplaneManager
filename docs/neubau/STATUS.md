@@ -1,18 +1,26 @@
 # Status
 
-**Nächstes Paket: 5.4g – Umsetzung E101–E104 mit Balance-Langlauf.** Optimizer-Kaufneigung 0,4 → 0,6 (E101),
-Preise der Klassen-Forschung × 0,7 (E102), Prüfregel B4.2 anpassen (E103: tiefster Preis ≥ 90 % der Schwelle, Gewinn
-nur mit einem Flugzeug je Seite), Kampagnen-Kosten halbieren (E104). Danach Balance-Langlauf wie 5.4e (auch: ändert
-die kürzere Wende der KI-LCC aus 5.4f die Prüfregel B7.1?). Liest: `balance/5.4e-bericht.md` (Auswertung),
-`ENTSCHEIDUNGEN.md` E101–E104, `SPEZIFIKATION.md` 6.8, 7.4, 3.9.5; Konstanten in `src/model/constants.ts`
-(Optimizer-Kaufneigung, Klassen-Forschung, `CAMPAIGN_COST_1960`), Prüfregel B4.2 im Balance-Skript (`src/balance/`).
-Ergebnis in `balance/5.4g-bericht.md`.
+**Nächstes Paket: 5.4h – Spieltest-Matrix nach E101–E105 (Vorschlag).** 5.4g hat Preise geändert, die vor allem den
+Spieler treffen (Klassen-Forschung × 0,7, Kampagnen halb so teuer). Die Spieltest-Matrix (`scripts/playtest-matrix.ts
+--jobs 4`, etwa 15 min, dann `scripts/playtest-report.ts`) prüft, ob die Spieler-Ziele aus 5.4d/5.4f noch gelten:
+Easy-Ziel (E88), Hard-Abstand, LCC-Kabine mit bestem Preis und `pack` (E91, E105), Wucher (E100). Liest:
+`balance/5.4-spieltest.md` (Abschnitte 1–3, Ziele), `balance/5.4f-spieltest.md` (Abschnitt 4), `src/balance/playtest.ts`
+nur bei Bedarf. Ergebnis in `balance/5.4h-spieltest.md`. Kein Modell-Code geplant; Abweichungen werden Fragen.
 
-**Offene Frage: O99** (aus 5.4f, Tabelle in `ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; Empfehlung A): Soll ein fester
-Billigpreis (0,85 × Markt) mit LCC-Kabine stärker tragen? Die LCC-Kabine selbst trägt (mit bestem Preis und mehreren
-Strecken je Flugzeug). 5.4g hängt nicht davon ab. Weiter vorgemerkt (keine Pakete): Spielgefühl der KI-Stärke
-(Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53), Spielstände in
-der Cloud (Supabase).
+Keine Frage offen. Weiter vorgemerkt (keine Pakete): Spielgefühl der KI-Stärke (Mensch), deutsche Ortsnamen in
+`src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53), Spielstände in der Cloud (Supabase).
+
+Stand: 27.11.2026 · O99 im Chat entschieden: A (E105, fester Billigpreis bleibt ohne Sonderhilfe). Paket 5.4g erledigt
+(F88): E101–E104 umgesetzt – Optimizer-Kaufneigung 0,6, Klassen-Forschung × 0,7 (2,1 / 8,4 / 28 / 56 / 42 Mio. $ von
+1960), Prüfregel B4.2 mit 90 % der Gewinnschwelle (`DUEL_FLOOR_SHARE`, `src/balance/routes.ts`), Kampagnen 75 000 /
+200 000 / 500 000 $ von 1960. Langlauf (`balance/5.4g-bericht.md`, Funde 74–75): **21 ok · 0 Abweichung · 33 Info**
+(5.4e: 18 · 3 · 33). B7.1 Faktor 1,82 / 1,82 (Optimizer 1,14 × Median nach 20 Jahren), B6.7 4,1 … 11,7
+Monatsergebnisse, Werbung trägt sich ab 12–40 Strecken, KI-Stärke Easy 731 < Normal 1 487 < Hard 1 556 Mio. $ auch im
+Median. Die kürzere KI-LCC-Wende ändert B7.1 nicht (LCC 0,71–1,01 × Median). Spezifikation 5.14, 6.8, 7.4, 7.6
+nachgezogen. Tests: 1 262 grün (1 neu, 6 angepasst). Im Browser nicht geprüft (nur Preise, die die Oberfläche aus dem
+Modell liest).
+
+Offen aus diesem Stand: Spieler-Ziele nach den neuen Preisen messen (→ 5.4h).
 
 Stand: 27.11.2026 · O95–O98 im Chat entschieden, jeweils A (E101–E104). Paket 5.4f erledigt (F87): **LCC-Kabine**
 (nur Economy + „Minimal services“) wendet in der halben Zeit (`QUICK_TURN_FACTOR` 0,5: 15 / 30 / 45 Minuten), für
@@ -666,7 +674,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.4d | Spieltest-Matrix und Planer-Probe nach 5.4a–c gegen die Ziele (E88, E91, E92, E94–E96; `balance/5.4-spieltest.md`) | erledigt |
 | 5.4e | Balance-Langlauf nach E87–E97: KI-Stärke, Preiskämpfe, Prüfregeln (`balance/5.4e-bericht.md`; Funde 67–71, Fragen O95–O98) | erledigt |
 | 5.4f | Kürzere Bodenzeit der LCC-Kabine (E98) mit Spieltest-Matrix; Ziel „standard auf Hard pleite“ aus der Bewertung streichen (E99); Wucher bleibt (E100); Planer-Fehler bei geteiltem Flugzeug (F87; `balance/5.4f-spieltest.md`, Funde 72–73, Frage O99) | erledigt |
-| 5.4g | Umsetzung E101–E104 (Optimizer-Kaufneigung, Klassen-Forschung, Regel B4.2, Werbe-Kosten) mit Balance-Langlauf | offen |
+| 5.4g | Umsetzung E101–E104 (Optimizer-Kaufneigung, Klassen-Forschung, Regel B4.2, Werbe-Kosten) mit Balance-Langlauf (F88; `balance/5.4g-bericht.md`, Funde 74–75) | erledigt |
+| 5.4h | Spieltest-Matrix nach E101–E105: Spieler-Ziele (E88, E91, E100) mit den neuen Preisen (`balance/5.4h-spieltest.md`) | offen |
 
 ---
 
@@ -763,3 +772,5 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.4e | Balance-Langlauf nach E87–E97 (`balance/5.4e-bericht.md`, 18 ok · 3 Abweichung · 33 Info): Optimizer früh zu schwach (B7.1), Klassen-Forschung zu teuer (B6.7), Preis-Duell bei Überkapazität unter der Schwelle (B4.2), Werbung halb so wirksam (B6.9); Hilfsläufe Optimizer-Kaufneigung 0,5 / 0,6; KI-Stärke Hard > Normal je Lauf; Funde 67–71; neue Fragen O95–O98, Paket 5.4g; kein Code geändert |
 | 27.11.2026 | O95–O98 | Im Chat entschieden, jeweils A (E101–E104): Optimizer-Kaufneigung 0,6, Klassen-Forschung × 0,7, Prüfregel B4.2 angepasst, Kampagnen-Kosten halbiert; Umsetzung in 5.4g |
 | 27.11.2026 | 5.4f | LCC-Kabine wendet in der halben Zeit (E98, F87); Spieltest-Option `pack`; Planer-Fehler bei geteiltem Flugzeug behoben; `balance/5.4f-spieltest.md` (Funde 72–73): Wende kaum wirksam, LCC-Kabine trägt mit bestem Preis und gepackten Flugzeugen; neue Frage O99 |
+| 27.11.2026 | O99 | Im Chat entschieden: A (E105): fester Billigpreis bleibt ohne Sonderhilfe |
+| 27.11.2026 | 5.4g | E101–E104 umgesetzt (F88); Langlauf `balance/5.4g-bericht.md` 21 ok · 0 Abweichung · 33 Info (B7.1 1,82 / 1,82, B6.7 ≤ 11,7, B4.2 ok); KI-Stärke Easy < Normal < Hard im Median; KI-LCC-Wende ohne Wirkung auf B7.1; Funde 74–75; Tests 1 262 grün; neues Paket 5.4h vorgeschlagen |
