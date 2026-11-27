@@ -1,13 +1,25 @@
 # Status
 
-**Nächstes Paket: keines.** Der Neubau des Rechenmodells ist mit 5.3g abgeschlossen; es ist keine Frage offen.
-Offen bleibt nur, was kein Skript prüfen kann: das **Spielgefühl der KI-Stärke** (Normal und Hard, über einige Jahre mit
-eigenen Strecken gespielt). Das spielt ein Mensch; meldet er „zu stark“ oder „zu schwach“, wird daraus eine neue Frage
-(Stellschrauben: `RIVAL_STRENGTH`, E79, E80). Mögliche Arbeiten außerhalb des Neubaus (keine Pakete, nur vorgemerkt):
-deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit und Spielstand-Größe mit 12 KI im späten Spiel
-(Fund 53, „Offen aus 5.3b“ (2)), Spielstände in der Cloud (Supabase) testen („Offen aus 5.3b“ (4)).
+**Nächstes Paket: keines; als Nächstes eine Sitzung zur Schwierigkeit.** Der Neubau des Rechenmodells ist mit 5.3g
+abgeschlossen. Der Spieltest mit Strategien (`balance/spieltest-strategien.md`) zeigt: Easy, Normal und Hard rechnen
+bei vollen Flugzeugen gleich; der beste Preis entscheidet fast alles; „Ryanair“ (Billigpreis) trägt nicht; Pleite nur bei
+groben Fehlern, auf jeder Stufe gleich. Die zehn Fragen in Abschnitt 10 des Berichts werden in einer neuen Sitzung im
+Chat gestellt; die Antworten werden O81 ff. / E87 ff. und danach Pakete. Weiter vorgemerkt (keine Pakete): Spielgefühl der
+KI-Stärke (Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53),
+Spielstände in der Cloud (Supabase).
 
-**Keine offene Frage** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“).
+**Keine offene Frage eingetragen** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“); die Fragen zur Schwierigkeit stehen im
+Bericht und werden erst nach der Sitzung eingetragen.
+
+Stand: 27.11.2026 · Fehler und Spieltest (F85, E86): (1) **Forecast fehlte** nach weiteren Strecken, wenn am Hub eines
+kleinen Flughafens (Größe 1–2) Slots gekauft wurden: Slots am Hub brachten Abstellplätze mit, die es dort nicht gibt,
+und das Modell lehnte den Spielstand ab. Behoben in `applyInfrastructureChange` (`standsAvailable`) und
+`modelOperations` (betroffene Spielstände rechnen sofort wieder); im Browser geprüft. (2) **Start bis 12/2025** (E86).
+(3) **Spieltest ohne Browser** (`src/balance/playtest.ts`, `scripts/playtest-*.ts`): 141 Spiele, 10 Strategien × Easy /
+Normal / Hard × 1970 (Normal Mode) und 1995 (Free Mode), dazu 2025 und eine Streckenprobe; Bericht
+`balance/spieltest-strategien.md`. Tests: 1 252 grün (2 neue).
+
+Offen aus diesem Stand: die zehn Fragen zur Schwierigkeit (Bericht, Abschnitt 10).
 
 Stand: 27.11.2026 · Paket 5.3g erledigt (F84): Spieltest im Browser mit eigenen Strecken (Bericht
 `balance/5.3g-spieltest.md`, Funde 58–61 in `BALANCE.md`). Der Planer ließ sich im Skript bedienen (5.3b scheiterte am
