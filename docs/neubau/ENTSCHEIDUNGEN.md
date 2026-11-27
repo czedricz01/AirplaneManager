@@ -104,6 +104,9 @@ Claude schlägt vor, der Mensch entscheidet.
 | E95 | 27.11.2026 | **Ruf: so lassen, messen (O89):** `REPUTATION_DEMAND_SLOPE` bleibt 0,002. Nach E90/E91 im Spieltest prüfen, wo der Ruf mit dem besten Preis landet. | Nach E90 liegt der beste Preis näher am Markt, der Ruf fällt weniger; hohe Preise würden sonst doppelt bestraft. |
 | E96 | 27.11.2026 | **Wachstum: keine Bremse, messen (O90):** Keine eigene Wachstumsbremse. Nach E87–E93 im Spieltest prüfen, wo „optimierer“ nach 10 Jahren landet. | E90/E91 senken den Gewinn des besten Preises; erst danach ist klar, ob 158 Strecken / 3–4,6 Mrd. $ bleiben. |
 | E97 | 27.11.2026 | **Preis-Empfindlichkeit getrennt (O91 = Rollen trennen):** Zwei Zahlen je Klasse statt einer. `PRICE_SENSITIVITY` (Anziehung zwischen den Angeboten) Economy 3,4 · Premium 3,0 · Business 2,6 · First 2,4; `NO_FLY_SENSITIVITY` („Nicht fliegen“ und Potenzial, 3.10) bleibt 2,2 / 2,0 / 1,8 / 1,7. Beim Marktpreis fliegen allein weiter genau `marketSize × classShare`. Hebt E24 auf: allein ist das Bezugsangebot nicht mehr am Marktpreis erlösbest, sondern bei `((s − 1)/(s₀ − 1))^(−1/s)` × Markt (Economy 0,816). | Messung in der Sitzung (Planer-Probe FRA 1995, Normal): Mit nur einer höheren Zahl wurden Billigpreise schlechter (LCC 737, 0,85, 14 Flüge: 25 600 → 3 000 $/Woche), weil dieselbe Zahl das Potenzial verkleinert. Getrennt: bester Preis 737 1,08, ATR 72 1,31; 1,6 × Markt verliert mit der 737 auf 20 von 20 Zielen. |
+| E98 | 27.11.2026 | **LCC-Kabine: kürzere Bodenzeit (O92 = A):** Ein Flugzeug mit LCC-Kabine hat eine kürzere Boden- bzw. Wendezeit und schafft so mehr Umläufe je Woche. Kein Nachlass auf die Kosten je Fluggast. Gilt für Spieler und KI (R1). Die genaue Zahl kommt aus der Spieltest-Matrix (5.4f); Ziel bleibt E91 („ryanair“ wächst ähnlich wie „vorsichtig“). | Spieltest 5.4 (`balance/5.4-spieltest.md`, Abschnitt 3–4): „ryanair“ 1995 Normal ±0 Mio. $ · 9 Strecken gegen „vorsichtig“ +63 · 57 (E92 sah dafür diese Frage vor). Kurzer Umlauf ist der Kern des LCC-Modells; der Hebel trifft nur, wer die Kabine wählt, und lässt Kosten und Preise anderer unberührt. |
+| E99 | 27.11.2026 | **Hard: Ziel „standard geht pleite“ gestrichen (O93 = A):** Auf Hard reicht ein stetiger Verlust mit Kasse unter 0. Kreditlinie bleibt 50 % (E93), Pleite-Frist 3 (E93). Ändert E94 nur im Ziel, nicht in den Hebeln. | Spieltest 5.4: „standard“ auf Hard −5,7 / −5,1 Mio. $ im letzten Jahr, tiefste Kasse −5,4 / −9,6 Mio. $, nie 3 Monate überzogen. Die Pleite-Frist wirkt bereits („dumping“ früher pleite); eine kleinere Kreditlinie träfe auch gute Strategien in Krisen. |
+| E100 | 27.11.2026 | **Wucher mit kleinen Flugzeugen hinnehmen (O94 = A):** Keine Änderung an Preis-Empfindlichkeit (E97) oder Commuter-Kosten (E89). 1,6 × Markt mit Commutern auf übervollen Märkten gilt als Nische. | Spieltest 5.4: „schlecht-wucher“ 1995 Normal +49 Mio. $ (vorher +7), 1970 Verlust auf allen Stufen; dafür nur 19 Sitze je Flug und Ruf 29. Eine höhere Preis-Empfindlichkeit oder teurere Commuter kosteten die erreichten Ziele aus E88/E89/E91. |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -225,7 +228,7 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84, O80 → E85, O81–O90 → E87–E96, O91 → E97.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84, O80 → E85, O81–O90 → E87–E96, O91 → E97, O92–O94 → E98–E100.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
@@ -271,15 +274,16 @@ entschieden, jeweils die Empfehlung (E87–E96); O91 kam bei der Umsetzung dazu 
 | O90 | Sind 158 Strecken / 3–4,6 Mrd. $ nach 10 Jahren in Ordnung? | in Ordnung, messen → E96 |
 | O91 | (neu in der Sitzung, Folge von E90) Eine höhere Preis-Empfindlichkeit macht Billigpreise schlechter, weil sie auch das Potenzial begrenzt. Rollen trennen, eine Zahl moderat erhöhen oder nicht ändern? | Rollen trennen → E97 |
 
-**Offen** (aus dem Spieltest nach 5.4a–5.4c, `balance/5.4-spieltest.md`, Abschnitt 4; Funde 64, 65):
+O92–O94 (aus dem Spieltest nach 5.4a–5.4c, `balance/5.4-spieltest.md`, Abschnitt 4; Funde 64, 65) am 27.11.2026 im Chat
+gestellt und entschieden, jeweils die Empfehlung (E98–E100). Umsetzung von E98 in Paket 5.4f.
 
-| Nr. | Frage | Wege | Empfehlung |
-|---|---|---|---|
-| O92 | „ryanair“ (LCC-Kabine, 0,85 × Markt) bleibt klein: 1995 Normal ±0 Mio. $ · 9 Strecken gegen „vorsichtig“ +63 · 57 (E92 sah dafür eine neue Frage vor). Braucht die LCC-Kabine einen Kostenvorteil? | A: kürzere Bodenzeit der LCC-Kabine (mehr Umläufe je Flugzeug). B: geringere Kosten je Fluggast (Abfertigung, Check-in) für LCC. C: beides. D: so lassen; „Billig“ ist eine Start-, keine Wachstums-Strategie. | A: wirkt wie im echten Geschäft (Umlauf ist der Kern des LCC-Modells), trifft nur, wer die Kabine wählt, und lässt Kosten und Preise anderer unberührt. |
-| O93 | „standard“ geht auf Hard nicht pleite (tiefste Kasse −5,4 / −9,6 Mio. $; nie 3 Monate unter der Kreditlinie). Ziel aus E94 beibehalten? | A: Ziel streichen; ein stetiger Verlust mit Kasse unter 0 ist auf Hard Strafe genug. B: Kreditlinie auf Hard kleiner (z. B. 30 % statt 50 % des Flottenwerts). C: erst nach dem Balance-Langlauf (5.4e) entscheiden. | A: Die Pleite-Frist wirkt bereits (dumping früher pleite); eine kleinere Kreditlinie träfe auch gute Strategien in Krisen. |
-| O94 | „schlecht-wucher“ (1,6 × Markt, billigste Flugzeuge) verdient 1995 +49 Mio. $ auf Normal (vorher +7), weil günstigere Commuter (E89) auf großen Märkten voll werden; 1970 verliert er. Hinnehmen? | A: hinnehmen; kleine Flugzeuge zu hohen Preisen auf übervollen Märkten sind eine echte Nische. B: Preis-Empfindlichkeit weiter erhöhen (trifft alle Preise über dem Markt). C: Commuter-Kosten wieder etwas höher (`PILOT_RATE_MIN_SHARE` 0,5). | A: Der Spieler bekommt dafür nur 19 Sitze je Flug und schlechten Ruf (29); B und C kosten Ziele aus E89/E91, die jetzt erreicht sind. |
+| Nr. | Frage | Antwort |
+|---|---|---|
+| O92 | „ryanair“ (LCC-Kabine, 0,85 × Markt) bleibt klein: 1995 Normal ±0 Mio. $ · 9 Strecken gegen „vorsichtig“ +63 · 57 (E92 sah dafür eine neue Frage vor). Braucht die LCC-Kabine einen Kostenvorteil? | kürzere Bodenzeit (A) → E98 |
+| O93 | „standard“ geht auf Hard nicht pleite (tiefste Kasse −5,4 / −9,6 Mio. $; nie 3 Monate unter der Kreditlinie). Ziel aus E94 beibehalten? | Ziel streichen (A) → E99 |
+| O94 | „schlecht-wucher“ (1,6 × Markt, billigste Flugzeuge) verdient 1995 +49 Mio. $ auf Normal (vorher +7), weil günstigere Commuter (E89) auf großen Märkten voll werden; 1970 verliert er. Hinnehmen? | hinnehmen (A) → E100 |
 
-Offen sind O92–O94 (Tabelle oben).
+Keine offenen Fragen.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -295,6 +299,7 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - E53 präzisiert E4: Die Schwierigkeit wirkt über die Anziehung, nicht über die Marktgröße.
 - E87 ergänzt E4/E53/E80: Die Schwierigkeit wirkt zusätzlich als Faktor auf die Betriebskosten des Spielers; die KI bleibt neutral.
 - E97 ersetzt E24 (Marktpreis erlösbest ohne Rivalen) und setzt E90/E91 um.
+- E98 setzt E92 fort (LCC-Vorteil nach der Messung); E99 ändert das Ziel aus E94, nicht die Hebel.
 - E90/E91 vor E92, E95, E96: LCC-Vorteil, Ruf und Wachstum werden erst nach der neuen Preis-Empfindlichkeit gemessen.
 - `SPEZIFIKATION.md` 2.8 und 2.10 setzen voraus, dass Abschnitt 3 die Fluggäste eines Angebots nach Sitzen auf seine Strecken verteilt und die Satisfaction als Zahlungsbereitschaft in die Anziehung nimmt. Erfüllt in 3.9.2 und 3.11 (Paket 2.4).
 - `SPEZIFIKATION.md` 3.16 setzt für Abschnitt 4 (Paket 2.5) voraus: Marktpreis je Paar und Klasse, gleich für alle Angebote und unabhängig von den Fluggästen aus 3.11; kein zweiter Preis-Faktor auf die Fluggäste. Erfüllt in 4.3 (Marktpreis nur aus Entfernung, Bezugs-Flugzeit, Kostenindex); der Knappheits-Zuschlag entfällt (4.4), Knappheit wirkt über den besten Preis (4.10).
