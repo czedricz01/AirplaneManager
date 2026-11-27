@@ -998,3 +998,16 @@ VVR klein). Streichen der Doppel ändert Spielstände.
 
 New York (JFK/EWR/LGA), London (LHR/STN/LTN/LCY/SEN), Tokio, Shanghai, Peking, Mailand, Washington, Dubai,
 Istanbul: Jeder Flughafen hat nur seinen eigenen Verkehr. Das größte Langstrecken-Paar ist dadurch London–Tokio.
+
+## Paket D2: Flacheres Nachfrage-Wachstum (27.11.2026)
+
+Bericht: `balance/D2-spieltest.md`. O101 = B (E108): `DEMAND_GROWTH_1960_2019` 1,5, `DEMAND_SCALE` 8,1; Märkte 2025
+gleich, 1970 × 1,29. B3.1 Summe 1960 → 2019 × 1,90 (Ziel jetzt × 1,9). 42 Spiele, kein Fehler.
+
+### Fund 82: 1970 wieder klar gewinnbar, Hard aber nur gut ein Fünftel von Easy → Frage O102
+
+1970 ab DUS (Mittel zweier Startwerte): optimierer +77 / +35 / +16, luxus +49 / +23 / +11, vorsichtig +15 / +5,8 /
+−8,9 Mio. $ (Easy / Normal / Hard; D1 Startwert 1: +47 / +23 / +1,0, +31 / +19 / +5,1; vor D1 +80 / +59 / +34,
++65 / +38 / +21). Hard ÷ Easy 21–23 % (Firmenwert 37–39 %), unter dem Band 30–50 % aus E106. 1995 optimierer +413 /
++264 / +149 (36 %), luxus +234 / +162 / +100 (43 %); 2025 wie D1. Der vorgeschlagene Wert 1,75 hob 1970 nur um 12 %
+(Hard optimierer +4,1). Vermutung: Der Kosten-Faktor 0,85 / 1,1 (E87) wirkt auf die dünnen Margen 1970 stärker.
