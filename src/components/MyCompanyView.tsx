@@ -198,7 +198,8 @@ function MyCompanyViewImpl({
             <ChronicleView reportHistory={reportHistory} chronicle={chronicle} />
           </div>
         ) : shown === 'career' ? (
-          <div className="max-w-4xl mx-auto pb-6">
+          // The development tree takes the full width; the other tabs stay a readable column.
+          <div className={careerTab === 'development' ? 'pb-6' : 'max-w-4xl mx-auto pb-6'}>
             <CareerPanel
               part={careerTab}
               free={free}
