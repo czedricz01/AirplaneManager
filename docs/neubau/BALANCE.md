@@ -948,3 +948,26 @@ teuer (E104). Im Lauf wirkt auch die kürzere Wende der KI-LCC aus 5.4f (E98).
   auch im Median (5.4e nur in der Summe je Lauf).
 - Langstrecke der KI 12,5 % (B7.12 ok), Marge 23 %, Preiskampf 0,1 %, Optimizer-Sprünge 0,8 %, Rechenzeit 1 095 ms je
   Monat in den 2010ern.
+
+## Paket 5.4h: Spieltest-Matrix nach E101–E105 (27.11.2026)
+
+Bericht: `balance/5.4h-spieltest.md`. 177 Spiele (`scripts/playtest-matrix.ts`, neu mit Strategie `lcc-best-pack`),
+kein Fehler, keine Rechnung geändert. Hilfslauf 1970 mit den alten Forschungspreisen.
+
+### Fund 76: Free Mode unverändert, 1970 ändert nur die Klassen-Forschung → Info
+
+Free Mode 1995 und 2025: alle Ergebnisse gleich wie in 5.4/5.4f (keine Klassen-Forschung, keine Kampagnen im
+Spieltest, die sechs KI sitzen weit weg von FRA; keine KI-LCC, Optimizer in SAL, GRU, MEL). Die Matrix misst den
+Spieler also fast ohne Wettbewerb am eigenen Drehkreuz. 1970: Der Hilfslauf mit alten Forschungspreisen trifft die
+alten Werte genau; die Änderungen kommen allein von E102. „vorsichtig“ Easy +31 → +14 Mio. $: Die Strategie forscht
+früher, kauft dann den größten Typ bis 150 Sitze (DC-9), findet damit kaum positive Prognosen und wächst ab 1976 nicht
+mehr (52–63 statt 82 Strecken, Kasse liegt brach). Grenze der Test-Strategie, kein Modellfehler; Streckenprobe mit
+F27 / HS 748 unverändert 10/10 auf Easy.
+
+### Fund 77: pack-Strategien auf Hard 31–32 % von Easy → Frage O100
+
+vorsichtig-pack 1995 +363 / +226 / +115, lcc-best-pack +444 / +238 / +139 Mio. $ (Easy / Normal / Hard): Hard 32 % und
+31 % von Easy, unter dem Ziel 40–50 % aus E94 (optimierer 46 %, luxus 42 %, vorsichtig 37 %). Werte wie in 5.4f, dort
+nicht gegen E94 geprüft. Vermutung: Der Kosten-Faktor je Stufe (E87) wirkt nicht auf Flugzeug-Kosten; gepackt ist
+deren Anteil kleiner, der Faktor wirkt stärker. Hard bleibt klar gewinnbar (tiefste Kasse 3,8–4,9 Mio. $).
+

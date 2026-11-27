@@ -1,14 +1,25 @@
 # Status
 
-**Nächstes Paket: 5.4h – Spieltest-Matrix nach E101–E105 (Vorschlag).** 5.4g hat Preise geändert, die vor allem den
-Spieler treffen (Klassen-Forschung × 0,7, Kampagnen halb so teuer). Die Spieltest-Matrix (`scripts/playtest-matrix.ts
---jobs 4`, etwa 15 min, dann `scripts/playtest-report.ts`) prüft, ob die Spieler-Ziele aus 5.4d/5.4f noch gelten:
-Easy-Ziel (E88), Hard-Abstand, LCC-Kabine mit bestem Preis und `pack` (E91, E105), Wucher (E100). Liest:
-`balance/5.4-spieltest.md` (Abschnitte 1–3, Ziele), `balance/5.4f-spieltest.md` (Abschnitt 4), `src/balance/playtest.ts`
-nur bei Bedarf. Ergebnis in `balance/5.4h-spieltest.md`. Kein Modell-Code geplant; Abweichungen werden Fragen.
+**Nächstes: Frage O100 beantworten** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“; Bericht `balance/5.4h-spieltest.md`,
+Abschnitt 6). Die pack-Strategien bringen auf Hard 31–32 % ihres Easy-Ergebnisses, E94 will etwa 40–50 %. Bei A
+(Empfehlung, so lassen) ist kein Paket nötig, nur der Eintrag E106. Bei B oder C: Kosten-Faktor ändern, Tests
+anpassen, Spieltest-Matrix neu (`scripts/playtest-matrix.ts --jobs 4`, etwa 25 min) und Planer-Probe für E88.
 
-Keine Frage offen. Weiter vorgemerkt (keine Pakete): Spielgefühl der KI-Stärke (Mensch), deutsche Ortsnamen in
-`src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53), Spielstände in der Cloud (Supabase).
+Offen: O100. Weiter vorgemerkt (keine Pakete): Spielgefühl der KI-Stärke (Mensch; die Matrix misst den Spieler fast
+ohne KI am eigenen Drehkreuz, Fund 76), Typ-Wahl der Test-Strategien (größter Typ bis 150 Sitze, Fund 76), deutsche
+Ortsnamen in `src/data/airportsRows.ts` (Fund 55), Rechenzeit mit 12 KI (Fund 53), Spielstände in der Cloud
+(Supabase).
+
+Stand: 27.11.2026 · Paket 5.4h erledigt: Spieltest-Matrix nach E101–E105 (`balance/5.4h-spieltest.md`, Funde 76–77):
+177 Spiele, kein Fehler, kein Modell-Code geändert; Matrix um Strategie `lcc-best-pack` ergänzt
+(`scripts/playtest-matrix.ts:35`). Free Mode 1995 und 2025 auf 0,1 Mio. $ gleich wie vorher (keine Forschung, keine
+Kampagnen im Spieltest, KI weit weg von FRA). 1970 ändert nur E102 (Hilfslauf mit alten Preisen trifft die alten
+Werte genau): „vorsichtig“ Easy +31 → +14 Mio. $, weil die Test-Strategie früher forscht und dann den größten Typ bis
+150 Sitze (DC-9) kauft – Grenze der Strategie, kein Modellfehler. Ziele E88, E91/E105, E93, E95, E96, E99, E100
+gelten weiter. Neu: vorsichtig-pack und lcc-best-pack auf Hard 32 / 31 % von Easy (E94: 40–50 %) → O100. Tests:
+1 262 grün. Im Browser nicht geprüft.
+
+Offen aus diesem Stand: O100.
 
 Stand: 27.11.2026 · O99 im Chat entschieden: A (E105, fester Billigpreis bleibt ohne Sonderhilfe). Paket 5.4g erledigt
 (F88): E101–E104 umgesetzt – Optimizer-Kaufneigung 0,6, Klassen-Forschung × 0,7 (2,1 / 8,4 / 28 / 56 / 42 Mio. $ von

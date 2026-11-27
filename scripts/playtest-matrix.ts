@@ -31,6 +31,8 @@ export const STRATEGIES: Strategy[] = [
   S('ryanair', { style: 'lcc', price: 0.85, pick: 'forecast', plane: 'mid', trips: 'fit', cutAfter: 4, needPositiveForecast: true, buysPerMonth: 2 }),
   // Wie „ryanair“, aber mehrere Strecken je Flugzeug hintereinander am Tag (Paket 5.4f, E98: kurze Wende zählt nur so).
   S('ryanair-pack', { style: 'lcc', price: 0.85, pick: 'forecast', plane: 'mid', trips: 'fit', cutAfter: 4, needPositiveForecast: true, buysPerMonth: 2, pack: true }),
+  // Wie „ryanair-pack“, aber mit dem besten Preis des Planers statt fest 0,85 (Paket 5.4f: Zusatzlauf, E91/E105).
+  S('lcc-best-pack', { style: 'lcc', price: 'best', pick: 'forecast', plane: 'mid', trips: 'fit', cutAfter: 4, needPositiveForecast: true, buysPerMonth: 2, pack: true }),
   // Wie „vorsichtig“, aber ebenfalls mehrere Strecken je Flugzeug (Vergleich zu „ryanair-pack“).
   S('vorsichtig-pack', { plane: 'mid', price: 'best', needPositiveForecast: true, cutAfter: 6, pack: true }),
   // Wie „ryanair“, aber mit dem größten Schmalrumpf (757, A321).
