@@ -3,10 +3,11 @@
 **Nächstes Paket: 5.4e – Balance-Langlauf nach der Schwierigkeit.** Das Balance-Skript (`npm run balance`, Langlauf)
 prüft, wie die neue Preis-Empfindlichkeit (E97) und die Commuter-Kosten (E89) die KI verändern (KI-Stärke, Preiskämpfe,
 Prüfregeln B3–B8). Liest: `balance/5.4-spieltest.md`, `BALANCE.md` Funde 62–66, `src/balance/` (Langlauf, Prüfregeln),
-`scripts/balance.ts`. Ergebnis in `balance/5.4e-bericht.md`. Danach 5.4f (Umsetzung O92–O94).
+`scripts/balance.ts`. Ergebnis in `balance/5.4e-bericht.md`. Danach 5.4f (kürzere Bodenzeit der LCC-Kabine, E98).
 
-**Offene Fragen: O92–O94** (`ENTSCHEIDUNGEN.md`, Abschnitt „Offen“): LCC-Vorteil (O92), Pleite von „standard“ auf Hard
-(O93), Gewinn mit Wucherpreisen und kleinen Flugzeugen (O94). Sie blockieren 5.4e nicht, nur 5.4f. Weiter vorgemerkt
+**Offene Fragen: keine.** O92–O94 am 27.11.2026 entschieden (E98–E100, jeweils die Empfehlung): LCC-Kabine bekommt
+eine kürzere Bodenzeit (E98, Umsetzung in 5.4f), Ziel „standard geht auf Hard pleite“ gestrichen (E99), Wucher mit
+kleinen Flugzeugen bleibt (E100). Weiter vorgemerkt
 (keine Pakete): Spielgefühl der KI-Stärke (Mensch), deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55),
 Rechenzeit mit 12 KI (Fund 53), Spielstände in der Cloud (Supabase).
 
@@ -21,7 +22,7 @@ Nicht erreicht: „ryanair“ trägt nicht (O92), „standard“ geht auf Hard n
 Commutern (O94). Spezifikation 1.8, 2.10, 3.9.2, 3.10, 3.12, 3.15, 4.3, 4.10, 4.13, 5.4, 8.14 nachgezogen. Tests:
 1 256 grün (4 neu, 8 angepasst). Im Browser nicht geprüft (Rechnung und zwei Warntexte).
 
-Offen aus diesem Stand: (1) O92–O94. (2) Balance-Langlauf nach E87–E97 (5.4e). (3) Preis-Duell mit springenden
+Offen aus diesem Stand: (1) O92–O94 → E98–E100 (entschieden 27.11.2026). (2) Balance-Langlauf nach E87–E97 (5.4e). (3) Preis-Duell mit springenden
 Premium-Preisen (Fund 66).
 
 Stand: 27.11.2026 · Fehler und Spieltest (F85, E86): (1) **Forecast fehlte** nach weiteren Strecken, wenn am Hub eines
@@ -637,7 +638,7 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 5.4c | Preis-Empfindlichkeit getrennt in Anziehung und „Nicht fliegen“ (E90, E91, E97) (F86) | erledigt |
 | 5.4d | Spieltest-Matrix und Planer-Probe nach 5.4a–c gegen die Ziele (E88, E91, E92, E94–E96; `balance/5.4-spieltest.md`) | erledigt |
 | 5.4e | Balance-Langlauf nach E87–E97: KI-Stärke, Preiskämpfe, Prüfregeln (`balance/5.4e-bericht.md`) | offen |
-| 5.4f | Umsetzung O92–O94 (LCC-Vorteil, Pleite auf Hard, Wucher) mit Spieltest-Matrix | wartet auf O92–O94 |
+| 5.4f | Kürzere Bodenzeit der LCC-Kabine (E98) mit Spieltest-Matrix; Ziel „standard auf Hard pleite“ aus der Bewertung streichen (E99); Wucher bleibt (E100) | offen (nach 5.4e) |
 
 ---
 
@@ -730,3 +731,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | 5.3f | O80 entschieden (E85, Weg A): Widebodies so lassen, kein Größen-Vorteil im Treibstoff, kein Komfort-Abzug; Spezifikation 5.3 und Fund 57 nachgetragen, Verweise B7.13/B7.14; keine Rechnung geändert; neues Paket 5.3g (Spieltest mit eigenen Strecken) vorgeschlagen |
 | 27.11.2026 | 5.3g | Spieltest im Browser mit eigenen Strecken (Planer im Skript, Szenario Deregulation): Deregulation-Zähler, Störungs-Frage (Streik, Defekt; Buchung = Frage auf den Dollar) und Szenario-Untergrenze stimmen; drei Texte behoben (F84: `costNote`, Strecken-Namen einmal, „A single month-end“); `balance/5.3g-spieltest.md`, Funde 58–61; Tests 1 250 grün; Neubau abgeschlossen, keine Frage offen |
 | 27.11.2026 | 5.4a–5.4d | O81–O91 entschieden (E87–E97); Kosten-Faktor je Stufe, Pleite-Frist, Commuter-Besatzung, getrennte Preis-Empfindlichkeit (F86); Spieltest `balance/5.4-spieltest.md` (Funde 62–66): Easy-Ziel und Hard-Abstand erreicht, LCC, Pleite auf Hard und Wucher offen (O92–O94) |
+| 27.11.2026 | O92–O94 | Im Chat entschieden, jeweils die Empfehlung (E98–E100): LCC-Kabine kürzere Bodenzeit, Hard ohne Pleite-Ziel für „standard“, Wucher bleibt |
