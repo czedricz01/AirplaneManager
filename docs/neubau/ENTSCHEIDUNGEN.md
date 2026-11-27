@@ -271,7 +271,15 @@ entschieden, jeweils die Empfehlung (E87–E96); O91 kam bei der Umsetzung dazu 
 | O90 | Sind 158 Strecken / 3–4,6 Mrd. $ nach 10 Jahren in Ordnung? | in Ordnung, messen → E96 |
 | O91 | (neu in der Sitzung, Folge von E90) Eine höhere Preis-Empfindlichkeit macht Billigpreise schlechter, weil sie auch das Potenzial begrenzt. Rollen trennen, eine Zahl moderat erhöhen oder nicht ändern? | Rollen trennen → E97 |
 
-Zurzeit ist keine Frage offen.
+**Offen** (aus dem Spieltest nach 5.4a–5.4c, `balance/5.4-spieltest.md`, Abschnitt 4; Funde 64, 65):
+
+| Nr. | Frage | Wege | Empfehlung |
+|---|---|---|---|
+| O92 | „ryanair“ (LCC-Kabine, 0,85 × Markt) bleibt klein: 1995 Normal ±0 Mio. $ · 9 Strecken gegen „vorsichtig“ +63 · 57 (E92 sah dafür eine neue Frage vor). Braucht die LCC-Kabine einen Kostenvorteil? | A: kürzere Bodenzeit der LCC-Kabine (mehr Umläufe je Flugzeug). B: geringere Kosten je Fluggast (Abfertigung, Check-in) für LCC. C: beides. D: so lassen; „Billig“ ist eine Start-, keine Wachstums-Strategie. | A: wirkt wie im echten Geschäft (Umlauf ist der Kern des LCC-Modells), trifft nur, wer die Kabine wählt, und lässt Kosten und Preise anderer unberührt. |
+| O93 | „standard“ geht auf Hard nicht pleite (tiefste Kasse −5,4 / −9,6 Mio. $; nie 3 Monate unter der Kreditlinie). Ziel aus E94 beibehalten? | A: Ziel streichen; ein stetiger Verlust mit Kasse unter 0 ist auf Hard Strafe genug. B: Kreditlinie auf Hard kleiner (z. B. 30 % statt 50 % des Flottenwerts). C: erst nach dem Balance-Langlauf (5.4e) entscheiden. | A: Die Pleite-Frist wirkt bereits (dumping früher pleite); eine kleinere Kreditlinie träfe auch gute Strategien in Krisen. |
+| O94 | „schlecht-wucher“ (1,6 × Markt, billigste Flugzeuge) verdient 1995 +49 Mio. $ auf Normal (vorher +7), weil günstigere Commuter (E89) auf großen Märkten voll werden; 1970 verliert er. Hinnehmen? | A: hinnehmen; kleine Flugzeuge zu hohen Preisen auf übervollen Märkten sind eine echte Nische. B: Preis-Empfindlichkeit weiter erhöhen (trifft alle Preise über dem Markt). C: Commuter-Kosten wieder etwas höher (`PILOT_RATE_MIN_SHARE` 0,5). | A: Der Spieler bekommt dafür nur 19 Sitze je Flug und schlechten Ruf (29); B und C kosten Ziele aus E89/E91, die jetzt erreicht sind. |
+
+Offen sind O92–O94 (Tabelle oben).
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
