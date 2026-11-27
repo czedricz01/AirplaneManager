@@ -1432,6 +1432,10 @@ nur gelesen (R2; heute zwei Quellen für den Gebühren-Faktor, siehe 5.20).
 - Wirkt auf: `fixedWeeklyCost` (5.9).
 - Regeln (Tests): mehr Effizienz → nie mehr Treibstoff; gleiche Strecke, gleicher Typ → gleiche Kosten für
   Spieler und KI (ohne Forschung); hängt nicht von den Fluggästen ab; gestrichene Flüge senken ihn anteilig.
+- Kein Größen-Vorteil (E85): Liter je Sitz hängen nur an `efficiency`, nicht an `capacity`. Ein Widebody spart
+  je Sitz nur bei Besatzung und Landung; auf großen Langstrecken-Paaren ist ein gut genutzter Narrowbody darum
+  meist besser, ein Widebody lohnt sich vor allem jenseits der Narrowbody-Reichweite und bei knappen Slots
+  (`BALANCE.md` Fund 57). Gewollt, gilt für Spieler und KI gleich.
 
 ### 5.4 Besatzung (Code-Name: `crewCost`)
 - Bedeutung: Löhne von Cockpit und Kabine für die geflogenen Stunden.

@@ -91,6 +91,7 @@ Claude schlägt vor, der Mensch entscheidet.
 | E82 | 25.11.2026 | **Optimizer in den ersten 20 Jahren dämpfen (O77 = A):** Die Planer-Regel für die höchsten Umläufe der KI (7.9, E44) bleibt; gedämpft wird nur über die Werte in `PERSONALITIES` (wie E71). Ziel B7.1 Faktor ≤ 2 nach 20 und 40 Jahren; Werte mit Langlauf. | Fund 43: Mit den Umläufen nach der Planer-Regel ist der Optimizer nach 20 Jahren 2,56 × der Median (Grenze 2). Eine Nachtpause oder die alte Regel widerspräche 7.9 und E44. |
 | E83 | 25.11.2026 | **Mindest-Prämie des Jahresziels je Art (O78 = A):** Die Mindest-Prämie wird im Verhältnis der Anteile `GOAL_REWARD_SHARE` gestaffelt: sicher 250 000 $, andere Art 375 000 $, hoch 625 000 $ von 1960 (`goalMinReward` = `atCost(GOAL_MIN_REWARD_1960 × Anteil[Art] / Anteil[sicher])`). Die Strafe bleibt die halbe Prämie (E58). | Fund 52: Unter einer Bezugsgröße von 5 Mio. $ von 1960 zahlten alle Ziele dieselbe Mindest-Prämie; das hohe Ziel war dann nur schwerer, für jede neue Gesellschaft im ersten Jahr. Mit der Staffel zahlt es immer das 2,5-Fache des sicheren und kostet beim Verfehlen mehr. |
 | E84 | 25.11.2026 | **Widebody der KI: erst messen (O79 = A):** Keine Regel ändern, bevor gemessen ist, warum die KI nie einen Widebody kauft: für die 20 größten Langstrecken-Paare ab 1990 Gewinn nach Kapitalkosten des besten Narrowbody und des besten Widebody mit der Planer-Rechnung der KI vergleichen; danach mit Zahlen entscheiden (Paket 5.3e, F83, neue Frage O80). | Ohne Zahlen wäre jeder Hebel (Zins, Bezugs-Typ, Kosten) geraten; der Zins (Weg B) wirkt nur, wenn der Widebody vor den Kapitalkosten vorn liegt. |
+| E85 | 27.11.2026 | **Widebodies: so lassen (O80 = A):** Keine Änderung an Treibstoff (5.3), Satisfaction (Abschnitt 2) oder KI. Treibstoff je Sitz hängt weiter nur an der Effizienz des Typs, nicht an seiner Größe. Widebodies bleiben das Flugzeug für Strecken jenseits der Narrowbody-Reichweite und für knappe Slots (mehr Sitze je Slot); auf den größten Langstrecken-Paaren ist ein gut genutzter Narrowbody im Modell meist besser, für Spieler und KI gleich (R1). Paket 5.3f: nur Dokumentation (Spezifikation 5.3, Fund 57). | Fund 57: Die KI rechnet richtig, ein eigener Hebel für sie ist nicht nötig. Weg B (Größen-Vorteil im Treibstoff) und Weg C (Komfort-Abzug) ändern Kosten oder Anziehung aller Strecken kurz vor Ende des Neubaus und verlangen neue Abstimmung aller Prüfregeln (B5.x, B7.x, 3.9). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -209,7 +210,7 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84, O80 → E85.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
@@ -234,21 +235,7 @@ O74–O77 am 25.11.2026 entschieden (E79–E82, je Weg A); Umsetzung in Paket 5.
 
 O78, O79 am 25.11.2026 entschieden (E83, E84, je Weg A); Umsetzung und Messung in Paket 5.3e (F83).
 
-**O80 – Widebodies lohnen sich im Modell fast nie (aus Paket 5.3e, Fund 57).** Die Messung zu O79 zeigt: Die KI
-rechnet richtig. Auf den größten Langstrecken-Paaren (1990, 2000, 2010) bringt der beste Widebody auf 0 von 60 Paaren
-mehr als der beste Narrowbody, schon vor den Kapitalkosten; nur jenseits der Narrowbody-Reichweite (über 7 500 km, vor
-allem um 2000) liegt er vorn, und dort kauft die KI ihn auch (9 Käufe in 4 Langläufen, nie an der Kasse gescheitert).
-Grund: Treibstoff je Sitz hängt nur an der Effizienz des Typs (5.3), nicht an der Größe; die größten Märkte füllen einen
-Widebody nur bei etwa der Hälfte seiner Umläufe, dann trägt jeder Sitz den doppelten Flugzeug-Anteil. Das gilt ebenso
-für den Spieler (gleiche Rechnung, R1): Die Widebody-Forschung (Rang 4) öffnet Flugzeuge, die sich fast nur auf sehr
-langen Strecken lohnen.
-- **A (Empfehlung):** so lassen. Widebodies bleiben das Flugzeug für sehr lange Strecken und für knappe Slots (mehr Sitze
-  je Slot); die KI braucht keine eigene Regel. Kein Eingriff in Kosten und Satisfaction kurz vor Ende des Neubaus.
-- **B:** Größen-Vorteil im Treibstoff: Liter je Sitz sinken mit der Kapazität des Typs (Formel 5.3 um einen Faktor
-  `(capacity / Bezug)^−x` ergänzen); Wert `x` mit Balance-Skript und Langlauf so wählen, dass ein voll genutzter Widebody
-  auf großen Langstrecken-Paaren vorn liegt. Ändert die Kosten aller Strecken (B5.x, B7.x neu prüfen).
-- **C:** Komfort auf Langstrecke: Satisfaction-Abzug für Narrowbodies auf langen Flügen (z. B. ab einer Blockzeit), damit
-  Fluggäste dort Widebodies vorziehen. Ändert Abschnitt 2 und die Anziehung (3.9).
+O80 am 27.11.2026 entschieden (E85, Weg A); nur Dokumentation in Paket 5.3f. Zurzeit ist keine Frage offen.
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
