@@ -14,7 +14,7 @@ import type { Airport } from '../data/airportTypes';
 import { getAirportStats } from '../data/airports';
 import type { ConfigOutput } from '../components/ConfigurePurchaseView';
 import type { OwnedAircraft } from '../components/MyFleetView';
-import { CABIN_CLASSES, WEEKS_PER_MONTH, START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, type CabinClass, type RivalPersonality } from '../model/constants';
+import { CABIN_CLASSES, RAMP_MONTHS, WEEKS_PER_MONTH, START_CAPITAL_TIERS_1960, START_HUB_SETUP, START_REPUTATION, type CabinClass, type RivalPersonality } from '../model/constants';
 import { blockMinutes as modelBlockMinutes, distanceKm } from '../model/demand';
 import { newAircraftPrice } from '../model/fleet';
 import { atCost } from '../model/basics';
@@ -34,6 +34,7 @@ import { infraAvailability, rivalSlotsByAirport, slotBuyPrice, slotCapacity, tie
 import { defaultModelEnv, foundStartRivals, modelGame, planesValue, runModelMonth, type AppGame } from '../lib/modelMonth';
 import { pricesAtLevel, routeBestFares, routeForecast, routeMarketFares, type PlannedRoute } from '../lib/modelRoute';
 import { addCapexItem } from '../lib/monthClose';
+import { planeFigures, resoldPlane } from '../lib/modelFleet';
 import { getTurnoverMinutes, blockMinutes as tripBlock, tripsUtilization } from '../lib/scheduleUtils';
 
 
@@ -72,6 +73,10 @@ export interface Strategy {
   readonly needPositiveForecast: boolean;
   /** Bis zu so viele Käufe je Monat. */
   readonly buysPerMonth: number;
+  /** Nur diesen Typ kaufen (Kennung aus `aircraftList`); sonst nach `plane`. */
+  readonly typeId?: string;
+  /** Flugzeuge ohne Strecke nach so vielen Monaten verkaufen (wie „Sell“ in der Flotte); 0 = nie. Standard 2. */
+  readonly sellIdleAfter?: number;
 }
 
 export interface PlaySettings {
@@ -111,7 +116,7 @@ export interface PlayRoute {
   readonly closed?: number;
   /** Prognose „Expected weekly profit“ beim Eröffnen. */
   readonly forecastWeekly: number;
-  /** Mittleres Ergebnis je Monat nach dem Anlauf (ab Monat 4). */
+  /** Mittleres Ergebnis je Monat nach dem Anlauf (ab Monat 10, `RAMP_MONTHS` = 9). */
   readonly avgMonthlyAfterRamp: number;
   /** Mittleres Ergebnis je Monat in den Monaten 10–21 (erstes Jahr nach dem vollen Anlauf, `RAMP_MONTHS` = 9). */
   readonly avgMonthlyYear1?: number;
@@ -389,6 +394,7 @@ export function play(s: PlaySettings, onYear?: (year: number, cash: number) => v
   const events: string[] = [];
   const log: Map<string, { pair: string; type: string; opened: number; forecast: number; results: number[]; loads: number[]; pop: number; km: number; closed?: number }> = new Map();
   const lossStreak = new Map<string, number>();
+  const idleMonths = new Map<string, number>();
   const hub = AIRPORTS.get(s.hub)!;
   const end = g.month + s.years * 12;
   let bankrupt = false;
@@ -414,6 +420,25 @@ export function play(s: PlaySettings, onYear?: (year: number, cash: number) => v
         if (entry) entry.closed = g.month;
         lossStreak.delete(r.id);
         events.push(`${ym(g.month)} schließt ${r.origin}-${r.destination} (Verlust)`);
+      }
+    }
+
+    // --- 2b. Flugzeuge, die schon `sellIdleAfter` Monate ohne Strecke stehen, verkaufen (wie `handleSellAircraft`).
+    const sellAfter = st.sellIdleAfter ?? 2;
+    for (const p of g.fleet) {
+      const busy = g.routes.some((r) => r.aircraft === p.registration);
+      idleMonths.set(p.registration, busy ? 0 : (idleMonths.get(p.registration) ?? 0) + 1);
+    }
+    if (sellAfter > 0) {
+      for (const p of g.fleet.filter((x) => (idleMonths.get(x.registration) ?? 0) > sellAfter)) {
+        const value = planeFigures(p, g.month, g.career.research.done).saleProceeds;
+        if (g.modelWorld) g.modelWorld = { ...g.modelWorld, resold: [...g.modelWorld.resold, resoldPlane(p, g.month)] };
+        g.capital += value;
+        g.monthlyCapex = addCapexItem([...g.monthlyCapex], 'Aircraft Sales', -value);
+        if (g.ledgerValues && g.ledgerValues.month === g.month) g.ledgerValues = withTradeValue(g.ledgerValues, -planesValue([p], g.month));
+        g.fleet = g.fleet.filter((x) => x.registration !== p.registration);
+        idleMonths.delete(p.registration);
+        events.push(`${ym(g.month)} verkauft ${p.registration} (${p.type}) für ${Math.round(value / 1e5) / 10} Mio.`);
       }
     }
 
@@ -455,7 +480,7 @@ export function play(s: PlaySettings, onYear?: (year: number, cash: number) => v
       const monthly = f.result * WEEKS_PER_MONTH;
       entry.results.push(monthly);
       if (fs > 0) entry.loads.push(fp / fs);
-      if (entry.results.length > 3) lossStreak.set(f.routeId, monthly < 0 ? (lossStreak.get(f.routeId) ?? 0) + 1 : 0);
+      if (entry.results.length > RAMP_MONTHS) lossStreak.set(f.routeId, monthly < 0 ? (lossStreak.get(f.routeId) ?? 0) + 1 : 0);
     }
     g = {
       ...g,
@@ -479,13 +504,13 @@ export function play(s: PlaySettings, onYear?: (year: number, cash: number) => v
   }
 
   const routes: PlayRoute[] = [...log.values()].map((e) => {
-    const after = e.results.slice(3);
+    const after = e.results.slice(RAMP_MONTHS);
     return {
       pair: e.pair, type: e.type, opened: e.opened, closed: e.closed, forecastWeekly: e.forecast,
       avgMonthlyAfterRamp: after.length > 0 ? after.reduce((a, b) => a + b, 0) / after.length : NaN,
       avgMonthlyYear1: e.results.length >= 21 ? e.results.slice(9, 21).reduce((a, b) => a + b, 0) / 12 : undefined,
       months: e.results.length,
-      loadFactor: e.loads.length > 0 ? e.loads.slice(3).reduce((a, b) => a + b, 0) / Math.max(1, e.loads.slice(3).length) : NaN,
+      loadFactor: e.loads.length > 0 ? e.loads.slice(RAMP_MONTHS).reduce((a, b) => a + b, 0) / Math.max(1, e.loads.slice(RAMP_MONTHS).length) : NaN,
       destPopularity: e.pop, km: e.km,
     };
   });
@@ -504,7 +529,7 @@ function openRoute(
   const idle = g.fleet.find((p) => !g.routes.some((r) => r.aircraft === p.registration));
 
   // Typ wählen: aus den kaufbaren Typen nach der Strategie.
-  const types = buyableTypes(g).filter((t) => fitsAirport(t, hub));
+  const types = buyableTypes(g).filter((t) => fitsAirport(t, hub) && (!st.typeId || t.id === st.typeId));
   if (!idle && types.length === 0) return false;
   const priceOf = (t: Aircraft) => unitPrice(t, cabinConfig(st.style, t, g.month), g.month);
   const pool = st.plane === 'mid' ? (types.some((t) => t.capacity <= 150) ? types.filter((t) => t.capacity <= 150) : types)

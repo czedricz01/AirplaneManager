@@ -56,13 +56,15 @@ for (const era of ERAS) for (const d of DIFFS) for (const st of STRATEGIES) for 
   list.push({ label: `${era.id}-${d}-${st.name}-s${seed}`, hub: era.hub, startYear: era.startYear, years: era.years, difficulty: d, aiDifficulty: d,
     aiCount: 6, budget1960: era.budget1960, mode: era.mode, seed, strategy: st });
 }
-// Streckenprobe: 15 beliebteste Ziele auf einmal, Standard-Spieler, nichts schließen (Frage „jede beliebte Strecke profitabel?“).
-for (const era of ERAS) for (const d of DIFFS) for (const plane of ['mid', 'big'] as const) {
-  list.push({ label: `probe-${era.id}-${d}-${plane}`, hub: era.hub, startYear: era.startYear, years: 3, difficulty: d, aiDifficulty: d, aiCount: 6,
-    budget1960: 200_000_000, mode: era.mode, seed: 1, strategy: S(`probe-${plane}`, { plane, maxRoutes: 15, buysPerMonth: 15, reserve1960: 0 }) });
+// Streckenprobe: 10 beliebteste Ziele auf einmal mit einem festen Typ, Standard-Spieler, nichts schließen
+// (Frage „jede beliebte Strecke profitabel?“).
+const PROBE_TYPES: Record<string, string[]> = { free1995: ['atr-72-210', '737-300'], normal1970: ['f27-500', 'hs-748-series-2'] };
+for (const era of ERAS) for (const d of DIFFS) for (const typeId of PROBE_TYPES[era.id]) {
+  list.push({ label: `probe-${era.id}-${d}-${typeId}`, hub: era.hub, startYear: era.startYear, years: 3, difficulty: d, aiDifficulty: d, aiCount: 6,
+    budget1960: 200_000_000, mode: era.mode, seed: 1, strategy: S(`probe-${typeId}`, { typeId, maxRoutes: 10, buysPerMonth: 10, reserve1960: 0, sellIdleAfter: 0 }) });
 }
 // Start 2025 (neue Grenze): Standard und Optimierer, 5 Jahre.
-for (const d of DIFFS) for (const st of [STRATEGIES[0], STRATEGIES[5]]) {
+for (const d of DIFFS) for (const st of STRATEGIES.filter((x) => ['standard', 'optimierer', 'luxus'].includes(x.name))) {
   list.push({ label: `free2025-${d}-${st.name}-s1`, hub: 'FRA', startYear: 2025, years: 5, difficulty: d, aiDifficulty: d, aiCount: 6,
     budget1960: 50_000_000, mode: 'free', seed: 1, strategy: st });
 }

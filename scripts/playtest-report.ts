@@ -11,6 +11,7 @@ const args = process.argv.slice(2);
 const cache = args.indexOf('--cache') >= 0 ? args[args.indexOf('--cache') + 1] : '.playtest-runs';
 const runs: PlayResult[] = readdirSync(cache).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(cache, f), 'utf8')));
 const mio = (n: number) => (Number.isFinite(n) ? (n / 1e6).toFixed(n !== 0 && Math.abs(n) < 1e7 ? 1 : 0) : '–');
+const tsd = (n: number) => (Number.isFinite(n) ? `${Math.round(n / 1000).toLocaleString('de-DE')}` : '–');
 const pct = (n: number) => (Number.isFinite(n) ? `${Math.round(n * 100)} %` : '–');
 const ym = (m: number) => `${String((m % 12) + 1).padStart(2, '0')}/${1960 + Math.floor(m / 12)}`;
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
@@ -47,19 +48,20 @@ for (const key of [...groups.keys()].sort((a, b) => order(a) - order(b))) {
   for (const r of list) console.log(`| ${r.settings.strategy.name} | s${r.settings.seed} | ${row(r).join(' | ')} |`);
 }
 
-console.log('\n#### Streckenprobe: 15 beliebteste Ziele auf einmal, Standard-Kabine, Marktpreis, 1×/Tag, 3 Jahre\n');
-console.log('| Zeitalter | Schwierigkeit | Flugzeug | Strecken mit Gewinn (Mittel ab Monat 4) | Median Ergebnis je Monat | schlechteste Strecke | Auslastung (Median) | Typ |\n|---|---|---|---|---|---|---|---|');
+console.log('\n#### Streckenprobe: 10 beliebteste Ziele auf einmal, fester Typ, Standard-Kabine, Marktpreis, 1×/Tag, 3 Jahre (Beträge in Tsd. $)\n');
+console.log('| Zeitalter | Schwierigkeit | Flugzeug | Strecken mit Gewinn (Mittel ab Monat 10) | Median Ergebnis je Monat | schlechteste Strecke | Auslastung (Median) | Typ |\n|---|---|---|---|---|---|---|---|');
 for (const r of runs.filter((x) => x.settings.label.startsWith('probe-')).sort((a, b) => a.settings.label.localeCompare(b.settings.label))) {
-  const [, era, diff, plane] = r.settings.label.split('-');
+  const [, era, diff, ...rest] = r.settings.label.split('-');
+  const plane = rest.join('-');
   const rs = r.routes.filter((x) => Number.isFinite(x.avgMonthlyAfterRamp));
   const pos = rs.filter((x) => x.avgMonthlyAfterRamp > 0).length;
   const worst = rs.reduce((w, x) => (x.avgMonthlyAfterRamp < w.avgMonthlyAfterRamp ? x : w), rs[0]);
-  console.log(`| ${era} | ${diff} | ${plane} | ${pos}/${rs.length} | ${mio(median(rs.map((x) => x.avgMonthlyAfterRamp)))} | ${worst ? `${worst.pair} ${mio(worst.avgMonthlyAfterRamp)}` : '–'} | ${pct(median(rs.map((x) => x.loadFactor)))} | ${[...new Set(rs.map((x) => x.type))].join(', ')} |${r.bankrupt ? ' Pleite' : ''}`);
+  console.log(`| ${era} | ${diff} | ${plane} | ${pos}/${rs.length} | ${tsd(median(rs.map((x) => x.avgMonthlyAfterRamp)))} | ${worst ? `${worst.pair} ${tsd(worst.avgMonthlyAfterRamp)}` : '–'} | ${pct(median(rs.map((x) => x.loadFactor)))} | ${[...new Set(rs.map((x) => x.type))].join(', ')} |${r.bankrupt ? ' Pleite' : ''}`);
 }
 
 // Prognose gegen Ergebnis: erstes Jahr nach dem Anlauf (Monate 10–21) gegen „Expected weekly profit“ × Wochen je Monat.
 console.log('\n#### Prognose beim Eröffnen gegen Ergebnis im ersten Jahr nach dem Anlauf (Monate 10–21)\n');
-console.log('| Gruppe | Strecken | Prognose je Monat (Median) | Ergebnis je Monat (Median) | Ergebnis ≥ 50 % der Prognose | Ergebnis < 0 bei Prognose > 0 |\n|---|---|---|---|---|---|');
+console.log('| Gruppe | Strecken | Prognose je Monat (Median, Tsd. $) | Ergebnis je Monat (Median, Tsd. $) | Ergebnis ≥ 50 % der Prognose | Ergebnis < 0 bei Prognose > 0 |\n|---|---|---|---|---|---|');
 const WPM = 4.348;
 const acc = new Map<string, { f: number; a: number }[]>();
 for (const r of runs) {
@@ -70,5 +72,5 @@ for (const [k, xs] of [...acc.entries()].sort()) {
   const half = xs.filter((x) => x.f > 0 && x.a >= 0.5 * x.f).length;
   const flip = xs.filter((x) => x.f > 0 && x.a < 0).length;
   const posF = xs.filter((x) => x.f > 0).length;
-  console.log(`| ${k} | ${xs.length} | ${mio(median(xs.map((x) => x.f)))} | ${mio(median(xs.map((x) => x.a)))} | ${half}/${posF} | ${flip}/${posF} |`);
+  console.log(`| ${k} | ${xs.length} | ${tsd(median(xs.map((x) => x.f)))} | ${tsd(median(xs.map((x) => x.a)))} | ${half}/${posF} | ${flip}/${posF} |`);
 }
