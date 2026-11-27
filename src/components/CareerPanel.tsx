@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Lock } from 'lucide-react';
+import { Check, Lock, Plane } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { Badge, type BadgeTone } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -14,7 +14,8 @@ import {
   type MilestoneTrack
 } from '../lib/milestones';
 import { describeGoal, goalOfferLines, type AnnualGoal, type GoalOffer } from '../lib/annualGoals';
-import { projectsOfRank, researchBlockerText, type ResearchState } from '../lib/research';
+import { researchBlockerText, type ResearchState } from '../lib/research';
+import { researchTreeLayout, type TreeLayout, type TreeNode } from '../lib/researchTree';
 import {
   COST_RESEARCH_KINDS,
   MILESTONES,
@@ -347,15 +348,133 @@ function ProjectCard({
   );
 }
 
+/** Size of the tree in pixels: a project box, the gap between columns and rows, the rank header. */
+const NODE_W = 172;
+const NODE_H = 62;
+const GAP_X = 44;
+const GAP_Y = 18;
+const HEAD_H = 40;
+const PITCH_X = NODE_W + GAP_X;
+const PITCH_Y = NODE_H + GAP_Y;
+
+type NodeState = 'done' | 'running' | 'open' | 'waiting' | 'locked';
+
+/** The state of a project in the tree: finished, running, can start, could start but for slots or money, closed. */
+function nodeState(project: ResearchProjectDef, research: ResearchState, rank: number, capital: number, month: number): NodeState {
+  if (research.done.includes(project.id)) return 'done';
+  if (research.active.some(a => a.id === project.id)) return 'running';
+  const blocker = researchStartBlocker(research, project.id, rank, capital, month);
+  if (blocker === null) return 'open';
+  return blocker === 'rank' || blocker === 'requires' ? 'locked' : 'waiting';
+}
+
+const NODE_CLASS: Record<NodeState, string> = {
+  done: 'border-good bg-good/10 text-ink',
+  running: 'border-accent bg-accent/10 text-ink',
+  open: 'border-accent/70 bg-surface text-ink hover:bg-raised',
+  waiting: 'border-rule bg-surface text-ink hover:bg-raised',
+  locked: 'border-line bg-ground text-muted opacity-60 hover:opacity-90'
+};
+
+function TreeNodeBox({
+  node, state, selected, research, month, onSelect
+}: {
+  node: TreeNode; state: NodeState; selected: boolean; research: ResearchState; month: number;
+  onSelect: (id: string) => void;
+}) {
+  const p = node.project;
+  const running = research.active.find(a => a.id === p.id);
+  const progress = running ? researchProgress(running, month) : null;
+  const isClass = p.kind === 'class';
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(p.id)}
+      aria-pressed={selected}
+      aria-label={`${p.title}, ${state === 'open' ? 'can start' : state}`}
+      className={`absolute flex flex-col justify-between text-left px-2 py-1.5 border rounded-sm transition-colors ${
+        isClass ? 'border-2' : ''
+      } ${NODE_CLASS[state]} ${selected ? 'ring-2 ring-accent ring-offset-1 ring-offset-ground' : ''}`}
+      style={{ left: node.col * PITCH_X, top: HEAD_H + node.row * PITCH_Y, width: NODE_W, height: NODE_H }}
+    >
+      <span className="flex items-start gap-1.5 text-2xs font-semibold leading-tight">
+        {isClass && <Plane size={12} className="shrink-0 mt-px text-accent" aria-hidden="true" />}
+        <span className="line-clamp-2">{p.title}</span>
+      </span>
+      {progress ? (
+        <span className="flex items-center gap-2 text-2xs font-mono text-accent">
+          <span className="shrink-0">{progress.monthsDone}/{p.months} mo</span>
+          <Bar fraction={progress.fraction} />
+        </span>
+      ) : (
+        <span className="flex items-center gap-1 text-2xs font-mono text-muted">
+          {state === 'done' ? <Check size={11} className="text-good" aria-hidden="true" />
+            : state === 'locked' ? <Lock size={11} aria-hidden="true" /> : null}
+          {state === 'done' ? 'Done' : `${p.months} mo · ${compact(researchPrice(p.id, month))}`}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** The lines from each project to its successors: right out of the box, down or up in the gap, into the next box. */
+function TreeEdges({ layout, done }: { layout: TreeLayout; done: ReadonlySet<string> }) {
+  const at = new Map(layout.nodes.map(n => [n.project.id, n]));
+  return (
+    <svg
+      className="absolute inset-0 pointer-events-none"
+      width={layout.cols * PITCH_X}
+      height={HEAD_H + layout.rows * PITCH_Y}
+      aria-hidden="true"
+    >
+      <defs>
+        {(['line', 'good'] as const).map(c => (
+          <marker key={c} id={`tree-arrow-${c}`} viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L6,3 L0,6 z" fill={`var(--color-${c === 'line' ? 'rule' : 'good'})`} />
+          </marker>
+        ))}
+      </defs>
+      {layout.edges.map(e => {
+        const a = at.get(e.from)!;
+        const b = at.get(e.to)!;
+        const x1 = a.col * PITCH_X + NODE_W;
+        const y1 = HEAD_H + a.row * PITCH_Y + NODE_H / 2;
+        const x2 = b.col * PITCH_X - 1;
+        const y2 = HEAD_H + b.row * PITCH_Y + NODE_H / 2;
+        const xm = x1 + GAP_X / 2;
+        const lit = done.has(e.from);
+        return (
+          <path
+            key={`${e.from}-${e.to}`}
+            d={y1 === y2 ? `M${x1},${y1} H${x2}` : `M${x1},${y1} H${xm} V${y2} H${x2}`}
+            fill="none"
+            stroke={lit ? 'var(--color-good)' : 'var(--color-rule)'}
+            strokeWidth={lit ? 2 : 1.5}
+            markerEnd={`url(#tree-arrow-${lit ? 'good' : 'line'})`}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 function ResearchSection({ research, rank, free, capital, currentDateOffset, onStartResearch }: Pick<CareerPanelProps, 'research' | 'rank' | 'free' | 'capital' | 'currentDateOffset' | 'onStartResearch'>) {
   const rankNow = effectiveRank(free ? 'free' : 'normal', rank);
   const fx = React.useMemo(() => researchEffects(research.done), [research.done]);
   const lines = effectLines(fx);
   const open = openClasses(research.done, [], free ? 'free' : 'normal');
   const limit = researchSlots(rankNow);
-  const [showAll, setShowAll] = React.useState(false);
-  // The ranks reached are shown in full, and the next one as a preview; the rest are folded into a line each.
-  const shownRanks = RANKS.filter(r => showAll || r.index <= rank + 1);
+  const layout = React.useMemo(() => researchTreeLayout(), []);
+  const done = React.useMemo(() => new Set(research.done), [research.done]);
+  const [selected, setSelected] = React.useState<string | null>(null);
+  const scroller = React.useRef<HTMLDivElement>(null);
+  // Open the tree at the current rank, with the rank before it still in view.
+  React.useEffect(() => {
+    if (scroller.current && !free) scroller.current.scrollLeft = Math.max(0, rank - 1) * PITCH_X;
+  }, [free, rank]);
+  const selectedProject = selected ? RESEARCH_PROJECTS.find(p => p.id === selected) ?? null : null;
+  const width = layout.cols * PITCH_X - GAP_X;
+  const height = HEAD_H + layout.rows * PITCH_Y - GAP_Y;
   return (
     <Panel>
       <div className="flex items-baseline justify-between mb-3">
@@ -365,10 +484,12 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
         </span>
       </div>
       <p className="text-2xs text-muted leading-relaxed mb-3 max-w-2xl">
-        A tree that opens with the rank. Its main points are the aircraft classes: a class has to be developed before its
-        aircraft can be bought. In between sit small bonuses, a percent at a time. Each project costs money at once and
-        takes months; the price follows the cost index of the month it starts in.{' '}
-        {free ? 'Every project is open in Free Mode.' : 'Higher ranks allow more to run at once.'}
+        A tree that opens with the rank, one column per rank. Its main points are the aircraft classes (top row): a class
+        has to be developed before its aircraft can be bought. The other rows are chains of small bonuses; an arrow
+        means the project needs the one before it. Each project costs money at once and takes months; the price follows
+        the cost index of the month it starts in.{' '}
+        {free ? 'Every project is open in Free Mode.' : 'Higher ranks allow more to run at once.'} Select a project to see
+        what it does and to start it.
       </p>
 
       <div className="flex flex-wrap gap-1.5 mb-3" aria-label="Aircraft classes">
@@ -380,46 +501,69 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
       </div>
 
       {lines.length > 0 && (
-        <p className="text-2xs text-good leading-relaxed mb-4">
+        <p className="text-2xs text-good leading-relaxed mb-3">
           In effect: {lines.join(' · ')}
         </p>
       )}
 
-      <div className="flex flex-col gap-5">
-        {shownRanks.map(r => {
-          const projects = projectsOfRank(r.index);
-          if (projects.length === 0) return null;
-          const reached = free || r.index <= rank;
-          return (
-            <section key={r.index} aria-label={r.title} className={reached ? '' : 'opacity-60'}>
-              <div className="flex items-center gap-2 text-2xs font-label uppercase tracking-label text-muted mb-2">
-                {reached ? <Check size={12} className="text-good" aria-hidden="true" /> : <Lock size={12} aria-hidden="true" />}
-                {r.title}{reached ? '' : ' · opens with this rank'}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {projects.map(p => (
-                  <ProjectCard
-                    key={p.id}
-                    project={p}
-                    research={research}
-                    rank={rankNow}
-                    capital={capital}
-                    month={currentDateOffset}
-                    onStart={onStartResearch}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
+      <div className="flex flex-wrap gap-3 mb-2 text-2xs text-muted" aria-label="Legend">
+        <span className="flex items-center gap-1"><span className="w-3 h-3 border border-good bg-good/10" />Done</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 border border-accent bg-accent/10" />Running</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 border border-accent/70" />Can start</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 border border-rule" />No slot or money</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 border border-line opacity-60" />Closed</span>
       </div>
-      {!free && rank + 1 < RANKS.length - 1 && (
-        <div className="mt-3">
-          <Button variant="secondary" onClick={() => setShowAll(v => !v)}>
-            {showAll ? 'Hide the later ranks' : 'Show the whole tree'}
-          </Button>
+
+      <div className="flex flex-col lg:flex-row gap-3 items-stretch">
+      <div ref={scroller} className="flex-1 min-w-0 overflow-auto max-h-[70vh] border border-line bg-ground rounded-sm">
+        <div className="relative m-3" style={{ width, height }}>
+          {/* Rank columns: header and a band per column, the ranks reached a little lighter. */}
+          {RANKS.slice(0, layout.cols).map(r => {
+            const reached = free || r.index <= rank;
+            const current = !free && r.index === rank;
+            return (
+              <div
+                key={r.index}
+                className={`absolute top-0 rounded-sm ${reached ? 'bg-surface/60' : ''} ${current ? 'outline outline-1 outline-accent/40' : ''}`}
+                style={{ left: r.index * PITCH_X - GAP_X / 4, width: NODE_W + GAP_X / 2, height }}
+              >
+                <div className={`flex items-center gap-1 px-2 pt-1.5 text-2xs font-label uppercase tracking-label ${current ? 'text-accent' : 'text-muted'}`}>
+                  {reached ? <Check size={11} className="text-good shrink-0" aria-hidden="true" /> : <Lock size={11} className="shrink-0" aria-hidden="true" />}
+                  <span className="truncate">{r.title.replace(' Airline', '')}</span>
+                </div>
+              </div>
+            );
+          })}
+          <TreeEdges layout={layout} done={done} />
+          {layout.nodes.map(n => (
+            <TreeNodeBox
+              key={n.project.id}
+              node={n}
+              state={nodeState(n.project, research, rankNow, capital, currentDateOffset)}
+              selected={selected === n.project.id}
+              research={research}
+              month={currentDateOffset}
+              onSelect={id => setSelected(s => (s === id ? null : id))}
+            />
+          ))}
         </div>
-      )}
+      </div>
+
+      <div className="lg:w-72 shrink-0">
+        {selectedProject ? (
+          <ProjectCard
+            project={selectedProject}
+            research={research}
+            rank={rankNow}
+            capital={capital}
+            month={currentDateOffset}
+            onStart={onStartResearch}
+          />
+        ) : (
+          <p className="text-2xs text-muted">Select a project in the tree to see what it does and to start it.</p>
+        )}
+      </div>
+      </div>
     </Panel>
   );
 }
