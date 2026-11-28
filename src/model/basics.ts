@@ -8,7 +8,10 @@
 import {
   COST_GROWTH,
   COST_INDEX_LAST_YEAR,
+  DIFFICULTY_COST_EARLY_UNTIL,
   DIFFICULTY_COST_FACTOR,
+  DIFFICULTY_COST_FACTOR_EARLY,
+  DIFFICULTY_COST_RAMP_YEARS,
   DIFFICULTY_FACTOR,
   SCALES,
   START_YEAR,
@@ -114,7 +117,13 @@ export function difficultyFactor(difficulty: Difficulty): number {
 /**
  * Faktor der Schwierigkeit auf die Betriebskosten des Spielers (Treibstoff, Besatzung, Landung, Kosten je Fluggast):
  * Normal = 1, Easy < 1, Hard > 1. Nie auf die KI (sie rechnet mit Normal). SPEZIFIKATION 1.8, E87.
+ *
+ * Bis Ende 1979 gilt der frühe Wert (`DIFFICULTY_COST_FACTOR_EARLY`, Hard 1,05), dann wandert der Faktor in
+ * `DIFFICULTY_COST_RAMP_YEARS` Jahren stetig zum späten Wert (Hard 1,1 ab 1985). E112.
  */
-export function difficultyCostFactor(difficulty: Difficulty): number {
-  return DIFFICULTY_COST_FACTOR[difficulty];
+export function difficultyCostFactor(difficulty: Difficulty, month: number): number {
+  const early = DIFFICULTY_COST_FACTOR_EARLY[difficulty];
+  const late = DIFFICULTY_COST_FACTOR[difficulty];
+  const share = clamp((timeOf(month) - DIFFICULTY_COST_EARLY_UNTIL) / DIFFICULTY_COST_RAMP_YEARS, 0, 1);
+  return early + (late - early) * share;
 }

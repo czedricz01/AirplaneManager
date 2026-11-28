@@ -1,14 +1,21 @@
 # Status
 
-**Nächstes: Frage O105 beantworten** (`docs/neubau/ENTSCHEIDUNGEN.md`): 1970 bringt Hard nach E109 nur 23–28 % des
-Easy-Ergebnisses guter Strategien (E106: etwa 30–50 %; `balance/D4-bericht.md`, Abschnitt 3). Danach Paket D5
-(bei O105 = B: Kosten-Faktor Hard vor 1980 mit Spieltest-Matrix; bei A nichts zu tun).
-Weitere mögliche Pakete (nicht Kern des Neubaus): (1) Spieltest im Browser durch einen Menschen (Fund 76).
-(2) Typ-Wahl der Test-Strategien verbessern (Fund 76, 79). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche Ortsnamen
-in `src/data/airportsRows.ts` (Fund 55; Namen bleiben beim Erzeugen erhalten). (5) Spielstände in der Cloud testen.
-(6) Doppelte Flughäfen streichen (Basel EAP/BSL/MLH, Verona VRN/VVR; Fund 80).
+**Kern des Neubaus ohne offene Frage.** Mögliche nächste Pakete (nicht Kern des Neubaus): (1) Spieltest im Browser
+durch einen Menschen (Fund 76; jetzt mit den Werten aus D1–D5). (2) Typ-Wahl der Test-Strategien verbessern (Fund 76,
+79). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche Ortsnamen in `src/data/airportsRows.ts` (Fund 55; Namen bleiben
+beim Erzeugen erhalten). (5) Spielstände in der Cloud testen. (6) Doppelte Flughäfen streichen (Basel EAP/BSL/MLH,
+Verona VRN/VVR; Fund 80). (7) Optional: Hard 1970 mit 1,03 statt 1,05 sicherer ins Band (luxus 30 %, Fund 90).
 
-Offen: O105.
+Offen: nichts.
+
+Stand: 28.11.2026 · O105 im Chat entschieden: B (E112). Paket D5 erledigt (`balance/D5-spieltest.md`, Fund 90):
+`difficultyCostFactor(difficulty, month)` – Hard 1,05 bis Ende 1979, von 1980 bis 1985 stetig zu 1,1
+(`src/model/basics.ts:124`, `src/model/constants.ts:133`). Spieltest-Matrix 1970 (14 Spiele, kein Fehler): Hard ÷
+Easy optimierer 28 → 34 %, luxus 23 → 30 %, vorsichtig Hard −9,1 → +1,7 Mio. $; Easy gleich wie D4. 1995, 2025, KI und
+Langlauf unverändert (Faktor dort 1,1 bzw. nur Spieler). Spezifikation 1.8 nachgezogen. Tests: 1 271 grün (1 neu),
+Lint ohne Fehler. Im Browser nicht geprüft.
+
+Offen aus diesem Stand: nichts.
 
 Stand: 28.11.2026 · O102 = B, O103 = B, O104 = A im Chat entschieden (E109–E111). Paket D4 erledigt
 (`balance/D4-bericht.md`, Funde 87–89): `DEMAND_GROWTH_1960_2019` 1,5 → 1,3, `DEMAND_SCALE` 8,1 → 9,5 (Märkte 2025
@@ -18,7 +25,7 @@ gleich, 1970 × 1,14), B3.1 jetzt Summe × 1,65 (gemessen 1,65); Flag-Kaufneigun
 28 %, luxus 23 % (D2: 21 / 23 %) → O105; 1995 38–45 %, 2025 wie D2. Spezifikation 3.3, 3.6, 7.4 nachgezogen. Tests:
 1 270 grün (2 angepasst), Lint ohne Fehler. Im Browser nicht geprüft.
 
-Offen aus diesem Stand: O105.
+Offen aus diesem Stand: O105 (→ E112, entschieden 28.11.2026).
 
 Stand: 27.11.2026 · Paket D3 erledigt: Balance-Langlauf nach F89, D1 und D2 (`balance/D3-bericht.md`, Auswertung oben;
 Funde 83–86). Drei Stände gerechnet: nach F89 vor D1 21 ok · 0 Abweichung · 33 Info wie 5.4g (`D3-f89-bericht.md`:

@@ -118,6 +118,7 @@ Claude schlägt vor, der Mensch entscheidet.
 | E109 | 28.11.2026 | **Wachstum noch flacher (O102 = B, Paket D4):** `DEMAND_GROWTH_1960_2019` 1,5 → **1,3**, `DEMAND_SCALE` 8,1 → **9,5** (≈ 6,0 × (1,97 / 1,3) ^ (65 / 59)): Märkte 2025 gleich, gegen E108 1995 × 1,08, 1970 × 1,14, 1960 × 1,17. Regel E64: Summe der Marktgrößen 1960 → 2019 × **1,65** (B3.1, ± 10 %). | Mit 1,5 brachte Hard 1970 nur 21–23 % des Easy-Ergebnisses (Fund 82). Gemessen mit 1,3: 23–28 % (`balance/D4-bericht.md`, Fund 87) → O105. |
 | E110 | 28.11.2026 | **Flag kauft weniger (O103 = B, Paket D4):** Kaufneigung von Flag 1 → **0,5**. | Langlauf D3: Flag nach 40 Jahren 2,54 × Median (B7.1, Grenze 2). Hilfsläufe mit Wachstum 1,3: Kaufneigung 1 / 0,7 / 0,5 / 0,4 → B7.1 nach 40 Jahren 2,60 / 2,26 / 1,96 / 2,14 (mit 0,4 nach 20 Jahren 2,87, Flag zu klein). Langlauf D4: 1,45 / 1,96, ok. |
 | E111 | 28.11.2026 | **Band der KI-Marge 10–30 % (O104 = A, Paket D4):** Prüfregel B7.10 verlangt eine Marge der typischen KI-Strecke von 10–30 % statt 10–25 % (E67). Die Spieler-Ziele (3.9d) bleiben. | Mit realen Stadtwerten 25–26 % (D1, D2), im Langlauf D4 26 %. Größere Märkte an den Langlauf-Drehkreuzen; eine kleinere `DEMAND_SCALE` hätte die Spieler-Messung aus D2 geändert. |
+| E112 | 28.11.2026 | **Kosten-Faktor Hard vor 1980 kleiner (O105 = B, Paket D5):** `difficultyCostFactor` hängt vom Monat ab. Hard **1,05** bis Ende 1979 (`DIFFICULTY_COST_FACTOR_EARLY`), von 1980 bis 1985 gerade Linie zu 1,1 (`DIFFICULTY_COST_RAMP_YEARS` = 5, ohne Sprung wie R5), danach 1,1 wie E87. Easy 0,85 und Normal 1 fest; KI weiter 1. | Nach E109 brachte Hard 1970 nur 23–28 % des Easy-Ergebnisses (Fund 87). Gemessen mit 1,05: optimierer 34 %, luxus 30 % (`balance/D5-spieltest.md`, Fund 90); 1995 und 2025 unverändert. |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -242,7 +243,7 @@ jederzeit ändern. Sie ändern keine Spielregel.
 ## Offen
 
 O1–O49 sind entschieden (Block A → E4–E12, Block B → E13–E26, Block C → E27–E35, Block D → E36–E52);
-O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84, O80 → E85, O81–O90 → E87–E96, O91 → E97, O92–O94 → E98–E100, O95–O98 → E101–E104, O99 → E105, O100 → E106, O101 → E108, O102 → E109, O103 → E110, O104 → E111.
+O50 → E53, O51 → E54, O52 → E55, O53 → E56, O54 → E57, O55 → E58, O56 → E59, O57 → E60 → E63 (neu entschieden 19.11.2026), O58 → E61, O59 → E62, O61 → E64, O62 → E65, O64 → E66, O60 → E67, O63 → E68, O65 → E69, O66 → E70, O67 → E71, O68 → E72, O69 → E73, O70 → E74, O71 → E76, O72 → E77, O73 → E78, O74 → E79, O75 → E80, O76 → E81, O77 → E82, O78 → E83, O79 → E84, O80 → E85, O81–O90 → E87–E96, O91 → E97, O92–O94 → E98–E100, O95–O98 → E101–E104, O99 → E105, O100 → E106, O101 → E108, O102 → E109, O103 → E110, O104 → E111, O105 → E112.
 Am 19.11.2026 erneut abgefragt: O54, O55, O56, O58, O59 bestätigt (E57, E58, E59, E61, E62 unverändert).
 
 O60, O63, O64 am 19.11.2026 entschieden (E66–E68); Umsetzung in Paket 3.9d.
@@ -343,7 +344,7 @@ O105 aus Paket D4 (`balance/D4-bericht.md`, Abschnitt 3; Fund 87), gestellt am 2
 
 | Nr. | Frage | Wege | Antwort |
 |---|---|---|---|
-| O105 | Nach E109 (Wachstum 1,3) bringt Hard 1970 (Normal Mode, DUS) nur 23–28 % des Easy-Ergebnisses guter Strategien (optimierer +25 von +92, luxus +14 von +59 Mio. $; Firmenwert 39–40 %). E106 nennt etwa 30–50 %. 1995 (38–45 %) passt. Flacheres Wachstum hebt Easy stärker als Hard (1,5 → 1,3: +0 bis +7 Prozentpunkte). | A: so lassen, Band für das Ergebnis gilt ab 1990. B (Empfehlung): Kosten-Faktor Hard vor 1980 kleiner (etwa 1,05 statt 1,1, neue Regel zu E87), Wert mit der Spieltest-Matrix. C: Wachstum noch flacher (≈ 1,1); wirkt schwach, entfernt sich von E7, verschiebt den Langlauf erneut. | offen |
+| O105 | Nach E109 (Wachstum 1,3) bringt Hard 1970 (Normal Mode, DUS) nur 23–28 % des Easy-Ergebnisses guter Strategien (optimierer +25 von +92, luxus +14 von +59 Mio. $; Firmenwert 39–40 %). E106 nennt etwa 30–50 %. 1995 (38–45 %) passt. Flacheres Wachstum hebt Easy stärker als Hard (1,5 → 1,3: +0 bis +7 Prozentpunkte). | A: so lassen, Band für das Ergebnis gilt ab 1990. B (Empfehlung): Kosten-Faktor Hard vor 1980 kleiner (etwa 1,05 statt 1,1, neue Regel zu E87), Wert mit der Spieltest-Matrix. C: Wachstum noch flacher (≈ 1,1); wirkt schwach, entfernt sich von E7, verschiebt den Langlauf erneut. | B → E112 (1,05 bis 1979, Rampe bis 1985; gemessen 30–34 %) |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -364,6 +365,7 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - E108 ändert das Ziel aus E64 (Summe × 1,9 statt × 2,5) und die Konstanten aus E107.
 - E109 ersetzt die Zahlen aus E108 (Wachstum 1,3, `DEMAND_SCALE` 9,5, Summe × 1,65); E110 ändert die Kaufneigung von Flag aus 7.4; E111 ändert nur das Band der Prüfregel aus E67.
 - E106 weitet das Hard-Ziel aus E94 auf etwa 30–50 % von Easy; E87 (Kosten-Faktor) bleibt.
+- E112 ergänzt E87: Kosten-Faktor Hard vor 1980 kleiner, damit 1970 das Ziel aus E106 erreicht.
 - E101 ersetzt die Kaufneigung aus E82; E103 ändert nur die Prüfregel B4.2, nicht die KI-Preise (7.6).
 - E90/E91 vor E92, E95, E96: LCC-Vorteil, Ruf und Wachstum werden erst nach der neuen Preis-Empfindlichkeit gemessen.
 - `SPEZIFIKATION.md` 2.8 und 2.10 setzen voraus, dass Abschnitt 3 die Fluggäste eines Angebots nach Sitzen auf seine Strecken verteilt und die Satisfaction als Zahlungsbereitschaft in die Anziehung nimmt. Erfüllt in 3.9.2 und 3.11 (Paket 2.4).

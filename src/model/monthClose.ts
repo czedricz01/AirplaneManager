@@ -1386,7 +1386,7 @@ function operationsCore(state: ModelState, scope: OperationsScope): OperationsCo
     const holding = (id: string) => company.airports[id] ?? EMPTY_HOLDING;
     const feeFactor = (id: string) => airportFeeFactor(holding(id).managementTier, research);
     // Schwierigkeit auf die Betriebskosten (E87): Flugbetrieb und Kosten je Fluggast; KI immer 1 (Normal).
-    const costF = difficultyCostFactor(inputs.difficulty);
+    const costF = difficultyCostFactor(inputs.difficulty, X);
     const fuel$ = fuelPrice(X, research, hedgedFuelTable(inputs.hedgedEvents.map(historicalEvent), X)) * costF;
     const pay = payFactor(inputs.salaryPct) * costF;
     const ffpActive = inputs.ffpMonthsRunning > 0;
