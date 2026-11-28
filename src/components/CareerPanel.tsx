@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Lock, Plane, X } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { Badge, type BadgeTone } from './ui/Badge';
 import { Button } from './ui/Button';
+import { Details } from './ui/Details';
 import { RANKS, rankDef, rankUnlockLines } from '../lib/airlineRank';
 import { AIRCRAFT_CLASSES, openClasses } from '../lib/aircraftClasses';
 import {
@@ -167,6 +168,7 @@ function RankSection({ rank, history, closedMonths, perks, free }: { rank: numbe
             <p className="text-2xs text-muted mb-4">The highest rank there is. Nothing is left to unlock.</p>
           )}
 
+          <Details summary={`All ranks (${RANKS.length})`}>
           <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {RANKS.map(r => {
               const reached = r.index <= rank;
@@ -194,6 +196,7 @@ function RankSection({ rank, history, closedMonths, perks, free }: { rank: numbe
               );
             })}
           </ol>
+          </Details>
         </>
       )}
     </Panel>
@@ -514,12 +517,14 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
           {research.done.length} / {RESEARCH_PROJECTS.length} done · {research.active.length} / {limit} running
         </span>
       </div>
-      <p className="text-2xs text-muted leading-relaxed mb-3 max-w-3xl">
+      <Details summary="How development works" className="mb-3">
+      <p className="text-2xs text-muted leading-relaxed max-w-3xl">
         One column per rank. Top row: the aircraft classes, needed before their aircraft can be bought. Below: chains
         of small bonuses; an arrow means the project needs the one before it. A project costs money at once and takes
         months. {free ? 'Every project is open in Free Mode.' : 'Higher ranks allow more to run at once.'} Click a
         project to see it and start it.
       </p>
+      </Details>
 
       <div className="flex flex-wrap gap-1.5 mb-3" aria-label="Aircraft classes">
         {AIRCRAFT_CLASSES.map(c => (
@@ -530,9 +535,9 @@ function ResearchSection({ research, rank, free, capital, currentDateOffset, onS
       </div>
 
       {lines.length > 0 && (
-        <p className="text-2xs text-good leading-relaxed mb-3">
-          In effect: {lines.join(' · ')}
-        </p>
+        <Details summary={`Bonuses in effect (${lines.length})`} className="mb-3">
+          <p className="text-2xs text-good leading-relaxed">{lines.join(' · ')}</p>
+        </Details>
       )}
 
       <div className="flex flex-wrap items-center gap-3 mb-2 text-2xs text-muted" aria-label="Legend">
@@ -636,7 +641,8 @@ function ScoreSection({ score, hall, free, onRetire }: Pick<CareerPanelProps, 's
         <span className="text-2xs uppercase tracking-label text-muted font-semibold">Career score</span>
         <span className="text-xl font-mono font-semibold text-accent tabular-nums">{formatNumber(score.total)}</span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+      <Details summary="Score by part" className="mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {SCORE_LINES.map(l => (
           <div key={l.key} className="border border-line bg-surface px-2 py-1.5">
             <div className="text-2xs font-label uppercase tracking-label text-muted">{l.label}</div>
@@ -644,6 +650,7 @@ function ScoreSection({ score, hall, free, onRetire }: Pick<CareerPanelProps, 's
           </div>
         ))}
       </div>
+      </Details>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-2xs text-muted leading-relaxed max-w-xl">
           The game has no end. Retire whenever you like: the career is filed in the hall of fame and you can play on.

@@ -5,6 +5,7 @@ import { StatTile } from './ui/StatTile';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { Details } from './ui/Details';
 import { CAMPAIGN_TIERS, type Campaign, type CampaignTier, type Marketing, type RegionId } from '../lib/gameState';
 import {
   CAMPAIGN_DURATIONS,
@@ -130,9 +131,11 @@ export function MarketingPanel({
           value={reputationGain > 0 ? `+${formatNumber(reputationGain, 1)}` : '0'}
           valueClassName={reputationGain > 0 ? 'text-good' : ''}
         >
-          <span className="block text-2xs text-muted mt-1">
+          <span
+            className="block text-2xs text-muted mt-1"
+            title={reputationGain > 0 ? `+${formatNumber(REPUTATION_STEP * reputationGain, 2)} reputation this month` : undefined}
+          >
             points on the reputation target
-            {reputationGain > 0 ? ` · +${formatNumber(REPUTATION_STEP * reputationGain, 2)} this month` : ''}
           </span>
         </StatTile>
         <StatTile
@@ -158,10 +161,8 @@ export function MarketingPanel({
                   : <Badge>Not running</Badge>}
               </div>
               <p className="text-2xs text-muted leading-relaxed max-w-xl">
-                Members choose you more often: the appeal of all your flights rises
-                by {Math.round(FF_START * 100)}% in the first month and {Math.round(FF_PER_MONTH * 100)} point
-                more each month, up to {Math.round(FF_MAX * 100)}%.
-                Ending the programme loses the loyalty built up.
+                Members choose you more often: the appeal of all your flights rises month by month,
+                up to {Math.round(FF_MAX * 100)}%. Ending the programme loses the loyalty built up.
               </p>
               {ffpGate && !marketing.ffpActive && (
                 <p className="text-2xs font-mono text-bad mt-2">{ffpGate}</p>
@@ -187,8 +188,14 @@ export function MarketingPanel({
             </div>
           </div>
           <div className="text-2xs text-muted">
-            <span className="text-ink">{formatCurrency(ffpCost)}</span> a month at the current forecast:
-            {' '}{compact(ffpForecast.base)} + ${ffpForecast.perPassenger.toFixed(2)} × {formatNumber(Math.round(ffpForecast.passengers))} trips
+            <span className="text-ink">{formatCurrency(ffpCost)}</span> a month at the current forecast
+            <Details summary="How it is worked out" className="mt-2">
+              <p className="normal-case tracking-normal font-normal leading-relaxed">
+                Cost: {compact(ffpForecast.base)} + ${ffpForecast.perPassenger.toFixed(2)} × {formatNumber(Math.round(ffpForecast.passengers))} trips.
+                {' '}Appeal: +{Math.round(FF_START * 100)}% in the first month and {Math.round(FF_PER_MONTH * 100)} point
+                more each month, up to {Math.round(FF_MAX * 100)}%.
+              </p>
+            </Details>
             {!marketing.ffpActive && capital < ffpCost && (
               <span className="block text-bad mt-1">{formatCurrency(ffpCost - capital)} short for the first month.</span>
             )}
@@ -258,6 +265,7 @@ export function MarketingPanel({
         })}
       </div>
 
+      <Details summary="How campaigns work">
       <p className="text-2xs text-muted leading-relaxed">
         A route takes the mean of its two ends: a campaign lifts routes inside its region fully and
         routes leaving it by half. Campaigns in one region add up to at most +{Math.round((ADVERTISING_MAX - 1) * 100)}%.
@@ -265,6 +273,7 @@ export function MarketingPanel({
         reputation drifts back once they end. Prices follow the cost index; each month is charged at
         month end, so a cancelled campaign costs nothing more.
       </p>
+      </Details>
 
       {launch && (
         <LaunchDialog

@@ -4,6 +4,7 @@ import { FinancialReport } from './FinancialReport';
 import { ViewHeader } from './ui/ViewHeader';
 import { StatTile } from './ui/StatTile';
 import { Panel } from './ui/Panel';
+import { Details } from './ui/Details';
 import { BrandBadge } from './BrandBadge';
 import { BrandingPicker } from './BrandingPicker';
 import { MarketingPanel, type MarketingPanelProps } from './MarketingPanel';
@@ -335,10 +336,10 @@ function MyCompanyViewImpl({
                 ))}
                 {commonality.families.length > 8 && <span className="text-2xs text-muted py-1">+{commonality.families.length - 8} more</span>}
               </div>
-              <p className="text-2xs text-muted leading-relaxed">
-                {fleetMixText()}
-                {commonality.penalty > 0 && <span className="text-bad"> Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</span>}
-              </p>
+              {commonality.penalty > 0 && <p className="text-2xs text-bad leading-relaxed">Your {commonality.families.length} families add {Math.round(commonality.penalty * 100)}%.</p>}
+              <Details summary="How commonality works" className="mt-1">
+                <p className="text-2xs text-muted leading-relaxed">{fleetMixText()}</p>
+              </Details>
             </Panel>
           )}
 
@@ -410,8 +411,8 @@ function MyCompanyViewImpl({
               </Panel>
 
               {/* Glossary: the items of the model's report (docs/neubau 5.16, 8.2). */}
-              <div className="p-4 bg-surface border border-line rounded-sm flex gap-4">
-                <Info className="text-muted shrink-0 mt-0.5" size={16} />
+              <div className="p-4 bg-surface border border-line rounded-sm">
+                <Details summary={<span className="inline-flex items-center gap-2"><Info size={14} className="shrink-0" />What the report items mean</span>}>
                 <div className="text-2xs text-muted leading-relaxed space-y-1.5">
                   <p><strong className="text-ink">Flight costs</strong> — what scales with flying: fuel, crew, landing fees, check-in and handling, catering.</p>
                   <p><strong className="text-ink">Airport upkeep</strong> — rent for slots, stands, check-in desks and facilities, whether you fly or not.</p>
@@ -420,6 +421,7 @@ function MyCompanyViewImpl({
                   <p><strong className="text-ink">Charters, crises &amp; credit</strong> — replacement charters, crisis responses, and interest while cash is below zero.</p>
                   <p><strong className="text-ink">From profit to cash</strong> — one-off payments (aircraft, slots, tiers, research, deposits), prizes and the board goal move cash but not the operating profit. With cash below zero the credit line ({formatNumber(CREDIT_LIMIT_SHARE * 100)}% of the fleet value) covers losses and charges interest.</p>
                 </div>
+                </Details>
               </div>
 
               {/* Latest report */}

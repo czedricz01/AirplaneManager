@@ -8,6 +8,17 @@ Verona VRN/VVR; Fund 80). (7) Optional: Hard 1970 mit 1,03 statt 1,05 sicherer i
 
 Offen: nichts.
 
+Stand: 28.11.2026 · Wunsch im Chat (Oberfläche, kein Paket): Ausgeschriebene Rechenwege standardmäßig
+zugeklappt (E113). Neues Aufklapp-Element `src/components/ui/Details.tsx` (auf `<details>`). Eingesetzt im Planer
+Seite 3 (Zufriedenheit nach Teilen, Boden an beiden Enden, Erklärtext) und Seite 4 (Erklärung der Marken, weitere
+Gewinn-Fälle) sowie in StaffPanel (Moral-Formel), MarketingPanel (Kampagnen, Vielflieger-Rechnung), AircraftDetailsModal
+(Marktwert), ConfigurePurchaseView (Kabinen-Rating, Preis-Aufteilung), MyCompanyView (Gleichheit der Flotte,
+Begriffe des Berichts), RouteDetailView (Begriffe), CareerPanel (alle Ränge, Entwicklung, Boni, Punkte nach Teilen),
+AirportDetailView (Umsteige-Regeln), AircraftMarketPanel (Vorbestellung), CompetitorsView (Übernahme, Spielweise).
+Kleinere Stellen bleiben offen (Schalter-Last im Planer Seite 1 und in der Flughafen-Ansicht, Stückpreise der
+Schalter, Grundüberholung, Lohnmarkt). Tests: 1 271 grün, Lint ohne Fehler. Im Browser geprüft (Planer Seite 3/4,
+Firma, Marketing, Personal, Karriere).
+
 Stand: 28.11.2026 · O105 im Chat entschieden: B (E112). Paket D5 erledigt (`balance/D5-spieltest.md`, Fund 90):
 `difficultyCostFactor(difficulty, month)` – Hard 1,05 bis Ende 1979, von 1980 bis 1985 stetig zu 1,1
 (`src/model/basics.ts:124`, `src/model/constants.ts:133`). Spieltest-Matrix 1970 (14 Spiele, kein Fehler): Hard ÷

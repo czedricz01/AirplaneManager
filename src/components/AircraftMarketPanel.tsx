@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
+import { Details } from './ui/Details';
 import { aircraftList, type Aircraft } from '../data/aircraft';
 import { classGateMessage, type AircraftClassId } from '../lib/aircraftClasses';
 import type { PreOrder } from '../lib/preorders';
@@ -54,13 +55,20 @@ function OrdersTab({ currentDateOffset, capital, classesOpen, orders, onOrder, o
           <span className="text-2xs font-mono text-muted">{orders.length} open order{orders.length === 1 ? '' : 's'}</span>
         </div>
         {orders.length === 0 ? (
-          <p className="text-2xs text-muted leading-relaxed max-w-2xl">
-            No open orders. Types announced for the next {PREORDER_WINDOW_MONTHS} months can be ordered ahead of delivery:{' '}
+          <div className="max-w-2xl">
+          <p className="text-2xs text-muted leading-relaxed mb-2">
+            No open orders. Types announced for the next {PREORDER_WINDOW_MONTHS} months can be ordered ahead of delivery.
+          </p>
+          <Details summary="How pre-orders work">
+          <p className="text-2xs text-muted leading-relaxed">
+            {SHARE_WORDS[PREORDER_DEPOSIT_SHARE] ?? pct(PREORDER_DEPOSIT_SHARE)} up front, a discount that grows with the size of the
             {SHARE_WORDS[PREORDER_DEPOSIT_SHARE] ?? pct(PREORDER_DEPOSIT_SHARE)} up front, a discount that grows with the size of the
             order, and the balance when the aircraft arrive, at the prices of the delivery month. Without the cash on delivery
             the aircraft slips a month, up to {PREORDER_MAX_DELAYS} times; after that the order is cancelled and the deposit is gone.
             Cancelling yourself returns {pct(PREORDER_REFUND_SHARE)} of the deposit.
           </p>
+          </Details>
+          </div>
         ) : (
           <ul className="flex flex-col gap-2">
             {orders.map(o => {

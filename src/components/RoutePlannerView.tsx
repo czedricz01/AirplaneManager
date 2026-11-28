@@ -63,6 +63,7 @@ import { planeFigures } from '../lib/modelFleet';
 import type { ClassSatisfactionDetail, RouteSatisfactionDetail } from '../model/monthClose';
 import { deskLoad, routeSatisfaction as routeSatisfactionMean, satisfactionFactor } from '../model/satisfaction';
 import { SCALES } from '../model/constants';
+import { Details } from './ui/Details';
 
 const SAT_NEUTRAL = SCALES.satisfaction.neutral;
 
@@ -3087,7 +3088,14 @@ function RoutePlannerInner({
 
                 {sd && seatClasses.length > 0 && (
                    <div className="p-4 border-b border-line bg-surface">
-                      <div className="text-2xs text-muted uppercase font-semibold tracking-label mb-3">Satisfaction points by part</div>
+                    <Details summary="How satisfaction is worked out">
+                      <p className="text-2xs text-muted leading-relaxed mb-3">
+                         Satisfaction is what cabin, service and the ground at both ends score against what
+                         passengers expect for the class and the flight length. 100 meets expectations; above it
+                         they pay more for the same seat, below it less. Expectations rise with the flight time,
+                         so the same cabin and service score lower on a long haul.
+                      </p>
+                      <div className="text-2xs text-muted uppercase font-semibold tracking-label mb-2">Points by part</div>
                       <table className="w-full text-2xs">
                          <thead>
                             <tr className="text-muted uppercase tracking-label text-left">
@@ -3131,11 +3139,8 @@ function RoutePlannerInner({
                             </tr>
                          </tbody>
                       </table>
-                   </div>
-                )}
-
-                {sd && firstClass && (
-                   <div className="p-4 border-b border-line bg-surface">
+                      {firstClass && (
+                   <div className="mt-4">
                       <div className="text-2xs text-muted uppercase font-semibold tracking-label mb-1">Ground at both ends</div>
                       <div className="text-2xs text-muted mb-3">Each ground part counts as the average of both ends × {formatNumber(sd.classes[firstClass]!.breakdown.groundPart.weight, 2)} on a flight this long. Your departures from each airport, this route included.</div>
                       <div className="grid grid-cols-2 gap-2">
@@ -3154,16 +3159,13 @@ function RoutePlannerInner({
                          })}
                       </div>
                    </div>
+                      )}
+                    </Details>
+                   </div>
                 )}
 
-                <div className="p-4 border-t border-line flex flex-col gap-3 bg-surface">
-                   <p className="text-2xs text-muted leading-relaxed border-l-3 border-accent/30 pl-6 mb-2 font-semibold">
-                      Satisfaction is what cabin, service and the ground at both ends score against what
-                      passengers expect for the class and the flight length. 100 meets expectations; above it
-                      they pay more for the same seat, below it less. Expectations rise with the flight time,
-                      so the same cabin and service score lower on a long haul.
-                   </p>
-                   <div className="flex gap-4 mt-auto">
+                <div className="p-4 border-t border-line flex flex-col gap-3 bg-surface mt-auto">
+                   <div className="flex gap-4">
                       {!isEditingCabinOnly && <button onClick={() => setStep(2)} className="flex-1 py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs border border-rule text-muted font-semibold text-sm py-4 px-6 rounded-sm hover:text-ink hover:bg-raised transition-all">Back</button>}
                       {!isEditingCabinOnly && <button onClick={() => setStep(4)} className="flex-[2] py-4 bar:py-2.5 short:py-2 tiny:py-1.5 tiny:text-xs bg-accent text-on-accent font-semibold text-sm py-4 px-6 rounded-sm hover:bg-ink transition-all disabled:opacity-50">Next: Pricing</button>}
                       {isEditingCabinOnly && (
@@ -3286,6 +3288,7 @@ function RoutePlannerInner({
                              <InfoTooltip size={10} {...GLOSSARY.loadFactor} />
                            </span>
                         </div>
+                        <Details summary="Other cases">
                         <div className="space-y-1 text-2xs">
                            <div className="flex justify-between">
                              <span className="text-muted">{storedRoute ? 'At the route’s current ramp-up' : 'First month (ramp-up)'}</span>
@@ -3300,6 +3303,7 @@ function RoutePlannerInner({
                              <span className="font-mono text-muted">{formatSignedCurrency(f.fullAircraft.profit)}</span>
                            </div>
                         </div>
+                        </Details>
                         </>
                         )}
                      </div>
@@ -3391,12 +3395,14 @@ function RoutePlannerInner({
                                   { value: 1, kind: 'market' as const, title: 'Market fare' },
                                 ]}
                               />
-                              <p className="text-2xs text-muted leading-relaxed">
-                                The notch is break-even at the load you can expect at your current fares, the thin tick
-                                break-even with every seat sold, the lowest that could ever work. The green tick is the
-                                market fare; the white tick on each cabin below is its best fare, the one that earns the
-                                most in that cabin with everything else as it is.
-                              </p>
+                              <Details summary="What the marks mean">
+                                <p className="text-2xs text-muted leading-relaxed">
+                                  The notch is break-even at the load you can expect at your current fares, the thin tick
+                                  break-even with every seat sold, the lowest that could ever work. The green tick is the
+                                  market fare; the white tick on each cabin below is its best fare, the one that earns the
+                                  most in that cabin with everything else as it is.
+                                </p>
+                              </Details>
                            </div>
 
                            {seatClasses.map(c => {
