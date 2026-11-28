@@ -9,6 +9,7 @@ import { AIRFRAME_VALUE_SHARE, CABIN_EXPECTATION, DEALER_SPREAD_SELL, DEPRECIATI
 import { researchEffects } from '../model/progress';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
 import { Modal } from './ui/Modal';
+import { Details } from './ui/Details';
 import { conditionTone, CONDITION_TEXT_CLASS, CONDITION_BAR_CLASS } from '../lib/theme';
 import { AircraftSwapPanel } from './AircraftReassign';
 import type { AssignmentContext, RoutePatch } from '../lib/aircraftAssignment';
@@ -265,12 +266,15 @@ export function AircraftDetailsModal({
                 <div className="bg-ground/40 border border-line p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
                   <div className="flex flex-col gap-1 w-full sm:w-auto">
                     <h3 className="text-xs font-label font-semibold uppercase tracking-label text-ink">Market value</h3>
+                    <p className="text-2xs text-muted font-sans">Value {formatUSD(figures.value)}</p>
+                    <Details summary="How the value is worked out">
                     <p className="text-2xs text-muted font-sans max-w-sm">
-                      Value {formatUSD(figures.value)}: its price when new (aircraft and cabin), falling with age to{' '}
+                      Its price when new (aircraft and cabin), falling with age to{' '}
                       {Math.round(RESIDUAL_SHARE * 100)}% after {DEPRECIATION_YEARS} years, and with condition ({Math.round(AIRFRAME_VALUE_SHARE * 100)}% airframe,{' '}
                       {Math.round((1 - AIRFRAME_VALUE_SHARE) * 100)}% cabin). The market pays {Math.round((1 - DEALER_SPREAD_SELL) * 100)}% of it
                       {resaleBonus > 0 ? `, +${(resaleBonus * 100).toFixed(1)}% from research` : ''}.
                     </p>
+                    </Details>
                   </div>
                   <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                     <div className="text-left sm:text-right font-mono">

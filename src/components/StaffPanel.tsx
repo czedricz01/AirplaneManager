@@ -2,6 +2,7 @@ import { Users, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-re
 import { Panel } from './ui/Panel';
 import { StatTile } from './ui/StatTile';
 import { Badge } from './ui/Badge';
+import { Details } from './ui/Details';
 import type { Staff } from '../lib/gameState';
 import {
   BASE_MORALE,
@@ -250,7 +251,8 @@ export function StaffPanel({
           </div>
         </div>
         <MoraleBar morale={staff.morale} target={outlook.target} />
-        <p className="text-2xs text-muted leading-relaxed mt-3">
+        <Details summary="How morale works" className="mt-3">
+        <p className="text-2xs text-muted leading-relaxed">
           Morale moves {Math.round(MORALE_STEP * 100)}% of the way to its target each month. The target is {BASE_MORALE} at market pay,
           {' '}{MORALE_PER_PAY_POINT} points for every percent of pay above or below it, +{PROFIT_STREAK_MORALE} after more
           than {PROFIT_STREAK_MONTHS} profitable months in a row and −{STRIKE_MORALE_PENALTY} for {STRIKE_MEMORY_MONTHS} months
@@ -260,6 +262,7 @@ export function StaffPanel({
           Below {STRIKE_MORALE_THRESHOLD} the staff may strike while you fly routes: {formatNumber(STRIKE_CHANCE_PER_POINT * 100, 1)}% a month for every
           point under the line. After a month of bad luck (a strike, a disruption on your routes) the next one is spared.
         </p>
+        </Details>
       </Panel>
     </div>
   );

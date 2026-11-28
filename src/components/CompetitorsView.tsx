@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { ViewHeader } from './ui/ViewHeader';
 import { Badge } from './ui/Badge';
+import { Details } from './ui/Details';
 import { PERSONALITY_META, type AiPersonality } from '../lib/theme';
 
 export interface AiAirline {
@@ -470,10 +471,14 @@ function CompetitorsViewImpl({
                       {forSale
                         ? `Wound up at the ${monthsLeft === 1 ? 'next month end' : `end of ${monthsLeft} months`} unless its cash recovers or someone buys it. `
                         : 'Not for sale: you bid its full value. '}
-                      The price is the airline&apos;s value: its cash, aircraft and slots. You get its {quote.aircraft} aircraft, its cash
-                      ({formatCurrency(quote.rivalCash)}) and its slots and desks at {quote.airports} airport{quote.airports === 1 ? '' : 's'};
-                      its {quote.routes} route{quote.routes === 1 ? ' is' : 's are'} not taken over, and the competitor is gone.
                     </div>
+                    <Details summary="What you get" className="mt-1">
+                      <p className="text-muted">
+                        The price is the airline&apos;s value: its cash, aircraft and slots. You get its {quote.aircraft} aircraft, its cash
+                        ({formatCurrency(quote.rivalCash)}) and its slots and desks at {quote.airports} airport{quote.airports === 1 ? '' : 's'};
+                        its {quote.routes} route{quote.routes === 1 ? ' is' : 's are'} not taken over, and the competitor is gone.
+                      </p>
+                    </Details>
                     {quote.blocked && <div className="text-bad mt-1">{quote.blocked}</div>}
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
@@ -771,6 +776,7 @@ function CompetitorsViewImpl({
                           </div>
                         </div>
 
+                        <Details summary="How it plays">
                         <div className="space-y-2 text-muted bg-ground/25 p-3 rounded-sm border border-line text-2xs">
                           {rivalProfileLines(profile).map(line => (
                             <div key={line.label} className="flex justify-between gap-3">
@@ -779,6 +785,7 @@ function CompetitorsViewImpl({
                             </div>
                           ))}
                         </div>
+                        </Details>
                       </div>
                     );
                   })()}

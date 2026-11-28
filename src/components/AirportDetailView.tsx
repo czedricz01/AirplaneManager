@@ -7,6 +7,7 @@ import type { AirportInfrastructure, SimulatedRoute } from '../lib/gameTypes';
 
 import type { OwnedAircraft } from './MyFleetView';
 import { InfoTooltip, GLOSSARY } from './InfoTooltip';
+import { Details } from './ui/Details';
 import { DESK_CAPACITY, OVERHAUL_POINTS, STAND_POINTS, type DeskType, type FacilityKind } from '../model/constants';
 import { cateringEffectText, CLASS_LABEL, hangarEffectText, hubQualityText, loungeEffectText, managementTierFeatures } from '../model/glossary';
 
@@ -625,12 +626,17 @@ function TransferHubCard({ stats, quality }: { stats?: HubTransferView; quality:
           ))}
         </div>
       ) : (
-        <p className="text-2xs text-muted leading-relaxed">
-          No passengers connect here yet. At one of your hubs (your home base or tier 2 and up), two of your routes
-          sell connections when the change takes {MIN_CONNECTION} min to {MAX_CONNECTION / 60} h, the detour is
-          under {Math.round((MAX_DETOUR - 1) * 100)}%, both flights have empty seats, and you do not already fly the
-          city pair direct.
-        </p>
+        <div>
+          <p className="text-2xs text-muted leading-relaxed mb-2">No passengers connect here yet.</p>
+          <Details summary="When connections sell">
+            <p className="text-2xs text-muted leading-relaxed">
+              At one of your hubs (your home base or tier 2 and up), two of your routes
+              sell connections when the change takes {MIN_CONNECTION} min to {MAX_CONNECTION / 60} h, the detour is
+              under {Math.round((MAX_DETOUR - 1) * 100)}%, both flights have empty seats, and you do not already fly the
+              city pair direct.
+            </p>
+          </Details>
+        </div>
       )}
     </div>
   );

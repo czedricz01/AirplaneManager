@@ -1,5 +1,6 @@
 import { clickOnKey } from '../lib/a11y';
 import { FinancialReport } from "./FinancialReport";
+import { Details } from './ui/Details';
 import { formatCurrency, formatNumber, routeFlightNumber } from '../lib/format';
 import { useState, useMemo } from 'react';
 import { X, Clock, Coffee, DollarSign, Trash2, Settings, Info, AlertTriangle } from 'lucide-react';
@@ -461,13 +462,14 @@ export function RouteDetailView({
             <div className="flex-1 flex flex-col p-4 pt-0">
                {month && figures && (
                  <>
-                   <div className="p-3 mb-4 bg-surface border border-line rounded-sm flex gap-3">
-                     <Info className="text-ink shrink-0 mt-0.5" size={14} />
-                     <div className="text-2xs text-ink leading-relaxed font-semibold uppercase space-y-1">
-                       <p><strong>This month:</strong> the month close's own calculation, at this month's fares and without cancelled flights.</p>
-                       <p><strong>Passenger costs:</strong> grow with each passenger: catering, check-in and handling fees, frequent flyer.</p>
-                       <p><strong>Fixed costs:</strong> paid however many fly: fuel, crew, landing, slots and the aircraft's share.</p>
+                   <div className="p-3 mb-4 bg-surface border border-line rounded-sm">
+                     <Details summary={<span className="inline-flex items-center gap-2"><Info size={14} className="shrink-0" />What these figures mean</span>}>
+                     <div className="text-2xs text-muted leading-relaxed space-y-1">
+                       <p><strong className="text-ink">This month:</strong> the month close's own calculation, at this month's fares and without cancelled flights.</p>
+                       <p><strong className="text-ink">Passenger costs:</strong> grow with each passenger: catering, check-in and handling fees, frequent flyer.</p>
+                       <p><strong className="text-ink">Fixed costs:</strong> paid however many fly: fuel, crew, landing, slots and the aircraft's share.</p>
                      </div>
+                     </Details>
                    </div>
                    <FinancialReport
                      title="This Month (Weekly)"

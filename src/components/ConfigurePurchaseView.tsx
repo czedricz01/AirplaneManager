@@ -14,6 +14,7 @@ import { useTapReveal } from './ui/useTapReveal';
 import { useCloudConfigs } from '../lib/useCloudConfigs';
 import type { ConfigItem } from '../lib/configStore';
 import { OverwritePicker } from './ui/OverwritePicker';
+import { Details } from './ui/Details';
 
 /** A cabin layout saved for one aircraft type, kept with the account. */
 type SavedPreset = ConfigItem & {
@@ -1242,10 +1243,6 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                   <span className="text-2xs font-label text-muted uppercase tracking-label">Cabin rating (avg.)</span>
                   <span className="text-sm font-semibold text-accent font-mono">{totalSeats > 0 ? formatNumber(quote.averageCabinRating) : '–'}</span>
                 </div>
-                <div className="text-2xs font-label text-muted text-right uppercase mt-1 tracking-label">
-                  Type appeal × {formatNumber(TYPE_APPEAL_SHARE * 100)}% + interior score × {formatNumber(INTERIOR_SHARE * 100)}%
-                  {quote.cabinCondition < 100 ? ` at ${formatNumber(quote.cabinCondition)}% cabin condition` : ''}
-                </div>
               </div>
 
               {/* What each cabin is rated by on a route: its own seats, not the average (SPEZIFIKATION 2.3, 2.4). */}
@@ -1255,7 +1252,6 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                   const parts = quote.interior[c];
                   const rating = quote.cabinRating[c];
                   const expected = CABIN_EXPECTATION[c];
-                  const pt = (v: number) => `${v >= 0 ? '+' : ''}${formatNumber(v, Number.isInteger(v) ? 0 : 1)}`;
                   return (
                     <div key={c} className="flex flex-col">
                       <div className="flex items-center justify-between">
@@ -1267,17 +1263,38 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                           <span className="text-muted"> ({expected})</span>
                         </span>
                       </div>
-                      <span className="text-2xs font-mono text-muted text-right">
-                        base {formatNumber(parts.base)} · seat {pt(parts.seatType)} · pitch {pt(parts.pitch)} · extras {pt(parts.features)} · cabin {pt(parts.cabinExtras)}
-                      </span>
                     </div>
                   );
                 })}
+                {totalSeats > 0 && (
+                  <Details summary="How the rating is worked out">
+                    <div className="flex flex-col gap-1 text-2xs font-mono text-muted">
+                      <span>
+                        Cabin rating = type appeal × {formatNumber(TYPE_APPEAL_SHARE * 100)}% + interior score × {formatNumber(INTERIOR_SHARE * 100)}%
+                        {quote.cabinCondition < 100 ? `, at ${formatNumber(quote.cabinCondition)}% cabin condition` : ''}
+                      </span>
+                      {CABIN_CLASSES.filter(c => quote.seats[c] > 0).map(c => {
+                        const parts = quote.interior[c];
+                        const pt = (v: number) => `${v >= 0 ? '+' : ''}${formatNumber(v, Number.isInteger(v) ? 0 : 1)}`;
+                        return (
+                          <span key={c}>
+                            <span className="uppercase">{c}</span>: base {formatNumber(parts.base)} · seat {pt(parts.seatType)} · pitch {pt(parts.pitch)} · extras {pt(parts.features)} · cabin {pt(parts.cabinExtras)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </Details>
+                )}
               </div>
 
               {/* Where the price comes from (SPEZIFIKATION 5.13, 8.12, 8.13). */}
               <div className="flex flex-col gap-1 border-t border-line pt-2">
-                <span className="text-2xs font-label text-muted uppercase tracking-label">{isRenovating ? 'Refit price' : 'Unit price'}</span>
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-2xs font-label text-muted uppercase tracking-label">{isRenovating ? 'Refit price' : 'Unit price'}</span>
+                  <span className="text-ink font-semibold">{formatCurrency(unitPrice)}</span>
+                </div>
+                <Details summary="Price breakdown">
+                <div className="flex flex-col gap-1">
                 {!isRenovating && (
                   <div className="flex items-center justify-between text-xs font-mono">
                     <span className="text-muted">Aircraft</span><span>{formatCurrency(quote.typePrice)}</span>
@@ -1298,12 +1315,11 @@ export function ConfigurePurchaseView({ aircraft, capital, currentDateOffset, in
                     <span className="text-muted">Labour ({formatNumber(totalSeats)} seats)</span><span>{formatCurrency(quote.labour)}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-xs font-mono border-t border-line pt-1">
-                  <span className="text-muted">Total</span><span className="text-ink font-semibold">{formatCurrency(unitPrice)}</span>
-                </div>
                 {isRenovating && (
                   <span className="text-2xs text-muted">The labour adds no value to the aircraft; it shows under “Aircraft trades”.</span>
                 )}
+                </div>
+                </Details>
               </div>
             </div>
 
