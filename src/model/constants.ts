@@ -545,11 +545,12 @@ export const WORLD_REGIONS: readonly WorldRegion[] = ['EU', 'NA', 'SA', 'AF', 'A
 /**
  * Wachstum der Weltnachfrage 1960 → 2019 (E7, W8). Die einzige Wachstumsregel der Nachfrage.
  * Kleiner als 2,5, weil sich die Weltanteile der Städte verschieben: Die Summe der Marktgrößen aller Paare wächst
- * damit 1960 → 2019 um etwa × 1,9 (E64, E108, Balance-Skript B3.1). Paket D2 (E108): 1,5, damit frühe Märkte mit den
- * realen Stadtwerten nicht zu klein werden (1970 auf Hard klar gewinnbar); vorher 1,97 (D1, E107) und 2,25.
+ * damit 1960 → 2019 um etwa × 1,65 (E64, E108, E109, Balance-Skript B3.1). Paket D4 (E109): 1,3, damit Hard 1970 näher
+ * an das Band aus E106 kommt; vorher 1,5 (D2, E108: frühe Märkte mit den realen Stadtwerten nicht zu klein), 1,97
+ * (D1, E107) und 2,25.
  * SPEZIFIKATION 3.3.
  */
-export const DEMAND_GROWTH_1960_2019 = 1.5;
+export const DEMAND_GROWTH_1960_2019 = 1.3;
 
 /** Jahre von 1960 bis 2019, Bezugszeitraum von `DEMAND_GROWTH_1960_2019`. SPEZIFIKATION 3.3. */
 export const DEMAND_GROWTH_YEARS = 59;
@@ -582,9 +583,10 @@ export const LINK_EXP = 0.448351;
  * Stadtwerten (Paket D1, E107) 6,0: Die 100 größten Märkte in Reichweite der Spieltest-Drehkreuze (FRA 1995/2025,
  * DUS 1970) bleiben in Summe etwa so groß wie vorher; die 10 größten werden größer, die kleinen kleiner. Paket D2
  * (E108): 8,1 = 6,0 × (1,97 / 1,5) ^ (65 / 59), damit die Märkte 2025 mit dem flacheren Wachstum gleich bleiben
- * (1970 × 1,29, 1995 × 1,15). SPEZIFIKATION 3.6.
+ * (1970 × 1,29, 1995 × 1,15). Paket D4 (E109): 9,5 ≈ 6,0 × (1,97 / 1,3) ^ (65 / 59) aus demselben Grund (gegen D2
+ * 1960 × 1,17, 1970 × 1,14, 1995 × 1,08). SPEZIFIKATION 3.6.
  */
-export const DEMAND_SCALE = 8.1;
+export const DEMAND_SCALE = 9.5;
 
 // ---------------------------------------------------------------------------
 // 3.7 Klassen-Anteil
@@ -1937,7 +1939,9 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     targetWeight: { business: 1.5, tourism: 0.5 },
     longHaulFactor: 1,
     patienceBase: 6,
-    buyFactor: 1,
+    // 1 → 0,5 (E110, Paket D4): Mit den realen Stadtwerten (E107) und dem flacheren Wachstum (E108, E109) lag Flag nach
+    // 40 Jahren bei 2,60 × dem Median (B7.1); Hilfsläufe 0,7 / 0,5 / 0,4: 2,26 / 1,82 / 1,44 (mit 0,4 nach 20 Jahren 0,35).
+    buyFactor: 0.5,
     purchaseCashShare: 0.45,
     cashReserve1960: 10_000_000,
     maxHubs: 3,

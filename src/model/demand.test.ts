@@ -222,9 +222,9 @@ describe('Abschnitt 3.2 Stadtgrößen und Verflechtung', () => {
 });
 
 describe('Abschnitt 3.3 Nachfrage-Wachstum', () => {
-  it('3.3: 1 im Januar 1960, 1,5 im Januar 2019 (E64, E107, E108)', () => {
+  it('3.3: 1 im Januar 1960, 1,3 im Januar 2019 (E64, E107–E109)', () => {
     assert.equal(demandGrowth(0), 1);
-    assertClose(demandGrowth(jan(2019)), 1.5);
+    assertClose(demandGrowth(jan(2019)), 1.3);
   });
 
   it('3.3: steigt stetig mit jedem Monat', () => {
