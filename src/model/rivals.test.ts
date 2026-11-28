@@ -214,7 +214,7 @@ describe('Abschnitt 7.4 Persönlichkeiten', () => {
     near(rivalBuyChance('normal', 'lcc'), 0.45 * 1.25);
     near(rivalBuyChance('hard', 'lcc'), 0.85);
     near(rivalBuyChance('hard', 'expansionist'), 0.9);
-    near(rivalBuyChance('hard', 'flag'), 0.85);
+    near(rivalBuyChance('hard', 'flag'), 0.85 * 0.5); // E110: Flag 0,5
     near(rivalBuyChance('easy', 'boutique'), 0.12 * 0.9);
   });
 

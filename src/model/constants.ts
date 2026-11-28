@@ -1939,7 +1939,9 @@ export const PERSONALITIES: Readonly<Record<RivalPersonality, PersonalityDef>> =
     targetWeight: { business: 1.5, tourism: 0.5 },
     longHaulFactor: 1,
     patienceBase: 6,
-    buyFactor: 1,
+    // 1 → 0,5 (E110, Paket D4): Mit den realen Stadtwerten (E107) und dem flacheren Wachstum (E108, E109) lag Flag nach
+    // 40 Jahren bei 2,60 × dem Median (B7.1); Hilfsläufe 0,7 / 0,5 / 0,4: 2,26 / 1,82 / 1,44 (mit 0,4 nach 20 Jahren 0,35).
+    buyFactor: 0.5,
     purchaseCashShare: 0.45,
     cashReserve1960: 10_000_000,
     maxHubs: 3,
