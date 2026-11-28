@@ -1,15 +1,24 @@
 # Status
 
-**Nächstes: Fragen O102–O104 beantworten** (`docs/neubau/ENTSCHEIDUNGEN.md`): O102 1970 auf Hard nur 21–23 % von
-Easy (`balance/D2-spieltest.md`, Abschnitt 5); O103 Flag-KI mit realen Stadtwerten zu stark (B7.1: 2,54); O104
-KI-Marge 26 % über dem Band (B7.10) (`balance/D3-bericht.md`, Auswertung). Danach Paket D4 (Umsetzung, bei O103 = B mit
-Hilfsläufen).
+**Nächstes: Frage O105 beantworten** (`docs/neubau/ENTSCHEIDUNGEN.md`): 1970 bringt Hard nach E109 nur 23–28 % des
+Easy-Ergebnisses guter Strategien (E106: etwa 30–50 %; `balance/D4-bericht.md`, Abschnitt 3). Danach Paket D5
+(bei O105 = B: Kosten-Faktor Hard vor 1980 mit Spieltest-Matrix; bei A nichts zu tun).
 Weitere mögliche Pakete (nicht Kern des Neubaus): (1) Spieltest im Browser durch einen Menschen (Fund 76).
 (2) Typ-Wahl der Test-Strategien verbessern (Fund 76, 79). (3) Rechenzeit mit 12 KI (Fund 53). (4) Deutsche Ortsnamen
 in `src/data/airportsRows.ts` (Fund 55; Namen bleiben beim Erzeugen erhalten). (5) Spielstände in der Cloud testen.
 (6) Doppelte Flughäfen streichen (Basel EAP/BSL/MLH, Verona VRN/VVR; Fund 80).
 
-Offen: O102, O103, O104.
+Offen: O105.
+
+Stand: 28.11.2026 · O102 = B, O103 = B, O104 = A im Chat entschieden (E109–E111). Paket D4 erledigt
+(`balance/D4-bericht.md`, Funde 87–89): `DEMAND_GROWTH_1960_2019` 1,5 → 1,3, `DEMAND_SCALE` 8,1 → 9,5 (Märkte 2025
+gleich, 1970 × 1,14), B3.1 jetzt Summe × 1,65 (gemessen 1,65); Flag-Kaufneigung 1 → 0,5 nach vier Hilfsläufen
+(0,7 / 0,5 / 0,4: B7.1 nach 40 Jahren 2,26 / 1,96 / 2,14); Band B7.10 10–30 %. Langlauf **21 ok · 0 Abweichung ·
+33 Info** (B7.1 1,45 / 1,96, Marge 26 %). Spieltest-Matrix (42 Spiele, kein Fehler): 1970 Hard ÷ Easy optimierer
+28 %, luxus 23 % (D2: 21 / 23 %) → O105; 1995 38–45 %, 2025 wie D2. Spezifikation 3.3, 3.6, 7.4 nachgezogen. Tests:
+1 270 grün (2 angepasst), Lint ohne Fehler. Im Browser nicht geprüft.
+
+Offen aus diesem Stand: O105.
 
 Stand: 27.11.2026 · Paket D3 erledigt: Balance-Langlauf nach F89, D1 und D2 (`balance/D3-bericht.md`, Auswertung oben;
 Funde 83–86). Drei Stände gerechnet: nach F89 vor D1 21 ok · 0 Abweichung · 33 Info wie 5.4g (`D3-f89-bericht.md`:
@@ -738,7 +747,8 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | D1 | Stadtwerte aus realen Passagierzahlen, Kalibrierung `DEMAND_SCALE`, `DEMAND_GROWTH_1960_2019`, `CLASS_BUSINESS_REF` (E107; `balance/D1-stadtwerte.md`, Funde 78–81, Frage O101) | erledigt |
 | D2 | Umsetzung der Antwort auf O101 (E108: Wachstum 1,5, `DEMAND_SCALE` 8,1) mit verkleinerter Spieltest-Matrix (`balance/D2-spieltest.md`, Fund 82, Frage O102) | erledigt |
 | D3 | Balance-Langlauf nach F89, D1 und D2 (`balance/D3-bericht.md`, Funde 83–86, Fragen O103, O104) | erledigt |
-| D4 | Umsetzung der Antworten auf O102–O104 (bei O103 = B Hilfsläufe) | wartet auf O102–O104 |
+| D4 | Umsetzung der Antworten auf O102–O104 (E109–E111: Wachstum 1,3, Flag-Kaufneigung 0,5, Band B7.10 bis 30 %) mit Hilfsläufen, Langlauf und Spieltest-Matrix (`balance/D4-bericht.md`, Funde 87–89, Frage O105) | erledigt |
+| D5 | Umsetzung der Antwort auf O105 (bei B: Kosten-Faktor Hard vor 1980 mit Spieltest-Matrix) | wartet auf O105 |
 
 ---
 
@@ -842,3 +852,4 @@ erfassen. Kein Code ändern. Ergebnis nach `bestand/VORLAGE.md`.
 | 27.11.2026 | D1 | Stadtwerte aus realen Passagierzahlen (`balance/D1-stadtwerte.md`, Funde 78–81, E107): 628 Flughäfen 1960–2025 in tausend Fluggästen je Jahr, Reisezweck geschätzt; `DEMAND_SCALE` 6,0, `DEMAND_GROWTH_1960_2019` 1,97, `CLASS_BUSINESS_REF` 0,3; 1970 schwerer → O101 |
 | 27.11.2026 | D2 | O101 = B (E108): `DEMAND_GROWTH_1960_2019` 1,5, `DEMAND_SCALE` 8,1, E64 Summe × 1,9; 1970 Hard optimierer +16 / luxus +11 Mio. $ (`balance/D2-spieltest.md`, Fund 82); Hard 1970 nur 21–23 % von Easy → O102 |
 | 27.11.2026 | D3 | Langlauf nach F89 / D1 / D2 (`balance/D3-bericht.md`, Funde 83–86): F89 wie 5.4g; nach D2 19 ok · 2 Abweichung · 33 Info (B7.1 Flag 2,54, B7.10 Marge 26 %) → O103, O104 |
+| 28.11.2026 | D4 | O102 = B, O103 = B, O104 = A (E109–E111): Wachstum 1,3, `DEMAND_SCALE` 9,5, Flag-Kaufneigung 0,5, Band B7.10 bis 30 %; Langlauf 21 ok · 0 Abweichung · 33 Info; 1970 Hard 23–28 % von Easy (`balance/D4-bericht.md`, Funde 87–89) → O105 |

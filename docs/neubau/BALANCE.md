@@ -1040,3 +1040,29 @@ und 1980ern statt 1,4).
 
 SYD, SIN und einmal HND enden in 6 von 50 Gründungen bei 61–231 Mio. $ (nach F89 an SYD 714–3 864 Mio. $). Real flogen
 dort vor 1980 wenige Menschen; die Region wächst erst spät. Real so; für B7.1 zählen diese Fälle im Median kaum.
+
+## Paket D4: Umsetzung von O102–O104 (28.11.2026)
+
+Bericht: `balance/D4-bericht.md` (Auswertung oben). O102 = B (E109): Wachstum 1,3, `DEMAND_SCALE` 9,5, B3.1 × 1,65
+(gemessen 1,65). O103 = B (E110): Flag-Kaufneigung 0,5 nach vier Hilfsläufen. O104 = A (E111): Band B7.10 10–30 %.
+Langlauf **21 ok · 0 Abweichung · 33 Info**; Spieltest-Matrix 42 Spiele, kein Fehler.
+
+### Fund 87: Flacheres Wachstum hebt Hard 1970 nur wenig → Frage O105
+
+1970 ab DUS (Mittel zweier Startwerte): optimierer +92 / +53 / +25, luxus +59 / +28 / +14, vorsichtig +22 / +9,8 /
+−9,1 Mio. $ (Easy / Normal / Hard; D2: +77 / +35 / +16, +49 / +23 / +11, +15 / +5,8 / −8,9). Hard ÷ Easy 28 % und
+23 % (D2: 21 / 23 %; Firmenwert 39 / 40 %). Mehr Nachfrage hebt Easy stärker als Hard; der Abstand kommt aus dem
+Kosten-Faktor 0,85 / 1,1 (E87) auf dünne Margen. 1995 38–45 %, 2025 50–60 % (wie D2).
+
+### Fund 88: Kaufneigung 0,5 bringt Flag in die Regel, knapp → Info
+
+Hilfsläufe (10 × 40 Jahre, Wachstum 1,3): Kaufneigung 1 / 0,7 / 0,5 / 0,4 → Flag nach 40 Jahren 2,60 / 2,26 / 1,82 /
+1,44 × Median; mit 0,4 nach 20 Jahren nur 0,35 (B7.1 verletzt). Mit 0,5 B7.1 1,45 / 1,96 (stärkste jetzt expansionist
+1,96). B7.1 prüft nur 20 und 40 Jahre: Nach 50 / 60 Jahren liegt Flag bei 2,08 / 2,67 × Median. Wenn Flag spät noch
+stärker werden soll als heute, wäre ein Hebel, der nach 1990 wirkt (Flugzeuggröße, Drehkreuze), die nächste Stellschraube.
+
+### Fund 89: KI-Stärke Hard unter Normal (B7.8) → Info
+
+Median nach 40 Jahren Easy 1 626 < Normal 2 992 > Hard 2 483 Mio. $ (D3: 1 995 / 2 864 / 2 812; 5.4g: 731 / 1 487 /
+1 556). Nur 3 Läufe je Stufe Easy / Hard (Drehkreuze der Läufe 0–2), Normal mit 10 Läufen.
+Mehr Flugzeuge je Gründer auf Hard (85 gegen 73). Keine Regel verletzt (B7.8 ist Info).
