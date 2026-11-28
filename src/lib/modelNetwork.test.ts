@@ -47,7 +47,8 @@ function daily(hours: readonly number[]): ScheduledTrip[] {
 const route = (id: string, destination: string, aircraft: string, hours: readonly number[]): SimulatedRoute => ({
   id, airline: 'Player', origin: 'FRA', destination, distance: 0, aircraft, weeklyFlights: 14, paxPerWeek: 0,
   classConfigs: { economy: { catering: [['b15']], extras: [], service: [] } },
-  ticketPrices: { economy: 150 },
+  // 200 $ statt 150 $: Direktgäste füllen die Flugzeuge nicht ganz, Umsteiger finden Platz (D2, E108: Märkte 1995 × 1,15).
+  ticketPrices: { economy: 200 },
   openedOffset: M - 24,
   schedule: daily(hours),
 });

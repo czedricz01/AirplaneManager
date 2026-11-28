@@ -998,3 +998,45 @@ VVR klein). Streichen der Doppel ändert Spielstände.
 
 New York (JFK/EWR/LGA), London (LHR/STN/LTN/LCY/SEN), Tokio, Shanghai, Peking, Mailand, Washington, Dubai,
 Istanbul: Jeder Flughafen hat nur seinen eigenen Verkehr. Das größte Langstrecken-Paar ist dadurch London–Tokio.
+
+## Paket D2: Flacheres Nachfrage-Wachstum (27.11.2026)
+
+Bericht: `balance/D2-spieltest.md`. O101 = B (E108): `DEMAND_GROWTH_1960_2019` 1,5, `DEMAND_SCALE` 8,1; Märkte 2025
+gleich, 1970 × 1,29. B3.1 Summe 1960 → 2019 × 1,90 (Ziel jetzt × 1,9). 42 Spiele, kein Fehler.
+
+### Fund 82: 1970 wieder klar gewinnbar, Hard aber nur gut ein Fünftel von Easy → Frage O102
+
+1970 ab DUS (Mittel zweier Startwerte): optimierer +77 / +35 / +16, luxus +49 / +23 / +11, vorsichtig +15 / +5,8 /
+−8,9 Mio. $ (Easy / Normal / Hard; D1 Startwert 1: +47 / +23 / +1,0, +31 / +19 / +5,1; vor D1 +80 / +59 / +34,
++65 / +38 / +21). Hard ÷ Easy 21–23 % (Firmenwert 37–39 %), unter dem Band 30–50 % aus E106. 1995 optimierer +413 /
++264 / +149 (36 %), luxus +234 / +162 / +100 (43 %); 2025 wie D1. Der vorgeschlagene Wert 1,75 hob 1970 nur um 12 %
+(Hard optimierer +4,1). Vermutung: Der Kosten-Faktor 0,85 / 1,1 (E87) wirkt auf die dünnen Margen 1970 stärker.
+
+## Paket D3: Balance-Langlauf nach F89, D1 und D2 (27.11.2026)
+
+Bericht: `balance/D3-bericht.md` (Auswertung oben; Stand nach D2), dazu `D3-f89-bericht.md` (nach F89, vor D1) und
+`D3-d1-bericht.md` (nach D1). Vergleich mit `5.4g-bericht.md`. Ergebnis nach D2: **19 ok · 2 Abweichung · 33 Info**
+(5.4g: 21 · 0 · 33; nach F89 21 · 0 · 33; nach D1 20 · 1 · 33).
+
+### Fund 83: F89 ändert die Balance kaum → Info
+
+Rang ohne Mindest-Jahre, korrigierte Reichweiten und ICAO-Codes: alle Prüfregeln wie in 5.4g. B7.1 nach 20 / 40 Jahren
+1,46 / 1,83 (5.4g 1,82 / 1,82), Widebody-Strecken der KI 0,5 statt 0,3 je Jahr, Umsteiger p90 1,5 statt 1,1 %.
+
+### Fund 84: Mit realen Stadtwerten wird Flag zu stark (B7.1) → Frage O103
+
+Nach 40 Jahren Flag 2,09 × Median (D1) und 2,54 × Median (D2), Grenze 2. Die KI-Gesellschaften sind 2- bis 3-mal so
+viel wert wie in 5.4g (Median nach 40 Jahren 2 864 statt 1 487 Mio. $), fliegen viel mehr Widebodies (44,5 statt 0,3
+Strecken je Jahr) und mehr Langstrecke (34 statt 12,5 %). Grund: Die Langlauf-Drehkreuze (JFK, LHR, LAX …) sind mit
+realen Werten viel größer; `DEMAND_SCALE` wurde in D1 nur an FRA und DUS geeicht. Flag (große Flugzeuge, beliebte
+Ziele) nutzt das am meisten. D2 (frühe Märkte größer) verstärkt den Vorsprung.
+
+### Fund 85: KI-Marge 26 % über dem Band 10–25 % (B7.10) → Frage O104
+
+Nach D1 25 % (gerade noch ok), nach D2 26 %. Größere Märkte, höhere Preise der KI (Preisniveau p90 1,5 in den 1970ern
+und 1980ern statt 1,4).
+
+### Fund 86: Gründer in Asien und Australien bleiben klein → Info
+
+SYD, SIN und einmal HND enden in 6 von 50 Gründungen bei 61–231 Mio. $ (nach F89 an SYD 714–3 864 Mio. $). Real flogen
+dort vor 1980 wenige Menschen; die Region wächst erst spät. Real so; für B7.1 zählen diese Fälle im Median kaum.

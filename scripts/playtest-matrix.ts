@@ -1,7 +1,7 @@
 /**
  * Spieltest-Matrix (Strategien × Schwierigkeit × Zeitalter × Startwert) ohne Browser, siehe `src/balance/playtest.ts`.
  *
- *   tsx scripts/playtest-matrix.ts [--jobs 4] [--cache .playtest-runs] [--only <Teil des Namens>] [--reuse]
+ *   tsx scripts/playtest-matrix.ts [--jobs 4] [--cache .playtest-runs] [--only <Teil des Namens oder regulärer Ausdruck>] [--reuse]
  *
  * Jedes Spiel läuft in einem eigenen Prozess (`scripts/playtest.ts`) und schreibt `<cache>/<label>.json`.
  */
@@ -75,7 +75,8 @@ for (const d of DIFFS) for (const st of STRATEGIES.filter((x) => ['standard', 'o
     budget1960: 50_000_000, mode: 'free', seed: 1, strategy: st });
 }
 
-const todo = list.filter((s) => s.label.includes(only)).filter((s) => !(reuse && existsSync(join(cache, `${s.label}.json`))));
+const onlyPattern = new RegExp(only);
+const todo = list.filter((s) => onlyPattern.test(s.label)).filter((s) => !(reuse && existsSync(join(cache, `${s.label}.json`))));
 mkdirSync(cache, { recursive: true });
 console.error(`${todo.length} Spiele, ${jobs} gleichzeitig`);
 let next = 0;

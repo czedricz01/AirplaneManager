@@ -114,6 +114,7 @@ Claude schlägt vor, der Mensch entscheidet.
 | E105 | 27.11.2026 | **Fester Billigpreis bleibt ohne Sonderhilfe (O99 = A):** Keine Änderung an Preis-Empfindlichkeit (E97, `NO_FLY_SENSITIVITY`) oder Kosten der LCC-Kabine (E98). Ein Billigpreis ist eine Entscheidung, kein Vorteil an sich; E91 gilt für die LCC-Kabine als erreicht. | Spieltest 5.4f (Fund 72): LCC-Kabine mit bestem Preis und mehreren Strecken je Flugzeug 1995 Normal +238 Mio. $ gegen „vorsichtig-pack“ +226; fest 0,85 × Markt +47 (gepackt) bzw. −3 (ungepackt). B hätte E97 geändert, C widerspricht E98. |
 | E106 | 27.11.2026 | **Hard-Band bleibt, Kosten-Faktor unverändert (O100 = A):** Kosten-Faktor je Stufe bleibt 0,85 / 1 / 1,1 (E87). Das Ziel aus E94 heißt jetzt: Hard bringt etwa 30–50 % des Easy-Ergebnisses guter Strategien und bleibt mit jeder guten Strategie klar gewinnbar. | Spieltest 5.4h (Fund 77): vorsichtig-pack und lcc-best-pack 1995 auf Hard 32 / 31 % von Easy (+115 / +139 Mio. $, tiefste Kasse 3,8–4,9 Mio. $), andere gute Strategien 37–46 %. B (Hard 1,05) hätte optimierer und luxus über 50 % gehoben, C (Easy 0,9) das Easy-Ziel E88 neu geöffnet; beide bräuchten eine neue Matrix. |
 | E107 | 27.11.2026 | **Stadtwerte aus realen Passagierzahlen (Auftrag des Menschen im Chat, Paket D1):** `Airport.stats` = Ziel- und Quellverkehr der Stadt in tausend Fluggästen je Jahr (Fluggäste laut Flughafen-Statistik × (1 − Umsteiger-Anteil), mit nicht spielbaren Flughäfen derselben Stadt), Tourism/Business nach geschätztem Geschäftsanteil; Krisen mit Spiel-Ereignis geglättet, örtliche Brüche (Kriege, Schließungen) in den Daten; Zeitalter-Faktoren in `airportRegistry.ts` entfallen. Kalibrierung: `DEMAND_SCALE` 14,5 → 6,0 (100 größte Märkte der Spieltest-Drehkreuze etwa gleich), `DEMAND_GROWTH_1960_2019` 2,25 → 1,97 (Regel E64 bleibt, B3.1 = 2,50), neu `CLASS_BUSINESS_REF` = 0,3 statt fest 0,5 in 3.7. | Alte Werte ohne Bezug zur Größe (Saarbrücken ≈ Frankfurt). Umsteiger rechnet das Spiel selbst (3.13). Konstanten so, dass die Balance aus 3.9–5.4h möglichst bleibt; Spieltest `balance/D1-stadtwerte.md`: 1995/2025 etwa wie vorher, 1970 schwerer → O101. |
+| E108 | 27.11.2026 | **Flacheres Nachfrage-Wachstum (O101 = B, Paket D2):** `DEMAND_GROWTH_1960_2019` 1,97 → **1,5**, `DEMAND_SCALE` 6,0 → **8,1** (= 6,0 × (1,97 / 1,5) ^ (65 / 59)): Märkte 2025 gleich, 1995 × 1,15, 1970 × 1,29, 1960 × 1,35. Regel E64 gelockert: Summe der Marktgrößen 1960 → 2019 × **1,9** statt × 2,5 (B3.1, ± 10 %). | Mit realen Stadtwerten war 1970 auf Hard kaum gewinnbar (Fund 78). Der vorgeschlagene Wert 1,75 hob 1970 nur um 12 % (Hard optimierer +4 Mio. $); mit 1,5 Hard optimierer +17, luxus +16 Mio. $ (`balance/D2-spieltest.md`). |
 
 ### Bauregeln R1–R16 (bestätigt mit E12)
 
@@ -316,11 +317,24 @@ O100 aus Paket 5.4h (`balance/5.4h-spieltest.md`, Abschnitt 6; Fund 77), gestell
 |---|---|---|---|
 | O100 | Die pack-Strategien bringen auf Hard nur 31–32 % ihres Easy-Ergebnisses (1995: vorsichtig-pack +115 von +363, lcc-best-pack +139 von +444 Mio. $); E94 will etwa 40–50 %. Andere gute Strategien liegen bei 37–46 %. Hard bleibt klar gewinnbar. | A: so lassen, Band als „etwa 30–50 %“ lesen. B: Kosten-Faktor Hard 1,1 → 1,05. C: Kosten-Faktor Easy 0,85 → 0,9 (E88 neu prüfen). | A → E106 |
 
-O101 aus Paket D1 (`balance/D1-stadtwerte.md`, Abschnitt 8; Fund 78), gestellt am 27.11.2026.
+O101 aus Paket D1 (`balance/D1-stadtwerte.md`, Abschnitt 8; Fund 78), gestellt am 27.11.2026, am selben Tag im Chat entschieden: B (E108).
 
 | Nr. | Frage | Wege | Antwort |
 |---|---|---|---|
-| O101 | Mit realen Stadtwerten ist 1970 (Normal Mode, DUS) deutlich schwerer: Hard optimierer +1 / luxus +5 Mio. $ (vorher +34 / +21), vorsichtig auf Normal/Hard im Verlust; 1995 und 2025 etwa wie vorher. Ziel E94/E106 („Hard klar gewinnbar“) gilt 1970 nicht mehr. | A: so lassen (realistisch, Ziel gilt ab 1990). B (Empfehlung): `DEMAND_GROWTH_1960_2019` kleiner (≈ 1,75), `DEMAND_SCALE` so, dass 2025 gleich bleibt; E64 lockern (Summe dann ≈ × 2,2). C: 1970 über andere Hebel stützen (Startkapital, Kosten früher Flugzeuge). | offen |
+| O101 | Mit realen Stadtwerten ist 1970 (Normal Mode, DUS) deutlich schwerer: Hard optimierer +1 / luxus +5 Mio. $ (vorher +34 / +21), vorsichtig auf Normal/Hard im Verlust; 1995 und 2025 etwa wie vorher. Ziel E94/E106 („Hard klar gewinnbar“) gilt 1970 nicht mehr. | A: so lassen (realistisch, Ziel gilt ab 1990). B (Empfehlung): `DEMAND_GROWTH_1960_2019` kleiner (≈ 1,75), `DEMAND_SCALE` so, dass 2025 gleich bleibt; E64 lockern (Summe dann ≈ × 2,2). C: 1970 über andere Hebel stützen (Startkapital, Kosten früher Flugzeuge). | B → E108 (Wert 1,5 statt 1,75 nach Messung) |
+
+O102 aus Paket D2 (`balance/D2-spieltest.md`, Abschnitt 5; Fund 82), gestellt am 27.11.2026.
+
+| Nr. | Frage | Wege | Antwort |
+|---|---|---|---|
+| O102 | Nach E108 ist 1970 (Normal Mode, DUS) wieder klar gewinnbar, aber Hard bringt nur 21–23 % des Easy-Ergebnisses guter Strategien (optimierer +16 von +77, luxus +11 von +49 Mio. $; Firmenwert 37–39 %). E106 nennt etwa 30–50 %. 1995 (36–43 %) und 2025 (51–62 %) passen. | A (Empfehlung): so lassen, Band aus E106 gilt ab 1990. B: Wachstum noch flacher (≈ 1,3, `DEMAND_SCALE` 9,5; Summe × 1,65). C: Kosten-Faktor Hard vor 1980 kleiner (neue Regel zu E87). | offen |
+
+O103 und O104 aus Paket D3 (`balance/D3-bericht.md`, Auswertung; Funde 84, 85), gestellt am 27.11.2026.
+
+| Nr. | Frage | Wege | Antwort |
+|---|---|---|---|
+| O103 | Mit realen Stadtwerten liegt Flag im Langlauf nach 40 Jahren bei 2,54 × Median (nach D1 2,09; Regel B7.1 / 7.4: höchstens Faktor 2). Alle KI-Gesellschaften sind 2- bis 3-mal so viel wert wie in 5.4g. | A: Regel B7.1 lockern (Faktor 3), weil der Erfolg jetzt real vom Drehkreuz abhängt. B (Empfehlung): Flag dämpfen (Kaufneigung oder Flugzeuggröße), Wert mit Hilfsläufen im nächsten Paket wie bei E101. C: Abstand großer zu kleinen Märkten verkleinern (`LINK_EXP`), wirkt auch auf den Spieler und nimmt einen Teil von D1 zurück. | offen |
+| O104 | KI-Marge im Langlauf 26 % (B7.10, Band 10–25 %; nach D1 25 %). | A (Empfehlung): Band 10–30 %; die Spieler-Ziele (3.9d) betrifft das nicht. B: `DEMAND_SCALE` kleiner (ändert die Messung aus D2). | offen |
 
 Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 
@@ -338,6 +352,7 @@ Kurzform der Verweise: **1.2 W4** = `bestand/2-nachfrage.md`, Abschnitt W4.
 - E97 ersetzt E24 (Marktpreis erlösbest ohne Rivalen) und setzt E90/E91 um.
 - E98 setzt E92 fort (LCC-Vorteil nach der Messung); E99 ändert das Ziel aus E94, nicht die Hebel.
 - E105 bestätigt E97 und E98 (kein Billigpreis-Vorteil an sich).
+- E108 ändert das Ziel aus E64 (Summe × 1,9 statt × 2,5) und die Konstanten aus E107.
 - E106 weitet das Hard-Ziel aus E94 auf etwa 30–50 % von Easy; E87 (Kosten-Faktor) bleibt.
 - E101 ersetzt die Kaufneigung aus E82; E103 ändert nur die Prüfregel B4.2, nicht die KI-Preise (7.6).
 - E90/E91 vor E92, E95, E96: LCC-Vorteil, Ruf und Wachstum werden erst nach der neuen Preis-Empfindlichkeit gemessen.
