@@ -646,12 +646,13 @@ die nicht im Spiel sind), aufgeteilt nach Reisezweck; Herleitung und Quellen in 
 - Einheit und Bereich: Faktor, 1 im Januar 1960.
 - Formel: `demandGrowth = DEMAND_GROWTH_1960_2019 ^ ((timeOf(month) − 1960) / 59)`, Zeit begrenzt auf
   1960 … 2100 (wie `costIndex`).
-- Konstanten: `DEMAND_GROWTH_1960_2019 = 1,5` (E108; vorher 1,97 nach E107 und 2,25 nach E64). Flacher als das
-  ursprüngliche Ziel × 2,5 (E7), damit frühe Märkte mit den realen Stadtwerten groß genug bleiben (1970 auf Hard
-  gewinnbar, Fund 78). Die Verflechtung ist ein Produkt zweier Städte, darum wächst die Summe über alle Paare stärker
-  als `demandGrowth` (mit 1,5 Summe × 1,90, mit 1,97 × 2,50).
+- Konstanten: `DEMAND_GROWTH_1960_2019 = 1,3` (E109; vorher 1,5 nach E108, 1,97 nach E107 und 2,25 nach E64).
+  Flacher als das ursprüngliche Ziel × 2,5 (E7), damit frühe Märkte mit den realen Stadtwerten groß genug bleiben
+  (1970 auf Hard gewinnbar, Fund 78; Hard näher am Band aus E106, Fund 82). Die Verflechtung ist ein Produkt zweier
+  Städte, darum wächst die Summe über alle Paare stärker als `demandGrowth` (mit 1,3 Summe × 1,65, mit 1,5 × 1,90,
+  mit 1,97 × 2,50).
 - Regeln (Tests): steigt stetig; `demandGrowth` 2019 = `DEMAND_GROWTH_1960_2019`; die **Summe** der Marktgrößen
-  aller Paare wächst 1960 → 2019 um × 1,9 ± 10 % (Balance-Skript B3.1, E64, E108; einzelne Paare mehr oder weniger, je
+  aller Paare wächst 1960 → 2019 um × 1,65 ± 10 % (Balance-Skript B3.1, E64, E108, E109; einzelne Paare mehr oder weniger, je
   nach Weltanteil ihrer Städte). Nicht das Mittel der Verhältnisse: Es wird von kleinen Paaren mit großem Zuwachs
   gezogen.
 
@@ -685,8 +686,8 @@ die nicht im Spiel sind), aufgeteilt nach Reisezweck; Herleitung und Quellen in 
 - Hängt ab von: 3.1–3.5. **Nicht** von Flugzeug, Gesellschaft, Ruf, Preis, Satisfaction, Schwierigkeit.
 - Wirkt auf: Potenzial je Klasse (3.10).
 - Konstanten: `LINK_EXP = 0,448351` (heute `:683`; bestimmt nur noch den Abstand großer zu kleinen Paaren);
-  `DEMAND_SCALE = 8,1` (E108: = 6,0 × (1,97 / 1,5) ^ (65 / 59), damit die Märkte 2025 mit dem flacheren Wachstum
-  gleich bleiben; 6,0 aus E107: mit den realen Stadtwerten so, dass die 100 größten Märkte in Reichweite der
+  `DEMAND_SCALE = 9,5` (E109: ≈ 6,0 × (1,97 / 1,3) ^ (65 / 59), damit die Märkte 2025 mit dem flacheren Wachstum
+  gleich bleiben; vorher 8,1 nach E108 mit Wachstum 1,5; 6,0 aus E107: mit den realen Stadtwerten so, dass die 100 größten Märkte in Reichweite der
   Spieltest-Drehkreuze in Summe etwa so groß bleiben wie vorher; davor 14,5 aus Paket 3.9d, E67, E70; Startwert 29 wie heute `:683` ohne den
   Normal-Abzug 0,9, E4).
   Damit ist ein Flugzeug allein beim besten Preis und der gewinnbesten Flugzahl auf Mittelstrecke zu 86–88 % ausgelastet

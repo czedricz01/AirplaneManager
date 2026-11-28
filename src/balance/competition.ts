@@ -14,9 +14,9 @@ import { BIG_STEP, LENGTH_BANDS, PERSONALITY_ORDER, founderHub, spreadOf, type C
 /** Erfolg gilt als „ähnlich“, wenn der Median jeder Persönlichkeit innerhalb dieses Faktors um den Median aller liegt (7.4). */
 export const SIMILAR_FACTOR = 2;
 
-/** Ziel der Marktgröße (E67): Auslastung und Marge einer typischen Strecke (Median der KI-Strecken). */
+/** Ziel der Marktgröße (E67): Auslastung und Marge einer typischen Strecke (Median der KI-Strecken); Marge bis 30 % seit E111 (vorher 25 %). */
 export const LOAD_TARGET: readonly [number, number] = [0.75, 0.9];
-export const MARGIN_TARGET: readonly [number, number] = [0.1, 0.25];
+export const MARGIN_TARGET: readonly [number, number] = [0.1, 0.3];
 
 /** Jahre bis zur Auflösung, deren Median ohne Zuschuss überschritten sein muss (7.14). */
 export const SUBSIDY_YEARS = 40;
