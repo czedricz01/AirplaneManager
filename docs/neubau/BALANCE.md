@@ -1066,3 +1066,16 @@ stärker werden soll als heute, wäre ein Hebel, der nach 1990 wirkt (Flugzeuggr
 Median nach 40 Jahren Easy 1 626 < Normal 2 992 > Hard 2 483 Mio. $ (D3: 1 995 / 2 864 / 2 812; 5.4g: 731 / 1 487 /
 1 556). Nur 3 Läufe je Stufe Easy / Hard (Drehkreuze der Läufe 0–2), Normal mit 10 Läufen.
 Mehr Flugzeuge je Gründer auf Hard (85 gegen 73). Keine Regel verletzt (B7.8 ist Info).
+
+## Paket D5: Kosten-Faktor Hard vor 1980 (28.11.2026)
+
+Bericht: `balance/D5-spieltest.md`. O105 = B (E112): `difficultyCostFactor(difficulty, month)`, Hard 1,05 bis Ende
+1979, von 1980 bis 1985 stetig zu 1,1. Spieltest-Matrix 1970 (14 Spiele), kein Fehler, keine Pleite.
+
+### Fund 90: Hard 1970 mit 1,05 im Band, luxus knapp → Info
+
+1970 ab DUS (Mittel zweier Startwerte): optimierer +92 / +31, luxus +59 / +18, vorsichtig +22 / +1,7 Mio. $ (Easy /
+Hard; D4 Hard +25 / +14 / −9,1). Hard ÷ Easy 34 % und 30 % (D4: 28 / 23 %; Firmenwert 46 / 44 %). Easy gleich wie D4.
+5 Prozentpunkte weniger Kosten heben das Verhältnis um 6–7 Prozentpunkte. luxus liegt am unteren Rand von E106; die
+Startwerte streuen stark (luxus Hard 24 gegen 12 Mio. $).
+

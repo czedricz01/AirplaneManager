@@ -175,7 +175,7 @@ Neue Namen nach E9. Die Oberfläche nutzt die englischen Namen; der Code dieselb
     oft 0, 1.1 W6).
   - Keine Modell-Funktion gibt für eine Skala einen Wert außerhalb ihres Bereichs zurück.
 
-### 1.8 Schwierigkeit (E4, E87, E93)
+### 1.8 Schwierigkeit (E4, E87, E93, E112)
 
 **Schwierigkeit** (Code-Name: `difficulty`, Werte `Easy` · `Normal` · `Hard`)
 - Bedeutung: Wie leicht der **Spieler** Fluggäste gewinnt, was sein Flugbetrieb kostet und wie lange die Bank
@@ -186,10 +186,11 @@ Neue Namen nach E9. Die Oberfläche nutzt die englischen Namen; der Code dieselb
   (Abschnitt 3), wie ein fester Zu- oder Abschlag. Die Marktgröße und die Rechnung der KI bleiben ohne
   Schwierigkeit. Ohne Rivalen wirkt der Faktor etwas schwächer als sein Wert (Wettbewerb nur gegen
   „Nicht fliegen“); die Stärke wird im Balance-Skript (3.9) eingestellt.
-- **Kosten-Faktor** `difficultyCostFactor` (E87): `DIFFICULTY_COST_FACTOR` Easy 0,85 · Normal 1 · Hard 1,1
-  (Startwerte) auf den Flugbetrieb des Spielers (Treibstoff 5.3, Besatzung 5.4, Landung 5.5) und auf die
-  Kosten je Fluggast (Verpflegung, Gebühren, Frequent flyer; 5.8). Abschluss und Planer rechnen damit gleich
-  (R2). Nicht auf Flugzeug-Unterhalt, Abschreibung, Slots und Flughafen-Kosten (feste Kosten der Gesellschaft).
+- **Kosten-Faktor** `difficultyCostFactor(difficulty, month)` (E87, E112): `DIFFICULTY_COST_FACTOR` Easy 0,85 ·
+  Normal 1 · Hard 1,1; vor 1980 Hard 1,05 (`DIFFICULTY_COST_FACTOR_EARLY`), von 1980 bis 1985 stetig
+  (`DIFFICULTY_COST_RAMP_YEARS` = 5, keine Sprünge wie R5) zum späten Wert. Wirkt auf den Flugbetrieb des
+  Spielers (Treibstoff 5.3, Besatzung 5.4, Landung 5.5) und auf die Kosten je Fluggast (Verpflegung, Gebühren,
+  Frequent flyer; 5.8). Abschluss und Planer rechnen damit gleich (R2). Nicht auf Flugzeug-Unterhalt, Abschreibung, Slots und Flughafen-Kosten (feste Kosten der Gesellschaft).
 - **Pleite-Frist** (E93): `BANKRUPTCY_OVERDRAWN_MONTHS` Easy 12 · Normal 6 · Hard 3 überzogene Monatsenden in
   Folge (8.14).
 - Wirkt nicht auf: Preise, Marktpreis, Satisfaction, Ruf, Rang; nie auf die KI (sie rechnet mit Normal).
@@ -198,6 +199,7 @@ Neue Namen nach E9. Die Oberfläche nutzt die englischen Namen; der Code dieselb
   - KI-Ergebnisse auf einem Paar ohne Spieler sind auf Easy, Normal und Hard gleich.
   - Ein Wechsel der Schwierigkeit ändert keinen Preis; Treibstoff, Besatzung, Landung und Kosten je Fluggast
     des Spielers ändern sich genau um `difficultyCostFactor`, Slot- und Flugzeug-Anteil nicht.
+  - Kosten-Faktor Hard 1,05 bis Ende 1979, 1,1 ab 1985, dazwischen ohne Sprung; Easy und Normal fest (E112).
 
 **KI-Stärke** (Code-Name: `rivalStrength`, Werte `Easy` · `Normal` · `Hard`; Oberfläche wie heute)
 - Bedeutung: Wie geschickt die KI handelt. Getrennte Einstellung beim Spielstart (wie heute).

@@ -19,7 +19,7 @@ import {
   type Difficulty,
   type ScaleName,
 } from './constants';
-import { atCost, clamp, clampScale, costIndex, difficultyFactor, timeOf, yearOf } from './basics';
+import { atCost, clamp, clampScale, costIndex, difficultyCostFactor, difficultyFactor, timeOf, yearOf } from './basics';
 
 /** Spielmonat zu Kalenderjahr und Monat (0 = Januar). */
 const monthAt = (year: number, monthOfYear = 0) => (year - START_YEAR) * 12 + monthOfYear;
@@ -192,6 +192,23 @@ describe('Abschnitt 1.8 Schwierigkeit', () => {
     for (const difficulty of ['Easy', 'Normal', 'Hard'] as Difficulty[]) {
       const factor = difficultyFactor(difficulty);
       assert.ok(Number.isFinite(factor) && factor > 0, difficulty);
+    }
+  });
+
+  it('E112: Kosten-Faktor Hard 1,05 bis Ende 1979, stetig zu 1,1 ab 1985; Easy und Normal fest', () => {
+    const m = (year: number, month = 0) => (year - 1960) * 12 + month;
+    assert.equal(difficultyCostFactor('Hard', m(1960)), 1.05);
+    assert.equal(difficultyCostFactor('Hard', m(1979, 11)), 1.05);
+    assert.ok(Math.abs(difficultyCostFactor('Hard', m(1982, 6)) - 1.075) < 1e-12);
+    assert.equal(difficultyCostFactor('Hard', m(1985)), 1.1);
+    assert.equal(difficultyCostFactor('Hard', m(2025)), 1.1);
+    for (let x = m(1979); x < m(1986); x++) {
+      const step = difficultyCostFactor('Hard', x + 1) - difficultyCostFactor('Hard', x);
+      assert.ok(step >= 0 && step < 0.001, `kein Sprung in Monat ${x}`);
+    }
+    for (const x of [m(1960), m(1982), m(2025)]) {
+      assert.equal(difficultyCostFactor('Normal', x), 1);
+      assert.equal(difficultyCostFactor('Easy', x), 0.85);
     }
   });
 });

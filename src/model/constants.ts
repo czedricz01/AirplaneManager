@@ -125,6 +125,21 @@ export const DIFFICULTY_COST_FACTOR: Readonly<Record<Difficulty, number>> = {
   Hard: 1.1,
 };
 
+/**
+ * Kosten-Faktor vor 1980 (E112): Hard 1,05 statt 1,1, weil die kleinen Märkte der frühen Jahre Hard sonst unter das
+ * Ziel aus E106 drücken (etwa 30–50 % des Easy-Ergebnisses). Gilt bis Ende `DIFFICULTY_COST_EARLY_UNTIL − 1`, danach
+ * gerade Linie bis zum Wert aus `DIFFICULTY_COST_FACTOR` nach `DIFFICULTY_COST_RAMP_YEARS` Jahren. SPEZIFIKATION 1.8.
+ */
+export const DIFFICULTY_COST_FACTOR_EARLY: Readonly<Record<Difficulty, number>> = {
+  Easy: 0.85,
+  Normal: 1,
+  Hard: 1.05,
+};
+/** Erstes Jahr, in dem der frühe Kosten-Faktor zu wandern beginnt (E112). */
+export const DIFFICULTY_COST_EARLY_UNTIL = 1980;
+/** Jahre, in denen der Kosten-Faktor vom frühen zum späten Wert wandert (E112, R5: keine Sprünge). */
+export const DIFFICULTY_COST_RAMP_YEARS = 5;
+
 // ---------------------------------------------------------------------------
 // 2.1 Flugzeit-Index
 // ---------------------------------------------------------------------------
